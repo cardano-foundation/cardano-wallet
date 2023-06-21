@@ -26,21 +26,12 @@ import Cardano.Address.Script
 import Cardano.Api
     ( NetworkId )
 import Cardano.Pool.Metadata
-    ( HealthCheckSMASH (NoSmashConfigured)
-    , defaultManagerSettings
-    , healthCheck
-    , newManager
-    , toHealthCheckSMASH
-    )
+    ( HealthCheckSMASH (NoSmashConfigured), defaultManagerSettings, healthCheck,
+    newManager, toHealthCheckSMASH )
 import Cardano.Wallet
-    ( ErrCreateRandomAddress (..)
-    , ErrNotASequentialWallet (..)
-    , genesisData
-    , networkLayer
-    , normalizeDelegationAddress
-    , normalizeSharedAddress
-    , utxoAssumptionsForWallet
-    )
+    ( ErrCreateRandomAddress (..), ErrNotASequentialWallet (..), genesisData,
+    networkLayer, normalizeDelegationAddress, normalizeSharedAddress,
+    utxoAssumptionsForWallet )
 import Cardano.Wallet.Address.Derivation
     ( Role (..), delegationAddressS, paymentAddressS )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -58,128 +49,42 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..), SharedState )
 import Cardano.Wallet.Api
-    ( Addresses
-    , Api
-    , ApiLayer (..)
-    , Assets
-    , ByronAddresses
-    , ByronAssets
-    , ByronCoinSelections
-    , ByronMigrations
-    , ByronTransactions
-    , ByronWallets
-    , CoinSelections
-    , Network
-    , Proxy_
-    , SMASH
-    , Settings
-    , SharedAddresses
-    , SharedTransactions
-    , SharedWalletKeys
-    , SharedWallets
-    , ShelleyMigrations
-    , ShelleyTransactions
-    , StakePools
-    , WalletKeys
-    , Wallets
-    )
+    ( Addresses, Api, ApiLayer (..), Assets, ByronAddresses, ByronAssets,
+    ByronCoinSelections, ByronMigrations, ByronTransactions, ByronWallets,
+    CoinSelections, Network, Proxy_, SMASH, Settings, SharedAddresses,
+    SharedTransactions, SharedWalletKeys, SharedWallets, ShelleyMigrations,
+    ShelleyTransactions, StakePools, WalletKeys, Wallets )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( apiError
-    , balanceTransaction
-    , constructSharedTransaction
-    , constructTransaction
-    , createMigrationPlan
-    , decodeSharedTransaction
-    , decodeTransaction
-    , delegationFee
-    , deleteTransaction
-    , deleteWallet
-    , derivePublicKey
-    , getAccountPublicKey
-    , getAsset
-    , getAssetDefault
-    , getBlocksLatestHeader
-    , getCurrentEpoch
-    , getNetworkClock
-    , getNetworkInformation
-    , getNetworkParameters
-    , getPolicyKey
-    , getTransaction
-    , getUTxOsStatistics
-    , getWallet
-    , getWalletUtxoSnapshot
-    , idleWorker
-    , joinStakePool
-    , liftHandler
-    , listAddresses
-    , listAssets
-    , listStakeKeys
-    , listTransactions
-    , listWallets
-    , migrateWallet
-    , mkLegacyWallet
-    , mkSharedWallet
-    , mkShelleyWallet
-    , patchSharedWallet
-    , postAccountPublicKey
-    , postAccountWallet
-    , postExternalTransaction
-    , postIcarusWallet
-    , postLedgerWallet
-    , postPolicyId
-    , postPolicyKey
-    , postRandomAddress
-    , postRandomWallet
-    , postRandomWalletFromXPrv
-    , postSharedWallet
-    , postTransactionFeeOld
-    , postTransactionOld
-    , postTrezorWallet
-    , postWallet
-    , putByronWalletPassphrase
-    , putRandomAddress
-    , putRandomAddresses
-    , putWallet
-    , putWalletPassphrase
-    , quitStakePool
-    , rndStateChange
-    , selectCoins
-    , selectCoinsForJoin
-    , selectCoinsForQuit
-    , signMetadata
-    , signTransaction
-    , submitSharedTransaction
-    , submitTransaction
-    , withLegacyLayer
-    , withLegacyLayer'
-    )
+    ( apiError, balanceTransaction, constructSharedTransaction,
+    constructTransaction, createMigrationPlan, decodeSharedTransaction,
+    decodeTransaction, delegationFee, deleteTransaction, deleteWallet,
+    derivePublicKey, getAccountPublicKey, getAsset, getAssetDefault,
+    getBlocksLatestHeader, getCurrentEpoch, getNetworkClock,
+    getNetworkInformation, getNetworkParameters, getPolicyKey, getTransaction,
+    getUTxOsStatistics, getWallet, getWalletUtxoSnapshot, idleWorker,
+    joinStakePool, liftHandler, listAddresses, listAssets, listStakeKeys,
+    listTransactions, listWallets, migrateWallet, mkLegacyWallet,
+    mkSharedWallet, mkShelleyWallet, patchSharedWallet, postAccountPublicKey,
+    postAccountWallet, postExternalTransaction, postIcarusWallet,
+    postLedgerWallet, postPolicyId, postPolicyKey, postRandomAddress,
+    postRandomWallet, postRandomWalletFromXPrv, postSharedWallet,
+    postTransactionFeeOld, postTransactionOld, postTrezorWallet, postWallet,
+    putByronWalletPassphrase, putRandomAddress, putRandomAddresses, putWallet,
+    putWalletPassphrase, quitStakePool, rndStateChange, selectCoins,
+    selectCoinsForJoin, selectCoinsForQuit, signMetadata, signTransaction,
+    submitSharedTransaction, submitTransaction, withLegacyLayer,
+    withLegacyLayer' )
 import Cardano.Wallet.Api.Types
-    ( AnyAddress (..)
-    , AnyAddressType (..)
-    , ApiAccountKey (..)
-    , ApiAccountKeyShared (..)
-    , ApiAddressData (..)
-    , ApiAddressDataPayload (..)
-    , ApiAddressInspect (..)
-    , ApiAddressInspectData (..)
-    , ApiCredential (..)
-    , ApiDelegationAction (..)
-    , ApiHealthCheck (..)
-    , ApiMaintenanceAction (..)
-    , ApiMaintenanceActionPostData (..)
-    , ApiPostAccountKeyData (..)
-    , ApiPostAccountKeyDataWithPurpose (..)
-    , ApiSelectCoinsAction (..)
-    , ApiSelectCoinsData (..)
-    , ApiT (..)
-    , ApiVerificationKeyShared (..)
-    , ApiVerificationKeyShelley (..)
-    , ApiWalletMode (..)
-    , ApiWithdrawalPostData (..)
-    , MaintenanceAction (..)
-    , SettingsPutData (..)
-    , SomeByronWalletPostData (..)
-    )
+    ( AnyAddress (..), AnyAddressType (..), ApiAccountKey (..),
+    ApiAccountKeyShared (..), ApiAddressData (..), ApiAddressDataPayload (..),
+    ApiAddressInspect (..), ApiAddressInspectData (..), ApiCredential (..),
+    ApiDelegationAction (..), ApiHealthCheck (..), ApiMaintenanceAction (..),
+    ApiMaintenanceActionPostData (..), ApiPostAccountKeyData (..),
+    ApiPostAccountKeyDataWithPurpose (..), ApiSelectCoinsAction (..),
+    ApiSelectCoinsData (..), ApiT (..), ApiVerificationKeyShared (..),
+    ApiVerificationKeyShelley (..), ApiWalletMode (..),
+    ApiWithdrawalPostData (..), MaintenanceAction (..), SettingsPutData (..),
+    SomeByronWalletPostData (..) )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
 import Cardano.Wallet.Api.Types.Error
@@ -221,7 +126,7 @@ import Data.Text.Class
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
+    ( Handler (..), NoContent (..), Server, err400, (:<|>) (..) )
 import Servant.Server
     ( ServerError (..) )
 

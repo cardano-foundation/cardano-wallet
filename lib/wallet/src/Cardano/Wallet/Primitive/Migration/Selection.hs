@@ -65,13 +65,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..)
-    , TxSize
-    , txOutMaxCoin
-    , txOutputCoinCost
-    , txOutputHasValidSize
-    , txOutputHasValidTokenQuantities
-    )
+    ( TxConstraints (..), TxSize, txOutMaxCoin, txOutputCoinCost,
+    txOutputHasValidSize, txOutputHasValidTokenQuantities )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad

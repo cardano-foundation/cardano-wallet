@@ -20,14 +20,8 @@ import Data.Ratio
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , expectField
-    , expectResponseCode
-    , request
-    , verify
-    )
+    ( Context (..), Headers (..), Payload (..), expectField, expectResponseCode,
+    request, verify )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

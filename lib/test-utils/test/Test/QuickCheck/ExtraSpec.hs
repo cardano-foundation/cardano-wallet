@@ -44,45 +44,14 @@ import Safe
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Fun (..)
-    , Gen
-    , NonNegative (..)
-    , NonPositive (..)
-    , Positive (..)
-    , Property
-    , Small (..)
-    , Testable
-    , applyFun
-    , checkCoverage
-    , chooseInteger
-    , conjoin
-    , cover
-    , forAll
-    , frequency
-    , genericShrink
-    , listOf
-    , oneof
-    , property
-    , scale
-    , shrinkIntegral
-    , within
-    , (===)
-    )
+    ( Arbitrary (..), Fun (..), Gen, NonNegative (..), NonPositive (..),
+    Positive (..), Property, Small (..), Testable, applyFun, checkCoverage,
+    chooseInteger, conjoin, cover, forAll, frequency, genericShrink, listOf,
+    oneof, property, scale, shrinkIntegral, within, (===) )
 import Test.QuickCheck.Extra
-    ( Pretty (..)
-    , genShrinkSequence
-    , genericRoundRobinShrink
-    , interleaveRoundRobin
-    , partitionList
-    , selectMapEntries
-    , selectMapEntry
-    , shrinkSpace
-    , shrinkWhile
-    , shrinkWhileSteps
-    , (<:>)
-    , (<@>)
-    )
+    ( Pretty (..), genShrinkSequence, genericRoundRobinShrink,
+    interleaveRoundRobin, partitionList, selectMapEntries, selectMapEntry,
+    shrinkSpace, shrinkWhile, shrinkWhileSteps, (<:>), (<@>) )
 
 import qualified Data.Foldable as F
 import qualified Data.List as L

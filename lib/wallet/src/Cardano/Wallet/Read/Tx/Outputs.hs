@@ -22,14 +22,8 @@ module Cardano.Wallet.Read.Tx.Outputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL, outputsTxBodyL )
 import Cardano.Ledger.Crypto

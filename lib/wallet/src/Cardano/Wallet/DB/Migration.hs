@@ -49,7 +49,7 @@ import Fmt
 import GHC.Natural
     ( Natural )
 import GHC.TypeNats
-    ( type (+), KnownNat, Nat, natVal )
+    ( KnownNat, Nat, natVal, type (+) )
 
 --------------------------------------------------------------------------------
 -------  public ----------------------------------------------------------------

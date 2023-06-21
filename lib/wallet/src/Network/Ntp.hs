@@ -46,14 +46,8 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Network.NTP.Client
-    ( IPVersion (..)
-    , NtpClient (..)
-    , NtpSettings (..)
-    , NtpStatus (..)
-    , NtpTrace (..)
-    , ResultOrFailure (..)
-    , withNtpClient
-    )
+    ( IPVersion (..), NtpClient (..), NtpSettings (..), NtpStatus (..),
+    NtpTrace (..), ResultOrFailure (..), withNtpClient )
 import System.IOManager
     ( IOManager )
 import UnliftIO.STM

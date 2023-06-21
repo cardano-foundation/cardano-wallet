@@ -13,11 +13,8 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkClock (..)
-    , ApiNetworkInformation (..)
-    , ApiNetworkParameters
-    , NtpSyncingStatus (..)
-    )
+    ( ApiNetworkClock (..), ApiNetworkInformation (..), ApiNetworkParameters,
+    NtpSyncingStatus (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..) )
 import Control.Monad
@@ -41,12 +38,8 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , cardanoWalletCLI
-    , eventually
-    , expectCliField
-    , expectValidJSON
-    )
+    ( Context (..), cardanoWalletCLI, eventually, expectCliField,
+    expectValidJSON )
 import Test.Integration.Framework.TestData
     ( cmdOk )
 import Test.Utils.Paths

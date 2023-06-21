@@ -32,28 +32,13 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiAnyCertificate (..)
-    , ApiCertificate (..)
-    , ApiConstructTransaction (..)
-    , ApiDecodedTransaction (..)
-    , ApiScriptTemplate (..)
-    , ApiSerialisedTransaction (..)
-    , ApiSharedWallet (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiTxInput (..)
-    , ApiTxInputGeneral (..)
-    , ApiTxMetadata (..)
-    , ApiTxOutputGeneral (..)
-    , ApiWallet
-    , ApiWalletOutput (..)
-    , Iso8601Time (..)
-    , WalletStyle (..)
-    , fromApiEra
-    , insertedAt
-    )
+    ( ApiAddressWithPath, ApiAnyCertificate (..), ApiCertificate (..),
+    ApiConstructTransaction (..), ApiDecodedTransaction (..),
+    ApiScriptTemplate (..), ApiSerialisedTransaction (..), ApiSharedWallet (..),
+    ApiT (..), ApiTransaction, ApiTxId (..), ApiTxInput (..),
+    ApiTxInputGeneral (..), ApiTxMetadata (..), ApiTxOutputGeneral (..),
+    ApiWallet, ApiWalletOutput (..), Iso8601Time (..), WalletStyle (..),
+    fromApiEra, insertedAt )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.Transaction
@@ -67,13 +52,8 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , cardanoTxIdeallyNoLaterThan
-    )
+    ( Direction (..), TxMetadata (..), TxMetadataValue (..),
+    TxScriptValidity (..), TxStatus (..), cardanoTxIdeallyNoLaterThan )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
 import Cardano.Wallet.Transaction
@@ -113,65 +93,24 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , MnemonicLength (..)
-    , Payload (..)
-    , arbitraryStake
-    , decodeErrorInfo
-    , delegating
-    , deleteSharedWallet
-    , emptySharedWallet
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectSuccess
-    , faucetUtxoAmt
-    , fixturePassphrase
-    , fixtureSharedWallet
-    , fixtureSharedWalletDelegating
-    , fixtureWallet
-    , fundSharedWallet
-    , genMnemonics
-    , getFromResponse
-    , getSharedWallet
-    , json
-    , listAddresses
-    , minUTxOValue
-    , notDelegating
-    , patchSharedWallet
-    , postSharedWallet
-    , postWallet
-    , request
-    , sharedAccPubKeyFromMnemonics
-    , signSharedTx
-    , submitSharedTxWithWid
-    , toQueryString
-    , unsafeGetTransactionTime
-    , unsafeRequest
-    , utcIso8601ToText
-    , verify
-    , waitForNextEpoch
-    , walletId
-    , (.>)
-    )
+    ( Context (..), Headers (..), MnemonicLength (..), Payload (..),
+    arbitraryStake, decodeErrorInfo, delegating, deleteSharedWallet,
+    emptySharedWallet, emptyWallet, eventually, expectErrorMessage, expectField,
+    expectListField, expectListSize, expectResponseCode, expectSuccess,
+    faucetUtxoAmt, fixturePassphrase, fixtureSharedWallet,
+    fixtureSharedWalletDelegating, fixtureWallet, fundSharedWallet,
+    genMnemonics, getFromResponse, getSharedWallet, json, listAddresses,
+    minUTxOValue, notDelegating, patchSharedWallet, postSharedWallet,
+    postWallet, request, sharedAccPubKeyFromMnemonics, signSharedTx,
+    submitSharedTxWithWid, toQueryString, unsafeGetTransactionTime,
+    unsafeRequest, utcIso8601ToText, verify, waitForNextEpoch, walletId, (.>) )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
-    , errMsg403EmptyUTxO
-    , errMsg403Fee
-    , errMsg403InvalidConstructTx
-    , errMsg403MinUTxOValue
-    , errMsg403MissingWitsInTransaction
-    , errMsg404CannotFindTx
-    , errMsg404NoWallet
-    )
+    ( errMsg400MinWithdrawalWrong, errMsg400StartTimeLaterThanEndTime,
+    errMsg403EmptyUTxO, errMsg403Fee, errMsg403InvalidConstructTx,
+    errMsg403MinUTxOValue, errMsg403MissingWitsInTransaction,
+    errMsg404CannotFindTx, errMsg404NoWallet )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA

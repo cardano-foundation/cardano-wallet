@@ -40,14 +40,8 @@ module Cardano.Wallet.Primitive.BlockSummary
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , DelegationCertificate
-    , Slot
-    , chainPointFromBlockHeader
-    , dlgCertAccount
-    , toSlot
-    )
+    ( Block (..), BlockHeader (..), DelegationCertificate, Slot,
+    chainPointFromBlockHeader, dlgCertAccount, toSlot )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.RewardAccount

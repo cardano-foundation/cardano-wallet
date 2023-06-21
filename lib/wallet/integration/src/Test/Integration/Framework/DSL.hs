@@ -241,32 +241,17 @@ import Cardano.Address.Derivation
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MkSomeMnemonic (..)
-    , Mnemonic
-    , MnemonicWords
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
+    ( ConsistentEntropy, EntropySize, MkSomeMnemonic (..), Mnemonic,
+    MnemonicWords, SomeMnemonic (..), entropyToMnemonic, genEntropy,
+    mnemonicToText )
 import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , fromHex
-    , hex
-    , paymentAddressS
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..),
+    HardDerivation (..), Index (..), PersistPublicKey (..), Role (..), fromHex,
+    hex, paymentAddressS )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -276,38 +261,16 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount
-    , ApiAccountKeyShared
-    , ApiAccountSharedPublicKey (..)
-    , ApiActiveSharedWallet
-    , ApiAddressWithPath
-    , ApiBlockReference (..)
-    , ApiByronWallet
-    , ApiCoinSelection
-    , ApiEra (..)
-    , ApiFee (..)
-    , ApiMaintenanceAction (..)
-    , ApiNetworkInformation
-    , ApiNetworkParameters (..)
-    , ApiPoolSpecifier
-    , ApiSerialisedTransaction
-    , ApiSharedWallet (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxId (ApiTxId)
-    , ApiUtxoStatistics (..)
-    , ApiVerificationKeyShared
-    , ApiVerificationKeyShelley (..)
-    , ApiWallet
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationNext (..)
-    , ApiWalletDelegationStatus (..)
-    , Iso8601Time (..)
-    , KeyFormat
-    , SettingsPutData (..)
-    , WalletStyle (..)
-    , insertedAt
-    )
+    ( AddressAmount, ApiAccountKeyShared, ApiAccountSharedPublicKey (..),
+    ApiActiveSharedWallet, ApiAddressWithPath, ApiBlockReference (..),
+    ApiByronWallet, ApiCoinSelection, ApiEra (..), ApiFee (..),
+    ApiMaintenanceAction (..), ApiNetworkInformation, ApiNetworkParameters (..),
+    ApiPoolSpecifier, ApiSerialisedTransaction, ApiSharedWallet (..), ApiT (..),
+    ApiTransaction, ApiTxId (ApiTxId), ApiUtxoStatistics (..),
+    ApiVerificationKeyShared, ApiVerificationKeyShelley (..), ApiWallet,
+    ApiWalletDelegation (..), ApiWalletDelegationNext (..),
+    ApiWalletDelegationStatus (..), Iso8601Time (..), KeyFormat,
+    SettingsPutData (..), WalletStyle (..), insertedAt )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -327,17 +290,9 @@ import Cardano.Wallet.Primitive.Passphrase.Legacy
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , EpochLength (..)
-    , EpochNo
-    , PoolMetadataSource
-    , Settings
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , SortOrder (..)
-    , WalletId (..)
-    )
+    ( ActiveSlotCoefficient (..), EpochLength (..), EpochNo, PoolMetadataSource,
+    Settings, SlotLength (..), SlotNo (..), SlottingParameters (..),
+    SortOrder (..), WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -457,13 +412,8 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.Context
     ( Context (..), TxDescription (..) )
 import Test.Integration.Framework.Request
-    ( Headers (..)
-    , Payload (..)
-    , RequestException (..)
-    , rawRequest
-    , request
-    , unsafeRequest
-    )
+    ( Headers (..), Payload (..), RequestException (..), rawRequest, request,
+    unsafeRequest )
 import Test.Utils.Pretty
     ( Pretty (..), pShowBuilder )
 import UnliftIO.Async
@@ -473,12 +423,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Exception (..), SomeException (..), catch, throwIO, throwString, try )
 import UnliftIO.Process
-    ( CreateProcess (..)
-    , StdStream (..)
-    , proc
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( CreateProcess (..), StdStream (..), proc, waitForProcess,
+    withCreateProcess )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

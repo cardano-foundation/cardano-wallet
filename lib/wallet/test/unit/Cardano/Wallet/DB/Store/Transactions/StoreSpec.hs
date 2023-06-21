@@ -18,30 +18,16 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( StoreProperty
-    , assertWith
-    , logScale
-    , queryLaw
-    , withDBInMemory
-    , withStoreProp
-    )
+    ( StoreProperty, assertWith, logScale, queryLaw, withDBInMemory,
+    withStoreProp )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( DecoratedTxIns
-    , decorateTxInsForRelation
-    , lookupTxOut
-    , mkTxOutKey
-    , mkTxOutKeyCollateral
-    )
+    ( DecoratedTxIns, decorateTxInsForRelation, lookupTxOut, mkTxOutKey,
+    mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (..)
-    , TxRelation (..)
-    , TxSet (..)
-    , collateralIns
-    , ins
-    , mkTxSet
-    )
+    ( DeltaTxSet (..), TxRelation (..), TxSet (..), collateralIns, ins,
+    mkTxSet )
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions, selectTx )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -59,17 +45,8 @@ import Data.Store
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , arbitrary
-    , choose
-    , elements
-    , forAll
-    , frequency
-    , property
-    , vectorOf
-    , (===)
-    )
+    ( Gen, Property, arbitrary, choose, elements, forAll, frequency, property,
+    vectorOf, (===) )
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
 import Test.Store

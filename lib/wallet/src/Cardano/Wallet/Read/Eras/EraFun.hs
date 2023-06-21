@@ -43,14 +43,8 @@ import Prelude hiding
     ( id, (.) )
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..) )
 import Cardano.Wallet.Read.Eras.KnownEras
@@ -58,16 +52,8 @@ import Cardano.Wallet.Read.Eras.KnownEras
 import Control.Category
     ( Category (..) )
 import Generics.SOP
-    ( (:.:) (..)
-    , I (..)
-    , K (..)
-    , NP
-    , Proxy (Proxy)
-    , productTypeFrom
-    , productTypeTo
-    , unComp
-    , unK
-    )
+    ( I (..), K (..), NP, Proxy (Proxy), productTypeFrom, productTypeTo, unComp,
+    unK, (:.:) (..) )
 import Generics.SOP.Classes
 import Generics.SOP.NP
     ( map_NP, pure_NP, trans_NP, zipWith_NP )

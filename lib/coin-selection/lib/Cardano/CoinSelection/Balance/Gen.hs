@@ -26,16 +26,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Generics.SOP
     ( NP (..) )
 import Test.QuickCheck
-    ( Gen
-    , NonNegative (..)
-    , arbitrary
-    , arbitraryBoundedEnum
-    , listOf
-    , shrink
-    , shrinkList
-    , shrinkMapBy
-    , suchThat
-    )
+    ( Gen, NonNegative (..), arbitrary, arbitraryBoundedEnum, listOf, shrink,
+    shrinkList, shrinkMapBy, suchThat )
 import Test.QuickCheck.Extra
     ( genericRoundRobinShrink, (<:>), (<@>) )
 

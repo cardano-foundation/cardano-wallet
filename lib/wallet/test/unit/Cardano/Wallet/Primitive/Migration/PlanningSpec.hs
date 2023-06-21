@@ -11,26 +11,14 @@ module Cardano.Wallet.Primitive.Migration.PlanningSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Migration.Planning
-    ( CategorizedUTxO (..)
-    , MigrationPlan (..)
-    , UTxOEntryCategory (..)
-    , categorizeUTxOEntries
-    , categorizeUTxOEntry
-    , createPlan
-    , uncategorizeUTxOEntries
-    )
+    ( CategorizedUTxO (..), MigrationPlan (..), UTxOEntryCategory (..),
+    categorizeUTxOEntries, categorizeUTxOEntry, createPlan,
+    uncategorizeUTxOEntries )
 import Cardano.Wallet.Primitive.Migration.Selection
     ( RewardWithdrawal (..), Selection (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockInputId
-    , MockTxConstraints (..)
-    , genMockInput
-    , genRewardWithdrawal
-    , genTokenBundleMixed
-    , shrinkMockInput
-    , testAll
-    , unMockTxConstraints
-    )
+    ( MockInputId, MockTxConstraints (..), genMockInput, genRewardWithdrawal,
+    genTokenBundleMixed, shrinkMockInput, testAll, unMockTxConstraints )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -54,20 +42,8 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Blind (..)
-    , Gen
-    , Property
-    , checkCoverage
-    , choose
-    , cover
-    , forAllBlind
-    , forAllShrink
-    , property
-    , shrinkList
-    , tabulate
-    , withMaxSuccess
-    , (===)
-    )
+    ( Blind (..), Gen, Property, checkCoverage, choose, cover, forAllBlind,
+    forAllShrink, property, shrinkList, tabulate, withMaxSuccess, (===) )
 import Test.QuickCheck.Extra
     ( report, verify )
 import Test.Utils.Pretty

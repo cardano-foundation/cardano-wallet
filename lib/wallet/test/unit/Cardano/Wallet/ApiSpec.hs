@@ -43,15 +43,8 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..) )
 import Cardano.Wallet.Api.Malformed
-    ( BodyParam (..)
-    , ExpectedError (..)
-    , Header (..)
-    , Malformed
-    , PathParam (..)
-    , Wellformed
-    , malformed
-    , wellformed
-    )
+    ( BodyParam (..), ExpectedError (..), Header (..), Malformed,
+    PathParam (..), Wellformed, malformed, wellformed )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Control.Monad
@@ -77,7 +70,7 @@ import Data.Text
 import Data.Tuple
     ( swap )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality, (:~:) (..) )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Void
@@ -91,30 +84,17 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
     ( Method, methodHead, renderStdMethod )
 import Network.Wai
-    ( Request
-    , RequestBodyLength (..)
-    , defaultRequest
-    , pathInfo
-    , requestBody
-    , requestBodyLength
-    , requestHeaders
-    , requestMethod
-    )
+    ( Request, RequestBodyLength (..), defaultRequest, pathInfo, requestBody,
+    requestBodyLength, requestHeaders, requestMethod )
 import Network.Wai.Middleware.ServerError
     ( handleRawError )
 import Network.Wai.Test
-    ( SResponse
-    , Session
-    , assertBody
-    , assertHeader
-    , assertStatus
-    , request
-    , runSession
-    )
+    ( SResponse, Session, assertBody, assertHeader, assertStatus, request,
+    runSession )
 import Servant
     ( Accept (..), Application, ReqBody, Server, StdMethod (..), Verb, serve )
 import Servant.API
-    ( (:<|>) (..), (:>), Capture, OctetStream )
+    ( Capture, OctetStream, (:<|>) (..), (:>) )
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec

@@ -212,13 +212,8 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), TextDecodingError (..), ToText (..),
+    fromTextToBoundedEnum, toTextFromBoundedEnum )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Clock.POSIX
@@ -236,15 +231,8 @@ import Database.Persist.PersistValue.Extended
 import Database.Persist.Sql
     ( PersistFieldSql (sqlType) )
 import Fmt
-    ( Buildable (..)
-    , blockListF
-    , blockListF'
-    , indentF
-    , listF'
-    , prefixF
-    , pretty
-    , suffixF
-    )
+    ( Buildable (..), blockListF, blockListF', indentF, listF', prefixF, pretty,
+    suffixF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack

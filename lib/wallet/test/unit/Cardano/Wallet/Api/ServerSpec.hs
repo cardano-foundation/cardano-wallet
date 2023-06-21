@@ -18,14 +18,8 @@ import Cardano.BM.Trace
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( IsServerError (..)
-    , Listen (..)
-    , ListenError (..)
-    , getNetworkClock
-    , getNetworkInformation
-    , liftHandler
-    , withListeningSocket
-    )
+    ( IsServerError (..), Listen (..), ListenError (..), getNetworkClock,
+    getNetworkInformation, liftHandler, withListeningSocket )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..), ApiWalletMode (..) )
 import Cardano.Wallet.DB.Errors
@@ -35,12 +29,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
-    , currentRelativeTime
-    , mkTimeInterpreter
-    , neverFails
-    )
+    ( PastHorizonException, TimeInterpreter, currentRelativeTime,
+    mkTimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -62,16 +52,8 @@ import Data.Quantity
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import Network.Socket
-    ( Family (..)
-    , SockAddr (..)
-    , SocketType (..)
-    , accept
-    , connect
-    , defaultProtocol
-    , getSocketName
-    , socket
-    , tupleToHostAddress
-    )
+    ( Family (..), SockAddr (..), SocketType (..), accept, connect,
+    defaultProtocol, getSocketName, socket, tupleToHostAddress )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam

@@ -40,15 +40,8 @@ import Control.DeepSeq
 import Control.Monad
     ( unless )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , Value (String)
-    , object
-    , withObject
-    , withScientific
-    , (.:)
-    , (.=)
-    )
+    ( FromJSON (..), ToJSON (..), Value (String), object, withObject,
+    withScientific, (.:), (.=) )
 import Data.Aeson.Types
     ( Parser )
 import Data.Data

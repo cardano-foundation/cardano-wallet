@@ -31,23 +31,11 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAccountKeyShared (..)
-    , ApiActiveSharedWallet
-    , ApiAddressWithPath
-    , ApiAddressWithPath
-    , ApiCosignerIndex (..)
-    , ApiCredentialType (..)
-    , ApiFee (..)
-    , ApiScriptTemplate (..)
-    , ApiSharedWallet (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletUtxoSnapshot
-    , KeyFormat (..)
-    , WalletStyle (..)
-    )
+    ( ApiAccountKeyShared (..), ApiActiveSharedWallet, ApiAddressWithPath,
+    ApiCosignerIndex (..), ApiCredentialType (..), ApiFee (..),
+    ApiScriptTemplate (..), ApiSharedWallet (..), ApiT (..), ApiTransaction,
+    ApiUtxoStatistics, ApiWallet, ApiWalletUtxoSnapshot, KeyFormat (..),
+    WalletStyle (..) )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..), ApiErrorSharedWalletNoSuchCosigner (..) )
 import Cardano.Wallet.Compat
@@ -87,57 +75,21 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , MnemonicLength (..)
-    , Payload (..)
-    , bech32Text
-    , between
-    , decodeErrorInfo
-    , deleteSharedWallet
-    , emptySharedWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectWalletUTxO
-    , faucetAmt
-    , fixturePassphrase
-    , fixtureSharedWallet
-    , fixtureWallet
-    , genMnemonics
-    , genXPubsBech32
-    , getAccountKeyShared
-    , getFromResponse
-    , getSharedWallet
-    , getSharedWalletKey
-    , getWalletIdFromSharedWallet
-    , json
-    , listFilteredSharedWallets
-    , minUTxOValue
-    , notDelegating
-    , patchSharedWallet
-    , postAccountKeyShared
-    , postSharedWallet
-    , request
-    , sharedAccPubKeyFromMnemonics
-    , unsafeRequest
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), MnemonicLength (..), Payload (..), bech32Text,
+    between, decodeErrorInfo, deleteSharedWallet, emptySharedWallet, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, expectWalletUTxO, faucetAmt, fixturePassphrase,
+    fixtureSharedWallet, fixtureWallet, genMnemonics, genXPubsBech32,
+    getAccountKeyShared, getFromResponse, getSharedWallet, getSharedWalletKey,
+    getWalletIdFromSharedWallet, json, listFilteredSharedWallets, minUTxOValue,
+    notDelegating, patchSharedWallet, postAccountKeyShared, postSharedWallet,
+    request, sharedAccPubKeyFromMnemonics, unsafeRequest, verify, walletId )
 import Test.Integration.Framework.TestData
-    ( errMsg403CreateIllegal
-    , errMsg403KeyAlreadyPresent
-    , errMsg403TemplateInvalidDuplicateXPub
-    , errMsg403TemplateInvalidNoCosignerInScript
-    , errMsg403TemplateInvalidScript
-    , errMsg403TemplateInvalidUnknownCosigner
-    , errMsg403WrongIndex
-    , errMsg404NoWallet
-    , errMsg406
-    )
+    ( errMsg403CreateIllegal, errMsg403KeyAlreadyPresent,
+    errMsg403TemplateInvalidDuplicateXPub,
+    errMsg403TemplateInvalidNoCosignerInScript, errMsg403TemplateInvalidScript,
+    errMsg403TemplateInvalidUnknownCosigner, errMsg403WrongIndex,
+    errMsg404NoWallet, errMsg406 )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Codec.Binary.Bech32.TH as Bech32

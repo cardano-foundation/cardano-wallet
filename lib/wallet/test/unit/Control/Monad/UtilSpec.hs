@@ -26,15 +26,8 @@ import Data.Function.Utils
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Fun (..)
-    , NonNegative (..)
-    , Property
-    , applyFun
-    , conjoin
-    , property
-    , withMaxSuccess
-    , (===)
-    )
+    ( Fun (..), NonNegative (..), Property, applyFun, conjoin, property,
+    withMaxSuccess, (===) )
 
 spec :: Spec
 spec = describe "Control.Monad.UtilSpec" $ do

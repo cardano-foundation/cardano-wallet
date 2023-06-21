@@ -26,14 +26,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toAllegraTxOut
-    , toAlonzoTxOut
-    , toBabbageTxOut
-    , toConwayTxOut
-    , toMaryTxOut
-    , toShelleyTxOut
-    , toWalletCoin
-    )
+    ( toAllegraTxOut, toAlonzoTxOut, toBabbageTxOut, toConwayTxOut, toMaryTxOut,
+    toShelleyTxOut, toWalletCoin )
 import Data.Function
     ( (&) )
 import GHC.Stack

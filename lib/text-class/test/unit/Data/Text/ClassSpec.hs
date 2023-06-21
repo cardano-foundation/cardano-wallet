@@ -20,14 +20,8 @@ import Data.Proxy
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextMaybe
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), TextDecodingError (..), ToText (..),
+    fromTextMaybe, fromTextToBoundedEnum, toTextFromBoundedEnum )
 import Data.Time.Clock
     ( NominalDiffTime )
 import Data.Word
@@ -39,20 +33,9 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , UnicodeString (..)
-    , arbitraryBoundedEnum
-    , arbitrarySizedNatural
-    , choose
-    , classify
-    , elements
-    , genericShrink
-    , property
-    , shrinkIntegral
-    , vectorOf
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), UnicodeString (..), arbitraryBoundedEnum,
+    arbitrarySizedNatural, choose, classify, elements, genericShrink, property,
+    shrinkIntegral, vectorOf, (===), (==>) )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 

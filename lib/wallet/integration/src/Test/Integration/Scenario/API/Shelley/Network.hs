@@ -29,21 +29,10 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , RequestException
-    , counterexample
-    , epochLengthValue
-    , expectField
-    , expectResponseCode
-    , maximumCollateralInputCountByEra
-    , minimumCollateralPercentageByEra
-    , request
-    , securityParameterValue
-    , slotLengthValue
-    , verify
-    )
+    ( Context (..), Headers (..), Payload (..), RequestException,
+    counterexample, epochLengthValue, expectField, expectResponseCode,
+    maximumCollateralInputCountByEra, minimumCollateralPercentageByEra, request,
+    securityParameterValue, slotLengthValue, verify )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

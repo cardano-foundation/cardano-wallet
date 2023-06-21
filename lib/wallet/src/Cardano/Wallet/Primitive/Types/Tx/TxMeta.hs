@@ -35,12 +35,8 @@ import Control.DeepSeq
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), ToText (..), fromTextToBoundedEnum,
+    toTextFromBoundedEnum )
 import Data.Word
     ( Word32 )
 import Fmt

@@ -17,20 +17,13 @@ module Cardano.Pool.DB.Properties (properties) where
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , determinePoolLifeCycleStatus
-    , readPoolLifeCycleStatus
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus,
+    readPoolLifeCycleStatus )
 import Cardano.Pool.DB.Arbitrary
-    ( ManyPoolCertificates (..)
-    , MultiPoolCertificateSequence (..)
-    , SinglePoolCertificateSequence (..)
-    , StakePoolsFixture (..)
-    , genStakePoolMetadata
-    , getMultiPoolCertificateSequence
-    , isValidSinglePoolCertificateSequence
-    )
+    ( ManyPoolCertificates (..), MultiPoolCertificateSequence (..),
+    SinglePoolCertificateSequence (..), StakePoolsFixture (..),
+    genStakePoolMetadata, getMultiPoolCertificateSequence,
+    isValidSinglePoolCertificateSequence )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadata (..) )
 import Cardano.Pool.Types
@@ -42,19 +35,11 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Slotting
     ( epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
-    , PoolCertificate (..)
-    , PoolLifeCycleStatus (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate
-    , Settings
-    , SlotNo (..)
-    , defaultSettings
-    , getPoolCertificatePoolId
-    , getPoolRetirementCertificate
-    )
+    ( BlockHeader (..), CertificatePublicationTime (..), EpochNo (..),
+    PoolCertificate (..), PoolLifeCycleStatus (..),
+    PoolRegistrationCertificate (..), PoolRetirementCertificate, Settings,
+    SlotNo (..), defaultSettings, getPoolCertificatePoolId,
+    getPoolRetirementCertificate )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -92,31 +77,12 @@ import Data.Word
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Expectation
-    , SpecWith
-    , anyException
-    , describe
-    , it
-    , shouldBe
-    , shouldReturn
-    , shouldThrow
-    )
+    ( Expectation, SpecWith, anyException, describe, it, shouldBe, shouldReturn,
+    shouldThrow )
 import Test.QuickCheck
-    ( Arbitrary
-    , Confidence (..)
-    , NonNegative (..)
-    , Positive (..)
-    , Property
-    , arbitrary
-    , checkCoverageWith
-    , classify
-    , counterexample
-    , cover
-    , property
-    , shrink
-    , withMaxSuccess
-    , (==>)
-    )
+    ( Arbitrary, Confidence (..), NonNegative (..), Positive (..), Property,
+    arbitrary, checkCoverageWith, classify, counterexample, cover, property,
+    shrink, withMaxSuccess, (==>) )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 import UnliftIO.Exception

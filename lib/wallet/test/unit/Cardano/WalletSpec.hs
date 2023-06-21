@@ -30,29 +30,15 @@ import Cardano.Api
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( BalanceInsufficientError (..)
-    , SelectionBalanceError (..)
-    , SelectionError (..)
-    )
+    ( BalanceInsufficientError (..), SelectionBalanceError (..),
+    SelectionError (..) )
 import Cardano.Wallet
-    ( ErrUpdatePassphrase (..)
-    , ErrWithRootKey (..)
-    , LocalTxSubmissionConfig (..)
-    , SelectionWithoutChange
-    , WalletLayer (..)
-    , migrationPlanToSelectionWithdrawals
-    , submitTx
-    , throttle
-    )
+    ( ErrUpdatePassphrase (..), ErrWithRootKey (..),
+    LocalTxSubmissionConfig (..), SelectionWithoutChange, WalletLayer (..),
+    migrationPlanToSelectionWithdrawals, submitTx, throttle )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , Role (..)
-    , deriveAccountPrivateKey
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..),
+    HardDerivation (..), Index (..), Role (..), deriveAccountPrivateKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Address.Discovery
@@ -72,13 +58,8 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0
-    , dummyNetworkLayer
-    , dummyNetworkParameters
-    , dummySlottingParameters
-    , dummyTimeInterpreter
-    , mkTxId
-    )
+    ( block0, dummyNetworkLayer, dummyNetworkParameters,
+    dummySlottingParameters, dummyTimeInterpreter, mkTxId )
 import Cardano.Wallet.Flavor
     ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavorS (TestStateS) )
 import Cardano.Wallet.Gen
@@ -92,16 +73,9 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Passphrase.Current
     ( preparePassphrase )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (BlockHeader)
-    , NetworkParameters (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , SortOrder (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    )
+    ( ActiveSlotCoefficient (..), BlockHeader (BlockHeader),
+    NetworkParameters (..), SlotNo (..), SlottingParameters (..),
+    SortOrder (..), WalletId (..), WalletMetadata (..), WalletName (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -121,14 +95,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , mockSealedTx
-    )
+    ( Direction (..), SealedTx (..), TransactionInfo (..), Tx (..), TxMeta (..),
+    TxStatus (..), mockSealedTx )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -144,11 +112,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..)
-    , Withdrawal (..)
-    , emptyTokenMapWithScripts
-    , emptyWitnessCount
-    )
+    ( TransactionLayer (..), Withdrawal (..), emptyTokenMapWithScripts,
+    emptyWitnessCount )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Wallet.TxWitnessTag
@@ -162,13 +127,8 @@ import Control.DeepSeq
 import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
-    ( DiffTime
-    , MonadMonotonicTime (..)
-    , MonadTime (..)
-    , Time (..)
-    , addTime
-    , diffTime
-    )
+    ( DiffTime, MonadMonotonicTime (..), MonadTime (..), Time (..), addTime,
+    diffTime )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
 import Control.Monad.Trans.Class
@@ -226,35 +186,11 @@ import System.Random
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , Gen
-    , NonEmptyList (..)
-    , Property
-    , arbitraryBoundedEnum
-    , arbitrarySizedFractional
-    , checkCoverage
-    , choose
-    , conjoin
-    , counterexample
-    , cover
-    , elements
-    , forAll
-    , forAllBlind
-    , frequency
-    , label
-    , liftArbitrary
-    , listOf1
-    , oneof
-    , property
-    , scale
-    , sized
-    , suchThat
-    , vector
-    , withMaxSuccess
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Blind (..), Gen, NonEmptyList (..), Property,
+    arbitraryBoundedEnum, arbitrarySizedFractional, checkCoverage, choose,
+    conjoin, counterexample, cover, elements, forAll, forAllBlind, frequency,
+    label, liftArbitrary, listOf1, oneof, property, scale, sized, suchThat,
+    vector, withMaxSuccess, (===), (==>) )
 import Test.QuickCheck.Extra
     ( report )
 import Test.QuickCheck.Monadic
@@ -264,16 +200,8 @@ import Test.Utils.Time
 import Test.Utils.Trace
     ( captureLogging' )
 import UnliftIO.Concurrent
-    ( MVar
-    , modifyMVar
-    , modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , threadDelay
-    )
+    ( MVar, modifyMVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar,
+    takeMVar, threadDelay )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W

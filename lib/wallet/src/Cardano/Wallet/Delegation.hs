@@ -27,18 +27,10 @@ import qualified Data.Set as Set
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
-    ( ErrCannotQuit (..)
-    , ErrStakePoolDelegation (..)
-    , PoolRetirementEpochInfo (..)
-    , WalletException (..)
-    , WalletLog (..)
-    , fetchRewardBalance
-    , getCurrentEpochSlotting
-    , isStakeKeyRegistered
-    , readDelegation
-    , readRewardAccount
-    , transactionExpirySlot
-    )
+    ( ErrCannotQuit (..), ErrStakePoolDelegation (..),
+    PoolRetirementEpochInfo (..), WalletException (..), WalletLog (..),
+    fetchRewardBalance, getCurrentEpochSlotting, isStakeKeyRegistered,
+    readDelegation, readRewardAccount, transactionExpirySlot )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -56,14 +48,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Transaction
-    ( ErrCannotJoin (..)
-    , TransactionCtx
-    , Withdrawal (..)
-    , defaultTransactionCtx
-    , txDelegationAction
-    , txValidityInterval
-    , txWithdrawal
-    )
+    ( ErrCannotJoin (..), TransactionCtx, Withdrawal (..),
+    defaultTransactionCtx, txDelegationAction, txValidityInterval,
+    txWithdrawal )
 import Control.Error
     ( lastMay )
 import Control.Exception

@@ -25,41 +25,21 @@ import Cardano.BM.Plugin
 import Cardano.BM.Trace
     ( appendName )
 import Cardano.CLI
-    ( LogOutput (..)
-    , Port (..)
-    , ekgEnabled
-    , getEKGURL
-    , getPrometheusURL
-    , withLogging
-    )
+    ( LogOutput (..), Port (..), ekgEnabled, getEKGURL, getPrometheusURL,
+    withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
-    ( installSignalHandlersNoLogging
-    , setDefaultFilePermissions
-    , withUtf8Encoding
-    )
+    ( installSignalHandlersNoLogging, setDefaultFilePermissions,
+    withUtf8Encoding )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterLog
-    , Credential (..)
-    , FaucetFunds (..)
-    , RunningNode (..)
-    , clusterEraFromEnv
-    , clusterEraToString
-    , clusterToApiEra
-    , localClusterConfigFromEnv
-    , moveInstantaneousRewardsTo
-    , oneMillionAda
-    , sendFaucetAssetsTo
-    , testLogDirFromEnv
-    , testMinSeverityFromEnv
-    , walletListenFromEnv
-    , walletMinSeverityFromEnv
-    , withCluster
-    , withSMASH
-    )
+    ( ClusterLog, Credential (..), FaucetFunds (..), RunningNode (..),
+    clusterEraFromEnv, clusterEraToString, clusterToApiEra,
+    localClusterConfigFromEnv, moveInstantaneousRewardsTo, oneMillionAda,
+    sendFaucetAssetsTo, testLogDirFromEnv, testMinSeverityFromEnv,
+    walletListenFromEnv, walletMinSeverityFromEnv, withCluster, withSMASH )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -99,11 +79,8 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Network.HTTP.Client
-    ( defaultManagerSettings
-    , managerResponseTimeout
-    , newManager
-    , responseTimeoutMicro
-    )
+    ( defaultManagerSettings, managerResponseTimeout, newManager,
+    responseTimeoutMicro )
 import Network.URI
     ( URI )
 import Ouroboros.Network.Client.Wallet
@@ -119,14 +96,9 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.Extra
     ( aroundAll, hspecMain )
 import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genRewardAccounts
-    , hwWalletFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
-    , seaHorseTestAssets
-    , shelleyIntegrationTestFunds
-    )
+    ( byronIntegrationTestFunds, genRewardAccounts, hwWalletFunds,
+    maryIntegrationTestAssets, mirMnemonics, seaHorseTestAssets,
+    shelleyIntegrationTestFunds )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths

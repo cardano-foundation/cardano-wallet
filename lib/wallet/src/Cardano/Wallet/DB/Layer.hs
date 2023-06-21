@@ -46,20 +46,11 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
-    ( DBLog (..)
-    , ForeignKeysSetting (ForeignKeysEnabled)
-    , SqliteContext (..)
-    , newInMemorySqliteContext
-    , noManualMigration
-    , withSqliteContextFile
-    )
+    ( DBLog (..), ForeignKeysSetting (ForeignKeysEnabled), SqliteContext (..),
+    newInMemorySqliteContext, noManualMigration, withSqliteContextFile )
 import Cardano.DB.Sqlite.Delete
-    ( DeleteSqliteDatabaseLog
-    , deleteSqliteDatabase
-    , newRefCount
-    , waitForFree
-    , withRef
-    )
+    ( DeleteSqliteDatabaseLog, deleteSqliteDatabase, newRefCount, waitForFree,
+    withRef )
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -67,35 +58,18 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
-    ( DBCheckpoints (..)
-    , DBDelegation (..)
-    , DBFactory (..)
-    , DBFresh (..)
-    , DBLayer (..)
-    , DBLayerCollection (..)
-    , DBLayerParams (..)
-    , DBOpen (..)
-    , DBTxHistory (..)
-    , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized (..)
-    , mkDBLayerFromParts
-    , transactionsStore
-    )
+    ( DBCheckpoints (..), DBDelegation (..), DBFactory (..), DBFresh (..),
+    DBLayer (..), DBLayerCollection (..), DBLayerParams (..), DBOpen (..),
+    DBTxHistory (..), ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader),
+    ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized),
+    ErrWalletNotInitialized (..), mkDBLayerFromParts, transactionsStore )
 import Cardano.Wallet.DB.Sqlite.Migration.New
     ( runNewStyleMigrations )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( CBOR (..)
-    , DelegationReward (..)
-    , EntityField (..)
-    , Key (..)
-    , TxMeta (..)
-    , Wallet (..)
-    , migrateAll
-    , unWalletKey
-    )
+    ( CBOR (..), DelegationReward (..), EntityField (..), Key (..), TxMeta (..),
+    Wallet (..), migrateAll, unWalletKey )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
@@ -109,30 +83,22 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( submissionMetaFromTxMeta )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( TxInDecorator
-    , decorateTxInsForReadTxFromLookupTxOut
-    , decorateTxInsForRelationFromLookupTxOut
-    )
+    ( TxInDecorator, decorateTxInsForReadTxFromLookupTxOut,
+    decorateTxInsForRelationFromLookupTxOut )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..), txCBORPrism )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx, mkTransactionInfoFromRelation )
 import Cardano.Wallet.DB.Store.Wallets.Layer
-    ( QueryStoreTxWalletsHistory
-    , QueryTxWalletsHistory (..)
-    , newQueryStoreTxWalletsHistory
-    )
+    ( QueryStoreTxWalletsHistory, QueryTxWalletsHistory (..),
+    newQueryStoreTxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.WalletState.Store
     ( mkStoreWallet )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , findNearestPoint
-    , fromGenesis
-    , getLatest
-    )
+    ( DeltaWalletState, DeltaWalletState1 (..), findNearestPoint, fromGenesis,
+    getLatest )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS, WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Slotting
@@ -174,14 +140,8 @@ import Data.Text.Class
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
-    ( Entity (..)
-    , SelectOpt (..)
-    , repsert
-    , selectFirst
-    , selectKeysList
-    , selectList
-    , (==.)
-    )
+    ( Entity (..), SelectOpt (..), repsert, selectFirst, selectKeysList,
+    selectList, (==.) )
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import Fmt

@@ -44,17 +44,8 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
-    ( Manager
-    , Request
-    , RequestBody (..)
-    , defaultManagerSettings
-    , httpLbs
-    , method
-    , newManager
-    , parseRequest
-    , requestBody
-    , requestHeaders
-    )
+    ( Manager, Request, RequestBody (..), defaultManagerSettings, httpLbs,
+    method, newManager, parseRequest, requestBody, requestHeaders )
 import Network.HTTP.Types.Header
     ( hContentType )
 import Network.Socket
@@ -62,40 +53,17 @@ import Network.Socket
 import Network.Wai.Handler.Warp
     ( Port, runSettingsSocket, setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..)
-    , ApiLoggerSettings
-    , HandlerLog (..)
-    , newApiLoggerSettings
-    , obfuscateKeys
-    , withApiLogger
-    )
+    ( ApiLog (..), ApiLoggerSettings, HandlerLog (..), newApiLoggerSettings,
+    obfuscateKeys, withApiLogger )
 import Servant
-    ( (:<|>) (..)
-    , (:>)
-    , Application
-    , DeleteNoContent
-    , Get
-    , JSON
-    , NoContent (..)
-    , OctetStream
-    , PostCreated
-    , ReqBody
-    , Server
-    , err400
-    , err500
-    , err503
-    , serve
-    , throwError
-    )
+    ( Application, DeleteNoContent, Get, JSON, NoContent (..), OctetStream,
+    PostCreated, ReqBody, Server, err400, err500, err503, serve, throwError,
+    (:<|>) (..), (:>) )
 import Servant.Server
     ( Handler )
 import System.IO.Error
-    ( ioeGetErrorType
-    , isAlreadyInUseError
-    , isDoesNotExistError
-    , isPermissionError
-    , isUserError
-    )
+    ( ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError,
+    isPermissionError, isUserError )
 import Test.Hspec
     ( Spec, after, before, describe, it, shouldBe, shouldContain )
 import Test.QuickCheck

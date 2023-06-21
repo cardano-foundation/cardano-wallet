@@ -73,15 +73,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( SomeException, isSyncException, withException )
 import UnliftIO.MVar
-    ( MVar
-    , modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryPutMVar
-    )
+    ( MVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar, takeMVar,
+    tryPutMVar )
 
 {-------------------------------------------------------------------------------
                                 Worker Context

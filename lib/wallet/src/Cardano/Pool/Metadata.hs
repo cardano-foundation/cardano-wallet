@@ -47,11 +47,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , UrlBuilder
-    )
+    ( StakePoolMetadata, StakePoolMetadataHash (..), StakePoolMetadataUrl (..),
+    UrlBuilder )
 import Cardano.Pool.Types
     ( PoolId, decodePoolIdBech32 )
 import Cardano.Wallet.Address.Derivation
@@ -69,13 +66,8 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( FromJSON
-    , Options (..)
-    , camelTo2
-    , eitherDecodeStrict
-    , genericParseJSON
-    , parseJSON
-    )
+    ( FromJSON, Options (..), camelTo2, eitherDecodeStrict, genericParseJSON,
+    parseJSON )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray.Encoding
@@ -95,18 +87,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
-    ( HttpException (..)
-    , Manager
-    , ManagerSettings
-    , brConsume
-    , brReadSome
-    , managerResponseTimeout
-    , requestFromURI
-    , responseBody
-    , responseStatus
-    , responseTimeoutMicro
-    , withResponse
-    )
+    ( HttpException (..), Manager, ManagerSettings, brConsume, brReadSome,
+    managerResponseTimeout, requestFromURI, responseBody, responseStatus,
+    responseTimeoutMicro, withResponse )
 import Network.HTTP.Types.Status
     ( status200, status404 )
 import Network.URI

@@ -9,13 +9,8 @@ module Cardano.Wallet.Shelley.Faucet
 import Prelude
 
 import Test.Integration.Faucet
-    ( Faucet (..)
-    , icaMnemonics
-    , maMnemonics
-    , mirMnemonics
-    , rndMnemonics
-    , seqMnemonics
-    )
+    ( Faucet (..), icaMnemonics, maMnemonics, mirMnemonics, rndMnemonics,
+    seqMnemonics )
 import UnliftIO.MVar
     ( newMVar )
 

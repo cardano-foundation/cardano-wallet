@@ -13,15 +13,8 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.Time.Text
-    ( TimeFormat (..)
-    , iso8601
-    , iso8601BasicLocal
-    , iso8601BasicUtc
-    , iso8601ExtendedLocal
-    , iso8601ExtendedUtc
-    , utcTimeFromText
-    , utcTimeToText
-    )
+    ( TimeFormat (..), iso8601, iso8601BasicLocal, iso8601BasicUtc,
+    iso8601ExtendedLocal, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck

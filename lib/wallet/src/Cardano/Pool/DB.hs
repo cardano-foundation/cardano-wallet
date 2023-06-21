@@ -28,15 +28,9 @@ import Cardano.Pool.Metadata.Types
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
-    , PoolLifeCycleStatus (..)
-    , PoolRegistrationCertificate
-    , PoolRetirementCertificate
-    , Settings
-    , SlotNo (..)
-    )
+    ( BlockHeader, CertificatePublicationTime (..), EpochNo (..),
+    PoolLifeCycleStatus (..), PoolRegistrationCertificate,
+    PoolRetirementCertificate, Settings, SlotNo (..) )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except

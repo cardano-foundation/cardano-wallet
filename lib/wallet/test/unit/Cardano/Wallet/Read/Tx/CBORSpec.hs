@@ -21,18 +21,8 @@ import Test.QuickCheck
     ( Property, property, (===) )
 
 import Cardano.Wallet.Read.Eras
-    ( EraValue
-    , K (..)
-    , MkEraValue
-    , allegra
-    , alonzo
-    , applyEraFun
-    , babbage
-    , byron
-    , inject
-    , mary
-    , shelley
-    )
+    ( EraValue, K (..), MkEraValue, allegra, alonzo, applyEraFun, babbage,
+    byron, inject, mary, shelley )
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec

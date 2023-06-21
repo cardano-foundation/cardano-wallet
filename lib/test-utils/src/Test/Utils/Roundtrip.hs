@@ -21,24 +21,16 @@ import Data.Typeable
 import System.Environment
     ( lookupEnv )
 import Test.Aeson.GenericSpecs
-    ( GoldenDirectoryOption (CustomDirectoryName)
-    , Settings
-    , defaultSettings
-    , goldenDirectoryOption
-    , randomMismatchOption
-    , sampleSize
-    , useModuleNameAsSubDirectory
-    )
+    ( GoldenDirectoryOption (CustomDirectoryName), Settings, defaultSettings,
+    goldenDirectoryOption, randomMismatchOption, sampleSize,
+    useModuleNameAsSubDirectory )
 import Test.Aeson.Internal.GoldenSpecs
     ( goldenSpecsWithNotePlain )
 import Test.Aeson.Internal.RoundtripSpecs
     ( roundtripSpecs )
 import Test.Aeson.Internal.Utils
-    ( RandomMismatchOption (RandomMismatchError)
-    , TypeName (..)
-    , TypeNameInfo (..)
-    , mkTypeNameInfo
-    )
+    ( RandomMismatchOption (RandomMismatchError), TypeName (..),
+    TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
     ( Spec, it, runIO, shouldBe )
 import Test.QuickCheck

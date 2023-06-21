@@ -10,12 +10,8 @@ module Cardano.Pool.RankSpec
 import Prelude
 
 import Cardano.Pool.Rank
-    ( RedelegationWarning (..)
-    , RewardInfoPool (..)
-    , RewardParams (..)
-    , StakePoolsSummary (..)
-    , redelegationWarning
-    )
+    ( RedelegationWarning (..), RewardInfoPool (..), RewardParams (..),
+    StakePoolsSummary (..), redelegationWarning )
 import Cardano.Wallet.Gen
     ( genPercentage )
 import Cardano.Wallet.Primitive.Types
@@ -31,20 +27,9 @@ import Data.Quantity
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , arbitrarySizedBoundedIntegral
-    , choose
-    , forAll
-    , frequency
-    , getPositive
-    , liftArbitrary
-    , oneof
-    , property
-    , vector
-    , (=/=)
-    )
+    ( Arbitrary (..), Gen, Property, arbitrarySizedBoundedIntegral, choose,
+    forAll, frequency, getPositive, liftArbitrary, oneof, property, vector,
+    (=/=) )
 
 import Cardano.Pool.Types
     ( PoolId (..) )

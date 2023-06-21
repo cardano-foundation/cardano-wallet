@@ -20,39 +20,16 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient, shrinkActiveSlotCoefficient )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , Qry
-    , TimeInterpreterLog (..)
-    , epochOf
-    , expectAndThrowFailures
-    , firstSlotInEpoch
-    , interpretQuery
-    , mkSingleEraInterpreter
-    , mkTimeInterpreter
-    , neverFails
-    , slotRangeFromTimeRange
-    , slotToUTCTime
-    , timeOfEpoch
-    , unsafeExtendSafeZone
-    )
+    ( PastHorizonException, Qry, TimeInterpreterLog (..), epochOf,
+    expectAndThrowFailures, firstSlotInEpoch, interpretQuery,
+    mkSingleEraInterpreter, mkTimeInterpreter, neverFails,
+    slotRangeFromTimeRange, slotToUTCTime, timeOfEpoch, unsafeExtendSafeZone )
 import Cardano.Wallet.Primitive.Slotting.Legacy
-    ( SlotParameters (..)
-    , flatSlot
-    , fromFlatSlot
-    , slotParams
-    , slotRangeFromTimeRange'
-    , slotStartTime
-    )
+    ( SlotParameters (..), flatSlot, fromFlatSlot, slotParams,
+    slotRangeFromTimeRange', slotStartTime )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient
-    , EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    )
+    ( ActiveSlotCoefficient, EpochLength (..), EpochNo (..), Range (..),
+    SlotId (..), SlotLength (..), SlottingParameters (..), StartTime (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad.Trans.Except

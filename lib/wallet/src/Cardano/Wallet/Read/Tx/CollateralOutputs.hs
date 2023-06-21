@@ -22,14 +22,8 @@ module Cardano.Wallet.Read.Tx.CollateralOutputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 import Cardano.Ledger.Babbage.Collateral
     ()
 import Cardano.Ledger.Babbage.Rules

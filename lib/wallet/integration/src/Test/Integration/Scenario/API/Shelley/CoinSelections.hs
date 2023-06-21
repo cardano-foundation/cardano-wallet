@@ -25,14 +25,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeCIP1852 )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiCoinSelection
-    , ApiCoinSelectionOutput (..)
-    , ApiT (..)
-    , ApiWallet
-    , WalletStyle (..)
-    , apiAddress
-    )
+    ( AddressAmount (..), ApiCoinSelection, ApiCoinSelectionOutput (..),
+    ApiT (..), ApiWallet, WalletStyle (..), apiAddress )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -62,37 +56,16 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , addField
-    , derivationPathValidationErrors
-    , emptyWallet
-    , expectErrorMessage
-    , expectField
-    , expectResponseCode
-    , fixtureWallet
-    , isValidDerivationPath
-    , json
-    , listAddresses
-    , minUTxOValue
-    , request
-    , rewardWallet
-    , runResourceT
-    , selectCoins
-    , selectCoinsWith
-    , verify
-    , verifyMsg
-    , walletId
-    )
+    ( Context (..), Headers (..), Payload (..), addField,
+    derivationPathValidationErrors, emptyWallet, expectErrorMessage,
+    expectField, expectResponseCode, fixtureWallet, isValidDerivationPath, json,
+    listAddresses, minUTxOValue, request, rewardWallet, runResourceT,
+    selectCoins, selectCoinsWith, verify, verifyMsg, walletId )
 import Test.Integration.Framework.TestData
-    ( errMsg400TxMetadataStringTooLong
-    , errMsg403OutputTokenBundleSizeExceedsLimit
-    , errMsg403OutputTokenQuantityExceedsLimit
-    , errMsg404NoWallet
-    , errMsg406
-    , errMsg415
-    )
+    ( errMsg400TxMetadataStringTooLong,
+    errMsg403OutputTokenBundleSizeExceedsLimit,
+    errMsg403OutputTokenQuantityExceedsLimit, errMsg404NoWallet, errMsg406,
+    errMsg415 )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

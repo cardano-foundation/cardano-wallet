@@ -76,21 +76,14 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     where
 
 import Cardano.CoinSelection
-    ( SelectionCollateralError
-    , SelectionCollateralRequirement (..)
-    , SelectionError (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    )
+    ( SelectionCollateralError, SelectionCollateralRequirement (..),
+    SelectionError (..), SelectionOutputCoinInsufficientError (..),
+    SelectionOutputError (..), SelectionOutputErrorInfo (..),
+    SelectionOutputSizeExceedsLimitError (..),
+    SelectionOutputTokenQuantityExceedsLimitError (..) )
 import Cardano.CoinSelection.Balance
-    ( BalanceInsufficientError (..)
-    , SelectionBalanceError (..)
-    , SelectionStrategy (..)
-    , UnableToConstructChangeError (..)
-    )
+    ( BalanceInsufficientError (..), SelectionBalanceError (..),
+    SelectionStrategy (..), UnableToConstructChangeError (..) )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address

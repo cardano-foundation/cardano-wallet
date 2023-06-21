@@ -40,27 +40,15 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Address.Derivation
-    ( AddressParts (..)
-    , Depth (..)
-    , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
-    , HardDerivation (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PersistPublicKey (..)
-    , SoftDerivation (..)
-    , fromHex
-    , hex
-    , toAddressParts
-    )
+    ( AddressParts (..), Depth (..), DerivationType (..),
+    ErrMkKeyFingerprint (..), HardDerivation (..), KeyFingerprint (..),
+    MkKeyFingerprint (..), PersistPublicKey (..), SoftDerivation (..), fromHex,
+    hex, toAddressParts )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), purposeCIP1854 )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( deriveAccountPrivateKeyShelley
-    , deriveAddressPrivateKeyShelley
-    , deriveAddressPublicKeyShelley
-    , unsafeGenerateKeyFromSeedShelley
-    )
+    ( deriveAccountPrivateKeyShelley, deriveAddressPrivateKeyShelley,
+    deriveAddressPublicKeyShelley, unsafeGenerateKeyFromSeedShelley )
 import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Passphrase

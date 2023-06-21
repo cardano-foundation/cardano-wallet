@@ -30,25 +30,12 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
-    , BlockHeader (..)
-    , EpochLength (..)
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
-    , FeePolicy (..)
-    , GenesisParameters (..)
-    , LinearFunction (..)
-    , NetworkParameters (..)
-    , ProtocolParameters (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    , TokenBundleMaxSize (..)
-    , TxParameters (..)
-    , emptyEraInfo
-    )
+    ( ActiveSlotCoefficient (..), Block (..), BlockHeader (..),
+    EpochLength (..), ExecutionUnitPrices (..), ExecutionUnits (..),
+    FeePolicy (..), GenesisParameters (..), LinearFunction (..),
+    NetworkParameters (..), ProtocolParameters (..), SlotLength (..),
+    SlotNo (..), SlottingParameters (..), StartTime (..),
+    TokenBundleMaxSize (..), TxParameters (..), emptyEraInfo )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

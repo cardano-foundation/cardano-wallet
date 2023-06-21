@@ -19,49 +19,26 @@ module Cardano.CoinSelectionSpec
 import Prelude
 
 import Cardano.CoinSelection
-    ( ComputeMinimumCollateralParams (..)
-    , Selection
-    , SelectionCollateralError (..)
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionParams (..)
-    , VerificationResult (..)
-    , computeMinimumCollateral
-    , performSelection
-    , prepareOutputsWith
-    , selectionCollateralRequired
-    , toBalanceConstraintsParams
-    , verifySelection
-    , verifySelectionError
-    )
+    ( ComputeMinimumCollateralParams (..), Selection,
+    SelectionCollateralError (..), SelectionCollateralRequirement (..),
+    SelectionConstraints (..), SelectionError (..), SelectionOutputError (..),
+    SelectionOutputErrorInfo (..), SelectionParams (..),
+    VerificationResult (..), computeMinimumCollateral, performSelection,
+    prepareOutputsWith, selectionCollateralRequired, toBalanceConstraintsParams,
+    verifySelection, verifySelectionError )
 import Cardano.CoinSelection.Balance
     ( SelectionSkeleton )
 import Cardano.CoinSelection.Balance.Gen
-    ( genSelectionSkeleton
-    , genSelectionStrategy
-    , shrinkSelectionSkeleton
-    , shrinkSelectionStrategy
-    )
+    ( genSelectionSkeleton, genSelectionStrategy, shrinkSelectionSkeleton,
+    shrinkSelectionStrategy )
 import Cardano.CoinSelection.BalanceSpec
-    ( MockAssessTokenBundleSize
-    , MockComputeMinimumAdaQuantity
-    , MockComputeMinimumCost
-    , TestAddress (..)
-    , TestSelectionContext
-    , TestUTxO
-    , genMockAssessTokenBundleSize
-    , genMockComputeMinimumAdaQuantity
-    , genMockComputeMinimumCost
-    , shrinkMockAssessTokenBundleSize
-    , shrinkMockComputeMinimumAdaQuantity
-    , shrinkMockComputeMinimumCost
-    , unMockAssessTokenBundleSize
-    , unMockComputeMinimumAdaQuantity
-    , unMockComputeMinimumCost
-    )
+    ( MockAssessTokenBundleSize, MockComputeMinimumAdaQuantity,
+    MockComputeMinimumCost, TestAddress (..), TestSelectionContext, TestUTxO,
+    genMockAssessTokenBundleSize, genMockComputeMinimumAdaQuantity,
+    genMockComputeMinimumCost, shrinkMockAssessTokenBundleSize,
+    shrinkMockComputeMinimumAdaQuantity, shrinkMockComputeMinimumCost,
+    unMockAssessTokenBundleSize, unMockComputeMinimumAdaQuantity,
+    unMockComputeMinimumCost )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -107,38 +84,12 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , Testable (..)
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , choose
-    , conjoin
-    , cover
-    , elements
-    , frequency
-    , genericShrink
-    , listOf
-    , property
-    , scale
-    , shrink
-    , shrinkList
-    , suchThat
-    , vectorOf
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, Testable (..), arbitraryBoundedEnum,
+    checkCoverage, choose, conjoin, cover, elements, frequency, genericShrink,
+    listOf, property, scale, shrink, shrinkList, suchThat, vectorOf, (===) )
 import Test.QuickCheck.Extra
-    ( Pretty (..)
-    , chooseNatural
-    , genMapWith
-    , genericRoundRobinShrink
-    , report
-    , shrinkMapWith
-    , shrinkNatural
-    , (<:>)
-    , (<@>)
-    )
+    ( Pretty (..), chooseNatural, genMapWith, genericRoundRobinShrink, report,
+    shrinkMapWith, shrinkNatural, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 

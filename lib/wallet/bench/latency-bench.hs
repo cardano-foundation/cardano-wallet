@@ -27,32 +27,16 @@ import Cardano.Mnemonic
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiAsset (..)
-    , ApiEra
-    , ApiFee
-    , ApiNetworkInformation
-    , ApiT
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletMigrationPlan (..)
-    , WalletStyle (..)
-    )
+    ( ApiAddressWithPath, ApiAsset (..), ApiEra, ApiFee, ApiNetworkInformation,
+    ApiT, ApiTransaction, ApiTxId (..), ApiUtxoStatistics, ApiWallet,
+    ApiWalletMigrationPlan (..), WalletStyle (..) )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
-    ( FaucetFunds (..)
-    , LocalClusterConfig (..)
-    , LogFileConfig (..)
-    , RunningNode (..)
-    , defaultPoolConfigs
-    , walletListenFromEnv
-    , withCluster
-    )
+    ( FaucetFunds (..), LocalClusterConfig (..), LogFileConfig (..),
+    RunningNode (..), defaultPoolConfigs, walletListenFromEnv, withCluster )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
@@ -90,11 +74,8 @@ import Data.List.NonEmpty
 import Fmt
     ( build )
 import Network.HTTP.Client
-    ( defaultManagerSettings
-    , managerResponseTimeout
-    , newManager
-    , responseTimeoutMicro
-    )
+    ( defaultManagerSettings, managerResponseTimeout, newManager,
+    responseTimeoutMicro )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..) )
 import Numeric.Natural
@@ -109,36 +90,14 @@ import System.FilePath
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genShelleyAddresses
-    , maryIntegrationTestAssets
-    , shelleyIntegrationTestFunds
-    )
+    ( byronIntegrationTestFunds, genShelleyAddresses, maryIntegrationTestAssets,
+    shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , eventually
-    , expectField
-    , expectResponseCode
-    , expectSuccess
-    , expectWalletUTxO
-    , faucetAmt
-    , fixtureMultiAssetWallet
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , getFromResponse
-    , json
-    , minUTxOValue
-    , mkTxPayloadMA
-    , pickAnAsset
-    , postWallet
-    , request
-    , runResourceT
-    , unsafeRequest
-    , verify
-    )
+    ( Context (..), Headers (..), Payload (..), eventually, expectField,
+    expectResponseCode, expectSuccess, expectWalletUTxO, faucetAmt,
+    fixtureMultiAssetWallet, fixturePassphrase, fixtureWallet,
+    fixtureWalletWith, getFromResponse, json, minUTxOValue, mkTxPayloadMA,
+    pickAnAsset, postWallet, request, runResourceT, unsafeRequest, verify )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.MVar

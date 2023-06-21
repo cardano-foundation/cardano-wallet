@@ -26,16 +26,10 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (BlockId), getBlockId )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( WalletPassphraseInfo (WalletPassphraseInfo, lastUpdatedAt, passphraseScheme)
-    )
+    ( WalletPassphraseInfo (WalletPassphraseInfo, lastUpdatedAt, passphraseScheme) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisParameters (..)
-    , StartTime (StartTime, utcTimeOfStartTime)
-    , WalletId
-    , WalletMetadata (..)
-    , WalletName (WalletName)
-    , getWalletName
-    )
+    ( GenesisParameters (..), StartTime (StartTime, utcTimeOfStartTime),
+    WalletId, WalletMetadata (..), WalletName (WalletName), getWalletName )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (Hash) )
 import Control.Exception
@@ -49,14 +43,8 @@ import Data.Delta
 import Data.Store
     ( UpdateStore, mkUpdateStore, updateLoad )
 import Database.Persist
-    ( Entity (entityVal)
-    , Filter
-    , PersistQueryRead (selectFirst)
-    , PersistQueryWrite (updateWhere)
-    , Update
-    , insert_
-    , (=.)
-    )
+    ( Entity (entityVal), Filter, PersistQueryRead (selectFirst),
+    PersistQueryWrite (updateWhere), Update, insert_, (=.) )
 import Database.Persist.Sql
     ( SqlPersistT, deleteWhere )
 import Fmt

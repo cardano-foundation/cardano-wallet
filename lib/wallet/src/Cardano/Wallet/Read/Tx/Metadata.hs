@@ -21,14 +21,8 @@ module Cardano.Wallet.Read.Tx.Metadata
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Control.Lens
@@ -43,13 +37,8 @@ import Cardano.Wallet.Read.Tx.Eras
 import Data.Maybe.Strict
     ( StrictMaybe )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
+    ( StandardAllegra, StandardAlonzo, StandardBabbage, StandardConway,
+    StandardMary, StandardShelley )
 
 type family MetadataType era where
   MetadataType ByronEra = ()

@@ -16,10 +16,8 @@ import Cardano.Wallet.Submissions.Properties.Common
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions, finality, tip, transactions )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..)
-    , TxStatus (Expired, InLedger, InSubmission, Unknown)
-    , status
-    )
+    ( HasTxId (..), TxStatus (Expired, InLedger, InSubmission, Unknown),
+    status )
 import Data.Function
     ( (&) )
 import Data.Set

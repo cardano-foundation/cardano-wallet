@@ -19,31 +19,13 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , RewardAccount (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    )
+    ( Depth (..), DerivationType (..), HardDerivation (..), KeyFingerprint (..),
+    MkKeyFingerprint (..), PaymentAddress (..), RewardAccount (..),
+    SoftDerivation (..), ToRewardAccount (..) )
 import Cardano.Wallet.Primitive.Delegation.State
-    ( Cert (..)
-    , DelegationState (..)
-    , Key0Status (..)
-    , PointerUTxO (..)
-    , State (..)
-    , Tx (..)
-    , activeKeys
-    , applyTx
-    , initialDelegationState
-    , keyAtIx
-    , presentableKeys
-    , setPortfolioOf
-    , usableKeys
-    )
+    ( Cert (..), DelegationState (..), Key0Status (..), PointerUTxO (..),
+    State (..), Tx (..), activeKeys, applyTx, initialDelegationState, keyAtIx,
+    presentableKeys, setPortfolioOf, usableKeys )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -65,36 +47,16 @@ import Data.Map
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockListF
-    , blockListF'
-    , blockMapF
-    , fmt
-    , listF
-    , listF'
-    , mapF'
-    , pretty
-    )
+    ( Buildable (..), Builder, blockListF, blockListF', blockMapF, fmt, listF,
+    listF', mapF', pretty )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonNegative (..)
-    , Property
-    , conjoin
-    , counterexample
-    , forAllShow
-    , frequency
-    , genericShrink
-    , property
-    , sublistOf
-    , withMaxSuccess
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), NonNegative (..), Property, conjoin, counterexample,
+    forAllShow, frequency, genericShrink, property, sublistOf, withMaxSuccess,
+    (.&&.), (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
 

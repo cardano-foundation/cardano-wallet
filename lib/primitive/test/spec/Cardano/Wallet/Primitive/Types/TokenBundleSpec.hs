@@ -19,10 +19,8 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Lexicographic (..), TokenBundle (..), add, difference, isCoin, subtract )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundlePartition
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
+    ( genTokenBundlePartition, genTokenBundleSmallRange,
+    shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
@@ -36,16 +34,8 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , counterexample
-    , cover
-    , forAll
-    , property
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Property, checkCoverage, counterexample, cover, forAll,
+    property, (===), (==>) )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws

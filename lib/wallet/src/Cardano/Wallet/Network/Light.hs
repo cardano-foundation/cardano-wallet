@@ -28,11 +28,8 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockSummary (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , ChainPoint (..)
-    , chainPointFromBlockHeader
-    , compareSlot
-    )
+    ( BlockHeader (..), ChainPoint (..), chainPointFromBlockHeader,
+    compareSlot )
 import Control.Monad.Class.MonadTimer
     ( MonadDelay (..) )
 import Control.Tracer

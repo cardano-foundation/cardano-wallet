@@ -35,23 +35,12 @@ import Cardano.Address.Script
 import Cardano.DB.Sqlite
     ( dbChunked )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..)
-    , Discoveries (..)
-    , Prologue (..)
-    , SeqAddressMap (..)
-    , SharedAddressMap (..)
-    )
+    ( AddressBookIso (..), Discoveries (..), Prologue (..), SeqAddressMap (..),
+    SharedAddressMap (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , HardDerivation (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , roleVal
-    , unsafePaymentKeyFingerprint
-    )
+    ( Depth (..), HardDerivation (..), MkKeyFingerprint (..),
+    PaymentAddress (..), PersistPublicKey (..), Role (..), SoftDerivation (..),
+    roleVal, unsafePaymentKeyFingerprint )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery
@@ -65,29 +54,13 @@ import Cardano.Wallet.Checkpoints
 import Cardano.Wallet.DB.Errors
     ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( Checkpoint (..)
-    , CosignerKey (..)
-    , EntityField (..)
-    , Key (..)
-    , RndState (..)
-    , RndStateAddress (..)
-    , RndStatePendingAddress (..)
-    , SeqState (..)
-    , SeqStateAddress (..)
-    , SeqStatePendingIx (..)
-    , SharedState (..)
-    , SharedStatePendingIx (..)
-    , UTxO (..)
-    , UTxOToken (..)
-    )
+    ( Checkpoint (..), CosignerKey (..), EntityField (..), Key (..),
+    RndState (..), RndStateAddress (..), RndStatePendingAddress (..),
+    SeqState (..), SeqStateAddress (..), SeqStatePendingIx (..),
+    SharedState (..), SharedStatePendingIx (..), UTxO (..), UTxOToken (..) )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..)
-    , HDPassphrase (..)
-    , TxId (..)
-    , fromMaybeHash
-    , hashOfNoParent
-    , toMaybeHash
-    )
+    ( BlockId (..), HDPassphrase (..), TxId (..), fromMaybeHash, hashOfNoParent,
+    toMaybeHash )
 import Cardano.Wallet.DB.WalletState
     ( WalletCheckpoint (..), getSlot )
 import Cardano.Wallet.Flavor
@@ -127,19 +100,8 @@ import Data.Type.Equality
 import Data.Typeable
     ( Typeable )
 import Database.Persist.Sql
-    ( Entity (..)
-    , SelectOpt (..)
-    , deleteWhere
-    , insertMany_
-    , insert_
-    , repsert
-    , selectFirst
-    , selectList
-    , (!=.)
-    , (/<-.)
-    , (==.)
-    , (>.)
-    )
+    ( Entity (..), SelectOpt (..), deleteWhere, insertMany_, insert_, repsert,
+    selectFirst, selectList, (!=.), (/<-.), (==.), (>.) )
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import UnliftIO.Exception

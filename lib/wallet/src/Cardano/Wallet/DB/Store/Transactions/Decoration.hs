@@ -37,10 +37,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (TxRelation, collateralIns, collateralOuts, ins, outs)
-    , fromTxCollateralOut
-    , fromTxOut
-    )
+    ( TxRelation (TxRelation, collateralIns, collateralOuts, ins, outs),
+    fromTxCollateralOut, fromTxOut )
 import Cardano.Wallet.Read.Eras
     ( EraValue, extractEraValue )
 import Cardano.Wallet.Read.Eras.EraFun

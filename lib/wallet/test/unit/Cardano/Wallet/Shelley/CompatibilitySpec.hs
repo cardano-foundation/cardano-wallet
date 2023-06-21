@@ -18,25 +18,15 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash
-    , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
-    , keyHashFromBytes
-    , serializeScript
-    , toScriptHash
-    )
+    ( KeyHash, KeyRole (..), Script (..), ScriptHash (..), keyHashFromBytes,
+    serializeScript, toScriptHash )
 import Cardano.Crypto.Hash.Class
     ( digest )
 import Cardano.Ledger.Crypto
     ( Crypto (..) )
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , Mnemonic
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    )
+    ( ConsistentEntropy, EntropySize, Mnemonic, SomeMnemonic (..),
+    entropyToMnemonic )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), Index (getIndex), PaymentAddress (..), delegationAddress )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -64,35 +54,18 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , TxSize (..)
-    , txOutMaxCoin
-    , txOutMinCoin
-    )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..), TxSize (..),
+    txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkId (..), SNetworkId (..), withSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
-    , computeTokenBundleSerializedLengthBytes
-    , decentralizationLevelFromPParams
-    , decodeAddress
-    , decodeStakeAddress
-    , encodeStakeAddress
-    , fromCardanoValue
-    , fromTip
-    , inspectAddress
-    , interval0
-    , interval1
-    , invertUnitInterval
-    , toCardanoHash
-    , toCardanoValue
-    , toTip
-    , tokenBundleSizeAssessor
-    )
+    ( CardanoBlock, StandardCrypto, computeTokenBundleSerializedLengthBytes,
+    decentralizationLevelFromPParams, decodeAddress, decodeStakeAddress,
+    encodeStakeAddress, fromCardanoValue, fromTip, inspectAddress, interval0,
+    interval1, invertUnitInterval, toCardanoHash, toCardanoValue, toTip,
+    tokenBundleSizeAssessor )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkEntropy )
 import Cardano.Wallet.Util
@@ -134,27 +107,9 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , Gen
-    , NonNegative (..)
-    , Property
-    , Small (..)
-    , checkCoverage
-    , choose
-    , chooseInt
-    , conjoin
-    , counterexample
-    , cover
-    , frequency
-    , oneof
-    , property
-    , resize
-    , vector
-    , withMaxSuccess
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Blind (..), Gen, NonNegative (..), Property, Small (..),
+    checkCoverage, choose, chooseInt, conjoin, counterexample, cover, frequency,
+    oneof, property, resize, vector, withMaxSuccess, (===), (==>) )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 

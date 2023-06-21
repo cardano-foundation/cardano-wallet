@@ -68,13 +68,8 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , coinTypeAda
-    , defaultAddressPoolGap
-    , purposeBIP44
-    , purposeCIP1852
-    )
+    ( DerivationPrefix (..), SeqState (..), coinTypeAda, defaultAddressPoolGap,
+    purposeBIP44, purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 import Cardano.Wallet.Address.Keys.SequentialAny
@@ -82,17 +77,9 @@ import Cardano.Wallet.Address.Keys.SequentialAny
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..)
-    , PersistAddressBook
-    , WalletDBLog (..)
-    , newDBFactory
-    , newDBFreshInMemory
-    , retrieveWalletId
-    , withDBFresh
-    , withDBFreshFromDBOpen
-    , withDBFreshInMemory
-    , withDBOpenFromFile
-    )
+    ( DefaultFieldValues (..), PersistAddressBook, WalletDBLog (..),
+    newDBFactory, newDBFreshInMemory, retrieveWalletId, withDBFresh,
+    withDBFreshFromDBOpen, withDBFreshInMemory, withDBOpenFromFile )
 import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DB.StateMachine
@@ -106,37 +93,18 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
-    ( FilteredBlock (..)
-    , Wallet
-    , applyBlock
-    , availableBalance
-    , currentTip
-    , getState
-    , initWallet
-    )
+    ( FilteredBlock (..), Wallet, applyBlock, availableBalance, currentTip,
+    getState, initWallet )
 import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase, preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
-    , PassphraseHash (..)
-    , PassphraseScheme (..)
-    , WalletPassphraseInfo (..)
-    )
+    ( Passphrase (..), PassphraseHash (..), PassphraseScheme (..),
+    WalletPassphraseInfo (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
-    , BlockHeader (..)
-    , GenesisParameters (..)
-    , Range
-    , SlotNo (..)
-    , SortOrder (..)
-    , StartTime (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    , WithOrigin (At)
-    , wholeRange
-    )
+    ( ActiveSlotCoefficient (..), Block (..), BlockHeader (..),
+    GenesisParameters (..), Range, SlotNo (..), SortOrder (..), StartTime (..),
+    WalletId (..), WalletMetadata (..), WalletName (..), WithOrigin (At),
+    wholeRange )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -148,14 +116,8 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , toTxHistory
-    )
+    ( Direction (..), TransactionInfo (..), Tx (..), TxMeta (..),
+    TxScriptValidity (..), TxStatus (..), toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -221,21 +183,9 @@ import System.IO.Unsafe
 import System.Random
     ( randomRIO )
 import Test.Hspec
-    ( Expectation
-    , Spec
-    , SpecWith
-    , around
-    , before
-    , beforeWith
-    , describe
-    , it
-    , shouldBe
-    , shouldContain
-    , shouldNotContain
-    , shouldReturn
-    , shouldSatisfy
-    , shouldThrow
-    )
+    ( Expectation, Spec, SpecWith, around, before, beforeWith, describe, it,
+    shouldBe, shouldContain, shouldNotContain, shouldReturn, shouldSatisfy,
+    shouldThrow )
 import Test.QuickCheck
     ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic

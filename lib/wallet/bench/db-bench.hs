@@ -78,14 +78,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..), mkRndState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqAddressPool (..)
-    , SeqState (..)
-    , coinTypeAda
-    , defaultAddressPoolGap
-    , mkSeqStateFromAccountXPub
-    , purposeCIP1852
-    )
+    ( DerivationPrefix (..), SeqAddressPool (..), SeqState (..), coinTypeAda,
+    defaultAddressPoolGap, mkSeqStateFromAccountXPub, purposeCIP1852 )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -113,20 +107,10 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
-    , BlockHeader (..)
-    , EpochLength (..)
-    , Range (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , SortOrder (..)
-    , StartTime (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    )
+    ( ActiveSlotCoefficient (..), Block (..), BlockHeader (..),
+    EpochLength (..), Range (..), SlotLength (..), SlotNo (..),
+    SlottingParameters (..), SortOrder (..), StartTime (..), WalletId (..),
+    WalletMetadata (..), WalletName (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -156,13 +140,8 @@ import Control.DeepSeq
 import Control.Monad
     ( join )
 import Criterion.Main
-    ( Benchmark
-    , Benchmarkable
-    , bench
-    , bgroup
-    , defaultMain
-    , perRunEnvWithCleanup
-    )
+    ( Benchmark, Benchmarkable, bench, bgroup, defaultMain,
+    perRunEnvWithCleanup )
 import Crypto.Hash
     ( hash )
 import Data.ByteString

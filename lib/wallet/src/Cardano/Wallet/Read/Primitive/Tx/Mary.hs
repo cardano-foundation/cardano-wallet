@@ -54,14 +54,9 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    , WitnessCountCtx
-    , toKeyRole
-    )
+    ( AnyExplicitScript (..), ScriptReference (..), TokenMapWithScripts (..),
+    ValidityIntervalExplicit (..), WitnessCount (..), WitnessCountCtx,
+    toKeyRole )
 import Control.Lens
     ( (^.) )
 import Data.Foldable

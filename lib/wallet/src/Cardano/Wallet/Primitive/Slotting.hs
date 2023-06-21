@@ -80,16 +80,8 @@ import Cardano.Slotting.EpochInfo.API
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types
-    ( EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    )
+    ( EpochLength (..), EpochNo (..), Range (..), SlotId (..), SlotInEpoch (..),
+    SlotLength (..), SlotNo (..), SlottingParameters (..), StartTime (..) )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Monad
@@ -129,16 +121,8 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import Ouroboros.Consensus.HardFork.History.EpochInfo
     ( interpreterToEpochInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
-    ( Expr (..)
-    , Interpreter
-    , PastHorizonException (..)
-    , epochToSlot'
-    , mkInterpreter
-    , qryFromExpr
-    , slotToEpoch'
-    , slotToWallclock
-    , wallclockToSlot
-    )
+    ( Expr (..), Interpreter, PastHorizonException (..), epochToSlot',
+    mkInterpreter, qryFromExpr, slotToEpoch', slotToWallclock, wallclockToSlot )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( neverForksSummary )
 import UnliftIO.Exception

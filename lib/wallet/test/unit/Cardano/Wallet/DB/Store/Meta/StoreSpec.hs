@@ -16,14 +16,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty
-    , assertWith
-    , initializeWalletTable
-    , logScale
-    , queryLaw
-    , withDBInMemory
-    , withInitializedWalletProp
-    )
+    ( WalletProperty, assertWith, initializeWalletTable, logScale, queryLaw,
+    withDBInMemory, withInitializedWalletProp )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Sqlite.Types

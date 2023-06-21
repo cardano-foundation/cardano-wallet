@@ -39,14 +39,8 @@ import Control.Monad
 import Control.Monad.Trans.State.Strict
     ( evalState, state )
 import Data.Delta
-    ( Delta (..)
-    , DeltaList (..)
-    , DeltaSet
-    , DeltaSet1 (..)
-    , Embedding
-    , Embedding' (..)
-    , mkEmbedding
-    )
+    ( Delta (..), DeltaList (..), DeltaSet, DeltaSet1 (..), Embedding,
+    Embedding' (..), mkEmbedding )
 import Data.IntMap.Strict
     ( IntMap )
 import Data.List

@@ -35,13 +35,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockHeight
-    , BlockId
-    , HDPassphrase
-    , TxId
-    , TxSubmissionStatusEnum (..)
-    , sqlSettings'
-    )
+    ( BlockHeight, BlockId, HDPassphrase, TxId, TxSubmissionStatusEnum (..),
+    sqlSettings' )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( Pruned, Spent )
 import Cardano.Wallet.Primitive.Types

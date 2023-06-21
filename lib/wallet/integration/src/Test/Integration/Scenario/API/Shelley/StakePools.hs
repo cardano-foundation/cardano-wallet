@@ -26,20 +26,10 @@ import Cardano.Pool.Metadata
 import Cardano.Pool.Metadata.Types
 import Cardano.Pool.Types
 import Cardano.Wallet.Api.Types
-    ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
-    , ApiEra (..)
-    , ApiHealthCheck
-    , ApiPoolSpecifier (..)
-    , ApiStakeKeys
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiTxInput (..)
-    , ApiWallet
-    , ApiWalletDelegationStatus (..)
-    , ApiWithdrawal (..)
-    , WalletStyle (..)
-    )
+    ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount), ApiEra (..),
+    ApiHealthCheck, ApiPoolSpecifier (..), ApiStakeKeys, ApiT (..),
+    ApiTransaction, ApiTxId (..), ApiTxInput (..), ApiWallet,
+    ApiWalletDelegationStatus (..), ApiWithdrawal (..), WalletStyle (..) )
 import Cardano.Wallet.Pools
     ( StakePool (..), StakePoolFlag (Delisted) )
 import Cardano.Wallet.Primitive.Types
@@ -93,61 +83,20 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
-    ( Headers (..)
-    , Payload (..)
-    , arbitraryStake
-    , bracketSettings
-    , delegating
-    , delegationFee
-    , emptyWallet
-    , eventually
-    , eventuallyUsingDelay
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , getFromResponse
-    , getRetirementEpoch
-    , getSlotParams
-    , joinStakePool
-    , joinStakePoolUnsigned
-    , json
-    , listAddresses
-    , minUTxOValue
-    , notDelegating
-    , postWallet
-    , quitStakePool
-    , quitStakePoolUnsigned
-    , replaceStakeKey
-    , request
-    , rewardWallet
-    , triggerMaintenanceAction
-    , unsafeRequest
-    , unsafeResponse
-    , updateMetadataSource
-    , verify
-    , verifyMaintenanceAction
-    , verifyMetadataSource
-    , waitForNextEpoch
-    , waitForTxImmutability
-    , walletId
-    , (.<)
-    , (.>)
-    , (.>=)
-    )
+    ( Headers (..), Payload (..), arbitraryStake, bracketSettings, delegating,
+    delegationFee, emptyWallet, eventually, eventuallyUsingDelay,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, fixturePassphrase, fixtureWallet, fixtureWalletWith,
+    getFromResponse, getRetirementEpoch, getSlotParams, joinStakePool,
+    joinStakePoolUnsigned, json, listAddresses, minUTxOValue, notDelegating,
+    postWallet, quitStakePool, quitStakePoolUnsigned, replaceStakeKey, request,
+    rewardWallet, triggerMaintenanceAction, unsafeRequest, unsafeResponse,
+    updateMetadataSource, verify, verifyMaintenanceAction, verifyMetadataSource,
+    waitForNextEpoch, waitForTxImmutability, walletId, (.<), (.>), (.>=) )
 import Test.Integration.Framework.TestData
-    ( errMsg403EmptyUTxO
-    , errMsg403Fee
-    , errMsg403NotDelegating
-    , errMsg403PoolAlreadyJoined
-    , errMsg403WrongPass
-    , errMsg404NoSuchPool
-    , errMsg404NoWallet
-    )
+    ( errMsg403EmptyUTxO, errMsg403Fee, errMsg403NotDelegating,
+    errMsg403PoolAlreadyJoined, errMsg403WrongPass, errMsg404NoSuchPool,
+    errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS

@@ -14,15 +14,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..), getTxId )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( DeltaUTxOHistory (..)
-    , Pruned (..)
-    , Spent (..)
-    , constrainingAppendBlock
-    , constrainingPrune
-    , constrainingRollback
-    , empty
-    , reverseMapOfSets
-    )
+    ( DeltaUTxOHistory (..), Pruned (..), Spent (..), constrainingAppendBlock,
+    constrainingPrune, constrainingRollback, empty, reverseMapOfSets )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( UTxOHistory (..) )
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
@@ -49,20 +42,9 @@ import Data.Maybe
 import Data.Store
     ( UpdateStore, mkUpdateStore, updateLoad )
 import Database.Persist.Sql
-    ( PersistQueryWrite (deleteWhere)
-    , SqlPersistT
-    , entityVal
-    , insertMany_
-    , insert_
-    , selectFirst
-    , selectList
-    , updateWhere
-    , (!=.)
-    , (<=.)
-    , (=.)
-    , (==.)
-    , (>.)
-    )
+    ( PersistQueryWrite (deleteWhere), SqlPersistT, entityVal, insertMany_,
+    insert_, selectFirst, selectList, updateWhere, (!=.), (<=.), (=.), (==.),
+    (>.) )
 import GHC.Exception
     ( Exception, SomeException )
 import GHC.Exception.Type

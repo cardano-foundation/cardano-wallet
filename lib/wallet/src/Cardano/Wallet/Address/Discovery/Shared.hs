@@ -51,55 +51,27 @@ module Cardano.Wallet.Address.Discovery.Shared
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner (..)
-    , ErrValidateScriptTemplate (..)
-    , Script (..)
-    , ScriptHash (..)
-    , ScriptTemplate (..)
-    , foldScript
-    , prettyErrValidateScriptTemplate
-    , toScriptHash
-    )
+    ( Cosigner (..), ErrValidateScriptTemplate (..), Script (..),
+    ScriptHash (..), ScriptTemplate (..), foldScript,
+    prettyErrValidateScriptTemplate, toScriptHash )
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Address.Derivation
-    ( AccountIxForStaking (..)
-    , AddressParts (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationPrefix (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation
-    , mutableAccount
-    , roleVal
-    , toAddressParts
-    , unsafePaymentKeyFingerprint
-    , utxoExternal
-    , utxoInternal
-    )
+    ( AccountIxForStaking (..), AddressParts (..), Depth (..),
+    DerivationIndex (..), DerivationPrefix (..), DerivationType (..),
+    HardDerivation (..), Index (..), KeyFingerprint (..), MkKeyFingerprint (..),
+    PersistPublicKey (..), Role (..), SoftDerivation, mutableAccount, roleVal,
+    toAddressParts, unsafePaymentKeyFingerprint, utxoExternal, utxoInternal )
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( constructAddressFromIx, replaceCosignersWithVerKeys, toNetworkTag )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , GetAccount (..)
-    , IsOurs (..)
-    , KnownAddresses (..)
-    , MaybeLight (..)
-    , PendingIxs
-    , nextChangeIndex
-    , pendingIxsToList
-    )
+    ( CompareDiscovery (..), GenChange (..), GetAccount (..), IsOurs (..),
+    KnownAddresses (..), MaybeLight (..), PendingIxs, nextChangeIndex,
+    pendingIxsToList )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Passphrase

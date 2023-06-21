@@ -27,24 +27,12 @@ import Prelude hiding
     ( sequence )
 
 import Cardano.CoinSelection.Collateral
-    ( PerformSelection
-    , SearchSpaceLimit (..)
-    , SearchSpaceRequirement (..)
-    , SelectionCollateralError (..)
-    , SelectionConstraints (..)
-    , SelectionParams (..)
-    , SelectionResult (..)
-    , firstRight
-    , guardSearchSpaceSize
-    , numberOfSubsequencesOfSize
-    , performSelection
-    , searchSpaceLimitDefault
-    , selectCollateralLargest
-    , selectCollateralSmallest
-    , submaps
-    , subsequencesOfSize
-    , takeUntil
-    )
+    ( PerformSelection, SearchSpaceLimit (..), SearchSpaceRequirement (..),
+    SelectionCollateralError (..), SelectionConstraints (..),
+    SelectionParams (..), SelectionResult (..), firstRight,
+    guardSearchSpaceSize, numberOfSubsequencesOfSize, performSelection,
+    searchSpaceLimitDefault, selectCollateralLargest, selectCollateralSmallest,
+    submaps, subsequencesOfSize, takeUntil )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -74,27 +62,9 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , NonNegative (..)
-    , Property
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , choose
-    , conjoin
-    , counterexample
-    , cover
-    , coverTable
-    , forAll
-    , frequency
-    , genericShrink
-    , property
-    , scale
-    , shuffle
-    , sized
-    , tabulate
-    , (===)
-    )
+    ( Arbitrary (..), Gen, NonNegative (..), Property, arbitraryBoundedEnum,
+    checkCoverage, choose, conjoin, counterexample, cover, coverTable, forAll,
+    frequency, genericShrink, property, scale, shuffle, sized, tabulate, (===) )
 import Test.QuickCheck.Quid
     ( Hexadecimal (..), Quid )
 import Text.Pretty.Simple

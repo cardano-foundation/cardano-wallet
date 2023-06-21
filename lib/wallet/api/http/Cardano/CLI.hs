@@ -114,12 +114,8 @@ import Cardano.BM.Data.Counter
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LoggerName, PrivacyAnnotation (..), mkLOMeta )
 import Cardano.BM.Data.Output
-    ( ScribeDefinition (..)
-    , ScribeFormat (..)
-    , ScribeId
-    , ScribeKind (..)
-    , ScribePrivacy (..)
-    )
+    ( ScribeDefinition (..), ScribeFormat (..), ScribeId, ScribeKind (..),
+    ScribePrivacy (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.SubTrace
@@ -135,40 +131,22 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Api.Client
-    ( AddressClient (..)
-    , NetworkClient (..)
-    , StakePoolClient (..)
-    , TransactionClient (..)
-    , WalletClient (..)
-    )
+    ( AddressClient (..), NetworkClient (..), StakePoolClient (..),
+    TransactionClient (..), WalletClient (..) )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration (..) )
 import Cardano.Wallet.Api.Types
-    ( AccountPostData (..)
-    , AddressAmount
-    , AllowedMnemonics
-    , ApiAccountPublicKey
-    , ApiByronWallet
-    , ApiBytesT (..)
-    , ApiMnemonicT (..)
-    , ApiPostRandomAddressData (..)
-    , ApiT (..)
-    , ApiTxId (ApiTxId)
-    , ApiWallet
-    , Base (Base16)
-    , ByronWalletPostData (..)
-    , ByronWalletPutPassphraseData (ByronWalletPutPassphraseData)
-    , ByronWalletStyle (..)
-    , Iso8601Time (..)
-    , SomeByronWalletPostData (..)
-    , WalletOrAccountPostData (..)
-    , WalletPostData (..)
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
-    , WalletPutPassphraseMnemonicData (WalletPutPassphraseMnemonicData)
-    , WalletPutPassphraseOldPassphraseData (WalletPutPassphraseOldPassphraseData)
-    , fmtAllowedWords
-    )
+    ( AccountPostData (..), AddressAmount, AllowedMnemonics,
+    ApiAccountPublicKey, ApiByronWallet, ApiBytesT (..), ApiMnemonicT (..),
+    ApiPostRandomAddressData (..), ApiT (..), ApiTxId (ApiTxId), ApiWallet,
+    Base (Base16), ByronWalletPostData (..),
+    ByronWalletPutPassphraseData (ByronWalletPutPassphraseData),
+    ByronWalletStyle (..), Iso8601Time (..), SomeByronWalletPostData (..),
+    WalletOrAccountPostData (..), WalletPostData (..), WalletPutData (..),
+    WalletPutPassphraseData (..),
+    WalletPutPassphraseMnemonicData (WalletPutPassphraseMnemonicData),
+    WalletPutPassphraseOldPassphraseData (WalletPutPassphraseOldPassphraseData),
+    fmtAllowedWords )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
@@ -178,12 +156,8 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..)
-    , SortOrder
-    , TokenMetadataServer
-    , WalletId
-    , WalletName
-    )
+    ( PoolMetadataSource (..), SortOrder, TokenMetadataServer, WalletId,
+    WalletName )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -235,47 +209,15 @@ import GHC.Generics
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
-    ( defaultManagerSettings
-    , managerResponseTimeout
-    , newManager
-    , responseTimeoutNone
-    )
+    ( defaultManagerSettings, managerResponseTimeout, newManager,
+    responseTimeoutNone )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( ArgumentFields
-    , CommandFields
-    , Mod
-    , OptionFields
-    , ParseError (InfoMsg)
-    , Parser
-    , ParserInfo
-    , abortOption
-    , argument
-    , auto
-    , command
-    , customExecParser
-    , eitherReader
-    , flag
-    , flag'
-    , header
-    , help
-    , helpDoc
-    , helper
-    , hidden
-    , info
-    , long
-    , metavar
-    , option
-    , prefs
-    , progDesc
-    , showDefaultWith
-    , showHelpOnEmpty
-    , str
-    , strOption
-    , subparser
-    , switch
-    , value
-    )
+    ( ArgumentFields, CommandFields, Mod, OptionFields, ParseError (InfoMsg),
+    Parser, ParserInfo, abortOption, argument, auto, command, customExecParser,
+    eitherReader, flag, flag', header, help, helpDoc, helper, hidden, info,
+    long, metavar, option, prefs, progDesc, showDefaultWith, showHelpOnEmpty,
+    str, strOption, subparser, switch, value )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative.Help.Pretty
     ( string, vsep )
@@ -291,21 +233,11 @@ import Servant.Client
 import Servant.Client.Core
     ( ClientError (..), responseBody )
 import System.Console.ANSI
-    ( Color (..)
-    , ColorIntensity (..)
-    , ConsoleLayer (..)
-    , SGR (..)
-    , hCursorBackward
-    , hSetSGR
-    , hSupportsANSIWithoutEmulation
-    )
+    ( Color (..), ColorIntensity (..), ConsoleLayer (..), SGR (..),
+    hCursorBackward, hSetSGR, hSupportsANSIWithoutEmulation )
 import System.Directory
-    ( XdgDirectory (..)
-    , createDirectoryIfMissing
-    , doesDirectoryExist
-    , doesFileExist
-    , getXdgDirectory
-    )
+    ( XdgDirectory (..), createDirectoryIfMissing, doesDirectoryExist,
+    doesFileExist, getXdgDirectory )
 import System.Environment
     ( lookupEnv )
 import System.Exit
@@ -315,19 +247,9 @@ import System.FilePath
 import System.Info
     ( os )
 import System.IO
-    ( BufferMode (..)
-    , Handle
-    , hGetBuffering
-    , hGetChar
-    , hGetEcho
-    , hIsTerminalDevice
-    , hPutChar
-    , hSetBuffering
-    , hSetEcho
-    , stderr
-    , stdin
-    , stdout
-    )
+    ( BufferMode (..), Handle, hGetBuffering, hGetChar, hGetEcho,
+    hIsTerminalDevice, hPutChar, hSetBuffering, hSetEcho, stderr, stdin,
+    stdout )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception

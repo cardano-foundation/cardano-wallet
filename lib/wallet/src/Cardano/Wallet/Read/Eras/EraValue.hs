@@ -48,17 +48,8 @@ module Cardano.Wallet.Read.Eras.EraValue
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , AnyCardanoEra (..)
-    , BabbageEra
-    , ByronEra
-    , CardanoEra (..)
-    , ConwayEra
-    , IsCardanoEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, AnyCardanoEra (..), BabbageEra, ByronEra,
+    CardanoEra (..), ConwayEra, IsCardanoEra, MaryEra, ShelleyEra )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Control.DeepSeq
@@ -68,18 +59,8 @@ import Data.Either.Extra
 import Data.Generics.Internal.VL
     ( Prism', build, match, prism )
 import Generics.SOP
-    ( (:.:)
-    , All
-    , Compose
-    , K (..)
-    , NP (..)
-    , NS
-    , Proxy (..)
-    , ejections
-    , injections
-    , unComp
-    , unK
-    )
+    ( All, Compose, K (..), NP (..), NS, Proxy (..), ejections, injections,
+    unComp, unK, (:.:) )
 import Generics.SOP.Classes
 import Generics.SOP.NP
     ( cmap_NP, pure_NP, zipWith_NP )

@@ -15,20 +15,12 @@ module Cardano.Wallet.Primitive.PassphraseSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase
-    ( ErrWrongPassphrase (..)
-    , Passphrase (..)
-    , PassphraseHash (..)
-    , PassphraseScheme (..)
-    , checkPassphrase
-    , encryptPassphrase
-    , preparePassphrase
-    )
+    ( ErrWrongPassphrase (..), Passphrase (..), PassphraseHash (..),
+    PassphraseScheme (..), checkPassphrase, encryptPassphrase,
+    preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Gen
-    ( genEncryptionPassphrase
-    , genPassphraseScheme
-    , genUserPassphrase
-    , shrinkUserPassphrase
-    )
+    ( genEncryptionPassphrase, genPassphraseScheme, genUserPassphrase,
+    shrinkUserPassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
     ( haveScrypt )
 import Cardano.Wallet.Unsafe

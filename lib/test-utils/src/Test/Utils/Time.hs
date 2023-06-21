@@ -16,12 +16,8 @@ module Test.Utils.Time
 import Prelude
 
 import Data.Time
-    ( Day (ModifiedJulianDay)
-    , NominalDiffTime
-    , UTCTime (..)
-    , addUTCTime
-    , toModifiedJulianDay
-    )
+    ( Day (ModifiedJulianDay), NominalDiffTime, UTCTime (..), addUTCTime,
+    toModifiedJulianDay )
 import Test.QuickCheck
     ( Arbitrary, Gen, arbitrary, choose, oneof )
 

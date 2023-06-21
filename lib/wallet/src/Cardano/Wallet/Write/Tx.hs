@@ -209,7 +209,7 @@ import Data.Kind
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Type.Equality
-    ( (:~:) (Refl), TestEquality (testEquality) )
+    ( TestEquality (testEquality), (:~:) (Refl) )
 import Data.Typeable
     ( Typeable )
 import Numeric.Natural

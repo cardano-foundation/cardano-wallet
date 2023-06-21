@@ -19,24 +19,13 @@ module Cardano.Wallet.DB.Pure.Layer
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBFresh (..)
-    , DBLayer (..)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    )
+    ( DBFresh (..), DBLayer (..),
+    ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized) )
 import Cardano.Wallet.DB.Pure.Implementation
-    ( Database
-    , Err (..)
-    , ModelOp
-    , mInitializeWallet
-    , mListCheckpoints
-    , mPutDelegationRewardBalance
-    , mPutTxHistory
-    , mReadCheckpoint
-    , mReadDelegationRewardBalance
-    , mReadGenesisParameters
-    , mReadTxHistory
-    , mRollbackTo
-    )
+    ( Database, Err (..), ModelOp, mInitializeWallet, mListCheckpoints,
+    mPutDelegationRewardBalance, mPutTxHistory, mReadCheckpoint,
+    mReadDelegationRewardBalance, mReadGenesisParameters, mReadTxHistory,
+    mRollbackTo )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types

@@ -14,15 +14,8 @@ import Prelude
 import Cardano.Slotting.Slot
     ( SlotNo (..), WithOrigin (..) )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( DeltaUTxOHistory (..)
-    , Pruned (..)
-    , UTxOHistory
-    , empty
-    , getFinality
-    , getSpent
-    , getTip
-    , getUTxO
-    )
+    ( DeltaUTxOHistory (..), Pruned (..), UTxOHistory, empty, getFinality,
+    getSpent, getTip, getUTxO )
 import Cardano.Wallet.Primitive.Types
     ( Slot )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -40,20 +33,8 @@ import Data.Delta
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , Testable (property)
-    , conjoin
-    , counterexample
-    , cover
-    , elements
-    , forAll
-    , frequency
-    , listOf1
-    , sublistOf
-    , vectorOf
-    , (===)
-    )
+    ( Gen, Property, Testable (property), conjoin, counterexample, cover,
+    elements, forAll, frequency, listOf1, sublistOf, vectorOf, (===) )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.ByteString.Char8 as B8

@@ -105,31 +105,14 @@ import Fmt
     ( indentF, (+|), (|+) )
 import Generics.SOP
 import GHC.TypeNats
-    ( type (<=), KnownNat, Nat, natVal )
+    ( KnownNat, Nat, natVal, type (<=) )
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , Testable
-    , chooseInt
-    , chooseInteger
-    , counterexample
-    , elements
-    , label
-    , liftArbitrary2
-    , liftShrink2
-    , listOf
-    , property
-    , scale
-    , shrinkIntegral
-    , shrinkList
-    , shrinkMapBy
-    , suchThat
-    , suchThatMap
-    , (.&&.)
-    )
+    ( Arbitrary (..), Gen, Property, Testable, chooseInt, chooseInteger,
+    counterexample, elements, label, liftArbitrary2, liftShrink2, listOf,
+    property, scale, shrinkIntegral, shrinkList, shrinkMapBy, suchThat,
+    suchThatMap, (.&&.) )
 import Test.QuickCheck.Gen
     ( Gen (MkGen) )
 import Test.QuickCheck.Gen.Unsafe

@@ -14,23 +14,12 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetDecimals (..)
-    , AssetLogo (..)
-    , AssetMetadata (..)
-    , AssetURL (..)
-    , TokenPolicyId (..)
-    , nullTokenName
-    )
+    ( AssetDecimals (..), AssetLogo (..), AssetMetadata (..), AssetURL (..),
+    TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.TokenMetadata
-    ( BatchResponse (..)
-    , Property (..)
-    , Signature (..)
-    , Subject (..)
-    , SubjectProperties (..)
-    , getTokenMetadata
-    , metadataFromProperties
-    , newMetadataClient
-    )
+    ( BatchResponse (..), Property (..), Signature (..), Subject (..),
+    SubjectProperties (..), getTokenMetadata, metadataFromProperties,
+    newMetadataClient )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe

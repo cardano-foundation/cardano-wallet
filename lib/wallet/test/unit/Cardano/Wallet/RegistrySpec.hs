@@ -17,14 +17,8 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..)
-    , MkWorker (..)
-    , Worker
-    , WorkerLog
-    , empty
-    , register
-    , workerThread
-    )
+    ( HasWorkerCtx (..), MkWorker (..), Worker, WorkerLog, empty, register,
+    workerThread )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -50,14 +44,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( SomeException (..), throwIO )
 import UnliftIO.MVar
-    ( modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , swapMVar
-    , takeMVar
-    , tryTakeMVar
-    )
+    ( modifyMVar_, newEmptyMVar, newMVar, putMVar, swapMVar, takeMVar,
+    tryTakeMVar )
 
 import qualified Data.ByteString as BS
 

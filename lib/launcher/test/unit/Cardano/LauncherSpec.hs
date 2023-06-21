@@ -24,12 +24,8 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( logDebug )
 import Cardano.Launcher
-    ( Command (..)
-    , LauncherLog
-    , ProcessHasExited (..)
-    , StdStream (..)
-    , withBackendProcess
-    )
+    ( Command (..), LauncherLog, ProcessHasExited (..), StdStream (..),
+    withBackendProcess )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -53,14 +49,8 @@ import System.Exit
 import System.Info
     ( os )
 import Test.Hspec
-    ( Spec
-    , beforeAll
-    , it
-    , shouldBe
-    , shouldContain
-    , shouldReturn
-    , shouldSatisfy
-    )
+    ( Spec, beforeAll, it, shouldBe, shouldContain, shouldReturn,
+    shouldSatisfy )
 import Test.Utils.Platform
     ( isWindows, pendingOnWine, skipOnWindows )
 import UnliftIO.Async
@@ -70,14 +60,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( bracket )
 import UnliftIO.MVar
-    ( modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryReadMVar
-    )
+    ( modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar, takeMVar,
+    tryReadMVar )
 import UnliftIO.Process
     ( ProcessHandle, getProcessExitCode )
 

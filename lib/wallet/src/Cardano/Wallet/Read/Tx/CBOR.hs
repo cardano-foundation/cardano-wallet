@@ -26,20 +26,11 @@ import Prelude
 import Cardano.Api
     ( FromCBOR, ToCBOR )
 import Cardano.Binary
-    ( Annotator (runAnnotator)
-    , FromCBOR (fromCBOR)
-    , FullByteString (Full)
-    , toCBOR
-    )
+    ( Annotator (runAnnotator), FromCBOR (fromCBOR), FullByteString (Full),
+    toCBOR )
 import Cardano.Wallet.Read.Eras
-    ( (:.:) (..)
-    , EraFun (..)
-    , EraValue
-    , K (..)
-    , applyEraFun
-    , extractEraValue
-    , sequenceEraValue
-    )
+    ( EraFun (..), EraValue, K (..), applyEraFun, extractEraValue,
+    sequenceEraValue, (:.:) (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..), TxT )
 import Codec.CBOR.Read

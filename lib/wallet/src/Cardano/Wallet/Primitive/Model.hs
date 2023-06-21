@@ -75,23 +75,11 @@ import Prelude
 import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockEvents (..)
-    , BlockSummary (..)
-    , ChainEvents
-    , fromBlockEvents
-    , fromEntireBlock
-    , toAscBlockEvents
-    )
+    ( BlockEvents (..), BlockSummary (..), ChainEvents, fromBlockEvents,
+    fromEntireBlock, toAscBlockEvents )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , DelegationCertificate (..)
-    , Slot
-    , WithOrigin (..)
-    , chainPointFromBlockHeader
-    , dlgCertAccount
-    , toSlot
-    )
+    ( Block (..), BlockHeader (..), DelegationCertificate (..), Slot,
+    WithOrigin (..), chainPointFromBlockHeader, dlgCertAccount, toSlot )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -101,14 +89,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , collateralInputs
-    , inputs
-    , txScriptInvalid
-    )
+    ( Direction (..), Tx (..), TxMeta (..), TxStatus (..), collateralInputs,
+    inputs, txScriptInvalid )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxO

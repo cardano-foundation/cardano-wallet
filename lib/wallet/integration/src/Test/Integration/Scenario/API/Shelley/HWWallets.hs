@@ -19,13 +19,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiFee
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , WalletStyle (..)
-    )
+    ( ApiAddressWithPath, ApiFee, ApiTransaction, ApiUtxoStatistics, ApiWallet,
+    WalletStyle (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -51,32 +46,12 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectWalletUTxO
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWithMnemonics
-    , getFromResponse
-    , json
-    , listAddresses
-    , minUTxOValue
-    , postWallet
-    , pubKeyFromMnemonics
-    , request
-    , restoreWalletFromPubKey
-    , unsafeResponse
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), Payload (..), emptyWallet, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, expectWalletUTxO, fixturePassphrase, fixtureWallet,
+    fixtureWalletWithMnemonics, getFromResponse, json, listAddresses,
+    minUTxOValue, postWallet, pubKeyFromMnemonics, request,
+    restoreWalletFromPubKey, unsafeResponse, verify, walletId )
 import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 

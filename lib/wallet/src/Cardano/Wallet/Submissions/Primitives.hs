@@ -26,16 +26,8 @@ module Cardano.Wallet.Submissions.Primitives
 import Prelude
 
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions
-    , TxStatusMeta (..)
-    , finality
-    , finalityL
-    , tip
-    , tipL
-    , transactions
-    , transactionsL
-    , txStatus
-    )
+    ( Submissions, TxStatusMeta (..), finality, finalityL, tip, tipL,
+    transactions, transactionsL, txStatus )
 import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..), TxStatus (Expired, InLedger, InSubmission) )
 import Control.Lens

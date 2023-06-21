@@ -252,28 +252,14 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..)
-    , KeyHash (..)
-    , Script
-    , ScriptHash (..)
-    , ScriptTemplate
-    , ValidationLevel (..)
-    )
+    ( Cosigner (..), KeyHash (..), Script, ScriptHash (..), ScriptTemplate,
+    ValidationLevel (..) )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , StakeAddress
-    , deserialiseFromBech32
-    , proxyToAsType
-    , serialiseToBech32
-    )
+    ( AnyCardanoEra (..), CardanoEra (..), StakeAddress, deserialiseFromBech32,
+    proxyToAsType, serialiseToBech32 )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..)
-    , MkSomeMnemonicError (..)
-    , SomeMnemonic (..)
-    , mnemonicToText
-    , natVals
-    )
+    ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..),
+    mnemonicToText, natVals )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH, HealthStatusSMASH (..), SMASHPoolId (..) )
 import Cardano.Pool.Metadata.Types
@@ -299,52 +285,27 @@ import Cardano.Wallet.Api.Lib.ApiAsArray
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..), fromTextApiT, toTextApiT )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (..)
-    , DefaultSum (..)
-    , TaggedObjectOptions (..)
-    , defaultRecordTypeOptions
-    , defaultSumTypeOptions
-    , explicitNothingRecordTypeOptions
-    , strictRecordTypeOptions
-    , taggedSumTypeOptions
-    )
+    ( DefaultRecord (..), DefaultSum (..), TaggedObjectOptions (..),
+    defaultRecordTypeOptions, defaultSumTypeOptions,
+    explicitNothingRecordTypeOptions, strictRecordTypeOptions,
+    taggedSumTypeOptions )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiAnyCertificate (..)
-    , ApiCertificate (..)
-    , ApiDeregisterPool (..)
-    , ApiExternalCertificate (..)
-    , ApiRegisterPool (..)
-    , ApiRewardAccount (..)
-    )
+    ( ApiAnyCertificate (..), ApiCertificate (..), ApiDeregisterPool (..),
+    ApiExternalCertificate (..), ApiRegisterPool (..), ApiRewardAccount (..) )
 import Cardano.Wallet.Api.Types.Key
-    ( ApiAccountKey (..)
-    , ApiAccountKeyShared (..)
-    , ApiPolicyKey (..)
-    , ApiVerificationKeyShared (..)
-    , ApiVerificationKeyShelley (..)
-    , KeyFormat (..)
-    , VerificationKeyHashing (..)
-    )
+    ( ApiAccountKey (..), ApiAccountKeyShared (..), ApiPolicyKey (..),
+    ApiVerificationKeyShared (..), ApiVerificationKeyShelley (..),
+    KeyFormat (..), VerificationKeyHashing (..) )
 import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..), ApiTokenAmountFingerprint (..), ApiTokens (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Api.Types.Transaction
-    ( AddressAmount (..)
-    , ApiAddress (..)
-    , ApiDecodedTransaction (..)
-    , ApiPostPolicyKeyData (..)
-    , ApiTxInputGeneral (..)
-    , ApiTxMetadata (..)
-    , ApiTxOutput
-    , ApiTxOutputGeneral (..)
-    , ApiValidityIntervalExplicit (..)
-    , ApiWalletInput (..)
-    , ApiWalletOutput (..)
-    , ApiWithdrawal (..)
-    , ApiWithdrawalGeneral (..)
-    , ResourceContext (..)
-    )
+    ( AddressAmount (..), ApiAddress (..), ApiDecodedTransaction (..),
+    ApiPostPolicyKeyData (..), ApiTxInputGeneral (..), ApiTxMetadata (..),
+    ApiTxOutput, ApiTxOutputGeneral (..), ApiValidityIntervalExplicit (..),
+    ApiWalletInput (..), ApiWalletOutput (..), ApiWithdrawal (..),
+    ApiWithdrawalGeneral (..), ResourceContext (..) )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -352,23 +313,11 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , EpochLength (..)
-    , EpochNo (..)
-    , ExecutionUnitPrices (..)
-    , GenesisParameters (..)
-    , NetworkParameters (..)
-    , SlotInEpoch (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , SmashServer (..)
-    , StartTime (..)
-    , WalletId (..)
-    , WalletName (..)
-    , getDecentralizationLevel
-    , unsafeEpochNo
-    )
+    ( ActiveSlotCoefficient (..), EpochLength (..), EpochNo (..),
+    ExecutionUnitPrices (..), GenesisParameters (..), NetworkParameters (..),
+    SlotInEpoch (..), SlotLength (..), SlotNo (..), SlottingParameters (..),
+    SmashServer (..), StartTime (..), WalletId (..), WalletName (..),
+    getDecentralizationLevel, unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -376,14 +325,8 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , SerialisedTx (..)
-    , TxMetadata
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , sealedTxFromBytes
-    )
+    ( Direction (..), SealedTx (..), SerialisedTx (..), TxMetadata,
+    TxScriptValidity (..), TxStatus (..), sealedTxFromBytes )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
@@ -407,26 +350,11 @@ import Control.DeepSeq
 import Control.Monad
     ( guard, when, (<=<), (>=>) )
 import Data.Aeson.Types
-    ( FromJSON (..)
-    , Parser
-    , SumEncoding (..)
-    , ToJSON (..)
-    , Value (Null, Object, String)
-    , camelTo2
-    , constructorTagModifier
-    , fieldLabelModifier
-    , genericParseJSON
-    , genericToJSON
-    , object
-    , omitNothingFields
-    , sumEncoding
-    , tagSingleConstructors
-    , withObject
-    , withText
-    , (.:)
-    , (.:?)
-    , (.=)
-    )
+    ( FromJSON (..), Parser, SumEncoding (..), ToJSON (..),
+    Value (Null, Object, String), camelTo2, constructorTagModifier,
+    fieldLabelModifier, genericParseJSON, genericToJSON, object,
+    omitNothingFields, sumEncoding, tagSingleConstructors, withObject, withText,
+    (.:), (.:?), (.=) )
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray
@@ -466,13 +394,8 @@ import Data.String
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), TextDecodingError (..), ToText (..),
+    fromTextToBoundedEnum, toTextFromBoundedEnum )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Clock.POSIX

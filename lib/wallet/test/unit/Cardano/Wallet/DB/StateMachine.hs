@@ -72,53 +72,26 @@ import Cardano.Wallet.Address.Discovery.Random
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap, SeqState (..) )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( Readiness
-    , SharedAddressPool (..)
-    , SharedAddressPools (..)
-    , SharedState (..)
-    )
+    ( Readiness, SharedAddressPool (..), SharedAddressPools (..),
+    SharedState (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
-    ( Database (..)
-    , Err (..)
-    , TxHistory
-    , WalletDatabase (..)
-    , mInitializeWallet
-    , mListCheckpoints
-    , mPutDelegationRewardBalance
-    , mPutTxHistory
-    , mReadCheckpoint
-    , mReadDelegationRewardBalance
-    , mReadGenesisParameters
-    , mReadTxHistory
-    , mRollbackTo
-    )
+    ( Database (..), Err (..), TxHistory, WalletDatabase (..),
+    mInitializeWallet, mListCheckpoints, mPutDelegationRewardBalance,
+    mPutTxHistory, mReadCheckpoint, mReadDelegationRewardBalance,
+    mReadGenesisParameters, mReadTxHistory, mRollbackTo )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , ChainPoint
-    , DecentralizationLevel
-    , EpochNo (..)
-    , ExecutionUnits (..)
-    , FeePolicy
-    , GenesisParameters (..)
-    , LinearFunction
-    , Range (..)
-    , Slot
-    , SlotNo (..)
-    , SortOrder (..)
-    , StakeKeyCertificate
-    , TokenBundleMaxSize
-    , TxParameters (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    )
+    ( BlockHeader (..), ChainPoint, DecentralizationLevel, EpochNo (..),
+    ExecutionUnits (..), FeePolicy, GenesisParameters (..), LinearFunction,
+    Range (..), Slot, SlotNo (..), SortOrder (..), StakeKeyCertificate,
+    TokenBundleMaxSize, TxParameters (..), WalletId (..), WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address, AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -136,18 +109,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxCBOR
-    , TxMeta
-    , TxMetadata
-    , TxScriptValidity
-    , TxStatus
-    , inputs
-    )
+    ( Direction (..), LocalTxSubmissionStatus (..), SealedTx (..),
+    TransactionInfo (..), Tx (..), TxCBOR, TxMeta, TxMetadata, TxScriptValidity,
+    TxStatus, inputs )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -203,34 +167,14 @@ import GHC.Stack
 import Test.Hspec
     ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , applyArbitrary2
-    , arbitraryBoundedEnum
-    , frequency
-    , generate
-    , resize
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, applyArbitrary2, arbitraryBoundedEnum,
+    frequency, generate, resize, (===) )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 import Test.StateMachine
-    ( CommandNames (..)
-    , Concrete
-    , GenSym
-    , Logic (..)
-    , Reason (..)
-    , Reference
-    , StateMachine
-    , Symbolic
-    , forAllCommands
-    , forall
-    , member
-    , prettyCommands
-    , runCommands
-    , (.==)
-    )
+    ( CommandNames (..), Concrete, GenSym, Logic (..), Reason (..), Reference,
+    StateMachine, Symbolic, forAllCommands, forall, member, prettyCommands,
+    runCommands, (.==) )
 import Test.StateMachine.Types
     ( Commands (..) )
 import UnliftIO.Async

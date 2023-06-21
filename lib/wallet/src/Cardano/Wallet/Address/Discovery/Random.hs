@@ -53,26 +53,14 @@ import Cardano.Address.Derivation
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , liftIndex
-    , paymentAddressS
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..), Index (..),
+    liftIndex, paymentAddressS )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..)
-    , byronKey
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    )
+    ( ByronKey (..), byronKey, deriveAccountPrivateKey,
+    deriveAddressPrivateKey )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , IsOurs (isOurs)
-    , KnownAddresses (..)
-    , MaybeLight (..)
-    )
+    ( CompareDiscovery (..), GenChange (..), IsOurs (isOurs),
+    KnownAddresses (..), MaybeLight (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address

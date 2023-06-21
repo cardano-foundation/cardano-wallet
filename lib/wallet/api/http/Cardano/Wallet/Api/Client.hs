@@ -46,55 +46,21 @@ module Cardano.Wallet.Api.Client
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Addresses
-    , ByronAddresses
-    , ByronTransactions
-    , ByronWallets
-    , Network
-    , PostData
-    , Proxy_
-    , ShelleyTransactions
-    , StakePools
-    , Wallets
-    )
+    ( Addresses, ByronAddresses, ByronTransactions, ByronWallets, Network,
+    PostData, Proxy_, ShelleyTransactions, StakePools, Wallets )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressIdT
-    , ApiAddressInspect (..)
-    , ApiAddressInspectData (..)
-    , ApiAddressT
-    , ApiBalanceTransactionPostDataT
-    , ApiByronWallet
-    , ApiBytesT (..)
-    , ApiCoinSelectionT
-    , ApiConstructTransactionDataT
-    , ApiConstructTransactionT
-    , ApiDecodedTransactionT
-    , ApiFee
-    , ApiNetworkClock
-    , ApiNetworkInformation (..)
-    , ApiNetworkParameters
-    , ApiPoolSpecifier
-    , ApiPostRandomAddressData
-    , ApiPutAddressesDataT
-    , ApiSelectCoinsDataT
-    , ApiSerialisedTransaction (..)
-    , ApiSignTransactionPostData
-    , ApiStakeKeysT
-    , ApiT (..)
-    , ApiTransactionT
-    , ApiTxId (..)
-    , ApiUtxoStatistics
-    , ApiWallet (..)
-    , ApiWalletPassphrase
-    , ApiWalletUtxoSnapshot (..)
-    , Base (Base64)
-    , ByronWalletPutPassphraseData (..)
-    , Iso8601Time (..)
-    , PostTransactionFeeOldDataT
-    , PostTransactionOldDataT
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
-    )
+    ( ApiAddressIdT, ApiAddressInspect (..), ApiAddressInspectData (..),
+    ApiAddressT, ApiBalanceTransactionPostDataT, ApiByronWallet, ApiBytesT (..),
+    ApiCoinSelectionT, ApiConstructTransactionDataT, ApiConstructTransactionT,
+    ApiDecodedTransactionT, ApiFee, ApiNetworkClock, ApiNetworkInformation (..),
+    ApiNetworkParameters, ApiPoolSpecifier, ApiPostRandomAddressData,
+    ApiPutAddressesDataT, ApiSelectCoinsDataT, ApiSerialisedTransaction (..),
+    ApiSignTransactionPostData, ApiStakeKeysT, ApiT (..), ApiTransactionT,
+    ApiTxId (..), ApiUtxoStatistics, ApiWallet (..), ApiWalletPassphrase,
+    ApiWalletUtxoSnapshot (..), Base (Base64),
+    ByronWalletPutPassphraseData (..), Iso8601Time (..),
+    PostTransactionFeeOldDataT, PostTransactionOldDataT, WalletPutData (..),
+    WalletPutPassphraseData (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
@@ -120,7 +86,7 @@ import Data.Proxy
 import Data.Text
     ( Text )
 import Servant
-    ( (:<|>) (..), (:>), NoContent )
+    ( NoContent, (:<|>) (..), (:>) )
 import Servant.Client
     ( ClientM, client )
 import UnliftIO.Exception

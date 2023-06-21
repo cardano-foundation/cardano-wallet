@@ -29,14 +29,8 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, hashVerificationKey )
 import Cardano.Wallet.Flavor
-    ( FlavorOf
-    , IncludingStates
-    , KeyFlavorS (..)
-    , WalletFlavor
-    , WalletFlavorS (..)
-    , WalletFlavors (..)
-    , keyFlavorFromState
-    )
+    ( FlavorOf, IncludingStates, KeyFlavorS (..), WalletFlavor,
+    WalletFlavorS (..), WalletFlavors (..), keyFlavorFromState )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
 

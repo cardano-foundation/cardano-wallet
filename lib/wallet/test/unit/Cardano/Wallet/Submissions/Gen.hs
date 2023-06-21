@@ -23,11 +23,11 @@ import Cardano.Wallet.Submissions.Properties.Common
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions (..), transactionsL, txStatus )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..), getTx, _Expired, _InLedger, _InSubmission )
+    ( HasTxId (..), _Expired, _InLedger, _InSubmission, getTx )
 import Control.Arrow
     ( (&&&) )
 import Control.Lens
-    ( lastOf, to, view, (&), _2 )
+    ( _2, lastOf, to, view, (&) )
 import Control.Lens.Extras
     ( is )
 import Data.Foldable

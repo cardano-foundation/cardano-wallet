@@ -18,30 +18,17 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.CLI
-    ( LogOutput (..)
-    , Port
-    , ekgEnabled
-    , getEKGURL
-    , getPrometheusURL
-    , withLoggingNamed
-    )
+    ( LogOutput (..), Port, ekgEnabled, getEKGURL, getPrometheusURL,
+    withLoggingNamed )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterLog (..)
-    , Credential (..)
-    , FaucetFunds (..)
-    , RunningNode (..)
-    , localClusterConfigFromEnv
-    , oneMillionAda
-    , testMinSeverityFromEnv
-    , tokenMetadataServerFromEnv
-    , walletListenFromEnv
-    , walletMinSeverityFromEnv
-    , withCluster
-    )
+    ( ClusterLog (..), Credential (..), FaucetFunds (..), RunningNode (..),
+    localClusterConfigFromEnv, oneMillionAda, testMinSeverityFromEnv,
+    tokenMetadataServerFromEnv, walletListenFromEnv, walletMinSeverityFromEnv,
+    withCluster )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -73,13 +60,8 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genRewardAccounts
-    , hwWalletFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
-    , shelleyIntegrationTestFunds
-    )
+    ( byronIntegrationTestFunds, genRewardAccounts, hwWalletFunds,
+    maryIntegrationTestAssets, mirMnemonics, shelleyIntegrationTestFunds )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T

@@ -20,20 +20,11 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..)
-    , Script (..)
-    , ScriptTemplate (..)
-    , ValidationLevel (..)
-    , validateScriptTemplate
-    )
+    ( Cosigner (..), Script (..), ScriptTemplate (..), ValidationLevel (..),
+    validateScriptTemplate )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , KeyFingerprint
-    , Role (..)
-    )
+    ( Depth (..), DerivationType (..), HardDerivation (..), Index (..),
+    KeyFingerprint, Role (..) )
 import Cardano.Wallet.Address.Derivation.Shared
     ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -43,13 +34,8 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..), defaultAddressPoolGap, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( Readiness (..)
-    , SharedAddressPool (..)
-    , SharedAddressPools (..)
-    , SharedState (..)
-    , isShared
-    , liftPaymentAddress
-    )
+    ( Readiness (..), SharedAddressPool (..), SharedAddressPools (..),
+    SharedState (..), isShared, liftPaymentAddress )
 import Cardano.Wallet.Address.Keys.Shared
     ( mkSharedStateFromAccountXPub, mkSharedStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -81,18 +67,8 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , arbitraryBoundedEnum
-    , choose
-    , elements
-    , property
-    , suchThat
-    , (.&&.)
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Gen, Property, arbitraryBoundedEnum, choose, elements,
+    property, suchThat, (.&&.), (===), (==>) )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.ByteString as BS

@@ -36,12 +36,9 @@ import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DeltaTxSubmissions
-    , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
-    , TxSubmissions
-    , TxSubmissionsStatus
-    , submissionMetaFromTxMeta
-    )
+    ( DeltaTxSubmissions,
+    SubmissionMeta (SubmissionMeta, submissionMetaResubmitted), TxSubmissions,
+    TxSubmissionsStatus, submissionMetaFromTxMeta )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (SlotNo) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -53,7 +50,7 @@ import Cardano.Wallet.Submissions.Operations
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), mkEmpty, transactions, transactionsL, txStatus )
 import Cardano.Wallet.Submissions.TxStatus
-    ( TxStatus (..), expirySlot, getTx, status, _InSubmission )
+    ( TxStatus (..), _InSubmission, expirySlot, getTx, status )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Control.Category

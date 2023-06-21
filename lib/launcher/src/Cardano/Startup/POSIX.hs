@@ -20,14 +20,8 @@ import Data.Bits
 import System.Posix.Files
     ( groupModes, otherModes, ownerReadMode, setFileCreationMask, setFileMode )
 import System.Posix.Signals
-    ( Handler (..)
-    , installHandler
-    , keyboardSignal
-    , raiseSignal
-    , sigKILL
-    , signalProcess
-    , softwareTermination
-    )
+    ( Handler (..), installHandler, keyboardSignal, raiseSignal, sigKILL,
+    signalProcess, softwareTermination )
 import System.Process
     ( Pid )
 

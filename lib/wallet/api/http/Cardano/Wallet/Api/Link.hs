@@ -128,15 +128,9 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressInspectData (..)
-    , ApiPoolSpecifier
-    , ApiT (..)
-    , ApiTxId (ApiTxId)
-    , Iso8601Time
-    , KeyFormat
-    , MinWithdrawal (..)
-    , WalletStyle (..)
-    )
+    ( ApiAddressInspectData (..), ApiPoolSpecifier, ApiT (..),
+    ApiTxId (ApiTxId), Iso8601Time, KeyFormat, MinWithdrawal (..),
+    WalletStyle (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
@@ -172,17 +166,8 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Servant.API
-    ( (:>)
-    , Capture'
-    , Header'
-    , IsElem
-    , NoContentVerb
-    , QueryFlag
-    , QueryParam
-    , ReflectMethod (..)
-    , ReqBody
-    , Verb
-    )
+    ( Capture', Header', IsElem, NoContentVerb, QueryFlag, QueryParam,
+    ReflectMethod (..), ReqBody, Verb, (:>) )
 import Servant.Links
     ( HasLink (..), safeLink' )
 import Web.HttpApiData

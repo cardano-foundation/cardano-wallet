@@ -19,12 +19,8 @@ import Data.Either
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( MkPercentageError (..)
-    , Percentage (..)
-    , Quantity (..)
-    , mkPercentage
-    , percentageToDouble
-    )
+    ( MkPercentageError (..), Percentage (..), Quantity (..), mkPercentage,
+    percentageToDouble )
 import Data.Ratio
     ( (%) )
 import Data.Text.Class

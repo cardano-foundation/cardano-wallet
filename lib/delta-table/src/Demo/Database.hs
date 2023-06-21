@@ -34,12 +34,8 @@ import Control.Monad
 import Control.Monad.Class.MonadSTM.Internal
     ( MonadSTM (..) )
 import Control.Monad.Class.MonadThrow
-    ( ExitCase (..)
-    , MonadCatch (..)
-    , MonadEvaluate (..)
-    , MonadMask (..)
-    , MonadThrow (..)
-    )
+    ( ExitCase (..), MonadCatch (..), MonadEvaluate (..), MonadMask (..),
+    MonadThrow (..) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
@@ -63,15 +59,10 @@ import Database.Persist.Delta
 import Database.Persist.Sql
     ( SqlPersistM )
 import Database.Persist.TH
-    ( mkMigrate
-    , mkPersist
-    , mpsPrefixFields
-    , persistLowerCase
-    , share
-    , sqlSettings
-    )
+    ( mkMigrate, mkPersist, mpsPrefixFields, persistLowerCase, share,
+    sqlSettings )
 import Database.Schema
-    ( (:.) (..), Col (..), Primary, Table (..) )
+    ( Col (..), Primary, Table (..), (:.) (..) )
 import GHC.Generics
     ( Generic )
 import Say

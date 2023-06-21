@@ -70,20 +70,15 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Api
-    ( AsType (AsStakeKey, AsStakePoolKey)
-    , Key (verificationKeyHash)
-    , serialiseToCBOR
-    )
+    ( AsType (AsStakeKey, AsStakePoolKey), Key (verificationKeyHash),
+    serialiseToCBOR )
 import Cardano.Api.Shelley
     ( AsType (AsVrfKey) )
 import Cardano.Binary
     ( fromCBOR )
 import Cardano.BM.Data.Output
-    ( ScribeDefinition (..)
-    , ScribeFormat (..)
-    , ScribeKind (..)
-    , ScribePrivacy (..)
-    )
+    ( ScribeDefinition (..), ScribeFormat (..), ScribeKind (..),
+    ScribePrivacy (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -97,21 +92,11 @@ import Cardano.CLI.Shelley.Key
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited (..) )
 import Cardano.Launcher.Node
-    ( CardanoNodeConfig (..)
-    , CardanoNodeConn
-    , NodePort (..)
-    , nodeSocketFile
-    , withCardanoNode
-    )
+    ( CardanoNodeConfig (..), CardanoNodeConn, NodePort (..), nodeSocketFile,
+    withCardanoNode )
 import Cardano.Ledger.BaseTypes
-    ( Network (Mainnet)
-    , NonNegativeInterval
-    , PositiveUnitInterval
-    , StrictMaybe (..)
-    , UnitInterval
-    , boundRational
-    , textToUrl
-    )
+    ( Network (Mainnet), NonNegativeInterval, PositiveUnitInterval,
+    StrictMaybe (..), UnitInterval, boundRational, textToUrl )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Era
@@ -137,12 +122,8 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , EpochNo (..)
-    , NetworkParameters (..)
-    , PoolCertificate
-    , TokenMetadataServer (..)
-    )
+    ( Block (..), EpochNo (..), NetworkParameters (..), PoolCertificate,
+    TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin

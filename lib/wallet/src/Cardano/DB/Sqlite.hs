@@ -82,12 +82,8 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Retry
-    ( RetryStatus (..)
-    , constantDelay
-    , limitRetriesByCumulativeDelay
-    , logRetries
-    , recovering
-    )
+    ( RetryStatus (..), constantDelay, limitRetriesByCumulativeDelay,
+    logRetries, recovering )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -115,19 +111,9 @@ import Database.Persist.EntityDef
 import Database.Persist.Names
     ( EntityNameDB (..), unFieldNameDB )
 import Database.Persist.Sql
-    ( EntityField
-    , LogFunc
-    , Migration
-    , PersistEntity (..)
-    , PersistException
-    , SqlPersistT
-    , SqlType (..)
-    , close'
-    , fieldDB
-    , fieldSqlType
-    , runMigrationUnsafeQuiet
-    , runSqlConn
-    )
+    ( EntityField, LogFunc, Migration, PersistEntity (..), PersistException,
+    SqlPersistT, SqlType (..), close', fieldDB, fieldSqlType,
+    runMigrationUnsafeQuiet, runSqlConn )
 import Database.Persist.Sqlite
     ( SqlBackend, wrapConnection )
 import Database.Sqlite

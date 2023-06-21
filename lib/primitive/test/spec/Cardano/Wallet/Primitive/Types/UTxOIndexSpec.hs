@@ -28,14 +28,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-    ( Asset (..)
-    , BundleCategory (..)
-    , InvariantStatus (..)
-    , SelectionFilter (..)
-    , UTxOIndex
-    , categorizeTokenBundle
-    , checkInvariant
-    )
+    ( Asset (..), BundleCategory (..), InvariantStatus (..),
+    SelectionFilter (..), UTxOIndex, categorizeTokenBundle, checkInvariant )
 import Control.Monad
     ( void )
 import Control.Monad.Random.Class
@@ -53,25 +47,9 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Confidence (..)
-    , Gen
-    , Property
-    , Testable
-    , checkCoverage
-    , checkCoverageWith
-    , conjoin
-    , counterexample
-    , cover
-    , forAll
-    , oneof
-    , property
-    , stdConfidence
-    , suchThat
-    , withMaxSuccess
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Confidence (..), Gen, Property,
+    Testable, checkCoverage, checkCoverageWith, conjoin, counterexample, cover,
+    forAll, oneof, property, stdConfidence, suchThat, withMaxSuccess, (===) )
 import Test.QuickCheck.Classes
     ( eqLaws )
 import Test.QuickCheck.Monadic

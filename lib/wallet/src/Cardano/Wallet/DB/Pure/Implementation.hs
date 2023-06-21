@@ -75,32 +75,16 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (blockHeight, slotNo)
-    , ChainPoint
-    , DelegationCertificate (..)
-    , GenesisParameters (..)
-    , Range (..)
-    , Slot
-    , SlotNo (..)
-    , SortOrder (..)
-    , StakeKeyCertificate (..)
-    , WalletMetadata (..)
-    , chainPointFromBlockHeader
-    , dlgCertPoolId
-    , isWithinRange
-    , toSlot
-    )
+    ( BlockHeader (blockHeight, slotNo), ChainPoint, DelegationCertificate (..),
+    GenesisParameters (..), Range (..), Slot, SlotNo (..), SortOrder (..),
+    StakeKeyCertificate (..), WalletMetadata (..), chainPointFromBlockHeader,
+    dlgCertPoolId, isWithinRange, toSlot )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    )
+    ( SealedTx (..), TransactionInfo (..), Tx (..), TxMeta (..), TxStatus (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad

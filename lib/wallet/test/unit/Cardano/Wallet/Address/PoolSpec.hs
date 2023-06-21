@@ -27,18 +27,8 @@ import Data.Set
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , choose
-    , counterexample
-    , forAll
-    , frequency
-    , listOf
-    , oneof
-    , sized
-    , (.&&.)
-    , (===)
-    )
+    ( Gen, Property, choose, counterexample, forAll, frequency, listOf, oneof,
+    sized, (.&&.), (===) )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.Map.Strict as Map

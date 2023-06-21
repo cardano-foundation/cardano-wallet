@@ -38,26 +38,12 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( Context
-    , createAddressViaCLI
-    , deleteWalletViaCLI
-    , emptyIcarusWallet
-    , emptyIcarusWalletMws
-    , emptyRandomWallet
-    , emptyRandomWalletMws
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , fixtureIcarusWallet
-    , fixturePassphrase
-    , fixtureRandomWallet
-    , icarusAddresses
-    , importAddressViaCLI
-    , listAddressesViaCLI
-    , randomAddresses
-    , verify
-    , walletId
-    )
+    ( Context, createAddressViaCLI, deleteWalletViaCLI, emptyIcarusWallet,
+    emptyIcarusWalletMws, emptyRandomWallet, emptyRandomWalletMws,
+    expectCliField, expectCliListField, expectValidJSON, fixtureIcarusWallet,
+    fixturePassphrase, fixtureRandomWallet, icarusAddresses,
+    importAddressViaCLI, listAddressesViaCLI, randomAddresses, verify,
+    walletId )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NotAByronWallet, errMsg403WrongPass, errMsg404NoWallet )
 

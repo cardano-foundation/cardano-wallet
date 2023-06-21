@@ -31,23 +31,14 @@ module Cardano.Wallet.Address.Keys.Shared
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner (..)
-    , ErrValidateScriptTemplate (..)
-    , ScriptHash (..)
-    , ScriptTemplate (..)
-    , ValidationLevel (..)
-    , toScriptHash
-    , validateScriptTemplate
-    )
+    ( Cosigner (..), ErrValidateScriptTemplate (..), ScriptHash (..),
+    ScriptTemplate (..), ValidationLevel (..), toScriptHash,
+    validateScriptTemplate )
 import Cardano.Crypto.Wallet
     ( XPub, unXPub )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationPrefix (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    )
+    ( Depth (..), DerivationPrefix (..), DerivationType (..),
+    HardDerivation (..), Index (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), purposeCIP1854, replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Discovery
@@ -55,16 +46,11 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..)
-    , ErrAddCosigner (..)
-    , ErrScriptTemplate (..)
-    , Readiness (Active, Pending)
-    , SharedAddressPools (SharedAddressPools, externalPool, internalPool, pendingChangeIxs)
-    , SharedState (..)
-    , SupportsDiscovery
-    , newSharedAddressPool
-    , retrieveAllCosigners
-    )
+    ( CredentialType (..), ErrAddCosigner (..), ErrScriptTemplate (..),
+    Readiness (Active, Pending),
+    SharedAddressPools (SharedAddressPools, externalPool, internalPool, pendingChangeIxs),
+    SharedState (..), SupportsDiscovery, newSharedAddressPool,
+    retrieveAllCosigners )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor

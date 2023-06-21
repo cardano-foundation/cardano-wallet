@@ -16,8 +16,8 @@ import Cardano.Wallet.Read.Tx.Fee
     ( Fee (..), FeeType )
 
 import qualified Cardano.Ledger.Coin as SL
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 
 getFee :: EraFun Fee (K (Maybe W.Coin))
 getFee = EraFun

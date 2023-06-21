@@ -36,19 +36,10 @@ module Cardano.Pool.DB.Sqlite
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBField (..)
-    , DBLog (..)
-    , ForeignKeysSetting (ForeignKeysEnabled)
-    , ManualMigration (..)
-    , MigrationError
-    , SqliteContext (..)
-    , fieldName
-    , foldMigrations
-    , handleConstraint
-    , newInMemorySqliteContext
-    , tableName
-    , withSqliteContextFile
-    )
+    ( DBField (..), DBLog (..), ForeignKeysSetting (ForeignKeysEnabled),
+    ManualMigration (..), MigrationError, SqliteContext (..), fieldName,
+    foldMigrations, handleConstraint, newInMemorySqliteContext, tableName,
+    withSqliteContextFile )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Log
@@ -66,14 +57,9 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
-    , PoolLifeCycleStatus (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    , defaultSettings
-    )
+    ( BlockHeader (..), CertificatePublicationTime (..), EpochNo (..),
+    PoolLifeCycleStatus (..), PoolRegistrationCertificate (..),
+    PoolRetirementCertificate (..), defaultSettings )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Monad
@@ -109,28 +95,10 @@ import Data.Time.Clock
 import Data.Word
     ( Word64, Word8 )
 import Database.Persist.Sql
-    ( Entity (..)
-    , Filter
-    , PersistValue
-    , RawSql
-    , SelectOpt (..)
-    , Single (..)
-    , deleteWhere
-    , fromPersistValue
-    , insertMany_
-    , insert_
-    , rawSql
-    , repsert
-    , selectFirst
-    , selectList
-    , toPersistValue
-    , update
-    , (<.)
-    , (=.)
-    , (==.)
-    , (>.)
-    , (>=.)
-    )
+    ( Entity (..), Filter, PersistValue, RawSql, SelectOpt (..), Single (..),
+    deleteWhere, fromPersistValue, insertMany_, insert_, rawSql, repsert,
+    selectFirst, selectList, toPersistValue, update, (<.), (=.), (==.), (>.),
+    (>=.) )
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import System.Directory

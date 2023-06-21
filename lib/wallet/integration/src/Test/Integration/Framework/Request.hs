@@ -37,18 +37,9 @@ import Data.Generics.Product.Typed
 import Data.Text
     ( Text )
 import Network.HTTP.Client
-    ( HttpException (..)
-    , HttpExceptionContent
-    , Manager
-    , RequestBody (..)
-    , httpLbs
-    , method
-    , parseRequest
-    , requestBody
-    , requestHeaders
-    , responseBody
-    , responseStatus
-    )
+    ( HttpException (..), HttpExceptionContent, Manager, RequestBody (..),
+    httpLbs, method, parseRequest, requestBody, requestHeaders, responseBody,
+    responseStatus )
 import Network.HTTP.Types.Header
     ( RequestHeaders )
 import Network.HTTP.Types.Method

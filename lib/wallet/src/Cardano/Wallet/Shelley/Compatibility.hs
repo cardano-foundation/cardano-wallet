@@ -171,32 +171,15 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , AnyCardanoEra (..)
-    , AsType (..)
-    , BabbageEra
-    , CardanoEra (..)
-    , CardanoEraStyle (..)
-    , CardanoMode
-    , ConsensusModeParams (CardanoModeParams)
-    , ConwayEra
-    , EraInMode (..)
-    , InAnyCardanoEra (..)
-    , IsCardanoEra (..)
-    , LocalNodeConnectInfo (LocalNodeConnectInfo)
-    , MaryEra
-    , NetworkId
-    , ShelleyEra
-    , TxInMode (..)
-    , cardanoEraStyle
-    )
+    ( AllegraEra, AlonzoEra, AnyCardanoEra (..), AsType (..), BabbageEra,
+    CardanoEra (..), CardanoEraStyle (..), CardanoMode,
+    ConsensusModeParams (CardanoModeParams), ConwayEra, EraInMode (..),
+    InAnyCardanoEra (..), IsCardanoEra (..),
+    LocalNodeConnectInfo (LocalNodeConnectInfo), MaryEra, NetworkId, ShelleyEra,
+    TxInMode (..), cardanoEraStyle )
 import Cardano.Api.Shelley
-    ( InAnyShelleyBasedEra (..)
-    , IsShelleyBasedEra (..)
-    , ShelleyBasedEra (..)
-    , ShelleyGenesis (..)
-    )
+    ( InAnyShelleyBasedEra (..), IsShelleyBasedEra (..), ShelleyBasedEra (..),
+    ShelleyGenesis (..) )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Block
@@ -224,13 +207,9 @@ import Cardano.Slotting.Time
 import Cardano.Wallet.Byron.Compatibility
     ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
 import Cardano.Wallet.Primitive.Types
-    ( ChainPoint (..)
-    , PoolCertificate
-    , PoolRegistrationCertificate (..)
-    , ProtocolParameters (txParameters)
-    , TokenBundleMaxSize (..)
-    , TxParameters (getTokenBundleMaxSize)
-    )
+    ( ChainPoint (..), PoolCertificate, PoolRegistrationCertificate (..),
+    ProtocolParameters (txParameters), TokenBundleMaxSize (..),
+    TxParameters (getTokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -310,7 +289,7 @@ import Data.Text
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality, (:~:) (..) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -326,16 +305,9 @@ import Numeric.Natural
 import Ouroboros.Consensus.Byron.Ledger
     ( byronBlockRaw )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock
-    , CardanoEras
-    , HardForkBlock (..)
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
+    ( CardanoBlock, CardanoEras, HardForkBlock (..), StandardAllegra,
+    StandardAlonzo, StandardBabbage, StandardConway, StandardMary,
+    StandardShelley )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
@@ -349,11 +321,8 @@ import Ouroboros.Consensus.Shelley.Ledger.Block
 import Ouroboros.Network.Block
     ( BlockNo (..), ChainHash, Point (..), Tip (..), getTipPoint )
 import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..)
-    , LocalAddress (..)
-    , NodeToClientVersion (..)
-    , NodeToClientVersionData
-    )
+    ( ConnectionId (..), LocalAddress (..), NodeToClientVersion (..),
+    NodeToClientVersionData )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
@@ -388,9 +357,9 @@ import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary as Mary
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley as SL hiding
     ( Value )
-import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL

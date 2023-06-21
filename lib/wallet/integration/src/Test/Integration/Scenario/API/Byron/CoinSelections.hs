@@ -16,11 +16,8 @@ import Prelude
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeBIP44 )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiByronWallet
-    , ApiCoinSelectionOutput (..)
-    , WalletStyle (..)
-    )
+    ( AddressAmount (..), ApiByronWallet, ApiCoinSelectionOutput (..),
+    WalletStyle (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
 import Data.Generics.Internal.VL.Lens
@@ -36,25 +33,11 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyWallet
-    , expectErrorMessage
-    , expectField
-    , expectResponseCode
-    , fixtureIcarusWallet
-    , isValidDerivationPath
-    , listAddresses
-    , minUTxOValue
-    , request
-    , runResourceT
-    , selectCoins
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), Payload (..), emptyIcarusWallet,
+    emptyRandomWallet, emptyWallet, expectErrorMessage, expectField,
+    expectResponseCode, fixtureIcarusWallet, isValidDerivationPath,
+    listAddresses, minUTxOValue, request, runResourceT, selectCoins, verify,
+    walletId )
 import Test.Integration.Framework.TestData
     ( errMsg403NotAnIcarusWallet, errMsg404NoWallet )
 

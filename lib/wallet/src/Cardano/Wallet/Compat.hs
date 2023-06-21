@@ -15,7 +15,7 @@ import Control.Applicative
 import Data.Monoid
     ( First (..) )
 import Data.Profunctor.Unsafe
-    ( ( #. ) )
+    ( (#.) )
 
 infixl 8 ^?
 (^?) :: s -> ((a -> Const (First a) a) -> s -> Const (First a) s) -> Maybe a

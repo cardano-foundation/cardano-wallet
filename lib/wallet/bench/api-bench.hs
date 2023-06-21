@@ -65,11 +65,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyNetworkLayer
-    , dummyProtocolParameters
-    , dummySlottingParameters
-    , dummyTimeInterpreter
-    )
+    ( dummyNetworkLayer, dummyProtocolParameters, dummySlottingParameters,
+    dummyTimeInterpreter )
 import Cardano.Wallet.Flavor
     ( CredFromOf, KeyOf, WalletFlavor (..), keyFlavorFromState )
 import Cardano.Wallet.Logging
@@ -89,13 +86,8 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..)
-    , NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , networkIdVal
-    , withSNetworkId
-    )
+    ( HasSNetworkId (..), NetworkDiscriminant (..), NetworkId (..),
+    SNetworkId (..), networkIdVal, withSNetworkId )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Transaction

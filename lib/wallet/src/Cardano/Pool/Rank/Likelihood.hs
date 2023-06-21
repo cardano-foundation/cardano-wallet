@@ -31,12 +31,8 @@ module Cardano.Pool.Rank.Likelihood
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , DecentralizationLevel
-    , EpochLength (..)
-    , SlottingParameters (..)
-    , getFederationPercentage
-    )
+    ( ActiveSlotCoefficient (..), DecentralizationLevel, EpochLength (..),
+    SlottingParameters (..), getFederationPercentage )
 import Control.DeepSeq
     ( NFData )
 import Data.Foldable

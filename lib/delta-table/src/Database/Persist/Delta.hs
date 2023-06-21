@@ -37,7 +37,7 @@ import Database.Persist
 import Database.Persist.Sql
     ( SqlBackend, SqlPersistM, fromSqlKey, toSqlKey )
 import Database.Schema
-    ( (:.) (..), Col (..), IsRow, Primary (..) )
+    ( Col (..), IsRow, Primary (..), (:.) (..) )
 import Say
     ( say, sayShow )
 -- FIXME: Replace with IOSim stuff later.

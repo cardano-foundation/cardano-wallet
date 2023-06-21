@@ -19,11 +19,8 @@ import Prelude
 import Cardano.Address.Script
     ( ScriptHash (..) )
 import Cardano.Api
-    ( TxMetadataJsonSchema (..)
-    , displayError
-    , metadataFromJson
-    , metadataToJson
-    )
+    ( TxMetadataJsonSchema (..), displayError, metadataFromJson,
+    metadataToJson )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash, StakePoolMetadataUrl )
 import Cardano.Pool.Types
@@ -41,12 +38,8 @@ import Cardano.Wallet.Api.Types.Key
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..)
-    , NonWalletCertificate (..)
-    , SlotInEpoch (..)
-    , SlotNo (..)
-    , unsafeEpochNo
-    )
+    ( EpochNo (..), NonWalletCertificate (..), SlotInEpoch (..), SlotNo (..),
+    unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -58,12 +51,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , AnyScript (..)
-    , PlutusScriptInfo (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    )
+    ( AnyExplicitScript (..), AnyScript (..), PlutusScriptInfo (..),
+    ReferenceInput (..), ScriptReference (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -73,22 +62,9 @@ import Codec.Binary.Bech32.TH
 import Control.Monad
     ( when, (>=>) )
 import Data.Aeson
-    ( FromJSON (parseJSON)
-    , KeyValue (..)
-    , Options (..)
-    , ToJSON (toJSON)
-    , Value (..)
-    , camelTo2
-    , genericParseJSON
-    , genericToJSON
-    , object
-    , withObject
-    , withText
-    , (.!=)
-    , (.:)
-    , (.:?)
-    , (.=)
-    )
+    ( FromJSON (parseJSON), KeyValue (..), Options (..), ToJSON (toJSON),
+    Value (..), camelTo2, genericParseJSON, genericToJSON, object, withObject,
+    withText, (.!=), (.:), (.:?), (.=) )
 import Data.Aeson.Types
     ( prependFailure )
 import Data.Bifunctor

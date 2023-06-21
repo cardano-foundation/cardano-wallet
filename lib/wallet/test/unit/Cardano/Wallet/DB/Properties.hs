@@ -25,12 +25,9 @@ module Cardano.Wallet.DB.Properties
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBFresh (..)
-    , DBLayer (..)
-    , DBLayerParams (..)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized
-    )
+    ( DBFresh (..), DBLayer (..), DBLayerParams (..),
+    ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized),
+    ErrWalletNotInitialized )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -38,15 +35,8 @@ import Cardano.Wallet.DB.Pure.Implementation
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Primitive.Types
-    ( ChainPoint (..)
-    , GenesisParameters
-    , SlotNo (..)
-    , SortOrder (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WithOrigin (..)
-    , wholeRange
-    )
+    ( ChainPoint (..), GenesisParameters, SlotNo (..), SortOrder (..),
+    WalletId (..), WalletMetadata (..), WithOrigin (..), wholeRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -82,15 +72,8 @@ import Fmt
 import Test.Hspec
     ( SpecWith, describe, it, shouldReturn )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , checkCoverage
-    , counterexample
-    , cover
-    , label
-    , property
-    )
+    ( Arbitrary (..), Gen, Property, checkCoverage, counterexample, cover,
+    label, property )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 

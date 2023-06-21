@@ -55,19 +55,10 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
-    ( FromJSON (parseJSON)
-    , KeyValue ((.=))
-    , Options (..)
-    , SumEncoding (TaggedObject, contentsFieldName, tagFieldName)
-    , ToJSON (toJSON)
-    , Value (Object, String)
-    , camelTo2
-    , defaultOptions
-    , genericParseJSON
-    , genericToJSON
-    , withObject
-    , (.:)
-    )
+    ( FromJSON (parseJSON), KeyValue ((.=)), Options (..),
+    SumEncoding (TaggedObject, contentsFieldName, tagFieldName),
+    ToJSON (toJSON), Value (Object, String), camelTo2, defaultOptions,
+    genericParseJSON, genericToJSON, withObject, (.:) )
 import Data.Bifunctor
     ( bimap )
 import Data.List.NonEmpty

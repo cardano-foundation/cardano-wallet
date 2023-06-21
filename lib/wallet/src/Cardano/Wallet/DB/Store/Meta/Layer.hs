@@ -38,17 +38,8 @@ import Data.Set
 import Data.Store
     ( Query (..), Store, mkQueryStore )
 import Database.Persist.Sql
-    ( Entity (entityVal)
-    , Filter
-    , PersistQueryRead (selectFirst)
-    , SelectOpt (..)
-    , SqlPersistT
-    , selectList
-    , (<=.)
-    , (==.)
-    , (>.)
-    , (>=.)
-    )
+    ( Entity (entityVal), Filter, PersistQueryRead (selectFirst),
+    SelectOpt (..), SqlPersistT, selectList, (<=.), (==.), (>.), (>=.) )
 import GHC.Natural
     ( Natural )
 

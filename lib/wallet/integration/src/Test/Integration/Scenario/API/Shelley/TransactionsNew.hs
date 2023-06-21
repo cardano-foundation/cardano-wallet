@@ -21,13 +21,8 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash
-    , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
-    , keyHashFromBytes
-    , toScriptHash
-    )
+    ( KeyHash, KeyRole (..), Script (..), ScriptHash (..), keyHashFromBytes,
+    toScriptHash )
 import Cardano.Api
     ( CardanoEra (..), InAnyCardanoEra (..) )
 import Cardano.Crypto.DSIGN.Class
@@ -45,38 +40,16 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddressWithPath (..)
-    , ApiAnyCertificate (..)
-    , ApiAssetMintBurn (..)
-    , ApiCertificate (..)
-    , ApiCoinSelection (withdrawals)
-    , ApiConstructTransaction (..)
-    , ApiDecodedTransaction
-    , ApiDeregisterPool (..)
-    , ApiEra (..)
-    , ApiExternalCertificate (..)
-    , ApiNetworkInformation
-    , ApiPolicyId
-    , ApiPolicyKey (..)
-    , ApiRegisterPool (..)
-    , ApiSerialisedTransaction (..)
-    , ApiT (..)
-    , ApiTokenAmountFingerprint (..)
-    , ApiTokens (..)
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiTxInput (..)
-    , ApiTxInputGeneral (..)
-    , ApiTxMetadata (..)
-    , ApiTxOutputGeneral (..)
-    , ApiWallet
-    , ApiWalletInput (..)
-    , ApiWalletOutput (..)
-    , ResourceContext (..)
-    , WalletStyle (..)
-    , fromApiEra
-    )
+    ( AddressAmount (..), ApiAddressWithPath (..), ApiAnyCertificate (..),
+    ApiAssetMintBurn (..), ApiCertificate (..), ApiCoinSelection (withdrawals),
+    ApiConstructTransaction (..), ApiDecodedTransaction, ApiDeregisterPool (..),
+    ApiEra (..), ApiExternalCertificate (..), ApiNetworkInformation,
+    ApiPolicyId, ApiPolicyKey (..), ApiRegisterPool (..),
+    ApiSerialisedTransaction (..), ApiT (..), ApiTokenAmountFingerprint (..),
+    ApiTokens (..), ApiTransaction, ApiTxId (..), ApiTxInput (..),
+    ApiTxInputGeneral (..), ApiTxMetadata (..), ApiTxOutputGeneral (..),
+    ApiWallet, ApiWalletInput (..), ApiWalletOutput (..), ResourceContext (..),
+    WalletStyle (..), fromApiEra )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..) )
 import Cardano.Wallet.Api.Types.Transaction
@@ -100,30 +73,17 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , cardanoTxIdeallyNoLaterThan
-    , getSealedTxBody
-    , sealedTxFromCardanoBody
-    )
+    ( Direction (..), SealedTx (..), TxMetadata (..), TxMetadataValue (..),
+    TxScriptValidity (..), TxStatus (..), cardanoTxIdeallyNoLaterThan,
+    getSealedTxBody, sealedTxFromCardanoBody )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , AnyScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    )
+    ( AnyExplicitScript (..), AnyScript (..), PlutusScriptInfo (..),
+    PlutusVersion (..), ReferenceInput (..), ScriptReference (..),
+    ValidityIntervalExplicit (..), WitnessCount (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
@@ -163,66 +123,27 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , arbitraryStake
-    , delegating
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectSuccess
-    , fixtureMultiAssetWallet
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , fixtureWalletWithMnemonics
-    , getFromResponse
-    , getSomeVerificationKey
-    , json
-    , listAddresses
-    , minUTxOValue
-    , notDelegating
-    , pickAnAsset
-    , request
-    , rewardWallet
-    , selectCoins
-    , signTx
-    , submitTxWithWid
-    , unsafeRequest
-    , verify
-    , waitForNextEpoch
-    , waitForTxImmutability
-    , walletId
-    , (.>)
-    )
+    ( Context (..), Headers (..), Payload (..), arbitraryStake, delegating,
+    emptyIcarusWallet, emptyRandomWallet, emptyWallet, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, expectSuccess, fixtureMultiAssetWallet,
+    fixturePassphrase, fixtureWallet, fixtureWalletWith,
+    fixtureWalletWithMnemonics, getFromResponse, getSomeVerificationKey, json,
+    listAddresses, minUTxOValue, notDelegating, pickAnAsset, request,
+    rewardWallet, selectCoins, signTx, submitTxWithWid, unsafeRequest, verify,
+    waitForNextEpoch, waitForTxImmutability, walletId, (.>) )
 import Test.Integration.Framework.TestData
-    ( errMsg403AssetNameTooLong
-    , errMsg403Collateral
-    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
-    , errMsg403CreatedWrongPolicyScriptTemplateTx
-    , errMsg403Fee
-    , errMsg403ForeignTransaction
-    , errMsg403InvalidConstructTx
-    , errMsg403InvalidValidityBounds
-    , errMsg403MinUTxOValue
-    , errMsg403MintOrBurnAssetQuantityOutOfBounds
-    , errMsg403MissingWitsInTransaction
-    , errMsg403MultiaccountTransaction
-    , errMsg403MultidelegationTransaction
-    , errMsg403NonNullReward
-    , errMsg403NotDelegating
-    , errMsg403NotEnoughMoney
-    , errMsg403ValidityIntervalNotInsideScriptTimelock
-    , errMsg404NoSuchPool
-    , errMsg404NoWallet
-    )
+    ( errMsg403AssetNameTooLong, errMsg403Collateral,
+    errMsg403CreatedWrongPolicyScriptTemplatePolicyId,
+    errMsg403CreatedWrongPolicyScriptTemplateTx, errMsg403Fee,
+    errMsg403ForeignTransaction, errMsg403InvalidConstructTx,
+    errMsg403InvalidValidityBounds, errMsg403MinUTxOValue,
+    errMsg403MintOrBurnAssetQuantityOutOfBounds,
+    errMsg403MissingWitsInTransaction, errMsg403MultiaccountTransaction,
+    errMsg403MultidelegationTransaction, errMsg403NonNullReward,
+    errMsg403NotDelegating, errMsg403NotEnoughMoney,
+    errMsg403ValidityIntervalNotInsideScriptTimelock, errMsg404NoSuchPool,
+    errMsg404NoWallet )
 import UnliftIO.Exception
     ( fromEither )
 

@@ -19,19 +19,10 @@ import Prelude
 import Cardano.Ledger.Alonzo.Data
     ( Data (..), dataToBinaryData )
 import Cardano.Wallet.Write.Tx
-    ( BinaryData
-    , Datum (..)
-    , DatumHash
-    , LatestLedgerEra
-    , RecentEra
-    , ShelleyLedgerEra
-    , TxOut
-    , cardanoEraFromRecentEra
-    , datumFromCardanoScriptData
-    , datumHashFromBytes
-    , datumToCardanoScriptData
-    , shelleyBasedEraFromRecentEra
-    )
+    ( BinaryData, Datum (..), DatumHash, LatestLedgerEra, RecentEra,
+    ShelleyLedgerEra, TxOut, cardanoEraFromRecentEra,
+    datumFromCardanoScriptData, datumHashFromBytes, datumToCardanoScriptData,
+    shelleyBasedEraFromRecentEra )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -39,17 +30,8 @@ import Data.Maybe
 import Ouroboros.Consensus.Cardano.Block
     ( EraCrypto, StandardCrypto )
 import Test.QuickCheck
-    ( Gen
-    , arbitrary
-    , choose
-    , listOf
-    , oneof
-    , scale
-    , shrinkMapBy
-    , sized
-    , vector
-    , vectorOf
-    )
+    ( Gen, arbitrary, choose, listOf, oneof, scale, shrinkMapBy, sized, vector,
+    vectorOf )
 
 import qualified Cardano.Api.Gen as Cardano
 import qualified Cardano.Api.Shelley as Cardano

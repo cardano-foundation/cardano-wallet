@@ -21,18 +21,11 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , PaymentAddress (..)
-    , liftIndex
-    )
+    ( Depth (..), DerivationType (..), Index (..), PaymentAddress (..),
+    liftIndex )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..)
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , generateKeyFromSeed
-    )
+    ( ByronKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey,
+    generateKeyFromSeed )
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Discovery
@@ -72,17 +65,8 @@ import System.Random
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , Property
-    , choose
-    , conjoin
-    , counterexample
-    , property
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), Gen, InfiniteList (..), Property, choose, conjoin,
+    counterexample, property, (.&&.), (===) )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

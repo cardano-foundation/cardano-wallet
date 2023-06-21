@@ -27,30 +27,18 @@ module Cardano.Pool.DB.Arbitrary
 import Prelude
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    )
+    ( StakePoolMetadata (..), StakePoolMetadataHash (..),
+    StakePoolMetadataUrl (..) )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
 import Cardano.Wallet.Gen
     ( genPercentage, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
-    , PoolCertificate (..)
-    , PoolMetadataSource (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    , Settings (..)
-    , SlotInEpoch (..)
-    , SlotNo (..)
-    , SmashServer
-    , getPoolCertificatePoolId
-    , setPoolCertificatePoolId
-    , unsafeEpochNo
-    )
+    ( BlockHeader (..), CertificatePublicationTime (..), EpochNo (..),
+    PoolCertificate (..), PoolMetadataSource (..),
+    PoolRegistrationCertificate (..), PoolRetirementCertificate (..),
+    Settings (..), SlotInEpoch (..), SlotNo (..), SmashServer,
+    getPoolCertificatePoolId, setPoolCertificatePoolId, unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -82,21 +70,9 @@ import GHC.Generics
 import Network.URI
     ( URI, parseURI )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , PrintableString (..)
-    , arbitraryBoundedEnum
-    , arbitrarySizedBoundedIntegral
-    , choose
-    , elements
-    , frequency
-    , oneof
-    , scale
-    , shrinkIntegral
-    , shuffle
-    , vector
-    , vectorOf
-    )
+    ( Arbitrary (..), Gen, PrintableString (..), arbitraryBoundedEnum,
+    arbitrarySizedBoundedIntegral, choose, elements, frequency, oneof, scale,
+    shrinkIntegral, shuffle, vector, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra

@@ -51,16 +51,9 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Metadata
-    ( HealthCheckSMASH (..)
-    , StakePoolMetadataFetchLog
-    , UrlBuilder
-    , fetchDelistedPools
-    , fetchFromRemote
-    , healthCheck
-    , identityUrlBuilder
-    , registryUrlBuilder
-    , toHealthCheckSMASH
-    )
+    ( HealthCheckSMASH (..), StakePoolMetadataFetchLog, UrlBuilder,
+    fetchDelistedPools, fetchFromRemote, healthCheck, identityUrlBuilder,
+    registryUrlBuilder, toHealthCheckSMASH )
 import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (..), StakePoolMetadata, StakePoolMetadataHash )
 import Cardano.Pool.Types
@@ -70,55 +63,26 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException (..)
-    , Qry
-    , TimeInterpreter
-    , epochOf
-    , interpretQuery
-    , neverFails
-    , timeOfEpoch
-    , unsafeExtendSafeZone
-    )
+    ( PastHorizonException (..), Qry, TimeInterpreter, epochOf, interpretQuery,
+    neverFails, timeOfEpoch, unsafeExtendSafeZone )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , ChainPoint (..)
-    , EpochNo (..)
-    , GenesisParameters (..)
-    , NetworkParameters (..)
-    , PoolCertificate (..)
-    , PoolLifeCycleStatus (..)
-    , PoolMetadataSource (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    , Settings (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , getPoolRegistrationCertificate
-    , getPoolRetirementCertificate
-    , unSmashServer
-    )
+    ( ActiveSlotCoefficient (..), BlockHeader (..),
+    CertificatePublicationTime (..), ChainPoint (..), EpochNo (..),
+    GenesisParameters (..), NetworkParameters (..), PoolCertificate (..),
+    PoolLifeCycleStatus (..), PoolMetadataSource (..),
+    PoolRegistrationCertificate (..), PoolRetirementCertificate (..),
+    Settings (..), SlotLength (..), SlotNo (..), SlottingParameters (..),
+    getPoolRegistrationCertificate, getPoolRetirementCertificate,
+    unSmashServer )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Registry
     ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardCrypto
-    , fromAllegraBlock
-    , fromAlonzoBlock
-    , fromBabbageBlock
-    , fromConwayBlock
-    , fromMaryBlock
-    , fromShelleyBlock
-    , getBabbageProducer
-    , getConwayProducer
-    , getProducer
-    , toBabbageBlockHeader
-    , toConwayBlockHeader
-    , toShelleyBlockHeader
-    )
+    ( StandardCrypto, fromAllegraBlock, fromAlonzoBlock, fromBabbageBlock,
+    fromConwayBlock, fromMaryBlock, fromShelleyBlock, getBabbageProducer,
+    getConwayProducer, getProducer, toBabbageBlockHeader, toConwayBlockHeader,
+    toShelleyBlockHeader )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq
@@ -198,15 +162,8 @@ import UnliftIO.IORef
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 import UnliftIO.STM
-    ( TBQueue
-    , TVar
-    , newTBQueue
-    , newTVarIO
-    , readTBQueue
-    , readTVarIO
-    , writeTBQueue
-    , writeTVar
-    )
+    ( TBQueue, TVar, newTBQueue, newTVarIO, readTBQueue, readTVarIO,
+    writeTBQueue, writeTVar )
 
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool

@@ -42,12 +42,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , getIndex
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..), Index (..),
+    getIndex )
 import Cardano.Wallet.Address.Discovery
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.Passphrase

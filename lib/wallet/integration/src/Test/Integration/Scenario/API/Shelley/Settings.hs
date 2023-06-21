@@ -34,19 +34,9 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , eventually
-    , eventuallyUsingDelay
-    , expectField
-    , expectResponseCode
-    , request
-    , unsafeRequest
-    , updateMetadataSource
-    , verify
-    , verifyMetadataSource
-    )
+    ( Context (..), Headers (..), Payload (..), eventually,
+    eventuallyUsingDelay, expectField, expectResponseCode, request,
+    unsafeRequest, updateMetadataSource, verify, verifyMetadataSource )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

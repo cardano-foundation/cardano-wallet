@@ -55,25 +55,13 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (..), Severity (..), traceWith )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOf (change)
-    , SelectionOutputError (..)
-    , SelectionParams (..)
-    , SelectionReportDetailed
-    , SelectionReportSummarized
-    , SelectionSkeleton (..)
-    , SelectionStrategy (..)
-    , WalletSelectionContext
-    , WalletUTxO (..)
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
-    , performSelection
-    , toInternalUTxOMap
-    )
+    ( Selection, SelectionBalanceError (..),
+    SelectionCollateralRequirement (..), SelectionConstraints (..),
+    SelectionError (..), SelectionOf (change), SelectionOutputError (..),
+    SelectionParams (..), SelectionReportDetailed, SelectionReportSummarized,
+    SelectionSkeleton (..), SelectionStrategy (..), WalletSelectionContext,
+    WalletUTxO (..), makeSelectionReportDetailed, makeSelectionReportSummarized,
+    performSelection, toInternalUTxOMap )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -91,48 +79,20 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
-    ( KeyWitnessCount (..)
-    , TxFeeUpdate (..)
-    , TxUpdate (..)
-    , assignScriptRedeemers
-    , calculateMinimumFee
-    , distributeSurplus
-    , estimateKeyWitnessCount
-    , estimateSignedTxSize
-    , updateTx
-    )
+    ( KeyWitnessCount (..), TxFeeUpdate (..), TxUpdate (..),
+    assignScriptRedeemers, calculateMinimumFee, distributeSurplus,
+    estimateKeyWitnessCount, estimateSignedTxSize, updateTx )
 import Cardano.Wallet.Transaction
-    ( ErrAssignRedeemers
-    , ErrMoreSurplusNeeded (..)
-    , ErrUpdateSealedTx
-    , TransactionCtx (..)
-    , TxFeeAndChange (..)
-    , defaultTransactionCtx
-    )
+    ( ErrAssignRedeemers, ErrMoreSurplusNeeded (..), ErrUpdateSealedTx,
+    TransactionCtx (..), TxFeeAndChange (..), defaultTransactionCtx )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( IsRecentEra (..)
-    , PParams
-    , RecentEra (..)
-    , ShelleyLedgerEra
-    , TxOut
-    , computeMinimumCoinForTxOut
-    , evaluateMinimumFee
-    , evaluateTransactionBalance
-    , feeOfBytes
-    , fromCardanoTx
-    , fromCardanoUTxO
-    , getFeePerByte
-    , isBelowMinimumCoinForTxOut
-    , maxScriptExecutionCost
-    , modifyLedgerBody
-    , modifyTxOutCoin
-    , modifyTxOutputs
-    , outputs
-    , toCardanoValue
-    , txBody
-    )
+    ( IsRecentEra (..), PParams, RecentEra (..), ShelleyLedgerEra, TxOut,
+    computeMinimumCoinForTxOut, evaluateMinimumFee, evaluateTransactionBalance,
+    feeOfBytes, fromCardanoTx, fromCardanoUTxO, getFeePerByte,
+    isBelowMinimumCoinForTxOut, maxScriptExecutionCost, modifyLedgerBody,
+    modifyTxOutCoin, modifyTxOutputs, outputs, toCardanoValue, txBody )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Cardano.Wallet.Write.UTxOAssumptions
@@ -170,19 +130,10 @@ import Data.Maybe
 import Data.Text.Class
     ( ToText (..) )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality, (:~:) (..) )
 import Fmt
-    ( Buildable
-    , Builder
-    , blockListF'
-    , build
-    , nameF
-    , pretty
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
+    ( Buildable, Builder, blockListF', build, nameF, pretty, (+|), (+||), (|+),
+    (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -198,14 +149,14 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility

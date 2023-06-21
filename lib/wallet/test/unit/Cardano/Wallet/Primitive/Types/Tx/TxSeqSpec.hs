@@ -37,22 +37,9 @@ import Data.Maybe
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Fun (..)
-    , Function (..)
-    , Property
-    , Testable (..)
-    , applyFun
-    , checkCoverage
-    , chooseInt
-    , cover
-    , forAll
-    , property
-    , withMaxSuccess
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Fun (..), Function (..), Property,
+    Testable (..), applyFun, checkCoverage, chooseInt, cover, forAll, property,
+    withMaxSuccess, (===), (==>) )
 import Test.QuickCheck.Extra
     ( ScaleDiv (..), genShrinkSequence, labelInterval, shrinkWhile )
 import Test.QuickCheck.Instances.ByteString

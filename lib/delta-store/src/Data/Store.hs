@@ -76,15 +76,8 @@ import Prelude
 import Control.Applicative
     ( liftA2 )
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM
-    , atomically
-    , modifyTVar'
-    , newTVarIO
-    , readTVar
-    , readTVarIO
-    , retry
-    , writeTVar
-    )
+    ( MonadSTM, atomically, modifyTVar', newTVarIO, readTVar, readTVarIO, retry,
+    writeTVar )
 import Control.Exception
     ( Exception, SomeException (..), toException )
 import Control.Monad
@@ -92,14 +85,8 @@ import Control.Monad
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate, MonadMask, MonadThrow, evaluate, finally, mask, throwIO )
 import Data.Delta
-    ( Delta (..)
-    , Embedding
-    , Embedding' (..)
-    , Machine (..)
-    , Replace (..)
-    , inject
-    , project
-    )
+    ( Delta (..), Embedding, Embedding' (..), Machine (..), Replace (..),
+    inject, project )
 import Data.Kind
     ( Type )
 import GHC.Generics

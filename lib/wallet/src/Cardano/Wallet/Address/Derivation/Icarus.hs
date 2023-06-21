@@ -33,34 +33,15 @@ module Cardano.Wallet.Address.Derivation.Icarus
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (..)
-    , XPrv
-    , XPub
-    , deriveXPrv
-    , deriveXPub
-    , generateNew
-    , unXPub
-    , xPrvChangePass
-    , xprv
-    )
+    ( DerivationScheme (..), XPrv, XPub, deriveXPrv, deriveXPub, generateNew,
+    unXPub, xPrvChangePass, xprv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
-    , HardDerivation (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , PersistPublicKey (..)
-    , RewardAccount (..)
-    , SoftDerivation (..)
-    , fromHex
-    , hex
-    , paymentAddressS
-    )
+    ( Depth (..), DerivationType (..), ErrMkKeyFingerprint (..),
+    HardDerivation (..), Index (..), KeyFingerprint (..), MkKeyFingerprint (..),
+    PaymentAddress (..), PersistPublicKey (..), RewardAccount (..),
+    SoftDerivation (..), fromHex, hex, paymentAddressS )
 import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -72,11 +53,8 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant
-    , NetworkDiscriminantCheck (..)
-    , SNetworkId (..)
-    )
+    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantCheck (..),
+    SNetworkId (..) )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.Arrow

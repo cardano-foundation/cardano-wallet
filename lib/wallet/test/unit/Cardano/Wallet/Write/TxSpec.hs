@@ -18,30 +18,13 @@ import Cardano.Ledger.Babbage.TxBody
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
-    ( AnyRecentEra
-    , BinaryData
-    , RecentEra (..)
-    , Script
-    , StandardBabbage
-    , StandardConway
-    , TxOutInBabbage
-    , binaryDataFromBytes
-    , binaryDataToBytes
-    , computeMinimumCoinForTxOut
-    , datumFromCardanoScriptData
-    , datumHashFromBytes
-    , datumHashToBytes
-    , datumToCardanoScriptData
-    , fromCardanoUTxO
-    , isBelowMinimumCoinForTxOut
-    , isPlutusScript
-    , modifyTxOutCoin
-    , scriptFromCardanoEnvelopeJSON
-    , scriptFromCardanoScriptInAnyLang
-    , scriptToCardanoEnvelopeJSON
-    , scriptToCardanoScriptInAnyLang
-    , toCardanoUTxO
-    )
+    ( AnyRecentEra, BinaryData, RecentEra (..), Script, StandardBabbage,
+    StandardConway, TxOutInBabbage, binaryDataFromBytes, binaryDataToBytes,
+    computeMinimumCoinForTxOut, datumFromCardanoScriptData, datumHashFromBytes,
+    datumHashToBytes, datumToCardanoScriptData, fromCardanoUTxO,
+    isBelowMinimumCoinForTxOut, isPlutusScript, modifyTxOutCoin,
+    scriptFromCardanoEnvelopeJSON, scriptFromCardanoScriptInAnyLang,
+    scriptToCardanoEnvelopeJSON, scriptToCardanoScriptInAnyLang, toCardanoUTxO )
 import Cardano.Wallet.Write.Tx.Gen
     ( genBinaryData, genTxOut, shrinkBinaryData )
 import Data.Aeson
@@ -57,15 +40,8 @@ import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe, shouldNotBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Arbitrary1 (liftArbitrary)
-    , Property
-    , arbitraryBoundedEnum
-    , conjoin
-    , counterexample
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), Arbitrary1 (liftArbitrary), Property,
+    arbitraryBoundedEnum, conjoin, counterexample, property, (===) )
 import Test.QuickCheck.Classes
     ( boundedEnumLaws, eqLaws, showLaws )
 import Test.QuickCheck.Extra

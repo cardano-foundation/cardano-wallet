@@ -34,14 +34,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..)
-    , dom
-    , excludingD
-    , filterByAddress
-    , filterByAddressM
-    , isSubsetOf
-    , receiveD
-    )
+    ( UTxO (..), dom, excludingD, filterByAddress, filterByAddressM, isSubsetOf,
+    receiveD )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Data.Delta
@@ -57,19 +51,8 @@ import Data.Maybe
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Fun (..)
-    , Function (..)
-    , Property
-    , Testable
-    , applyFun
-    , checkCoverage
-    , conjoin
-    , cover
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Fun (..), Function (..), Property,
+    Testable, applyFun, checkCoverage, conjoin, cover, property, (===) )
 import Test.QuickCheck.Instances.ByteString
     ()
 

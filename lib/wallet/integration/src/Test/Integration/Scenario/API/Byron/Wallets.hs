@@ -16,12 +16,8 @@ module Test.Integration.Scenario.API.Byron.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
-    , ApiUtxoStatistics
-    , ApiWalletDiscovery (..)
-    , ApiWalletUtxoSnapshot
-    , WalletStyle (..)
-    )
+    ( ApiByronWallet, ApiUtxoStatistics, ApiWalletDiscovery (..),
+    ApiWalletUtxoSnapshot, WalletStyle (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -49,50 +45,19 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , MnemonicLength (..)
-    , Payload (..)
-    , emptyByronWalletFromXPrvWith
-    , emptyByronWalletWith
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyRandomWalletWithPasswd
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectWalletUTxO
-    , fixtureIcarusWallet
-    , fixtureMultiAssetIcarusWallet
-    , fixtureMultiAssetRandomWallet
-    , fixturePassphrase
-    , fixturePassphraseEncrypted
-    , fixtureRandomWallet
-    , genMnemonics
-    , getFromResponse
-    , json
-    , listFilteredByronWallets
-    , postByronWallet
-    , request
-    , rootPrvKeyFromMnemonics
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), MnemonicLength (..), Payload (..),
+    emptyByronWalletFromXPrvWith, emptyByronWalletWith, emptyIcarusWallet,
+    emptyRandomWallet, emptyRandomWalletWithPasswd, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, expectWalletUTxO, fixtureIcarusWallet,
+    fixtureMultiAssetIcarusWallet, fixtureMultiAssetRandomWallet,
+    fixturePassphrase, fixturePassphraseEncrypted, fixtureRandomWallet,
+    genMnemonics, getFromResponse, json, listFilteredByronWallets,
+    postByronWallet, request, rootPrvKeyFromMnemonics, verify, walletId )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , errMsg400NumberOfWords
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    , kanjiWalletName
-    , polishWalletName
-    , russianWalletName
-    , updateEmptyPassPayload
-    , updatePassPayload
-    , wildcardsWalletName
-    )
+    ( arabicWalletName, errMsg400NumberOfWords, errMsg403WrongPass,
+    errMsg404NoWallet, kanjiWalletName, polishWalletName, russianWalletName,
+    updateEmptyPassPayload, updatePassPayload, wildcardsWalletName )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Set as Set

@@ -31,14 +31,8 @@ import Data.Maybe
 import Data.Store
     ( UpdateStore, mkUpdateStore )
 import Database.Persist.Sql
-    ( Entity (entityVal)
-    , PersistEntity (keyFromRecordM)
-    , SqlPersistT
-    , deleteWhere
-    , repsertMany
-    , selectList
-    , (>.)
-    )
+    ( Entity (entityVal), PersistEntity (keyFromRecordM), SqlPersistT,
+    deleteWhere, repsertMany, selectList, (>.) )
 
 import qualified Data.Map.Strict as Map
 

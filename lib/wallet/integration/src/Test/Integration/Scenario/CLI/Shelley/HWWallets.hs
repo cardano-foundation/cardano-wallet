@@ -14,13 +14,8 @@ import Prelude
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiFee
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , apiAddress
-    )
+    ( ApiAddressWithPath, ApiFee, ApiTransaction, ApiUtxoStatistics, ApiWallet,
+    apiAddress )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -52,37 +47,15 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , createWalletFromPublicKeyViaCLI
-    , createWalletViaCLI
-    , deleteWalletViaCLI
-    , emptyWallet
-    , eventually
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , expectWalletUTxO
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWithMnemonics
-    , generateMnemonicsViaCLI
-    , getWalletUtxoStatisticsViaCLI
-    , getWalletViaCLI
-    , listAddresses
-    , listAddressesViaCLI
-    , listTransactionsViaCLI
-    , listWalletsViaCLI
-    , minUTxOValue
-    , postTransactionFeeViaCLI
-    , postTransactionViaCLI
-    , pubKeyFromMnemonics
-    , updateWalletNameViaCLI
-    , updateWalletPassphraseViaCLI
-    , verify
-    , verifyMsg
-    , walletId
-    , (.>)
-    )
+    ( Context (..), createWalletFromPublicKeyViaCLI, createWalletViaCLI,
+    deleteWalletViaCLI, emptyWallet, eventually, expectCliField,
+    expectCliListField, expectValidJSON, expectWalletUTxO, fixturePassphrase,
+    fixtureWallet, fixtureWalletWithMnemonics, generateMnemonicsViaCLI,
+    getWalletUtxoStatisticsViaCLI, getWalletViaCLI, listAddresses,
+    listAddressesViaCLI, listTransactionsViaCLI, listWalletsViaCLI,
+    minUTxOValue, postTransactionFeeViaCLI, postTransactionViaCLI,
+    pubKeyFromMnemonics, updateWalletNameViaCLI, updateWalletPassphraseViaCLI,
+    verify, verifyMsg, walletId, (.>) )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NoRootKey )
 import Test.Integration.Scenario.CLI.Shelley.Wallets

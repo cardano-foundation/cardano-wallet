@@ -35,15 +35,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Retry
-    ( RetryPolicy
-    , RetryStatus (..)
-    , capDelay
-    , fibonacciBackoff
-    , limitRetries
-    , limitRetriesByCumulativeDelay
-    , retryPolicy
-    , retrying
-    )
+    ( RetryPolicy, RetryStatus (..), capDelay, fibonacciBackoff, limitRetries,
+    limitRetriesByCumulativeDelay, retryPolicy, retrying )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson

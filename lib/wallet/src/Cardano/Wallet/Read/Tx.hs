@@ -22,14 +22,8 @@ module Cardano.Wallet.Read.Tx
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 
 import qualified Cardano.Api.Shelley as Api
 import qualified Cardano.Chain.UTxO as Byron

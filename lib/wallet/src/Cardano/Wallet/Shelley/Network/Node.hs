@@ -33,11 +33,8 @@ module Cardano.Wallet.Shelley.Network.Node
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , NodeToClientVersion (..)
-    , SlotNo (..)
-    )
+    ( AnyCardanoEra (..), CardanoEra (..), NodeToClientVersion (..),
+    SlotNo (..) )
 import Cardano.Api.Shelley
     ( toConsensusGenTx )
 import Cardano.BM.Data.Severity
@@ -53,21 +50,12 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, produceTimings )
 import Cardano.Wallet.Network
-    ( ChainFollowLog (..)
-    , ChainFollower
-    , ChainSyncLog (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    , mapChainFollower
-    , mapChainSyncLog
-    , withFollowStatsMonitoring
-    )
+    ( ChainFollowLog (..), ChainFollower, ChainSyncLog (..), ErrPostTx (..),
+    NetworkLayer (..), mapChainFollower, mapChainSyncLog,
+    withFollowStatsMonitoring )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , TimeInterpreterLog
-    , currentRelativeTime
-    , mkTimeInterpreter
-    )
+    ( TimeInterpreter, TimeInterpreterLog, currentRelativeTime,
+    mkTimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -75,54 +63,18 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardCrypto
-    , fromAllegraPParams
-    , fromAlonzoPParams
-    , fromBabbagePParams
-    , fromConwayPParams
-    , fromMaryPParams
-    , fromNonMyopicMemberRewards
-    , fromPoint
-    , fromPoolDistr
-    , fromShelleyCoin
-    , fromShelleyPParams
-    , fromStakeCredential
-    , fromTip
-    , fromTip'
-    , nodeToClientVersions
-    , optimumNumberOfPools
-    , slottingParametersFromGenesis
-    , toCardanoBlockHeader
-    , toCardanoEra
-    , toLedgerStakeCredential
-    , toPoint
-    , toShelleyCoin
-    , unsealShelleyTx
-    )
+    ( StandardCrypto, fromAllegraPParams, fromAlonzoPParams, fromBabbagePParams,
+    fromConwayPParams, fromMaryPParams, fromNonMyopicMemberRewards, fromPoint,
+    fromPoolDistr, fromShelleyCoin, fromShelleyPParams, fromStakeCredential,
+    fromTip, fromTip', nodeToClientVersions, optimumNumberOfPools,
+    slottingParametersFromGenesis, toCardanoBlockHeader, toCardanoEra,
+    toLedgerStakeCredential, toPoint, toShelleyCoin, unsealShelleyTx )
 import Control.Applicative
     ( liftA3 )
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM
-    , STM
-    , TMVar
-    , TQueue
-    , TVar
-    , atomically
-    , isEmptyTMVar
-    , modifyTVar'
-    , newEmptyTMVarIO
-    , newTMVarIO
-    , newTQueue
-    , newTQueueIO
-    , newTVarIO
-    , putTMVar
-    , readTMVar
-    , readTVar
-    , readTVarIO
-    , takeTMVar
-    , tryReadTMVar
-    , writeTVar
-    )
+    ( MonadSTM, STM, TMVar, TQueue, TVar, atomically, isEmptyTMVar, modifyTVar',
+    newEmptyTMVarIO, newTMVarIO, newTQueue, newTQueueIO, newTVarIO, putTMVar,
+    readTMVar, readTVar, readTVarIO, takeTMVar, tryReadTMVar, writeTVar )
 import Control.Monad
     ( forever, guard, unless, void, when )
 import Control.Monad.Class.MonadAsync
@@ -140,13 +92,8 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
 import Control.Retry
-    ( RetryAction (..)
-    , RetryPolicyM
-    , RetryStatus (..)
-    , capDelay
-    , fibonacciBackoff
-    , recoveringDynamic
-    )
+    ( RetryAction (..), RetryPolicyM, RetryStatus (..), capDelay,
+    fibonacciBackoff, recoveringDynamic )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteString.Lazy
@@ -188,17 +135,9 @@ import Network.Mux
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock )
 import Ouroboros.Consensus.Cardano.Block
-    ( BlockQuery (..)
-    , CardanoEras
-    , CodecConfig (..)
-    , EraCrypto
-    , GenTx
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardMary
-    , StandardShelley
-    )
+    ( BlockQuery (..), CardanoEras, CodecConfig (..), EraCrypto, GenTx,
+    StandardAllegra, StandardAlonzo, StandardBabbage, StandardMary,
+    StandardShelley )
 import Ouroboros.Consensus.HardFork.Combinator
     ( EraIndex (..), QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
@@ -224,36 +163,18 @@ import Ouroboros.Consensus.Shelley.Ledger.Config
 import Ouroboros.Network.Block
     ( Point, Tip (..) )
 import Ouroboros.Network.Client.Wallet
-    ( LSQ (..)
-    , LocalStateQueryCmd (..)
-    , LocalTxSubmissionCmd (..)
-    , PipeliningStrategy
-    , chainSyncFollowTip
-    , chainSyncWithBlocks
-    , localStateQuery
-    , localTxSubmission
-    , send
-    )
+    ( LSQ (..), LocalStateQueryCmd (..), LocalTxSubmissionCmd (..),
+    PipeliningStrategy, chainSyncFollowTip, chainSyncWithBlocks,
+    localStateQuery, localTxSubmission, send )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer, runPipelinedPeer )
 import Ouroboros.Network.Mux
-    ( MuxMode (..)
-    , MuxPeer (..)
-    , OuroborosApplication (..)
-    , RunMiniProtocol (..)
-    )
+    ( MuxMode (..), MuxPeer (..), OuroborosApplication (..),
+    RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..)
-    , Handshake
-    , LocalAddress
-    , NetworkConnectTracers (..)
-    , NodeToClientProtocols (..)
-    , NodeToClientVersionData (..)
-    , connectTo
-    , localSnocket
-    , nodeToClientProtocols
-    , withIOManager
-    )
+    ( ConnectionId (..), Handshake, LocalAddress, NetworkConnectTracers (..),
+    NodeToClientProtocols (..), NodeToClientVersionData (..), connectTo,
+    localSnocket, nodeToClientProtocols, withIOManager )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined

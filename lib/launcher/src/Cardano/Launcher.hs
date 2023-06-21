@@ -50,16 +50,8 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockListF'
-    , fmt
-    , indentF
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
+    ( Buildable (..), Builder, blockListF', fmt, indentF, (+|), (+||), (|+),
+    (||+) )
 import GHC.Generics
     ( Generic )
 import System.Exit
@@ -73,25 +65,12 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( forkIO, forkIOWithUnmask, killThread, threadDelay )
 import UnliftIO.Exception
-    ( Exception
-    , IOException
-    , bracket
-    , bracket_
-    , finally
-    , onException
-    , tryJust
-    )
+    ( Exception, IOException, bracket, bracket_, finally, onException, tryJust )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
 import UnliftIO.Process
-    ( CmdSpec (..)
-    , CreateProcess (..)
-    , ProcessHandle
-    , StdStream (..)
-    , createProcess
-    , proc
-    , waitForProcess
-    )
+    ( CmdSpec (..), CreateProcess (..), ProcessHandle, StdStream (..),
+    createProcess, proc, waitForProcess )
 
 import qualified Data.Text as T
 

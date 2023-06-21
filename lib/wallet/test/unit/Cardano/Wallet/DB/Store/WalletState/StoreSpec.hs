@@ -30,12 +30,8 @@ import Cardano.Wallet.DB.Store.Info.Store
 import Cardano.Wallet.DB.Store.WalletState.Store
     ( mkStoreWallet )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , WalletState
-    , fromGenesis
-    , fromWallet
-    )
+    ( DeltaWalletState, DeltaWalletState1 (..), WalletState, fromGenesis,
+    fromWallet )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Flavor

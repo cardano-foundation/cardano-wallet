@@ -19,12 +19,8 @@ import Cardano.Wallet.Address.Derivation.MintBurn
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap
-    , SeqAnyState (..)
-    , SeqState
-    , SupportsDiscovery
-    , mkSeqStateFromAccountXPub
-    )
+    ( AddressPoolGap, SeqAnyState (..), SeqState, SupportsDiscovery,
+    mkSeqStateFromAccountXPub )
 import Cardano.Wallet.Flavor
     ( Excluding, KeyFlavorS )
 import GHC.TypeLits
