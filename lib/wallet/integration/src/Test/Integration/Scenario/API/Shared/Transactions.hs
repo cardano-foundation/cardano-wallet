@@ -1205,6 +1205,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
             pure (getFromResponse Prelude.id rl)
@@ -1513,6 +1514,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -1530,6 +1532,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400MinWithdrawalWrong r
@@ -1542,6 +1545,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             let link = Link.listTransactions' @'Shared w
                     (Just 1)
+                    Nothing
                     Nothing
                     Nothing
                     Nothing
@@ -2130,12 +2134,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shared party1 (Just 1)
-                Nothing Nothing Nothing Nothing)
+                Nothing Nothing Nothing Nothing Nothing)
             Default Empty
         verify rw1 [ expectListSize 0 ]
         rw2 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shared party2 (Just 1)
-                Nothing Nothing Nothing Nothing)
+                Nothing Nothing Nothing Nothing Nothing)
             Default Empty
         verify rw2 [ expectListSize 0 ]
 
@@ -2595,6 +2599,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (Iso8601Time <$> mEnd)
                     mOrder
                     mLimit
+                    Nothing
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
          let txs = getFromResponse Prelude.id r
@@ -2602,7 +2607,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
      listAllSharedTransactions ctx w = do
          let path = Link.listTransactions' @'Shared w
-                    Nothing Nothing Nothing (Just Descending) Nothing
+                    Nothing Nothing Nothing (Just Descending) Nothing Nothing
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
          let txs = getFromResponse Prelude.id r

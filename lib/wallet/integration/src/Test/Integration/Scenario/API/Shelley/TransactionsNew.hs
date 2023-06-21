@@ -2806,7 +2806,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shelley src (Just 1)
-                Nothing Nothing Nothing Nothing)
+                Nothing Nothing Nothing Nothing Nothing)
             Default Empty
         verify rw1 [ expectListSize 0 ]
 

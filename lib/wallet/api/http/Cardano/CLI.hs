@@ -948,6 +948,7 @@ cmdTransactionList mkTxClient =
             mTimeRangeEnd
             (ApiT <$> mOrder)
             (ApiLimit <$> limit)
+            Nothing
             (metadataSchema == TxMetadataNoSchema)
 
 -- | Arguments for 'transaction submit' command

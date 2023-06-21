@@ -2712,6 +2712,7 @@ listTransactions ctx w mStart mEnd mOrder mLimit = do
         (Iso8601Time <$> mEnd)
         mOrder
         mLimit
+        Nothing
 
 -- | Delete all wallets
 deleteAllWallets :: Context -> IO ()

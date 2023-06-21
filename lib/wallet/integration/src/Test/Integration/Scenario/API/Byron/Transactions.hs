@@ -636,6 +636,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                         Nothing
                         Nothing
                         (Just $ ApiLimit 9)
+                        Nothing
                 r <- request @([ApiTransaction n]) ctx link Default Empty
                 verify r
                     [ expectResponseCode HTTP.status200
@@ -727,6 +728,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     Nothing
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
                     Nothing
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty

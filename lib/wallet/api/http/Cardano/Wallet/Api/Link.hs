@@ -128,7 +128,8 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressInspectData (..)
+    ( ApiAddress (..)
+    , ApiAddressInspectData (..)
     , ApiPoolSpecifier
     , ApiT (..)
     , ApiTxId (ApiTxId)
@@ -144,7 +145,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Primitive.Types
     ( SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState )
+    ( Address, AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -614,7 +615,7 @@ listTransactions
     => w
     -> (Method, Text)
 listTransactions w =
-    listTransactions' @style w Nothing Nothing Nothing Nothing Nothing
+    listTransactions' @style w Nothing Nothing Nothing Nothing Nothing Nothing
 
 listTransactions'
     :: forall (style :: WalletStyle) w.
@@ -627,8 +628,9 @@ listTransactions'
     -> Maybe Iso8601Time
     -> Maybe SortOrder
     -> Maybe ApiLimit
+    -> Maybe Address
     -> (Method, Text)
-listTransactions' w minWithdrawal inf sup order limit = discriminate @style
+listTransactions' w minWithdrawal inf sup order limit address = discriminate @style
     (endpoint @(Api.ListTransactions Net)
         (\mk -> mk
             wid
@@ -637,11 +639,12 @@ listTransactions' w minWithdrawal inf sup order limit = discriminate @style
             sup
             (ApiT <$> order)
             limit
+            (ApiAddress <$> address)
             (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
     (endpoint @(Api.ListByronTransactions Net)
-        (\mk -> mk wid inf sup (ApiT <$> order) limit))
+        (\mk -> mk wid inf sup (ApiT <$> order) limit (ApiAddress <$> address)))
     (endpoint @(Api.ListSharedTransactions Net)
         (\mk -> mk
             wid
@@ -650,6 +653,7 @@ listTransactions' w minWithdrawal inf sup order limit = discriminate @style
             sup
             (ApiT <$> order)
             limit
+            (ApiAddress <$> address)
             (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )

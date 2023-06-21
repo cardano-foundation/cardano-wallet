@@ -2254,10 +2254,11 @@ listTransactions
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Maybe ApiLimit
+    -> Maybe (ApiAddress n)
     -> TxMetadataSchema
     -> Handler [ApiTransaction n]
 listTransactions
-    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit metadataSchema =
+    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit _ metadataSchema =
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
                 W.listTransactions wrk

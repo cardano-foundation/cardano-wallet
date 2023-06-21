@@ -335,9 +335,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (getPoolLifeCycleStatus spl)
         :<|> signTransaction shelley
         :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder mLimit simpleMetadataFlag ->
+            (\wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
                 listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder mLimit
-                    (parseSimpleMetadataFlag simpleMetadataFlag)
+                    mAddress (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|>
             (\wid txId simpleMetadataFlag ->
@@ -479,14 +479,14 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
-            (\wid r0 r1 s l -> withLegacyLayer wid
+            (\wid r0 r1 s l a -> withLegacyLayer wid
                 ( byron
                 , listTransactions
-                    byron wid Nothing r0 r1 s l TxMetadataDetailedSchema
+                    byron wid Nothing r0 r1 s l a TxMetadataDetailedSchema
                 )
                 ( icarus
                 , listTransactions
-                    icarus wid Nothing r0 r1 s l TxMetadataDetailedSchema
+                    icarus wid Nothing r0 r1 s l a TxMetadataDetailedSchema
                 )
              )
         :<|>
@@ -614,9 +614,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder mLimit simpleMetadataFlag ->
+            (\wid mMinWithdrawal mStart mEnd mOrder mLimit mAddress simpleMetadataFlag ->
                 listTransactions apilayer wid mMinWithdrawal mStart mEnd mOrder
-                    mLimit (parseSimpleMetadataFlag simpleMetadataFlag)
+                    mLimit mAddress (parseSimpleMetadataFlag simpleMetadataFlag)
             )
 
     blocks :: Handler ApiBlockHeader
