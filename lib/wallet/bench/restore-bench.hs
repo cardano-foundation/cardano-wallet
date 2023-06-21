@@ -14,10 +14,12 @@
 {-# LANGUAGE NoMonoLocalBinds #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TypeApplications #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 {- HLINT ignore "Redundant pure" -}
 
@@ -181,6 +183,8 @@ import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
 import Data.Functor.Contravariant
     ( contramap )
+import Data.Kind
+    ( Type )
 import Data.List
     ( foldl' )
 import Data.Proxy
@@ -680,7 +684,7 @@ bench_baseline_restoration
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
-    :: forall n (k :: Depth -> * -> *) s results.
+    :: forall n (k :: Depth -> Type -> Type) s results.
         ( IsOurs s RewardAccount
         , MaybeLight s
         , PersistAddressBook s
