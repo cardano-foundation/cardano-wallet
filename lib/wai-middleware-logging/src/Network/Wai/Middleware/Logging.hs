@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- The following is justified by the usage of the 'requestBody' field
@@ -120,7 +122,8 @@ data ApiLoggerSettings = ApiLoggerSettings
 
 -- | Just a wrapper for readability
 newtype RequestId = RequestId Integer
-    deriving (Generic, Show, Eq, ToJSON)
+    deriving stock (Generic, Show)
+    deriving newtype (Eq, ToJSON)
 
 -- | Create a new opaque 'ApiLoggerSettings'
 newApiLoggerSettings :: IO ApiLoggerSettings

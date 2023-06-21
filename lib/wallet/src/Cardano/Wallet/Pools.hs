@@ -219,8 +219,8 @@ withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams genesisPools ne
 
     -- fixme: needs to be simplified as part of ADP-634
     let NetworkParameters{slottingParameters} = netParams
-        startMetadataThread = forkIOWithUnmask
-            ($ monitorMetadata gcStatus tr slottingParameters dbLayer)
+        startMetadataThread = forkIOWithUnmask $ \f ->
+            f $ monitorMetadata gcStatus tr slottingParameters dbLayer
     metadataThread <- newMVar =<< startMetadataThread
     let restartMetadataThread = modifyMVar_ metadataThread $
             killThread >=> const startMetadataThread

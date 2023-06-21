@@ -142,6 +142,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( isJust, isNothing, mapMaybe )
 import Data.Quantity
@@ -270,7 +272,7 @@ instance PaymentAddress SharedKey 'CredFromScriptK where
     liftPaymentAddress _ = error
         "does not make sense for SharedKey but want to use stateMachineSpec"
 
-showState :: forall s. Typeable s => String
+showState :: forall (s :: Type). Typeable s => String
 showState = show (typeOf @s undefined)
 
 withFreshDB
