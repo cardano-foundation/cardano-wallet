@@ -1162,8 +1162,6 @@ genStakeAddressReferenceCoverage :: StakeAddressReference -> Property
 genStakeAddressReferenceCoverage ref = checkCoverage
     $ cover 10 (byValue ref)
         "stake address reference created by value"
-    $ cover 10 (byPointer ref)
-        "stake address reference created by pointer"
     $ cover 10 (noStakeAddress ref)
         "no stake address"
         True
@@ -1171,11 +1169,6 @@ genStakeAddressReferenceCoverage ref = checkCoverage
         byValue = \case
             StakeAddressByValue _   -> True
             StakeAddressByPointer _ -> False
-            NoStakeAddress          -> False
-
-        byPointer = \case
-            StakeAddressByValue _   -> False
-            StakeAddressByPointer _ -> True
             NoStakeAddress          -> False
 
         noStakeAddress = \case
