@@ -54,17 +54,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Network
     ( ChainFollower (..), ChainSyncLog (..) )
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM
-    , TQueue
-    , atomically
-    , newEmptyTMVarIO
-    , peekTQueue
-    , putTMVar
-    , readTQueue
-    , takeTMVar
-    , tryReadTQueue
-    , writeTQueue
-    )
+    ( MonadSTM, TQueue, atomically, newEmptyTMVarIO, peekTQueue, putTMVar,
+    readTQueue, takeTMVar, tryReadTQueue, writeTQueue )
 import Control.Monad
     ( ap, liftM )
 import Control.Monad.Class.MonadThrow
@@ -94,25 +85,13 @@ import Ouroboros.Consensus.HardFork.Combinator.Ledger.Query
 import Ouroboros.Consensus.Ledger.Query
     ( Query (..) )
 import Ouroboros.Network.Block
-    ( BlockNo (..)
-    , HasHeader (..)
-    , Point (..)
-    , Tip (..)
-    , blockNo
-    , blockPoint
-    , blockSlot
-    , castTip
-    , getTipPoint
-    , pointSlot
-    )
+    ( BlockNo (..), HasHeader (..), Point (..), Tip (..), blockNo, blockPoint,
+    blockSlot, castTip, getTipPoint, pointSlot )
 import Ouroboros.Network.Point
     ( blockPointSlot )
 import Ouroboros.Network.Protocol.ChainSync.Client
-    ( ChainSyncClient (..)
-    , ClientStIdle (..)
-    , ClientStIntersect (..)
-    , ClientStNext (..)
-    )
+    ( ChainSyncClient (..), ClientStIdle (..), ClientStIntersect (..),
+    ClientStNext (..) )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( ChainSyncClientPipelined (..) )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client

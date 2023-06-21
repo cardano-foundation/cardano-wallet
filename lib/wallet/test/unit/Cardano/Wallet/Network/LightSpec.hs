@@ -15,20 +15,13 @@ import Prelude
 import Cardano.Wallet.Network
     ( ChainFollower (..) )
 import Cardano.Wallet.Network.Light
-    ( Consensual (Consensual, NotConsensual)
-    , LightBlocks
-    , LightSyncSource (..)
-    , hoistLightSyncSource
-    , lightSync
-    )
+    ( Consensual (Consensual, NotConsensual), LightBlocks, LightSyncSource (..),
+    hoistLightSyncSource, lightSync )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockSummary (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , ChainPoint (..)
-    , chainPointFromBlockHeader
-    , isGenesisBlockHeader
-    )
+    ( BlockHeader (..), ChainPoint (..), chainPointFromBlockHeader,
+    isGenesisBlockHeader )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad
@@ -56,15 +49,7 @@ import Data.Void
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , choose
-    , frequency
-    , property
-    , sized
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, choose, frequency, property, sized, (===) )
 
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Data.ByteString.Char8 as B8

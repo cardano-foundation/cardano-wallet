@@ -16,18 +16,8 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , choose
-    , conjoin
-    , counterexample
-    , forAll
-    , property
-    , (.&&.)
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Gen, Property, choose, conjoin, counterexample, forAll,
+    property, (.&&.), (===), (==>) )
 
 import qualified Data.List as L
 

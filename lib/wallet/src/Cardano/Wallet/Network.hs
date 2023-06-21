@@ -54,13 +54,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block
-    , BlockHeader (..)
-    , ChainPoint (..)
-    , ProtocolParameters
-    , SlotNo (..)
-    , SlottingParameters (..)
-    )
+    ( Block, BlockHeader (..), ChainPoint (..), ProtocolParameters, SlotNo (..),
+    SlottingParameters (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.RewardAccount

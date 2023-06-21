@@ -22,18 +22,8 @@ module Cardano.Wallet.Api.Lib.Options
 import Prelude
 
 import Data.Aeson
-    ( FromJSON (..)
-    , GFromJSON
-    , GToJSON'
-    , Options (..)
-    , SumEncoding (..)
-    , ToJSON (..)
-    , Value
-    , Zero
-    , camelTo2
-    , genericParseJSON
-    , genericToJSON
-    )
+    ( FromJSON (..), GFromJSON, GToJSON', Options (..), SumEncoding (..),
+    ToJSON (..), Value, Zero, camelTo2, genericParseJSON, genericToJSON )
 import GHC.Generics
     ( Generic, Rep )
 

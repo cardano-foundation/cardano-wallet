@@ -28,13 +28,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Mary
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTx )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount
-    , WitnessCountCtx
-    , emptyTokenMapWithScripts
-    , emptyWitnessCount
-    )
+    ( TokenMapWithScripts (..), ValidityIntervalExplicit (..), WitnessCount,
+    WitnessCountCtx, emptyTokenMapWithScripts, emptyWitnessCount )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano

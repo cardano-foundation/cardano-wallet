@@ -16,17 +16,9 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiAsset (..)
-    , ApiByronWallet
-    , ApiFee (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiWallet
-    , ApiWalletDiscovery (..)
-    , WalletStyle (..)
-    )
+    ( ApiAddressWithPath, ApiAsset (..), ApiByronWallet, ApiFee (..), ApiT (..),
+    ApiTransaction, ApiTxId (..), ApiWallet, ApiWalletDiscovery (..),
+    WalletStyle (..) )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -62,51 +54,19 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , between
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectListSizeSatisfy
-    , expectResponseCode
-    , expectSuccess
-    , faucetAmt
-    , faucetUtxoAmt
-    , fixtureIcarusWallet
-    , fixtureMultiAssetIcarusWallet
-    , fixtureMultiAssetRandomWallet
-    , fixturePassphrase
-    , fixtureRandomWallet
-    , getFromResponse
-    , json
-    , listAddresses
-    , minUTxOValue
-    , mkTxPayloadMA
-    , pickAnAsset
-    , postByronWallet
-    , postTx
-    , request
-    , toQueryString
-    , verify
-    , walletId
-    , (.>=)
-    )
+    ( Context (..), Headers (..), Payload (..), between, emptyIcarusWallet,
+    emptyRandomWallet, emptyWallet, eventually, expectErrorMessage, expectField,
+    expectListField, expectListSize, expectListSizeSatisfy, expectResponseCode,
+    expectSuccess, faucetAmt, faucetUtxoAmt, fixtureIcarusWallet,
+    fixtureMultiAssetIcarusWallet, fixtureMultiAssetRandomWallet,
+    fixturePassphrase, fixtureRandomWallet, getFromResponse, json,
+    listAddresses, minUTxOValue, mkTxPayloadMA, pickAnAsset, postByronWallet,
+    postTx, request, toQueryString, verify, walletId, (.>=) )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
-    , errMsg403MinUTxOValue
-    , errMsg404NoAsset
-    , errMsg404NoWallet
-    , steveToken
-    )
+    ( errMsg400StartTimeLaterThanEndTime, errMsg403MinUTxOValue,
+    errMsg404NoAsset, errMsg404NoWallet, steveToken )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

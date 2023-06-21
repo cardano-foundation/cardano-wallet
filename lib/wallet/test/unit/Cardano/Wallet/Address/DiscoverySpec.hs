@@ -18,11 +18,8 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (AccountK, CredFromKeyK, RootK)
-    , DerivationType (..)
-    , Index
-    , paymentAddressS
-    )
+    ( Depth (AccountK, CredFromKeyK, RootK), DerivationType (..), Index,
+    paymentAddressS )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Address.Discovery
@@ -36,12 +33,8 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..)
-    , PassphraseScheme (EncryptWithPBKDF2)
-    , passphraseMaxLength
-    , passphraseMinLength
-    , preparePassphrase
-    )
+    ( Passphrase (..), PassphraseScheme (EncryptWithPBKDF2),
+    passphraseMaxLength, passphraseMinLength, preparePassphrase )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId, NetworkDiscriminant (..) )
 import Control.Monad
@@ -53,16 +46,8 @@ import Data.Proxy
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , Property
-    , arbitraryBoundedEnum
-    , arbitraryPrintableChar
-    , choose
-    , property
-    , (.&&.)
-    )
+    ( Arbitrary (..), Gen, InfiniteList (..), Property, arbitraryBoundedEnum,
+    arbitraryPrintableChar, choose, property, (.&&.) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA

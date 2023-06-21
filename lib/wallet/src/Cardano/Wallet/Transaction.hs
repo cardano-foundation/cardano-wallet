@@ -74,11 +74,8 @@ import Cardano.Ledger.Crypto
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionCollateralRequirement (..)
-    , SelectionOf (..)
-    , SelectionOutputTokenQuantityExceedsLimitError
-    , WalletSelectionContext
-    )
+    ( SelectionCollateralRequirement (..), SelectionOf (..),
+    SelectionOutputTokenQuantityExceedsLimitError, WalletSelectionContext )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types

@@ -7,17 +7,9 @@ module Cardano.Wallet.Primitive.CollateralSpec where
 import Prelude
 
 import Cardano.Wallet.Primitive.Collateral
-    ( AddressType (..)
-    , Credential (..)
-    , addressSuitableForCollateral
-    , addressType
-    , addressTypeFromHeaderNibble
-    , addressTypeSuitableForCollateral
-    , addressTypeToHeaderNibble
-    , asCollateral
-    , getAddressType
-    , putAddressType
-    )
+    ( AddressType (..), Credential (..), addressSuitableForCollateral,
+    addressType, addressTypeFromHeaderNibble, addressTypeSuitableForCollateral,
+    addressTypeToHeaderNibble, asCollateral, getAddressType, putAddressType )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -43,24 +35,9 @@ import Numeric
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , Testable
-    , checkCoverage
-    , counterexample
-    , cover
-    , coverTable
-    , disjoin
-    , forAll
-    , forAllShrink
-    , frequency
-    , oneof
-    , property
-    , tabulate
-    , withMaxSuccess
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, Testable, checkCoverage, counterexample,
+    cover, coverTable, disjoin, forAll, forAllShrink, frequency, oneof,
+    property, tabulate, withMaxSuccess, (===) )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 

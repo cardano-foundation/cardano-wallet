@@ -41,25 +41,11 @@ import Fmt
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , choose
-    , counterexample
-    , generate
-    , property
-    , suchThat
-    , vectorOf
-    , (===)
-    )
+    ( Arbitrary (..), choose, counterexample, generate, property, suchThat,
+    vectorOf, (===) )
 import Test.Store
-    ( applyS
-    , checkLaw
-    , context
-    , ignore
-    , observe
-    , prop_StoreUpdate
-    , reset
-    , unitTestStore
-    )
+    ( applyS, checkLaw, context, ignore, observe, prop_StoreUpdate, reset,
+    unitTestStore )
 
 spec :: Spec
 spec =

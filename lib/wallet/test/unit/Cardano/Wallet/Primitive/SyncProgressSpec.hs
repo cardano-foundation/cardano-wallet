@@ -10,25 +10,15 @@ module Cardano.Wallet.Primitive.SyncProgressSpec
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient
-    , genBlockHeader
-    , genSlotNo
-    , shrinkActiveSlotCoefficient
-    , shrinkSlotNo
-    )
+    ( genActiveSlotCoefficient, genBlockHeader, genSlotNo,
+    shrinkActiveSlotCoefficient, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, mkSingleEraInterpreter, slotToRelTime )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
-    , EpochLength (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    )
+    ( ActiveSlotCoefficient (..), BlockHeader (..), EpochLength (..),
+    SlotLength (..), SlotNo (..), SlottingParameters (..), StartTime (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq

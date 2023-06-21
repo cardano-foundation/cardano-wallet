@@ -12,14 +12,8 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
-    , ApiNetworkClock
-    , ApiNetworkInformation
-    , ApiWalletMode (..)
-    , NtpSyncingStatus (..)
-    , WalletStyle (..)
-    , nextEpoch
-    )
+    ( ApiByronWallet, ApiNetworkClock, ApiNetworkInformation,
+    ApiWalletMode (..), NtpSyncingStatus (..), WalletStyle (..), nextEpoch )
 import Cardano.Wallet.Pools
     ( EpochInfo (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -41,20 +35,9 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , counterexample
-    , emptyRandomWallet
-    , eventually
-    , expectField
-    , expectResponseCode
-    , getFromResponse
-    , request
-    , unsafeResponse
-    , verify
-    , (.>)
-    )
+    ( Context (..), Headers (..), Payload (..), counterexample,
+    emptyRandomWallet, eventually, expectField, expectResponseCode,
+    getFromResponse, request, unsafeResponse, verify, (.>) )
 import Test.Utils.Paths
     ( inNixBuild )
 

@@ -19,13 +19,8 @@ import Cardano.CLI
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletUtxoSnapshot
-    , apiAddress
-    , getApiT
-    )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, ApiWalletUtxoSnapshot,
+    apiAddress, getApiT )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -67,45 +62,17 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , cardanoWalletCLI
-    , createWalletViaCLI
-    , deleteWalletViaCLI
-    , emptyRandomWallet
-    , emptyWallet
-    , emptyWalletAndMnemonicWith
-    , emptyWalletWith
-    , eventually
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , expectWalletUTxO
-    , fixtureWallet
-    , generateMnemonicsViaCLI
-    , getWalletUtxoSnapshotViaCLI
-    , getWalletUtxoStatisticsViaCLI
-    , getWalletViaCLI
-    , listAddresses
-    , listWalletsViaCLI
-    , minUTxOValue
-    , notDelegating
-    , postTransactionViaCLI
-    , updateWalletNameViaCLI
-    , updateWalletPassphraseViaCLI
-    , updateWalletPassphraseWithMnemonicViaCLI
-    , verify
-    , walletId
-    )
+    ( Context (..), cardanoWalletCLI, createWalletViaCLI, deleteWalletViaCLI,
+    emptyRandomWallet, emptyWallet, emptyWalletAndMnemonicWith, emptyWalletWith,
+    eventually, expectCliField, expectCliListField, expectValidJSON,
+    expectWalletUTxO, fixtureWallet, generateMnemonicsViaCLI,
+    getWalletUtxoSnapshotViaCLI, getWalletUtxoStatisticsViaCLI, getWalletViaCLI,
+    listAddresses, listWalletsViaCLI, minUTxOValue, notDelegating,
+    postTransactionViaCLI, updateWalletNameViaCLI, updateWalletPassphraseViaCLI,
+    updateWalletPassphraseWithMnemonicViaCLI, verify, walletId )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , cmdOk
-    , errMsg400WalletIdEncoding
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    , falseWalletIds
-    , russianWalletName
-    , wildcardsWalletName
-    )
+    ( arabicWalletName, cmdOk, errMsg400WalletIdEncoding, errMsg403WrongPass,
+    errMsg404NoWallet, falseWalletIds, russianWalletName, wildcardsWalletName )
 
 import qualified Data.Text as T
 

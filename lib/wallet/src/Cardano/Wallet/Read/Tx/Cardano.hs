@@ -19,17 +19,8 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx) )
 import Cardano.Wallet.Read.Eras
-    ( EraValue
-    , K (..)
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
-    , inject
-    , mary
-    , shelley
-    )
+    ( EraValue, K (..), allegra, alonzo, babbage, byron, conway, inject, mary,
+    shelley )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun, applyEraFun )
 import Cardano.Wallet.Read.Eras.EraValue

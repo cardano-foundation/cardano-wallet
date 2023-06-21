@@ -16,13 +16,8 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , expectResponseCode
-    , expectSuccess
-    , request
-    )
+    ( Context (..), Headers (..), Payload (..), expectResponseCode,
+    expectSuccess, request )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

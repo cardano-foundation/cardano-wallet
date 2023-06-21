@@ -45,19 +45,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , Entropy
-    , EntropySize
-    , Mnemonic
-    , MnemonicWords
-    , SomeMnemonic (..)
-    , ValidChecksumSize
-    , ValidEntropySize
-    , ValidMnemonicSentence
-    , entropyToMnemonic
-    , mkEntropy
-    , mkMnemonic
-    )
+    ( ConsistentEntropy, Entropy, EntropySize, Mnemonic, MnemonicWords,
+    SomeMnemonic (..), ValidChecksumSize, ValidEntropySize,
+    ValidMnemonicSentence, entropyToMnemonic, mkEntropy, mkMnemonic )
 import Cardano.Wallet.Util
     ( internalError )
 import Control.Monad

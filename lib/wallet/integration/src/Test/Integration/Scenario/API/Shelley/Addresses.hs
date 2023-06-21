@@ -21,15 +21,8 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Api.Types
-    ( AnyAddress
-    , ApiAccountKey
-    , ApiAddressWithPath
-    , ApiT (..)
-    , ApiTransaction
-    , ApiVerificationKeyShelley
-    , ApiWallet
-    , WalletStyle (..)
-    )
+    ( AnyAddress, ApiAccountKey, ApiAddressWithPath, ApiT (..), ApiTransaction,
+    ApiVerificationKeyShelley, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -57,39 +50,15 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , emptyRandomWallet
-    , emptyWallet
-    , emptyWalletWith
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , fixturePassphrase
-    , fixtureWallet
-    , getFromResponse
-    , isValidDerivationPath
-    , json
-    , listAddresses
-    , minUTxOValue
-    , request
-    , unsafeRequest
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), Payload (..), emptyRandomWallet, emptyWallet,
+    emptyWalletWith, eventually, expectErrorMessage, expectField,
+    expectListField, expectListSize, expectResponseCode, fixturePassphrase,
+    fixtureWallet, getFromResponse, isValidDerivationPath, json, listAddresses,
+    minUTxOValue, request, unsafeRequest, verify, walletId )
 import Test.Integration.Framework.TestData
-    ( errMsg400ScriptDuplicateKeys
-    , errMsg400ScriptIllFormed
-    , errMsg400ScriptNotUniformRoles
-    , errMsg400ScriptTimelocksContradictory
-    , errMsg400ScriptWrongCoeffcient
-    , errMsg403WrongIndex
-    , errMsg404NoWallet
-    )
+    ( errMsg400ScriptDuplicateKeys, errMsg400ScriptIllFormed,
+    errMsg400ScriptNotUniformRoles, errMsg400ScriptTimelocksContradictory,
+    errMsg400ScriptWrongCoeffcient, errMsg403WrongIndex, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson

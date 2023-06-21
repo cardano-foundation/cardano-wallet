@@ -46,16 +46,8 @@ import Generics.SOP
 import GHC.Generics
     ( Generic )
 import Test.QuickCheck
-    ( Gen
-    , liftArbitrary
-    , liftArbitrary2
-    , liftShrink
-    , liftShrink2
-    , listOf
-    , listOf1
-    , shrinkList
-    , shrinkMapBy
-    )
+    ( Gen, liftArbitrary, liftArbitrary2, liftShrink, liftShrink2, listOf,
+    listOf1, shrinkList, shrinkMapBy )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra

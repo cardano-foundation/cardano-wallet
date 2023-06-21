@@ -43,13 +43,8 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , RewardAccount
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..), Index (..),
+    KeyFingerprint (..), RewardAccount )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
 import Cardano.Wallet.Primitive.Types.Address

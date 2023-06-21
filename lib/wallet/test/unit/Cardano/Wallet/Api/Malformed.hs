@@ -54,42 +54,18 @@ import Prelude
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiAddressData
-    , ApiAddressInspectData
-    , ApiBalanceTransactionPostData
-    , ApiBytesT (..)
-    , ApiConstructTransactionData
-    , ApiMaintenanceActionPostData
-    , ApiPoolSpecifier
-    , ApiPostAccountKeyData
-    , ApiPostAccountKeyDataWithPurpose
-    , ApiPostPolicyIdData
-    , ApiPostPolicyKeyData
-    , ApiPostRandomAddressData
-    , ApiPutAddressesData
-    , ApiSelectCoinsData
-    , ApiSerialisedTransaction
-    , ApiSharedWalletPatchData
-    , ApiSharedWalletPostData
-    , ApiSignTransactionPostData
-    , ApiSlotReference
-    , ApiT (..)
-    , ApiTxId
-    , ApiWalletMigrationPlanPostData
-    , ApiWalletMigrationPostData
-    , ApiWalletPassphrase
-    , ApiWalletSignData
-    , Base (Base64)
-    , ByronWalletPutPassphraseData
-    , PostTransactionFeeOldData
-    , PostTransactionOldData
-    , SettingsPutData (..)
-    , SomeByronWalletPostData
-    , WalletOrAccountPostData
-    , WalletPutData
-    , WalletPutPassphraseData
-    )
+    ( ApiAddress, ApiAddressData, ApiAddressInspectData,
+    ApiBalanceTransactionPostData, ApiBytesT (..), ApiConstructTransactionData,
+    ApiMaintenanceActionPostData, ApiPoolSpecifier, ApiPostAccountKeyData,
+    ApiPostAccountKeyDataWithPurpose, ApiPostPolicyIdData, ApiPostPolicyKeyData,
+    ApiPostRandomAddressData, ApiPutAddressesData, ApiSelectCoinsData,
+    ApiSerialisedTransaction, ApiSharedWalletPatchData, ApiSharedWalletPostData,
+    ApiSignTransactionPostData, ApiSlotReference, ApiT (..), ApiTxId,
+    ApiWalletMigrationPlanPostData, ApiWalletMigrationPostData,
+    ApiWalletPassphrase, ApiWalletSignData, Base (Base64),
+    ByronWalletPutPassphraseData, PostTransactionFeeOldData,
+    PostTransactionOldData, SettingsPutData (..), SomeByronWalletPostData,
+    WalletOrAccountPostData, WalletPutData, WalletPutPassphraseData )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.TokenPolicy

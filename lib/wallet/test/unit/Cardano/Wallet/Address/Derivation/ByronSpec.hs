@@ -21,12 +21,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..)
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    , unsafeGenerateKeyFromSeed
-    , unsafeMkByronKeyFromMasterKey
-    )
+    ( ByronKey (..), generateKeyFromSeed, minSeedLengthBytes,
+    unsafeGenerateKeyFromSeed, unsafeMkByronKeyFromMasterKey )
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types

@@ -17,24 +17,9 @@ import Network.Wai.Middleware.RequestLogger
     ( logStdoutDev )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( ParserInfo
-    , argument
-    , auto
-    , customExecParser
-    , footerDoc
-    , fullDesc
-    , header
-    , help
-    , helper
-    , info
-    , long
-    , metavar
-    , option
-    , optional
-    , prefs
-    , showHelpOnEmpty
-    , str
-    )
+    ( ParserInfo, argument, auto, customExecParser, footerDoc, fullDesc, header,
+    help, helper, info, long, metavar, option, optional, prefs, showHelpOnEmpty,
+    str )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative.Help.Pretty
     ( hang, indent, line, text, (</>) )

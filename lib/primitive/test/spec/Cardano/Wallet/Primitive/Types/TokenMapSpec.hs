@@ -26,23 +26,11 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , Flat (..)
-    , Lexicographic (..)
-    , Nested (..)
-    , TokenMap
-    , difference
-    )
+    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap,
+    difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( AssetIdF (..)
-    , genAssetId
-    , genAssetIdLargeRange
-    , genTokenMap
-    , genTokenMapPartition
-    , genTokenMapSmallRange
-    , shrinkAssetId
-    , shrinkTokenMap
-    )
+    ( AssetIdF (..), genAssetId, genAssetIdLargeRange, genTokenMap,
+    genTokenMapPartition, genTokenMapSmallRange, shrinkAssetId, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -50,11 +38,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantity
-    , genTokenQuantityPositive
-    , shrinkTokenQuantity
-    , shrinkTokenQuantityPositive
-    )
+    ( genTokenQuantity, genTokenQuantityPositive, shrinkTokenQuantity,
+    shrinkTokenQuantityPositive )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
@@ -96,28 +81,10 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , CoArbitrary (..)
-    , Fun
-    , Function (..)
-    , Property
-    , Testable
-    , applyFun
-    , checkCoverage
-    , choose
-    , conjoin
-    , counterexample
-    , cover
-    , forAll
-    , forAllBlind
-    , frequency
-    , property
-    , scale
-    , (.||.)
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Blind (..), CoArbitrary (..), Fun, Function (..),
+    Property, Testable, applyFun, checkCoverage, choose, conjoin,
+    counterexample, cover, forAll, forAllBlind, frequency, property, scale,
+    (.||.), (===), (==>) )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.QuickCheck.Instances.ByteString

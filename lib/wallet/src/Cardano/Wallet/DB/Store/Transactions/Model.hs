@@ -38,15 +38,9 @@ module Cardano.Wallet.DB.Store.Transactions.Model
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( CBOR (..)
-    , TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
-    )
+    ( CBOR (..), TxCollateral (..), TxCollateralOut (..),
+    TxCollateralOutToken (..), TxIn (..), TxOut (..), TxOutToken (..),
+    TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -91,9 +85,9 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     ( Tx )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn

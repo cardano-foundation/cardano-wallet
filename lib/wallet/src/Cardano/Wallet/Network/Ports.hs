@@ -45,15 +45,8 @@ import Foreign.C.Error
 import GHC.IO.Exception
     ( IOException (..) )
 import Network.Socket
-    ( Family (AF_INET)
-    , PortNumber
-    , SockAddr (..)
-    , SocketType (Stream)
-    , close'
-    , connect
-    , socket
-    , tupleToHostAddress
-    )
+    ( Family (AF_INET), PortNumber, SockAddr (..), SocketType (Stream), close',
+    connect, socket, tupleToHostAddress )
 import Network.URI
     ( URI (..), URIAuth (..) )
 import Safe

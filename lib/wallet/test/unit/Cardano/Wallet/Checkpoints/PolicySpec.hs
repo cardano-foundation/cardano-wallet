@@ -10,18 +10,8 @@ import Cardano.Wallet.Checkpoints.Policy
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , NonNegative (..)
-    , Property
-    , choose
-    , elements
-    , forAll
-    , frequency
-    , oneof
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), Gen, NonNegative (..), Property, choose, elements, forAll,
+    frequency, oneof, property, (===) )
 
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Data.Set as Set

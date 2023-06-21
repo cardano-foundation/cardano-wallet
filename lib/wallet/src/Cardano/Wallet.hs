@@ -256,33 +256,16 @@ import Cardano.Mnemonic
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
-    , SelectionError (..)
-    , SelectionOf (..)
-    , UnableToConstructChangeError (..)
-    , emptySkeleton
-    )
+    ( Selection, SelectionBalanceError (..), SelectionError (..),
+    SelectionOf (..), UnableToConstructChangeError (..), emptySkeleton )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationPrefix (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    , deriveRewardAccount
-    , liftDelegationAddressS
-    , liftIndex
-    , stakeDerivationPath
-    )
+    ( DelegationAddress (..), Depth (..), DerivationIndex (..),
+    DerivationPrefix (..), DerivationType (..), HardDerivation (..), Index (..),
+    MkKeyFingerprint (..), PaymentAddress (..), Role (..), SoftDerivation (..),
+    ToRewardAccount (..), deriveRewardAccount, liftDelegationAddressS,
+    liftIndex, stakeDerivationPath )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -294,25 +277,15 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , GetAccount (..)
-    , GetPurpose (..)
-    , IsOurs (..)
-    , KnownAddresses (..)
-    , MaybeLight (..)
-    )
+    ( CompareDiscovery (..), GenChange (..), GetAccount (..), GetPurpose (..),
+    IsOurs (..), KnownAddresses (..), MaybeLight (..) )
 import Cardano.Wallet.Address.Discovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, purposeBIP44 )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..)
-    , ErrAddCosigner (..)
-    , ErrScriptTemplate (..)
-    , SharedState (..)
-    , isShared
-    )
+    ( CredentialType (..), ErrAddCosigner (..), ErrScriptTemplate (..),
+    SharedState (..), isShared )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
 import Cardano.Wallet.Address.Keys.SequentialAny
@@ -320,26 +293,16 @@ import Cardano.Wallet.Address.Keys.SequentialAny
 import Cardano.Wallet.Address.Keys.Shared
     ( addCosignerAccXPub )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron
-    , afterByron
-    , changePassphraseNew
-    , getRawKey
-    , hashVerificationKey
-    , liftRawKey
-    )
+    ( AfterByron, afterByron, changePassphraseNew, getRawKey,
+    hashVerificationKey, liftRawKey )
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
-    ( DBFresh (..)
-    , DBLayer (..)
-    , DBLayerParams (..)
-    , ErrNoSuchTransaction (..)
-    , ErrRemoveTx (..)
-    , ErrWalletAlreadyExists (..)
-    , ErrWalletNotInitialized (..)
-    )
+    ( DBFresh (..), DBLayer (..), DBLayerParams (..), ErrNoSuchTransaction (..),
+    ErrRemoveTx (..), ErrWalletAlreadyExists (..),
+    ErrWalletNotInitialized (..) )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Delegations.Layer
@@ -351,109 +314,42 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , WalletState (..)
-    , fromWallet
-    , getLatest
-    , getSlot
-    )
+    ( DeltaWalletState, DeltaWalletState1 (..), WalletState (..), fromWallet,
+    getLatest, getSlot )
 import Cardano.Wallet.Flavor
-    ( AllFlavors
-    , CredFromOf
-    , Excluding
-    , FlavorOf
-    , Including
-    , KeyFlavorS (..)
-    , KeyOf
-    , NetworkOf
-    , WalletFlavor (..)
-    , WalletFlavorS (..)
-    , WalletFlavors (..)
-    , keyFlavorFromState
-    , keyOfWallet
-    )
+    ( AllFlavors, CredFromOf, Excluding, FlavorOf, Including, KeyFlavorS (..),
+    KeyOf, NetworkOf, WalletFlavor (..), WalletFlavorS (..), WalletFlavors (..),
+    keyFlavorFromState, keyOfWallet )
 import Cardano.Wallet.Logging
-    ( BracketLog
-    , BracketLog' (..)
-    , bracketTracer
-    , formatResultMsg
-    , resultSeverity
-    , traceResult
-    , unliftIOTracer
-    )
+    ( BracketLog, BracketLog' (..), bracketTracer, formatResultMsg,
+    resultSeverity, traceResult, unliftIOTracer )
 import Cardano.Wallet.Network
-    ( ChainFollowLog (..)
-    , ChainFollower (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    )
+    ( ChainFollowLog (..), ChainFollower (..), ErrPostTx (..),
+    NetworkLayer (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
-    ( BlockData (..)
-    , Wallet
-    , applyBlocks
-    , applyOurTxToUTxO
-    , availableUTxO
-    , currentTip
-    , firstHeader
-    , getState
-    , initWallet
-    , totalUTxO
-    )
+    ( BlockData (..), Wallet, applyBlocks, applyOurTxToUTxO, availableUTxO,
+    currentTip, firstHeader, getState, initWallet, totalUTxO )
 import Cardano.Wallet.Primitive.Passphrase
-    ( ErrWrongPassphrase (..)
-    , Passphrase
-    , PassphraseHash
-    , PassphraseScheme (..)
-    , WalletPassphraseInfo (..)
-    , checkPassphrase
-    , currentPassphraseScheme
-    , encryptPassphrase'
-    , preparePassphrase
-    )
+    ( ErrWrongPassphrase (..), Passphrase, PassphraseHash,
+    PassphraseScheme (..), WalletPassphraseInfo (..), checkPassphrase,
+    currentPassphraseScheme, encryptPassphrase', preparePassphrase )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException (..)
-    , TimeInterpreter
-    , addRelTime
-    , ceilingSlotAt
-    , currentRelativeTime
-    , interpretQuery
-    , neverFails
-    , slotRangeFromTimeRange
-    , slotToUTCTime
-    , toTimeTranslation
-    , unsafeExtendSafeZone
-    )
+    ( PastHorizonException (..), TimeInterpreter, addRelTime, ceilingSlotAt,
+    currentRelativeTime, interpretQuery, neverFails, slotRangeFromTimeRange,
+    slotToUTCTime, toTimeTranslation, unsafeExtendSafeZone )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
-    , BlockHeader (..)
-    , ChainPoint (..)
-    , DelegationCertificate (..)
-    , GenesisParameters (..)
-    , NetworkParameters (..)
-    , ProtocolParameters (..)
-    , Range (..)
-    , Signature (..)
-    , Slot
-    , SlottingParameters (..)
-    , SortOrder (..)
-    , WalletDelegation (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    , WithOrigin (..)
-    , dlgCertPoolId
-    , stabilityWindowShelley
-    , toSlot
-    , wholeRange
-    )
+    ( ActiveSlotCoefficient (..), Block (..), BlockHeader (..), ChainPoint (..),
+    DelegationCertificate (..), GenesisParameters (..), NetworkParameters (..),
+    ProtocolParameters (..), Range (..), Signature (..), Slot,
+    SlottingParameters (..), SortOrder (..), WalletDelegation (..),
+    WalletId (..), WalletMetadata (..), WalletName (..), WithOrigin (..),
+    dlgCertPoolId, stabilityWindowShelley, toSlot, wholeRange )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -467,19 +363,9 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxChange (..)
-    , TxMeta (..)
-    , TxMetadata (..)
-    , TxStatus (..)
-    , UnsignedTx (..)
-    , fromTransactionInfo
-    , sealedTxFromCardano
-    )
+    ( Direction (..), LocalTxSubmissionStatus, SealedTx (..),
+    TransactionInfo (..), Tx (..), TxChange (..), TxMeta (..), TxMetadata (..),
+    TxStatus (..), UnsignedTx (..), fromTransactionInfo, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -493,32 +379,18 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoBlock
-    , fromCardanoLovelace
-    , fromCardanoTxIn
-    , fromCardanoTxOut
-    , fromCardanoWdrls
-    )
+    ( fromCardanoBlock, fromCardanoLovelace, fromCardanoTxIn, fromCardanoTxOut,
+    fromCardanoWdrls )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWallet )
 import Cardano.Wallet.Shelley.Transaction
     ( calculateMinimumFee, getFeePerByteFromWalletPParams )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
-    , ErrCannotJoin (..)
-    , ErrCannotQuit (..)
-    , ErrMkTransaction (..)
-    , ErrSignTx (..)
-    , ErrUpdateSealedTx (..)
-    , PreSelection (..)
-    , TransactionCtx (..)
-    , TransactionLayer (..)
-    , TxValidityInterval
-    , Withdrawal (..)
-    , WitnessCountCtx (..)
-    , defaultTransactionCtx
-    , withdrawalToCoin
-    )
+    ( DelegationAction (..), ErrCannotJoin (..), ErrCannotQuit (..),
+    ErrMkTransaction (..), ErrSignTx (..), ErrUpdateSealedTx (..),
+    PreSelection (..), TransactionCtx (..), TransactionLayer (..),
+    TxValidityInterval, Withdrawal (..), WitnessCountCtx (..),
+    defaultTransactionCtx, withdrawalToCoin )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Wallet.TxWitnessTag
@@ -526,17 +398,10 @@ import Cardano.Wallet.TxWitnessTag
 import Cardano.Wallet.Write.Tx
     ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance
-    ( BalanceTxLog (..)
-    , ChangeAddressGen (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrSelectAssets (..)
-    , PartialTx (..)
-    , UTxOAssumptions (..)
-    , assignChangeAddresses
-    , balanceTransaction
-    , constructUTxOIndex
-    )
+    ( BalanceTxLog (..), ChangeAddressGen (..), ErrBalanceTx (..),
+    ErrBalanceTxInternalError (..), ErrSelectAssets (..), PartialTx (..),
+    UTxOAssumptions (..), assignChangeAddresses, balanceTransaction,
+    constructUTxOIndex )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
@@ -546,13 +411,8 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, join, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
-    ( DiffTime
-    , MonadMonotonicTime (..)
-    , MonadTime (..)
-    , Time
-    , diffTime
-    , getCurrentTime
-    )
+    ( DiffTime, MonadMonotonicTime (..), MonadTime (..), Time, diffTime,
+    getCurrentTime )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Random.Strict
@@ -562,14 +422,8 @@ import Control.Monad.State.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..)
-    , catchE
-    , except
-    , mapExceptT
-    , runExceptT
-    , throwE
-    , withExceptT
-    )
+    ( ExceptT (..), catchE, except, mapExceptT, runExceptT, throwE,
+    withExceptT )
 import Control.Monad.Trans.State
     ( StateT, evalState, runStateT, state )
 import Control.Tracer
@@ -623,18 +477,8 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable
-    , blockListF
-    , blockMapF
-    , build
-    , nameF
-    , pretty
-    , unlinesF
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
+    ( Buildable, blockListF, blockMapF, build, nameF, pretty, unlinesF, (+|),
+    (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.Num
@@ -659,8 +503,8 @@ import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
-import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
+import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W

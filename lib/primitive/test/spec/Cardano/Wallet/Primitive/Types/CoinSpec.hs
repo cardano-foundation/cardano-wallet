@@ -9,12 +9,8 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin
-    , genCoinPartition
-    , genCoinPositive
-    , shrinkCoin
-    , shrinkCoinPositive
-    )
+    ( genCoin, genCoinPartition, genCoinPositive, shrinkCoin,
+    shrinkCoinPositive )
 import Data.Function
     ( (&) )
 import Data.List.NonEmpty
@@ -22,16 +18,8 @@ import Data.List.NonEmpty
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , Testable
-    , checkCoverage
-    , conjoin
-    , cover
-    , forAll
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), Property, Testable, checkCoverage, conjoin, cover, forAll,
+    property, (===) )
 import Test.QuickCheck.Extra
     ( genNonEmpty, shrinkNonEmpty )
 

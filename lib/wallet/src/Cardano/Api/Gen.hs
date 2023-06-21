@@ -117,20 +117,12 @@ import Cardano.Api hiding
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Shelley
-    ( Hash (..)
-    , PlutusScript (..)
-    , PlutusScriptOrReferenceInput (..)
-    , PoolId
-    , ProtocolParameters (..)
-    , ReferenceScript (..)
-    , SimpleScriptOrReferenceInput (..)
-    , StakeCredential (..)
-    , StakePoolMetadata (..)
-    , StakePoolMetadataReference (..)
-    , StakePoolParameters (..)
-    , StakePoolRelay (..)
-    , refInsScriptsAndInlineDatsSupportedInEra
-    )
+    ( Hash (..), PlutusScript (..), PlutusScriptOrReferenceInput (..), PoolId,
+    ProtocolParameters (..), ReferenceScript (..),
+    SimpleScriptOrReferenceInput (..), StakeCredential (..),
+    StakePoolMetadata (..), StakePoolMetadataReference (..),
+    StakePoolParameters (..), StakePoolRelay (..),
+    refInsScriptsAndInlineDatsSupportedInEra )
 import Cardano.Ledger.Alonzo.Language
     ( Language (..) )
 import Cardano.Ledger.Credential.Safe
@@ -176,30 +168,10 @@ import Test.Cardano.Chain.UTxO.Gen
 import Test.Cardano.Crypto.Gen
     ( genProtocolMagicId )
 import Test.QuickCheck
-    ( Gen
-    , Large (..)
-    , NonNegative (..)
-    , Positive (..)
-    , arbitrary
-    , arbitrarySizedNatural
-    , choose
-    , chooseInt
-    , chooseInteger
-    , elements
-    , frequency
-    , infiniteListOf
-    , liftArbitrary
-    , liftShrink2
-    , listOf
-    , listOf1
-    , oneof
-    , scale
-    , shrink
-    , shrinkList
-    , sized
-    , vector
-    , vectorOf
-    )
+    ( Gen, Large (..), NonNegative (..), Positive (..), arbitrary,
+    arbitrarySizedNatural, choose, chooseInt, chooseInteger, elements,
+    frequency, infiniteListOf, liftArbitrary, liftShrink2, listOf, listOf1,
+    oneof, scale, shrink, shrinkList, sized, vector, vectorOf )
 import Test.QuickCheck.Extra
     ( GenSeed (..), genSizeDefault, generateWith )
 import Test.QuickCheck.Hedgehog

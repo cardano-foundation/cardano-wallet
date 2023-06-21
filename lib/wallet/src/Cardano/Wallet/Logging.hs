@@ -52,10 +52,8 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    , Transformable (..)
-    )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..),
+    Transformable (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Control.DeepSeq
@@ -71,11 +69,8 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer (..), contramap, natTracer, nullTracer, traceWith )
 import Control.Tracer.Transformers.ObserveOutcome
-    ( Outcome (..)
-    , OutcomeFidelity (..)
-    , OutcomeProgressionStatus (..)
-    , mkOutcomeExtractor
-    )
+    ( Outcome (..), OutcomeFidelity (..), OutcomeProgressionStatus (..),
+    mkOutcomeExtractor )
 import Data.Aeson
     ( ToJSON (..), Value (Null), object, (.=) )
 import Data.Foldable
@@ -99,12 +94,8 @@ import GHC.Exts
 import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
-    ( Exception (..)
-    , SomeException (..)
-    , displayException
-    , isSyncException
-    , withException
-    )
+    ( Exception (..), SomeException (..), displayException, isSyncException,
+    withException )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T

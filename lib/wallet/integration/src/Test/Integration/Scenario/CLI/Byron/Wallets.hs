@@ -42,37 +42,16 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , MnemonicLength (..)
-    , createWalletViaCLI
-    , deleteWalletViaCLI
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , eventually
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , expectWalletUTxO
-    , fixturePassphrase
-    , genMnemonics
-    , getWalletUtxoStatisticsViaCLI
-    , getWalletViaCLI
-    , listWalletsViaCLI
-    , updateWalletNameViaCLI
-    , updateWalletPassphraseViaCLI
-    , verify
-    , walletId
-    )
+    ( Context (..), MnemonicLength (..), createWalletViaCLI, deleteWalletViaCLI,
+    emptyIcarusWallet, emptyRandomWallet, eventually, expectCliField,
+    expectCliListField, expectValidJSON, expectWalletUTxO, fixturePassphrase,
+    genMnemonics, getWalletUtxoStatisticsViaCLI, getWalletViaCLI,
+    listWalletsViaCLI, updateWalletNameViaCLI, updateWalletPassphraseViaCLI,
+    verify, walletId )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , cmdOk
-    , errMsg400NumberOfWords
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    , errMsg409WalletExists
-    , russianWalletName
-    , wildcardsWalletName
-    )
+    ( arabicWalletName, cmdOk, errMsg400NumberOfWords, errMsg403WrongPass,
+    errMsg404NoWallet, errMsg409WalletExists, russianWalletName,
+    wildcardsWalletName )
 
 import qualified Data.Text as T
 

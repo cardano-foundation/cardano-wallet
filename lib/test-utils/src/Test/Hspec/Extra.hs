@@ -41,44 +41,21 @@ import Data.List
     ( elemIndex )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( Parser
-    , ParserInfo (..)
-    , ReadM
-    , eitherReader
-    , execParser
-    , failureCode
-    , forwardOptions
-    , help
-    , info
-    , long
-    , many
-    , metavar
-    , option
-    , short
-    , strArgument
-    )
+    ( Parser, ParserInfo (..), ReadM, eitherReader, execParser, failureCode,
+    forwardOptions, help, info, long, many, metavar, option, short,
+    strArgument )
 import Say
     ( sayString )
 import System.Environment
     ( lookupEnv, withArgs )
 import Test.Hspec
-    ( ActionWith
-    , HasCallStack
-    , Spec
-    , SpecWith
-    , afterAll
-    , beforeAll
-    , beforeWith
-    , specify
-    )
+    ( ActionWith, HasCallStack, Spec, SpecWith, afterAll, beforeAll, beforeWith,
+    specify )
 import Test.Hspec.Core.Runner
     ( Config (..), Summary, defaultConfig, evaluateSummary, hspecWithResult )
 import Test.HUnit.Lang
-    ( FailureReason (..)
-    , HUnitFailure (..)
-    , assertFailure
-    , formatFailureReason
-    )
+    ( FailureReason (..), HUnitFailure (..), assertFailure,
+    formatFailureReason )
 import Test.Utils.Env
     ( withAddedEnv )
 import Test.Utils.Platform

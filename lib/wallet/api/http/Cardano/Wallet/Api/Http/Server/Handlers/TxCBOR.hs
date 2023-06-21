@@ -26,15 +26,8 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Read
     ( Tx (..) )
 import Cardano.Wallet.Read.Eras
-    ( (:.:)
-    , EraFun (..)
-    , K (..)
-    , applyEraFun
-    , extractEraValue
-    , sequenceEraValue
-    , (*&&&*)
-    , (*.**)
-    )
+    ( EraFun (..), K (..), applyEraFun, extractEraValue, sequenceEraValue,
+    (*&&&*), (*.**), (:.:) )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFunK (..) )
 import Cardano.Wallet.Read.Tx.CBOR

@@ -28,18 +28,8 @@ import System.IO
 import System.IO.Silently
     ( capture_, hCapture, silence )
 import Test.Hspec
-    ( ActionWith
-    , Expectation
-    , Spec
-    , SpecWith
-    , beforeAll
-    , before_
-    , describe
-    , expectationFailure
-    , it
-    , shouldBe
-    , shouldContain
-    )
+    ( ActionWith, Expectation, Spec, SpecWith, beforeAll, before_, describe,
+    expectationFailure, it, shouldBe, shouldContain )
 import Test.Hspec.Core.Runner
     ( Summary (..), defaultConfig, runSpec )
 import Test.Hspec.Core.Spec
@@ -51,15 +41,8 @@ import Test.Hspec.Extra
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Positive (..)
-    , Property
-    , counterexample
-    , elements
-    , listOf
-    , oneof
-    )
+    ( Arbitrary (..), Gen, Positive (..), Property, counterexample, elements,
+    listOf, oneof )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Env

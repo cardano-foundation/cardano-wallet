@@ -44,12 +44,8 @@ import Prelude
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
-    ( BlockCount (..)
-    , Lovelace
-    , TxFeePolicy (..)
-    , TxSizeLinear (..)
-    , unsafeGetLovelace
-    )
+    ( BlockCount (..), Lovelace, TxFeePolicy (..), TxSizeLinear (..),
+    unsafeGetLovelace )
 import Cardano.Chain.Genesis
     ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
 import Cardano.Chain.Slotting

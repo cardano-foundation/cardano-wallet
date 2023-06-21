@@ -17,12 +17,8 @@ module Test.Integration.Scenario.API.Byron.HWWallets
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
+    ( Mnemonic, SomeMnemonic (..), entropyToMnemonic, genEntropy,
+    mnemonicToText )
 import Cardano.Wallet.Address.Derivation
     ( HardDerivation (..), PersistPublicKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -30,16 +26,9 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddress (..)
-    , ApiAddressWithPath
-    , ApiByronWallet
-    , ApiCoinSelectionOutput (..)
-    , ApiFee
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , WalletStyle (..)
-    )
+    ( AddressAmount (..), ApiAddress (..), ApiAddressWithPath, ApiByronWallet,
+    ApiCoinSelectionOutput (..), ApiFee, ApiTransaction, ApiUtxoStatistics,
+    WalletStyle (..) )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (IcarusKeyS) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -65,30 +54,12 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectWalletUTxO
-    , fixtureIcarusWallet
-    , fixtureIcarusWalletMws
-    , fixturePassphrase
-    , getFromResponse
-    , icarusAddresses
-    , json
-    , minUTxOValue
-    , postByronWallet
-    , request
-    , restoreWalletFromPubKey
-    , selectCoins
-    , verify
-    , walletId
-    )
+    ( Context (..), Headers (..), Payload (..), eventually, expectErrorMessage,
+    expectField, expectListField, expectListSize, expectResponseCode,
+    expectWalletUTxO, fixtureIcarusWallet, fixtureIcarusWalletMws,
+    fixturePassphrase, getFromResponse, icarusAddresses, json, minUTxOValue,
+    postByronWallet, request, restoreWalletFromPubKey, selectCoins, verify,
+    walletId )
 import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, updateNamePayload, updatePassPayload )
 

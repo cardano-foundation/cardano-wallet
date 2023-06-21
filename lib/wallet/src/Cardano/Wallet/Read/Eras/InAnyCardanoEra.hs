@@ -19,17 +19,8 @@ import Prelude
 import Cardano.Api
     ( CardanoEra (..), InAnyCardanoEra (InAnyCardanoEra), IsCardanoEra )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue (..)
-    , MkEraValue (..)
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
-    , eraValueSerialize
-    , mary
-    , shelley
-    )
+    ( EraValue (..), MkEraValue (..), allegra, alonzo, babbage, byron, conway,
+    eraValueSerialize, mary, shelley )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras )
 import Data.Generics.Internal.VL

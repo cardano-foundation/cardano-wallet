@@ -11,16 +11,8 @@ import Prelude
 import Cardano.Wallet.Gen
     ( genBlockHeader, genSlot, genSlotNo )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockEvents (BlockEvents, slot)
-    , ChainEvents
-    , Sublist
-    , fromBlockEvents
-    , mergeSublist
-    , mkChainEvents
-    , toAscBlockEvents
-    , unsafeMkSublist
-    , wholeList
-    )
+    ( BlockEvents (BlockEvents, slot), ChainEvents, Sublist, fromBlockEvents,
+    mergeSublist, mkChainEvents, toAscBlockEvents, unsafeMkSublist, wholeList )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Slot, WithOrigin (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -30,17 +22,8 @@ import Data.Foldable
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , forAll
-    , listOf1
-    , property
-    , resize
-    , shuffle
-    , sublistOf
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, forAll, listOf1, property, resize, shuffle,
+    sublistOf, (===) )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

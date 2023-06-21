@@ -22,18 +22,8 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , arbitrarySizedNatural
-    , checkCoverage
-    , property
-    , shrink
-    , shrinkIntegral
-    , withMaxSuccess
-    , (.&&.)
-    , (.||.)
-    , (===)
-    )
+    ( Arbitrary (..), Property, arbitrarySizedNatural, checkCoverage, property,
+    shrink, shrinkIntegral, withMaxSuccess, (.&&.), (.||.), (===) )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE

@@ -27,11 +27,8 @@ module Cardano.Wallet.DB.Store.Submissions.Operations
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..)
-    , Key (SubmissionsKey, SubmissionsSlotsKey)
-    , Submissions (Submissions)
-    , SubmissionsSlots (SubmissionsSlots)
-    )
+    ( EntityField (..), Key (SubmissionsKey, SubmissionsSlotsKey),
+    Submissions (Submissions), SubmissionsSlots (SubmissionsSlots) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, TxSubmissionStatusEnum (..) )
 import Cardano.Wallet.Primitive.Types

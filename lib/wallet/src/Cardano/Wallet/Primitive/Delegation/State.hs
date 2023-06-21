@@ -41,15 +41,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , MkKeyFingerprint (paymentKeyFingerprint)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    )
+    ( Depth (..), DerivationType (..), HardDerivation (..), Index (..),
+    MkKeyFingerprint (paymentKeyFingerprint), Role (..), SoftDerivation (..),
+    ToRewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin

@@ -12,20 +12,12 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin
-    , genCoinPartition
-    , genCoinPositive
-    , shrinkCoin
-    , shrinkCoinPositive
-    )
+    ( genCoin, genCoinPartition, genCoinPositive, shrinkCoin,
+    shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap
-    , genTokenMapPartition
-    , genTokenMapSmallRange
-    , shrinkTokenMap
-    )
+    ( genTokenMap, genTokenMapPartition, genTokenMapSmallRange, shrinkTokenMap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Test.QuickCheck

@@ -44,22 +44,10 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , deleteWalletViaCLI
-    , emptyRandomWallet
-    , emptyWallet
-    , emptyWalletWith
-    , eventually
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , fixtureWallet
-    , getWalletViaCLI
-    , listAddressesViaCLI
-    , minUTxOValue
-    , postTransactionViaCLI
-    , walletId
-    )
+    ( Context (..), deleteWalletViaCLI, emptyRandomWallet, emptyWallet,
+    emptyWalletWith, eventually, expectCliField, expectCliListField,
+    expectValidJSON, fixtureWallet, getWalletViaCLI, listAddressesViaCLI,
+    minUTxOValue, postTransactionViaCLI, walletId )
 import Test.Integration.Framework.TestData
     ( errMsg404NoWallet, falseWalletIds )
 

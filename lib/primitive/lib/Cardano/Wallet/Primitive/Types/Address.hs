@@ -26,13 +26,8 @@ import Data.ByteString
 import Data.Hashable
     ( Hashable )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), TextDecodingError (..), ToText (..),
+    fromTextToBoundedEnum, toTextFromBoundedEnum )
 import Fmt
     ( Buildable (..), prefixF, suffixF )
 import GHC.Generics

@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..) )
 import Cardano.Wallet.Read.Eras
-    ( (:*:) (..), EraFun (..), K (..) )
+    ( EraFun (..), K (..), (:*:) (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Tx.Mint
@@ -54,20 +54,12 @@ import Cardano.Wallet.Read.Tx.ReferenceInputs
 import Cardano.Wallet.Read.Tx.Witnesses
     ( Witnesses (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    , toWalletTokenName
-    , toWalletTokenPolicyId
-    , toWalletTokenQuantity
-    )
+    ( toWalletScript, toWalletTokenName, toWalletTokenPolicyId,
+    toWalletTokenQuantity )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , emptyTokenMapWithScripts
-    )
+    ( AnyScript (..), PlutusScriptInfo (..), PlutusVersion (..),
+    ReferenceInput (..), ScriptReference (..), TokenMapWithScripts (..),
+    emptyTokenMapWithScripts )
 import Data.Foldable
     ( toList )
 import Data.Function

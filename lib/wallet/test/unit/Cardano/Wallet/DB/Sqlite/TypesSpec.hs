@@ -14,12 +14,8 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( stdGenFromString )
 import Cardano.Wallet.Gen
-    ( genNestedTxMetadata
-    , genSimpleTxMetadata
-    , genSlotNo
-    , shrinkSlotNo
-    , shrinkTxMetadata
-    )
+    ( genNestedTxMetadata, genSimpleTxMetadata, genSlotNo, shrinkSlotNo,
+    shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -53,17 +49,8 @@ import System.Random.SplitMix
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonNegative (..)
-    , Property
-    , arbitrarySizedBoundedIntegral
-    , checkCoverage
-    , cover
-    , property
-    , shrinkIntegral
-    , shrinkMapBy
-    , (===)
-    )
+    ( Arbitrary (..), NonNegative (..), Property, arbitrarySizedBoundedIntegral,
+    checkCoverage, cover, property, shrinkIntegral, shrinkMapBy, (===) )
 
 spec :: Spec
 spec = do

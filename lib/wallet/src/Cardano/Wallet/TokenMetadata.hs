@@ -78,12 +78,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog
-    , BracketLog' (..)
-    , LoggedException (..)
-    , bracketTracer
-    , produceTimings
-    )
+    ( BracketLog, BracketLog' (..), LoggedException (..), bracketTracer,
+    produceTimings )
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -91,19 +87,10 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetDecimals (..)
-    , AssetLogo (..)
-    , AssetMetadata (..)
-    , AssetURL (..)
-    , TokenName (..)
-    , TokenPolicyId (..)
-    , validateMetadataDecimals
-    , validateMetadataDescription
-    , validateMetadataLogo
-    , validateMetadataName
-    , validateMetadataTicker
-    , validateMetadataURL
-    )
+    ( AssetDecimals (..), AssetLogo (..), AssetMetadata (..), AssetURL (..),
+    TokenName (..), TokenPolicyId (..), validateMetadataDecimals,
+    validateMetadataDescription, validateMetadataLogo, validateMetadataName,
+    validateMetadataTicker, validateMetadataURL )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -113,18 +100,8 @@ import Control.Monad
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
-    ( FromJSON (..)
-    , Object
-    , ToJSON (..)
-    , Value (..)
-    , eitherDecodeStrict'
-    , encode
-    , withObject
-    , withText
-    , (.!=)
-    , (.:)
-    , (.:?)
-    )
+    ( FromJSON (..), Object, ToJSON (..), Value (..), eitherDecodeStrict',
+    encode, withObject, withText, (.!=), (.:), (.:?) )
 import Data.Aeson.Types
     ( Parser, fromJSON )
 import Data.Bifunctor
@@ -158,16 +135,8 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import Network.HTTP.Client
-    ( HttpException
-    , Manager
-    , Request (..)
-    , RequestBody (..)
-    , Response (..)
-    , brReadSome
-    , requestFromURI
-    , setRequestCheckStatus
-    , withResponse
-    )
+    ( HttpException, Manager, Request (..), RequestBody (..), Response (..),
+    brReadSome, requestFromURI, setRequestCheckStatus, withResponse )
 import Network.HTTP.Client.TLS
     ( newTlsManager )
 import Network.URI

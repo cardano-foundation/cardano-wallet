@@ -24,11 +24,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.DB.Sqlite.Types
     ( DelegationStatusEnum (..) )
 import Cardano.Wallet.DB.Store.Delegations.Schema
-    ( Delegations (..)
-    , EntityField (DelegationSlot)
-    , Key (DelegationsKey)
-    , resetDelegationTable
-    )
+    ( Delegations (..), EntityField (DelegationSlot), Key (DelegationsKey),
+    resetDelegationTable )
 import Cardano.Wallet.Delegation.Model
     ( History, Operation (..), Status (..), slotOf )
 import Control.Exception
@@ -42,13 +39,8 @@ import Data.Delta
 import Data.Store
     ( UpdateStore, mkUpdateStore, updateLoad )
 import Database.Persist
-    ( Entity (..)
-    , PersistQueryWrite (deleteWhere)
-    , repsert
-    , selectList
-    , (==.)
-    , (>.)
-    )
+    ( Entity (..), PersistQueryWrite (deleteWhere), repsert, selectList, (==.),
+    (>.) )
 import Database.Persist.Sql
     ( SqlPersistT, insertMany_ )
 

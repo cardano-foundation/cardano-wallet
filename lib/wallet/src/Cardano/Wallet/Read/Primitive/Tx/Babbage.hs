@@ -55,17 +55,10 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    , WitnessCountCtx
-    , toKeyRole
-    )
+    ( AnyExplicitScript (..), PlutusScriptInfo (..), PlutusVersion (..),
+    ReferenceInput (..), ScriptReference (..), TokenMapWithScripts (..),
+    ValidityIntervalExplicit (..), WitnessCount (..), WitnessCountCtx,
+    toKeyRole )
 import Data.Foldable
     ( toList )
 import Data.Maybe

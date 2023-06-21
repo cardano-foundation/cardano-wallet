@@ -28,12 +28,8 @@ module Cardano.Wallet.DB.Fixtures
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting
-    , SqliteContext
-    , newInMemorySqliteContext
-    , noManualMigration
-    , runQuery
-    )
+    ( ForeignKeysSetting, SqliteContext, newInMemorySqliteContext,
+    noManualMigration, runQuery )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -63,18 +59,8 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT, (==.) )
 import Test.QuickCheck
-    ( Arbitrary
-    , Gen
-    , Property
-    , Testable
-    , arbitrary
-    , counterexample
-    , cover
-    , elements
-    , frequency
-    , scale
-    , suchThat
-    )
+    ( Arbitrary, Gen, Property, Testable, arbitrary, counterexample, cover,
+    elements, frequency, scale, suchThat )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 import UnliftIO.Exception

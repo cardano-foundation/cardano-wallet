@@ -66,48 +66,18 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , between
-    , cardanoWalletCLI
-    , deleteTransactionViaCLI
-    , deleteWalletViaCLI
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectCliField
-    , expectCliListField
-    , expectValidJSON
-    , faucetAmt
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , getTransactionViaCLI
-    , getTxId
-    , getWalletViaCLI
-    , listAddresses
-    , listAllTransactions
-    , listTransactionsViaCLI
-    , minUTxOValue
-    , postTransactionFeeViaCLI
-    , postTransactionViaCLI
-    , unsafeGetTransactionTime
-    , utcIso8601ToText
-    , verify
-    , walletId
-    , (.>=)
-    )
+    ( Context (..), between, cardanoWalletCLI, deleteTransactionViaCLI,
+    deleteWalletViaCLI, emptyRandomWallet, emptyWallet, eventually,
+    expectCliField, expectCliListField, expectValidJSON, faucetAmt,
+    fixturePassphrase, fixtureWallet, fixtureWalletWith, getTransactionViaCLI,
+    getTxId, getWalletViaCLI, listAddresses, listAllTransactions,
+    listTransactionsViaCLI, minUTxOValue, postTransactionFeeViaCLI,
+    postTransactionViaCLI, unsafeGetTransactionTime, utcIso8601ToText, verify,
+    walletId, (.>=) )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , errMsg403AlreadyInLedger
-    , errMsg403WrongPass
-    , errMsg404CannotFindTx
-    , errMsg404NoWallet
-    , falseWalletIds
-    , invalidByronBase58
-    , kanjiWalletName
-    , polishWalletName
-    , wildcardsWalletName
-    )
+    ( arabicWalletName, errMsg403AlreadyInLedger, errMsg403WrongPass,
+    errMsg404CannotFindTx, errMsg404NoWallet, falseWalletIds,
+    invalidByronBase58, kanjiWalletName, polishWalletName, wildcardsWalletName )
 import UnliftIO.Exception
     ( throwString )
 

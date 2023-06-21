@@ -15,16 +15,9 @@ module Cardano.Byron.Codec.CborSpec
 import Prelude
 
 import Cardano.Byron.Codec.Cbor
-    ( decodeAddressDerivationPath
-    , decodeAddressPayload
-    , decodeAllAttributes
-    , decodeDerivationPathAttr
-    , decodeTx
-    , deserialiseCbor
-    , encodeAttributes
-    , encodeDerivationPathAttr
-    , encodeTx
-    )
+    ( decodeAddressDerivationPath, decodeAddressPayload, decodeAllAttributes,
+    decodeDerivationPathAttr, decodeTx, deserialiseCbor, encodeAttributes,
+    encodeDerivationPathAttr, encodeTx )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
@@ -54,15 +47,8 @@ import Data.Word
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , arbitraryBoundedEnum
-    , conjoin
-    , property
-    , vector
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Property, arbitraryBoundedEnum, conjoin, property, vector,
+    (===), (==>) )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

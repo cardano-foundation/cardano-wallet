@@ -27,12 +27,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( coinIsValidForTxOut
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    , txOutMinCoin
-    , txOutMinTokenQuantity
-    )
+    ( coinIsValidForTxOut, txOutMaxCoin, txOutMaxTokenQuantity, txOutMinCoin,
+    txOutMinTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Control.Monad

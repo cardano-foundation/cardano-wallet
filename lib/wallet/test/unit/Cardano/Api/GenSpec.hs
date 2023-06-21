@@ -12,141 +12,47 @@ module Cardano.Api.GenSpec (spec) where
 import Prelude
 
 import Cardano.Api
-    ( AddressInEra (..)
-    , AddressTypeInEra (..)
-    , AnyCardanoEra (..)
-    , AnyPlutusScriptVersion
-    , AnyScriptLanguage (..)
-    , AssetId (..)
-    , AssetName (..)
-    , BuildTx
-    , BuildTxWith (..)
-    , ByronEra
-    , CardanoEra (..)
-    , CardanoEraStyle (..)
-    , CostModel (..)
-    , EpochNo (..)
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
-    , KeyWitnessInCtx (..)
-    , Lovelace
-    , MIRTarget (..)
-    , NetworkId (..)
-    , NetworkMagic (..)
-    , PaymentCredential (..)
-    , Quantity (..)
-    , ScriptValidity (..)
-    , ShelleyWitnessSigningKey (..)
-    , SimpleScript (..)
-    , SlotNo (..)
-    , StakeAddressReference (..)
-    , TxAuxScripts (..)
-    , TxCertificates (..)
-    , TxExtraKeyWitnesses (..)
-    , TxFee (..)
-    , TxIn (..)
-    , TxInsCollateral (..)
-    , TxIx (..)
-    , TxMetadata (..)
-    , TxMetadataInEra (..)
-    , TxMetadataValue (..)
-    , TxMintValue (..)
-    , TxOut (..)
-    , TxOutDatum (..)
-    , TxOutValue (..)
-    , TxScriptValidity (..)
-    , TxUpdateProposal (..)
-    , TxValidityLowerBound (..)
-    , TxValidityUpperBound (..)
-    , TxWithdrawals (..)
-    , UpdateProposal (..)
-    , Value
-    , WitCtxStake
-    , Witness (..)
-    , auxScriptsSupportedInEra
-    , cardanoEraStyle
-    , certificatesSupportedInEra
-    , collateralSupportedInEra
-    , extraKeyWitnessesSupportedInEra
-    , multiAssetSupportedInEra
-    , scriptDataSupportedInEra
-    , scriptLanguageSupportedInEra
-    , txFeesExplicitInEra
-    , txMetadataSupportedInEra
-    , txScriptValiditySupportedInCardanoEra
-    , updateProposalSupportedInEra
-    , validityLowerBoundSupportedInEra
-    , validityUpperBoundSupportedInEra
-    , valueToList
-    , withdrawalsSupportedInEra
-    )
+    ( AddressInEra (..), AddressTypeInEra (..), AnyCardanoEra (..),
+    AnyPlutusScriptVersion, AnyScriptLanguage (..), AssetId (..),
+    AssetName (..), BuildTx, BuildTxWith (..), ByronEra, CardanoEra (..),
+    CardanoEraStyle (..), CostModel (..), EpochNo (..),
+    ExecutionUnitPrices (..), ExecutionUnits (..), KeyWitnessInCtx (..),
+    Lovelace, MIRTarget (..), NetworkId (..), NetworkMagic (..),
+    PaymentCredential (..), Quantity (..), ScriptValidity (..),
+    ShelleyWitnessSigningKey (..), SimpleScript (..), SlotNo (..),
+    StakeAddressReference (..), TxAuxScripts (..), TxCertificates (..),
+    TxExtraKeyWitnesses (..), TxFee (..), TxIn (..), TxInsCollateral (..),
+    TxIx (..), TxMetadata (..), TxMetadataInEra (..), TxMetadataValue (..),
+    TxMintValue (..), TxOut (..), TxOutDatum (..), TxOutValue (..),
+    TxScriptValidity (..), TxUpdateProposal (..), TxValidityLowerBound (..),
+    TxValidityUpperBound (..), TxWithdrawals (..), UpdateProposal (..), Value,
+    WitCtxStake, Witness (..), auxScriptsSupportedInEra, cardanoEraStyle,
+    certificatesSupportedInEra, collateralSupportedInEra,
+    extraKeyWitnessesSupportedInEra, multiAssetSupportedInEra,
+    scriptDataSupportedInEra, scriptLanguageSupportedInEra, txFeesExplicitInEra,
+    txMetadataSupportedInEra, txScriptValiditySupportedInCardanoEra,
+    updateProposalSupportedInEra, validityLowerBoundSupportedInEra,
+    validityUpperBoundSupportedInEra, valueToList, withdrawalsSupportedInEra )
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Gen
-    ( genAddressInEra
-    , genAlphaNum
-    , genAssetName
-    , genByronKeyWitness
-    , genCertIx
-    , genCostModel
-    , genCostModels
-    , genEpochNo
-    , genExecutionUnitPrices
-    , genExecutionUnits
-    , genExtraKeyWitnesses
-    , genLovelace
-    , genMIRPot
-    , genMIRTarget
-    , genNat
-    , genNetworkId
-    , genNetworkMagic
-    , genPaymentCredential
-    , genPtr
-    , genRational
-    , genRationalInt64
-    , genScriptValidity
-    , genShelleyWitnessSigningKey
-    , genSignedQuantity
-    , genSimpleScript
-    , genSlotNo
-    , genSlotNo32
-    , genStakeAddressReference
-    , genStakeCredential
-    , genTxAuxScripts
-    , genTxBody
-    , genTxCertificate
-    , genTxCertificates
-    , genTxFee
-    , genTxIn
-    , genTxIndex
-    , genTxInsCollateral
-    , genTxIx
-    , genTxMetadata
-    , genTxMetadataInEra
-    , genTxMetadataValue
-    , genTxMintValue
-    , genTxOut
-    , genTxOutDatum
-    , genTxOutValue
-    , genTxScriptValidity
-    , genTxValidityLowerBound
-    , genTxValidityRange
-    , genTxValidityUpperBound
-    , genTxWithdrawals
-    , genUnsignedQuantity
-    , genUpdateProposal
-    , genValueForMinting
-    , genValueForTxOut
-    , genWitnessNetworkIdOrByronAddress
-    , genWitnessStake
-    , genWitnesses
-    )
+    ( genAddressInEra, genAlphaNum, genAssetName, genByronKeyWitness, genCertIx,
+    genCostModel, genCostModels, genEpochNo, genExecutionUnitPrices,
+    genExecutionUnits, genExtraKeyWitnesses, genLovelace, genMIRPot,
+    genMIRTarget, genNat, genNetworkId, genNetworkMagic, genPaymentCredential,
+    genPtr, genRational, genRationalInt64, genScriptValidity,
+    genShelleyWitnessSigningKey, genSignedQuantity, genSimpleScript, genSlotNo,
+    genSlotNo32, genStakeAddressReference, genStakeCredential, genTxAuxScripts,
+    genTxBody, genTxCertificate, genTxCertificates, genTxFee, genTxIn,
+    genTxIndex, genTxInsCollateral, genTxIx, genTxMetadata, genTxMetadataInEra,
+    genTxMetadataValue, genTxMintValue, genTxOut, genTxOutDatum, genTxOutValue,
+    genTxScriptValidity, genTxValidityLowerBound, genTxValidityRange,
+    genTxValidityUpperBound, genTxWithdrawals, genUnsignedQuantity,
+    genUpdateProposal, genValueForMinting, genValueForTxOut,
+    genWitnessNetworkIdOrByronAddress, genWitnessStake, genWitnesses )
 import Cardano.Api.Shelley
-    ( Certificate (..)
-    , ReferenceScript (..)
-    , StakeCredential (..)
-    , refInsScriptsAndInlineDatsSupportedInEra
-    )
+    ( Certificate (..), ReferenceScript (..), StakeCredential (..),
+    refInsScriptsAndInlineDatsSupportedInEra )
 import Cardano.Chain.UTxO
     ( TxInWitness (..) )
 import Cardano.Ledger.Credential.Safe
@@ -174,18 +80,8 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary
-    , Property
-    , arbitrary
-    , checkCoverage
-    , conjoin
-    , counterexample
-    , cover
-    , forAll
-    , label
-    , property
-    , (===)
-    )
+    ( Arbitrary, Property, arbitrary, checkCoverage, conjoin, counterexample,
+    cover, forAll, label, property, (===) )
 import Test.QuickCheck.Instances.ByteString
     ()
 

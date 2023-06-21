@@ -141,14 +141,8 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..)
-    , KeyHash (KeyHash)
-    , KeyRole (..)
-    , ScriptTemplate (..)
-    , ValidationLevel (..)
-    , foldScript
-    , validateScriptOfTemplate
-    )
+    ( Cosigner (..), KeyHash (KeyHash), KeyRole (..), ScriptTemplate (..),
+    ValidationLevel (..), foldScript, validateScriptOfTemplate )
 import Cardano.Api
     ( NetworkId, SerialiseAsCBOR (..), toNetworkMagic, unNetworkMagic )
 import Cardano.BM.Tracing
@@ -160,57 +154,24 @@ import Cardano.Pool.Types
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionOf (..) )
 import Cardano.Wallet
-    ( BuiltTx (..)
-    , DelegationFee (feePercentiles)
-    , ErrConstructSharedWallet (..)
-    , ErrConstructTx (..)
-    , ErrCreateMigrationPlan (..)
-    , ErrGetPolicyId (..)
-    , ErrNoSuchWallet (..)
-    , ErrReadRewardAccount (..)
-    , ErrSignPayment (..)
-    , ErrSubmitTransaction (..)
-    , ErrUpdatePassphrase (..)
-    , ErrWalletAlreadyExists (..)
-    , ErrWalletNotResponding (..)
-    , ErrWithRootKey (..)
-    , ErrWitnessTx (..)
-    , Fee (..)
-    , HasNetworkLayer
-    , Percentile (..)
-    , TxSubmitLog
-    , WalletException (..)
-    , WalletWorkerLog (..)
-    , dbLayer
-    , dummyChangeAddressGen
-    , genesisData
-    , getCurrentEpochSlotting
-    , logger
-    , manageRewardBalance
-    , networkLayer
-    , readPrivateKey
-    , readWalletMeta
-    , transactionLayer
-    , utxoAssumptionsForWallet
-    )
+    ( BuiltTx (..), DelegationFee (feePercentiles),
+    ErrConstructSharedWallet (..), ErrConstructTx (..),
+    ErrCreateMigrationPlan (..), ErrGetPolicyId (..), ErrNoSuchWallet (..),
+    ErrReadRewardAccount (..), ErrSignPayment (..), ErrSubmitTransaction (..),
+    ErrUpdatePassphrase (..), ErrWalletAlreadyExists (..),
+    ErrWalletNotResponding (..), ErrWithRootKey (..), ErrWitnessTx (..),
+    Fee (..), HasNetworkLayer, Percentile (..), TxSubmitLog,
+    WalletException (..), WalletWorkerLog (..), dbLayer, dummyChangeAddressGen,
+    genesisData, getCurrentEpochSlotting, logger, manageRewardBalance,
+    networkLayer, readPrivateKey, readWalletMeta, transactionLayer,
+    utxoAssumptionsForWallet )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
-    ( AccountIxForStaking (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , MkKeyFingerprint
-    , RewardAccount (..)
-    , Role
-    , SoftDerivation (..)
-    , delegationAddressS
-    , deriveRewardAccount
-    , stakeDerivationPath
-    )
+    ( AccountIxForStaking (..), DelegationAddress (..), Depth (..),
+    DerivationIndex (..), DerivationType (..), HardDerivation (..), Index (..),
+    MkKeyFingerprint, RewardAccount (..), Role, SoftDerivation (..),
+    delegationAddressS, deriveRewardAccount, stakeDerivationPath )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -222,24 +183,13 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery
-    , GenChange (ArgGenChange)
-    , GetAccount
-    , GetPurpose (..)
-    , IsOurs
-    , KnownAddresses
-    , MaybeLight
-    )
+    ( CompareDiscovery, GenChange (ArgGenChange), GetAccount, GetPurpose (..),
+    IsOurs, KnownAddresses, MaybeLight )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , defaultAddressPoolGap
-    , getGap
-    , mkSeqStateFromAccountXPub
-    , purposeCIP1852
-    )
+    ( DerivationPrefix (..), SeqState (..), defaultAddressPoolGap, getGap,
+    mkSeqStateFromAccountXPub, purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..), SharedState (..) )
 import Cardano.Wallet.Address.HasDelegation
@@ -249,11 +199,8 @@ import Cardano.Wallet.Address.Keys.MintBurn
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.Shared
-    ( mkSharedStateFromAccountXPub
-    , mkSharedStateFromRootXPrv
-    , toSharedWalletId
-    , validateScriptTemplates
-    )
+    ( mkSharedStateFromAccountXPub, mkSharedStateFromRootXPrv, toSharedWalletId,
+    validateScriptTemplates )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron, digest, getRawKey, publicKey )
 import Cardano.Wallet.Address.Keys.WitnessCount
@@ -261,16 +208,9 @@ import Cardano.Wallet.Address.Keys.WitnessCount
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Api
-    ( ApiLayer (..)
-    , HasDBFactory
-    , HasTokenMetadataClient
-    , HasWorkerRegistry
-    , WalletLock (..)
-    , dbFactory
-    , tokenMetadataClient
-    , walletLocks
-    , workerRegistry
-    )
+    ( ApiLayer (..), HasDBFactory, HasTokenMetadataClient, HasWorkerRegistry,
+    WalletLock (..), dbFactory, tokenMetadataClient, walletLocks,
+    workerRegistry )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..), apiError, handler, liftE, liftHandler )
 import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
@@ -280,127 +220,54 @@ import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
 import Cardano.Wallet.Api.Http.Server.Tls
     ( TlsConfiguration (..), requireClientAuth )
 import Cardano.Wallet.Api.Types
-    ( AccountPostData (..)
-    , AddressAmount (..)
-    , AddressAmountNoAssets (..)
-    , ApiAccountPublicKey (..)
-    , ApiAccountSharedPublicKey (..)
-    , ApiActiveSharedWallet (..)
-    , ApiAddressWithPath (..)
-    , ApiAnyCertificate (..)
-    , ApiAsArray (..)
-    , ApiAsset (..)
-    , ApiAssetMintBurn (..)
-    , ApiBalanceTransactionPostData (..)
-    , ApiBlockInfo (..)
-    , ApiBlockReference (..)
-    , ApiBurnData (..)
-    , ApiByronWallet (..)
-    , ApiByronWalletBalance (..)
-    , ApiBytesT (..)
-    , ApiCertificate (..)
-    , ApiCoinSelection (..)
-    , ApiCoinSelectionChange (..)
-    , ApiCoinSelectionCollateral (..)
-    , ApiCoinSelectionOutput (..)
-    , ApiCoinSelectionWithdrawal (..)
-    , ApiConstructTransaction (..)
-    , ApiConstructTransactionData (..)
-    , ApiDecodedTransaction (..)
-    , ApiExternalInput (..)
-    , ApiFee (..)
-    , ApiForeignStakeKey (..)
-    , ApiIncompleteSharedWallet (..)
-    , ApiMintBurnData (..)
-    , ApiMintBurnOperation (..)
-    , ApiMintData (..)
-    , ApiMnemonicT (..)
-    , ApiMultiDelegationAction (..)
-    , ApiNetworkClock (..)
-    , ApiNetworkInformation
-    , ApiNetworkParameters (..)
-    , ApiNullStakeKey (..)
-    , ApiOurStakeKey (..)
-    , ApiPaymentDestination (..)
-    , ApiPolicyId (..)
-    , ApiPolicyKey (..)
-    , ApiPoolSpecifier (..)
-    , ApiPostAccountKeyDataWithPurpose (..)
-    , ApiPostPolicyIdData
-    , ApiPostPolicyKeyData (..)
-    , ApiPostRandomAddressData (..)
-    , ApiPutAddressesData (..)
-    , ApiRedeemer (..)
-    , ApiScriptTemplate (..)
-    , ApiScriptTemplateEntry (..)
-    , ApiSealedTxEncoding (..)
-    , ApiSelectCoinsPayments
-    , ApiSelfWithdrawalPostData (..)
-    , ApiSerialisedTransaction (..)
-    , ApiSharedWallet (..)
-    , ApiSharedWalletPatchData (..)
-    , ApiSharedWalletPostData (..)
-    , ApiSharedWalletPostDataFromAccountPubX (..)
-    , ApiSharedWalletPostDataFromMnemonics (..)
-    , ApiSignTransactionPostData (..)
-    , ApiSlotId (..)
-    , ApiSlotReference (..)
-    , ApiStakeKeyIndex (..)
-    , ApiStakeKeys (..)
-    , ApiT (..)
-    , ApiTransaction (..)
-    , ApiTxCollateral (..)
-    , ApiTxId (..)
-    , ApiTxInput (..)
-    , ApiTxInputGeneral (..)
-    , ApiTxMetadata (..)
-    , ApiTxOutputGeneral (..)
-    , ApiUtxoStatistics (..)
-    , ApiValidityBound (..)
-    , ApiValidityInterval (..)
-    , ApiWallet (..)
-    , ApiWalletAssetsBalance (..)
-    , ApiWalletBalance (..)
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationNext (..)
-    , ApiWalletDelegationStatus (..)
-    , ApiWalletInput (..)
-    , ApiWalletMigrationBalance (..)
-    , ApiWalletMigrationPlan (..)
-    , ApiWalletMigrationPlanPostData (..)
-    , ApiWalletMigrationPostData (..)
-    , ApiWalletMode (..)
-    , ApiWalletOutput (..)
-    , ApiWalletPassphrase (..)
-    , ApiWalletPassphraseInfo (..)
-    , ApiWalletSignData (..)
-    , ApiWalletUtxoSnapshot (..)
-    , ApiWalletUtxoSnapshotEntry (..)
-    , ApiWithdrawal (..)
-    , ApiWithdrawalGeneral (..)
-    , ApiWithdrawalPostData (..)
-    , ByronWalletFromXPrvPostData
-    , ByronWalletPostData (..)
-    , ByronWalletPutPassphraseData (..)
-    , Iso8601Time (..)
-    , KeyFormat (..)
-    , KnownDiscovery (..)
-    , MinWithdrawal (..)
-    , PostTransactionFeeOldData (..)
-    , PostTransactionOldData (..)
-    , ResourceContext (..)
-    , VerificationKeyHashing (..)
-    , WalletOrAccountPostData (..)
-    , WalletPostData (..)
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
-    , XPubOrSelf (..)
-    , getApiMnemonicT
-    , toApiAsset
-    , toApiEra
-    , toApiNetworkParameters
-    , toApiUtxoStatistics
-    )
+    ( AccountPostData (..), AddressAmount (..), AddressAmountNoAssets (..),
+    ApiAccountPublicKey (..), ApiAccountSharedPublicKey (..),
+    ApiActiveSharedWallet (..), ApiAddressWithPath (..), ApiAnyCertificate (..),
+    ApiAsArray (..), ApiAsset (..), ApiAssetMintBurn (..),
+    ApiBalanceTransactionPostData (..), ApiBlockInfo (..),
+    ApiBlockReference (..), ApiBurnData (..), ApiByronWallet (..),
+    ApiByronWalletBalance (..), ApiBytesT (..), ApiCertificate (..),
+    ApiCoinSelection (..), ApiCoinSelectionChange (..),
+    ApiCoinSelectionCollateral (..), ApiCoinSelectionOutput (..),
+    ApiCoinSelectionWithdrawal (..), ApiConstructTransaction (..),
+    ApiConstructTransactionData (..), ApiDecodedTransaction (..),
+    ApiExternalInput (..), ApiFee (..), ApiForeignStakeKey (..),
+    ApiIncompleteSharedWallet (..), ApiMintBurnData (..),
+    ApiMintBurnOperation (..), ApiMintData (..), ApiMnemonicT (..),
+    ApiMultiDelegationAction (..), ApiNetworkClock (..), ApiNetworkInformation,
+    ApiNetworkParameters (..), ApiNullStakeKey (..), ApiOurStakeKey (..),
+    ApiPaymentDestination (..), ApiPolicyId (..), ApiPolicyKey (..),
+    ApiPoolSpecifier (..), ApiPostAccountKeyDataWithPurpose (..),
+    ApiPostPolicyIdData, ApiPostPolicyKeyData (..),
+    ApiPostRandomAddressData (..), ApiPutAddressesData (..), ApiRedeemer (..),
+    ApiScriptTemplate (..), ApiScriptTemplateEntry (..),
+    ApiSealedTxEncoding (..), ApiSelectCoinsPayments,
+    ApiSelfWithdrawalPostData (..), ApiSerialisedTransaction (..),
+    ApiSharedWallet (..), ApiSharedWalletPatchData (..),
+    ApiSharedWalletPostData (..), ApiSharedWalletPostDataFromAccountPubX (..),
+    ApiSharedWalletPostDataFromMnemonics (..), ApiSignTransactionPostData (..),
+    ApiSlotId (..), ApiSlotReference (..), ApiStakeKeyIndex (..),
+    ApiStakeKeys (..), ApiT (..), ApiTransaction (..), ApiTxCollateral (..),
+    ApiTxId (..), ApiTxInput (..), ApiTxInputGeneral (..), ApiTxMetadata (..),
+    ApiTxOutputGeneral (..), ApiUtxoStatistics (..), ApiValidityBound (..),
+    ApiValidityInterval (..), ApiWallet (..), ApiWalletAssetsBalance (..),
+    ApiWalletBalance (..), ApiWalletDelegation (..),
+    ApiWalletDelegationNext (..), ApiWalletDelegationStatus (..),
+    ApiWalletInput (..), ApiWalletMigrationBalance (..),
+    ApiWalletMigrationPlan (..), ApiWalletMigrationPlanPostData (..),
+    ApiWalletMigrationPostData (..), ApiWalletMode (..), ApiWalletOutput (..),
+    ApiWalletPassphrase (..), ApiWalletPassphraseInfo (..),
+    ApiWalletSignData (..), ApiWalletUtxoSnapshot (..),
+    ApiWalletUtxoSnapshotEntry (..), ApiWithdrawal (..),
+    ApiWithdrawalGeneral (..), ApiWithdrawalPostData (..),
+    ByronWalletFromXPrvPostData, ByronWalletPostData (..),
+    ByronWalletPutPassphraseData (..), Iso8601Time (..), KeyFormat (..),
+    KnownDiscovery (..), MinWithdrawal (..), PostTransactionFeeOldData (..),
+    PostTransactionOldData (..), ResourceContext (..),
+    VerificationKeyHashing (..), WalletOrAccountPostData (..),
+    WalletPostData (..), WalletPutData (..), WalletPutPassphraseData (..),
+    XPubOrSelf (..), getApiMnemonicT, toApiAsset, toApiEra,
+    toApiNetworkParameters, toApiUtxoStatistics )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader, mkApiBlockHeader )
 import Cardano.Wallet.Api.Types.Certificate
@@ -414,28 +281,16 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiAddress (..)
-    , ApiLimit
-    , ApiValidityIntervalExplicit (..)
-    , fromApiLimit
-    , mkApiWitnessCount
-    )
+    ( ApiAddress (..), ApiLimit, ApiValidityIntervalExplicit (..), fromApiLimit,
+    mkApiWitnessCount )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
-    , Excluding
-    , KeyFlavorS (..)
-    , KeyOf
-    , NetworkOf
-    , WalletFlavor (..)
-    , WalletFlavorS (..)
-    , keyFlavorFromState
-    , keyOfWallet
-    , shelleyOrShared
-    )
+    ( CredFromOf, Excluding, KeyFlavorS (..), KeyOf, NetworkOf,
+    WalletFlavor (..), WalletFlavorS (..), keyFlavorFromState, keyOfWallet,
+    shelleyOrShared )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
@@ -445,52 +300,22 @@ import Cardano.Wallet.Primitive.Delegation.UTxO
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
-    , availableBalance
-    , availableUTxO
-    , currentTip
-    , getState
-    , totalBalance
-    , totalUTxO
-    )
+    ( Wallet, availableBalance, availableUTxO, currentTip, getState,
+    totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..)
-    , PassphraseScheme (..)
-    , WalletPassphraseInfo (..)
-    , currentPassphraseScheme
-    , preparePassphrase
-    )
+    ( Passphrase (..), PassphraseScheme (..), WalletPassphraseInfo (..),
+    currentPassphraseScheme, preparePassphrase )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , RelativeTime
-    , TimeInterpreter
-    , currentEpoch
-    , currentRelativeTime
-    , expectAndThrowFailures
-    , hoistTimeInterpreter
-    , interpretQuery
-    , neverFails
-    , ongoingSlotAt
-    , slotToUTCTime
-    , timeOfEpoch
-    , toSlotId
-    , unsafeExtendSafeZone
-    )
+    ( PastHorizonException, RelativeTime, TimeInterpreter, currentEpoch,
+    currentRelativeTime, expectAndThrowFailures, hoistTimeInterpreter,
+    interpretQuery, neverFails, ongoingSlotAt, slotToUTCTime, timeOfEpoch,
+    toSlotId, unsafeExtendSafeZone )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block
-    , BlockHeader (..)
-    , NetworkParameters (..)
-    , PoolLifeCycleStatus
-    , Signature (..)
-    , SlotId
-    , SlotNo (..)
-    , SortOrder (..)
-    , WalletDelegation
-    , WalletId (..)
-    , WalletMetadata (..)
-    )
+    ( Block, BlockHeader (..), NetworkParameters (..), PoolLifeCycleStatus,
+    Signature (..), SlotId, SlotNo (..), SortOrder (..), WalletDelegation,
+    WalletId (..), WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -510,16 +335,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo
-    , Tx (..)
-    , TxCBOR
-    , TxChange (..)
-    , TxStatus (..)
-    , UnsignedTx (..)
-    , cardanoTxInExactEra
-    , getSealedTxWitnesses
-    , sealedTxFromCardanoBody
-    )
+    ( TransactionInfo, Tx (..), TxCBOR, TxChange (..), TxStatus (..),
+    UnsignedTx (..), cardanoTxInExactEra, getSealedTxWitnesses,
+    sealedTxFromCardanoBody )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -529,12 +347,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..)
-    , MkWorker (..)
-    , WorkerLog (..)
-    , defaultWorkerAfter
-    , workerResource
-    )
+    ( HasWorkerCtx (..), MkWorker (..), WorkerLog (..), defaultWorkerAfter,
+    workerResource )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
 import Cardano.Wallet.Shelley.Transaction
@@ -542,16 +356,9 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , DelegationAction (..)
-    , PreSelection (..)
-    , TransactionCtx (..)
-    , TransactionLayer (..)
-    , Withdrawal (..)
-    , WitnessCount (..)
-    , WitnessCountCtx (..)
-    , defaultTransactionCtx
-    )
+    ( AnyExplicitScript (..), DelegationAction (..), PreSelection (..),
+    TransactionCtx (..), TransactionLayer (..), Withdrawal (..),
+    WitnessCount (..), WitnessCountCtx (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Write.Tx
@@ -609,14 +416,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes
-    , fromJust
-    , fromMaybe
-    , isJust
-    , isNothing
-    , mapMaybe
-    , maybeToList
-    )
+    ( catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -658,12 +458,8 @@ import Servant
 import Servant.Server
     ( Handler (..), runHandler )
 import System.IO.Error
-    ( ioeGetErrorType
-    , isAlreadyInUseError
-    , isDoesNotExistError
-    , isPermissionError
-    , isUserError
-    )
+    ( ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError,
+    isPermissionError, isUserError )
 import System.Random
     ( getStdRandom, random )
 import UnliftIO.Async

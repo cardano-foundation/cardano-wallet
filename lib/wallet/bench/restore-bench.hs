@@ -77,36 +77,22 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
-    ( RestoreBenchArgs (..)
-    , Time
-    , argsNetworkDir
-    , bench
-    , execBenchWithNode
-    , initBenchmarkLogging
-    , runBenchmarks
-    )
+    ( RestoreBenchArgs (..), Time, argsNetworkDir, bench, execBenchWithNode,
+    initBenchmarkLogging, runBenchmarks )
 import Cardano.Wallet.DB
     ( DBFresh )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
-    , Excluding
-    , KeyFlavorS (..)
-    , KeyOf
-    , WalletFlavor (..)
-    , keyFlavorFromState
-    )
+    ( CredFromOf, Excluding, KeyFlavorS (..), KeyOf, WalletFlavor (..),
+    keyFlavorFromState )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
-    ( ChainFollowLog (..)
-    , ChainFollower (..)
-    , ChainSyncLog (..)
-    , NetworkLayer (..)
-    )
+    ( ChainFollowLog (..), ChainFollower (..), ChainSyncLog (..),
+    NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -114,16 +100,9 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , GenesisParameters (..)
-    , NetworkParameters (..)
-    , SlotNo (..)
-    , SortOrder (..)
-    , WalletId (..)
-    , WalletName (..)
-    , chainPointFromBlockHeader
-    )
+    ( Block (..), BlockHeader (..), GenesisParameters (..),
+    NetworkParameters (..), SlotNo (..), SortOrder (..), WalletId (..),
+    WalletName (..), chainPointFromBlockHeader )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -139,22 +118,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminant (..)
-    , SNetworkId (..)
-    , networkDiscriminantVal
-    , networkIdVal
-    , withSNetworkId
-    )
+    ( HasSNetworkId (sNetworkId), NetworkDiscriminant (..), SNetworkId (..),
+    networkDiscriminantVal, networkIdVal, withSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
-    ( AnyCardanoEra (..)
-    , CardanoBlock
-    , NodeToClientVersionData
-    , StandardCrypto
-    , emptyGenesis
-    , fromCardanoBlock
-    , numberOfTransactionsInBlock
-    )
+    ( AnyCardanoEra (..), CardanoBlock, NodeToClientVersionData, StandardCrypto,
+    emptyGenesis, fromCardanoBlock, numberOfTransactionsInBlock )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -204,17 +172,8 @@ import Data.Time.Clock.POSIX
 import Data.Word
     ( Word32 )
 import Fmt
-    ( Buildable
-    , blockListF'
-    , build
-    , genericF
-    , nameF
-    , pretty
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
+    ( Buildable, blockListF', build, genericF, nameF, pretty, (+|), (+||), (|+),
+    (||+) )
 import GHC.Conc
     ( retry )
 import GHC.Generics

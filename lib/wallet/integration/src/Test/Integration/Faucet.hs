@@ -53,25 +53,12 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Mnemonic
-    ( EntropySize
-    , Mnemonic
-    , MnemonicWords
-    , SomeMnemonic (..)
-    , ValidChecksumSize
-    , ValidEntropySize
-    , ValidMnemonicSentence
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
+    ( EntropySize, Mnemonic, MnemonicWords, SomeMnemonic (..),
+    ValidChecksumSize, ValidEntropySize, ValidMnemonicSentence,
+    entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationType (..)
-    , HardDerivation (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , deriveRewardAccount
-    , liftIndex
-    )
+    ( DerivationType (..), HardDerivation (..), PaymentAddress (..), Role (..),
+    deriveRewardAccount, liftIndex )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor

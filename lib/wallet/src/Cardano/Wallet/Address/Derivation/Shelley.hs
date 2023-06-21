@@ -43,62 +43,29 @@ module Cardano.Wallet.Address.Derivation.Shelley
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (..)
-    , XPrv
-    , XPub (..)
-    , deriveXPrv
-    , deriveXPub
-    , generateNew
-    , toXPub
-    , unXPub
-    , xpub
-    )
+    ( DerivationScheme (..), XPrv, XPub (..), deriveXPrv, deriveXPub,
+    generateNew, toXPub, unXPub, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Address.Derivation
-    ( AccountIxForStaking (..)
-    , AddressParts (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
-    , HardDerivation (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , PersistPublicKey (..)
-    , RewardAccount (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    , fromHex
-    , hex
-    , mutableAccount
-    , toAddressParts
-    )
+    ( AccountIxForStaking (..), AddressParts (..), DelegationAddress (..),
+    Depth (..), DerivationIndex (..), DerivationType (..),
+    ErrMkKeyFingerprint (..), HardDerivation (..), Index (..),
+    KeyFingerprint (..), MkKeyFingerprint (..), PaymentAddress (..),
+    PersistPublicKey (..), RewardAccount (..), Role (..), SoftDerivation (..),
+    ToRewardAccount (..), fromHex, hex, mutableAccount, toAddressParts )
 import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , coinTypeAda
-    , discoverSeqWithRewards
-    , purposeCIP1852
-    , rewardAccountKey
-    )
+    ( DerivationPrefix (..), SeqState (..), coinTypeAda, discoverSeqWithRewards,
+    purposeCIP1852, rewardAccountKey )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantCheck (..)
-    , SNetworkId (..)
-    , networkDiscriminantBits
-    )
+    ( HasSNetworkId, NetworkDiscriminant (..), NetworkDiscriminantCheck (..),
+    SNetworkId (..), networkDiscriminantBits )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq

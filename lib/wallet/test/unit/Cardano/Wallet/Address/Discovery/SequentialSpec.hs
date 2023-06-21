@@ -29,17 +29,9 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , SoftDerivation (..)
-    )
+    ( DelegationAddress (..), Depth (..), DerivationIndex, DerivationType (..),
+    HardDerivation (..), Index, MkKeyFingerprint (..), PaymentAddress (..),
+    Role (..), SoftDerivation (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -47,29 +39,13 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , GetPurpose
-    , IsOurs (..)
-    , KnownAddresses (..)
-    , emptyPendingIxs
-    , genChange
-    )
+    ( CompareDiscovery (..), GenChange (..), GetPurpose, IsOurs (..),
+    KnownAddresses (..), emptyPendingIxs, genChange )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..)
-    , DerivationPrefix (..)
-    , MkAddressPoolGapError (..)
-    , SeqAddressPool (..)
-    , SeqState (..)
-    , SupportsDiscovery
-    , coinTypeAda
-    , defaultAddressPoolGap
-    , mkAddressPoolGap
-    , mkSeqStateFromAccountXPub
-    , mkUnboundedAddressPoolGap
-    , newSeqAddressPool
-    , purposeCIP1852
-    )
+    ( AddressPoolGap (..), DerivationPrefix (..), MkAddressPoolGapError (..),
+    SeqAddressPool (..), SeqState (..), SupportsDiscovery, coinTypeAda,
+    defaultAddressPoolGap, mkAddressPoolGap, mkSeqStateFromAccountXPub,
+    mkUnboundedAddressPoolGap, newSeqAddressPool, purposeCIP1852 )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -115,25 +91,9 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , choose
-    , conjoin
-    , counterexample
-    , cover
-    , elements
-    , expectFailure
-    , frequency
-    , label
-    , property
-    , suchThat
-    , (.&&.)
-    , (=/=)
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Property, arbitraryBoundedEnum, checkCoverage, choose,
+    conjoin, counterexample, cover, elements, expectFailure, frequency, label,
+    property, suchThat, (.&&.), (=/=), (===), (==>) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
 import Test.QuickCheck.Monadic

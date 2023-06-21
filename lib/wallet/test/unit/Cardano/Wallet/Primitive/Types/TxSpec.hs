@@ -26,15 +26,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , Tx (..)
-    , mockSealedTx
-    , sealedTxFromBytes
-    , txAssetIds
-    , txMapAssetIds
-    , txMapTxIds
-    , txRemoveAssetId
-    )
+    ( SealedTx (..), Tx (..), mockSealedTx, sealedTxFromBytes, txAssetIds,
+    txMapAssetIds, txMapTxIds, txRemoveAssetId )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -54,15 +47,8 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Fun (..)
-    , Function (..)
-    , Property
-    , applyFun
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Fun (..), Function (..), Property,
+    applyFun, property, (===) )
 import Test.QuickCheck.Instances.ByteString
     ()
 

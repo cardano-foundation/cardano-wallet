@@ -27,11 +27,8 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner, Script, ScriptHash (..) )
 import Cardano.Api
-    ( TxMetadataJsonSchema (..)
-    , displayError
-    , metadataFromJson
-    , metadataToJson
-    )
+    ( TxMetadataJsonSchema (..), displayError, metadataFromJson,
+    metadataToJson )
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
@@ -39,11 +36,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Address.Derivation
     ( Role (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..)
-    , DerivationPrefix
-    , getAddressPoolGap
-    , mkAddressPoolGap
-    )
+    ( AddressPoolGap (..), DerivationPrefix, getAddressPoolGap,
+    mkAddressPoolGap )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
@@ -51,16 +45,8 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..)
-    , FeePolicy
-    , PoolMetadataSource (..)
-    , Slot
-    , WalletId (..)
-    , WithOrigin (..)
-    , isValidEpochNo
-    , unsafeEpochNo
-    , unsafeToPMS
-    )
+    ( EpochNo (..), FeePolicy, PoolMetadataSource (..), Slot, WalletId (..),
+    WithOrigin (..), isValidEpochNo, unsafeEpochNo, unsafeToPMS )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -102,12 +88,8 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Text.Class.Extended
-    ( FromText (..)
-    , TextDecodingError (TextDecodingError)
-    , ToText (..)
-    , fromText'
-    , fromTextMaybe
-    )
+    ( FromText (..), TextDecodingError (TextDecodingError), ToText (..),
+    fromText', fromTextMaybe )
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
 import Data.Time.Clock.POSIX

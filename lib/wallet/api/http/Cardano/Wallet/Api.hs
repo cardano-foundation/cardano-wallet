@@ -179,69 +179,25 @@ import Cardano.Wallet
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex, Role )
 import Cardano.Wallet.Api.Types
-    ( AnyAddress
-    , ApiAccountKey
-    , ApiAccountKeyShared
-    , ApiAddressData
-    , ApiAddressIdT
-    , ApiAddressInspect
-    , ApiAddressInspectData
-    , ApiAddressT
-    , ApiAsset
-    , ApiBalanceTransactionPostDataT
-    , ApiByronWallet
-    , ApiCoinSelectionT
-    , ApiConstructTransactionDataT
-    , ApiConstructTransactionT
-    , ApiDecodedTransactionT
-    , ApiFee
-    , ApiHealthCheck
-    , ApiMaintenanceAction
-    , ApiMaintenanceActionPostData
-    , ApiNetworkClock
-    , ApiNetworkInformation
-    , ApiNetworkParameters
-    , ApiPolicyId
-    , ApiPolicyKey
-    , ApiPoolSpecifier
-    , ApiPostAccountKeyData
-    , ApiPostAccountKeyDataWithPurpose
-    , ApiPostPolicyIdData
-    , ApiPostPolicyKeyData
-    , ApiPostRandomAddressData
-    , ApiPutAddressesDataT
-    , ApiSelectCoinsDataT
-    , ApiSerialisedTransaction
-    , ApiSharedWallet
-    , ApiSharedWalletPatchData
-    , ApiSharedWalletPostData
-    , ApiSignTransactionPostData
-    , ApiStakeKeysT
-    , ApiT
-    , ApiTransactionT
-    , ApiTxId
-    , ApiUtxoStatistics
-    , ApiVerificationKeyShared
-    , ApiVerificationKeyShelley
-    , ApiWallet
-    , ApiWalletMigrationPlan
-    , ApiWalletMigrationPlanPostDataT
-    , ApiWalletMigrationPostDataT
-    , ApiWalletPassphrase
-    , ApiWalletSignData
-    , ApiWalletUtxoSnapshot
-    , ByronWalletPutPassphraseData
-    , Iso8601Time
-    , KeyFormat
-    , MinWithdrawal
-    , PostTransactionFeeOldDataT
-    , PostTransactionOldDataT
-    , SettingsPutData
-    , SomeByronWalletPostData
-    , WalletOrAccountPostData
-    , WalletPutData
-    , WalletPutPassphraseData
-    )
+    ( AnyAddress, ApiAccountKey, ApiAccountKeyShared, ApiAddressData,
+    ApiAddressIdT, ApiAddressInspect, ApiAddressInspectData, ApiAddressT,
+    ApiAsset, ApiBalanceTransactionPostDataT, ApiByronWallet, ApiCoinSelectionT,
+    ApiConstructTransactionDataT, ApiConstructTransactionT,
+    ApiDecodedTransactionT, ApiFee, ApiHealthCheck, ApiMaintenanceAction,
+    ApiMaintenanceActionPostData, ApiNetworkClock, ApiNetworkInformation,
+    ApiNetworkParameters, ApiPolicyId, ApiPolicyKey, ApiPoolSpecifier,
+    ApiPostAccountKeyData, ApiPostAccountKeyDataWithPurpose,
+    ApiPostPolicyIdData, ApiPostPolicyKeyData, ApiPostRandomAddressData,
+    ApiPutAddressesDataT, ApiSelectCoinsDataT, ApiSerialisedTransaction,
+    ApiSharedWallet, ApiSharedWalletPatchData, ApiSharedWalletPostData,
+    ApiSignTransactionPostData, ApiStakeKeysT, ApiT, ApiTransactionT, ApiTxId,
+    ApiUtxoStatistics, ApiVerificationKeyShared, ApiVerificationKeyShelley,
+    ApiWallet, ApiWalletMigrationPlan, ApiWalletMigrationPlanPostDataT,
+    ApiWalletMigrationPostDataT, ApiWalletPassphrase, ApiWalletSignData,
+    ApiWalletUtxoSnapshot, ByronWalletPutPassphraseData, Iso8601Time, KeyFormat,
+    MinWithdrawal, PostTransactionFeeOldDataT, PostTransactionOldDataT,
+    SettingsPutData, SomeByronWalletPostData, WalletOrAccountPostData,
+    WalletPutData, WalletPutPassphraseData )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
 import Cardano.Wallet.Api.Types.Transaction
@@ -255,12 +211,8 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.Types
-    ( Block
-    , NetworkParameters
-    , SmashServer (..)
-    , SortOrder (..)
-    , WalletId (..)
-    )
+    ( Block, NetworkParameters, SmashServer (..), SortOrder (..),
+    WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -294,28 +246,10 @@ import Data.List.NonEmpty
 import GHC.Generics
     ( Generic )
 import Servant.API
-    ( (:<|>)
-    , (:>)
-    , Capture
-    , JSON
-    , OctetStream
-    , QueryFlag
-    , QueryParam
-    , ReqBody
-    )
+    ( Capture, JSON, OctetStream, QueryFlag, QueryParam, ReqBody, (:<|>), (:>) )
 import Servant.API.Verbs
-    ( DeleteAccepted
-    , DeleteNoContent
-    , Get
-    , Patch
-    , Post
-    , PostAccepted
-    , PostCreated
-    , PostNoContent
-    , Put
-    , PutAccepted
-    , PutNoContent
-    )
+    ( DeleteAccepted, DeleteNoContent, Get, Patch, Post, PostAccepted,
+    PostCreated, PostNoContent, Put, PutAccepted, PutNoContent )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Read as Read

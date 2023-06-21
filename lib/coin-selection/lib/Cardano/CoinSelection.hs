@@ -67,11 +67,8 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.CoinSelection.Balance
-    ( SelectionBalanceError (..)
-    , SelectionDelta (..)
-    , SelectionSkeleton
-    , SelectionStrategy (..)
-    )
+    ( SelectionBalanceError (..), SelectionDelta (..), SelectionSkeleton,
+    SelectionStrategy (..) )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin

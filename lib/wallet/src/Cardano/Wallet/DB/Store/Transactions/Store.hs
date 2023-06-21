@@ -27,27 +27,14 @@ module Cardano.Wallet.DB.Store.Transactions.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( CBOR (..)
-    , CBOR (..)
-    , EntityField (..)
-    , TxCollateral (..)
-    , TxCollateralOut (..)
-    , TxCollateralOutToken (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxOutToken (..)
-    , TxWithdrawal (..)
-    )
+    ( CBOR (..), EntityField (..), TxCollateral (..), TxCollateralOut (..),
+    TxCollateralOutToken (..), TxIn (..), TxOut (..), TxOutToken (..),
+    TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (..)
-    , DeltaTxSet
-    , TxRelation (..)
-    , TxSet (..)
-    , tokenCollateralOrd
-    , tokenOutOrd
-    )
+    ( DeltaTxSet (..), TxRelation (..), TxSet (..), tokenCollateralOrd,
+    tokenOutOrd )
 import Control.Arrow
     ( Arrow ((&&&)) )
 import Control.Monad.Reader
@@ -71,21 +58,9 @@ import Data.Store
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
-    ( BaseBackend
-    , Entity
-    , PersistEntity (PersistEntityBackend)
-    , PersistQueryRead
-    , SqlPersistT
-    , count
-    , deleteWhere
-    , entityVal
-    , keyFromRecordM
-    , repsertMany
-    , selectFirst
-    , selectList
-    , (<-.)
-    , (==.)
-    )
+    ( BaseBackend, Entity, PersistEntity (PersistEntityBackend),
+    PersistQueryRead, SqlPersistT, count, deleteWhere, entityVal,
+    keyFromRecordM, repsertMany, selectFirst, selectList, (<-.), (==.) )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

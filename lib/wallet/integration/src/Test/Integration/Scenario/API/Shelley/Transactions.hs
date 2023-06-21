@@ -26,22 +26,10 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddress
-    , ApiAsset (..)
-    , ApiCoinSelectionOutput (..)
-    , ApiEra (..)
-    , ApiFee (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxId (..)
-    , ApiTxInput (..)
-    , ApiWallet
-    , WalletStyle (..)
-    , apiAddress
-    , insertedAt
-    , pendingSince
-    )
+    ( AddressAmount (..), ApiAddress, ApiAsset (..),
+    ApiCoinSelectionOutput (..), ApiEra (..), ApiFee (..), ApiT (..),
+    ApiTransaction, ApiTxId (..), ApiTxInput (..), ApiWallet, WalletStyle (..),
+    apiAddress, insertedAt, pendingSince )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -99,76 +87,27 @@ import Test.Hspec.Extra
 import Test.Integration.Faucet
     ( seaHorsePolicyId, seaHorseTokenName )
 import Test.Integration.Framework.DSL
-    ( Context (_mainEra, _mintSeaHorseAssets)
-    , Headers (..)
-    , Payload (..)
-    , between
-    , computeApiCoinSelectionFee
-    , counterexample
-    , decodeErrorInfo
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectErrorInfo
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectListSizeSatisfy
-    , expectResponseCode
-    , expectSuccess
-    , faucetAmt
-    , faucetUtxoAmt
-    , fixtureIcarusWalletAddrs
-    , fixtureMultiAssetWallet
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , getFromResponse
-    , getWallet
-    , json
-    , listAddresses
-    , listAllTransactions
-    , listLimitedTransactions
-    , listTransactions
-    , minUTxOValue
-    , mkTxPayloadMA
-    , pickAnAsset
-    , postTx
-    , request
-    , rewardWallet
-    , selectCoinsWith
-    , toQueryString
-    , unsafeGetTransactionTime
-    , unsafeRequest
-    , utcIso8601ToText
-    , verify
-    , waitForTxImmutability
-    , walletId
-    , (.<)
-    , (.<=)
-    , (.>)
-    , (.>=)
-    )
+    ( Context (_mainEra, _mintSeaHorseAssets), Headers (..), Payload (..),
+    between, computeApiCoinSelectionFee, counterexample, decodeErrorInfo,
+    emptyRandomWallet, emptyWallet, eventually, expectErrorInfo,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectListSizeSatisfy, expectResponseCode, expectSuccess, faucetAmt,
+    faucetUtxoAmt, fixtureIcarusWalletAddrs, fixtureMultiAssetWallet,
+    fixturePassphrase, fixtureWallet, fixtureWalletWith, getFromResponse,
+    getWallet, json, listAddresses, listAllTransactions,
+    listLimitedTransactions, listTransactions, minUTxOValue, mkTxPayloadMA,
+    pickAnAsset, postTx, request, rewardWallet, selectCoinsWith, toQueryString,
+    unsafeGetTransactionTime, unsafeRequest, utcIso8601ToText, verify,
+    waitForTxImmutability, walletId, (.<), (.<=), (.>), (.>=) )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
-    , errMsg400TxMetadataStringTooLong
-    , errMsg403AlreadyInLedger
-    , errMsg403EmptyUTxO
-    , errMsg403Fee
-    , errMsg403MinUTxOValue
-    , errMsg403NotEnoughMoney
-    , errMsg403WithdrawalNotBeneficial
-    , errMsg403WrongPass
-    , errMsg404CannotFindTx
-    , errMsg404NoAsset
-    , errMsg404NoWallet
-    , steveToken
-    , txMetadata_ADP_1005
-    )
+    ( errMsg400MinWithdrawalWrong, errMsg400StartTimeLaterThanEndTime,
+    errMsg400TxMetadataStringTooLong, errMsg403AlreadyInLedger,
+    errMsg403EmptyUTxO, errMsg403Fee, errMsg403MinUTxOValue,
+    errMsg403NotEnoughMoney, errMsg403WithdrawalNotBeneficial,
+    errMsg403WrongPass, errMsg404CannotFindTx, errMsg404NoAsset,
+    errMsg404NoWallet, steveToken, txMetadata_ADP_1005 )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

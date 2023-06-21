@@ -19,17 +19,9 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiByronWallet
-    , ApiEra (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiTxInput (source)
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletMigrationPlan (..)
-    , WalletStyle (..)
-    )
+    ( ApiAddress, ApiByronWallet, ApiEra (..), ApiT (..), ApiTransaction,
+    ApiTxInput (source), ApiUtxoStatistics, ApiWallet,
+    ApiWalletMigrationPlan (..), WalletStyle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -59,39 +51,15 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectResponseCode
-    , fixtureIcarusWallet
-    , fixturePassphrase
-    , fixtureRandomWallet
-    , getFromResponse
-    , icarusAddresses
-    , json
-    , listAddresses
-    , postByronWallet
-    , randomAddresses
-    , request
-    , unsafeRequest
-    , unsafeResponse
-    , verify
-    , waitForTxImmutability
-    , walletId
-    , (.>)
-    )
+    ( Context (..), Headers (..), Payload (..), emptyIcarusWallet,
+    emptyRandomWallet, emptyWallet, eventually, expectErrorMessage, expectField,
+    expectResponseCode, fixtureIcarusWallet, fixturePassphrase,
+    fixtureRandomWallet, getFromResponse, icarusAddresses, json, listAddresses,
+    postByronWallet, randomAddresses, request, unsafeRequest, unsafeResponse,
+    verify, waitForTxImmutability, walletId, (.>) )
 import Test.Integration.Framework.TestData
-    ( errMsg400ParseError
-    , errMsg403NothingToMigrate
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    )
+    ( errMsg400ParseError, errMsg403NothingToMigrate, errMsg403WrongPass,
+    errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes

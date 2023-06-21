@@ -10,12 +10,8 @@ module Cardano.Wallet.Primitive.Passphrase.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    , PassphraseScheme (..)
-    , preparePassphrase
-    )
+    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..),
+    PassphraseScheme (..), preparePassphrase )
 import Control.Monad
     ( replicateM )
 import Data.Proxy

@@ -31,61 +31,29 @@ import Cardano.Address.Script
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionBalanceError (..)
-    , SelectionCollateralError
-    , SelectionError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , UnableToConstructChangeError (..)
-    , WalletSelectionContext
-    )
+    ( SelectionBalanceError (..), SelectionCollateralError, SelectionError (..),
+    SelectionOutputError (..), SelectionOutputErrorInfo (..),
+    SelectionOutputSizeExceedsLimitError,
+    SelectionOutputTokenQuantityExceedsLimitError (..),
+    UnableToConstructChangeError (..), WalletSelectionContext )
 import Cardano.Wallet
-    ( ErrAddCosignerKey (..)
-    , ErrCannotJoin (..)
-    , ErrCannotQuit (..)
-    , ErrConstructSharedWallet (..)
-    , ErrConstructTx (..)
-    , ErrCreateMigrationPlan (..)
-    , ErrCreateRandomAddress (..)
-    , ErrDerivePublicKey (..)
-    , ErrFetchRewards (..)
-    , ErrGetPolicyId (..)
-    , ErrGetTransaction (..)
-    , ErrImportAddress (..)
-    , ErrImportRandomAddress (..)
-    , ErrInvalidDerivationIndex (..)
-    , ErrListTransactions (..)
-    , ErrMkTransaction (..)
-    , ErrNoSuchTransaction (..)
-    , ErrNoSuchWallet (..)
-    , ErrNotASequentialWallet (..)
-    , ErrPostTx (..)
-    , ErrReadAccountPublicKey (..)
-    , ErrReadPolicyPublicKey (..)
-    , ErrReadRewardAccount (..)
-    , ErrRemoveTx (..)
-    , ErrSelectAssets (..)
-    , ErrSignMetadataWith (..)
-    , ErrSignPayment (..)
-    , ErrStakePoolDelegation (..)
-    , ErrStartTimeLaterThanEndTime (..)
-    , ErrSubmitTransaction (..)
-    , ErrSubmitTx (..)
-    , ErrUpdatePassphrase (..)
-    , ErrUpdateSealedTx (..)
-    , ErrWalletAlreadyExists (..)
-    , ErrWalletNotInitialized (..)
-    , ErrWalletNotResponding (..)
-    , ErrWithRootKey (..)
-    , ErrWithdrawalNotBeneficial (..)
-    , ErrWitnessTx (..)
-    , ErrWritePolicyPublicKey (..)
-    , ErrWriteTxEra (..)
-    , ErrWrongPassphrase (..)
-    , WalletException (..)
-    )
+    ( ErrAddCosignerKey (..), ErrCannotJoin (..), ErrCannotQuit (..),
+    ErrConstructSharedWallet (..), ErrConstructTx (..),
+    ErrCreateMigrationPlan (..), ErrCreateRandomAddress (..),
+    ErrDerivePublicKey (..), ErrFetchRewards (..), ErrGetPolicyId (..),
+    ErrGetTransaction (..), ErrImportAddress (..), ErrImportRandomAddress (..),
+    ErrInvalidDerivationIndex (..), ErrListTransactions (..),
+    ErrMkTransaction (..), ErrNoSuchTransaction (..), ErrNoSuchWallet (..),
+    ErrNotASequentialWallet (..), ErrPostTx (..), ErrReadAccountPublicKey (..),
+    ErrReadPolicyPublicKey (..), ErrReadRewardAccount (..), ErrRemoveTx (..),
+    ErrSelectAssets (..), ErrSignMetadataWith (..), ErrSignPayment (..),
+    ErrStakePoolDelegation (..), ErrStartTimeLaterThanEndTime (..),
+    ErrSubmitTransaction (..), ErrSubmitTx (..), ErrUpdatePassphrase (..),
+    ErrUpdateSealedTx (..), ErrWalletAlreadyExists (..),
+    ErrWalletNotInitialized (..), ErrWalletNotResponding (..),
+    ErrWithRootKey (..), ErrWithdrawalNotBeneficial (..), ErrWitnessTx (..),
+    ErrWritePolicyPublicKey (..), ErrWriteTxEra (..), ErrWrongPassphrase (..),
+    WalletException (..) )
 import Cardano.Wallet.Address.Derivation
     ( DerivationType (Hardened, Soft), Index (Index) )
 import Cardano.Wallet.Address.Discovery.Shared
@@ -93,20 +61,13 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Api.Hex
     ( hexText )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..)
-    , ApiCredentialType (..)
-    , Iso8601Time (..)
-    , toApiEra
-    )
+    ( ApiCosignerIndex (..), ApiCredentialType (..), Iso8601Time (..),
+    toApiEra )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiError (..)
-    , ApiErrorBalanceTxUnderestimatedFee (..)
-    , ApiErrorInfo (..)
-    , ApiErrorMessage (..)
-    , ApiErrorNodeNotYetInRecentEra (..)
-    , ApiErrorSharedWalletNoSuchCosigner (..)
-    , ApiErrorTxOutputLovelaceInsufficient (..)
-    )
+    ( ApiError (..), ApiErrorBalanceTxUnderestimatedFee (..), ApiErrorInfo (..),
+    ApiErrorMessage (..), ApiErrorNodeNotYetInRecentEra (..),
+    ApiErrorSharedWalletNoSuchCosigner (..),
+    ApiErrorTxOutputLovelaceInsufficient (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -152,16 +113,8 @@ import Safe
 import Servant
     ( Accept (contentType), JSON, Proxy (Proxy) )
 import Servant.Server
-    ( Handler (Handler)
-    , ServerError (..)
-    , err400
-    , err403
-    , err404
-    , err409
-    , err500
-    , err501
-    , err503
-    )
+    ( Handler (Handler), ServerError (..), err400, err403, err404, err409,
+    err500, err501, err503 )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

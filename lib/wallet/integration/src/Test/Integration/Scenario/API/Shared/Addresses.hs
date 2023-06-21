@@ -43,20 +43,9 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , genXPubsBech32
-    , getFromResponse
-    , isValidDerivationPath
-    , json
-    , postSharedWallet
-    , request
-    , verify
-    )
+    ( Context (..), Headers (..), Payload (..), expectListField, expectListSize,
+    expectResponseCode, genXPubsBech32, getFromResponse, isValidDerivationPath,
+    json, postSharedWallet, request, verify )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types as HTTP

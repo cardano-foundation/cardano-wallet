@@ -77,26 +77,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Address.Script
-    ( Cosigner
-    , KeyHash (..)
-    , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
-    , ScriptTemplate (..)
-    , foldScript
-    , toScriptHash
-    )
+    ( Cosigner, KeyHash (..), KeyRole (..), Script (..), ScriptHash (..),
+    ScriptTemplate (..), foldScript, toScriptHash )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , ByronEra
-    , CardanoEra (..)
-    , InAnyCardanoEra (..)
-    , IsShelleyBasedEra (..)
-    , NetworkId
-    , SerialiseAsCBOR (..)
-    , ShelleyBasedEra (..)
-    , ToCBOR
-    )
+    ( AnyCardanoEra (..), ByronEra, CardanoEra (..), InAnyCardanoEra (..),
+    IsShelleyBasedEra (..), NetworkId, SerialiseAsCBOR (..),
+    ShelleyBasedEra (..), ToCBOR )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
@@ -112,11 +98,8 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Slotting.EpochInfo
     ( EpochInfo, hoistEpochInfo )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , SelectionSkeleton (..)
-    , selectionDelta
-    )
+    ( SelectionOf (..), SelectionOutputTokenQuantityExceedsLimitError (..),
+    SelectionSkeleton (..), selectionDelta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), RewardAccount (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -132,12 +115,8 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate
-    , FeePolicy (..)
-    , LinearFunction (..)
-    , ProtocolParameters (..)
-    , TxParameters (..)
-    )
+    ( Certificate, FeePolicy (..), LinearFunction (..), ProtocolParameters (..),
+    TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -155,13 +134,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , Tx (..)
-    , TxMetadata (..)
-    , cardanoTxIdeallyNoLaterThan
-    , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
-    )
+    ( SealedTx (..), Tx (..), TxMetadata (..), cardanoTxIdeallyNoLaterThan,
+    sealedTxFromCardano', sealedTxFromCardanoBody )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txOutMaxTokenQuantity, txSizeDistance )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -171,59 +145,31 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Read.Primitive.Tx
     ( fromCardanoTx )
 import Cardano.Wallet.Shelley.Compatibility
-    ( cardanoCertKeysForWitnesses
-    , fromCardanoAddress
-    , fromCardanoLovelace
-    , fromCardanoWdrls
-    , toCardanoLovelace
-    , toCardanoPolicyId
-    , toCardanoSimpleScript
-    , toCardanoStakeCredential
-    , toCardanoTxIn
-    , toCardanoTxOut
-    , toCardanoValue
-    , toCostModelsAsArray
-    , toHDPayloadAddress
-    , toScriptPurpose
-    , toStakeKeyDeregCert
-    , toStakeKeyRegCert
-    , toStakePoolDlgCert
-    )
+    ( cardanoCertKeysForWitnesses, fromCardanoAddress, fromCardanoLovelace,
+    fromCardanoWdrls, toCardanoLovelace, toCardanoPolicyId,
+    toCardanoSimpleScript, toCardanoStakeCredential, toCardanoTxIn,
+    toCardanoTxOut, toCardanoValue, toCostModelsAsArray, toHDPayloadAddress,
+    toScriptPurpose, toStakeKeyDeregCert, toStakeKeyRegCert,
+    toStakePoolDlgCert )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , AnyScript (..)
-    , DelegationAction (..)
-    , ErrAssignRedeemers (..)
-    , ErrMkTransaction (..)
-    , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
-    , ErrUpdateSealedTx (..)
-    , PreSelection (..)
-    , TokenMapWithScripts
-    , TransactionCtx (..)
-    , TransactionLayer (..)
-    , TxFeeAndChange (..)
-    , ValidityIntervalExplicit
-    , Withdrawal (..)
-    , WitnessCount (..)
-    , WitnessCountCtx (..)
-    , mapTxFeeAndChange
-    , withdrawalToCoin
-    )
+    ( AnyExplicitScript (..), AnyScript (..), DelegationAction (..),
+    ErrAssignRedeemers (..), ErrMkTransaction (..),
+    ErrMoreSurplusNeeded (ErrMoreSurplusNeeded), ErrUpdateSealedTx (..),
+    PreSelection (..), TokenMapWithScripts, TransactionCtx (..),
+    TransactionLayer (..), TxFeeAndChange (..), ValidityIntervalExplicit,
+    Withdrawal (..), WitnessCount (..), WitnessCountCtx (..), mapTxFeeAndChange,
+    withdrawalToCoin )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
-    ( FeePerByte (..)
-    , IsRecentEra (recentEra)
-    , KeyWitnessCount (..)
-    , RecentEra (..)
-    , fromCardanoUTxO
-    )
+    ( FeePerByte (..), IsRecentEra (recentEra), KeyWitnessCount (..),
+    RecentEra (..), fromCardanoUTxO )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise

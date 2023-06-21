@@ -19,21 +19,11 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , SoftDerivation (..)
-    )
+    ( Depth (..), DerivationType (..), HardDerivation (..), Index,
+    MkKeyFingerprint (..), PaymentAddress (..), Role (..), SoftDerivation (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..)
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    , unsafeGenerateKeyFromSeed
-    )
+    ( IcarusKey (..), generateKeyFromSeed, minSeedLengthBytes,
+    unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -51,14 +41,8 @@ import Cardano.Wallet.Read.NetworkId
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , arbitraryBoundedEnum
-    , choose
-    , property
-    , vector
-    , (===)
-    )
+    ( Arbitrary (..), Property, arbitraryBoundedEnum, choose, property, vector,
+    (===) )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

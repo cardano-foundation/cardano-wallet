@@ -58,12 +58,8 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , coinTypeAda
-    , defaultAddressPoolGap
-    , purposeCIP1852
-    )
+    ( DerivationPrefix (..), SeqState (..), coinTypeAda, defaultAddressPoolGap,
+    purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedAddressPools (..), SharedState (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -79,38 +75,16 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
-    , PassphraseHash (..)
-    , PassphraseScheme (..)
-    , WalletPassphraseInfo (..)
-    )
+    ( Passphrase (..), PassphraseHash (..), PassphraseScheme (..),
+    WalletPassphraseInfo (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , DecentralizationLevel
-    , DelegationCertificate (..)
-    , EpochNo (..)
-    , EraInfo (..)
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
-    , FeePolicy (..)
-    , LinearFunction (LinearFunction)
-    , ProtocolParameters (..)
-    , Range (..)
-    , Slot
-    , SlotInEpoch (..)
-    , SlotNo (..)
-    , SortOrder (..)
-    , TxParameters (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    , WithOrigin (..)
-    , fromDecentralizationLevel
-    , rangeIsValid
-    , unsafeEpochNo
-    , wholeRange
-    )
+    ( Block (..), BlockHeader (..), DecentralizationLevel,
+    DelegationCertificate (..), EpochNo (..), EraInfo (..),
+    ExecutionUnitPrices (..), ExecutionUnits (..), FeePolicy (..),
+    LinearFunction (LinearFunction), ProtocolParameters (..), Range (..), Slot,
+    SlotInEpoch (..), SlotNo (..), SortOrder (..), TxParameters (..),
+    WalletId (..), WalletMetadata (..), WalletName (..), WithOrigin (..),
+    fromDecentralizationLevel, rangeIsValid, unsafeEpochNo, wholeRange )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -198,26 +172,10 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , NonEmptyList (..)
-    , arbitraryBoundedEnum
-    , arbitrarySizedBoundedIntegral
-    , arbitrarySizedNatural
-    , choose
-    , elements
-    , frequency
-    , generate
-    , genericShrink
-    , liftArbitrary
-    , oneof
-    , scale
-    , shrinkIntegral
-    , shrinkList
-    , vector
-    , vectorOf
-    )
+    ( Arbitrary (..), Gen, InfiniteList (..), NonEmptyList (..),
+    arbitraryBoundedEnum, arbitrarySizedBoundedIntegral, arbitrarySizedNatural,
+    choose, elements, frequency, generate, genericShrink, liftArbitrary, oneof,
+    scale, shrinkIntegral, shrinkList, vector, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
 import Test.QuickCheck.Extra

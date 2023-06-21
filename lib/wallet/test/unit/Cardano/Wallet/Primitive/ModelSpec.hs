@@ -36,43 +36,17 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents, summarizeOnTxOut )
 import Cardano.Wallet.Primitive.Model
-    ( BlockData (..)
-    , DeltaWallet
-    , FilteredBlock
-    , Wallet
-    , applyBlock
-    , applyBlockData
-    , applyBlocks
-    , applyOurTxToUTxO
-    , applyTxToUTxO
-    , availableBalance
-    , availableUTxO
-    , changeUTxO
-    , currentTip
-    , discoverAddressesBlock
-    , discoverFromBlockData
-    , getState
-    , initWallet
-    , spendTx
-    , totalBalance
-    , totalUTxO
-    , unsafeInitWallet
-    , updateOurs
-    , utxo
-    , utxoFromTx
-    , utxoFromTxCollateralOutputs
-    , utxoFromTxOutputs
-    )
+    ( BlockData (..), DeltaWallet, FilteredBlock, Wallet, applyBlock,
+    applyBlockData, applyBlocks, applyOurTxToUTxO, applyTxToUTxO,
+    availableBalance, availableUTxO, changeUTxO, currentTip,
+    discoverAddressesBlock, discoverFromBlockData, getState, initWallet,
+    spendTx, totalBalance, totalUTxO, unsafeInitWallet, updateOurs, utxo,
+    utxoFromTx, utxoFromTxCollateralOutputs, utxoFromTxOutputs )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , EpochLength (..)
-    , Slot
-    , SlotId (..)
-    , SlotNo (..)
-    )
+    ( Block (..), BlockHeader (..), EpochLength (..), Slot, SlotId (..),
+    SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
@@ -88,15 +62,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxMeta (direction)
-    , TxScriptValidity (..)
-    , collateralInputs
-    , inputs
-    , txIns
-    , txScriptInvalid
-    )
+    ( Direction (..), Tx (..), TxMeta (direction), TxScriptValidity (..),
+    collateralInputs, inputs, txIns, txScriptInvalid )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxScriptValidity, shrinkTx )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -160,52 +127,15 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Fun (..)
-    , Function (..)
-    , Gen
-    , Positive (..)
-    , Property
-    , Testable
-    , applyFun
-    , arbitrarySizedBoundedIntegral
-    , checkCoverage
-    , choose
-    , classify
-    , conjoin
-    , counterexample
-    , cover
-    , elements
-    , forAllShrink
-    , frequency
-    , genericShrink
-    , label
-    , liftArbitrary
-    , listOf
-    , oneof
-    , property
-    , scale
-    , shrinkIntegral
-    , shrinkList
-    , shrinkMap
-    , shrinkMapBy
-    , shrinkNothing
-    , vector
-    , withMaxSuccess
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Fun (..), Function (..), Gen,
+    Positive (..), Property, Testable, applyFun, arbitrarySizedBoundedIntegral,
+    checkCoverage, choose, classify, conjoin, counterexample, cover, elements,
+    forAllShrink, frequency, genericShrink, label, liftArbitrary, listOf, oneof,
+    property, scale, shrinkIntegral, shrinkList, shrinkMap, shrinkMapBy,
+    shrinkNothing, vector, withMaxSuccess, (.&&.), (===) )
 import Test.QuickCheck.Extra
-    ( Pretty (..)
-    , chooseNatural
-    , genericRoundRobinShrink
-    , labelInterval
-    , report
-    , verify
-    , (<:>)
-    , (<@>)
-    )
+    ( Pretty (..), chooseNatural, genericRoundRobinShrink, labelInterval,
+    report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Instances.ByteString
     ()
 import Test.Utils.Pretty

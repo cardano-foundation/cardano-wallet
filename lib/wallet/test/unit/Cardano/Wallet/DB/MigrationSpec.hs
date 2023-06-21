@@ -12,13 +12,8 @@ import Prelude hiding
     ( (.) )
 
 import Cardano.Wallet.DB.Migration
-    ( ErrWrongVersion (ErrWrongVersion)
-    , Migration
-    , MigrationInterface (..)
-    , Version (..)
-    , mkMigration
-    , runMigrations
-    )
+    ( ErrWrongVersion (ErrWrongVersion), Migration, MigrationInterface (..),
+    Version (..), mkMigration, runMigrations )
 import Control.Category
     ( (.) )
 import Control.Monad.Class.MonadThrow

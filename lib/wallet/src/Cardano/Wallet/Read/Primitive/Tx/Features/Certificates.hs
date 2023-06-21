@@ -30,10 +30,8 @@ import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolCertificate (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    )
+    ( PoolCertificate (..), PoolRegistrationCertificate (..),
+    PoolRetirementCertificate (..) )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Tx.Certificates

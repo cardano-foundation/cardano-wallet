@@ -28,31 +28,12 @@ import Safe
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary
-    , Fun
-    , Function
-    , Gen
-    , Property
-    , applyFun
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , choose
-    , cover
-    , genericShrink
-    , listOf
-    , property
-    , shrinkMapBy
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary, Fun, Function, Gen, Property, applyFun,
+    arbitraryBoundedEnum, checkCoverage, choose, cover, genericShrink, listOf,
+    property, shrinkMapBy, (===) )
 import Test.QuickCheck.Classes
-    ( bifoldableLaws
-    , bifunctorLaws
-    , eqLaws
-    , foldableLaws
-    , functorLaws
-    , showLaws
-    )
+    ( bifoldableLaws, bifunctorLaws, eqLaws, foldableLaws, functorLaws,
+    showLaws )
 import Test.Utils.Laws
     ( testLawsMany )
 

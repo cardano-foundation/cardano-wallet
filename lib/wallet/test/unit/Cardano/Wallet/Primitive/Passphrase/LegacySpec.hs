@@ -12,24 +12,14 @@ module Cardano.Wallet.Primitive.Passphrase.LegacySpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase
-    ( ErrWrongPassphrase (ErrWrongPassphrase)
-    , PassphraseScheme (EncryptWithScrypt)
-    , checkPassphrase
-    , encryptPassphrase'
-    )
+    ( ErrWrongPassphrase (ErrWrongPassphrase),
+    PassphraseScheme (EncryptWithScrypt), checkPassphrase, encryptPassphrase' )
 import Cardano.Wallet.Primitive.Passphrase.Gen
-    ( genEncryptionPassphrase
-    , genPassphraseScheme
-    , genUserPassphrase
-    , shrinkUserPassphrase
-    )
+    ( genEncryptionPassphrase, genPassphraseScheme, genUserPassphrase,
+    shrinkUserPassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( checkPassphraseTestingOnly
-    , encryptPassphraseTestingOnly
-    , getSalt
-    , haveScrypt
-    , preparePassphrase
-    )
+    ( checkPassphraseTestingOnly, encryptPassphraseTestingOnly, getSalt,
+    haveScrypt, preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Unsafe

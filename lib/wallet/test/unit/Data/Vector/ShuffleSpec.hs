@@ -13,18 +13,8 @@ import System.Random
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Confidence (..)
-    , NonEmptyList (..)
-    , Positive (..)
-    , PrintableString (..)
-    , Property
-    , arbitrary
-    , checkCoverageWith
-    , cover
-    , label
-    , vectorOf
-    , (==>)
-    )
+    ( Confidence (..), NonEmptyList (..), Positive (..), PrintableString (..),
+    Property, arbitrary, checkCoverageWith, cover, label, vectorOf, (==>) )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, pick, run )
 

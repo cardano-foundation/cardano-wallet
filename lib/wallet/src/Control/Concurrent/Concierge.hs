@@ -20,15 +20,8 @@ module Control.Concurrent.Concierge
 import Prelude
 
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM
-    , TVar
-    , atomically
-    , modifyTVar
-    , newTVarIO
-    , readTVar
-    , retry
-    , writeTVar
-    )
+    ( MonadSTM, TVar, atomically, modifyTVar, newTVarIO, readTVar, retry,
+    writeTVar )
 import Control.Monad.Class.MonadFork
     ( MonadThread, ThreadId, myThreadId )
 import Control.Monad.Class.MonadThrow

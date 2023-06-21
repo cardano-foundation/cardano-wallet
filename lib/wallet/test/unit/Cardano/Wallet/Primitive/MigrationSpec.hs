@@ -11,12 +11,8 @@ import Cardano.Wallet.Primitive.Migration
 import Cardano.Wallet.Primitive.Migration.Planning
     ( categorizeUTxO, uncategorizeUTxO )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockTxConstraints
-    , genRewardWithdrawal
-    , genTokenBundleMixed
-    , testAll
-    , unMockTxConstraints
-    )
+    ( MockTxConstraints, genRewardWithdrawal, genTokenBundleMixed, testAll,
+    unMockTxConstraints )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn

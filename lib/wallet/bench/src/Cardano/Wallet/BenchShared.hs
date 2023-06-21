@@ -38,12 +38,8 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Launcher.Node
-    ( CardanoNodeConfig (..)
-    , CardanoNodeConn
-    , NodePort (..)
-    , cardanoNodeConn
-    , withCardanoNode
-    )
+    ( CardanoNodeConfig (..), CardanoNodeConn, NodePort (..), cardanoNodeConn,
+    withCardanoNode )
 import Cardano.Startup
     ( installSignalHandlers )
 import Cardano.Wallet.Logging
@@ -72,25 +68,9 @@ import GHC.Generics
     ( Generic )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( HasValue
-    , Mod
-    , Parser
-    , eitherReader
-    , execParser
-    , help
-    , helper
-    , info
-    , long
-    , metavar
-    , option
-    , optional
-    , short
-    , showDefaultWith
-    , strArgument
-    , strOption
-    , switch
-    , value
-    )
+    ( HasValue, Mod, Parser, eitherReader, execParser, help, helper, info, long,
+    metavar, option, optional, short, showDefaultWith, strArgument, strOption,
+    switch, value )
 import Say
     ( sayErr )
 import System.Directory

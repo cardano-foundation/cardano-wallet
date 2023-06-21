@@ -13,13 +13,8 @@ import Prelude
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (..), TlsConfiguration (..), withListeningSocket )
 import Cardano.X509.Configuration
-    ( CertDescription (..)
-    , ConfigurationKey (..)
-    , DirConfiguration (..)
-    , decodeConfigFile
-    , fromConfiguration
-    , genCertificate
-    )
+    ( CertDescription (..), ConfigurationKey (..), DirConfiguration (..),
+    decodeConfigFile, fromConfiguration, genCertificate )
 import Control.Monad
     ( unless )
 import Control.Tracer
@@ -41,31 +36,17 @@ import Data.X509.File
 import Network.Connection
     ( TLSSettings (..) )
 import Network.HTTP.Client
-    ( HttpException (..)
-    , HttpExceptionContent (..)
-    , ManagerSettings (..)
-    , Response
-    , defaultManagerSettings
-    , httpLbs
-    , newManager
-    , parseRequest
-    , responseStatus
-    )
+    ( HttpException (..), HttpExceptionContent (..), ManagerSettings (..),
+    Response, defaultManagerSettings, httpLbs, newManager, parseRequest,
+    responseStatus )
 import Network.HTTP.Client.TLS
     ( mkManagerSettings )
 import Network.HTTP.Types.Status
     ( Status (..) )
 import Network.TLS
-    ( AlertDescription (..)
-    , ClientHooks (..)
-    , ClientParams (..)
-    , Credentials (..)
-    , Shared (..)
-    , Supported (..)
-    , TLSError (..)
-    , TLSException (..)
-    , noSessionManager
-    )
+    ( AlertDescription (..), ClientHooks (..), ClientParams (..),
+    Credentials (..), Shared (..), Supported (..), TLSError (..),
+    TLSException (..), noSessionManager )
 import Network.TLS.Extra.Cipher
     ( ciphersuite_default )
 import Network.Wai

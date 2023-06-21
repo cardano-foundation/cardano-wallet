@@ -28,12 +28,8 @@ module Cardano.Wallet.Address.Book
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , Role (..)
-    )
+    ( Depth (..), DerivationType (..), Index (..), KeyFingerprint (..),
+    Role (..) )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.Derivation.SharedKey

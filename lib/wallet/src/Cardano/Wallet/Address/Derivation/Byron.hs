@@ -47,25 +47,13 @@ module Cardano.Wallet.Address.Derivation.Byron
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1)
-    , XPrv
-    , XPub
-    , deriveXPrv
-    , generate
-    , toXPub
-    , unXPub
-    )
+    ( DerivationScheme (DerivationScheme1), XPrv, XPub, deriveXPrv, generate,
+    toXPub, unXPub )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    )
+    ( Depth (..), DerivationType (..), ErrMkKeyFingerprint (..), Index (..),
+    KeyFingerprint (..), MkKeyFingerprint (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address

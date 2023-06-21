@@ -73,26 +73,14 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    )
+    ( AnyExplicitScript (..), ValidityIntervalExplicit (..), WitnessCount (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
-    ( FromJSON (..)
-    , KeyValue (..)
-    , ToJSON (..)
-    , Value (..)
-    , object
-    , prependFailure
-    , withObject
-    , (.!=)
-    , (.:)
-    , (.:?)
-    )
+    ( FromJSON (..), KeyValue (..), ToJSON (..), Value (..), object,
+    prependFailure, withObject, (.!=), (.:), (.:?) )
 import Data.Bifunctor
     ( first )
 import Data.Hashable

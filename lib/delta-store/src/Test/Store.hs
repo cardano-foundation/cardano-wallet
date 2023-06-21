@@ -35,11 +35,8 @@ import Control.Monad
 import Control.Monad.RWS
     ( RWST, evalRWST, lift )
 import Control.Monad.RWS.Class
-    ( MonadReader (ask)
-    , MonadState (get, put)
-    , MonadWriter (listen, tell)
-    , censor
-    )
+    ( MonadReader (ask), MonadState (get, put), MonadWriter (listen, tell),
+    censor )
 import Data.Delta
     ( Delta (..) )
 import Data.Either
@@ -49,15 +46,8 @@ import Data.Store
 import Fmt
     ( Buildable, listF, pretty )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , conjoin
-    , counterexample
-    , forAll
-    , forAllShrink
-    , getSize
-    , (===)
-    )
+    ( Gen, Property, conjoin, counterexample, forAll, forAllShrink, getSize,
+    (===) )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 

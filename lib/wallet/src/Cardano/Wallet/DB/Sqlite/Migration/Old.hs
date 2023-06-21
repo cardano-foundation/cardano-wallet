@@ -34,14 +34,8 @@ module Cardano.Wallet.DB.Sqlite.Migration.Old
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBField (..)
-    , DBLog (..)
-    , ManualMigration (..)
-    , fieldName
-    , fieldType
-    , foldMigrations
-    , tableName
-    )
+    ( DBField (..), DBLog (..), ManualMigration (..), fieldName, fieldType,
+    foldMigrations, tableName )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..) )
 import Cardano.Wallet.Flavor

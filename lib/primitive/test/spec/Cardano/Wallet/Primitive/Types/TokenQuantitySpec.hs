@@ -15,10 +15,8 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange
-    , genTokenQuantityPartition
-    , shrinkTokenQuantityFullRange
-    )
+    ( genTokenQuantityFullRange, genTokenQuantityPartition,
+    shrinkTokenQuantityFullRange )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Function
@@ -38,25 +36,11 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , conjoin
-    , counterexample
-    , cover
-    , forAll
-    , property
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Property, checkCoverage, conjoin, counterexample, cover,
+    forAll, property, (===), (==>) )
 import Test.QuickCheck.Classes
-    ( eqLaws
-    , monoidLaws
-    , ordLaws
-    , semigroupLaws
-    , semigroupMonoidLaws
-    , showReadLaws
-    )
+    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws,
+    showReadLaws )
 import Test.QuickCheck.Extra
     ( genNonEmpty, shrinkNonEmpty )
 import Test.Text.Roundtrip

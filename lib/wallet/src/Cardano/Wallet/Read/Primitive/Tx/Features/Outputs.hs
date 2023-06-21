@@ -37,13 +37,8 @@ import Data.Foldable
 import GHC.Stack
     ( HasCallStack )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
+    ( StandardAllegra, StandardAlonzo, StandardBabbage, StandardConway,
+    StandardMary, StandardShelley )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.UTxO as Byron
@@ -56,8 +51,8 @@ import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W

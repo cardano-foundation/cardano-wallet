@@ -30,66 +30,23 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS) )
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient
-    , genBlockHeader
-    , genNestedTxMetadata
-    , genSlotNo
-    , shrinkActiveSlotCoefficient
-    , shrinkSlotNo
-    , shrinkTxMetadata
-    )
+    ( genActiveSlotCoefficient, genBlockHeader, genNestedTxMetadata, genSlotNo,
+    shrinkActiveSlotCoefficient, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Slotting.Legacy
-    ( SlotParameters (..)
-    , epochStartTime
-    , flatSlot
-    , fromFlatSlot
-    , slotAt'
-    , slotCeiling
-    , slotDifference
-    , slotFloor
-    , slotMinBound
-    , slotPred
-    , slotRangeFromTimeRange'
-    , slotStartTime
-    , slotSucc
-    )
+    ( SlotParameters (..), epochStartTime, flatSlot, fromFlatSlot, slotAt',
+    slotCeiling, slotDifference, slotFloor, slotMinBound, slotPred,
+    slotRangeFromTimeRange', slotStartTime, slotSucc )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..), mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Block (..)
-    , BlockHeader (..)
-    , EpochLength (..)
-    , EpochNo (..)
-    , FeePolicy (..)
-    , LinearFunction (..)
-    , Range (..)
-    , RangeBound (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
-    , SlotLength (..)
-    , SlotNo (..)
-    , StartTime (..)
-    , WalletId (..)
-    , WalletName (..)
-    , isAfterRange
-    , isBeforeRange
-    , isSubrangeOf
-    , isWithinRange
-    , mapRangeLowerBound
-    , mapRangeUpperBound
-    , rangeHasLowerBound
-    , rangeHasUpperBound
-    , rangeIsFinite
-    , rangeIsSingleton
-    , rangeIsValid
-    , rangeLowerBound
-    , rangeUpperBound
-    , unsafeEpochNo
-    , walletNameMaxLength
-    , walletNameMinLength
-    , wholeRange
-    )
+    ( ActiveSlotCoefficient (..), Block (..), BlockHeader (..),
+    EpochLength (..), EpochNo (..), FeePolicy (..), LinearFunction (..),
+    Range (..), RangeBound (..), SlotId (..), SlotInEpoch (..), SlotLength (..),
+    SlotNo (..), StartTime (..), WalletId (..), WalletName (..), isAfterRange,
+    isBeforeRange, isSubrangeOf, isWithinRange, mapRangeLowerBound,
+    mapRangeUpperBound, rangeHasLowerBound, rangeHasUpperBound, rangeIsFinite,
+    rangeIsSingleton, rangeIsValid, rangeLowerBound, rangeUpperBound,
+    unsafeEpochNo, walletNameMaxLength, walletNameMinLength, wholeRange )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -111,14 +68,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..)
-    , balance
-    , dom
-    , excluding
-    , isSubsetOf
-    , restrictedBy
-    , restrictedTo
-    )
+    ( UTxO (..), balance, dom, excluding, isSubsetOf, restrictedBy,
+    restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Unsafe
@@ -160,43 +111,14 @@ import Data.Word.Odd
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec
-    , anyErrorCall
-    , describe
-    , it
-    , shouldBe
-    , shouldNotSatisfy
-    , shouldSatisfy
-    , shouldThrow
-    )
+    ( Spec, anyErrorCall, describe, it, shouldBe, shouldNotSatisfy,
+    shouldSatisfy, shouldThrow )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonNegative (..)
-    , NonZero (..)
-    , Property
-    , Small (..)
-    , applyArbitrary4
-    , arbitraryBoundedEnum
-    , arbitraryBoundedIntegral
-    , arbitraryPrintableChar
-    , arbitrarySizedBoundedIntegral
-    , checkCoverage
-    , choose
-    , counterexample
-    , cover
-    , elements
-    , infiniteList
-    , oneof
-    , property
-    , scale
-    , shrinkIntegral
-    , vector
-    , withMaxSuccess
-    , (.&&.)
-    , (=/=)
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), NonNegative (..), NonZero (..), Property, Small (..),
+    applyArbitrary4, arbitraryBoundedEnum, arbitraryBoundedIntegral,
+    arbitraryPrintableChar, arbitrarySizedBoundedIntegral, checkCoverage,
+    choose, counterexample, cover, elements, infiniteList, oneof, property,
+    scale, shrinkIntegral, vector, withMaxSuccess, (.&&.), (=/=), (===), (==>) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Classes

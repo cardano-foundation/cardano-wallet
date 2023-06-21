@@ -32,71 +32,31 @@ import Cardano.BM.Plugin
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.CLI
-    ( LogOutput (..)
-    , LoggingOptions
-    , cli
-    , cmdAddress
-    , cmdKey
-    , cmdMnemonic
-    , cmdNetwork
-    , cmdStakePool
-    , cmdTransaction
-    , cmdVersion
-    , cmdWallet
-    , cmdWalletCreate
-    , databaseOption
-    , ekgEnabled
-    , enableWindowsANSI
-    , helperTracing
-    , hostPreferenceOption
-    , listenOption
-    , loggingMinSeverity
-    , loggingOptions
-    , loggingSeverityOrOffReader
-    , loggingTracers
-    , poolMetadataSourceOption
-    , runCli
-    , setupDirectory
-    , shutdownHandlerFlag
-    , tlsOption
-    , tokenMetadataSourceOption
-    , withLogging
-    )
+    ( LogOutput (..), LoggingOptions, cli, cmdAddress, cmdKey, cmdMnemonic,
+    cmdNetwork, cmdStakePool, cmdTransaction, cmdVersion, cmdWallet,
+    cmdWalletCreate, databaseOption, ekgEnabled, enableWindowsANSI,
+    helperTracing, hostPreferenceOption, listenOption, loggingMinSeverity,
+    loggingOptions, loggingSeverityOrOffReader, loggingTracers,
+    poolMetadataSourceOption, runCli, setupDirectory, shutdownHandlerFlag,
+    tlsOption, tokenMetadataSourceOption, withLogging )
 import Cardano.Startup
-    ( ShutdownHandlerLog
-    , installSignalHandlers
-    , withShutdownHandler
-    , withUtf8Encoding
-    )
+    ( ShutdownHandlerLog, installSignalHandlers, withShutdownHandler,
+    withUtf8Encoding )
 import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
+    ( addressClient, networkClient, stakePoolClient, transactionClient,
+    walletClient )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Launch
-    ( Mode (Normal)
-    , NetworkConfiguration (..)
-    , modeOption
-    , networkConfigurationOption
-    , parseGenesisData
-    )
+    ( Mode (Normal), NetworkConfiguration (..), modeOption,
+    networkConfigurationOption, parseGenesisData )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
 import Cardano.Wallet.Shelley
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , serveWallet
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
-    )
+    ( TracerSeverities, Tracers, Tracers' (..), serveWallet, setupTracers,
+    tracerDescriptions, tracerLabels )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Version
@@ -123,19 +83,8 @@ import Network.URI
     ( URI )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( CommandFields
-    , Mod
-    , Parser
-    , command
-    , helper
-    , info
-    , internal
-    , long
-    , metavar
-    , option
-    , progDesc
-    , value
-    )
+    ( CommandFields, Mod, Parser, command, helper, info, internal, long,
+    metavar, option, progDesc, value )
 import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import System.Environment

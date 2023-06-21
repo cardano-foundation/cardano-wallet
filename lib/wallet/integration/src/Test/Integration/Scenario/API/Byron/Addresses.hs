@@ -22,13 +22,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeBIP44 )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
-    , ApiAddressWithPath
-    , ApiByronWallet
-    , ApiPutAddressesData
-    , ApiT (..)
-    , WalletStyle (..)
-    )
+    ( ApiAddress (..), ApiAddressWithPath, ApiByronWallet, ApiPutAddressesData,
+    ApiT (..), WalletStyle (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -46,38 +41,16 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context
-    , Headers (..)
-    , Payload (..)
-    , emptyIcarusWallet
-    , emptyIcarusWalletMws
-    , emptyRandomWallet
-    , emptyRandomWalletMws
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , fixtureIcarusWallet
-    , fixturePassphrase
-    , fixtureRandomWallet
-    , getFromResponse
-    , icarusAddresses
-    , isValidDerivationPath
-    , isValidRandomDerivationPath
-    , json
-    , randomAddresses
-    , request
-    , verify
-    , walletId
-    )
+    ( Context, Headers (..), Payload (..), emptyIcarusWallet,
+    emptyIcarusWalletMws, emptyRandomWallet, emptyRandomWalletMws, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, fixtureIcarusWallet, fixturePassphrase,
+    fixtureRandomWallet, getFromResponse, icarusAddresses,
+    isValidDerivationPath, isValidRandomDerivationPath, json, randomAddresses,
+    request, verify, walletId )
 import Test.Integration.Framework.TestData
-    ( errMsg403CouldntIdentifyAddrAsMine
-    , errMsg403NotAByronWallet
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    )
+    ( errMsg403CouldntIdentifyAddrAsMine, errMsg403NotAByronWallet,
+    errMsg403WrongPass, errMsg404NoWallet )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

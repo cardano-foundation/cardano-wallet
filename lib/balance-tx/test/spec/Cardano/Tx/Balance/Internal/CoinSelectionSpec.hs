@@ -7,15 +7,8 @@ module Cardano.Tx.Balance.Internal.CoinSelectionSpec
 import Prelude
 
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionOf (..)
-    , toExternalSelection
-    , toExternalUTxO
-    , toExternalUTxOMap
-    , toInternalSelection
-    , toInternalUTxO
-    , toInternalUTxOMap
-    )
+    ( Selection, SelectionOf (..), toExternalSelection, toExternalUTxO,
+    toExternalUTxOMap, toInternalSelection, toInternalUTxO, toInternalUTxOMap )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -45,16 +38,8 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , liftShrink2
-    , listOf
-    , oneof
-    , property
-    , shrinkList
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, liftShrink2, listOf, oneof, property,
+    shrinkList, (===) )
 import Test.QuickCheck.Extra
     ( genNonEmpty, genericRoundRobinShrink, shrinkNonEmpty, (<:>), (<@>) )
 import Test.Utils.Pretty

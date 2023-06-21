@@ -18,15 +18,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName
-    , genTokenNameLargeRange
-    , genTokenPolicyId
-    , genTokenPolicyIdLargeRange
-    , shrinkTokenName
-    , shrinkTokenPolicyId
-    , testTokenNames
-    , testTokenPolicyIds
-    )
+    ( genTokenName, genTokenNameLargeRange, genTokenPolicyId,
+    genTokenPolicyIdLargeRange, shrinkTokenName, shrinkTokenPolicyId,
+    testTokenNames, testTokenPolicyIds )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
@@ -44,16 +38,8 @@ import GHC.Generics
 import Safe
     ( fromJustNote )
 import Test.QuickCheck
-    ( CoArbitrary (..)
-    , Function (..)
-    , Gen
-    , choose
-    , functionMap
-    , oneof
-    , shrinkList
-    , sized
-    , variant
-    )
+    ( CoArbitrary (..), Function (..), Gen, choose, functionMap, oneof,
+    shrinkList, sized, variant )
 import Test.QuickCheck.Extra
     ( genSized2With, shrinkInterleaved )
 

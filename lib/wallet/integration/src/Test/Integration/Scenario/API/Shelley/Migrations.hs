@@ -19,16 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiEra (..)
-    , ApiT (..)
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletMigrationPlan (..)
-    , WalletStyle (..)
-    , apiAddress
-    )
+    ( ApiAddress, ApiEra (..), ApiT (..), ApiTransaction, ApiUtxoStatistics,
+    ApiWallet, ApiWalletMigrationPlan (..), WalletStyle (..), apiAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -64,41 +56,16 @@ import Test.Hspec.Extra
 import Test.Integration.Faucet
     ( bigDustWallet, onlyDustWallet )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , emptyIcarusWallet
-    , emptyRandomWallet
-    , emptyWallet
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectResponseCode
-    , fixtureMultiAssetWallet
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWith
-    , getFromResponse
-    , icarusAddresses
-    , json
-    , listAddresses
-    , postWallet
-    , randomAddresses
-    , request
-    , rewardWallet
-    , unsafeRequest
-    , unsafeResponse
-    , verify
-    , waitForTxImmutability
-    , walletId
-    , (.>)
-    )
+    ( Context (..), Headers (..), Payload (..), emptyIcarusWallet,
+    emptyRandomWallet, emptyWallet, eventually, expectErrorMessage, expectField,
+    expectResponseCode, fixtureMultiAssetWallet, fixturePassphrase,
+    fixtureWallet, fixtureWalletWith, getFromResponse, icarusAddresses, json,
+    listAddresses, postWallet, randomAddresses, request, rewardWallet,
+    unsafeRequest, unsafeResponse, verify, waitForTxImmutability, walletId,
+    (.>) )
 import Test.Integration.Framework.TestData
-    ( errMsg400ParseError
-    , errMsg403NothingToMigrate
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    )
+    ( errMsg400ParseError, errMsg403NothingToMigrate, errMsg403WrongPass,
+    errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes

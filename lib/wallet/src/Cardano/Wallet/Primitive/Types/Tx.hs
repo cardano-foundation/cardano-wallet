@@ -89,41 +89,18 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (..)
-    , SerialisedTx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , cardanoTxInExactEra
-    , getSealedTxBody
-    , getSealedTxWitnesses
-    , mockSealedTx
-    , persistSealedTx
-    , sealedTxFromBytes
-    , sealedTxFromBytes'
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , sealedTxFromCardanoBody
-    , unPersistSealedTx
-    , unsafeSealedTxFromBytes
-    , withinEra
-    )
+    ( SealedTx (..), SerialisedTx (..), cardanoTxIdeallyNoLaterThan,
+    cardanoTxInExactEra, getSealedTxBody, getSealedTxWitnesses, mockSealedTx,
+    persistSealedTx, sealedTxFromBytes, sealedTxFromBytes', sealedTxFromCardano,
+    sealedTxFromCardano', sealedTxFromCardanoBody, unPersistSealedTx,
+    unsafeSealedTxFromBytes, withinEra )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..), fromTransactionInfo, toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( ScriptWitnessIndex (..)
-    , Tx (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxScriptValidity (..)
-    , collateralInputs
-    , inputs
-    , txAssetIds
-    , txIns
-    , txMapAssetIds
-    , txMapTxIds
-    , txMetadataIsNull
-    , txRemoveAssetId
-    , txScriptInvalid
-    )
+    ( ScriptWitnessIndex (..), Tx (..), TxMetadata (..), TxMetadataValue (..),
+    TxScriptValidity (..), collateralInputs, inputs, txAssetIds, txIns,
+    txMapAssetIds, txMapTxIds, txMetadataIsNull, txRemoveAssetId,
+    txScriptInvalid )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
 import Cardano.Wallet.Read.Tx.CBOR

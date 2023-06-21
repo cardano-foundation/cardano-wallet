@@ -35,35 +35,19 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetDecimals (..)
-    , AssetLogo (..)
-    , AssetURL (..)
-    , TokenName (..)
-    , TokenPolicyId (..)
-    )
+    ( AssetDecimals (..), AssetLogo (..), AssetURL (..), TokenName (..),
+    TokenPolicyId (..) )
 import Cardano.Wallet.TokenMetadata
-    ( BatchRequest (..)
-    , BatchResponse (..)
-    , Property (..)
-    , PropertyName
-    , PropertyValue
-    , Signature (..)
-    , Subject (..)
-    , SubjectProperties (..)
-    , propertyName
-    )
+    ( BatchRequest (..), BatchResponse (..), Property (..), PropertyName,
+    PropertyValue, Signature (..), Subject (..), SubjectProperties (..),
+    propertyName )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , Value (..)
-    , eitherDecodeFileStrict
-    , object
-    , (.=)
-    )
+    ( FromJSON (..), ToJSON (..), Value (..), eitherDecodeFileStrict, object,
+    (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Function
@@ -83,15 +67,10 @@ import Network.URI
 import Network.Wai
     ( Middleware )
 import Network.Wai.Handler.Warp
-    ( Port
-    , defaultSettings
-    , runSettings
-    , setBeforeMainLoop
-    , setPort
-    , withApplication
-    )
+    ( Port, defaultSettings, runSettings, setBeforeMainLoop, setPort,
+    withApplication )
 import Servant.API
-    ( (:>), JSON, Post, ReqBody )
+    ( JSON, Post, ReqBody, (:>) )
 import Servant.Server
     ( Handler (..), Server, serve )
 import UnliftIO.Async

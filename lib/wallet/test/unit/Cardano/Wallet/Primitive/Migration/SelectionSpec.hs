@@ -15,17 +15,9 @@ module Cardano.Wallet.Primitive.Migration.SelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
-    ( RewardWithdrawal (..)
-    , Selection (..)
-    , SelectionCorrectness (..)
-    , SelectionError (..)
-    , SelectionFullError (..)
-    , addValueToOutputs
-    , create
-    , extend
-    , minimizeFee
-    , minimizeFeeStep
-    )
+    ( RewardWithdrawal (..), Selection (..), SelectionCorrectness (..),
+    SelectionError (..), SelectionFullError (..), addValueToOutputs, create,
+    extend, minimizeFee, minimizeFeeStep )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -43,15 +35,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..)
-    , TxSize (..)
-    , txOutMaxCoin
-    , txOutputCoinCost
-    , txOutputCoinSize
-    , txOutputHasValidSize
-    , txOutputHasValidTokenQuantities
-    , txSizeDistance
-    )
+    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txOutputCoinCost,
+    txOutputCoinSize, txOutputHasValidSize, txOutputHasValidTokenQuantities,
+    txSizeDistance )
 import Control.Monad
     ( replicateM )
 import Data.ByteArray.Encoding
@@ -83,24 +69,9 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , Gen
-    , Property
-    , checkCoverage
-    , choose
-    , cover
-    , elements
-    , forAllBlind
-    , frequency
-    , genericShrink
-    , oneof
-    , property
-    , suchThat
-    , suchThatMap
-    , vectorOf
-    , withMaxSuccess
-    )
+    ( Arbitrary (..), Blind (..), Gen, Property, checkCoverage, choose, cover,
+    elements, forAllBlind, frequency, genericShrink, oneof, property, suchThat,
+    suchThatMap, vectorOf, withMaxSuccess )
 import Test.QuickCheck.Extra
     ( report, verify )
 

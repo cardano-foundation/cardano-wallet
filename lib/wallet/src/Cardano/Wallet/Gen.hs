@@ -38,24 +38,15 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Api
-    ( TxMetadata (..)
-    , TxMetadataJsonSchema (..)
-    , TxMetadataValue (..)
-    , metadataFromJson
-    )
+    ( TxMetadata (..), TxMetadataJsonSchema (..), TxMetadataValue (..),
+    metadataFromJson )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Address.Discovery.Shared
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
-    , ChainPoint (..)
-    , Slot
-    , SlotNo (..)
-    , WalletId (..)
-    , WithOrigin (..)
-    )
+    ( ActiveSlotCoefficient (..), BlockHeader (..), ChainPoint (..), Slot,
+    SlotNo (..), WalletId (..), WithOrigin (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -93,27 +84,10 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Positive (..)
-    , UnicodeString (..)
-    , arbitrarySizedNatural
-    , choose
-    , elements
-    , frequency
-    , listOf
-    , listOf1
-    , oneof
-    , resize
-    , scale
-    , shrinkList
-    , shrinkMap
-    , sized
-    , sublistOf
-    , suchThat
-    , vector
-    , vectorOf
-    )
+    ( Arbitrary (..), Gen, Positive (..), UnicodeString (..),
+    arbitrarySizedNatural, choose, elements, frequency, listOf, listOf1, oneof,
+    resize, scale, shrinkList, shrinkMap, sized, sublistOf, suchThat, vector,
+    vectorOf )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR

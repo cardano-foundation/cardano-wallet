@@ -28,16 +28,9 @@ module Cardano.Wallet.Primitive.Slotting.Legacy
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient
-    , EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    )
+    ( ActiveSlotCoefficient, EpochLength (..), EpochNo (..), Range (..),
+    SlotId (..), SlotInEpoch (..), SlotLength (..), SlottingParameters (..),
+    StartTime (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe

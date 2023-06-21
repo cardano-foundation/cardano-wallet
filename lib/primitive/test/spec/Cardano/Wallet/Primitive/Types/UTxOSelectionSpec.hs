@@ -21,25 +21,13 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-    ( genUTxOSelection
-    , genUTxOSelectionNonEmpty
-    , shrinkUTxOSelection
-    , shrinkUTxOSelectionNonEmpty
-    )
+    ( genUTxOSelection, genUTxOSelectionNonEmpty, shrinkUTxOSelection,
+    shrinkUTxOSelectionNonEmpty )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , CoArbitrary (..)
-    , Property
-    , Testable
-    , checkCoverage
-    , conjoin
-    , cover
-    , forAll
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), CoArbitrary (..), Property, Testable, checkCoverage,
+    conjoin, cover, forAll, property, (===) )
 import Test.QuickCheck.Quid
     ( Hexadecimal (..), Quid, Size (..) )
 

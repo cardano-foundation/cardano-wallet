@@ -33,19 +33,10 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI
-    , commandName
-    , createWalletViaCLI
-    , deleteWalletViaCLI
-    , generateMnemonicsViaCLI
-    , getWalletViaCLI
-    , listAddressesViaCLI
-    , listWalletsViaCLI
-    , postTransactionViaCLI
-    , proc'
-    , runResourceT
-    , updateWalletNameViaCLI
-    )
+    ( cardanoWalletCLI, commandName, createWalletViaCLI, deleteWalletViaCLI,
+    generateMnemonicsViaCLI, getWalletViaCLI, listAddressesViaCLI,
+    listWalletsViaCLI, postTransactionViaCLI, proc', runResourceT,
+    updateWalletNameViaCLI )
 import UnliftIO.Process
     ( waitForProcess, withCreateProcess )
 

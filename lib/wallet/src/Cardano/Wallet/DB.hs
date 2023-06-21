@@ -58,16 +58,8 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
-    , ChainPoint
-    , GenesisParameters
-    , Range (..)
-    , Slot
-    , SlotNo (..)
-    , SortOrder (..)
-    , WalletId
-    , WalletMetadata (..)
-    )
+    ( BlockHeader, ChainPoint, GenesisParameters, Range (..), Slot, SlotNo (..),
+    SortOrder (..), WalletId, WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash

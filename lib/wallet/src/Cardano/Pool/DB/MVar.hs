@@ -20,43 +20,16 @@ import Prelude
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Model
-    ( ModelOp
-    , PoolDatabase
-    , PoolErr (..)
-    , emptyPoolDatabase
-    , mCleanDatabase
-    , mCleanPoolMetadata
-    , mListHeaders
-    , mListPoolLifeCycleData
-    , mListRegisteredPools
-    , mListRetiredPools
-    , mPutDelistedPools
-    , mPutFetchAttempt
-    , mPutHeader
-    , mPutLastMetadataGC
-    , mPutPoolMetadata
-    , mPutPoolProduction
-    , mPutPoolRegistration
-    , mPutPoolRetirement
-    , mPutSettings
-    , mPutStakeDistribution
-    , mReadCursor
-    , mReadDelistedPools
-    , mReadLastMetadataGC
-    , mReadPoolLifeCycleStatus
-    , mReadPoolMetadata
-    , mReadPoolProduction
-    , mReadPoolRegistration
-    , mReadPoolRetirement
-    , mReadSettings
-    , mReadStakeDistribution
-    , mReadSystemSeed
-    , mReadTotalProduction
-    , mRemovePools
-    , mRemoveRetiredPools
-    , mRollbackTo
-    , mUnfetchedPoolMetadataRefs
-    )
+    ( ModelOp, PoolDatabase, PoolErr (..), emptyPoolDatabase, mCleanDatabase,
+    mCleanPoolMetadata, mListHeaders, mListPoolLifeCycleData,
+    mListRegisteredPools, mListRetiredPools, mPutDelistedPools,
+    mPutFetchAttempt, mPutHeader, mPutLastMetadataGC, mPutPoolMetadata,
+    mPutPoolProduction, mPutPoolRegistration, mPutPoolRetirement, mPutSettings,
+    mPutStakeDistribution, mReadCursor, mReadDelistedPools, mReadLastMetadataGC,
+    mReadPoolLifeCycleStatus, mReadPoolMetadata, mReadPoolProduction,
+    mReadPoolRegistration, mReadPoolRetirement, mReadSettings,
+    mReadStakeDistribution, mReadSystemSeed, mReadTotalProduction, mRemovePools,
+    mRemoveRetiredPools, mRollbackTo, mUnfetchedPoolMetadataRefs )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Control.DeepSeq

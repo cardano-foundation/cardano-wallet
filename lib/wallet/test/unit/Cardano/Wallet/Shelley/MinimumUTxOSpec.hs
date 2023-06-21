@@ -28,21 +28,13 @@ import Cardano.Wallet.Primitive.Types.Address.Constants
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..)
-    , MinimumUTxOForShelleyBasedEra (..)
-    , minimumUTxOForShelleyBasedEra
-    )
+    ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..),
+    minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    ( genMinimumUTxO
-    , genMinimumUTxOForShelleyBasedEra
-    , shrinkMinimumUTxO
-    , shrinkMinimumUTxOForShelleyBasedEra
-    , testParameter_coinsPerUTxOByte_Babbage
-    , testParameter_coinsPerUTxOWord_Alonzo
-    , testParameter_minUTxOValue_Allegra
-    , testParameter_minUTxOValue_Mary
-    , testParameter_minUTxOValue_Shelley
-    )
+    ( genMinimumUTxO, genMinimumUTxOForShelleyBasedEra, shrinkMinimumUTxO,
+    shrinkMinimumUTxOForShelleyBasedEra, testParameter_coinsPerUTxOByte_Babbage,
+    testParameter_coinsPerUTxOWord_Alonzo, testParameter_minUTxOValue_Allegra,
+    testParameter_minUTxOValue_Mary, testParameter_minUTxOValue_Shelley )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -72,17 +64,8 @@ import Data.Function
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , conjoin
-    , cover
-    , elements
-    , frequency
-    , property
-    , sized
-    , (===)
-    )
+    ( Arbitrary (..), Property, checkCoverage, conjoin, cover, elements,
+    frequency, property, sized, (===) )
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
 import Test.QuickCheck.Extra

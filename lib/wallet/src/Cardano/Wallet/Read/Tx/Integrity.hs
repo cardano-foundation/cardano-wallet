@@ -19,14 +19,8 @@ module Cardano.Wallet.Read.Tx.Integrity
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
+    ShelleyEra )
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash )
 import Cardano.Ledger.Alonzo.TxBody

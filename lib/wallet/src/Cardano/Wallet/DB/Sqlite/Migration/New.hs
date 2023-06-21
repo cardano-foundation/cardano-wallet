@@ -10,12 +10,8 @@ import Prelude hiding
 import Cardano.DB.Sqlite
     ( DBHandle (..), DBLog, ReadDBHandle, withDBHandle )
 import Cardano.Wallet.DB.Migration
-    ( Migration
-    , MigrationInterface (..)
-    , Version (..)
-    , hoistMigration
-    , runMigrations
-    )
+    ( Migration, MigrationInterface (..), Version (..), hoistMigration,
+    runMigrations )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( getSchemaVersion, putSchemaVersion )
 import Cardano.Wallet.DB.Store.Delegations.Migration

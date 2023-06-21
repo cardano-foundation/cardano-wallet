@@ -77,43 +77,18 @@ import Cardano.Address.Script
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Address.Derivation
-    ( AddressParts (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationPrefix (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    , liftDelegationAddressS
-    , liftPaymentAddressS
-    , roleVal
-    , toAddressParts
-    , unsafePaymentKeyFingerprint
-    )
+    ( AddressParts (..), DelegationAddress (..), Depth (..),
+    DerivationIndex (..), DerivationPrefix (..), DerivationType (..),
+    HardDerivation (..), Index (..), KeyFingerprint (..), MkKeyFingerprint (..),
+    PaymentAddress (..), PersistPublicKey (..), Role (..), SoftDerivation (..),
+    ToRewardAccount (..), liftDelegationAddressS, liftPaymentAddressS, roleVal,
+    toAddressParts, unsafePaymentKeyFingerprint )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , GetAccount (..)
-    , IsOurs (..)
-    , KnownAddresses (..)
-    , MaybeLight (..)
-    , PendingIxs
-    , coinTypeAda
-    , dropLowerPendingIxs
-    , emptyPendingIxs
-    , nextChangeIndex
-    , pendingIxsToList
-    )
+    ( CompareDiscovery (..), GenChange (..), GetAccount (..), IsOurs (..),
+    KnownAddresses (..), MaybeLight (..), PendingIxs, coinTypeAda,
+    dropLowerPendingIxs, emptyPendingIxs, nextChangeIndex, pendingIxsToList )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
 import Cardano.Wallet.Primitive.Passphrase

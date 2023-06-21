@@ -41,15 +41,8 @@ import Fmt
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , arbitrary
-    , choose
-    , counterexample
-    , frequency
-    , property
-    , vectorOf
-    )
+    ( Gen, Property, arbitrary, choose, counterexample, frequency, property,
+    vectorOf )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 

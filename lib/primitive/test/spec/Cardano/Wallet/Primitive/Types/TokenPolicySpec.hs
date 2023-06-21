@@ -8,11 +8,8 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenFingerprint (..)
-    , TokenName (..)
-    , TokenPolicyId (..)
-    , mkTokenFingerprint
-    )
+    ( TokenFingerprint (..), TokenName (..), TokenPolicyId (..),
+    mkTokenFingerprint )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteString

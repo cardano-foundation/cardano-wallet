@@ -88,14 +88,8 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardCrypto
-    , StandardMary
-    , StandardShelley
-    )
+    ( StandardAllegra, StandardAlonzo, StandardBabbage, StandardConway,
+    StandardCrypto, StandardMary, StandardShelley )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger

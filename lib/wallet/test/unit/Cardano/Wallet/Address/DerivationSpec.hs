@@ -20,13 +20,8 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index
-    , PersistPublicKey (..)
-    , getIndex
-    )
+    ( Depth (..), DerivationIndex (..), DerivationType (..), Index,
+    PersistPublicKey (..), getIndex )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -44,11 +39,8 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash (..), preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    , PassphraseScheme (..)
-    )
+    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..),
+    PassphraseScheme (..) )
 import Control.Monad
     ( replicateM )
 import Data.Either
@@ -58,21 +50,9 @@ import Data.Proxy
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , Property
-    , arbitraryBoundedEnum
-    , arbitraryPrintableChar
-    , arbitrarySizedBoundedIntegral
-    , choose
-    , expectFailure
-    , genericShrink
-    , oneof
-    , property
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), Gen, InfiniteList (..), Property, arbitraryBoundedEnum,
+    arbitraryPrintableChar, arbitrarySizedBoundedIntegral, choose,
+    expectFailure, genericShrink, oneof, property, (.&&.), (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
 import Test.Text.Roundtrip

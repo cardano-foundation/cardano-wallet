@@ -14,17 +14,8 @@ import System.Random.StdGenSeed
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , Property
-    , arbitraryBoundedIntegral
-    , checkCoverage
-    , cover
-    , frequency
-    , property
-    , shrinkIntegral
-    , (===)
-    )
+    ( Arbitrary (..), Gen, Property, arbitraryBoundedIntegral, checkCoverage,
+    cover, frequency, property, shrinkIntegral, (===) )
 
 spec :: Spec
 spec = do

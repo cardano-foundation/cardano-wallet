@@ -15,14 +15,8 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterEra (..)
-    , ClusterLog (..)
-    , LocalClusterConfig (..)
-    , LogFileConfig (..)
-    , RunningNode (..)
-    , defaultPoolConfigs
-    , withCluster
-    )
+    ( ClusterEra (..), ClusterLog (..), LocalClusterConfig (..),
+    LogFileConfig (..), RunningNode (..), defaultPoolConfigs, withCluster )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.SyncProgress

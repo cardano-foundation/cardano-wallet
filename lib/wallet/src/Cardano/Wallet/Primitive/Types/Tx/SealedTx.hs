@@ -40,12 +40,8 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx (
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , InAnyCardanoEra (..)
-    , anyCardanoEra
-    , deserialiseFromCBOR
-    )
+    ( AnyCardanoEra (..), CardanoEra (..), InAnyCardanoEra (..), anyCardanoEra,
+    deserialiseFromCBOR )
 import Cardano.Binary
     ( DecoderError )
 import Cardano.Wallet.Util
@@ -69,7 +65,7 @@ import Data.Function
 import Data.Text
     ( Text )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality, (:~:) (..) )
 import Fmt
     ( Buildable (..), Builder, hexF, (+||), (||+) )
 import GHC.Generics

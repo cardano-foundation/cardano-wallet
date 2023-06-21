@@ -17,12 +17,8 @@ import Cardano.Wallet.DB.Migration
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( SqlColumnStatus (..), isFieldPresent )
 import Cardano.Wallet.DB.Store.Delegations.Migration.Schema
-    ( DelegationCertificate (..)
-    , EntityField (..)
-    , EntityField (StakeKeyCertSlot)
-    , StakeKeyCertificate (..)
-    , WStakeKeyCertificate (..)
-    )
+    ( DelegationCertificate (..), EntityField (..), StakeKeyCertificate (..),
+    WStakeKeyCertificate (..) )
 import Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations )
 import Cardano.Wallet.Delegation.Model

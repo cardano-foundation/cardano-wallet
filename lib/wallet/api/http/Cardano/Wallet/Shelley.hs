@@ -50,12 +50,8 @@ import Cardano.Wallet.Api.Http.Logging
 import Cardano.Wallet.Api.Http.Server
     ( server )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
-    , ListenError (..)
-    , TlsConfiguration
-    , toServerError
-    )
+    ( HostPreference, Listen (..), ListenError (..), TlsConfiguration,
+    toServerError )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
@@ -69,16 +65,8 @@ import Cardano.Wallet.Pools
 import Cardano.Wallet.Primitive.Slotting
     ( neverFails )
 import Cardano.Wallet.Primitive.Types
-    ( Block
-    , NetworkParameters (..)
-    , NetworkParameters
-    , PoolCertificate
-    , ProtocolParameters (..)
-    , Settings (..)
-    , SlottingParameters (..)
-    , TokenMetadataServer (..)
-    , WalletId
-    )
+    ( Block, NetworkParameters (..), PoolCertificate, ProtocolParameters (..),
+    Settings (..), SlottingParameters (..), TokenMetadataServer (..), WalletId )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -88,13 +76,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
-    , NetworkId
-    , SNetworkId
-    , networkDiscriminantVal
-    , networkIdVal
-    , withSNetworkId
-    )
+    ( HasSNetworkId, NetworkId, SNetworkId, networkDiscriminantVal,
+    networkIdVal, withSNetworkId )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -108,15 +91,8 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.TokenMetadata
     ( newMetadataClient )
 import Cardano.Wallet.Tracers as Tracers
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , nullTracers
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
-    , tracerSeverities
-    )
+    ( TracerSeverities, Tracers, Tracers' (..), nullTracers, setupTracers,
+    tracerDescriptions, tracerLabels, tracerSeverities )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Exception.Extra

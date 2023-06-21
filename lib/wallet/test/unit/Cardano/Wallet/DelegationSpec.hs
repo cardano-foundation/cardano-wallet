@@ -18,11 +18,8 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..)
-    , WalletDelegation (..)
-    , WalletDelegationNext (WalletDelegationNext)
-    , WalletDelegationStatus (..)
-    )
+    ( EpochNo (..), WalletDelegation (..),
+    WalletDelegationNext (WalletDelegationNext), WalletDelegationStatus (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -46,23 +43,9 @@ import Hedgehog.Corpus
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonEmptyList (..)
-    , Property
-    , applyArbitrary4
-    , arbitrarySizedBoundedIntegral
-    , checkCoverage
-    , cover
-    , elements
-    , label
-    , oneof
-    , property
-    , shrinkIntegral
-    , vector
-    , vectorOf
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), NonEmptyList (..), Property, applyArbitrary4,
+    arbitrarySizedBoundedIntegral, checkCoverage, cover, elements, label, oneof,
+    property, shrinkIntegral, vector, vectorOf, (.&&.), (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 

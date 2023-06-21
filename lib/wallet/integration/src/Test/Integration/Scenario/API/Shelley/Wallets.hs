@@ -23,16 +23,9 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
-    , ApiByronWallet
-    , ApiNetworkInformation
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiVerificationKeyShelley (..)
-    , ApiWallet
-    , ApiWalletUtxoSnapshot
-    , WalletStyle (..)
-    )
+    ( ApiAddressWithPath, ApiByronWallet, ApiNetworkInformation, ApiTransaction,
+    ApiUtxoStatistics, ApiVerificationKeyShelley (..), ApiWallet,
+    ApiWalletUtxoSnapshot, WalletStyle (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -74,65 +67,22 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , MnemonicLength (..)
-    , Payload (..)
-    , constFixtureWalletNoWait
-    , counterexample
-    , emptyByronWalletWith
-    , emptyRandomWallet
-    , emptyWallet
-    , emptyWalletAndMnemonic
-    , emptyWalletAndMnemonicAndSndFactor
-    , emptyWalletWith
-    , eventually
-    , expectErrorMessage
-    , expectField
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , expectWalletUTxO
-    , fixtureMultiAssetWallet
-    , fixturePassphrase
-    , fixtureWallet
-    , fixtureWalletWithMnemonics
-    , genMnemonics
-    , getFromResponse
-    , json
-    , listAddresses
-    , listFilteredByronWallets
-    , listFilteredWallets
-    , minUTxOValue
-    , notDelegating
-    , postWallet
-    , postWallet'
-    , rawRequest
-    , request
-    , unsafeResponse
-    , verify
-    , walletId
-    , (</>)
-    )
+    ( Context (..), Headers (..), MnemonicLength (..), Payload (..),
+    constFixtureWalletNoWait, counterexample, emptyByronWalletWith,
+    emptyRandomWallet, emptyWallet, emptyWalletAndMnemonic,
+    emptyWalletAndMnemonicAndSndFactor, emptyWalletWith, eventually,
+    expectErrorMessage, expectField, expectListField, expectListSize,
+    expectResponseCode, expectWalletUTxO, fixtureMultiAssetWallet,
+    fixturePassphrase, fixtureWallet, fixtureWalletWithMnemonics, genMnemonics,
+    getFromResponse, json, listAddresses, listFilteredByronWallets,
+    listFilteredWallets, minUTxOValue, notDelegating, postWallet, postWallet',
+    rawRequest, request, unsafeResponse, verify, walletId, (</>) )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , errMsg403WrongMnemonic
-    , errMsg403WrongPass
-    , errMsg404NoWallet
-    , errMsg406
-    , errMsg415
-    , kanjiWalletName
-    , payloadWith
-    , payloadWith'
-    , polishWalletName
-    , russianWalletName
-    , simplePayload
-    , updateNamePayload
-    , updatePassPayload
-    , updatePassPayloadMnemonic
-    , updatePassPayloadMnemonicAndSndFactor
-    , wildcardsWalletName
-    )
+    ( arabicWalletName, errMsg403WrongMnemonic, errMsg403WrongPass,
+    errMsg404NoWallet, errMsg406, errMsg415, kanjiWalletName, payloadWith,
+    payloadWith', polishWalletName, russianWalletName, simplePayload,
+    updateNamePayload, updatePassPayload, updatePassPayloadMnemonic,
+    updatePassPayloadMnemonicAndSndFactor, wildcardsWalletName )
 
 -- FIXME:
 -- give ways to construct and deconstruct an 'XSignature' in cardano-addresses,

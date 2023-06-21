@@ -79,18 +79,10 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime
-    , EpochNo (..)
-    , InternalState (..)
-    , PoolLifeCycleStatus (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    , Settings
-    , SlotNo (..)
-    , defaultInternalState
-    , defaultSettings
-    )
+    ( BlockHeader (..), CertificatePublicationTime, EpochNo (..),
+    InternalState (..), PoolLifeCycleStatus (..),
+    PoolRegistrationCertificate (..), PoolRetirementCertificate (..), Settings,
+    SlotNo (..), defaultInternalState, defaultSettings )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.State.Strict

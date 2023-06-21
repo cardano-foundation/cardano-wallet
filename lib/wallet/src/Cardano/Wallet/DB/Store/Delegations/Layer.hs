@@ -22,13 +22,8 @@ import Cardano.Wallet.Delegation.Model
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( DelegationCertificate (..)
-    , EpochNo
-    , SlotNo
-    , WalletDelegation (..)
-    , WalletDelegationNext (..)
-    , WalletDelegationStatus (..)
-    )
+    ( DelegationCertificate (..), EpochNo, SlotNo, WalletDelegation (..),
+    WalletDelegationNext (..), WalletDelegationStatus (..) )
 import Data.Foldable
     ( find )
 import Data.Function

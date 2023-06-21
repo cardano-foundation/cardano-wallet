@@ -122,15 +122,10 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( CaseStyle (..), FromText (..), TextDecodingError (..), ToText (..),
+    fromTextToBoundedEnum, toTextFromBoundedEnum )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality, (:~:) (..) )
 import Data.Word
     ( Word32, Word8 )
 import Fmt

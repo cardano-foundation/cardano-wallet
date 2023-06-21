@@ -17,30 +17,13 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( Port (..)
-    , TxId
-    , cli
-    , cmdAddress
-    , cmdKey
-    , cmdMnemonic
-    , cmdNetwork
-    , cmdStakePool
-    , cmdTransaction
-    , cmdWallet
-    , cmdWalletCreate
-    , hGetLine
-    , hGetSensitiveLine
-    , metadataOption
-    , poolMetadataSourceOption
-    , timeToLiveOption
-    )
+    ( Port (..), TxId, cli, cmdAddress, cmdKey, cmdMnemonic, cmdNetwork,
+    cmdStakePool, cmdTransaction, cmdWallet, cmdWalletCreate, hGetLine,
+    hGetSensitiveLine, metadataOption, poolMetadataSourceOption,
+    timeToLiveOption )
 import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
+    ( addressClient, networkClient, stakePoolClient, transactionClient,
+    walletClient )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata, noSchemaMetadata )
 import Cardano.Wallet.Primitive.Types
@@ -57,15 +40,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
-    ( ParserInfo
-    , ParserPrefs
-    , ParserResult (..)
-    , columns
-    , execParserPure
-    , info
-    , prefs
-    , renderFailure
-    )
+    ( ParserInfo, ParserPrefs, ParserResult (..), columns, execParserPure, info,
+    prefs, renderFailure )
 import System.Environment
     ( getProgName )
 import System.FilePath
@@ -73,24 +49,13 @@ import System.FilePath
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( HasCallStack
-    , Spec
-    , describe
-    , expectationFailure
-    , it
-    , shouldBe
-    , shouldSatisfy
-    )
+    ( HasCallStack, Spec, describe, expectationFailure, it, shouldBe,
+    shouldSatisfy )
 import Test.Hspec.Goldens
     ( Settings (..), textGolden )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Large (..)
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , cover
-    , (===)
-    )
+    ( Arbitrary (..), Large (..), arbitraryBoundedEnum, checkCoverage, cover,
+    (===) )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Paths
