@@ -82,7 +82,7 @@ modifyDBVar var f = modifyDBMaybe var $ \a -> let (da,b) = f a in (Just da,b)
 -- If updated, the new value will be evaluated to weak head normal form.
 modifyDBMaybe
     :: (Delta da, Monad m, a ~ Base da)
-    => DBVar m da -> (a -> (Maybe da, b)) -> m b
+    => DBVar m da -> forall b. (a -> (Maybe da, b)) -> m b
 modifyDBMaybe = modifyDBMaybe_
 
 -- | Initialize a new 'DBVar' for a given 'Store'.
