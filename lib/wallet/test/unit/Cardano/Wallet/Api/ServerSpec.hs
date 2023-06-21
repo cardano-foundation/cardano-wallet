@@ -5,6 +5,8 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
 import Prelude

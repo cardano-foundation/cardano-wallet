@@ -525,7 +525,7 @@ noManualMigration :: ManualMigration
 noManualMigration = ManualMigration $ const $ pure ()
 
 foldMigrations :: [Sqlite.Connection -> IO ()] -> ManualMigration
-foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($conn)
+foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($ conn)
 
 data DBField where
     DBField

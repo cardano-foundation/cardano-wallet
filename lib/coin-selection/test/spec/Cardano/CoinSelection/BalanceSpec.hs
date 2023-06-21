@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {- HLINT ignore "Use camelCase" -}
 
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
@@ -42,8 +43,7 @@ module Cardano.CoinSelection.BalanceSpec
 
 import Prelude
 
-import Algebra.PartialOrd
-    ( PartialOrd (..) )
+import Algebra.PartialOrd ( PartialOrd (..) )
 import Cardano.CoinSelection.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -97,14 +97,11 @@ import Cardano.CoinSelection.Balance
     )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionStrategy, shrinkSelectionStrategy )
-import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+import Cardano.Numeric.Util ( inAscendingPartialOrder )
+import Cardano.Wallet.Primitive.Types.Coin ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Hash ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -112,8 +109,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenMap ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId
     , genAssetIdLargeRange
@@ -123,10 +119,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen ( genTokenName )
+import Cardano.Wallet.Primitive.Types.TokenQuantity ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -139,50 +133,29 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
-import Control.Monad
-    ( forM_, replicateM )
-import Data.Bifunctor
-    ( bimap, second )
-import Data.ByteString
-    ( ByteString )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
-import Data.Functor.Identity
-    ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
+import Control.Monad ( forM_, replicateM )
+import Data.Bifunctor ( bimap, second )
+import Data.ByteString ( ByteString )
+import Data.Function ( (&) )
+import Data.Functor ( (<&>) )
+import Data.Functor.Identity ( Identity (..) )
+import Data.Generics.Internal.VL.Lens ( view )
 import Data.Generics.Labels
     ()
-import Data.IntCast
-    ( intCast )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
-import Data.Maybe
-    ( fromMaybe, isJust, isNothing, listToMaybe )
-import Data.Set
-    ( Set )
-import Data.Tuple
-    ( swap )
-import Data.Word
-    ( Word64, Word8 )
-import Fmt
-    ( Buildable (..), blockListF, pretty )
-import Generics.SOP
-    ( NP (..) )
-import GHC.Generics
-    ( Generic )
-import Numeric.Natural
-    ( Natural )
-import Safe
-    ( tailMay )
-import Test.Hspec
-    ( Expectation, Spec, SpecWith, describe, it, shouldBe )
-import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+import Data.IntCast ( intCast )
+import Data.List.NonEmpty ( NonEmpty (..) )
+import Data.Map.Strict ( Map )
+import Data.Maybe ( fromMaybe, isJust, isNothing, listToMaybe )
+import Data.Set ( Set )
+import Data.Tuple ( swap )
+import Data.Word ( Word64, Word8 )
+import Fmt ( Buildable (..), blockListF, pretty )
+import Generics.SOP ( NP (..) )
+import GHC.Generics ( Generic )
+import Numeric.Natural ( Natural )
+import Safe ( tailMay )
+import Test.Hspec ( Expectation, Spec, SpecWith, describe, it, shouldBe )
+import Test.Hspec.Core.QuickCheck ( modifyMaxSuccess )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -217,18 +190,14 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
-import Test.QuickCheck.Classes
-    ( eqLaws, ordLaws )
+import Test.QuickCheck.Classes ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
     ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
-import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
-import Test.Utils.Laws
-    ( testLawsMany )
-import Test.Utils.Pretty
-    ( Pretty (..) )
+import Test.QuickCheck.Quid ( Hexadecimal (..), Quid )
+import Test.Utils.Laws ( testLawsMany )
+import Test.Utils.Pretty ( Pretty (..) )
 
 import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

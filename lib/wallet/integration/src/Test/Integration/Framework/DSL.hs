@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Test.Integration.Framework.DSL
     ( Context(..)

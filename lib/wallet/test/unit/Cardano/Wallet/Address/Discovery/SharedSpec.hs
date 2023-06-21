@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.Address.Discovery.SharedSpec
     ( spec
