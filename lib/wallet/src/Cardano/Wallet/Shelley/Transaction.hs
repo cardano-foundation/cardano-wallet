@@ -90,12 +90,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL, ppMinFeeAL )
 import Cardano.Ledger.Api
-    ( bodyTxL
-    , collateralInputsTxBodyL
-    , feeTxBodyL
-    , outputsTxBodyL
-    , scriptIntegrityHashTxBodyL
-    )
+    ( bodyTxL, collateralInputsTxBodyL, feeTxBodyL, outputsTxBodyL,
+    scriptIntegrityHashTxBodyL )
 import Cardano.Ledger.Babbage.TxBody
     ( outputsBabbageTxBodyL )
 import Cardano.Ledger.Crypto
@@ -152,23 +148,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Read.Primitive.Tx
     ( fromCardanoTx )
 import Cardano.Wallet.Shelley.Compatibility
-    ( cardanoCertKeysForWitnesses
-    , fromCardanoAddress
-    , fromCardanoLovelace
-    , fromCardanoWdrls
-    , toCardanoLovelace
-    , toCardanoPolicyId
-    , toCardanoSimpleScript
-    , toCardanoStakeCredential
-    , toCardanoTxIn
-    , toCardanoTxOut
-    , toCardanoValue
-    , toHDPayloadAddress
-    , toScriptPurpose
-    , toStakeKeyDeregCert
-    , toStakeKeyRegCert
-    , toStakePoolDlgCert
-    )
+    ( cardanoCertKeysForWitnesses, fromCardanoAddress, fromCardanoLovelace,
+    fromCardanoWdrls, toCardanoLovelace, toCardanoPolicyId,
+    toCardanoSimpleScript, toCardanoStakeCredential, toCardanoTxIn,
+    toCardanoTxOut, toCardanoValue, toHDPayloadAddress, toScriptPurpose,
+    toStakeKeyDeregCert, toStakeKeyRegCert, toStakePoolDlgCert )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
 import Cardano.Wallet.Shelley.MinimumUTxO

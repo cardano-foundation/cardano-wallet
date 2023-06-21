@@ -28,18 +28,9 @@ import Cardano.Address.Script
 import Cardano.Api
     ( AllegraEra )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
-    , auxDataTxL
-    , bodyTxL
-    , bootAddrTxWitsL
-    , certsTxBodyL
-    , feeTxBodyL
-    , inputsTxBodyL
-    , outputsTxBodyL
-    , scriptTxWitsL
-    , vldtTxBodyL
-    , witsTxL
-    )
+    ( addrTxWitsL, auxDataTxL, bodyTxL, bootAddrTxWitsL, certsTxBodyL,
+    feeTxBodyL, inputsTxBodyL, outputsTxBodyL, scriptTxWitsL, vldtTxBodyL,
+    witsTxL )
 import Cardano.Ledger.Core
     ()
 import Cardano.Ledger.Shelley.Tx

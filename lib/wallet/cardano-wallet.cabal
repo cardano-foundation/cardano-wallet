@@ -455,6 +455,7 @@ library cardano-wallet-api-http
     , cardano-cli
     , cardano-crypto
     , cardano-data
+    , cardano-ledger-api
     , cardano-ledger-alonzo
     , cardano-ledger-byron
     , cardano-ledger-core

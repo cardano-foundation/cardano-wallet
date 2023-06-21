@@ -21,16 +21,8 @@ import Cardano.Address.Script
 import Cardano.Api
     ( ShelleyEra )
 import Cardano.Ledger.Core
-    ( addrTxWitsL
-    , auxDataTxL
-    , bodyTxL
-    , bootAddrTxWitsL
-    , feeTxBodyL
-    , inputsTxBodyL
-    , outputsTxBodyL
-    , scriptTxWitsL
-    , witsTxL
-    )
+    ( addrTxWitsL, auxDataTxL, bodyTxL, bootAddrTxWitsL, feeTxBodyL,
+    inputsTxBodyL, outputsTxBodyL, scriptTxWitsL, witsTxL )
 import Cardano.Ledger.Shelley
     ( ShelleyTx )
 import Cardano.Ledger.Shelley.TxBody

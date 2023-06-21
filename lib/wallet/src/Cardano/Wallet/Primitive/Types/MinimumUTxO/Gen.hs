@@ -29,13 +29,8 @@ import Prelude
 import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Ledger.Api
-    ( CoinPerByte (..)
-    , CoinPerWord (..)
-    , emptyPParams
-    , ppCoinsPerUTxOByteL
-    , ppCoinsPerUTxOWordL
-    , ppMinUTxOValueL
-    )
+    ( CoinPerByte (..), CoinPerWord (..), emptyPParams, ppCoinsPerUTxOByteL,
+    ppCoinsPerUTxOWordL, ppMinUTxOValueL )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen

@@ -67,12 +67,8 @@ import Data.Maybe
 import Data.Set
     ( Set )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardCrypto
-    , StandardMary
-    )
+    ( StandardAlonzo, StandardBabbage, StandardConway, StandardCrypto,
+    StandardMary )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

@@ -38,13 +38,8 @@ import Data.Map
 import Data.Word
     ( Word64 )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
+    ( StandardAllegra, StandardAlonzo, StandardBabbage, StandardConway,
+    StandardMary, StandardShelley )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI

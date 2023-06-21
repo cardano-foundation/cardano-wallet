@@ -18,19 +18,9 @@ import Prelude
 import Cardano.Api
     ( MaryEra )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
-    , auxDataTxL
-    , bodyTxL
-    , bootAddrTxWitsL
-    , certsTxBodyL
-    , feeTxBodyL
-    , inputsTxBodyL
-    , mintTxBodyL
-    , outputsTxBodyL
-    , scriptTxWitsL
-    , vldtTxBodyL
-    , witsTxL
-    )
+    ( addrTxWitsL, auxDataTxL, bodyTxL, bootAddrTxWitsL, certsTxBodyL,
+    feeTxBodyL, inputsTxBodyL, mintTxBodyL, outputsTxBodyL, scriptTxWitsL,
+    vldtTxBodyL, witsTxL )
 import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates

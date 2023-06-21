@@ -35,9 +35,9 @@ import Numeric
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, Property, checkCoverage, counterexample,
-    cover, coverTable, forAll, forAllShrink, frequency, oneof,
-    property, tabulate, withMaxSuccess, (===) )
+    ( Arbitrary (..), Gen, Property, checkCoverage, counterexample, cover,
+    coverTable, forAll, forAllShrink, frequency, oneof, property, tabulate,
+    withMaxSuccess, (===) )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 

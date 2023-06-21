@@ -72,28 +72,9 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Applicative
     ( liftA3 )
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM
-    , STM
-    , TMVar
-    , TQueue
-    , TVar
-    , atomically
-    , isEmptyTMVar
-    , modifyTVar'
-    , newEmptyTMVarIO
-    , newTMVarIO
-    , newTQueue
-    , newTQueueIO
-    , newTVarIO
-    , putTMVar
-    , readTMVar
-    , readTVar
-    , readTVarIO
-    , retry
-    , takeTMVar
-    , tryReadTMVar
-    , writeTVar
-    )
+    ( MonadSTM, STM, TMVar, TQueue, TVar, atomically, isEmptyTMVar, modifyTVar',
+    newEmptyTMVarIO, newTMVarIO, newTQueue, newTQueueIO, newTVarIO, putTMVar,
+    readTMVar, readTVar, readTVarIO, retry, takeTMVar, tryReadTMVar, writeTVar )
 import Control.Monad
     ( forever, unless, void, when )
 import Control.Monad.Class.MonadAsync
@@ -191,17 +172,9 @@ import Ouroboros.Network.Mux
     ( MuxMode (..), MuxPeer (..), OuroborosApplication (..),
     RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..)
-    , Handshake
-    , LocalAddress
-    , NetworkConnectTracers (..)
-    , NodeToClientProtocols (..)
-    , NodeToClientVersionData
-    , connectTo
-    , localSnocket
-    , nodeToClientProtocols
-    , withIOManager
-    )
+    ( ConnectionId (..), Handshake, LocalAddress, NetworkConnectTracers (..),
+    NodeToClientProtocols (..), NodeToClientVersionData, connectTo,
+    localSnocket, nodeToClientProtocols, withIOManager )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined

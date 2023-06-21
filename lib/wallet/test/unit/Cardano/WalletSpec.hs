@@ -11,6 +11,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -128,11 +129,8 @@ import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
     ( MonadMonotonicTimeNSec (..), MonadTime (..) )
-    ( MonadMonotonicTimeNSec (..), MonadTime (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), wrappedWithRunInIO )
-import Control.Monad.Trans
-    ( MonadIO, MonadTrans, lift, liftIO )
 import Control.Monad.Trans
     ( MonadIO, MonadTrans, lift, liftIO )
 import Control.Monad.Trans.Except
@@ -184,42 +182,17 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Util.IOLike
-    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
-import Ouroboros.Consensus.Util.IOLike
     ( MonadMonotonicTime (..), Time (..) )
 import System.Random
     ( Random )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , Gen
-    , NonEmptyList (..)
-    , Property
-    , arbitraryBoundedEnum
-    , checkCoverage
-    , choose
-    , conjoin
-    , counterexample
-    , cover
-    , elements
-    , forAll
-    , forAllBlind
-    , frequency
-    , label
-    , liftArbitrary
-    , listOf1
-    , oneof
-    , property
-    , scale
-    , sized
-    , suchThat
-    , vector
-    , withMaxSuccess
-    , (===)
-    , (==>)
-    )
+    ( Arbitrary (..), Blind (..), Gen, NonEmptyList (..), Property,
+    arbitraryBoundedEnum, checkCoverage, choose, conjoin, counterexample, cover,
+    elements, forAll, forAllBlind, frequency, label, liftArbitrary, listOf1,
+    oneof, property, scale, sized, suchThat, vector, withMaxSuccess, (===),
+    (==>) )
 import Test.QuickCheck.Extra
     ( report )
 import Test.QuickCheck.Monadic
@@ -229,16 +202,8 @@ import Test.Utils.Time
 import Test.Utils.Trace
     ( captureLogging' )
 import UnliftIO.Concurrent
-    ( MVar
-    , modifyMVar
-    , modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , threadDelay
-    )
+    ( MVar, modifyMVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar,
+    takeMVar, threadDelay )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
