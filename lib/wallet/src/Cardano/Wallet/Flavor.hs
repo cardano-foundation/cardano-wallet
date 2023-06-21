@@ -73,8 +73,6 @@ data WalletFlavorS s where
         => TestFeatures (TestState s1 n k kt)
         -> WalletFlavorS (TestState s1 n k kt)
 
-type family TestStateOf s where
-    TestStateOf (TestState s n k kt) = s
 data WalletFlavors
     = ShelleyF
     | IcarusF

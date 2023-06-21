@@ -100,6 +100,9 @@ source-repository-package
     subdir: command-line
             core
 
+package cardano-addresses
+  ghc-options: -Wno-incomplete-uni-patterns
+
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-sl-x509

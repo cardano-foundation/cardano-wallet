@@ -19,6 +19,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
