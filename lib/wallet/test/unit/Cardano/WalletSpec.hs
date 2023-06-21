@@ -15,6 +15,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TupleSections #-}
 
 module Cardano.WalletSpec
     ( spec
@@ -734,13 +735,11 @@ instance Arbitrary GenSubmissions where
         genBuiltTx = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
-            st <- elements [Pending]
-            dir <- elements [Outgoing]
             expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
             i <- arbitrary
             pure $ BuiltTx
                 (mkTx i)
-                (TxMeta st dir sl bh (Coin 0) expry)
+                (TxMeta Pending Outgoing sl bh (Coin 0) expry)
                 (fakeSealedTx (i, []))
         genSmallSlot =
             SlotNo . fromIntegral <$> sized (\n -> choose (1, 1+ 4 * n))
@@ -748,7 +747,7 @@ instance Arbitrary GenSubmissions where
 instance Arbitrary TxRetryTest where
     arbitrary = do
         GenSubmissions metas <- arbitrary
-        let results = zip (builtSealedTx <$> metas) (repeat True)
+        let results = (, True) . builtSealedTx <$> metas
         TxRetryTest metas results <$> arbitrary <*> arbitrary
 
 instance Arbitrary SlottingParameters where

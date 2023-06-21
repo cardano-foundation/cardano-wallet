@@ -1090,9 +1090,7 @@ restoreWallet ctx = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
         readChainPoints = atomically listCheckpoints
         rollBackward = rollbackBlocks @_ @s ctx . toSlot
-        rollForward' blockdata tip =
-            restoreBlocks @_ @s
-                ctx (contramap MsgWalletFollow tr) blockdata tip
+        rollForward' = restoreBlocks @_ @s ctx (contramap MsgWalletFollow tr)
     in
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->
