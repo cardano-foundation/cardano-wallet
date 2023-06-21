@@ -163,7 +163,6 @@ constraints:
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
   , cardano-api >= 1.35.6
-  , cardano-node >= 1.35.6
   , generic-arbitrary >= 0.2.2
   , iohk-monitoring >= 0.1.11
 

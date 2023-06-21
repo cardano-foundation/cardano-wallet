@@ -92,9 +92,10 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = lib.cleanSourceFilter;
       };
 
+      indexState = "2023-05-04T22:30:25Z";
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc928";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -106,20 +107,17 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
-          cabal = "latest";
-          cabal-cache.version = "1.0.2.1";
+          # cabal-cache = {};
+          cabal = { index-state = indexState; };
           haskell-language-server = {
-            version = "1.8.0.0";
-            modules = [{ reinstallableLibGhc = false; }];
+            index-state = indexState;
+            version = "1.10.0.0";
           };
-          hie-bios = {
-            modules = [{ reinstallableLibGhc = false; }];
-          };
-          hoogle.version = "5.0.18.1";
-          hlint.version = "3.3.1";
-          lentil.version = "1.5.2.0";
-          stylish-haskell.version = "0.11.0.3";
-          weeder.version = "2.1.3";
+          hlint = { index-state = indexState; };
+          hoogle = { index-state = indexState; };
+          lentil = { index-state = indexState; };
+          stylish-haskell = { index-state = indexState; };
+          # weeder = {};
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
