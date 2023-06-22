@@ -146,10 +146,12 @@ constraints:
   , Cabal >= 3.4.0.0
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
-  , cardano-api >= 1.35.6
-  , cardano-node >= 1.35.6
   , generic-arbitrary >= 0.2.2
   , iohk-monitoring >= 0.1.11
+
+  -- lower versions of katip won't build with the Win32-2.12.0.1
+  -- which is shipped with the ghc-9.2.8
+  , katip >= 0.8.7.4
 
   -- Cardano Node dependencies:
   , cardano-api ^>=8.2
