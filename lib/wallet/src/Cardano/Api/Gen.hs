@@ -148,6 +148,8 @@ import Data.List
     ( nub )
 import Data.Map
     ( Map )
+import Data.Maybe
+    ( isJust )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Data.Ratio
@@ -480,7 +482,7 @@ genScriptInAnyLang optionalEra =
       | AnyScriptLanguage lang <- [minBound..maxBound]
       , case optionalEra of
           Nothing -> True
-          Just era -> scriptLanguageSupportedInEra era lang /= Nothing
+          Just era -> isJust (scriptLanguageSupportedInEra era lang)
       ]
 
 genScriptInEra :: CardanoEra era -> Gen (ScriptInEra era)

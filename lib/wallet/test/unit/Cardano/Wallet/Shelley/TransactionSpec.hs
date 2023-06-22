@@ -3297,9 +3297,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         in Golden
             { output = ledgerPParams
             , encodePretty = show
-            , writeToFile = \fp x -> T.writeFile fp $ T.pack $ toCBORHex x
-            , readFromFile = \fp ->
-                unsafeDeserialize' . unsafeFromHex . B8.pack <$> readFile fp
+            , writeToFile = \fp -> T.writeFile fp . T.pack . toCBORHex
+            , readFromFile =
+                (unsafeDeserialize' . unsafeFromHex . B8.pack <$>) . readFile
             , goldenFile = dir </> name </> "golden"
             , actualFile = Just (dir </> name </> "actual")
             , failFirstTime = False
