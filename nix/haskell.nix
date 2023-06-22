@@ -167,10 +167,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           # Provide configuration and dependencies to cardano-wallet components
           ({ config, pkgs, ... }:
             let
-              cardanoNodeExes = with config.hsPkgs;
-                [ nodePkgs.cardano-cli
-                  nodePkgs.cardano-node
-                ];
+              cardanoNodeExes = [ nodePkgs.cardano-cli nodePkgs.cardano-node ];
             in
             {
               reinstallableLibGhc = true;

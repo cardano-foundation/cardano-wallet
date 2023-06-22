@@ -218,6 +218,7 @@
             check;
 
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
+          nodeProject = cardano-node-runtime.project.${system};
 
           project = (import ./nix/haskell.nix
               CHaP
@@ -250,8 +251,8 @@
                 inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
 
                 # Cardano
-                inherit (project.hsPkgs.cardano-cli.components.exes) cardano-cli;
-                cardano-node = project.hsPkgs.cardano-node.components.exes.cardano-node // {
+                cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes;
+                cardano-node = nodeProject.hsPkgs.cardano-node.components.exes.cardano-node // {
                   deployments = pkgs.cardano-node-deployments;
                 };
 
