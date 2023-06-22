@@ -353,8 +353,8 @@ import Data.Aeson.Types
     ( FromJSON (..), Parser, SumEncoding (..), ToJSON (..),
     Value (Null, Object, String), camelTo2, constructorTagModifier,
     fieldLabelModifier, genericParseJSON, genericToJSON, object,
-    omitNothingFields, sumEncoding, tagSingleConstructors, withObject,
-    withText, (.:), (.:?), (.=) )
+    omitNothingFields, sumEncoding, tagSingleConstructors, withObject, withText,
+    (.:), (.:?), (.=) )
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray
