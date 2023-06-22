@@ -100,7 +100,7 @@ import Cardano.Ledger.Api
     ppProtocolVersionL, ppRhoL, ppTauL )
 import Cardano.Ledger.BaseTypes
     ( Network (Mainnet), NonNegativeInterval, PositiveUnitInterval,
-    StrictMaybe (..), UnitInterval, boundRational, textToUrl, natVersion )
+    StrictMaybe (..), UnitInterval, boundRational, natVersion, textToUrl )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
 import Cardano.Pool.Metadata
