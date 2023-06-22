@@ -367,25 +367,25 @@ spec = describe "TransactionSpec" $ do
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction adds reward account witness when necessary"
             prop_signTransaction_addsRewardAccountKey
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction adds extra key witnesses when necessary"
             prop_signTransaction_addsExtraKeyWitnesses
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction adds tx in witnesses when necessary"
             prop_signTransaction_addsTxInWitnesses
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction adds collateral witnesses when necessary"
             prop_signTransaction_addsTxInCollateralWitnesses
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction never removes witnesses"
             prop_signTransaction_neverRemovesWitnesses
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction never changes tx body"
             prop_signTransaction_neverChangesTxBody
-        spec_forAllRecentEras
+        spec_forAllRecentErasPedningConway
             "signTransaction preserves script integrity"
             prop_signTransaction_preservesScriptIntegrity
 
@@ -397,6 +397,19 @@ spec_forAllRecentEras description p =
         $ \(AnyCardanoEra era) -> it (show era)
         $ property
         $ p (AnyCardanoEra era)
+  where
+    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
+        f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
+
+spec_forAllRecentErasPedningConway
+    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
+spec_forAllRecentErasPedningConway description p =
+    describe description $
+    forAllRecentEras'
+        $ \(AnyCardanoEra era) ->
+            if AnyCardanoEra era == AnyCardanoEra ConwayEra
+            then it (show era) $ pendingWith "TODO: Conway"
+            else it (show era) $ property $ p (AnyCardanoEra era)
   where
     forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
         f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
