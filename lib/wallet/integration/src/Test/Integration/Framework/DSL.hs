@@ -192,6 +192,7 @@ module Test.Integration.Framework.DSL
     , accPubKeyFromMnemonics
     , sharedAccPubKeyFromMnemonics
     , submitSharedTxWithWid
+    , notRetiringPools
 
     -- * Delegation helpers
     , notDelegating
@@ -2643,6 +2644,22 @@ getWallet ctx w = do
     r <- request @ApiWallet ctx link Default Empty
     expectResponseCode HTTP.status200 r
     return (getFromResponse id r)
+
+-- Note: In the local cluster, some of the pools retire early.
+-- When running the test in isolation, we have to delegate
+-- to pools which will retire later.
+notRetiringPools
+    :: MonadUnliftIO f
+    => Context
+    -> f [StakePool]
+notRetiringPools ctx = do
+    filter won'tRetire . map getApiT . snd <$>
+        unsafeRequest @[ApiT StakePool] ctx
+        (Link.listStakePools arbitraryStake) Empty
+  where
+      won'tRetire pool' = case pool' ^. #retirement of
+          Nothing -> True
+          Just epoch -> epoch ^. #epochNumber >= 100
 
 listAllTransactions
     :: forall n w m.
