@@ -95,7 +95,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = lib.cleanSourceFilter;
       };
 
-      indexState = "2023-05-04T22:30:25Z";
+      indexState = "2023-06-04T22:30:25Z";
     in {
       name = "cardano-wallet";
       compiler-nix-name = "ghc928";
@@ -115,7 +115,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
             index-state = indexState;
-            version = "1.10.0.0";
+            version = "latest";
           };
           hlint = { index-state = indexState; };
           hoogle = { index-state = indexState; };

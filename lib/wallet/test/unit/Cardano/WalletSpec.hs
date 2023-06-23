@@ -840,7 +840,7 @@ instance Arbitrary ThrottleTest where
     arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
       where
         genInterval = genDiffTime `suchThat` (> 0)
-        genDiffTime = abs <$> arbitraryBoundedEnum
+        genDiffTime = arbitrary 
     shrink (ThrottleTest i dts) =
         [ ThrottleTest i' dts'
         | (i', dts') <- shrink (i, dts)
