@@ -871,6 +871,7 @@ test-suite unit
     , servant-openapi3
     , servant-server
     , should-not-typecheck
+    , si-timers
     , sop-core
     , splitmix
     , strict-non-empty-containers
