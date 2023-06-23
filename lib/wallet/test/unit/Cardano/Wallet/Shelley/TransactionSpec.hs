@@ -389,18 +389,6 @@ spec = describe "TransactionSpec" $ do
             "signTransaction preserves script integrity"
             prop_signTransaction_preservesScriptIntegrity
 
-spec_forAllRecentEras
-    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
-spec_forAllRecentEras description p =
-    describe description $
-    forAllRecentEras'
-        $ \(AnyCardanoEra era) -> it (show era)
-        $ property
-        $ p (AnyCardanoEra era)
-  where
-    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
-        f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
-
 spec_forAllRecentErasPedningConway
     :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
 spec_forAllRecentErasPedningConway description p =
