@@ -251,7 +251,7 @@
                 inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
 
                 # Cardano
-                cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes;
+                cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;
                 cardano-node = nodeProject.hsPkgs.cardano-node.components.exes.cardano-node // {
                   deployments = pkgs.cardano-node-deployments;
                 };
