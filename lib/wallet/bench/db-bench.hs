@@ -194,7 +194,7 @@ import GHC.Num
 import System.Directory
     ( doesFileExist, getFileSize )
 import System.FilePath
-    ( takeFileName )
+    ( takeFileName, (</>) )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -204,7 +204,7 @@ import Test.Utils.Resource
 import UnliftIO.Exception
     ( bracket )
 import UnliftIO.Temporary
-    ( withSystemTempFile )
+    ( withSystemTempDirectory )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -729,7 +729,10 @@ instance NFData (BenchEnv s) where
     rnf _ = ()
 
 withTempSqliteFile :: (FilePath -> IO a) -> IO a
-withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
+withTempSqliteFile action =
+    withSystemTempDirectory "bench-db" $ \dir -> do
+        let path = dir </> "bench.db"
+        action path
 
 setupDB
     :: forall s
