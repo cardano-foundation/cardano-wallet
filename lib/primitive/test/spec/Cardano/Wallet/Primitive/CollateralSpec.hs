@@ -32,14 +32,14 @@ import Data.Maybe
     ( fromJust, isJust, isNothing )
 import Numeric
     ( showHex )
+import Test.Cardano.Ledger.Core.Arbitrary
+    ()
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, Property, checkCoverage, counterexample, cover,
     coverTable, forAll, forAllShrink, frequency, oneof, property, tabulate,
     withMaxSuccess, (===) )
-import Test.QuickCheck.Hedgehog
-    ( hedgehog )
 
 import qualified Cardano.Ledger.Address as L
 import qualified Cardano.Ledger.Crypto as CC
@@ -48,7 +48,6 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Test.Cardano.Chain.Common.Gen as Byron
 
 -- To begin with, we will write our generators and tests for the @AddressType@
 -- type.
@@ -264,10 +263,8 @@ prop_addressType_equivalance =
 -- addresses.
 genAnyAddress :: Gen Address
 genAnyAddress = frequency
-    [
-    -- (10, asAddress <$> genShelleyAddr)
-      (1, asAddress <$> genByronAddr)
-    -- , (2, asStakeAddress <$> genStakeAddr)
+    [ (10, asAddress <$> arbitrary)
+    , (2, asStakeAddress <$> genStakeAddr)
     , (3, Address <$> arbitrary)
     ]
 
@@ -735,39 +732,11 @@ shelleyEnterprisePaymentAddrGolden :: BL.ByteString
 shelleyEnterprisePaymentAddrGolden = unsafeBech32Decode
     "addr_test1vpdylg53ekxh2404mfgw4pt4gfm7dc9dkc74ck0gtrld8uqewynck"
 
--- To define these generators, we rely on explicit generators (and implicit
--- Arbitrary instance generators) provided by
--- "Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators". Do not try to
--- move the generators below to any of our "*.Gen" modules. Unfortunately
--- "EraIndepGenerators" exports Arbitrary instances that will conflict with the
--- Arbitrary instances we define in our Specs.
-
-{-
-genShelleyAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyAddr =
-    L.Addr <$> arbitrary <*> arbitrary <*> arbitrary
-
-genShelleyScriptHashAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyScriptHashAddr = L.Addr
-    <$> arbitrary
-    <*> (L.ScriptHashObj . L.ScriptHash <$> L.genHash)
-    <*> arbitrary
-
-genShelleyKeyHashAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyKeyHashAddr = L.Addr
-    <$> arbitrary
-    <*> (L.KeyHashObj <$> arbitrary)
-    <*> arbitrary
--}
-
 genByronAddr :: Gen (L.Addr CC.StandardCrypto)
-genByronAddr =
-    L.AddrBootstrap . L.BootstrapAddress <$> hedgehog Byron.genAddress
+genByronAddr = L.AddrBootstrap <$> arbitrary
 
-{-
 genStakeAddr :: Gen (L.RewardAcnt CC.StandardCrypto)
-genStakeAddr = hedgehog L.genRewardAcnt
--}
+genStakeAddr = arbitrary
 
 -- Some helper functions
 
