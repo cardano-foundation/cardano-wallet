@@ -25,6 +25,7 @@ module Cardano.Wallet.BenchShared
     , runBenchmarks
     , bench
     , Time
+    , withTempSqliteFile
     ) where
 
 import Prelude
@@ -285,3 +286,9 @@ initBenchmarkLogging name minSeverity = do
     CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
     (tr, _sb) <- setupTrace_ c name
     pure (c, tr)
+
+withTempSqliteFile :: (FilePath -> IO a) -> IO a
+withTempSqliteFile action =
+    withSystemTempDirectory "bench-restoration" $ \dir -> do
+        let path = dir </> "restoration.db"
+        action path

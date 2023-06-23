@@ -1094,6 +1094,7 @@ benchmark db
     , cardano-api
     , cardano-crypto
     , cardano-wallet
+    , cardano-wallet-bench
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils

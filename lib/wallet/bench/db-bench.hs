@@ -88,6 +88,8 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
+import Cardano.Wallet.BenchShared
+    ( withTempSqliteFile )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -194,7 +196,7 @@ import GHC.Num
 import System.Directory
     ( doesFileExist, getFileSize )
 import System.FilePath
-    ( takeFileName, (</>) )
+    ( takeFileName )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -203,8 +205,6 @@ import Test.Utils.Resource
     ( unBracket )
 import UnliftIO.Exception
     ( bracket )
-import UnliftIO.Temporary
-    ( withSystemTempDirectory )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -727,12 +727,6 @@ data BenchEnv s = BenchEnv
 instance NFData (BenchEnv s) where
     rnf :: BenchEnv s -> ()
     rnf _ = ()
-
-withTempSqliteFile :: (FilePath -> IO a) -> IO a
-withTempSqliteFile action =
-    withSystemTempDirectory "bench-db" $ \dir -> do
-        let path = dir </> "bench.db"
-        action path
 
 setupDB
     :: forall s
