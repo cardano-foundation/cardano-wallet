@@ -121,7 +121,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldContain, shouldNotContain )
+    ( SpecWith, describe, pendingWith, shouldContain, shouldNotContain, xit )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldNotBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
@@ -2286,6 +2286,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "ADP-3077"
         (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
 
         -- Construct tx
@@ -4413,7 +4414,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     -- signers!
     -- TODO: remove no-unused-imports pragma once this function is fixed.
     addRequiredSigners :: SealedTx -> [XPub] -> SealedTx
-    addRequiredSigners _tx _vks = error "TODO: fix addRequiredSigners"
+    addRequiredSigners _tx _vks = error "TODO: ADP-3077 fix addRequiredSigners"
 
     {-
         case getSealedTxBody tx of
