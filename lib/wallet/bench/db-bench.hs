@@ -6,12 +6,14 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -86,10 +88,16 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
+import Cardano.Wallet.BenchShared
+    ( withTempSqliteFile )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook, WalletDBLog (..), withDBFresh )
+    ( DefaultFieldValues (..)
+    , PersistAddressBook
+    , WalletDBLog (..)
+    , withDBFresh
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
@@ -197,8 +205,6 @@ import Test.Utils.Resource
     ( unBracket )
 import UnliftIO.Exception
     ( bracket )
-import UnliftIO.Temporary
-    ( withSystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -722,9 +728,6 @@ instance NFData (BenchEnv s) where
     rnf :: BenchEnv s -> ()
     rnf _ = ()
 
-withTempSqliteFile :: (FilePath -> IO a) -> IO a
-withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
-
 setupDB
     :: forall s
      . ( PersistAddressBook s
@@ -738,7 +741,7 @@ setupDB tr = do
   where
     withSetup action = withTempSqliteFile $ \fp -> do
         withDBFresh (walletFlavor @s)
-            tr Nothing fp singleEraInterpreter testWid
+            tr (Just defaultFieldValues) fp singleEraInterpreter testWid
                 $ \db -> action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO
@@ -774,6 +777,14 @@ withCleanDB tr f g = perRunEnvWithCleanup setup (dbDown . fst) $
         x <- f dbFresh
         pure (be , x)
 
+defaultFieldValues :: DefaultFieldValues
+defaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 0
+    , defaultMinimumUTxOValue = Coin 1_000_000
+    , defaultHardforkEpoch = Nothing
+    , defaultKeyDeposit = Coin 2_000_000
+    }
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 

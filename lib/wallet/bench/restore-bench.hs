@@ -82,6 +82,7 @@ import Cardano.Wallet.BenchShared
     , execBenchWithNode
     , initBenchmarkLogging
     , runBenchmarks
+    , withTempSqliteFile
     )
 import Cardano.Wallet.DB
     ( DBFresh )
@@ -235,8 +236,6 @@ import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
     ( evaluate, throwString )
-import UnliftIO.Temporary
-    ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
@@ -832,7 +831,7 @@ withBenchDBLayer
     -> (DBFresh IO s -> IO a)
     -> IO a
 withBenchDBLayer ti tr wid action =
-    withSystemTempFile "bench.db" $ \dbFile _ ->
+    withTempSqliteFile $ \dbFile ->
         withDBFresh (walletFlavor @s) tr'
             (Just migrationDefaultValues) dbFile ti wid action
   where
