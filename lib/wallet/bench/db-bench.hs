@@ -89,11 +89,8 @@ import Cardano.Wallet.BenchShared
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..)
-    , PersistAddressBook
-    , WalletDBLog (..)
-    , withDBFresh
-    )
+    ( DefaultFieldValues (..), PersistAddressBook, WalletDBLog (..),
+    withDBFresh )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
