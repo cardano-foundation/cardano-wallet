@@ -158,14 +158,10 @@ constraints:
   , cardano-slotting >= 0.1
   , ouroboros-network ^>= 0.8.1.0
 
-  -- Could probably be bumped with minor work in the wallet
-  , resource-pool >= 0.2.3.2
-
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
   , persistent == 2.13.3.3
 
   -- Haddock is broken in this release. Waiting for the next release
-  , http2 < 4.0.0
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)

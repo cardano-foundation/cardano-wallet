@@ -121,7 +121,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           hoogle = { index-state = indexState; };
           lentil = { index-state = indexState; };
           stylish-haskell = { index-state = indexState; };
-          # weeder = {};
+          fourmolu = { index-state = indexState; };
+          weeder = {
+            index-state = indexState;
+            version = "2.4.1";
+          };
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
