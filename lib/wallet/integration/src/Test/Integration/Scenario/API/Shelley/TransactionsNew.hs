@@ -4191,6 +4191,41 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 6]
 
+        addrs <- listAddresses @n ctx wDest
+
+        let addr0 = (addrs !! 0) ^. #id
+        let linkList0 = Link.listTransactions' @'Shelley wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr0))
+        rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
+        verify rl0 [expectListSize 2]
+
+        let addr1 = (addrs !! 1) ^. #id
+        let linkList1 = Link.listTransactions' @'Shelley wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr1))
+        rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
+        verify rl1 [expectListSize 1]
+
+        let addr2 = (addrs !! 2) ^. #id
+        let linkList2 = Link.listTransactions' @'Shelley wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr2))
+        rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
+        verify rl2 [expectListSize 3]
+
   where
 
     -- | Just one million Ada, in Lovelace.
