@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -131,6 +132,8 @@ import GHC.Generics
     ( Generic )
 
 import qualified Data.Map.Strict as Map
+
+import qualified Debug.Trace as TR
 
 {-------------------------------------------------------------------------------
                             Model Database wid Types
@@ -521,10 +524,19 @@ filterTxHistory minWithdrawal order range address =
     filterWithdrawals = maybe
         (const True)
         (\inf -> atLeast inf . withdrawals . fst)
+
     addressInTxOut addr = any (\(TxOut addr' _) -> addr' == addr)
-    filterAddress = maybe
-        (const True)
-        (\addr -> addressInTxOut addr . outputs . fst)
+    checkOut addr = addressInTxOut addr . outputs . fst
+
+    isAddressPresent addr = \case
+        (_, Just (TxOut addr' _)) -> addr' == addr
+        _ -> False
+    addressInInp addr = any (isAddressPresent addr)
+    checkInp addr = addressInInp addr . resolvedInputs . fst
+
+    filterAddress addrM txhistory = TR.trace ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!txhistory: "<> show txhistory) $ case addrM of
+        Nothing -> True
+        Just addr -> checkOut addr txhistory || checkInp addr txhistory
 
 tip :: Wallet s -> SlotNo
 tip = (slotNo :: BlockHeader -> SlotNo) . currentTip
