@@ -688,12 +688,6 @@ instance ToExpr b => ToExpr (Quantity a b) where
 instance ToExpr GenesisParameters where
     toExpr = defaultExprViaShow
 
-instance ToExpr Slot where
-    toExpr = genericToExpr
-
-instance ToExpr SlotNo where
-    toExpr = genericToExpr
-
 instance ToExpr EpochNo where
     toExpr = defaultExprViaShow
 

@@ -17,22 +17,24 @@ import Prelude
 
 import Cardano.Api
     ( MaryEra )
-import Cardano.Ledger.Core
-    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
-import Cardano.Ledger.Era
-    ( Era (..) )
-import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL, wdrlsTxBodyL )
-import Cardano.Ledger.ShelleyMA.TxBody
-    ( mintTxBodyL, vldtTxBodyL )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , auxDataTxL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , certsTxBodyL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , mintTxBodyL
+    , outputsTxBodyL
+    , scriptTxWitsL
+    , vldtTxBodyL
+    , witsTxL
+    )
 import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -44,15 +46,17 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromShelleyWdrl )
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (Tx) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript, toWalletTokenPolicyId )
+    ( toWalletScript )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -63,24 +67,15 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( (^.) )
-import Data.Foldable
-    ( toList )
-import Data.Map.Strict
-    ( Map )
+    ( folded, (^.), (^..) )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Crypto as Crypto
-import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.Tx as Shelley
-import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Set as Set
 
 fromMaryTx
@@ -100,52 +95,33 @@ fromMaryTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
-            Just $ fromShelleyCoin fee
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList ins)
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
             []
         , outputs =
-            map fromMaryTxOut (toList outs)
+            fromMaryTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
         , collateralOutput =
-            -- Collateral outputs are not supported in Mary.
-            Nothing
+            Nothing -- Collateral outputs are not supported in Mary.
         , withdrawals =
-            fromShelleyWdrl wdrls
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
-            fromMaryMetadata <$> SL.strictMaybeToMaybe mad
+            fromMaryMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
             Nothing
         }
-    , anyEraCerts certs
+    , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval vldt
-    , countWits
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        ((`NativeExplicitScript` ViaSpending)
+         . toWalletScript (toKeyRole witCtx)
+            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
-    bod = tx ^. bodyTxL
-    wits = tx ^. witsTxL
-    mad = tx ^. auxDataTxL
-    ins = bod ^. inputsTxBodyL
-    outs = bod ^. outputsTxBodyL
-    certs = bod ^. certsTxBodyL
-    wdrls = bod ^. wdrlsTxBodyL
-    fee = bod ^. feeTxBodyL
-    vldt = bod ^. vldtTxBodyL
-    mint = bod ^. mintTxBodyL
-    (assetsToMint, assetsToBurn) = maryMint mint wits
-    scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-    countWits = WitnessCount
-        (fromIntegral $ Set.size $ Shelley.addrWits wits)
-        (Map.elems scriptMap)
-        (fromIntegral $ Set.size $ Shelley.bootWits wits)
-
-    fromMaryScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto)))
-            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto))
-        -> Map TokenPolicyId AnyExplicitScript
-    fromMaryScriptMap =
-        Map.map (flip NativeExplicitScript ViaSpending . toWalletScript (toKeyRole witCtx)) .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+    (assetsToMint, assetsToBurn) =
+        maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)

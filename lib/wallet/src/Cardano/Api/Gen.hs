@@ -108,6 +108,7 @@ module Cardano.Api.Gen
     , genWitnesses
     , genWitnessNetworkIdOrByronAddress
     , genWitnessStake
+    , genValidProtocolVersion
     ) where
 
 import Prelude
@@ -149,10 +150,14 @@ import Data.Int
     ( Int64 )
 import Data.IntCast
     ( intCast )
+import Data.IP
+    ( IPv4, IPv6, fromHostAddress, fromHostAddress6 )
 import Data.List
     ( nub )
 import Data.Map
     ( Map )
+import Data.Maybe
+    ( isJust )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Data.Ratio
@@ -181,6 +186,8 @@ import Test.QuickCheck
     , NonNegative (..)
     , Positive (..)
     , arbitrary
+    , arbitraryASCIIChar
+    , arbitraryBoundedIntegral
     , arbitrarySizedNatural
     , choose
     , chooseInt
@@ -224,7 +231,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
-import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
 
 --------------------------------------------------------------------------------
 -- Constants
@@ -494,16 +500,19 @@ genSimpleScriptOrReferenceInput =
           ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
-genScript SimpleScriptLanguage =
-    SimpleScript <$> genSimpleScript
-genScript (PlutusScriptLanguage lang) =
-    PlutusScript lang <$> genPlutusScript lang
+genScript = \case
+    SimpleScriptLanguage -> SimpleScript <$> genSimpleScript
+    PlutusScriptLanguage lang -> PlutusScript lang <$> genPlutusScript lang
 
-genScriptInAnyLang :: Gen ScriptInAnyLang
-genScriptInAnyLang =
+genScriptInAnyLang :: Maybe (CardanoEra era) -> Gen ScriptInAnyLang
+genScriptInAnyLang optionalEra =
     oneof
       [ ScriptInAnyLang lang <$> genScript lang
-      | AnyScriptLanguage lang <- [minBound..maxBound] ]
+      | AnyScriptLanguage lang <- [minBound..maxBound]
+      , case optionalEra of
+          Nothing -> True
+          Just era -> isJust (scriptLanguageSupportedInEra era lang)
+      ]
 
 genScriptInEra :: CardanoEra era -> Gen (ScriptInEra era)
 genScriptInEra era =
@@ -514,7 +523,7 @@ genScriptInEra era =
 
 genScriptHash :: Gen ScriptHash
 genScriptHash = do
-    ScriptInAnyLang _ script <- genScriptInAnyLang
+    ScriptInAnyLang _ script <- genScriptInAnyLang Nothing
     return (hashScript script)
 
 genAssetName :: Gen AssetName
@@ -888,7 +897,6 @@ genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
   oneof
     [ StakeAddressByValue <$> genStakeCredential
-    , (StakeAddressByPointer . StakeAddressPointer) <$> genPtr
     , return NoStakeAddress
     ]
 
@@ -912,8 +920,8 @@ genAddressAnyWithNetworkId genNetworkId' =
     oneof
         [ AddressByron
             <$> genAddressByronWithNetworkId genNetworkId'
-        {- , AddressShelley
-            <$> genAddressShelleyWithNetworkId genNetworkId' -}
+        , AddressShelley
+            <$> genAddressShelleyWithNetworkId genNetworkId'
         ]
 
 genAddressByronWithNetworkId :: Gen NetworkId -> Gen (Address ByronAddr)
@@ -985,7 +993,7 @@ genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
     Nothing -> pure ReferenceScriptNone
     Just supported -> oneof
         [ pure ReferenceScriptNone
-        , ReferenceScript supported <$> genScriptInAnyLang
+        , ReferenceScript supported <$> genScriptInAnyLang (Just era)
         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
@@ -1066,20 +1074,26 @@ protocolParametersForHashing =
     generateWith (GenSeed 0) genSizeDefault
         genRecentEraProtocolParameters
 
+genValidProtocolVersion :: Gen (Natural, Natural)
+genValidProtocolVersion = do
+    major <- fromIntegral @Int <$> choose (0, 9)
+    minor <- genNat
+    pure (major, minor)
+
 -- | Generates a set of protocol parameters for a recent era.
 --
 -- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
 -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
 genRecentEraProtocolParameters :: Gen ProtocolParameters
 genRecentEraProtocolParameters = ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
+    <$> genValidProtocolVersion
     <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
     <*> genNat
     <*> genNat
-    <*> genNat
-    <*> genNat
+    <*> genLovelace
+    <*> genLovelace
     <*> liftArbitrary genLovelace
     <*> genLovelace
     <*> genLovelace
@@ -1220,7 +1234,7 @@ genStakePoolMetadataReference = do
 
 genStakePoolRelay :: Gen StakePoolRelay
 genStakePoolRelay = do
-    relay <- hedgehog Ledger.genStakePoolRelay
+    relay <- genLedgerStakePoolRelay
     pure $ case relay of
         Ledger.SingleHostAddr mPort mIPv4 mIPv6 ->
             StakePoolRelayIp
@@ -1235,9 +1249,48 @@ genStakePoolRelay = do
             StakePoolRelayDnsSrvRecord
                 (T.encodeUtf8 . Ledger.dnsToText $ dnsName)
 
-    where
-        castPort :: Ledger.Port -> PortNumber
-        castPort = fromInteger . toInteger . Ledger.portToWord16
+  where
+    castPort :: Ledger.Port -> PortNumber
+    castPort = fromInteger . toInteger . Ledger.portToWord16
+
+    -- See https://github.com/input-output-hk/cardano-ledger-1-tech-writing-tweaks/blob/2de173e8574ab079c9e18013d7906c20a70a7251/eras/shelley/test-suite/src/Test/Cardano/Ledger/Shelley/Serialisation/Generators/Genesis.hs#L113
+    genLedgerStakePoolRelay :: Gen Ledger.StakePoolRelay
+    genLedgerStakePoolRelay = oneof
+        [ Ledger.SingleHostAddr
+            <$> genStrictMaybe genPort
+            <*> genStrictMaybe genIPv4
+            <*> genStrictMaybe genIPv6
+        , Ledger.SingleHostName
+            <$> genStrictMaybe genPort
+            <*> genDnsName
+        , Ledger.MultiHostName
+            <$> genDnsName
+        ]
+
+    genDnsName :: Gen Ledger.DnsName
+    genDnsName = do
+        txtLength <- choose (1, 63)
+        txt <- T.pack <$> vectorOf txtLength arbitraryASCIIChar
+        case Ledger.textToDns txt of
+            Nothing -> error "wrong generator for DnsName"
+            Just dns -> return dns
+
+    genIPv4 :: Gen IPv4
+    genIPv4 = fromHostAddress <$> arbitraryBoundedIntegral
+
+    genIPv6 :: Gen IPv6
+    genIPv6 = do
+        w1 <- arbitraryBoundedIntegral
+        w2 <- arbitraryBoundedIntegral
+        w3 <- arbitraryBoundedIntegral
+        w4 <- arbitraryBoundedIntegral
+        pure $ fromHostAddress6 (w1, w2, w3, w4)
+
+    genPort :: Gen Ledger.Port
+    genPort = Ledger.Port <$> arbitraryBoundedIntegral
+
+    genStrictMaybe :: Gen a -> Gen (Ledger.StrictMaybe a)
+    genStrictMaybe gen = Ledger.maybeToStrictMaybe <$> liftArbitrary gen
 
 genStakePoolParameters :: Gen StakePoolParameters
 genStakePoolParameters =
@@ -1257,7 +1310,7 @@ genTxCertificate =
     oneof
         [ StakeAddressRegistrationCertificate <$> genStakeCredential
         , StakeAddressDeregistrationCertificate <$> genStakeCredential
-        , StakeAddressDelegationCertificate <$> genStakeCredential <*> genPoolId
+        , StakeAddressPoolDelegationCertificate <$> genStakeCredential <*> genPoolId
         , StakePoolRegistrationCertificate <$> genStakePoolParameters
         , StakePoolRetirementCertificate <$> genPoolId <*> genEpochNo
         , GenesisKeyDelegationCertificate
@@ -1294,7 +1347,7 @@ genTxCertificates era =
 genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
 genProtocolParametersUpdate = do
     protocolUpdateProtocolVersion <-
-        liftArbitrary ((,) <$> genNat <*> genNat)
+        liftArbitrary genValidProtocolVersion
     protocolUpdateDecentralization <-
         liftArbitrary genRational
     protocolUpdateExtraPraosEntropy <-
@@ -1306,9 +1359,9 @@ genProtocolParametersUpdate = do
     protocolUpdateMaxTxSize <-
         liftArbitrary genNat
     protocolUpdateTxFeeFixed <-
-        liftArbitrary genNat
+        liftArbitrary genLovelace
     protocolUpdateTxFeePerByte <-
-        liftArbitrary genNat
+        liftArbitrary genLovelace
     protocolUpdateMinUTxOValue <-
         liftArbitrary genLovelace
     protocolUpdateStakeAddressDeposit <-
@@ -1445,18 +1498,16 @@ genTxBodyContent era = do
             }
 
     let witnesses = collectTxBodyScriptWitnesses txBody
+        pparams = BuildTxWith $ Just protocolParametersForHashing
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
         then do
-            pparams <- BuildTxWith
-                <$> liftArbitrary (pure protocolParametersForHashing)
             collateral <- genTxInsCollateral era
             pure txBody
                 { Api.txProtocolParams = pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
-            let pparams = BuildTxWith . Just $ protocolParametersForHashing
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone

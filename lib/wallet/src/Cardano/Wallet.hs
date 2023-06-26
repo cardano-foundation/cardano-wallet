@@ -546,13 +546,7 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, join, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
-    ( DiffTime
-    , MonadMonotonicTime (..)
-    , MonadTime (..)
-    , Time
-    , diffTime
-    , getCurrentTime
-    )
+    ( MonadTime (..) )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Random.Strict
@@ -617,7 +611,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime )
+    ( DiffTime, NominalDiffTime, UTCTime )
 import Data.Void
     ( Void )
 import Data.Word
@@ -641,6 +635,8 @@ import GHC.Num
     ( Natural )
 import GHC.TypeNats
     ( Nat )
+import Ouroboros.Consensus.Util.IOLike
+    ( MonadMonotonicTime, Time, diffTime, getMonotonicTime )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import UnliftIO.Exception
@@ -659,8 +655,8 @@ import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
-import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
+import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -1090,9 +1086,7 @@ restoreWallet ctx = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
         readChainPoints = atomically listCheckpoints
         rollBackward = rollbackBlocks @_ @s ctx . toSlot
-        rollForward' blockdata tip =
-            restoreBlocks @_ @s
-                ctx (contramap MsgWalletFollow tr) blockdata tip
+        rollForward' = restoreBlocks @_ @s ctx (contramap MsgWalletFollow tr)
     in
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->

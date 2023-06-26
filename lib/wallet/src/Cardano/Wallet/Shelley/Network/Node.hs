@@ -22,7 +22,7 @@
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer
-    , Observer (query,startObserving,stopObserving)
+    , Observer (query, startObserving, stopObserving)
     , newObserver
     , ObserverLog (..)
 
@@ -84,7 +84,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , fromPoint
     , fromPoolDistr
-    , fromShelleyCoin
     , fromShelleyPParams
     , fromStakeCredential
     , fromTip
@@ -119,12 +118,13 @@ import Control.Concurrent.Class.MonadSTM
     , readTMVar
     , readTVar
     , readTVarIO
+    , retry
     , takeTMVar
     , tryReadTMVar
     , writeTVar
     )
 import Control.Monad
-    ( forever, guard, unless, void, when )
+    ( forever, unless, void, when )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -248,7 +248,7 @@ import Ouroboros.Network.NodeToClient
     , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
-    , NodeToClientVersionData (..)
+    , NodeToClientVersionData
     , connectTo
     , localSnocket
     , nodeToClientProtocols
@@ -280,9 +280,6 @@ import UnliftIO.Exception
     ( Handler (..), IOException )
 
 import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Conway.PParams as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -292,6 +289,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -503,12 +501,9 @@ withNodeNetworkLayerBase
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Alonzo._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Babbage._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Conway._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -535,8 +530,7 @@ withNodeNetworkLayerBase
             let header = fromTip getGenesisBlockHash tip
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
 
-    -- TODO(#2042): Make wallets call manually, with matching
-    -- stopObserving.
+    -- TODO(#2042): Make wallets call manually, with matching stopObserving.
     _getCachedRewardAccountBalance rewardsObserver k = do
         startObserving rewardsObserver k
         fromMaybe (W.Coin 0) <$> query rewardsObserver k
@@ -579,8 +573,7 @@ withNodeNetworkLayerBase
 doNothingProtocol
     :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
 doNothingProtocol =
-    InitiatorProtocolOnly $ MuxPeerRaw $
-    const $ forever $ threadDelay 1e6
+    InitiatorProtocolOnly $ MuxPeerRaw $ const $ forever $ threadDelay 1_000_000
 
 type WalletOuroborosApplication m = OuroborosApplication
     'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
@@ -844,7 +837,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         -> (Map W.RewardAccount W.Coin, [Log])
     fromBalanceResult (deleg, rewardAccounts) =
         ( Map.mapKeys fromStakeCredential $
-            Map.map fromShelleyCoin rewardAccounts
+            Map.map Ledger.toWalletCoin rewardAccounts
         , [MsgAccountDelegationAndRewards deleg rewardAccounts]
         )
 
@@ -1072,7 +1065,7 @@ observeForever readVal action = go Nothing
     go old = do
         new <- atomically $ do
             new <- readVal
-            guard (old /= Just new)
+            unless (old /= Just new) retry
             return new
         action new
         go (Just new)

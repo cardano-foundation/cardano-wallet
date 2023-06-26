@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -33,6 +34,7 @@ module Cardano.Wallet.Flavor
     , IncludingStates
     , KeyFlavor (..)
     , CredFromOf
+    , Flavored(..)
     )
 where
 
@@ -53,6 +55,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Address.States.Families
+    ( CredFromOf, KeyOf, NetworkOf )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures )
 import Cardano.Wallet.Address.States.Test.State
@@ -73,8 +76,8 @@ data WalletFlavorS s where
         => TestFeatures (TestState s1 n k kt)
         -> WalletFlavorS (TestState s1 n k kt)
 
-type family TestStateOf s where
-    TestStateOf (TestState s n k kt) = s
+data Flavored a = forall s. Flavored (WalletFlavorS s) a
+
 data WalletFlavors
     = ShelleyF
     | IcarusF

@@ -28,7 +28,6 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
-    , CBOR (..)
     , EntityField (..)
     , TxCollateral (..)
     , TxCollateralOut (..)
@@ -42,7 +41,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
-    , DeltaTxSet
     , TxRelation (..)
     , TxSet (..)
     , tokenCollateralOrd

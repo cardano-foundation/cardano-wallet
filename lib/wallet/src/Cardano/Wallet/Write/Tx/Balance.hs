@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -54,6 +55,10 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation, Tracer )
 import Cardano.BM.Tracing
     ( HasSeverityAnnotation (..), Severity (..), traceWith )
+import Cardano.Ledger.Alonzo.Core
+    ( ppCollateralPercentageL, ppMaxCollateralInputsL )
+import Cardano.Ledger.Api
+    ( outputsTxBodyL, ppMaxTxSizeL, ppMaxValSizeL )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -128,10 +133,10 @@ import Cardano.Wallet.Write.Tx
     , maxScriptExecutionCost
     , modifyLedgerBody
     , modifyTxOutCoin
-    , modifyTxOutputs
     , outputs
     , toCardanoValue
     , txBody
+    , withConstraints
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
@@ -159,8 +164,6 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.Generics.Product
-    ( getField )
 import Data.IntCast
     ( intCastMaybe )
 import Data.List.NonEmpty
@@ -198,14 +201,14 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -384,9 +387,8 @@ balanceTransaction
     s
     partialTx
     = do
-    let adjustedPartialTx = over #tx
-            (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
-            partialTx
+    let adjustedPartialTx =
+            over #tx (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp)) partialTx
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -458,16 +460,16 @@ balanceTransaction
 -- | Increases the ada value of any 0-ada outputs in the transaction to the
 -- minimum according to 'computeMinimumCoinForTxOut'.
 increaseZeroAdaOutputs
-    :: forall era. RecentEra era
+    :: forall era
+     . RecentEra era
     -> PParams (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
     -> Cardano.Tx era
-increaseZeroAdaOutputs era pp = modifyLedgerBody $
-    modifyTxOutputs era $ \out ->
-        flip (modifyTxOutCoin era) out $ \c ->
-            if c == mempty
-            then computeMinimumCoinForTxOut era pp out
-            else c
+increaseZeroAdaOutputs era pp = withConstraints era $
+    modifyLedgerBody $ over outputsTxBodyL $ fmap modifyTxOut
+  where
+    modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
+        if c == mempty then computeMinimumCoinForTxOut era pp out else c
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
@@ -688,15 +690,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: KeyWitnessCount
         -> Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) = do
-        let size = estimateSignedTxSize pp witCount body
-        let maxSize = TxSize $ case (recentEra @era) of
-                RecentEraBabbage -> pp ^. #_maxTxSize
-                RecentEraConway -> pp ^. #_maxTxSize
-
-        when (size > maxSize) $
-            throwE ErrBalanceTxMaxSizeLimitExceeded
-        return tx
+    guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) =
+        withConstraints (recentEra @era) $ do
+            let maxSize = TxSize (pp ^. ppMaxTxSizeL)
+            when (estimateSignedTxSize pp witCount body > maxSize) $
+                throwE ErrBalanceTxMaxSizeLimitExceeded
+            pure tx
 
     guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxBalanced tx = do
@@ -844,7 +843,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 -- transaction. For this, and other reasons, the selection may include too
 -- much ada.
 selectAssets
-    :: forall era changeState. RecentEra era
+    :: forall era changeState
+     . RecentEra era
     -> ProtocolParameters era
     -> UTxOAssumptions
     -> [W.TxOut]
@@ -866,13 +866,11 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
   where
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
-            let maxBundleSize = TokenBundleMaxSize $ TxSize $ case era of
-                    RecentEraBabbage -> pp ^. #_maxValSize
-                    RecentEraConway -> pp ^. #_maxValSize
-            in
-                view #assessTokenBundleSize $
-                    Compatibility.tokenBundleSizeAssessor maxBundleSize
-                    -- TODO (ADP-2967): avoid importing Compatibility.
+            withConstraints era $
+                -- TODO (ADP-2967): avoid importing Compatibility.
+                Compatibility.tokenBundleSizeAssessor
+                    (TokenBundleMaxSize (TxSize (pp ^. ppMaxValSizeL)))
+                        ^. #assessTokenBundleSize
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut
                 era
@@ -895,18 +893,12 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
                         assumedInputScriptTemplate utxoAssumptions })
                 skeleton
             ] `Coin.difference` boringFee
-        , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
-            case era of
-                RecentEraBabbage -> getField @"_maxCollateralInputs" pp
-                RecentEraConway -> getField @"_maxCollateralInputs" pp
-
+        , maximumCollateralInputCount = withConstraints era $
+            unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
     , minimumCollateralPercentage =
-        case era of
-            -- case-statement avoids "Overlapping instances" problem.
-            -- May be avoidable with ADP-2353.
-            RecentEraBabbage -> getField @"_collateralPercentage" pp
-            RecentEraConway -> getField @"_collateralPercentage" pp
-    , maximumLengthChangeAddress = maxLengthChangeAddress changeGen
+        withConstraints era $ pp ^. ppCollateralPercentageL
+    , maximumLengthChangeAddress =
+        maxLengthChangeAddress changeGen
     }
 
     selectionParams = SelectionParams
@@ -933,7 +925,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     mkLedgerTxOut
-        :: RecentEra era
+        :: HasCallStack
+        => RecentEra era
         -> W.Address
         -> TokenBundle
         -> TxOut (ShelleyLedgerEra era)

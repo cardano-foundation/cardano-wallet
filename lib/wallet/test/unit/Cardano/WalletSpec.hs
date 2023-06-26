@@ -7,9 +7,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -161,13 +163,9 @@ import Control.DeepSeq
 import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
-    ( DiffTime
-    , MonadMonotonicTime (..)
-    , MonadTime (..)
-    , Time (..)
-    , addTime
-    , diffTime
-    )
+    ( MonadMonotonicTimeNSec (..), MonadTime (..), UTCTime )
+import Control.Monad.Class.MonadTime.SI
+    ( MonadMonotonicTime, Time (..), addTime, diffTime )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
 import Control.Monad.Trans.Class
@@ -213,7 +211,7 @@ import Data.Quantity
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( UTCTime )
+    ( DiffTime, diffTimeToPicoseconds, picosecondsToDiffTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -734,13 +732,11 @@ instance Arbitrary GenSubmissions where
         genBuiltTx = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
-            st <- elements [Pending]
-            dir <- elements [Outgoing]
             expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
             i <- arbitrary
             pure $ BuiltTx
                 (mkTx i)
-                (TxMeta st dir sl bh (Coin 0) expry)
+                (TxMeta Pending Outgoing sl bh (Coin 0) expry)
                 (fakeSealedTx (i, []))
         genSmallSlot =
             SlotNo . fromIntegral <$> sized (\n -> choose (1, 1+ 4 * n))
@@ -748,7 +744,7 @@ instance Arbitrary GenSubmissions where
 instance Arbitrary TxRetryTest where
     arbitrary = do
         GenSubmissions metas <- arbitrary
-        let results = zip (builtSealedTx <$> metas) (repeat True)
+        let results = fmap (, True) (builtSealedTx <$> metas)
         TxRetryTest metas results <$> arbitrary <*> arbitrary
 
 instance Arbitrary SlottingParameters where
@@ -787,12 +783,23 @@ newtype TxRetryTestM a = TxRetryTestM
 instance MonadUnliftIO TxRetryTestM where
     withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
 
-instance MonadMonotonicTime TxRetryTestM where
+{- instance MonadMonotonicTime TxRetryTestM where
     getMonotonicTime = do
         st <- TxRetryTestM ask
         modifyMVar (timeVar st) $ \t -> do
             let t' = addTime (timeStep st) t
-            pure (t', t')
+            pure (t', t') -}
+
+instance MonadMonotonicTime TxRetryTestM
+instance MonadMonotonicTimeNSec TxRetryTestM where
+    getMonotonicTimeNSec = do
+        TxRetryTestState {timeVar, timeStep} <- TxRetryTestM ask
+        modifyMVar timeVar $ \t -> let t' = timeStep + coerce t
+            in pure (coerce t' , timeToNanoTime $ coerce t')
+
+timeToNanoTime :: Time -> Word64
+timeToNanoTime = fromIntegral . (`div` 1_000)
+    . diffTimeToPicoseconds . coerce
 
 instance MonadTime TxRetryTestM where
     getCurrentTime = liftIO getCurrentTime
@@ -898,7 +905,14 @@ instance Arbitrary ThrottleTest where
     arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
       where
         genInterval = genDiffTime `suchThat` (> 0)
-        genDiffTime = abs <$> arbitrarySizedFractional
+        -- need to discard picoseconds to match `Time` precision (nanoseconds)
+        genDiffTime
+            = picosecondsToDiffTime
+            . (* 1_000)
+            . (`div` 1_000)
+            . diffTimeToPicoseconds
+            . abs
+            <$> arbitrarySizedFractional
     shrink (ThrottleTest i dts) =
         [ ThrottleTest (fromRational i') (map fromRational dts')
         | (i', dts') <- shrink (toRational i, map toRational dts)
@@ -931,13 +945,18 @@ recordTime x = ThrottleTestT $ lift $ state $
     \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
 
 instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
-    getMonotonicTime = ThrottleTestT $ MaybeT $ state mockTime
+
+instance MonadMonotonicTimeNSec m => MonadMonotonicTimeNSec (ThrottleTestT m) where
+    getMonotonicTimeNSec = ThrottleTestT $ MaybeT $ state mockTime
       where
+        mockTime :: ThrottleTestState -> (Maybe Word64, ThrottleTestState)
         mockTime (ThrottleTestState later now as) = case later of
             [] -> (Nothing, ThrottleTestState later now as)
             (t:ts) ->
                 let now' = addTime t now
-                in  (Just now', ThrottleTestState ts now' as)
+                in  ( Just $ timeToNanoTime now'
+                    , ThrottleTestState ts now' as
+                    )
 
 instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
   withRunInIO inner = StateT $ \tts -> do
@@ -968,18 +987,22 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
         [ ("res      = " ++ show res)
         , ("st       = " ++ show st)
         , ("accTimes = " ++ show accTimes)
-        , ("actuals  = " ++ show (actions st))
+        , ("actions  = " ++ show (actions st))
         , ("expected = " ++ show expected)
+        , ("timeDeltas= " ++ show (timeDeltas (map fst (actions st))))
+        , ("interval = " ++ show interval)
+        , ("diffTimes= " ++ show diffTimes)
         ]
+
     -- sanity-check test runner
     assertNamed "consumed test data" (null $ remainingDiffTimes st)
     assertNamed "expected final time" (now st == finalTime)
     assertNamed "runner success" (isJust res)
     -- properties
-    assertNamed "action runs at most once per interval" $
-        all (> interval) (timeDeltas (map fst (actions st)))
     assertNamed "action runs whenever interval has passed" $
         length diffTimes <= 1 || actions st == expected
+    assertNamed "action runs at most once per interval" $
+        all (>= interval) (timeDeltas (map fst (actions st)))
   where
     testAction :: ThrottleTestT IO ()
     testAction = do

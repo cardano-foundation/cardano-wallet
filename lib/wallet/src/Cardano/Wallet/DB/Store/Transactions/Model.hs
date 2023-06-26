@@ -91,9 +91,9 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
     ( Tx )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn

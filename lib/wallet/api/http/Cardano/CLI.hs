@@ -241,6 +241,10 @@ import Network.HTTP.Client
     , responseTimeoutNone
     )
 -- See ADP-1910
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit (..) )
+import GHC.Num
+    ( Natural )
 import "optparse-applicative" Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -276,16 +280,10 @@ import "optparse-applicative" Options.Applicative
     , switch
     , value
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative.Help.Pretty
-    ( string, vsep )
--- See ADP-1910
-import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit (..) )
-import GHC.Num
-    ( Natural )
 import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..), readerAsk )
+import Prettyprinter
+    ( vsep )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -348,6 +346,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
+import qualified Prettyprinter as Printer
 import qualified UnliftIO.Async as Async
 
 {-------------------------------------------------------------------------------
@@ -1413,7 +1412,7 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     <> value defaultStyle
     )
   where
-    typeOptions = string <$>
+    typeOptions = Printer.pretty <$>
         ( "Any of the following (default: " <> T.unpack (toText defaultStyle) <> ")"
         ) : map prettyStyle accepted
 

@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.0
 name:               cardano-wallet
 version:            2023.4.14
 synopsis:           The Wallet Backend for a Cardano node.
@@ -21,8 +21,7 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -45,9 +44,7 @@ flag scrypt
 library
   import:          language, opts-lib
   hs-source-dirs:  src
-
-  ghc-options:
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(scrypt)
     cpp-options:   -DHAVE_SCRYPT
@@ -78,19 +75,23 @@ library
     , cardano-crypto-test
     , cardano-crypto-wrapper
     , cardano-data
+    , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
+    , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-ma
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-protocol-tpraos
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -129,6 +130,7 @@ library
     , int-cast
     , io-classes
     , iohk-monitoring
+    , iproute
     , lattices
     , lens
     , lifted-async
@@ -147,19 +149,17 @@ library
     , OddWord
     , optparse-applicative
     , ouroboros-consensus
-    , ouroboros-consensus-byron
     , ouroboros-consensus-cardano
     , ouroboros-consensus-diffusion
     , ouroboros-consensus-protocol
-    , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-api
     , ouroboros-network-framework
     , ouroboros-network-protocols
     , path-pieces
-    , persistent                    ^>=2.13
-    , persistent-sqlite             ^>=2.13
-    , persistent-template           ^>=2.12
+    , persistent                     ^>=2.13
+    , persistent-sqlite              ^>=2.13
+    , persistent-template            ^>=2.12
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
@@ -182,13 +182,11 @@ library
     , statistics
     , stm
     , streaming-commons
-    , cardano-strict-containers
     , strict-non-empty-containers
     , strict-stm
     , string-interpolate
     , template-haskell
     , temporary
-    , these
     , text
     , text-class
     , these
@@ -249,8 +247,8 @@ library
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Address.States.Families
     Cardano.Wallet.Address.States.Features
-    Cardano.Wallet.Address.States.Test.State
     Cardano.Wallet.Address.States.IsOwned
+    Cardano.Wallet.Address.States.Test.State
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
@@ -417,6 +415,7 @@ library
     Cardano.Wallet.Write.UTxOAssumptions
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
+    Control.Monad.Fail.Extended
     Control.Monad.Util
     Crypto.Hash.Utils
     Data.Aeson.Extra
@@ -455,6 +454,7 @@ library cardano-wallet-api-http
     , cardano-cli
     , cardano-crypto
     , cardano-data
+    , cardano-ledger-api
     , cardano-ledger-alonzo
     , cardano-ledger-byron
     , cardano-ledger-core
@@ -483,6 +483,7 @@ library cardano-wallet-api-http
     , http-types
     , int-cast
     , iohk-monitoring
+    , lens
     , memory
     , mtl
     , network
@@ -491,6 +492,7 @@ library cardano-wallet-api-http
     , OddWord
     , optparse-applicative
     , ouroboros-network
+    , prettyprinter
     , quiet
     , random
     , retry
@@ -665,9 +667,9 @@ library cardano-wallet-bench
     , containers
     , criterion-measurement
     , deepseq
-    , fmt
-    , filepath
     , directory
+    , filepath
+    , fmt
     , iohk-monitoring
     , optparse-applicative
     , say
@@ -675,8 +677,8 @@ library cardano-wallet-bench
     , text-class
     , transformers
     , unliftio
-  exposed-modules:
-    Cardano.Wallet.BenchShared
+
+  exposed-modules: Cardano.Wallet.BenchShared
 
 library mock-token-metadata
   import:          language, opts-lib
@@ -753,6 +755,7 @@ executable mock-token-metadata-server
     , mock-token-metadata
     , optparse-applicative
     , wai-extra
+    , prettyprinter
 
 test-suite unit
   import:             language, opts-exe
@@ -778,16 +781,18 @@ test-suite unit
     , cardano-crypto-wrapper
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
-    , cardano-ledger-babbage
+    , cardano-ledger-api
+    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-byron
     , cardano-ledger-byron-test
+    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-ma
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-sl-x509
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
@@ -800,9 +805,9 @@ test-suite unit
     , cryptonite
     , data-default
     , data-interval
+    , deepseq
     , delta-store
     , delta-types
-    , deepseq
     , directory
     , either
     , extra                        >=1.6.17
@@ -843,7 +848,7 @@ test-suite unit
     , openapi3                     ==3.2.2
     , optparse-applicative
     , ouroboros-consensus
-    , ouroboros-consensus-shelley
+    , ouroboros-consensus-cardano
     , ouroboros-network
     , ouroboros-network-api
     , persistent                   ^>=2.13
@@ -865,8 +870,9 @@ test-suite unit
     , servant-openapi3
     , servant-server
     , should-not-typecheck
+    , si-timers
+    , sop-core
     , splitmix
-    , cardano-strict-containers
     , strict-non-empty-containers
     , string-interpolate
     , string-qq
@@ -1126,8 +1132,8 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-balance-tx
     , cardano-api
+    , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-bench
     , cardano-wallet-primitive
@@ -1143,4 +1149,5 @@ benchmark api
     , time
     , transformers
     , unliftio
+
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types

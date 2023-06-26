@@ -62,7 +62,7 @@ class Delta delta where
     apply :: delta -> Base delta -> Base delta
 
 -- | Trivial delta encoding for the type @a@ that admits no change at all.
-data NoChange a = NoChange
+data NoChange (a :: Type) = NoChange
     deriving (Eq, Ord, Show)
 
 instance Delta (NoChange a) where

@@ -21,65 +21,71 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
 
 import Prelude
 
+import Cardano.Ledger.Allegra.TxAuxData
+    ( AllegraTxAuxData (..) )
+import Cardano.Ledger.Alonzo.TxAuxData
+    ( AlonzoTxAuxData (..) )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe )
-import Cardano.Ledger.Core
-    ( AuxiliaryData )
-import Cardano.Ledger.ShelleyMA
-    ( MaryOrAllegra (..), ShelleyMAEra )
+import Cardano.Ledger.Shelley.TxAuxData
+    ( Metadatum, ShelleyTxAuxData (..) )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Tx.Metadata
     ( Metadata (..) )
+import Data.Map
+    ( Map )
+import Data.Word
+    ( Word64 )
 import Ouroboros.Consensus.Shelley.Eras
-    ( AlonzoEra, BabbageEra, ConwayEra, StandardCrypto )
+    ( StandardAllegra
+    , StandardAlonzo
+    , StandardBabbage
+    , StandardConway
+    , StandardMary
+    , StandardShelley
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI
-import qualified Cardano.Ledger.Alonzo.Data as AL
-import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
-getMetadata :: EraFun Metadata (K (Maybe (W.TxMetadata) ))
-getMetadata = EraFun
-    { byronFun = noMetadatas
-    , shelleyFun = yesMetadata fromShelleyMetadata
-    , allegraFun = yesMetadata fromAllegraMetadata
-    , maryFun = yesMetadata  fromMaryMetadata
-    , alonzoFun = yesMetadata fromAlonzoMetadata
-    , babbageFun = yesMetadata fromBabbageMetadata
-    , conwayFun = yesMetadata fromConwayMetadata
-    }
-    where
-        noMetadatas _ = K Nothing
-        yesMetadata f (Metadata s) = K . fmap f $ strictMaybeToMaybe s
+getMetadata :: EraFun Metadata (K (Maybe (W.TxMetadata)))
+getMetadata =
+    EraFun
+        { byronFun = noMetadatas
+        , shelleyFun = yesMetadata fromShelleyMetadata
+        , allegraFun = yesMetadata fromAllegraMetadata
+        , maryFun = yesMetadata fromMaryMetadata
+        , alonzoFun = yesMetadata fromAlonzoMetadata
+        , babbageFun = yesMetadata fromBabbageMetadata
+        , conwayFun = yesMetadata fromConwayMetadata
+        }
+  where
+    noMetadatas _ = K Nothing
+    yesMetadata f (Metadata s) = K . fmap f $ strictMaybeToMaybe s
 
-fromShelleyMetadata :: SL.Metadata c ->  W.TxMetadata
-fromShelleyMetadata (SL.Metadata m) =
-    Cardano.makeTransactionMetadata . CardanoAPI.fromShelleyMetadata $ m
+fromShelleyMetadata :: ShelleyTxAuxData StandardShelley -> W.TxMetadata
+fromShelleyMetadata (ShelleyTxAuxData md) = fromMetadata md
 
 -- fixme: [ADP-525] It is fine for now since we do not look at script
 -- pre-images. But this is precisely what we want as part of the
 -- multisig/script balance reporting.
-fromAllegraMetadata :: AuxiliaryData (ShelleyMAEra 'Allegra StandardCrypto)
-    -> W.TxMetadata
-fromAllegraMetadata (MA.MAAuxiliaryData blob _scripts)
-    = fromShelleyMetadata $ SL.Metadata blob
+fromAllegraMetadata :: AllegraTxAuxData StandardAllegra -> W.TxMetadata
+fromAllegraMetadata (AllegraTxAuxData md _scripts) = fromMetadata md
 
-fromMaryMetadata :: AuxiliaryData (ShelleyMAEra 'Mary StandardCrypto)
-    -> W.TxMetadata
-fromMaryMetadata (MA.MAAuxiliaryData blob _scripts)
-    = fromShelleyMetadata $ SL.Metadata blob
+fromMaryMetadata :: AllegraTxAuxData StandardMary -> W.TxMetadata
+fromMaryMetadata (AllegraTxAuxData md _scripts) = fromMetadata md
 
-fromAlonzoMetadata :: AuxiliaryData (AlonzoEra StandardCrypto) -> W.TxMetadata
-fromAlonzoMetadata (AL.AlonzoAuxiliaryData blob _scripts)
-    = fromShelleyMetadata $ SL.Metadata blob
+fromAlonzoMetadata :: AlonzoTxAuxData StandardAlonzo -> W.TxMetadata
+fromAlonzoMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
-fromBabbageMetadata :: AuxiliaryData (BabbageEra StandardCrypto) -> W.TxMetadata
-fromBabbageMetadata (AL.AlonzoAuxiliaryData blob _scripts)
-    = fromShelleyMetadata $ SL.Metadata blob
+fromBabbageMetadata :: AlonzoTxAuxData StandardBabbage -> W.TxMetadata
+fromBabbageMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
-fromConwayMetadata :: AuxiliaryData (ConwayEra StandardCrypto) -> W.TxMetadata
-fromConwayMetadata (AL.AlonzoAuxiliaryData blob _scripts)
-    = fromShelleyMetadata $ SL.Metadata blob
+fromConwayMetadata :: AlonzoTxAuxData StandardConway -> W.TxMetadata
+fromConwayMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
+
+fromMetadata :: Map Word64 Metadatum -> W.TxMetadata
+fromMetadata =
+    Cardano.makeTransactionMetadata . CardanoAPI.fromShelleyMetadata

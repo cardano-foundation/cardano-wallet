@@ -9,6 +9,9 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 module Test.Integration.Scenario.API.Shelley.CoinSelections

@@ -23,7 +23,7 @@ SCRIPT=$(realpath "$0")
 # Release tags must follow format vYYYY-MM-DD.
 GIT_TAG="v2023-04-14"
 OLD_GIT_TAG="v2022-12-14"
-CARDANO_NODE_TAG="1.35.4"
+CARDANO_NODE_TAG="8.1.1"
 
 ################################################################################
 # Tag munging functions
@@ -86,8 +86,8 @@ if [ "$OLD_GIT_TAG" != "$GIT_TAG" ]; then
   sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
 
   # Edit from the bottom and up, not to affect the line-numbers.
-  sed -i -e $((ln+3))d README.md
-  sed -i -e $((ln+1))i"$line_to_insert" README.md
+  sed -i -e $((ln + 3))d README.md
+  sed -i -e $((ln + 1))i"$line_to_insert" README.md
 
   echo "Automatically updated the list of releases in README.md. Please review the resulting changes."
 fi
@@ -128,25 +128,25 @@ KNOWN_ISSUES="$release_docs/GENERATED_KNOWN_ISSUES.md"
 mkdir -p "$release_docs"
 
 echo "Generating changelog into $CHANGELOG..."
-./scripts/make_changelog.sh "$OLD_DATE" > "$CHANGELOG"
+./scripts/make_changelog.sh "$OLD_DATE" >"$CHANGELOG"
 echo ""
 
 echo "Generating unresolved issues list into $KNOWN_ISSUES..."
-if ! jira release-notes-bugs > "$KNOWN_ISSUES"; then
+if ! jira release-notes-bugs >"$KNOWN_ISSUES"; then
   echo "The \"jira release-notes-bugs\" command didn't work."
-  echo TBD > "$KNOWN_ISSUES"
+  echo TBD >"$KNOWN_ISSUES"
 fi
 echo ""
 
 echo "Filling in template into ${release_notes}..."
-sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
-    -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
-    -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
-    -e "/{{CHANGELOG}}/r $CHANGELOG"                \
-    -e "/{{CHANGELOG}}/d"                           \
-    -e "/{{KNOWN_ISSUES}}/r $KNOWN_ISSUES"          \
-    -e "/{{KNOWN_ISSUES}}/d"                        \
-    .github/RELEASE_TEMPLATE.md > "$release_notes"
+sed -e "s/{{GIT_TAG}}/$GIT_TAG/g" \
+  -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
+  -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g" \
+  -e "/{{CHANGELOG}}/r $CHANGELOG" \
+  -e "/{{CHANGELOG}}/d" \
+  -e "/{{KNOWN_ISSUES}}/r $KNOWN_ISSUES" \
+  -e "/{{KNOWN_ISSUES}}/d" \
+  .github/RELEASE_TEMPLATE.md >"$release_notes"
 
 ################################################################################
 # Commit and tag
@@ -156,8 +156,7 @@ if git diff --quiet; then
 else
   read -p "Do you want to create a commit (y/n) " -n 1 -r
   echo
-  if [[ $REPLY =~ ^[Yy]$ ]]
-  then
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
     msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
     git commit -am "$msg"
   fi

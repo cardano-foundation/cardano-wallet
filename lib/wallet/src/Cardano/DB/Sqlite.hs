@@ -16,6 +16,8 @@
 
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
+-- TODO: https://input-output.atlassian.net/browse/ADP-3075
+{-# OPTIONS_GHC -Wno-deriving-defaults #-}
 
 {- HLINT ignore "Redundant flip" -}
 
@@ -525,7 +527,7 @@ noManualMigration :: ManualMigration
 noManualMigration = ManualMigration $ const $ pure ()
 
 foldMigrations :: [Sqlite.Connection -> IO ()] -> ManualMigration
-foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($conn)
+foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($ conn)
 
 data DBField where
     DBField

@@ -146,7 +146,7 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless )
+    ( forM, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -643,9 +643,7 @@ mkDBFreshFromParts
                             $ cp ^. #currentTip
                     Just wallet -> do
                         present <- lift . atomically_ $ getWalletId_
-                        if present
-                            then throwE ErrWalletAlreadyInitialized
-                            else pure ()
+                        when present $ throwE ErrWalletAlreadyInitialized
                         lift $ do
                             r@DBLayer{transactionsStore, atomically}
                                 <- atomically_ $ db <$> initDBVar store wallet

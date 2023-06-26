@@ -71,7 +71,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters (..)
-    , NetworkParameters
     , PoolCertificate
     , ProtocolParameters (..)
     , Settings (..)

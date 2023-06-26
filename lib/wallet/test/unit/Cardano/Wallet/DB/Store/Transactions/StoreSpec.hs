@@ -2,10 +2,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns#-}
 
 module Cardano.Wallet.DB.Store.Transactions.StoreSpec
     ( spec
@@ -15,6 +19,8 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..), runQuery )
+import Cardano.Wallet.DB
+    ( DBOpen (..) )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -25,6 +31,8 @@ import Cardano.Wallet.DB.Fixtures
     , withDBInMemory
     , withStoreProp
     )
+import Cardano.Wallet.DB.Layer
+    ( DefaultFieldValues (..), withDBOpenFromFile )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
@@ -44,20 +52,42 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions, selectTx )
+import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
+    ( mkTxCBOR )
+import Cardano.Wallet.Flavor
+    ( Flavored (..), WalletFlavorS (..) )
+import Cardano.Wallet.Primitive.Types
+    ( ActiveSlotCoefficient (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( roundTripTxCBor )
 import Control.Monad
-    ( forM_, (<=<) )
+    ( forM_, (<=<), (>=>) )
+import Control.Tracer
+    ( nullTracer )
 import Data.Delta
     ( Delta (..) )
+import Data.Foldable
+    ( toList )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Store
     ( Store (..) )
+import System.Directory
+    ( copyFile )
+import System.FilePath
+    ( (</>) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec, around, describe, it, shouldBe )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -74,6 +104,8 @@ import Test.QuickCheck.Monadic
     ( forAllM, pick )
 import Test.Store
     ( GenDelta, prop_StoreUpdate )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -103,6 +135,45 @@ spec = do
             "reports a transaction where collateral inputs point \
             \to all other transactions output"
             $ property prop_DecorateLinksTxCollateralsToTxOuts
+
+    describe "Transaction CBOR roundtrip" $ do
+        it "works on a golden files" $ forM_
+            [ Flavored SharedWallet
+                "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
+            , Flavored ShelleyWallet
+                "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
+            , Flavored ByronWallet
+                "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
+            ] $ \(Flavored wF relPath) ->
+            withinCopiedFile relPath
+                $ \path -> withDBOpenFromFile wF nullTracer
+                    (Just defaultFieldValues) path
+                $ \DBOpen{atomically} -> do
+                    Right (TxSet txSet) <-
+                        atomically $ loadS mkStoreTransactions
+                    let cbors =
+                            mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
+                        Right cbors' = mapM roundTripTxCBor cbors
+                    cbors `shouldBe` cbors'
+
+defaultFieldValues :: DefaultFieldValues
+defaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 0
+    , defaultMinimumUTxOValue = Coin 1_000_000
+    , defaultHardforkEpoch = Nothing
+    , defaultKeyDeposit = Coin 2_000_000
+    }
+
+withinCopiedFile
+    :: FilePath
+    -> (FilePath -> IO a) -> IO a
+withinCopiedFile dbName action = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        copyFile orig path
+        action path
 
 {-----------------------------------------------------------------------------
     Properties

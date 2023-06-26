@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.0
 name:               cardano-wallet-primitive
 version:            2023.4.14
 synopsis:           Selected primitive types for Cardano Wallet.
@@ -127,7 +127,7 @@ test-suite test
     , binary
     , bytestring
     , cardano-ledger-byron-test
-    , cardano-ledger-core
+    , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-wallet-launcher

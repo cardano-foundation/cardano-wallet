@@ -161,7 +161,7 @@ newDatabaseStore db = do
                 Nothing      -> do
                     rememberSupply table
                     pure $ Right table
-        write = \table -> void $ do
+        write table = void $ do
             deleteAll db -- delete any old data in the table first
             repsertMany db $ getPile $ Table.toRows table
             rememberSupply table

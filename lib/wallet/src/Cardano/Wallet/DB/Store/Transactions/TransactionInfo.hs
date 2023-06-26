@@ -5,6 +5,7 @@
 module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation
     , mkTransactionInfoFromReadTx
+    , mkTxCBOR
     ) where
 
 import Prelude hiding
@@ -150,8 +151,8 @@ mkTransactionInfoFromRelation ti tip TxRelation{..}
         )
     mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
 
-    mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
-    mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
+mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
+mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a CBOR and a slimmed down version of TxMeta

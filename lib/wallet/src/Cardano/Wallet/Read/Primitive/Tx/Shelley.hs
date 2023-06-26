@@ -21,27 +21,40 @@ import Cardano.Address.Script
 import Cardano.Api
     ( ShelleyEra )
 import Cardano.Ledger.Core
-    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
+    ( addrTxWitsL
+    , auxDataTxL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , outputsTxBodyL
+    , scriptTxWitsL
+    , witsTxL
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyTx )
 import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL, ttlTxBodyL, wdrlsTxBodyL )
+    ( certsTxBodyL, ttlTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts, fromStakeCredential )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( fromShelleyMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromShelleyTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( shelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScriptFromShelley )
 import Cardano.Wallet.Transaction
@@ -53,29 +66,19 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Control.Lens
-    ( (^.) )
-import Data.Bifunctor
-    ( bimap )
-import Data.Foldable
-    ( toList )
-import Data.Map.Strict
-    ( Map )
+    ( folded, (^.), (^..) )
 import Data.Word
     ( Word16, Word32, Word64 )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (TxIn) )
-import qualified Data.Map.Strict as Map
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Set as Set
 
 fromShelleyTxIn
@@ -98,7 +101,7 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -113,46 +116,30 @@ fromShelleyTx tx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject shelley $ Tx tx
         , fee =
-            Just $ fromShelleyCoin fee
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> toList ins
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
             []
         , outputs =
-            map fromShelleyTxOut (toList outs)
+            fromShelleyTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
         , collateralOutput =
-            -- Collateral outputs are not supported in Shelley.
-            Nothing
+            Nothing -- Collateral outputs are not supported in Shelley.
         , withdrawals =
-            fromShelleyWdrl wdrls
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
-            fromShelleyMetadata <$> SL.strictMaybeToMaybe mmd
+            fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
             Nothing
         }
-    , anyEraCerts certs
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ shelleyValidityInterval ttl
-    , countWits
+    , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        ((`NativeExplicitScript` ViaSpending)
+         . toWalletScriptFromShelley Payment
+            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
-  where
-    ins = tx ^. bodyTxL . inputsTxBodyL
-    outs = tx ^. bodyTxL . outputsTxBodyL
-    certs = tx ^. bodyTxL . certsTxBodyL
-    wdrls = tx ^. bodyTxL . wdrlsTxBodyL
-    fee = tx ^. bodyTxL . feeTxBodyL
-    ttl = tx ^. bodyTxL . ttlTxBodyL
-    wits = tx ^. witsTxL
-    mmd = tx ^. auxDataTxL
-    -- SL.Tx (SL.TxBody _ins _outs _certs _wdrls _fee _ttl _ _) _wits _mmd = tx
-    countWits = WitnessCount
-        (fromIntegral $ Set.size $ SL.addrWits wits)
-        (fmap (flip NativeExplicitScript ViaSpending . toWalletScriptFromShelley Payment)
-            $ Map.elems $ SL.scriptWits wits)
-        (fromIntegral $ Set.size $ SL.bootWits wits)
-
-fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
-fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
-        <$> Map.toList wdrl

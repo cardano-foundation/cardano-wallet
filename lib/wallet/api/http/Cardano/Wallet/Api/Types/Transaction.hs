@@ -10,6 +10,9 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-3075
+{-# OPTIONS_GHC -Wno-deriving-defaults #-}
+
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0

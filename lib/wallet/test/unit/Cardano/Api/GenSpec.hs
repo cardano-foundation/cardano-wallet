@@ -1162,8 +1162,6 @@ genStakeAddressReferenceCoverage :: StakeAddressReference -> Property
 genStakeAddressReferenceCoverage ref = checkCoverage
     $ cover 10 (byValue ref)
         "stake address reference created by value"
-    $ cover 10 (byPointer ref)
-        "stake address reference created by pointer"
     $ cover 10 (noStakeAddress ref)
         "no stake address"
         True
@@ -1171,11 +1169,6 @@ genStakeAddressReferenceCoverage ref = checkCoverage
         byValue = \case
             StakeAddressByValue _   -> True
             StakeAddressByPointer _ -> False
-            NoStakeAddress          -> False
-
-        byPointer = \case
-            StakeAddressByValue _   -> False
-            StakeAddressByPointer _ -> True
             NoStakeAddress          -> False
 
         noStakeAddress = \case
@@ -1504,16 +1497,16 @@ instance Arbitrary EpochNo where
 
 genCostModelCoverage :: CostModel -> Property
 genCostModelCoverage (CostModel costModel) = checkCoverage $ conjoin
-    [ Map.size costModel ==
-        Map.size (Ledger.getCostModelParams Plutus.testingCostModelV1)
+    [ length costModel ==
+        length (Ledger.getCostModelParams Plutus.testingCostModelV1)
         & label
             "Generated cost model must have same size as default cost model"
         & counterexample
             "Generated cost model did not have same size as default cost model"
     , checkCoverage
-        $ cover 1 (elem 0 $ Map.elems costModel)
+        $ cover 1 (0 `elem` costModel)
             "model param is zero"
-        $ cover 30 (any (> 0) $ Map.elems costModel)
+        $ cover 30 (any (> 0) costModel)
             "model param is greater than zero"
             True
     ]
@@ -1584,7 +1577,7 @@ genTxCertificateCoverage cert = checkCoverage
             cover 10 True "is stake address registration cert" True
         StakeAddressDeregistrationCertificate _ ->
             cover 10 True "is stake address deregistration cert" True
-        StakeAddressDelegationCertificate _ _ ->
+        StakeAddressPoolDelegationCertificate _ _ ->
             cover 10 True "is stake address delegation cert" True
         StakePoolRegistrationCertificate _ ->
             cover 10 True "is stake pool registration cert" True

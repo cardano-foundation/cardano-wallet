@@ -102,7 +102,7 @@ applyPrimitive (MoveToLedger acceptance txid) s =
         | otherwise = x
     f x = x
 applyPrimitive (MoveTip newTip) s =
-    s & (finalityL .~ if newTip <= finality s then newTip else finality s)
+    s & (finalityL .~ min newTip (finality s))
         . (tipL .~ newTip)
         . (transactionsL . traverse . txStatus %~ f)
   where
