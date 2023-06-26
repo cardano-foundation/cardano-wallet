@@ -4171,7 +4171,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let a5 = 5 * minUTxOValue'
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
 
+        -- empty wallet wDest should have two txs on address 0,
+        -- one tx on address 1 and three txs on address 2
         sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a2 0
+        sendAmtToAddr ctx wSrc wDest a3 1
+        sendAmtToAddr ctx wSrc wDest a1 2
+        sendAmtToAddr ctx wSrc wDest a4 2
+        sendAmtToAddr ctx wSrc wDest a5 2
+
+        eventually "There are exactly 6 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shelley wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 6]
 
   where
 
