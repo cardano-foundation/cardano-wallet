@@ -58,9 +58,9 @@ or to be accessed via CLI, e.g.:
 docker run --network host --rm inputoutput/cardano-wallet network information
 ```
 
-See also [Docker](https://input-output-hk.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
+See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
 
-NixOS users can also use the [NixOS service](https://input-output-hk.github.io/cardano-wallet/user-guide/NixOS).
+NixOS users can also use the [NixOS service](https://cardano-foundation.github.io/cardano-wallet/user-guide/NixOS).
 
 ## How to install (Linux / Windows / Mac OS)
 
@@ -77,20 +77,20 @@ See **Installation Instructions** for each available [release](https://github.co
 
 ## How to build from sources
 
-See [Building](https://input-output-hk.github.io/cardano-wallet/developers/Building)
+See [Building](https://cardano-foundation.github.io/cardano-wallet/developers/Building)
 
 ## How to test
 
-See [Testing](https://input-output-hk.github.io/cardano-wallet/contributing/Testing)
+See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributing/Testing)
 
 ## Documentation
 
 | Link                                                                                               | Audience                                                     |
 | ---                                                                                                | ---                                                          |
-| [User Guide](https://input-output-hk.github.io/cardano-wallet/user-guide) | Users of Cardano Wallet                              |
-| [CLI Manual](https://input-output-hk.github.io/cardano-wallet/user-guide/cli) | Users of the Cardano Wallet API                              |
-| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
-| [Cardano Wallet Documentation](https://input-output-hk.github.io/cardano-wallet/)                                     | Anyone interested in the project and our development process |
+| [User Guide](https://cardano-foundation.github.io/cardano-wallet/user-guide) | Users of Cardano Wallet                              |
+| [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user-guide/cli) | Users of the Cardano Wallet API                              |
+| [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
+| [Cardano Wallet Documentation](https://cardano-foundation.github.io/cardano-wallet/)                                     | Anyone interested in the project and our development process |
 | [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                                     | Anyone interested in the project and our development process |
 
 <hr/>
