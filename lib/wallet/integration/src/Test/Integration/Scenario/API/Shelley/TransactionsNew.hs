@@ -4162,7 +4162,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \expected Object, but encountered String"
             ]
 
-    it "TRANS_NEW_LIST_05 - address filter" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_LIST_05 - filter address output side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
         let a2 = 2 * minUTxOValue'
@@ -4171,7 +4171,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let a5 = 5 * minUTxOValue'
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
 
-        -- empty wallet wDest should have two txs on address 0,
+        -- initially empty wallet wDest should have two txs on address 0,
         -- one tx on address 1 and three txs on address 2
         sendAmtToAddr ctx wSrc wDest a1 0
         sendAmtToAddr ctx wSrc wDest a2 0
@@ -4203,6 +4203,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
         verify rl0 [expectListSize 2]
+        let txs0 = getFromResponse Prelude.id rl0
+        let amts0 = fmap (view #amount) txs0
+        Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
         let linkList1 = Link.listTransactions' @'Shelley wDest
@@ -4214,6 +4217,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Just (apiAddress addr1))
         rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
         verify rl1 [expectListSize 1]
+        let txs1 = getFromResponse Prelude.id rl1
+        let amts1 = fmap (view #amount) txs1
+        amts1 `shouldBe` (Quantity <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
         let linkList2 = Link.listTransactions' @'Shelley wDest
@@ -4225,6 +4231,80 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Just (apiAddress addr2))
         rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
         verify rl2 [expectListSize 3]
+        let txs2 = getFromResponse Prelude.id rl2
+        let amts2 = fmap (view #amount) txs2
+        Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
+
+    it "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = minUTxOValue'
+        let a2 = fromIntegral $ oneAda * 1_000
+        let a3 = fromIntegral $ oneAda * 10_000
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        -- initially empty wallet wDest should have five txs on address 0 with
+        -- just 5*a1 on it, one tx on address 1 with a2 and three txs on address
+        -- 2 with 3*a3
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+
+        sendAmtToAddr ctx wSrc wDest a2 1
+
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+
+        eventually "There are exactly 9 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shelley wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 9]
+
+        addrs <- listAddresses @n ctx wDest
+
+        -- from newly funded wallet we send back funds in such a way that we can
+        -- indetify which addresses where engaged in a given tx
+        let a4 = fromIntegral $ oneAda * 29_990
+        let addr2 = (addrs !! 2) ^. #id
+        let linkList2a = Link.listTransactions' @'Shelley wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr2))
+        rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        verify rl2a [expectListSize 3]
+        let txs2a = getFromResponse Prelude.id rl2a
+        let amts2a = fmap (view #amount) txs2a
+        Set.fromList amts2a `shouldBe` Set.fromList (Quantity <$> [a3, a3, a3])
+
+        sendAmtToAddr ctx wDest wSrc a4 0
+        eventually "There are exactly 10 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shelley wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 10]
+
+        rl2b <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        verify rl2b [expectListSize 4]
+        let txs2b = getFromResponse Prelude.id rl2b
+        let amts2b = fmap (view #amount) txs2b
+        Set.fromList amts2b `shouldBe` Set.fromList (Quantity <$> [a3, a3, a3, a4])
+
 
   where
 
