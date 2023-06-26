@@ -544,7 +544,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         let expectedCreateTx =
                 [ expectSuccess
@@ -756,7 +756,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -777,7 +777,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -790,7 +790,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) + 1]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -805,7 +805,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [srcAmt]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb reqAmt
+        payload <- liftIO $ mkTxPayload ctx wb reqAmt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -818,7 +818,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -903,7 +903,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -2301,7 +2301,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2326,7 +2326,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2369,7 +2369,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         (ApiSerialisedTransaction (ApiT apiTx) _) <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2422,7 +2422,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             wb <- foreignWallet ctx
 
             -- Construct tx
-            payload <- mkTxPayload ctx wb $ minUTxOValue (_mainEra ctx)
+            payload <- mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
             let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
             sealedTx <- getFromResponse #transaction <$>
                 request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2454,7 +2454,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let wid = wb ^. walletId
 
             -- Construct tx
-            payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+            payload <- mkTxPayload ctx wa (minUTxOValue (_mainEra ctx)) 1
             let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
             sealedTx <- getFromResponse #transaction <$>
                 request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2482,7 +2482,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx wa (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -4161,6 +4161,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "parsing ApiValidityBound object failed, \
                 \expected Object, but encountered String"
             ]
+
+    it "TRANS_NEW_LIST_05 - address filter" $ \ctx -> runResourceT $ do
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = minUTxOValue'
+        let a2 = 2 * minUTxOValue'
+        let a3 = 3 * minUTxOValue'
+        let a4 = 4 * minUTxOValue'
+        let a5 = 5 * minUTxOValue'
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        sendAmtToAddr ctx wSrc wDest a1 0
+
   where
 
     -- | Just one million Ada, in Lovelace.
@@ -4176,10 +4188,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         => Context
         -> ApiWallet
         -> Natural
+        -> Int
         -> m Payload
-    mkTxPayload ctx wDest amt = do
+    mkTxPayload ctx wDest amt addrIx = do
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! addrIx) ^. #id
         return $ Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -4189,6 +4202,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
+
+    sendAmtToAddr ctx src dest amt addrIx = do
+        payload <- liftIO $ mkTxPayload ctx dest amt addrIx
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx src apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx src signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     mkTxPayloadHex
         :: MonadUnliftIO m
