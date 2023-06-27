@@ -320,7 +320,7 @@
 
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
-              nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
+              nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq pkgs.mdbook pkgs.mdbook-mermaid];
               # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
