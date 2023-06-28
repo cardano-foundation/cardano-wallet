@@ -26,7 +26,7 @@ bench="./bench-restore/bin/restore $network --node-db $node_db"
 
 echo "--- Run benchmarks - $network"
 
-command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M16G -RTS 2>&1 | tee $log
+command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M16G -h -RTS 2>&1 | tee $log
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' >$results
 
@@ -34,20 +34,8 @@ echo "+++ Results - $network"
 
 cat $results
 
-# https://input-output.atlassian.net/browse/ADP-3078
-#
-# With GHC 8.10.7 we used to use the -h flag to generate a heap profile file
-# restore.hp which was then converted to a pretty graph.
-#
-# With the GHC 9.2.8 using the -h flag (or -hT) causes the benchmark to
-# become many times slower so the code below is commented out to unblock
-# the migration to 9.2.8.
-#
-# In the long run we shouldn't benchmark with -h anyway, but rather
-# perform profiling separately.
-
-# mv restore.hp $artifact_name.hp
-# hp2pretty $artifact_name.hp
+mv restore.hp $artifact_name.hp
+hp2pretty $artifact_name.hp
 
 GNUPLOT_PROGRAM=$(
   cat <<EOP
@@ -75,7 +63,7 @@ EOP
 
 if [ -n "${BUILDKITE:-}" ]; then
   echo "--- Upload"
-  # buildkite-agent artifact upload $artifact_name.svg
+  buildkite-agent artifact upload $artifact_name.svg
   buildkite-agent artifact upload $results
 
   for file in *.timelog; do
@@ -93,8 +81,8 @@ if [ -n "${BUILDKITE:-}" ]; then
   echo $GNUPLOT_PROGRAM | gnuplot
   buildkite-agent artifact upload plot.svg
 
-  # echo "+++ Heap profile"
-  # printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
+  echo "+++ Heap profile"
+  printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
   echo "+++ Restore plot"
   printf '\033]1338;url='"artifact://plot.svg"';alt='"Restore plot"'\a\n'
 fi
