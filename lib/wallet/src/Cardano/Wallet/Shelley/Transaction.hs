@@ -94,7 +94,6 @@ import Cardano.Api
     , InAnyCardanoEra (..)
     , IsShelleyBasedEra (..)
     , NetworkId
-    , SerialiseAsCBOR (..)
     , ShelleyBasedEra (..)
     , ToCBOR
     )
@@ -165,7 +164,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
-    , TxMetadata (..)
     , cardanoTxIdeallyNoLaterThan
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
@@ -1461,8 +1459,7 @@ txConstraints protocolParams witnessTag = TxConstraints
 -- union of 'SelectionSkeleton' and 'TransactionCtx'.
 --
 data TxSkeleton = TxSkeleton
-    { txMetadata :: !(Maybe TxMetadata)
-    , txDelegationAction :: !(Maybe DelegationAction)
+    { txDelegationAction :: !(Maybe DelegationAction)
     , txRewardWithdrawal :: !Coin
     , txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
@@ -1481,8 +1478,7 @@ data TxSkeleton = TxSkeleton
 --
 emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
 emptyTxSkeleton txWitnessTag = TxSkeleton
-    { txMetadata = Nothing
-    , txDelegationAction = Nothing
+    { txDelegationAction = Nothing
     , txRewardWithdrawal = Coin 0
     , txWitnessTag
     , txInputCount = 0
@@ -1504,8 +1500,7 @@ mkTxSkeleton
     -> SelectionSkeleton
     -> TxSkeleton
 mkTxSkeleton witness context skeleton = TxSkeleton
-    { txMetadata = view #txMetadata context
-    , txDelegationAction = view #txDelegationAction context
+    { txDelegationAction = view #txDelegationAction context
     , txRewardWithdrawal = withdrawalToCoin $ view #txWithdrawal context
     , txWitnessTag = witness
     , txInputCount = view #skeletonInputCount skeleton
@@ -1749,8 +1744,7 @@ estimateTxSize skeleton =
     TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
-        { txMetadata
-        , txDelegationAction
+        { txDelegationAction
         , txRewardWithdrawal
         , txWitnessTag
         , txInputCount
@@ -1808,7 +1802,6 @@ estimateTxSize skeleton =
         = sizeOf_SmallArray
         + sizeOf_TransactionBody
         + sizeOf_WitnessSet
-        + sizeOf_Metadata
 
     -- transaction_body =
     --   { 0 : set<transaction_input>
@@ -1831,7 +1824,6 @@ estimateTxSize skeleton =
         + sizeOf_Certificates
         + sizeOf_Withdrawals numberOf_Withdrawals
         + sizeOf_Update
-        + sizeOf_MetadataHash
         + sizeOf_ValidityIntervalStart
         + sumVia sizeOf_Mint (F.toList txAssetsToMintOrBurn)
       where
@@ -1881,10 +1873,6 @@ estimateTxSize skeleton =
         sizeOf_Update
             = 0 -- Assuming no updates is running through cardano-wallet
 
-        -- ?7 => metadata_hash
-        sizeOf_MetadataHash
-            = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) txMetadata
-
         -- ?8 => uint ; validity interval start
         sizeOf_ValidityIntervalStart
             = sizeOf_UInt
@@ -1893,12 +1881,6 @@ estimateTxSize skeleton =
         -- mint = multiasset<int64>
         sizeOf_Mint AssetId{tokenName}
           = sizeOf_MultiAsset sizeOf_Int64 tokenName
-
-    -- For metadata, we can't choose a reasonable upper bound, so it's easier to
-    -- measure the serialize data since we have it anyway. When it's "empty",
-    -- metadata are represented by a special "null byte" in CBOR `F6`.
-    sizeOf_Metadata
-        = maybe 1 (toInteger . BS.length . serialiseToCBOR) txMetadata
 
     -- transaction_input =
     --   [ transaction_id : $hash32
