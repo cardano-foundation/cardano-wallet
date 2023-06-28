@@ -1464,8 +1464,6 @@ data TxSkeleton = TxSkeleton
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
     , txMintOrBurnScripts :: [Script KeyHash]
-    , txAssetsToMintOrBurn :: Set AssetId
-    -- ^ The set of assets to mint or burn.
     }
     deriving (Eq, Show, Generic)
 
@@ -1481,7 +1479,6 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txChange = []
     , txPaymentTemplate = Nothing
     , txMintOrBurnScripts = []
-    , txAssetsToMintOrBurn = Set.empty
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -1505,9 +1502,6 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
-    , txAssetsToMintOrBurn = (<>)
-        (TokenMap.getAssets (fst $ view #txAssetsToMint context))
-        (TokenMap.getAssets (fst $ view #txAssetsToBurn context))
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
@@ -1743,7 +1737,6 @@ estimateTxSize skeleton =
         , txChange
         , txPaymentTemplate
         , txMintOrBurnScripts
-        , txAssetsToMintOrBurn
         } = skeleton
 
     numberOf_Inputs
@@ -1804,7 +1797,6 @@ estimateTxSize skeleton =
         + sizeOf_Ttl
         + sizeOf_Update
         + sizeOf_ValidityIntervalStart
-        + sumVia sizeOf_Mint (F.toList txAssetsToMintOrBurn)
       where
         -- 0 => set<transaction_input>
         sizeOf_Inputs
@@ -1836,11 +1828,6 @@ estimateTxSize skeleton =
         -- ?8 => uint ; validity interval start
         sizeOf_ValidityIntervalStart
             = sizeOf_UInt
-
-        -- ?9 => mint = multiasset<int64>
-        -- mint = multiasset<int64>
-        sizeOf_Mint AssetId{tokenName}
-          = sizeOf_MultiAsset sizeOf_Int64 tokenName
 
     -- transaction_input =
     --   [ transaction_id : $hash32
@@ -2094,14 +2081,6 @@ sizeOf_UInt = 5
 
 sizeOf_LargeUInt :: Integer
 sizeOf_LargeUInt = 9
-
--- A CBOR Int which is less than 23 in value fits on a single byte. Beyond,
--- the first byte is used to encode the number of bytes necessary to encode
--- the number, followed by the number itself. In this case, 8 bytes are used
--- to encode an int64, plus one byte to encode the number of bytes
--- necessary.
-sizeOf_Int64 :: Integer
-sizeOf_Int64 = 9
 
 -- A CBOR array with less than 23 elements, fits on a single byte, followed
 -- by each key-value pair (encoded as two concatenated CBOR elements).
