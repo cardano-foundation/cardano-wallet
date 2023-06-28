@@ -133,8 +133,6 @@ import GHC.Generics
 
 import qualified Data.Map.Strict as Map
 
-import qualified Debug.Trace as TR
-
 {-------------------------------------------------------------------------------
                             Model Database wid Types
 -------------------------------------------------------------------------------}
@@ -534,7 +532,7 @@ filterTxHistory minWithdrawal order range address =
     addressInInp addr = any (isAddressPresent addr)
     checkInp addr = addressInInp addr . resolvedInputs . fst
 
-    filterAddress addrM txhistory = TR.trace ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!txhistory: "<> show txhistory) $ case addrM of
+    filterAddress addrM txhistory = case addrM of
         Nothing -> True
         Just addr -> checkOut addr txhistory || checkInp addr txhistory
 

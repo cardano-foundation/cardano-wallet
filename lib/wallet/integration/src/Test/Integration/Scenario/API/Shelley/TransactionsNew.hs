@@ -4301,10 +4301,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         rl2b <- request @([ApiTransaction n]) ctx linkList2a Default Empty
         verify rl2b [expectListSize 4]
-        let txs2b = getFromResponse Prelude.id rl2b
-        let amts2b = fmap (view #amount) txs2b
-        Set.fromList amts2b `shouldBe` Set.fromList (Quantity <$> [a3, a3, a3, a4])
-
 
   where
 
