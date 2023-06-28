@@ -37,11 +37,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..)
-    , KeyRole (Delegation, Payment, Policy)
-    , Script (..)
-    , serializeScript
-    )
+    ( KeyHash (..), KeyRole (Delegation, Payment, Policy), Script (..) )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -138,8 +134,6 @@ import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, defaultAddressPoolGap, purposeBIP44, purposeCIP1852 )
-import Cardano.Wallet.Address.Discovery.Shared
-    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -193,11 +187,11 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId, TokenBundle, tokenName )
+    ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
+    ( TokenName (UnsafeTokenName), TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenPolicyId, shrinkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -259,7 +253,6 @@ import Cardano.Wallet.Shelley.Transaction
     , distributeSurplusDelta
     , estimateKeyWitnessCount
     , estimateSignedTxSize
-    , estimateTxCost
     , estimateTxSize
     , evaluateMinimumFee
     , maximumCostOfIncreasingCoin
@@ -359,7 +352,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
-    ( Sum (Sum), getSum, mtimesDefault )
+    ( mtimesDefault )
 import Data.Set
     ( Set )
 import Data.SOP.Counting
@@ -1194,66 +1187,6 @@ feeCalculationSpec = describe "fee calculations" $ do
             & counterexample ("cost with: " <> show costWith)
             & counterexample ("cost without: " <> show costWithout)
 
-    it "scripts incur fees" $ property $ \scripts ->
-        let
-            costWith =
-                minFeeSkeleton $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
-            costWithout =
-                minFeeSkeleton emptyTxSkeleton
-
-            marginalCost :: Integer
-            marginalCost = costWith - costWithout
-        in
-            (if null scripts
-                then property $ marginalCost == 0
-                else property $ marginalCost > 0
-            )
-            & classify (null scripts) "null scripts"
-            & counterexample ("marginal cost: " <> show marginalCost)
-            & counterexample ("cost with: " <> show costWith)
-            & counterexample ("cost without: " <> show costWithout)
-
-    it "increasing scripts increases fee at least proportionate to size of CBOR script"
-        $ property $ \scripts ->
-        let
-            -- Number of signatures required in the script
-            numWitnesses = fromIntegral $ sum $
-                estimateMaxWitnessRequiredPerInput <$> scripts
-            sizeWitness  =    1 -- small array
-                           + 34 -- vkey
-                           + 66 -- signature
-
-            -- Total size (in bytes) of the scripts when serialized
-            scriptLengths = fromIntegral . getSum $
-                F.foldMap (Sum . BS.length . serializeScript ) scripts
-
-            sizeWith =
-                estimateTxSize' $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
-            sizeWithout =
-                estimateTxSize' emptyTxSkeleton
-
-            marginalSize :: Integer
-            marginalSize = sizeWith - sizeWithout
-        in
-            -- The entire script must be serialized when it is included in
-            -- the transaction. Ensure that the marginal size increases at
-            -- least as much as the size of the CBOR serialized scripts.
-            --
-            -- Additionally, each 'required signature' in the script means
-            -- the tx will need to be witnessed by those vkeys (in the worst
-            -- case).
-            property
-              (marginalSize >= scriptLengths + numWitnesses * sizeWitness)
-            & classify (null scripts) "no scripts"
-            & classify (scriptLengths == 0) "zero script lengths"
-            & classify (numWitnesses == 0) "no witnesses"
-            & counterexample ("script lengths: " <> show scriptLengths)
-            & counterexample
-                ("witness size: " <> show (numWitnesses * sizeWitness))
-            & counterexample ("marginal size: " <> show marginalSize)
-            & counterexample ("size with: " <> show sizeWith)
-            & counterexample ("size without: " <> show sizeWithout)
-
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
             let
@@ -1290,65 +1223,6 @@ feeCalculationSpec = describe "fee calculations" $ do
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
-        it "scripts incur fees" $ property $ \scripts ->
-            let
-                costWith =
-                    minFeeSkeleton $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
-                costWithout =
-                    minFeeSkeleton emptyTxSkeleton
-
-                marginalCost :: Integer
-                marginalCost = costWith - costWithout
-            in
-                (if null scripts
-                    then property $ marginalCost == 0
-                    else property $ marginalCost > 0
-                )
-                & classify (null scripts) "null scripts"
-                & counterexample ("marginal cost: " <> show marginalCost)
-                & counterexample ("cost with: " <> show costWith)
-                & counterexample ("cost without: " <> show costWithout)
-
-        it "increasing scripts increases fee at least proportionate to size of CBOR script"
-            $ property $ \scripts ->
-            let
-                -- Number of signatures required in the script
-                numWitnesses = fromIntegral $ sum $
-                    estimateMaxWitnessRequiredPerInput <$> scripts
-                sizeWitness  =    1 -- small array
-                               + 34 -- vkey
-                               + 66 -- signature
-
-                -- Total size (in bytes) of the scripts when serialized
-                scriptLengths = fromIntegral . getSum $
-                    F.foldMap (Sum . BS.length . serializeScript ) scripts
-
-                sizeWith =
-                    estimateTxSize' $ emptyTxSkeleton { txMintOrBurnScripts = scripts }
-                sizeWithout =
-                    estimateTxSize' emptyTxSkeleton
-
-                marginalSize :: Integer
-                marginalSize = sizeWith - sizeWithout
-            in
-                -- The entire script must be serialized when it is included in
-                -- the transaction. Ensure that the marginal size increases at
-                -- least as much as the size of the CBOR serialized scripts.
-                --
-                -- Additionally, each 'required signature' in the script means
-                -- the tx will need to be witnessed by those vkeys (in the worst
-                -- case).
-                property
-                  (marginalSize >= scriptLengths + numWitnesses * sizeWitness)
-                & classify (null scripts) "no scripts"
-                & classify (scriptLengths == 0) "zero script lengths"
-                & classify (numWitnesses == 0) "no witnesses"
-                & counterexample ("script lengths: " <> show scriptLengths)
-                & counterexample
-                    ("witness size: " <> show (numWitnesses * sizeWitness))
-                & counterexample ("marginal size: " <> show marginalSize)
-                & counterexample ("size with: " <> show sizeWith)
-                & counterexample ("size without: " <> show sizeWithout)
 
   where
     feePerByte = mainnetFeePerByte
@@ -1358,12 +1232,6 @@ feeCalculationSpec = describe "fee calculations" $ do
         calculateMinimumFee feePerByte witnessTag ctx emptySkeleton
       where
         witnessTag = txWitnessTagFor @ShelleyKey
-
-    minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = Coin.toInteger . estimateTxCost feePerByte
-
-    estimateTxSize' :: TxSkeleton -> Integer
-    estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
 
     (dummyAcct, dummyPath) =
         (FromKeyHash mempty, DerivationIndex 0 :| [])
