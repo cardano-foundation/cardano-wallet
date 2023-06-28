@@ -222,7 +222,6 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     , WitnessCountCtx (..)
     , mapTxFeeAndChange
-    , withdrawalToCoin
     )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
@@ -1459,8 +1458,7 @@ txConstraints protocolParams witnessTag = TxConstraints
 -- union of 'SelectionSkeleton' and 'TransactionCtx'.
 --
 data TxSkeleton = TxSkeleton
-    { txDelegationAction :: !(Maybe DelegationAction)
-    , txWitnessTag :: !TxWitnessTag
+    { txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
@@ -1477,8 +1475,7 @@ data TxSkeleton = TxSkeleton
 --
 emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
 emptyTxSkeleton txWitnessTag = TxSkeleton
-    { txDelegationAction = Nothing
-    , txWitnessTag
+    { txWitnessTag
     , txInputCount = 0
     , txOutputs = []
     , txChange = []
@@ -1498,8 +1495,7 @@ mkTxSkeleton
     -> SelectionSkeleton
     -> TxSkeleton
 mkTxSkeleton witness context skeleton = TxSkeleton
-    { txDelegationAction = view #txDelegationAction context
-    , txWitnessTag = witness
+    { txWitnessTag = witness
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
@@ -1741,8 +1737,7 @@ estimateTxSize skeleton =
     TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
-        { txDelegationAction
-        , txWitnessTag
+        { txWitnessTag
         , txInputCount
         , txOutputs
         , txChange
@@ -1753,9 +1748,6 @@ estimateTxSize skeleton =
 
     numberOf_Inputs
         = fromIntegral txInputCount
-
-    numberOf_CertificateSignatures
-        = maybe 0 (const 1) txDelegationAction
 
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
@@ -1772,11 +1764,9 @@ estimateTxSize skeleton =
                 -- the latter is optional
                 if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
-                    + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
                 else
                     (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
-                    + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
     numberOf_BootstrapWitnesses
@@ -1812,7 +1802,6 @@ estimateTxSize skeleton =
         + sizeOf_Outputs
         + sizeOf_Fee
         + sizeOf_Ttl
-        + sizeOf_Certificates
         + sizeOf_Update
         + sizeOf_ValidityIntervalStart
         + sumVia sizeOf_Mint (F.toList txAssetsToMintOrBurn)
@@ -1839,25 +1828,6 @@ estimateTxSize skeleton =
         sizeOf_Ttl
             = sizeOf_SmallUInt
             + sizeOf_UInt
-
-        -- ?4 => [* certificates ]
-        sizeOf_Certificates
-            = case txDelegationAction of
-                Nothing ->
-                    0
-                Just JoinRegisteringKey{} ->
-                    sizeOf_SmallUInt
-                    + sizeOf_SmallArray
-                    + sizeOf_StakeRegistration
-                    + sizeOf_StakeDelegation
-                Just Join{} ->
-                    sizeOf_SmallUInt
-                    + sizeOf_SmallArray
-                    + sizeOf_StakeDelegation
-                Just Quit{} ->
-                    sizeOf_SmallUInt
-                    + sizeOf_SmallArray
-                    + sizeOf_StakeDeregistration
 
         -- ?6 => update
         sizeOf_Update
@@ -1922,35 +1892,6 @@ estimateTxSize skeleton =
         + sizeOf_SmallUInt
         + sizeOf_LargeUInt
         + sumVia sizeOf_NativeAsset xs
-
-    -- stake_registration =
-    --   (0, stake_credential)
-    sizeOf_StakeRegistration
-        = sizeOf_SmallArray
-        + sizeOf_SmallUInt
-        + sizeOf_StakeCredential
-
-    -- stake_deregistration =
-    --   (1, stake_credential)
-    sizeOf_StakeDeregistration
-        = sizeOf_StakeRegistration
-
-    -- stake_delegation =
-    --   (2, stake_credential, pool_keyhash)
-    sizeOf_StakeDelegation
-        = sizeOf_SmallArray
-        + sizeOf_SmallUInt
-        + sizeOf_StakeCredential
-        + sizeOf_Hash28
-
-    -- stake_credential =
-    --   [  0, addr_keyhash
-    --   // 1, scripthash
-    --   ]
-    sizeOf_StakeCredential
-        = sizeOf_SmallArray
-        + sizeOf_SmallUInt
-        + sizeOf_Hash28
 
     -- We carry addresses already serialized, so it's a matter of measuring.
     sizeOf_Address addr
