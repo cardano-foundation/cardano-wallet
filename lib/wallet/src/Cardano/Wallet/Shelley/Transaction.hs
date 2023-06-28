@@ -61,6 +61,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkDelegationCertificates
     , calculateMinimumFee
     , getFeePerByteFromWalletPParams
+    , _txRewardWithdrawalCost
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -196,7 +197,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
+    ( toBabbageTxOut
+    , toConwayTxOut
+    , toLedger
+    , toWallet
+    , toWalletCoin
+    , toWalletScript
+    )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -255,11 +262,11 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast )
+    ( intCast, intCastMaybe )
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -279,6 +286,7 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Network.Block
     ( SlotNo )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
@@ -1303,6 +1311,45 @@ getFeePerByteFromWalletPParams pp =
   where
     LinearFee LinearFunction{slope} = getFeePolicy $ txParameters pp
 
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalCost', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalCost
+    :: Write.FeePerByte
+    -> Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> Coin
+_txRewardWithdrawalCost feePerByte witType =
+    toWallet
+    . Write.feeOfBytes feePerByte
+    . unTxSize
+    . _txRewardWithdrawalSize witType
+
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalSize', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalSize
+    :: Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> TxSize
+_txRewardWithdrawalSize _ (Coin 0) = TxSize 0
+_txRewardWithdrawalSize witType _ = TxSize
+        $ fromMaybe (error "txRewardWithdrawalSize: negative size")
+        $ intCastMaybe
+        $ sizeOf_Withdrawals 1 - sizeOf_Withdrawals 0 + wits
+      where
+        wits = case witType of
+            Right TxWitnessByronUTxO ->
+                sizeOf_BootstrapWitnesses 1 - sizeOf_BootstrapWitnesses 0
+            Right TxWitnessShelleyUTxO ->
+                sizeOf_VKeyWitnesses 1
+            Left scriptTemplate ->
+                let n = fromIntegral $ estimateMaxWitnessRequiredPerInput
+                        $ view #template scriptTemplate
+                in sizeOf_VKeyWitnesses n - sizeOf_VKeyWitnesses 0
+
 txConstraints
     :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
@@ -1359,11 +1406,11 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputBelowMinimumAdaQuantity =
         isBelowMinimumCoinForUTxO (minimumUTxO protocolParams)
 
-    txRewardWithdrawalCost c =
-        marginalCostOf empty {txRewardWithdrawal = c}
+    txRewardWithdrawalCost =
+        _txRewardWithdrawalCost feePerByte (Right witnessTag)
 
-    txRewardWithdrawalSize c =
-        marginalSizeOf empty {txRewardWithdrawal = c}
+    txRewardWithdrawalSize =
+        _txRewardWithdrawalSize (Right witnessTag)
 
     txMaximumSize = protocolParams
         & view (#txParameters . #getTxMaxSize)
@@ -1422,7 +1469,6 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
-    , txDelegationTemplate :: !(Maybe (Script Cosigner))
     , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
@@ -1443,7 +1489,6 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txPaymentTemplate = Nothing
-    , txDelegationTemplate = Nothing
     , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
     }
@@ -1469,9 +1514,6 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txPaymentTemplate =
         template <$>
         view #txPaymentCredentialScriptTemplate context
-    , txDelegationTemplate =
-        template <$>
-        view #txStakingCredentialScriptTemplate context
     , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
@@ -1715,7 +1757,6 @@ estimateTxSize skeleton =
         , txOutputs
         , txChange
         , txPaymentTemplate
-        , txDelegationTemplate
         , txMintOrBurnScripts
         , txAssetsToMintOrBurn
         } = skeleton
@@ -1736,9 +1777,6 @@ estimateTxSize skeleton =
     numberOf_ScriptVkeyWitnessesForPayment
         = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
 
-    numberOf_ScriptVkeyWitnessesForDelegation
-        = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txDelegationTemplate
-
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO -> 0
@@ -1750,14 +1788,9 @@ estimateTxSize skeleton =
                     + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
-                else if numberOf_ScriptVkeyWitnessesForDelegation == 0 then
+                else
                     (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
                     + numberOf_Withdrawals
-                    + numberOf_CertificateSignatures
-                    + numberOf_MintingWitnesses
-               else
-                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
-                    + (numberOf_Withdrawals * numberOf_ScriptVkeyWitnessesForDelegation)
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
@@ -2017,17 +2050,10 @@ estimateTxSize skeleton =
     --   }
     sizeOf_WitnessSet
         = sizeOf_SmallMap
-        + sizeOf_VKeyWitnesses
+        + sizeOf_VKeyWitnesses numberOf_VkeyWitnesses
         + sizeOf_NativeScripts txMintOrBurnScripts
         + maybe 0 (determinePaymentTemplateSize txMintOrBurnScripts) txPaymentTemplate
         + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
-      where
-        -- ?0 => [* vkeywitness ]
-        sizeOf_VKeyWitnesses
-            = (if numberOf_VkeyWitnesses > 0
-                then sizeOf_Array + sizeOf_SmallUInt else 0)
-            + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
-
 
 -- ?5 => withdrawals
 sizeOf_Withdrawals :: Integer -> Integer
@@ -2044,7 +2070,12 @@ sizeOf_Withdrawals n
         = sizeOf_Hash28
         + sizeOf_LargeUInt
 
-
+-- ?0 => [* vkeywitness ]
+sizeOf_VKeyWitnesses :: Integer -> Integer
+sizeOf_VKeyWitnesses n
+    = (if n > 0
+        then sizeOf_Array + sizeOf_SmallUInt else 0)
+    + sizeOf_VKeyWitness * n
 
 -- ?2 => [* bootstrap_witness ]
 sizeOf_BootstrapWitnesses :: Integer -> Integer

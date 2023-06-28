@@ -261,7 +261,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     , SelectionOf (..)
     , UnableToConstructChangeError (..)
-    , emptySkeleton
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
@@ -502,7 +501,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWallet )
 import Cardano.Wallet.Shelley.Transaction
-    ( calculateMinimumFee, getFeePerByteFromWalletPParams )
+    ( getFeePerByteFromWalletPParams, _txRewardWithdrawalCost )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -1362,21 +1361,14 @@ checkRewardIsWorthTxCost
 checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
-    let minimumCost txCtx =
-            calculateMinimumFee feePerByte txWitnessTag txCtx emptySkeleton
-        costWith = minimumCost $ mkTxCtx balance
-        costWithout = minimumCost $ mkTxCtx $ Coin 0
-        worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
-    when (Coin.toInteger balance < 2 * worthOfWithdrawal)
+    let costOfWithdrawal = _txRewardWithdrawalCost feePerByte witType balance
+    when (Coin.toInteger balance < 2 * Coin.toInteger costOfWithdrawal)
         $ Left ErrWithdrawalNotBeneficial
   where
     feePerByte = getFeePerByteFromWalletPParams pp
-    mkTxCtx wdrl = defaultTransactionCtx
-        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl
-        , txStakingCredentialScriptTemplate = delegationTemplateM}
-      where
-        dummyAcct = FromKeyHash mempty
-        dummyPath = DerivationIndex 0 :| []
+    witType = case delegationTemplateM of
+        Just t -> Left t
+        Nothing -> Right txWitnessTag
 
 readRewardAccount
     :: forall s.
