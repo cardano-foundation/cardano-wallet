@@ -1463,7 +1463,6 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
-    , txMintOrBurnScripts :: [Script KeyHash]
     }
     deriving (Eq, Show, Generic)
 
@@ -1478,7 +1477,6 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txPaymentTemplate = Nothing
-    , txMintOrBurnScripts = []
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -1499,9 +1497,6 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txPaymentTemplate =
         template <$>
         view #txPaymentCredentialScriptTemplate context
-    , txMintOrBurnScripts = (<>)
-        (Map.elems (snd $ view #txAssetsToMint context))
-        (Map.elems (snd $ view #txAssetsToBurn context))
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
@@ -1736,15 +1731,10 @@ estimateTxSize skeleton =
         , txOutputs
         , txChange
         , txPaymentTemplate
-        , txMintOrBurnScripts
         } = skeleton
 
     numberOf_Inputs
         = fromIntegral txInputCount
-
-    -- Total number of signatures the scripts require
-    numberOf_MintingWitnesses
-        = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
     numberOf_ScriptVkeyWitnessesForPayment
         = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
@@ -1757,10 +1747,8 @@ estimateTxSize skeleton =
                 -- the latter is optional
                 if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
-                    + numberOf_MintingWitnesses
                 else
                     (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
-                    + numberOf_MintingWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -1928,20 +1916,10 @@ estimateTxSize skeleton =
         . CBOR.encodeWord64
         . Coin.unsafeToWord64
 
-    -- [* native_script ]
-    sizeOf_NativeScripts []
-        = 0
-    sizeOf_NativeScripts ss
-        = sizeOf_Array
-        + sizeOf_SmallUInt
-        + sumVia sizeOf_NativeScript ss
-
-    determinePaymentTemplateSize [] scriptCosigner
+    determinePaymentTemplateSize scriptCosigner
         = sizeOf_Array
         + sizeOf_SmallUInt
         + numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
-    determinePaymentTemplateSize _ scriptCosigner
-        = numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
 
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
@@ -1951,8 +1929,8 @@ estimateTxSize skeleton =
     sizeOf_WitnessSet
         = sizeOf_SmallMap
         + sizeOf_VKeyWitnesses numberOf_VkeyWitnesses
-        + sizeOf_NativeScripts txMintOrBurnScripts
-        + maybe 0 (determinePaymentTemplateSize txMintOrBurnScripts) txPaymentTemplate
+        + maybe 0 determinePaymentTemplateSize txPaymentTemplate
+        -- FIXME: Payment template needs to be multiplied with number of inputs
         + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
 
 -- ?5 => withdrawals
