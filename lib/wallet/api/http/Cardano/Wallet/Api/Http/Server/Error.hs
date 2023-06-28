@@ -74,7 +74,6 @@ import Cardano.Wallet
     , ErrSubmitTransaction (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
-    , ErrUpdateSealedTx (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotInitialized (..)
     , ErrWalletNotResponding (..)
@@ -118,7 +117,10 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers (..), ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( ErrBalanceTx (..), ErrBalanceTxInternalError (..) )
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrUpdateSealedTx (..)
+    )
 import Control.Monad.Except
     ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except
@@ -1034,16 +1036,6 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
                 , "out of bound. The index is well-formed, but I require "
                 , "indexes valid for hardened derivation only. That is, indexes "
                 , "between 0H and ", pretty (Index $ maxIx - minIx), "H."
-                ]
-
-instance IsServerError ErrUpdateSealedTx where
-    toServerError = \case
-        ErrExistingKeyWitnesses{} ->
-            apiError err400 ExistingKeyWitnesses $ T.unwords
-                [ "I cannot proceed with the request because there are key"
-                , "witnesses defined in the input transaction and, adjusting"
-                , "the transaction body will render witnesses invalid!"
-                , "Please make sure to remove all key witnesses from the request."
                 ]
 
 instance IsServerError ErrAssignRedeemers where

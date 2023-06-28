@@ -110,8 +110,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , selectionDelta
     )
 import Cardano.Wallet
-    ( ErrUpdateSealedTx (..)
-    , Fee (..)
+    ( Fee (..)
     , Percentile (..)
     , calculateFeePercentiles
     , defaultChangeAddressGen
@@ -238,9 +237,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , KeyWitnessCount (KeyWitnessCount)
-    , TxFeeUpdate (..)
     , TxSkeleton (..)
-    , TxUpdate (..)
     , TxWitnessTag (..)
     , costOfIncreasingCoin
     , distributeSurplus
@@ -256,11 +253,9 @@ import Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
-    , noTxUpdate
     , sizeOfCoin
     , sizeOf_BootstrapWitnesses
     , txConstraints
-    , updateTx
     , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
@@ -287,11 +282,16 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
+    , ErrUpdateSealedTx (..)
     , PartialTx (..)
+    , TxFeeUpdate (..)
+    , TxUpdate (..)
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , noTxUpdate
     , posAndNegFromCardanoValue
+    , updateTx
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )

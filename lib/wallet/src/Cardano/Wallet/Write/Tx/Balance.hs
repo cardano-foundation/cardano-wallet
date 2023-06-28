@@ -29,6 +29,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
+    , ErrUpdateSealedTx (..)
 
     -- * Change addresses
     , ChangeAddressGen (..)
@@ -46,6 +47,11 @@ module Cardano.Wallet.Write.Tx.Balance
 
     -- * Utilities
     , posAndNegFromCardanoValue
+    , TxUpdate (..)
+    , noTxUpdate
+    , updateTx
+    , TxFeeUpdate (..)
+
     )
     where
 
@@ -58,7 +64,14 @@ import Cardano.BM.Tracing
 import Cardano.Ledger.Alonzo.Core
     ( ppCollateralPercentageL, ppMaxCollateralInputsL )
 import Cardano.Ledger.Api
-    ( outputsTxBodyL, ppMaxTxSizeL, ppMaxValSizeL )
+    ( collateralInputsTxBodyL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , outputsTxBodyL
+    , outputsTxBodyL
+    , ppMaxTxSizeL
+    , ppMaxValSizeL
+    )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -93,25 +106,18 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
+    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
-    , TxFeeUpdate (..)
     , TxSkeleton (..)
-    , TxUpdate (..)
     , assignScriptRedeemers
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , estimateTxCost
-    , updateTx
     )
 import Cardano.Wallet.Transaction
-    ( ErrAssignRedeemers
-    , ErrMoreSurplusNeeded (..)
-    , ErrUpdateSealedTx
-    , TxFeeAndChange (..)
-    )
+    ( ErrAssignRedeemers, ErrMoreSurplusNeeded (..), TxFeeAndChange (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -119,6 +125,7 @@ import Cardano.Wallet.Write.Tx
     , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
+    , TxBody
     , TxOut
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
@@ -195,9 +202,12 @@ import System.Random.StdGenSeed
 import Text.Pretty.Simple
     ( pShow )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
+import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -214,6 +224,7 @@ import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
 -- | Helper wrapper type for the sake of logging.
@@ -1030,3 +1041,129 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
+
+--------------------------------------------------------------------------------
+-- updateTx
+--------------------------------------------------------------------------------
+
+-- | Describes modifications that can be made to a `Tx` using `updateTx`.
+data TxUpdate = TxUpdate
+    { extraInputs :: [(W.TxIn, W.TxOut)]
+    , extraCollateral :: [W.TxIn]
+       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
+       -- previous eras.
+    , extraOutputs :: [W.TxOut]
+    , extraInputScripts :: [CA.Script CA.KeyHash]
+    , feeUpdate :: TxFeeUpdate
+        -- ^ Set a new fee or use the old one.
+    }
+
+-- | For testing that
+-- @
+--   forall tx. updateTx noTxUpdate tx
+--      == Right tx or Left
+-- @
+noTxUpdate :: TxUpdate
+noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
+
+-- | Method to use when updating the fee of a transaction.
+data TxFeeUpdate
+    = UseOldTxFee
+        -- ^ Instead of updating the fee, just use the old fee of the
+        -- Tx (no-op for fee update).
+    | UseNewTxFee W.Coin
+        -- ^ Specify a new fee to use instead.
+    deriving (Eq, Show)
+
+newtype ErrUpdateSealedTx
+    = ErrExistingKeyWitnesses Int
+    -- ^ The `SealedTx` could not be updated because the *n* existing
+    -- key-witnesses would be rendered invalid.
+    deriving (Generic, Eq, Show)
+
+-- | Used to add inputs and outputs when balancing a transaction.
+--
+-- If the transaction contains existing key witnesses, it will return `Left`,
+-- *even if `noTxUpdate` is used*. This last detail could be changed.
+--
+-- == Notes on implementation choices
+--
+-- We cannot rely on cardano-api here because `Cardano.TxBodyContent BuildTx`
+-- cannot be extracted from an existing `TxBody`.
+--
+-- To avoid the need for `ledger -> wallet` conversions, this function can only
+-- be used to *add* tx body content.
+updateTx
+    :: forall era. IsRecentEra era
+    => Cardano.Tx era
+    -> TxUpdate
+    -> Either ErrUpdateSealedTx (Cardano.Tx era)
+updateTx (Cardano.Tx body existingKeyWits) extraContent = do
+    -- NOTE: The script witnesses are carried along with the cardano-api
+    -- `anyEraBody`.
+    body' <- modifyTxBody extraContent body
+
+    if null existingKeyWits
+       then Right $ Cardano.Tx body' mempty
+       else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
+  where
+    era = recentEra @era
+
+    modifyTxBody
+        :: TxUpdate
+        -> Cardano.TxBody era
+        -> Either ErrUpdateSealedTx (Cardano.TxBody era)
+    modifyTxBody ebc = \case
+        Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val ->
+            Right $ Cardano.ShelleyTxBody shelleyEra
+                (modifyShelleyTxBody ebc era bod)
+                (scripts ++ (flip toLedgerScript era
+                    <$> extraInputScripts))
+                scriptData
+                aux
+                val
+        Byron.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
+
+    TxUpdate _ _ _ extraInputScripts _ = extraContent
+
+    toLedgerScript
+        :: CA.Script CA.KeyHash
+        -> RecentEra era
+        -> Core.Script (ShelleyLedgerEra era)
+    toLedgerScript walletScript = \case
+        RecentEraBabbage ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptInBabbage
+            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
+        RecentEraConway ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptInConway
+            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
+
+modifyShelleyTxBody
+    :: forall era. TxUpdate
+    -> RecentEra era
+    -> TxBody (ShelleyLedgerEra era)
+    -> TxBody (ShelleyLedgerEra era)
+modifyShelleyTxBody txUpdate era = withConstraints era $
+    over feeTxBodyL modifyFee
+    . over outputsTxBodyL
+        (<> extraOutputs')
+    . over inputsTxBodyL
+        (<> extraInputs')
+    . over collateralInputsTxBodyL
+        (<> extraCollateral')
+  where
+    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
+    extraOutputs' = StrictSeq.fromList $ map toLedgerTxOut extraOutputs
+    extraInputs' = Set.fromList (W.toLedger . fst <$> extraInputs)
+    extraCollateral' = Set.fromList $ W.toLedger <$> extraCollateral
+
+    modifyFee old = case feeUpdate of
+        UseNewTxFee c -> W.toLedger c
+        UseOldTxFee -> old
+    toLedgerTxOut :: W.TxOut -> TxOut (ShelleyLedgerEra era)
+    toLedgerTxOut = case era of
+        RecentEraBabbage -> W.toBabbageTxOut
+        RecentEraConway -> W.toConwayTxOut
+
