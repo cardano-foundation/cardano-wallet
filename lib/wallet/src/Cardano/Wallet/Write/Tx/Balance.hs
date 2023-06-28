@@ -70,7 +70,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionParams (..)
     , SelectionReportDetailed
     , SelectionReportSummarized
-    , SelectionSkeleton (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
     , WalletUTxO (..)
@@ -98,21 +97,20 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
+    , TxSkeleton (..)
     , TxUpdate (..)
     , assignScriptRedeemers
-    , calculateMinimumFee
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
+    , estimateTxCost
     , updateTx
     )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
     , ErrMoreSurplusNeeded (..)
     , ErrUpdateSealedTx
-    , TransactionCtx (..)
     , TxFeeAndChange (..)
-    , defaultTransactionCtx
     )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
@@ -885,13 +883,14 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
             [ feePadding
             , fee0
             , txPlutusScriptExecutionCost
-            , calculateMinimumFee
-                feePerByte
-                (assumedTxWitnessTag utxoAssumptions)
-                (defaultTransactionCtx
-                    { txPaymentCredentialScriptTemplate =
-                        assumedInputScriptTemplate utxoAssumptions })
-                skeleton
+            , estimateTxCost feePerByte $ TxSkeleton
+                { txWitnessTag = assumedTxWitnessTag utxoAssumptions
+                , txInputCount = view #skeletonInputCount skeleton
+                , txOutputs = view #skeletonOutputs skeleton
+                , txChange = view #skeletonChange skeleton
+                , txPaymentTemplate = view #template <$>
+                    assumedInputScriptTemplate utxoAssumptions
+                }
             ] `Coin.difference` boringFee
         , maximumCollateralInputCount = withConstraints era $
             unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
@@ -950,14 +949,14 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     feePerByte = getFeePerByte era pp
 
     boringFee =
-        calculateMinimumFee
+        estimateTxCost
             feePerByte
-            (assumedTxWitnessTag utxoAssumptions)
-            defaultTransactionCtx
-            SelectionSkeleton
-                { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
-                , skeletonOutputs = outs
-                , skeletonChange = []
+            TxSkeleton
+                { txWitnessTag = assumedTxWitnessTag utxoAssumptions
+                , txInputCount = UTxOSelection.selectedSize utxoSelection
+                , txOutputs = outs
+                , txChange = []
+                , txPaymentTemplate = Nothing
                 }
 
     feePadding

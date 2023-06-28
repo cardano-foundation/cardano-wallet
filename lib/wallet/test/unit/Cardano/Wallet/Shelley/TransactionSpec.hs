@@ -247,7 +247,6 @@ import Cardano.Wallet.Shelley.Transaction
     , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor (txWitnessTagFor)
-    , calculateMinimumFee
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
@@ -514,7 +513,6 @@ import qualified Test.Hspec.Extra as Hspec
 spec :: Spec
 spec = describe "TransactionSpec" $ do
     decodeSealedTxSpec
-    feeCalculationSpec
     feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
@@ -1149,92 +1147,6 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         , "3ad51b000001001d19d714021a000220ec03198d0f05a1581de1fb3c13a29d3798f1"
         , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
         ]
-
-feeCalculationSpec :: Spec
-feeCalculationSpec = describe "fee calculations" $ do
-    it "withdrawals incur fees" $ property $ \wdrl ->
-        let
-            costWith =
-                minFee $ defaultTransactionCtx
-                    { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
-            costWithout =
-                minFee defaultTransactionCtx
-
-            marginalCost :: Integer
-            marginalCost = costWith - costWithout
-        in
-            (if wdrl == Coin 0
-                then property $ marginalCost == 0
-                else property $ marginalCost > 0
-            ) & classify (wdrl == Coin 0) "null withdrawal"
-            & counterexample ("marginal cost: " <> show marginalCost)
-            & counterexample ("cost with: " <> show costWith)
-            & counterexample ("cost without: " <> show costWithout)
-
-    it "metadata incurs fees" $ property $ \md ->
-        let
-            costWith =
-                minFee $ defaultTransactionCtx { txMetadata = Just md }
-            costWithout =
-                minFee defaultTransactionCtx
-
-            marginalCost :: Integer
-            marginalCost = costWith - costWithout
-        in
-            property (marginalCost > 0)
-            & classify (txMetadataIsNull md) "null metadata"
-            & counterexample ("cost of metadata: " <> show marginalCost)
-            & counterexample ("cost with: " <> show costWith)
-            & counterexample ("cost without: " <> show costWithout)
-
-    describe "fee calculations" $ do
-        it "withdrawals incur fees" $ property $ \wdrl ->
-            let
-                costWith =
-                    minFee $ defaultTransactionCtx
-                        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
-                costWithout =
-                    minFee defaultTransactionCtx
-
-                marginalCost :: Integer
-                marginalCost = costWith - costWithout
-            in
-                (if wdrl == Coin 0
-                    then property $ marginalCost == 0
-                    else property $ marginalCost > 0
-                ) & classify (wdrl == Coin 0) "null withdrawal"
-                & counterexample ("marginal cost: " <> show marginalCost)
-                & counterexample ("cost with: " <> show costWith)
-                & counterexample ("cost without: " <> show costWithout)
-
-        it "metadata incurs fees" $ property $ \md ->
-            let
-                costWith =
-                    minFee $ defaultTransactionCtx { txMetadata = Just md }
-                costWithout =
-                    minFee defaultTransactionCtx
-
-                marginalCost :: Integer
-                marginalCost = costWith - costWithout
-            in
-                property (marginalCost > 0)
-                & classify (txMetadataIsNull md) "null metadata"
-                & counterexample ("cost of metadata: " <> show marginalCost)
-                & counterexample ("cost with: " <> show costWith)
-                & counterexample ("cost without: " <> show costWithout)
-
-
-  where
-    feePerByte = mainnetFeePerByte
-
-    minFee :: TransactionCtx -> Integer
-    minFee ctx = Coin.toInteger $
-        calculateMinimumFee feePerByte witnessTag ctx emptySkeleton
-      where
-        witnessTag = txWitnessTagFor @ShelleyKey
-
-    (dummyAcct, dummyPath) =
-        (FromKeyHash mempty, DerivationIndex 0 :| [])
 
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do

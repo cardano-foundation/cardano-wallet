@@ -59,7 +59,6 @@ module Cardano.Wallet.Shelley.Transaction
     , EraConstraints
     , _decodeSealedTx
     , mkDelegationCertificates
-    , calculateMinimumFee
     , getFeePerByteFromWalletPParams
     , _txRewardWithdrawalCost
     , estimateTxCost
@@ -1508,22 +1507,6 @@ estimateTxCost (FeePerByte feePerByte) skeleton =
   where
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) = Coin $ feePerByte * size
-
--- | Calculates a minimal fee amount necessary to pay for a given selection
--- including necessary deposits.
---
--- The constant tx fee is /not/ included in the result of this function.
-calculateMinimumFee
-    :: FeePerByte
-    -> TxWitnessTag
-    -- ^ Witness tag
-    -> TransactionCtx
-    -- ^ Additional information about the transaction
-    -> SelectionSkeleton
-    -- ^ An intermediate representation of an ongoing selection
-    -> Coin
-calculateMinimumFee feePerByte witnessTag ctx skeleton =
-    estimateTxCost feePerByte (mkTxSkeleton witnessTag ctx skeleton)
 
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
