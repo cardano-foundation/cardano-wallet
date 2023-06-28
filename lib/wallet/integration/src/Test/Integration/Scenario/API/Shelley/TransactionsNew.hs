@@ -244,6 +244,8 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+import qualified Debug.Trace as TR
+
 spec
     :: forall n
      . HasSNetworkId n
@@ -4238,7 +4240,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
-        let a2 = fromIntegral $ oneAda * 1_000
+        let a2 = fromIntegral $ oneAda * 5_000
         let a3 = fromIntegral $ oneAda * 10_000
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
 
@@ -4251,13 +4253,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a1 0
         sendAmtToAddr ctx wSrc wDest a1 0
 
-        sendAmtToAddr ctx wSrc wDest a2 1
-
         sendAmtToAddr ctx wSrc wDest a3 2
         sendAmtToAddr ctx wSrc wDest a3 2
         sendAmtToAddr ctx wSrc wDest a3 2
 
-        eventually "There are exactly 9 transactions for wDest" $ do
+        eventually "There are exactly 8 transactions for wDest" $ do
             let linkList = Link.listTransactions' @'Shelley wDest
                     Nothing
                     Nothing
@@ -4266,12 +4266,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
-            verify rl [expectListSize 9]
+            verify rl [expectListSize 8]
 
         addrs <- listAddresses @n ctx wDest
 
         -- from newly funded wallet we send back funds in such a way that we can
-        -- indetify which addresses where engaged in a given tx
+        -- indetify that address 2 was engaged in a given tx
         let a4 = fromIntegral $ oneAda * 29_990
         let addr2 = (addrs !! 2) ^. #id
         let linkList2a = Link.listTransactions' @'Shelley wDest
@@ -4285,10 +4285,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rl2a [expectListSize 3]
         let txs2a = getFromResponse Prelude.id rl2a
         let amts2a = fmap (view #amount) txs2a
-        Set.fromList amts2a `shouldBe` Set.fromList (Quantity <$> [a3, a3, a3])
+        amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
 
         sendAmtToAddr ctx wDest wSrc a4 0
-        eventually "There are exactly 10 transactions for wDest" $ do
+        eventually "There are exactly 9 transactions for wDest" $ do
             let linkList = Link.listTransactions' @'Shelley wDest
                     Nothing
                     Nothing
@@ -4297,11 +4297,62 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
-            verify rl [expectListSize 10]
+            verify rl [expectListSize 9]
 
         rl2b <- request @([ApiTransaction n]) ctx linkList2a Default Empty
         verify rl2b [expectListSize 4]
 
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldSatisfy` (> 0))
+                ]
+
+        -- destination wallet is refunded on address 1
+        sendAmtToAddr ctx wSrc wDest a2 1
+
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldSatisfy` (> 0))
+                ]
+
+        -- next the funded wallet sends back funds in such a way that we can
+        -- indetify address 1 was engaged in a given tx
+        let a5 = fromIntegral $ oneAda * 4_990
+        let addr1 = (addrs !! 1) ^. #id
+        let linkList1a = Link.listTransactions' @'Shelley wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr1))
+        rl1a <- request @([ApiTransaction n]) ctx linkList1a Default Empty
+        let txs1a = getFromResponse Prelude.id rl1a
+
+        sendAmtToAddr ctx wDest wSrc a5 0
+        eventually "There are exactly 11 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shelley wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 11]
+
+        rl1b <- request @([ApiTransaction n]) ctx linkList1a Default Empty
+        verify rl1b [expectListSize (length txs1a + 1)]
   where
 
     -- | Just one million Ada, in Lovelace.
