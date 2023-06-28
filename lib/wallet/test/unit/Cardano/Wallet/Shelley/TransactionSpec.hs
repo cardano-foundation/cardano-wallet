@@ -2103,16 +2103,15 @@ prop_txConstraints_txSize mock =
         , result <= upperBound
         ]
   where
-    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
+    MockSelection {txInputCount, txOutputs} = mock
     result :: TxSize
     result = mconcat
         [ txBaseSize mockTxConstraints
         , txInputCount `mtimesDefault` txInputSize mockTxConstraints
         , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
-        , txRewardWithdrawalSize mockTxConstraints txRewardWithdrawal
         ]
     lowerBound = estimateTxSize emptyTxSkeleton
-        {txInputCount, txOutputs, txRewardWithdrawal}
+        {txInputCount, txOutputs }
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal size of an input:
     upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4
