@@ -1460,7 +1460,6 @@ txConstraints protocolParams witnessTag = TxConstraints
 --
 data TxSkeleton = TxSkeleton
     { txDelegationAction :: !(Maybe DelegationAction)
-    , txRewardWithdrawal :: !Coin
     , txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
@@ -1479,7 +1478,6 @@ data TxSkeleton = TxSkeleton
 emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
 emptyTxSkeleton txWitnessTag = TxSkeleton
     { txDelegationAction = Nothing
-    , txRewardWithdrawal = Coin 0
     , txWitnessTag
     , txInputCount = 0
     , txOutputs = []
@@ -1501,7 +1499,6 @@ mkTxSkeleton
     -> TxSkeleton
 mkTxSkeleton witness context skeleton = TxSkeleton
     { txDelegationAction = view #txDelegationAction context
-    , txRewardWithdrawal = withdrawalToCoin $ view #txWithdrawal context
     , txWitnessTag = witness
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
@@ -1745,7 +1742,6 @@ estimateTxSize skeleton =
   where
     TxSkeleton
         { txDelegationAction
-        , txRewardWithdrawal
         , txWitnessTag
         , txInputCount
         , txOutputs
@@ -1760,9 +1756,6 @@ estimateTxSize skeleton =
 
     numberOf_CertificateSignatures
         = maybe 0 (const 1) txDelegationAction
-
-    numberOf_Withdrawals
-        = if txRewardWithdrawal > Coin 0 then 1 else 0
 
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
@@ -1779,12 +1772,10 @@ estimateTxSize skeleton =
                 -- the latter is optional
                 if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
-                    + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
                 else
                     (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
-                    + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
@@ -1822,7 +1813,6 @@ estimateTxSize skeleton =
         + sizeOf_Fee
         + sizeOf_Ttl
         + sizeOf_Certificates
-        + sizeOf_Withdrawals numberOf_Withdrawals
         + sizeOf_Update
         + sizeOf_ValidityIntervalStart
         + sumVia sizeOf_Mint (F.toList txAssetsToMintOrBurn)
