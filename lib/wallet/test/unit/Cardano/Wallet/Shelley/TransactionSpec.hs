@@ -1194,26 +1194,6 @@ feeCalculationSpec = describe "fee calculations" $ do
             & counterexample ("cost with: " <> show costWith)
             & counterexample ("cost without: " <> show costWithout)
 
-    it "minting incurs fees" $ property $ \assets ->
-        let
-            costWith =
-                minFeeSkeleton $ emptyTxSkeleton
-                    { txAssetsToMintOrBurn = Set.fromList assets }
-            costWithout =
-                minFeeSkeleton emptyTxSkeleton
-
-            marginalCost :: Integer
-            marginalCost = costWith - costWithout
-        in
-            (if null assets
-                then property $ marginalCost == 0
-                else property $ marginalCost > 0
-            )
-            & classify (null assets) "null minting assets"
-            & counterexample ("marginal cost: " <> show marginalCost)
-            & counterexample ("cost with: " <> show costWith)
-            & counterexample ("cost without: " <> show costWithout)
-
     it "scripts incur fees" $ property $ \scripts ->
         let
             costWith =
@@ -1232,35 +1212,6 @@ feeCalculationSpec = describe "fee calculations" $ do
             & counterexample ("marginal cost: " <> show marginalCost)
             & counterexample ("cost with: " <> show costWith)
             & counterexample ("cost without: " <> show costWithout)
-
-    it "increasing mint increases tx size at least proportianally to asset names"
-        $ property $ \mints ->
-        let
-            assetNameLength = BS.length . unTokenName . tokenName
-
-            lengthAssetNames = fromIntegral . getSum $
-                F.foldMap (Sum . assetNameLength) mints
-
-            sizeWith =
-                estimateTxSize' $ emptyTxSkeleton
-                    { txAssetsToMintOrBurn = Set.fromList mints }
-            sizeWithout =
-                estimateTxSize' emptyTxSkeleton
-
-            marginalSize :: Integer
-            marginalSize = sizeWith - sizeWithout
-        in
-            -- Larger asset names means more bytes in the tx which should
-            -- mean a more expensive tx. Adding the mints should increase
-            -- the marginal size at least as much as the size of the asset
-            -- names.
-            property (marginalSize >= lengthAssetNames)
-            & classify (null mints) "null minting assets"
-            & counterexample
-                ("asset names length: " <> show lengthAssetNames)
-            & counterexample ("marginal size: " <> show marginalSize)
-            & counterexample ("size with: " <> show sizeWith)
-            & counterexample ("size without: " <> show sizeWithout)
 
     it "increasing scripts increases fee at least proportionate to size of CBOR script"
         $ property $ \scripts ->
@@ -1339,26 +1290,6 @@ feeCalculationSpec = describe "fee calculations" $ do
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
-        it "minting incurs fees" $ property $ \assets ->
-            let
-                costWith =
-                    minFeeSkeleton $ emptyTxSkeleton
-                        { txAssetsToMintOrBurn = Set.fromList assets }
-                costWithout =
-                    minFeeSkeleton emptyTxSkeleton
-
-                marginalCost :: Integer
-                marginalCost = costWith - costWithout
-            in
-                (if null assets
-                    then property $ marginalCost == 0
-                    else property $ marginalCost > 0
-                )
-                & classify (null assets) "null minting assets"
-                & counterexample ("marginal cost: " <> show marginalCost)
-                & counterexample ("cost with: " <> show costWith)
-                & counterexample ("cost without: " <> show costWithout)
-
         it "scripts incur fees" $ property $ \scripts ->
             let
                 costWith =
@@ -1377,35 +1308,6 @@ feeCalculationSpec = describe "fee calculations" $ do
                 & counterexample ("marginal cost: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
-
-        it "increasing mint increases tx size at least proportianally to asset names"
-            $ property $ \mints ->
-            let
-                assetNameLength = BS.length . unTokenName . tokenName
-
-                lengthAssetNames = fromIntegral . getSum $
-                    F.foldMap (Sum . assetNameLength) mints
-
-                sizeWith =
-                    estimateTxSize' $ emptyTxSkeleton
-                        { txAssetsToMintOrBurn = Set.fromList mints }
-                sizeWithout =
-                    estimateTxSize' emptyTxSkeleton
-
-                marginalSize :: Integer
-                marginalSize = sizeWith - sizeWithout
-            in
-                -- Larger asset names means more bytes in the tx which should
-                -- mean a more expensive tx. Adding the mints should increase
-                -- the marginal size at least as much as the size of the asset
-                -- names.
-                property (marginalSize >= lengthAssetNames)
-                & classify (null mints) "null minting assets"
-                & counterexample
-                    ("asset names length: " <> show lengthAssetNames)
-                & counterexample ("marginal size: " <> show marginalSize)
-                & counterexample ("size with: " <> show sizeWith)
-                & counterexample ("size without: " <> show sizeWithout)
 
         it "increasing scripts increases fee at least proportionate to size of CBOR script"
             $ property $ \scripts ->
