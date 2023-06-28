@@ -1796,7 +1796,7 @@ estimateTxSize skeleton =
         + sizeOf_Fee
         + sizeOf_Ttl
         + sizeOf_Certificates
-        + sizeOf_Withdrawals
+        + sizeOf_Withdrawals numberOf_Withdrawals
         + sizeOf_Update
         + sizeOf_MetadataHash
         + sizeOf_ValidityIntervalStart
@@ -1843,13 +1843,6 @@ estimateTxSize skeleton =
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeDeregistration
-
-        -- ?5 => withdrawals
-        sizeOf_Withdrawals
-            = (if numberOf_Withdrawals > 0
-                then sizeOf_SmallUInt + sizeOf_SmallMap
-                else 0)
-            + sizeOf_Withdrawal * numberOf_Withdrawals
 
         -- ?6 => update
         sizeOf_Update
@@ -2002,12 +1995,6 @@ estimateTxSize skeleton =
         . CBOR.encodeWord64
         . Coin.unsafeToWord64
 
-    -- withdrawals =
-    --   { * reward_account => coin }
-    sizeOf_Withdrawal
-        = sizeOf_Hash28
-        + sizeOf_LargeUInt
-
     -- [* native_script ]
     sizeOf_NativeScripts []
         = 0
@@ -2041,9 +2028,25 @@ estimateTxSize skeleton =
                 then sizeOf_Array + sizeOf_SmallUInt else 0)
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
-        -- ?1 => [* native_script ]
 
-        -- ?2 => [* bootstrap_witness ]
+-- ?5 => withdrawals
+sizeOf_Withdrawals :: Integer -> Integer
+sizeOf_Withdrawals n
+    = (if n > 0
+        then sizeOf_SmallUInt + sizeOf_SmallMap
+        else 0)
+    + sizeOf_Withdrawal * n
+
+  where
+    -- withdrawals =
+    --   { * reward_account => coin }
+    sizeOf_Withdrawal
+        = sizeOf_Hash28
+        + sizeOf_LargeUInt
+
+
+
+-- ?2 => [* bootstrap_witness ]
 sizeOf_BootstrapWitnesses :: Integer -> Integer
 sizeOf_BootstrapWitnesses n
     = (if n > 0
