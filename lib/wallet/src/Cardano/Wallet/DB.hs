@@ -518,7 +518,8 @@ filterMinWithdrawal (Just minWithdrawal) = filter p
 filterAddress
     :: Maybe Address -> [TransactionInfo] -> [TransactionInfo]
 filterAddress Nothing = id
-filterAddress (Just addr) = filter (\info -> p1 info || p2 info)
+filterAddress (Just addr) =
+    filter (\info -> p1 info || p2 info || p3 info || p4 info)
   where
     addressInTxOut = any (\(TxOut addr' _) -> addr' == addr)
     p1 = addressInTxOut . txInfoOutputs
@@ -528,6 +529,11 @@ filterAddress (Just addr) = filter (\info -> p1 info || p2 info)
         _ -> False
     addressInInp = any isAddressPresent
     p2 = addressInInp . txInfoInputs
+    p3 = addressInInp . txInfoCollateralInputs
+
+    addressInCollaterlaOut (Just (TxOut addr' _)) = addr' == addr
+    addressInCollaterlaOut Nothing = False
+    p4 = addressInCollaterlaOut . txInfoCollateralOutput
 
 mkTransactionInfo
     :: Monad stm

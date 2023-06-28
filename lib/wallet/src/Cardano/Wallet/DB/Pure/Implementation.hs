@@ -531,10 +531,17 @@ filterTxHistory minWithdrawal order range address =
         _ -> False
     addressInInp addr = any (isAddressPresent addr)
     checkInp addr = addressInInp addr . resolvedInputs . fst
+    checkCollInp addr = addressInInp addr . resolvedCollateralInputs . fst
+
+    addressInCollTxOut addr (Just (TxOut addr' _)) = addr' == addr
+    addressInCollTxOut _ Nothing = False
+    checkCollOut addr = addressInCollTxOut addr . collateralOutput . fst
 
     filterAddress addrM txhistory = case addrM of
         Nothing -> True
-        Just addr -> checkOut addr txhistory || checkInp addr txhistory
+        Just addr ->
+            checkOut addr txhistory || checkInp addr txhistory ||
+            checkCollInp addr txhistory || checkCollOut addr txhistory
 
 tip :: Wallet s -> SlotNo
 tip = (slotNo :: BlockHeader -> SlotNo) . currentTip
