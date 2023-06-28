@@ -97,7 +97,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL, ppMinFeeAL )
 import Cardano.Ledger.Api
-    ( bodyTxL, scriptIntegrityHashTxBodyL )
+    ( bodyTxL, rdmrsTxWitsL, scriptIntegrityHashTxBodyL, witsTxL )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Shelley.API
@@ -255,10 +255,6 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardConway )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -941,12 +937,6 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 , "Caller is expected to ensure this does not happen."
                 ]
 
-type BabbageTx =
-    Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
-
-type ConwayTx =
-    Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.ConwayEra)
-
 assignScriptRedeemers
     :: forall era. Write.IsRecentEra era
     => Write.PParams (Write.ShelleyLedgerEra era)
@@ -956,25 +946,15 @@ assignScriptRedeemers
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era)
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
-    case Write.recentEra @era of
-        Write.RecentEraBabbage -> do
-            let Cardano.ShelleyTx _ babbageTx = tx
-            babbageTx' <- flip execStateT babbageTx $ do
-                indexedRedeemers <- StateT assignNullRedeemersBabbage
-                executionUnits <- get
-                    >>= lift . evaluateExecutionUnitsBabbage indexedRedeemers
-                modifyM (assignExecutionUnitsBabbage executionUnits)
-                modify' addScriptIntegrityHashBabbage
-            pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
-        Write.RecentEraConway -> do
-            let Cardano.ShelleyTx _ conwayTx = tx
-            conwayTx' <- flip execStateT conwayTx $ do
-                indexedRedeemers <- StateT assignNullRedeemersConway
-                executionUnits <- get
-                    >>= lift . evaluateExecutionUnitsConway indexedRedeemers
-                modifyM (assignExecutionUnitsConway executionUnits)
-                modify' addScriptIntegrityHashConway
-            pure $ Cardano.ShelleyTx ShelleyBasedEraConway conwayTx'
+    Write.withConstraints (recentEra @era) $ do
+        let ledgerTx = Write.fromCardanoTx tx
+        ledgerTx' <- flip execStateT ledgerTx $ do
+            indexedRedeemers <- StateT assignNullRedeemers
+            executionUnits <- get
+                >>= lift . evaluateExecutionUnits indexedRedeemers
+            modifyM (assignExecutionUnits executionUnits)
+            modify' addScriptIntegrityHash
+        pure $ Cardano.ShelleyTx Write.shelleyBasedEra ledgerTx'
   where
     epochInformation :: EpochInfo (Either T.Text)
     epochInformation =
@@ -986,36 +966,17 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     --
     -- Redeemers are determined from the context given to the caller via the
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
-    assignNullRedeemersBabbage
-        :: BabbageTx
-        -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, BabbageTx)
-    assignNullRedeemersBabbage babbageTx = do
-        (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
-            ptr <-
-                case Alonzo.rdptr (Alonzo.body babbageTx) (toScriptPurpose rd) of
-                    SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
-                    SJust ptr -> pure ptr
-            rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
-                Left e -> Left $ ErrAssignRedeemersInvalidData rd (show e)
-                Right d -> pure (Alonzo.Data d)
-            pure ((ptr, rd), (ptr, (rData, mempty)))
-        pure
-            ( Map.fromList indexedRedeemers
-            , babbageTx
-                { Alonzo.wits = (Alonzo.wits babbageTx)
-                    { Alonzo.txrdmrs =
-                        Alonzo.Redeemers (Map.fromList nullRedeemers)
-                    }
-                }
+    assignNullRedeemers
+        :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
+        => Write.Tx (Write.ShelleyLedgerEra era)
+        -> Either ErrAssignRedeemers
+            ( Map Alonzo.RdmrPtr Redeemer
+            , (Write.Tx (Write.ShelleyLedgerEra era))
             )
-
-    assignNullRedeemersConway
-        :: ConwayTx
-        -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, ConwayTx)
-    assignNullRedeemersConway conwayTx = do
+    assignNullRedeemers ledgerTx = do
         (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
             ptr <-
-                case Alonzo.rdptr (Alonzo.body conwayTx) (toScriptPurpose rd) of
+                case Alonzo.rdptr (Write.txBody (recentEra @era) ledgerTx) (toScriptPurpose rd) of
                     SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
                     SJust ptr -> pure ptr
             rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
@@ -1024,47 +985,24 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
             pure ((ptr, rd), (ptr, (rData, mempty)))
         pure
             ( Map.fromList indexedRedeemers
-            , conwayTx
-                { Alonzo.wits = (Alonzo.wits conwayTx)
-                    { Alonzo.txrdmrs =
-                        Alonzo.Redeemers (Map.fromList nullRedeemers)
-                    }
-                }
+            , ledgerTx
+                & witsTxL . rdmrsTxWitsL
+                    .~ (Alonzo.Redeemers (Map.fromList nullRedeemers))
             )
 
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
-    evaluateExecutionUnitsBabbage
-        :: era ~ Cardano.BabbageEra
+    evaluateExecutionUnits
+        :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
         => Map Alonzo.RdmrPtr Redeemer
-        -> BabbageTx
+        -> Write.Tx (Cardano.ShelleyLedgerEra era)
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
+    evaluateExecutionUnits indexedRedeemers ledgerTx = do
         let res =
                 Ledger.evalTxExUnits
                     pparams
-                    babbageTx
-                    (fromCardanoUTxO utxo)
-                    epochInformation
-                    systemStart
-        case res of
-            Left translationError ->
-                Left $ ErrAssignRedeemersTranslationError translationError
-            Right report ->
-                Right $ hoistScriptFailure indexedRedeemers report
-
-    evaluateExecutionUnitsConway
-        :: era ~ Cardano.ConwayEra
-        => Map Alonzo.RdmrPtr Redeemer
-        -> ConwayTx
-        -> Either ErrAssignRedeemers
-            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnitsConway indexedRedeemers conwayTx = do
-        let res =
-                Ledger.evalTxExUnits
-                    pparams
-                    conwayTx
+                    ledgerTx
                     (fromCardanoUTxO utxo)
                     epochInformation
                     systemStart
@@ -1084,37 +1022,23 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
-    assignExecutionUnitsBabbage
-        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> BabbageTx
-        -> Either ErrAssignRedeemers BabbageTx
-    assignExecutionUnitsBabbage exUnits babbageTx = do
-        let wits = Alonzo.wits babbageTx
-        let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
-        rdmrs' <- Map.mergeA
-            Map.preserveMissing
-            Map.dropMissing
-            (Map.zipWithAMatched (const assignUnits))
-            rdmrs
-            exUnits
-        pure babbageTx
-            { Alonzo.wits = wits { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs' } }
+    assignExecutionUnits
+        :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
+        => Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
+        -> (Write.Tx (Write.ShelleyLedgerEra era))
+        -> Either ErrAssignRedeemers (Write.Tx (Write.ShelleyLedgerEra era))
+    assignExecutionUnits exUnits ledgerTx = do
+        let Alonzo.Redeemers rdmrs = view (witsTxL . rdmrsTxWitsL) ledgerTx
 
-    assignExecutionUnitsConway
-        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> ConwayTx
-        -> Either ErrAssignRedeemers ConwayTx
-    assignExecutionUnitsConway exUnits conwayTx = do
-        let wits = Alonzo.wits conwayTx
-        let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
         rdmrs' <- Map.mergeA
             Map.preserveMissing
             Map.dropMissing
             (Map.zipWithAMatched (const assignUnits))
             rdmrs
             exUnits
-        pure conwayTx
-            { Alonzo.wits = wits { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs' } }
+
+        pure $ ledgerTx
+            & (witsTxL . rdmrsTxWitsL) .~ (Alonzo.Redeemers rdmrs')
 
     assignUnits
         :: (dat, Alonzo.ExUnits)
@@ -1124,37 +1048,22 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
-    addScriptIntegrityHashBabbage
-        :: era ~ Cardano.BabbageEra => BabbageTx -> BabbageTx
-    addScriptIntegrityHashBabbage babbageTx =
-        babbageTx & bodyTxL . scriptIntegrityHashTxBodyL .~
+    addScriptIntegrityHash
+        :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
+        => (Write.Tx (Write.ShelleyLedgerEra era))
+        -> (Write.Tx (Write.ShelleyLedgerEra era))
+    addScriptIntegrityHash ledgerTx =
+        ledgerTx & (bodyTxL . scriptIntegrityHashTxBodyL) .~
             Alonzo.hashScriptIntegrity
                 (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
                 (Alonzo.txrdmrs wits)
                 (Alonzo.txdats wits)
       where
-        wits = Alonzo.wits babbageTx
+        wits = Alonzo.wits ledgerTx
         langs =
             [ l
             | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-            , (not . Ledger.isNativeScript @StandardBabbage) script
-            , Just l <- [Alonzo.language script]
-            ]
-
-    addScriptIntegrityHashConway
-        :: era ~ Cardano.ConwayEra => ConwayTx -> ConwayTx
-    addScriptIntegrityHashConway conwayTx =
-        conwayTx & bodyTxL . scriptIntegrityHashTxBodyL .~
-            Alonzo.hashScriptIntegrity
-                (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
-                (Alonzo.txrdmrs wits)
-                (Alonzo.txdats wits)
-      where
-        wits = Alonzo.wits conwayTx
-        langs =
-            [ l
-            | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-            , (not . Ledger.isNativeScript @StandardConway) script
+            , (not . Ledger.isNativeScript @(Write.ShelleyLedgerEra era)) script
             , Just l <- [Alonzo.language script]
             ]
 
