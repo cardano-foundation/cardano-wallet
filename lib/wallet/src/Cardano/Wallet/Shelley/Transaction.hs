@@ -35,7 +35,6 @@ module Cardano.Wallet.Shelley.Transaction
 
     -- * For balancing (To be moved)
     , estimateKeyWitnessCount
-    , evaluateMinimumFee
     , estimateSignedTxSize
     , KeyWitnessCount (..)
     , distributeSurplus
@@ -156,7 +155,6 @@ import Cardano.Wallet.Read.Primitive.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
-    , fromCardanoLovelace
     , fromCardanoWdrls
     , toCardanoLovelace
     , toCardanoPolicyId
@@ -217,8 +215,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.IntCast
-    ( intCast )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -692,31 +688,6 @@ mkDelegationCertificates da cred =
             , toStakePoolDlgCert cred poolId
             ]
        Quit -> [toStakeKeyDeregCert cred]
-
--- | Evaluate a minimal fee amount necessary to pay for a given tx
--- using ledger's functionality.
-evaluateMinimumFee
-    :: Cardano.IsShelleyBasedEra era
-    => Cardano.BundledProtocolParameters era
-    -> KeyWitnessCount
-    -> Cardano.TxBody era
-    -> Coin
-evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
-    fromCardanoLovelace (Cardano.evaluateTransactionFee pp body nWits 0)
-        <> bootWitFees
-    -- NOTE: Cardano.evaluateTransactionFee will error if passed non-zero
-    -- nBootWits, so we need to account for it separately.
-  where
-    bootWitFees = Coin.fromNatural $ feePerByte * bytes
-      where
-        feePerByte :: Natural
-        feePerByte =
-            Coin.toNatural . fromCardanoLovelace
-                $ Cardano.protocolParamTxFeePerByte
-                $ Cardano.unbundleProtocolParams pp
-
-        bytes :: Natural
-        bytes = unTxSize $ sizeOf_BootstrapWitnesses $ intCast nBootWits
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
