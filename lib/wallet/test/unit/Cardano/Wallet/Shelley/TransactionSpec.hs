@@ -84,7 +84,7 @@ import Cardano.Ledger.Api
     , ValidityInterval (..)
     , bootAddrTxWitsL
     , ppCoinsPerUTxOByteL
-    , ppCoinsPerUTxOWordL
+    , ppMaxTxSizeL
     , ppMinFeeAL
     , scriptTxWitsL
     , witsTxL
@@ -153,16 +153,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
-    , FeePolicy (..)
-    , LinearFunction (..)
-    , ProtocolParameters (..)
-    , TokenBundleMaxSize (..)
-    , TxParameters (..)
-    )
+    ( Block (..), BlockHeader (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -173,8 +164,6 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( testParameter_coinsPerUTxOByte_Babbage
     , testParameter_coinsPerUTxOWord_Alonzo
@@ -237,7 +226,6 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
-    , TxWitnessTagFor (txWitnessTagFor)
     , mkByronWitness
     , mkDelegationCertificates
     , mkShelleyWitness
@@ -246,12 +234,7 @@ import Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
-    , TransactionCtx (..)
-    , TransactionLayer (..)
-    , Withdrawal (..)
-    , WitnessCountCtx (..)
-    )
+    ( DelegationAction (..), TransactionLayer (..), WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
@@ -1652,29 +1635,6 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
-dummyProtocolParameters :: ProtocolParameters
-dummyProtocolParameters = ProtocolParameters
-    { decentralizationLevel =
-        error "dummyProtocolParameters: decentralizationLevel"
-    , txParameters =
-        error "dummyProtocolParameters: txParameters"
-    , desiredNumberOfStakePools =
-        error "dummyProtocolParameters: desiredNumberOfStakePools"
-    , minimumUTxO =
-        error "dummyProtocolParameters: minimumUTxO"
-    , stakeKeyDeposit =
-        error "dummyProtocolParameters: stakeKeyDeposit"
-    , eras =
-        error "dummyProtocolParameters: eras"
-    , maximumCollateralInputCount =
-        error "dummyProtocolParameters: maximumCollateralInputCount"
-    , minimumCollateralPercentage =
-        error "dummyProtocolParameters: minimumCollateralPercentage"
-    , executionUnitPrices =
-        error "dummyProtocolParameters: executionUnitPrices"
-    , currentLedgerProtocolParameters =
-        error "dummyProtocolParameters: currentLedgerProtocolParameters"
-    }
 
 --------------------------------------------------------------------------------
 -- Transaction constraints
@@ -1684,33 +1644,11 @@ emptyTxSkeleton :: TxSkeleton
 emptyTxSkeleton =
     TxSkeleton TxWitnessShelleyUTxO 0 [] [] Nothing
 
-mockFeePolicy :: FeePolicy
-mockFeePolicy = LinearFee $ LinearFunction
-    { intercept = 155_381
-    , slope = 44
-    }
-
-mockProtocolParameters :: ProtocolParameters
-mockProtocolParameters = dummyProtocolParameters
-    { executionUnitPrices = Just $ ExecutionUnitPrices
-        (721 % 10_000_000)
-        (577 %     10_000)
-    , txParameters = TxParameters
-        { getFeePolicy = mockFeePolicy
-        , getTxMaxSize = Quantity 16_384
-        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4_000
-        , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
-        }
-    , minimumUTxO
-        = minimumUTxOForShelleyBasedEra Cardano.ShelleyBasedEraAlonzo
-            $ def & ppCoinsPerUTxOWordL .~ testParameter_coinsPerUTxOWord_Alonzo
-    , maximumCollateralInputCount = 3
-    , minimumCollateralPercentage = 150
-    }
-
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
-    txConstraints mockProtocolParameters TxWitnessShelleyUTxO
+    txConstraints
+        (mockPParamsForBalancing @Cardano.BabbageEra)
+        TxWitnessShelleyUTxO
 
 data MockSelection = MockSelection
     { txInputCount :: Int
@@ -3482,8 +3420,7 @@ prop_balanceTransactionValid
                 estimateSignedTxSize ledgerPParams
                     (estimateKeyWitnessCount utxo body)
                     body
-        let limit = fromIntegral $ getQuantity $
-                view (#txParameters . #getTxMaxSize) mockProtocolParameters
+        let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
                 , show size

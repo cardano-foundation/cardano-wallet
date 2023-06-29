@@ -2352,10 +2352,6 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     (Write.InAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
-    -- Needed only for calcMinimumCoinValues. We'd ideally use the ledger @pp@
-    -- above instead.
-    walletPP <- liftIO $ currentProtocolParameters netLayer
-
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
@@ -2366,7 +2362,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
                 shelleyOnlyMkWithdrawal @s
                     netLayer (txWitnessTagFor @k) db apiWdrl
         let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
-            minCoins = W.calcMinimumCoinValues walletPP txLayer
+            minCoins = W.calcMinimumCoinValues pp txLayer
                 <$> outputs
         feePercentiles <- liftIO $ W.transactionFee @s
             db

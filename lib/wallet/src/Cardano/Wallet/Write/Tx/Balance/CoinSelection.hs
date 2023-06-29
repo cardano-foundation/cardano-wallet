@@ -36,7 +36,6 @@ module Cardano.Wallet.Write.Tx.Balance.CoinSelection
     , txConstraints
 
       -- * Needed by the wallet
-    , getFeePerByteFromWalletPParams
     , _txRewardWithdrawalCost
     )
 
@@ -46,14 +45,10 @@ import Prelude
 
 import Cardano.Address.Script
     ( Script (..) )
+import Cardano.Ledger.Api
+    ( ppMaxTxSizeL, ppMaxValSizeL, ppMinFeeBL )
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
-import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..)
-    , LinearFunction (..)
-    , ProtocolParameters (..)
-    , TxParameters (..)
-    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -67,54 +62,52 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..), TxSize (..), txSizeDistance )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txSizeDistance )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
-import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..) )
+import Cardano.Wallet.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( FeePerByte (..) )
-import Data.Function
-    ( (&) )
+    ( FeePerByte (..)
+    , IsRecentEra (recentEra)
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , TxOut
+    , computeMinimumCoinForTxOut
+    , getFeePerByte
+    , isBelowMinimumCoinForTxOut
+    , withConstraints
+    )
+import Control.Lens
+    ( (^.) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
-import Data.IntCast
-    ( intCastMaybe )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Word
     ( Word64, Word8 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
-
-getFeePerByteFromWalletPParams
-    :: ProtocolParameters
-    -> FeePerByte
-getFeePerByteFromWalletPParams pp =
-    FeePerByte $ ceiling slope
-  where
-    LinearFee LinearFunction{slope} = getFeePolicy $ txParameters pp
 
 -- | Like the 'TxConstraints' field 'txRewardWithdrawalCost', but with added
 -- support for shared wallets via the 'CA.ScriptTemplate' argument.
@@ -155,8 +148,11 @@ _txRewardWithdrawalSize witType _ =
 
 
 txConstraints
-    :: ProtocolParameters -> TxWitnessTag -> TxConstraints
-txConstraints protocolParams witnessTag = TxConstraints
+    :: forall era. IsRecentEra era
+    => ProtocolParameters era
+    -> TxWitnessTag
+    -> TxConstraints
+txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
     , txInputCost
@@ -172,13 +168,15 @@ txConstraints protocolParams witnessTag = TxConstraints
     , txMaximumSize
     }
   where
+    era = recentEra @era
+
     txBaseCost =
         constantTxFee <> estimateTxCost feePerByte empty
 
-    constantTxFee = Coin $ ceiling intercept
-    feePerByte = getFeePerByteFromWalletPParams protocolParams
-    LinearFee LinearFunction {intercept}
-        = getFeePolicy $ txParameters protocolParams
+    constantTxFee = withConstraints era $
+        toWallet $ protocolParams ^. ppMinFeeBL
+
+    feePerByte = getFeePerByte (recentEra @era) protocolParams
 
     txBaseSize =
         estimateTxSize empty
@@ -195,20 +193,24 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputSize bundle =
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = (<>)
+    txOutputMaximumSize = withConstraints era $ (<>)
         (txOutputSize mempty)
-        (view
-            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
-            protocolParams)
+        (TxSize (protocolParams ^. ppMaxValSizeL))
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64
 
-    txOutputMinimumAdaQuantity =
-        computeMinimumCoinForUTxO (minimumUTxO protocolParams)
+    txOutputMinimumAdaQuantity addr tokens = toWallet $
+        computeMinimumCoinForTxOut
+            era
+            protocolParams
+            (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
 
-    txOutputBelowMinimumAdaQuantity =
-        isBelowMinimumCoinForUTxO (minimumUTxO protocolParams)
+    txOutputBelowMinimumAdaQuantity addr bundle =
+            isBelowMinimumCoinForTxOut
+                era
+                protocolParams
+                (mkLedgerTxOut era addr bundle)
 
     txRewardWithdrawalCost =
         _txRewardWithdrawalCost feePerByte (Right witnessTag)
@@ -216,11 +218,8 @@ txConstraints protocolParams witnessTag = TxConstraints
     txRewardWithdrawalSize =
         _txRewardWithdrawalSize (Right witnessTag)
 
-    txMaximumSize = protocolParams
-        & view (#txParameters . #getTxMaxSize)
-        & getQuantity
-        & fromIntegral
-        & TxSize
+    txMaximumSize = withConstraints era $
+        TxSize $ protocolParams ^. ppMaxTxSizeL
 
     empty :: TxSkeleton
     empty = emptyTxSkeleton witnessTag
@@ -240,8 +239,8 @@ txConstraints protocolParams witnessTag = TxConstraints
         txSizeDistance txBaseSize . estimateTxSize
 
     -- Constructs a real transaction output from a token bundle.
-    mkTxOut :: TokenBundle -> TxOut
-    mkTxOut = TxOut dummyAddress
+    mkTxOut :: TokenBundle -> W.TxOut
+    mkTxOut = W.TxOut dummyAddress
       where
         dummyAddress :: Address
         dummyAddress = Address $ BS.replicate dummyAddressLength nullByte
@@ -273,7 +272,7 @@ txConstraints protocolParams witnessTag = TxConstraints
 data TxSkeleton = TxSkeleton
     { txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
-    , txOutputs :: ![TxOut]
+    , txOutputs :: ![W.TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (CA.Script CA.Cosigner))
     }
@@ -442,7 +441,7 @@ estimateTxSize skeleton =
     --   }
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_PostAlonzoTransactionOutput TxOut {address, tokens}
+    sizeOf_PostAlonzoTransactionOutput W.TxOut {address, tokens}
         = sizeOf_SmallMap
         + sizeOf_SmallUInt
         + sizeOf_Address address
@@ -691,3 +690,15 @@ sizeOf_Array = 3
 sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
 sumVia f = F.foldl' (\t -> (t +) . f) 0
 
+mkLedgerTxOut
+    :: HasCallStack
+    => RecentEra era
+    -> W.Address
+    -> TokenBundle
+    -> TxOut (ShelleyLedgerEra era)
+mkLedgerTxOut txOutEra address bundle =
+    case txOutEra of
+        RecentEraBabbage -> W.toBabbageTxOut txOut
+        RecentEraConway -> W.toConwayTxOut txOut
+      where
+        txOut = W.TxOut address bundle
