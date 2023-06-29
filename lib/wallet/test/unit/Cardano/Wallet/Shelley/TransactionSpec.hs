@@ -260,7 +260,6 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
@@ -279,6 +278,7 @@ import Cardano.Wallet.Write.Tx
     )
 import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
+    , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)

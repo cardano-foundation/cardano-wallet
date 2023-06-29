@@ -52,7 +52,6 @@ module Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrAssignRedeemers(..)
     , ErrMoreSurplusNeeded (..)
     ) where
 
@@ -66,10 +65,6 @@ import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
     ()
-import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
@@ -92,8 +87,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -425,15 +418,6 @@ data ErrMkTransaction
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
-    deriving (Generic, Eq, Show)
-
-data ErrAssignRedeemers
-    = ErrAssignRedeemersScriptFailure Redeemer String
-    | ErrAssignRedeemersTargetNotFound Redeemer
-    -- ^ The given redeemer target couldn't be located in the transaction.
-    | ErrAssignRedeemersInvalidData Redeemer String
-    -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersTranslationError (TranslationError StandardCrypto)
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

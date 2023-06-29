@@ -115,9 +115,10 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..) )
 import Cardano.Wallet.Transaction
-    ( ErrAssignRedeemers (..), ErrSignTx (..) )
+    ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( ErrBalanceTx (..)
+    ( ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrUpdateSealedTx (..)
     )
