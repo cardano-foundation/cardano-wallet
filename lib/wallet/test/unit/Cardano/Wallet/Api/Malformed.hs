@@ -1793,7 +1793,7 @@ msgJsonInvalid = "I couldn't understand the content of your message. \
     \the JSON is valid."
 
 addrPlaceholder :: Text
-addrPlaceholder = "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
+addrPlaceholder = "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
 
 accountPublicKeyInvalid :: Text
 accountPublicKeyInvalid = T.replicate 128 "ś"

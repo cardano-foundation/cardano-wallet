@@ -152,14 +152,17 @@ parseGenesisData
         , Block
         )
 parseGenesisData = \case
-    MainnetConfig -> do
-        let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
-        let mainnetVersionData = NodeToClientVersionData nm
+    MainnetConfig ->
         pure
             ( NMainnet
             , Byron.mainnetNetworkParameters
-            , mainnetVersionData
-            , Byron.emptyGenesis (genesisParameters Byron.mainnetNetworkParameters)
+            , NodeToClientVersionData
+                { networkMagic = NetworkMagic $
+                    fromIntegral $ W.getProtocolMagic W.mainnetMagic
+                , query = False
+                }
+            , Byron.emptyGenesis
+                (genesisParameters Byron.mainnetNetworkParameters)
             )
 
     TestnetConfig byronGenesisFile -> do
@@ -167,16 +170,17 @@ parseGenesisData = \case
             withExceptT show $ readGenesisData byronGenesisFile
 
         let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
-            block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
-            pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
-            discriminant = NTestnet $ fromIntegral $ W.getProtocolMagic pm
-            vData = NodeToClientVersionData $ NetworkMagic $ fromIntegral
-                $ W.getProtocolMagic pm
+            protoMagic = W.getProtocolMagic
+                $ Byron.fromProtocolMagicId
+                $ gdProtocolMagicId genesisData
         pure
-            ( discriminant
+            ( NTestnet $ fromIntegral protoMagic
             , np
-            , vData
-            , block0
+            , NodeToClientVersionData
+                { networkMagic = NetworkMagic $ fromIntegral protoMagic
+                , query = False
+                }
+            , Byron.genesisBlockFromTxOuts (genesisParameters np) outs
             )
 
 {-------------------------------------------------------------------------------

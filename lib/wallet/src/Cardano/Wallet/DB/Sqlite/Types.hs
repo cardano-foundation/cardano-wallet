@@ -81,8 +81,12 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
 import Control.Arrow
     ( left )
+import Control.Lens
+    ( (&) )
 import Control.Monad
     ( (<=<), (>=>) )
+import Control.Monad.Fail.Extended
+    ( ReportFailure (..) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), Value (..) )
 import Data.Aeson.Extra
@@ -711,22 +715,13 @@ instance PersistField POSIXTime where
         . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
         utcTimeToPOSIXSeconds <$>
-            getEitherText (parseTimeM True defaultTimeLocale
-                iso8601DateFormatHMS (T.unpack time))
+            reportFailure (parseTimeM True defaultTimeLocale
+                iso8601DateFormatHMS (T.unpack time)) & left T.pack
     fromPersistValue _ = Left
         "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)
-
--- | Newtype to get a MonadFail instance for @Either Text@.
---
--- We need it to use @parseTimeM@.
-newtype EitherText a = EitherText { getEitherText :: Either Text a }
-    deriving (Functor, Applicative, Monad) via (Either Text)
-
-instance MonadFail EitherText where
-    fail = EitherText . Left . T.pack
 
 data TxSubmissionStatusEnum = InSubmissionE | InLedgerE | ExpiredE
     deriving (Eq, Show, Enum, Generic)

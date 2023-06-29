@@ -17,14 +17,14 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Api.Gen
     ( genAddressAny )
+import Cardano.Ledger.Core
+    ( ppMinUTxOValueL )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Address.Constants
-    ( maxLengthAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
@@ -56,13 +56,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( mkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
+import Control.Lens
+    ( (.~) )
 import Control.Monad
     ( forM_ )
 import Data.Default
@@ -72,17 +72,7 @@ import Data.Function
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , conjoin
-    , cover
-    , elements
-    , frequency
-    , property
-    , sized
-    , (===)
-    )
+    ( Arbitrary (..), Property, elements, frequency, property, sized, (===) )
 import Test.QuickCheck.Classes
     ( eqLaws, showLaws )
 import Test.QuickCheck.Extra
@@ -92,12 +82,8 @@ import Test.Utils.Laws
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Shelley.PParams as Shelley
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Ledger.Api as Babbage
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -113,17 +99,8 @@ spec = do
 
         describe "Properties" $ do
 
-            it "prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger" $
-                prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-                    & property
             it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
                 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
-                    & property
-            it "prop_computeMinimumCoinForUTxO_bounds" $
-                prop_computeMinimumCoinForUTxO_bounds
-                    & property
-            it "prop_computeMinimumCoinForUTxO_stability" $
-                prop_computeMinimumCoinForUTxO_stability
                     & property
 
         describe "Golden Tests" $ do
@@ -174,19 +151,6 @@ spec = do
                     goldenMinimumUTxO_BabbageEra
                     goldenMinimumCoins_ShelleyAddress_BabbageEra
 
-prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-    :: MinimumUTxOForShelleyBasedEra
-    -> Address
-    -> TokenBundle
-    -> Property
-prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-    minimumUTxO address tokenBundle =
-        Internal.computeMinimumCoinForUTxO_CardanoApi
-            minimumUTxO (TxOut address tokenBundle)
-        ===
-        Internal.computeMinimumCoinForUTxO_CardanoLedger
-            minimumUTxO (TxOut address tokenBundle)
-
 -- Tests the following composition:
 --
 -- >>> isBelowMinimumCoinForUTxO . computeMinimumCoinForUTxO
@@ -199,138 +163,6 @@ prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO minimumUTxO addr m =
     isBelowMinimumCoinForUTxO minimumUTxO addr
         (TokenBundle (computeMinimumCoinForUTxO minimumUTxO addr m) m)
     === False
-
--- Check that 'computeMinimumCoinForUTxO' produces a result that is within
--- bounds, as determined by the Cardano API function 'calculateMinimumUTxO'.
---
-prop_computeMinimumCoinForUTxO_bounds
-    :: TokenBundle
-    -> Cardano.AddressAny
-    -> MinimumUTxOForShelleyBasedEra
-    -> Property
-prop_computeMinimumCoinForUTxO_bounds
-    tokenBundle addr minimumUTxO =
-        let ourResult = ourComputeMinCoin
-                (fromCardanoAddressAny addr)
-                (TokenBundle.tokens tokenBundle)
-            apiResultMinBound = apiComputeMinCoin
-                (fromCardanoAddressAny addr)
-                (tokenBundle)
-            apiResultMaxBound = apiComputeMinCoin
-                (maxLengthAddress)
-                (TokenBundle.setCoin tokenBundle txOutMaxCoin)
-        in
-        property True
-            & verify
-                (ourResult >= apiResultMinBound)
-                "ourResult >= apiResultMinBound"
-            & verify
-                (ourResult <= apiResultMaxBound)
-                "ourResult <= apiResultMaxBound"
-            & report
-                (apiResultMinBound)
-                "apiResultMinBound"
-            & report
-                (apiResultMaxBound)
-                "apiResultMaxBound"
-            & report
-                (ourResult)
-                "ourResult"
-            & report
-                (BS.length (Cardano.serialiseToRawBytes addr))
-                "BS.length (Cardano.serialiseToRawBytes addr))"
-            & report
-                (BS.length (unAddress (fromCardanoAddressAny addr)))
-                "BS.length (unAddress (fromCardanoAddressAny addr))"
-            & report
-                (BS.length (unAddress maxLengthAddress))
-                "BS.length (unAddress maxLengthAddress)"
-  where
-    -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
-    -- minimum 'Coin' value.
-    --
-    apiComputeMinCoin :: Address -> TokenBundle -> Coin
-    apiComputeMinCoin a b = Internal.computeMinimumCoinForUTxO_CardanoApi
-        minimumUTxO (TxOut a b)
-
-    -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
-    -- minimum 'Coin' value.
-    --
-    ourComputeMinCoin :: Address -> TokenMap -> Coin
-    ourComputeMinCoin = computeMinimumCoinForUTxO
-        (MinimumUTxOForShelleyBasedEraOf minimumUTxO)
-
--- Compares the stability of:
---
--- - the Cardano API function 'calculateMinimumUTxO'
--- - the wallet function 'computeMinimumCoinForUTxO'
---
--- In particular, we:
---
--- Demonstrate that applying the Cardano API function to its own result can
--- lead to an increase in the ada quantity.
---
--- Demonstrate that applying the Cardano API function to the result of the
--- wallet function does not lead to an increase in the ada quantity.
---
-prop_computeMinimumCoinForUTxO_stability
-    :: TokenMap
-    -> Cardano.AddressAny
-    -> MinimumUTxOForShelleyBasedEra
-    -> Property
-prop_computeMinimumCoinForUTxO_stability
-    tokenMap addr minimumUTxO =
-        conjoin
-            [ prop_apiFunctionStability
-            , prop_ourFunctionStability
-            ]
-  where
-    -- Demonstrate that applying the Cardano API function to its own result can
-    -- lead to an increase in the ada quantity.
-    --
-    prop_apiFunctionStability :: Property
-    prop_apiFunctionStability =
-        let apiResult0 = apiComputeMinCoin $ TokenBundle (Coin 0)   tokenMap
-            apiResult1 = apiComputeMinCoin $ TokenBundle apiResult0 tokenMap
-        in
-        property True
-            & verify   (apiResult0 <= apiResult1) "apiResult0 <= apiResult1"
-            & cover 10 (apiResult0 == apiResult1) "apiResult0 == apiResult1"
-            & cover 10 (apiResult0  < apiResult1) "apiResult0  < apiResult1"
-            & report apiResult0 "apiResult0"
-            & report apiResult1 "apiResult1"
-            & checkCoverage
-
-    -- Demonstrate that applying the Cardano API function to the result of the
-    -- wallet function does not lead to an increase in the ada quantity.
-    --
-    prop_ourFunctionStability :: Property
-    prop_ourFunctionStability =
-        let ourResult0 = ourComputeMinCoin                          tokenMap
-            ourResult1 = apiComputeMinCoin $ TokenBundle ourResult0 tokenMap
-        in
-        property True
-            & verify   (ourResult0 >= ourResult1) "ourResult0 >= ourResult1"
-            & cover 10 (ourResult0 == ourResult1) "ourResult0 == ourResult1"
-            & cover 10 (ourResult0  > ourResult1) "ourResult0  > ourResult1"
-            & report ourResult0 "ourResult0"
-            & report ourResult1 "ourResult1"
-            & checkCoverage
-
-    -- Uses the Cardano API function 'calculateMinimumUTxO' to compute a
-    -- minimum 'Coin' value.
-    --
-    apiComputeMinCoin :: TokenBundle -> Coin
-    apiComputeMinCoin b = Internal.computeMinimumCoinForUTxO_CardanoApi
-        minimumUTxO (TxOut (fromCardanoAddressAny addr) b)
-
-    -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
-    -- minimum 'Coin' value.
-    --
-    ourComputeMinCoin :: TokenMap -> Coin
-    ourComputeMinCoin = computeMinimumCoinForUTxO
-        (MinimumUTxOForShelleyBasedEraOf minimumUTxO)
-        (fromCardanoAddressAny addr)
 
 --------------------------------------------------------------------------------
 -- Golden tests
@@ -366,28 +198,30 @@ goldenTests_computeMinimumCoinForUTxO
 
 goldenMinimumUTxO_ShelleyEra :: MinimumUTxO
 goldenMinimumUTxO_ShelleyEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Shelley}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Shelley
 
 goldenMinimumUTxO_AllegraEra :: MinimumUTxO
 goldenMinimumUTxO_AllegraEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Allegra}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Allegra
 
 goldenMinimumUTxO_MaryEra :: MinimumUTxO
 goldenMinimumUTxO_MaryEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Mary}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Mary
 
 goldenMinimumUTxO_AlonzoEra :: MinimumUTxO
 goldenMinimumUTxO_AlonzoEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
-        def {Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo}
+        $ def
+        & Alonzo.ppCoinsPerUTxOWordL .~ testParameter_coinsPerUTxOWord_Alonzo
 
 goldenMinimumUTxO_BabbageEra :: MinimumUTxO
 goldenMinimumUTxO_BabbageEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
-        def {Babbage._coinsPerUTxOByte = testParameter_coinsPerUTxOByte_Babbage}
+        $ def
+        & Babbage.ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte_Babbage
 
 --------------------------------------------------------------------------------
 -- Golden minimum 'Coin' values: Byron-style addresses

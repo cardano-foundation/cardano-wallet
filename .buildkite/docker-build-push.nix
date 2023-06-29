@@ -66,7 +66,7 @@ in
     ''}
 
   '' + concatMapStringsSep "\n" (image: ''
-    echo "Loading ${image}"
+    echo "Loading ${image.name}"
     docker load -i "${image}"
 
     # Apply tagging scheme

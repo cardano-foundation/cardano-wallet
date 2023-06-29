@@ -54,9 +54,12 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       # use buildPackages here, we want set-git-rev on the build machine even under
       # cross compilation (e.g. to windows)
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
-      setGitRevPostInstall' = gitrev: ''
-        ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
-      '';
+      setGitRevPostInstall' = gitrev: '' '';
+      # The following is commented out because it causes error with
+      # 'packages.cardano-node.package.identifier.name' not being defined.
+      # setGitRevPostInstall' = gitrev: ''
+      #   ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
+      # '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
         export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
@@ -92,9 +95,10 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = lib.cleanSourceFilter;
       };
 
+      indexState = "2023-06-04T22:30:25Z";
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc928";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -103,23 +107,25 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       };
 
       shell = {
+
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
-          cabal = "latest";
-          cabal-cache.version = "1.0.2.1";
+          # cabal-cache = {};
+          cabal = { index-state = indexState; };
+          cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
-            version = "1.8.0.0";
-            modules = [{ reinstallableLibGhc = false; }];
+            index-state = indexState;
+            version = "latest";
           };
-          hie-bios = {
-            modules = [{ reinstallableLibGhc = false; }];
+          hlint = { index-state = indexState; };
+          hoogle = { index-state = indexState; };
+          lentil = { index-state = indexState; };
+          fourmolu = { index-state = indexState; };
+          weeder = {
+            index-state = indexState;
+            version = "2.4.1";
           };
-          hoogle.version = "5.0.18.1";
-          hlint.version = "3.3.1";
-          lentil.version = "1.5.2.0";
-          stylish-haskell.version = "0.11.0.3";
-          weeder.version = "2.1.3";
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
@@ -138,6 +144,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           jq
           yq
           nixWrapped
+          (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
         ]);
       };
 
@@ -165,10 +172,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           # Provide configuration and dependencies to cardano-wallet components
           ({ config, pkgs, ... }:
             let
-              cardanoNodeExes = with config.hsPkgs;
-                [ nodePkgs.cardano-cli
-                  nodePkgs.cardano-node
-                ];
+              cardanoNodeExes = [ nodePkgs.cardano-cli nodePkgs.cardano-node ];
             in
             {
               reinstallableLibGhc = true;

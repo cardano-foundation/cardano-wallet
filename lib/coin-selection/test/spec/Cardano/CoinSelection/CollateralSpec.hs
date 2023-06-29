@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Hoist not" -}
 

@@ -1,4 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -15,19 +17,23 @@ module Cardano.Wallet.Write.ProtocolParameters
 
 import Prelude
 
+import Data.Functor.Identity
+    ( Identity )
+
+import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.
 --  - Replace this type with a re-exported 'Ledger.PParams era'.
 newtype ProtocolParameters era = ProtocolParameters
-    { pparamsLedger
-        :: Write.PParams (Write.ShelleyLedgerEra era)
+    { pparamsLedger :: Ledger.PParams (Write.ShelleyLedgerEra era)
     }
 
-deriving instance
-    Eq (Write.PParams (Write.ShelleyLedgerEra era)) =>
+deriving newtype instance
+    Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
     Eq (ProtocolParameters era)
-deriving instance
-    Show (Write.PParams (Write.ShelleyLedgerEra era)) =>
+
+deriving newtype instance
+    Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
     Show (ProtocolParameters era)

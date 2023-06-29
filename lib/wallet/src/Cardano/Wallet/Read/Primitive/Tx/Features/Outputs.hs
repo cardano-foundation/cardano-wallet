@@ -26,8 +26,6 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..) )
 import Cardano.Wallet.Util
@@ -56,13 +54,14 @@ import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 
 getOutputs :: EraFun Outputs (K [W.TxOut])
 getOutputs = EraFun
@@ -81,12 +80,12 @@ fromShelleyAddress = W.Address . SL.serialiseAddr
 fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> W.TxOut
 fromShelleyTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ fromShelleyCoin amount)
+    (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
 fromAllegraTxOut :: SL.ShelleyTxOut StandardAllegra -> W.TxOut
 fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ fromShelleyCoin amount)
+    (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
 fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> W.TxOut
 fromMaryTxOut (SL.ShelleyTxOut addr value) =

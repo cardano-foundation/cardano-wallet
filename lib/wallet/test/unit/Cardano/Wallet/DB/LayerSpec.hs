@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -180,6 +181,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( isJust, isNothing, mapMaybe )
 import Data.Quantity
@@ -320,7 +323,7 @@ instance PaymentAddress SharedKey 'CredFromScriptK where
     liftPaymentAddress _ = error
         "does not make sense for SharedKey but want to use stateMachineSpec"
 
-showState :: forall s. Typeable s => String
+showState :: forall (s :: Type). Typeable s => String
 showState = show (typeOf @s undefined)
 
 withFreshDB
@@ -569,7 +572,7 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
-                        epochStability = Quantity 2160
+                        epochStability = Quantity 2_160
                         deltaPruneCheckpoints =
                             Checkpoints.pruneCheckpoints
                                 (view $ #currentTip . #blockHeight)

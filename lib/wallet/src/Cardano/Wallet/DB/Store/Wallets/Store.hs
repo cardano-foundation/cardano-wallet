@@ -46,7 +46,7 @@ mkStoreTxWalletsHistory storeTransactions storeMeta =
             liftA2 (,)
                 <$> loadS storeTransactions
                 <*> loadS storeMeta
-        write = \(txSet, txMetaHistory) -> do
+        write (txSet, txMetaHistory) = do
             writeS storeTransactions txSet
             writeS storeMeta txMetaHistory
         update ma delta =

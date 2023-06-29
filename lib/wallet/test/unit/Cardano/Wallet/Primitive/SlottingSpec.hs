@@ -65,6 +65,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.SOP.Counting
+    ( exactlyTwo )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
@@ -75,8 +77,6 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyTwo )
 import Test.Hspec
     ( Spec, describe, it, runIO, shouldBe, shouldReturn, shouldSatisfy )
 import Test.QuickCheck

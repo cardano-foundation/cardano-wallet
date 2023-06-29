@@ -30,21 +30,25 @@ import Cardano.Api
     , MaryEra
     , ShelleyEra
     )
+import Cardano.Ledger.Alonzo.Tx
+    ( AlonzoTx )
+import Cardano.Ledger.Api
+    ( StandardCrypto )
+import Cardano.Ledger.Shelley.Tx
+    ( ShelleyTx )
 
-import qualified Cardano.Api.Shelley as Api
 import qualified Cardano.Chain.UTxO as Byron
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Shelley.API as Shelley
+import qualified Cardano.Ledger.Api as Ledger
 
 -- | Closed type family returning the ledger 'Tx' type for each known @era@.
 type family TxT era where
     TxT ByronEra = Byron.ATxAux ()
-    TxT ShelleyEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra ShelleyEra)
-    TxT AllegraEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra AllegraEra)
-    TxT MaryEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra MaryEra)
-    TxT AlonzoEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra AlonzoEra)
-    TxT BabbageEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra BabbageEra)
-    TxT ConwayEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra ConwayEra)
+    TxT ShelleyEra = ShelleyTx (Ledger.ShelleyEra StandardCrypto)
+    TxT AllegraEra = ShelleyTx (Ledger.AllegraEra StandardCrypto)
+    TxT MaryEra = ShelleyTx (Ledger.MaryEra StandardCrypto)
+    TxT AlonzoEra = AlonzoTx (Ledger.AlonzoEra  StandardCrypto)
+    TxT BabbageEra = AlonzoTx (Ledger.BabbageEra StandardCrypto)
+    TxT ConwayEra = AlonzoTx (Ledger.ConwayEra StandardCrypto)
 
 -- | A tx in any era
 newtype Tx era = Tx {unTx :: TxT era}

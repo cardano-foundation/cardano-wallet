@@ -9,52 +9,49 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( getWithdrawals
-    , fromShelleyWdrl
+    , fromLedgerWithdrawals
     )
     where
 
 import Prelude
 
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( fromStakeCredential )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( Withdrawals (..) )
-import Data.Bifunctor
-    ( Bifunctor (..) )
 import Data.Map.Strict
     ( Map )
 
-import qualified Cardano.Ledger.Shelley.TxBody as SL
+import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
-import qualified Data.Map.Strict as Map
+import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certificates
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
+import qualified Data.Map as Map
+
 
 getWithdrawals :: EraFun Withdrawals (K (Maybe (Map RewardAccount Coin)))
-getWithdrawals = EraFun
-    { byronFun = noWithdrawals
-    , shelleyFun = yesWithdrawals
-    , allegraFun = yesWithdrawals
-    , maryFun = yesWithdrawals
-    , alonzoFun = yesWithdrawals
-    , babbageFun = yesWithdrawals
-    , conwayFun = yesWithdrawals
-    }
-    where
-        noWithdrawals = const $ K Nothing
-        yesWithdrawals (Withdrawals ttl)
-            = K . Just . fromShelleyWdrl $ ttl
+getWithdrawals =
+    EraFun
+        { byronFun = \_withdrawals -> K Nothing
+        , shelleyFun = eraFromWithdrawals
+        , allegraFun = eraFromWithdrawals
+        , maryFun = eraFromWithdrawals
+        , alonzoFun = eraFromWithdrawals
+        , babbageFun = eraFromWithdrawals
+        , conwayFun = eraFromWithdrawals
+        }
+  where
+    eraFromWithdrawals (Withdrawals withdrawals) =
+        K . Just $ fromLedgerWithdrawals withdrawals
 
-fromShelleyWdrl :: SL.Wdrl StandardCrypto -> Map W.RewardAccount W.Coin
-fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
-        <$> Map.toList wdrl
+fromLedgerWithdrawals
+    :: (Map (Ledger.RewardAcnt crypto) Ledger.Coin) -> Map RewardAccount W.Coin
+fromLedgerWithdrawals withdrawals = Map.fromList
+    [ (Certificates.fromStakeCredential cred, Ledger.toWalletCoin coin)
+    | (Ledger.RewardAcnt _network cred, coin) <- Map.toList withdrawals
+    ]

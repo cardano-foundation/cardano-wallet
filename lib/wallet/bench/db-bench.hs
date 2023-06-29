@@ -6,7 +6,6 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,6 +14,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-ambiguous-fields #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -781,9 +782,9 @@ defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
     , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 1_000_000
+    , defaultMinimumUTxOValue = Coin 1000000
     , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 2_000_000
+    , defaultKeyDeposit = Coin 2000000
     }
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks

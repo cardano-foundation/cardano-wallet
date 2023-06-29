@@ -5,6 +5,8 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
 import Prelude
@@ -57,6 +59,8 @@ import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
+import Data.SOP.Counting
+    ( exactlyOne )
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import Network.Socket
@@ -74,8 +78,6 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyOne )
 import Servant.Server
     ( ServerError (..), runHandler )
 import Test.Hspec

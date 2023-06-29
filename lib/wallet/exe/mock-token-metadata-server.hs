@@ -35,9 +35,9 @@ import "optparse-applicative" Options.Applicative
     , showHelpOnEmpty
     , str
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative.Help.Pretty
-    ( hang, indent, line, text, (</>) )
+import Prettyprinter
+    ( Doc, Pretty (..), hang, indent, line, softline )
+
 
 data MetadataServerArgs = MetadataServerArgs
     { sourceJson :: FilePath
@@ -98,7 +98,7 @@ parserInfo = info (helper <*> argsParser) $ mconcat
             "\"properties\":[\"name\",\"description\"]}' \\"
             <> line <> "http://localhost:PORT/metadata/query"
         ]
-    p = (<> sep) . foldr ((</>) . text) mempty . words . mconcat
+    p = (<> sep) . foldr (joinLines . pretty) mempty . words . mconcat
     sep = line <> line
     code d = indent 2 d <> sep
 
@@ -111,3 +111,6 @@ parserInfo = info (helper <*> argsParser) $ mconcat
         long "port" <>
         metavar "PORT" <>
         help "Port to listen on (default: random unused port)"
+
+joinLines :: Doc ann -> Doc ann -> Doc ann
+joinLines x y = x <> softline <> y

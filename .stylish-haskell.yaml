@@ -27,3 +27,4 @@ language_extensions:
 - FlexibleContexts
 # Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#103)
 - MultiParamTypeClasses
+- GeneralizedNewtypeDeriving

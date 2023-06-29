@@ -106,9 +106,9 @@ dummyGenesisParameters = GenesisParameters
 dummySlottingParameters :: SlottingParameters
 dummySlottingParameters = SlottingParameters
     { getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21600
+    , getEpochLength = EpochLength 21_600
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-    , getSecurityParameter = Quantity 2160
+    , getSecurityParameter = Quantity 2_160
     }
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
@@ -120,7 +120,7 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
-    , getTxMaxSize = Quantity 8192
+    , getTxMaxSize = Quantity 8_192
     , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 2_000)
     , getMaxExecutionUnits = ExecutionUnits 10 14
     }
@@ -145,23 +145,25 @@ dummyProtocolParameters = ProtocolParameters
     , executionUnitPrices =
         Just $ ExecutionUnitPrices
             { pricePerStep = 7.21e-5
-            , pricePerMemoryUnit = 0.0577
+            , pricePerMemoryUnit = 0.057_7
             }
     , currentLedgerProtocolParameters =
-        Write.InRecentEraBabbage
-        $ Write.ProtocolParameters
-        $ C.toLedgerPParams C.ShelleyBasedEraBabbage dummyNodeProtocolParameters
+        Write.InRecentEraBabbage . Write.ProtocolParameters $
+            either (error . show) id $
+                C.toLedgerPParams
+                    C.ShelleyBasedEraBabbage
+                    dummyNodeProtocolParameters
     }
 
 -- | Dummy parameters that are consistent with the @dummy*@ parameters.
 dummyNodeProtocolParameters :: C.ProtocolParameters
 dummyNodeProtocolParameters = C.ProtocolParameters
     { C.protocolParamProtocolVersion = (8,0)
-    , C.protocolParamDecentralization = Just 1
+    , C.protocolParamDecentralization =Just 1
     , C.protocolParamExtraPraosEntropy = Nothing
-    , C.protocolParamMaxBlockHeaderSize = 1100
-    , C.protocolParamMaxBlockBodySize = 90112
-    , C.protocolParamMaxTxSize = 8192
+    , C.protocolParamMaxBlockHeaderSize = 1_100
+    , C.protocolParamMaxBlockBodySize = 90_112
+    , C.protocolParamMaxTxSize = 8_192
     , C.protocolParamTxFeeFixed = 14 -- B
     , C.protocolParamTxFeePerByte = 42 -- A
     , C.protocolParamMinUTxOValue = Nothing
@@ -173,13 +175,13 @@ dummyNodeProtocolParameters = C.ProtocolParameters
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho
     , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34482
-    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4310
+    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34_482
+    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 43_10
     , C.protocolParamCostModels = mempty
     , C.protocolParamPrices =
         Just $ C.ExecutionUnitPrices
             { C.priceExecutionSteps = 7.21e-5
-            , C.priceExecutionMemory = 0.0577
+            , C.priceExecutionMemory = 0.057_7
             }
     , C.protocolParamMaxTxExUnits =
         Just $ C.ExecutionUnits
@@ -260,10 +262,10 @@ babbageMainnetProtocolParameters = C.ProtocolParameters
     { C.protocolParamProtocolVersion = (8,0)
     , C.protocolParamDecentralization = Just 0
     , C.protocolParamExtraPraosEntropy = Nothing
-    , C.protocolParamMaxBlockHeaderSize = 1100
-    , C.protocolParamMaxBlockBodySize = 90112
-    , C.protocolParamMaxTxSize = 16384
-    , C.protocolParamTxFeeFixed = 155381 -- B
+    , C.protocolParamMaxBlockHeaderSize = 1_100
+    , C.protocolParamMaxBlockBodySize = 90_112
+    , C.protocolParamMaxTxSize = 16_384
+    , C.protocolParamTxFeeFixed = 155_381 -- B
     , C.protocolParamTxFeePerByte = 44 -- A
     , C.protocolParamMinUTxOValue = Just $ C.Lovelace 1_000_000
     , C.protocolParamStakeAddressDeposit = C.Lovelace 2_000_000
@@ -274,15 +276,15 @@ babbageMainnetProtocolParameters = C.ProtocolParameters
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho
     , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34482
-    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4310
+    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34_482
+    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4_310
     , C.protocolParamCostModels =
         mempty
         -- TODO: Include a Plutus cost model here.
     , C.protocolParamPrices =
         Just $ C.ExecutionUnitPrices
             { C.priceExecutionSteps = 7.21e-5
-            , C.priceExecutionMemory = 0.0577
+            , C.priceExecutionMemory = 0.057_7
             }
     , C.protocolParamMaxTxExUnits =
         Just $ C.ExecutionUnits

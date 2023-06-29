@@ -6,7 +6,7 @@
 
 |  | **Supported version** | **Dependency?** |
 | --- | --- | --- |
-| [ghc][] | == 8.10.7 | Required |
+| [ghc][] | == 9.2.8 | Required |
 | [cabal][] | >= 3.4.0.0 | Required |
 | [[Nix]] | >= 2.5.1 | Optional |
 

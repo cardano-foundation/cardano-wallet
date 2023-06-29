@@ -2051,7 +2051,7 @@ x-rationalAsPair: &rationalAsPair
       minimum: 0
 
 x-rationalAsNumber: &rationalAsNumber
-  type: integer
+  type: number # NOTE: intended to be 'integer', but logic to serialize as rationalAsPair is missing.
   minimum: 0
 
 x-rational: &rational

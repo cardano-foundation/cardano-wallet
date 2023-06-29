@@ -28,6 +28,8 @@ import Cardano.Address.Script
     )
 import Cardano.Crypto.Hash.Class
     ( digest )
+import Cardano.Ledger.Core
+    ( PParams, ppDL )
 import Cardano.Ledger.Crypto
     ( Crypto (..) )
 import Cardano.Mnemonic
@@ -101,6 +103,8 @@ import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Codec.Binary.Encoding
     ( fromBase16 )
+import Control.Lens
+    ( (.~) )
 import Control.Monad
     ( forM_ )
 import Data.ByteString
@@ -162,7 +166,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
-import qualified Cardano.Ledger.Shelley as SLAPI
 import qualified Cardano.Ledger.Shelley.PParams as SL
 import qualified Cardano.Wallet.Address.Derivation as Address.Derivation
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
@@ -233,8 +236,8 @@ spec = do
 
         let mkDecentralizationParam
                 :: SL.UnitInterval
-                -> SLAPI.ShelleyPParams (SL.ShelleyEra StandardCrypto)
-            mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
+                -> PParams (SL.ShelleyEra StandardCrypto)
+            mkDecentralizationParam i = SL.emptyPParams & ppDL .~ i
 
         let testCases :: [(Ratio Word64, Text)]
             testCases =
