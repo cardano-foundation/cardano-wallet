@@ -1854,7 +1854,12 @@ fixtureMultiAssetRandomWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses @'Byron wB)
+            Default
+            Empty
     let addrs = getFromResponse id rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
@@ -1903,7 +1908,12 @@ fixtureMultiAssetIcarusWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses @'Byron wB)
+            Default
+            Empty
     let addrs = getFromResponse id rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
@@ -2204,7 +2214,11 @@ deleteSharedWallet ctx = \case
     ApiSharedWallet (Left wal') -> r wal'
     ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException Value)
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException Value)
     r w = request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
 
 getSharedWallet
@@ -2217,7 +2231,11 @@ getSharedWallet ctx = \case
     ApiSharedWallet (Left wal') -> r wal'
     ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException ApiSharedWallet)
     r w = request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
 
 getSharedWalletKey
@@ -2234,8 +2252,17 @@ getSharedWalletKey ctx wal role ix isHashed =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-    r w = request @ApiVerificationKeyShared ctx (Link.getWalletKey @'Shared w role ix isHashed) Default Empty
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
+    r w =
+        request @ApiVerificationKeyShared
+            ctx
+            (Link.getWalletKey @'Shared w role ix isHashed)
+            Default
+            Empty
 
 postAccountKeyShared
     :: forall m
@@ -2251,8 +2278,17 @@ postAccountKeyShared ctx wal ix headers payload =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-    r w = request @ApiAccountKeyShared ctx (Link.postAccountKey @'Shared w ix) headers payload
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+    r w =
+        request @ApiAccountKeyShared
+            ctx
+            (Link.postAccountKey @'Shared w ix)
+            headers
+            payload
 
 getAccountKeyShared
     :: forall m
@@ -2266,8 +2302,17 @@ getAccountKeyShared ctx wal isHashed =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-    r w = request @ApiAccountKeyShared ctx (Link.getAccountKey @'Shared w isHashed) Default Empty
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+    r w =
+        request @ApiAccountKeyShared
+            ctx
+            (Link.getAccountKey @'Shared w isHashed)
+            Default
+            Empty
 
 getSomeVerificationKey
     :: forall m
@@ -2299,7 +2344,11 @@ patchSharedWallet ctx wal cred payload =
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
-    r :: forall w. (HasType (ApiT WalletId) w) => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+    r
+        :: forall w
+         . (HasType (ApiT WalletId) w)
+        => w
+        -> m (HTTP.Status, Either RequestException ApiSharedWallet)
     r w =
         let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
         in  request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
@@ -3209,7 +3258,11 @@ listFilteredSharedWallets include ctx = do
             (Link.listWallets @'Shared)
             Default
             Empty
-    return (s, filter (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include) <$> mwallets)
+    return
+        ( s
+        , filter (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include)
+            <$> mwallets
+        )
 
 getWalletIdFromSharedWallet :: ApiSharedWallet -> ApiT WalletId
 getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id

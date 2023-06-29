@@ -137,7 +137,8 @@ getInSubmissionTransactions :: TxSubmissions -> [TxSubmissionsStatus]
 getInSubmissionTransactions submissions =
     submissions ^.. transactionsL . traverse
 
-getInSubmissionTransaction :: Hash "Tx" -> TxSubmissions -> Maybe TxSubmissionsStatus
+getInSubmissionTransaction
+    :: Hash "Tx" -> TxSubmissions -> Maybe TxSubmissionsStatus
 getInSubmissionTransaction txId submissions =
     submissions ^? transactionsL . ix (TxId txId)
 

@@ -139,8 +139,10 @@ byronKey :: Lens (ByronKey depth key) (ByronKey depth key') key key'
 byronKey = lens getKey (\x k -> x{getKey = k})
 
 instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
-deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
-deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
+deriving instance
+    (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
+deriving instance
+    (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
 
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO

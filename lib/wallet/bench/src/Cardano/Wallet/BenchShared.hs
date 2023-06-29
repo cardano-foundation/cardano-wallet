@@ -178,7 +178,8 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
                     pure $ ExitFailure 1
                 Right _ -> pure ExitSuccess
 
-withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
+withNetworkConfiguration
+    :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
     -- Temporary directory for storing socket and node database
     let withNodeDir cb = case argNodeDatabaseDir args of

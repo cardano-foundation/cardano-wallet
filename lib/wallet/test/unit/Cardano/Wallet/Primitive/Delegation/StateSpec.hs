@@ -214,7 +214,8 @@ spec = do
 -- Properties
 --
 
-prop_keysConsecutive :: (DelegationState StakeKey' -> [StakeKey]) -> [Cmd] -> Property
+prop_keysConsecutive
+    :: (DelegationState StakeKey' -> [StakeKey]) -> [Cmd] -> Property
 prop_keysConsecutive f cmds = do
     let env = applyCmds env0 cmds
     let keys = map fromEnum $ f $ wallet env
@@ -308,7 +309,8 @@ prop_rollbacks (NonNegative n) cmds = do
 forAllSubchains :: Env -> (Env -> Property) -> Property
 forAllSubchains env prop = do
     forAllShow (sublistOf (reverse $ txs env)) (fmt . blockListF) $ \subchain -> do
-        counterexample ("Txs before dropping some:\n" <> (fmt . blockListF $ reverse $ txs env))
+        counterexample
+            ("Txs before dropping some:\n" <> (fmt . blockListF $ reverse $ txs env))
             $ prop
             $ applyTxs env0 subchain
 
@@ -424,7 +426,8 @@ instance Show Cmd where
 
 instance Buildable Tx where
     build (Tx cs [] []) = "Tx " <> listF cs
-    build (Tx cs ins outs) = "Tx " <> listF cs <> " " <> listF' (inF . fst) ins <> " -> " <> listF' outF outs
+    build (Tx cs ins outs) =
+        "Tx " <> listF cs <> " " <> listF' (inF . fst) ins <> " -> " <> listF' outF outs
 
 inF :: TxIn -> Builder
 inF (TxIn h ix) = build h <> "." <> build (fromEnum ix)

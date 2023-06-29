@@ -135,7 +135,9 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 getLatest :: Checkpoints a -> (W.Slot, a)
 getLatest = from . Map.lookupMax . view #checkpoints
   where
-    from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
+    from =
+        fromMaybe
+            (error "getLatest: there should always be at least a genesis checkpoint")
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot

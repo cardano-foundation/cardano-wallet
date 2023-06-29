@@ -98,7 +98,9 @@ spec = describe "COMMON_CLI_MISC" $ do
                 , "wallet utxo " ++ wid ++ " --port"
                 , -- transaction create
                   "transaction create " ++ wid ++ " --payment"
-                , "transaction create " ++ wid ++ " --payment 22@2cWKMJemoBaiPcjZZKQzTHzjRkaAee5dx246Ren8U5KcDGt9QX6FZQPskzykhYL1AW62U --payment"
+                , "transaction create "
+                    ++ wid
+                    ++ " --payment 22@2cWKMJemoBaiPcjZZKQzTHzjRkaAee5dx246Ren8U5KcDGt9QX6FZQPskzykhYL1AW62U --payment"
                 , "transaction create --port " ++ wid ++ " --payment 22@ --payment"
                 , "transaction create"
                 , -- address list

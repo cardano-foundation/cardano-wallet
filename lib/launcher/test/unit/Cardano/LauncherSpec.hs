@@ -275,7 +275,8 @@ unkillableCommand = Command "sh" ["-c", "trap \" \" TERM; sleep 20"] (pure ()) I
 -- | Run a bunch of command in separate processes. Note that, this operation is
 -- blocking and will throw when one of the given commands terminates.
 -- It records the PID of all processes which started (in undefined order).
-launch :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasExited)
+launch
+    :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasExited)
 launch tr cmds = do
     phsVar <- newMVar []
     let

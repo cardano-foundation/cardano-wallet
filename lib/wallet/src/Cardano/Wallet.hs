@@ -1045,7 +1045,8 @@ checkWalletIntegrity db gp =
                     (getGenesisBlockHash gp')
             )
 
-readWalletMeta :: (Functor f) => DBVar f (DeltaWalletState s) -> f WalletMetadata
+readWalletMeta
+    :: (Functor f) => DBVar f (DeltaWalletState s) -> f WalletMetadata
 readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
 
 readPrivateKey
@@ -1101,7 +1102,11 @@ readWallet ctx = do
                 wholeRange
                 (Just Pending)
                 Nothing
-        pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
+        pure
+            ( cp
+            , (meta, dele currentEpochSlotting)
+            , Set.fromList (fromTransactionInfo <$> pending)
+            )
   where
     db = ctx ^. dbLayer @IO @s
     nl = ctx ^. networkLayer
@@ -3681,7 +3686,8 @@ getAccountPublicKeyAtIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
 getAccountPublicKeyAtIndex ctx wid pwd ix purposeM =
     db & \DBLayer{..} -> do
-        acctIx <- withExceptT ErrReadAccountPublicKeyInvalidAccountIndex $ guardHardIndex ix
+        acctIx <-
+            withExceptT ErrReadAccountPublicKeyInvalidAccountIndex $ guardHardIndex ix
 
         purpose <-
             maybe
@@ -3810,20 +3816,26 @@ data ErrConstructSharedWallet
     = -- | The shared wallet' script template doesn't pass validation
       ErrConstructSharedWalletWrongScriptTemplate ErrScriptTemplate
     | -- | User provided a derivation index outside of the 'Hard' domain
-      ErrConstructSharedWalletInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+      ErrConstructSharedWalletInvalidIndex
+        (ErrInvalidDerivationIndex 'Hardened 'AccountK)
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
     = -- | User provided a derivation index for account outside of the 'Hard' domain
-      ErrReadAccountPublicKeyInvalidAccountIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+      ErrReadAccountPublicKeyInvalidAccountIndex
+        (ErrInvalidDerivationIndex 'Hardened 'AccountK)
     | -- | User provided a derivation index for purpose outside of the 'Hard' domain
-      ErrReadAccountPublicKeyInvalidPurposeIndex (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
+      ErrReadAccountPublicKeyInvalidPurposeIndex
+        (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
     | -- | The wallet exists, but there's no root key attached to it
       ErrReadAccountPublicKeyRootKey ErrWithRootKey
     deriving (Eq, Show)
 
 data ErrInvalidDerivationIndex derivation level
-    = ErrIndexOutOfBound (Index derivation level) (Index derivation level) DerivationIndex
+    = ErrIndexOutOfBound
+        (Index derivation level)
+        (Index derivation level)
+        DerivationIndex
     deriving (Eq, Show)
 
 -- | Errors that can occur when signing a transaction.

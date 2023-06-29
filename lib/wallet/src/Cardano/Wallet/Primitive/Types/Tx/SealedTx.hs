@@ -238,7 +238,8 @@ sealedTxFromCardano' :: (Cardano.IsCardanoEra era) => Cardano.Tx era -> SealedTx
 sealedTxFromCardano' = sealedTxFromCardano . InAnyCardanoEra Cardano.cardanoEra
 
 -- | Construct a 'SealedTx' from a 'Cardano.Api.TxBody'.
-sealedTxFromCardanoBody :: (Cardano.IsCardanoEra era) => Cardano.TxBody era -> SealedTx
+sealedTxFromCardanoBody
+    :: (Cardano.IsCardanoEra era) => Cardano.TxBody era -> SealedTx
 sealedTxFromCardanoBody = sealedTxFromCardano . InAnyCardanoEra Cardano.cardanoEra . mk
   where
     mk body = Cardano.Tx body []

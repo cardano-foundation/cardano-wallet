@@ -164,7 +164,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
             addrs <- listAddresses @n ctx wDest
             let destination = (addrs !! 1) ^. #id
-            payload <- mkTxPayloadMA @n destination (minUTxOValue' * 2) [val] fixturePassphrase
+            payload <-
+                mkTxPayloadMA @n destination (minUTxOValue' * 2) [val] fixturePassphrase
 
             rtx <-
                 request @(ApiTransaction n)
@@ -191,7 +192,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                         (`shouldNotBe` TokenMap.empty)
                     ]
 
-    describe "BYRON_TRANS_ASSETS_CREATE_02 - Multi-asset transaction with too little ADA"
+    describe
+        "BYRON_TRANS_ASSETS_CREATE_02 - Multi-asset transaction with too little ADA"
         $ forM_
             [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
             , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")
@@ -360,7 +362,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             expectErrorMessage errMsg404NoAsset r
 
     describe "BYRON_TRANS_CREATE_01 - Single Output Transaction Byron -> Shelley"
-        $ forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")]
+        $ forM_
+            [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")]
         $ \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
             (wByron, wShelley) <- (,) <$> srcFixture ctx <*> emptyWallet ctx
             addrs <- listAddresses @n ctx wShelley
@@ -488,16 +491,23 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     ]
 
     describe "BYRON_TRANS_CREATE_01a - Single Output Transaction Byron -> Byron"
-        $ forM_ [(emptyRandomWallet, "Byron wallet"), (emptyIcarusWallet, "Icarus wallet")]
+        $ forM_
+            [(emptyRandomWallet, "Byron wallet"), (emptyIcarusWallet, "Icarus wallet")]
         $ \(emptyByronWallet, name) -> it name $ \ctx -> runResourceT $ do
             (wByron, wDestByron) <- (,) <$> fixtureRandomWallet ctx <*> emptyByronWallet ctx
-            ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wDestByron) Default Empty
+            ra <-
+                request @ApiByronWallet ctx (Link.getWallet @'Byron wDestByron) Default Empty
             let walType = getFromResponse #discovery ra
 
             destination <- case walType of
                 DiscoveryRandom -> do
                     let payloadAddr = Json [json| { "passphrase": #{fixturePassphrase} }|]
-                    rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
+                    rA <-
+                        request @(ApiAddressWithPath n)
+                            ctx
+                            (Link.postRandomAddress wDestByron)
+                            Default
+                            payloadAddr
                     pure $ getFromResponse #id rA
                 DiscoverySequential -> do
                     let link = Link.listAddresses @'Byron wDestByron
@@ -789,7 +799,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             ]
 
     describe "BYRON_TX_LIST_LIMIT - Transactions can be limited"
-        $ forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")]
+        $ forM_
+            [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")]
         $ \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
             w <- srcFixture ctx
             let link =

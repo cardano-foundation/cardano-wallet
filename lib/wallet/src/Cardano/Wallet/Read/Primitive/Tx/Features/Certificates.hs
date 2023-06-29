@@ -183,7 +183,8 @@ fromShelleyCert = \case
     SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
     SL.DCertMir{} -> W.CertificateOther W.MIRCertificate
 
-fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
+fromPoolMetadata
+    :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
     ( StakePoolMetadataUrl (urlToText (pmUrl meta))
     , StakePoolMetadataHash (pmHash meta)

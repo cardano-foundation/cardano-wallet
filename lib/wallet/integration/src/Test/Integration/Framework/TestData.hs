@@ -371,7 +371,8 @@ frenchMnemonics21 =
     ]
 
 russianWalletName :: Text
-russianWalletName = "АаБбВвГгДдЕеЁёЖжЗз ИиЙйКкЛлМмНнО оПпРрСсТтУуФф ХхЦцЧчШшЩщЪъ ЫыЬьЭэЮюЯяІ ѢѲѴѵѳѣі"
+russianWalletName =
+    "АаБбВвГгДдЕеЁёЖжЗз ИиЙйКкЛлМмНнО оПпРрСсТтУуФф ХхЦцЧчШшЩщЪъ ЫыЬьЭэЮюЯяІ ѢѲѴѵѳѣі"
 
 polishWalletName :: Text
 polishWalletName = "aąbcćdeęfghijklłmnoóprsś\r\ntuvwyzżźAĄBCĆDEĘFGHIJKLŁMNOP\rRSŚTUVWYZŻŹ"
@@ -386,7 +387,8 @@ kanjiWalletName =
     \括活喝渇割葛滑褐轄且株釜鎌刈干刊甘汗缶\r"
 
 arabicWalletName :: Text
-arabicWalletName = "ثم نفس سقطت وبالتحديد،, جزيرتي باستخدام أن دنو. إذ هنا؟ الستار وتنصيب كان. أهّل ايطاليا، بريطانيا-فرنسا قد أخذ. سليمان، إتفاقية بين ما, يذكر الحدود أي بعد, معاملة بولندا، الإطلاق عل إيو."
+arabicWalletName =
+    "ثم نفس سقطت وبالتحديد،, جزيرتي باستخدام أن دنو. إذ هنا؟ الستار وتنصيب كان. أهّل ايطاليا، بريطانيا-فرنسا قد أخذ. سليمان، إتفاقية بين ما, يذكر الحدود أي بعد, معاملة بولندا، الإطلاق عل إيو."
 
 wildcardsWalletName :: Text
 wildcardsWalletName =
@@ -966,15 +968,18 @@ txMetadata_ADP_1005 =
                 , TxMetaMap
                     [
                         ( TxMetaNumber 1
-                        , TxMetaBytes "\SUB#f\DC3X\DC3\231\219\130\243\SYN\v\226+Ac\221\247'\US)\128h-!\246\193F\172\190\202b"
+                        , TxMetaBytes
+                            "\SUB#f\DC3X\DC3\231\219\130\243\SYN\v\226+Ac\221\247'\US)\128h-!\246\193F\172\190\202b"
                         )
                     ,
                         ( TxMetaNumber 2
-                        , TxMetaBytes "#\229\194\DC3\211l\GSO\177C\128t~\150\ESCy\145K1GW \166O6\196D\166\219\225\SYN$"
+                        , TxMetaBytes
+                            "#\229\194\DC3\211l\GSO\177C\128t~\150\ESCy\145K1GW \166O6\196D\166\219\225\SYN$"
                         )
                     ,
                         ( TxMetaNumber 3
-                        , TxMetaBytes "\224\208\133\DC2\188\ESCA\nM\219D\141\148\182\253\ETXV\NULF\158D\233\ETXq\228\142\134\SOH5"
+                        , TxMetaBytes
+                            "\224\208\133\DC2\188\ESCA\nM\219D\141\148\182\253\ETXV\NULF\158D\233\ETXq\228\142\134\SOH5"
                         )
                     ,
                         ( TxMetaNumber 4
@@ -987,7 +992,8 @@ txMetadata_ADP_1005 =
                 , TxMetaMap
                     [
                         ( TxMetaNumber 1
-                        , TxMetaBytes ",\SOHv\243R\134\242\ACK}\222\DEL\230\219x\155l]\190\134\162\203>\208\217\132\138\175\225\225\187\229\149\176u?\211AP\235\255\171\211\157\&4\GS\255t\DEL\184m\234\144\nj\153\174\164\155y\137o\155_\b"
+                        , TxMetaBytes
+                            ",\SOHv\243R\134\242\ACK}\222\DEL\230\219x\155l]\190\134\162\203>\208\217\132\138\175\225\225\187\229\149\176u?\211AP\235\255\171\211\157\&4\GS\255t\DEL\184m\234\144\nj\153\174\164\155y\137o\155_\b"
                         )
                     ]
                 )

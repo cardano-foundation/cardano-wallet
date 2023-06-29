@@ -497,11 +497,13 @@ instance
             <$> selectSeqAddressMap wid sl
             <*> selectSeqAddressMap wid sl
 
-mkSeqStatePendingIxs :: W.WalletId -> PendingIxs 'CredFromKeyK -> [SeqStatePendingIx]
+mkSeqStatePendingIxs
+    :: W.WalletId -> PendingIxs 'CredFromKeyK -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
     fmap (SeqStatePendingIx wid . W.getIndex) . pendingIxsToList
 
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO (PendingIxs 'CredFromKeyK)
+selectSeqStatePendingIxs
+    :: W.WalletId -> SqlPersistT IO (PendingIxs 'CredFromKeyK)
 selectSeqStatePendingIxs wid =
     pendingIxsFromList . fromRes
         <$> selectList

@@ -346,7 +346,8 @@ updateOne row =
     sets = T.intercalate ", " [col <> "=?" | col <- cols]
 
 -- | Delete one row with a given \"id\" column in a database table.
-deleteOne :: forall row. (IsRow row) => Proxy row -> Col "id" Primary -> Query ()
+deleteOne
+    :: forall row. (IsRow row) => Proxy row -> Col "id" Primary -> Query ()
 deleteOne proxy (Col key) =
     Query
         { stmt = "DELETE FROM " <> table <> " WHERE \"id\"=?;"

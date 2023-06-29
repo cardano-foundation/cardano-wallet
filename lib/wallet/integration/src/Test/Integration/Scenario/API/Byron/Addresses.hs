@@ -135,7 +135,8 @@ scenario_ADDRESS_LIST_01
     -> SpecWith Context
 scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
-    r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r <-
+        request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r [expectResponseCode HTTP.status200]
     let n = length $ getFromResponse id r
     forM_ [0 .. n - 1] $ \addrIx -> do
@@ -199,7 +200,8 @@ scenario_ADDRESS_LIST_04
 scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     _ <- request @() ctx (Link.deleteWallet @'Byron w) Default Empty
-    r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r <-
+        request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify
         r
         [ expectResponseCode HTTP.status404
@@ -213,7 +215,8 @@ scenario_ADDRESS_CREATE_01
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
-    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify
         r
         [ expectResponseCode HTTP.status201
@@ -227,7 +230,8 @@ scenario_ADDRESS_CREATE_02
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
     w <- emptyIcarusWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
-    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify
         r
         [ expectResponseCode HTTP.status403
@@ -241,7 +245,8 @@ scenario_ADDRESS_CREATE_03
 scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": "Give me all your money." }|]
-    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify
         r
         [ expectResponseCode HTTP.status403
@@ -256,11 +261,13 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
 
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
-    rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    rA <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify rA [expectResponseCode HTTP.status201]
     let addr = getFromResponse id rA
 
-    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+    rL <-
+        request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify
         rL
         [ expectResponseCode HTTP.status200
@@ -279,7 +286,8 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
             { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
-    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify
         r
         [ expectResponseCode HTTP.status201
@@ -298,9 +306,11 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
             { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
-    r0 <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r0 <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify r0 [expectResponseCode HTTP.status201]
-    r1 <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
+    r1 <-
+        request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify
         r1
         [ expectResponseCode HTTP.status409
@@ -328,7 +338,8 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
         ]
 
     -- Import it
-    r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r1 <-
+        request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify
         r1
         [ expectListField 0 #state (`shouldBe` ApiT Unused)
@@ -440,7 +451,8 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
         ]
 
     eventually "Addresses are imported" $ do
-        r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+        r1 <-
+            request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
         verify
             r1
             [ expectListSize addrNum

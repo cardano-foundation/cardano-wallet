@@ -146,7 +146,8 @@ toWallet pro (WalletCheckpoint pt utxo dis) =
     W.unsafeInitWallet utxo pt $ withIso addressIso $ \_ from -> from (pro, dis)
 
 -- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
-fromWallet :: (AddressBookIso s) => W.Wallet s -> (Prologue s, WalletCheckpoint s)
+fromWallet
+    :: (AddressBookIso s) => W.Wallet s -> (Prologue s, WalletCheckpoint s)
 fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
   where
     (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)

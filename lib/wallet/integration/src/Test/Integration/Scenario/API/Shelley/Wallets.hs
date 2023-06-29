@@ -1501,7 +1501,12 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
-            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
+            r <-
+                request @ApiUtxoStatistics
+                    ctx
+                    (Link.getUTxOsStatistics @'Shelley w)
+                    headers
+                    Empty
             verify r expectations
 
     it "WALLETS_GET_KEY_01 - golden tests for verification key" $ \ctx -> runResourceT $ do
@@ -1573,7 +1578,12 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
-        let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 2_147_483_648) Nothing
+        let link =
+                Link.getWalletKey @'Shelley
+                    w
+                    UtxoExternal
+                    (DerivationIndex 2_147_483_648)
+                    Nothing
         r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify
@@ -1643,11 +1653,16 @@ spec = describe "SHELLEY_WALLETS" $ do
         let dummyChainCode = BS.replicate 32 0
         let sigBytes = BL.toStrict $ getFromResponse id rSig
         let sig = CC.xsignature sigBytes
-        let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
-        let msgHash = unsafeFromHexText "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
+        let key =
+                unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
+        let msgHash =
+                unsafeFromHexText
+                    "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
         liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
 
-        let goldenSig = "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c" :: ByteString
+        let goldenSig =
+                "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c"
+                    :: ByteString
         convertToBase Base16 sigBytes `shouldBe` goldenSig
 
     it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $ do

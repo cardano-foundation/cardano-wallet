@@ -843,7 +843,9 @@ mkWalletToNodeProtocols
     onInterpreterUpdate
     onEraUpdate
     txSubmissionQ = do
-        (localStateQueryQ :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)) <-
+        ( localStateQueryQ
+                :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
+            ) <-
             atomically newTQueue
 
         tipVar <- newTVarIO (Just $ AnyCardanoEra ByronEra, TipGenesis)

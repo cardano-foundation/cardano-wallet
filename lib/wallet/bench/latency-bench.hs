@@ -356,7 +356,11 @@ walletApiBench capture ctx = do
         wSrc <- fixtureWallet ctx
         replicateM_
             batchSize
-            (postTx (wSrc, Link.createTransactionOld @'Shelley, fixturePassphrase) wDest amtToSend)
+            ( postTx
+                (wSrc, Link.createTransactionOld @'Shelley, fixturePassphrase)
+                wDest
+                amtToSend
+            )
         eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify
@@ -411,22 +415,41 @@ walletApiBench capture ctx = do
                 t3 <-
                     measureApiLogs
                         capture
-                        (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
+                        ( request @ApiUtxoStatistics
+                            ctx
+                            (Link.getUTxOsStatistics @'Shelley wal1)
+                            Default
+                            Empty
+                        )
                 fmtResult "getUTxOsStatistics " t3
 
                 t4 <-
                     measureApiLogs
                         capture
-                        (request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
+                        ( request @[ApiAddressWithPath n]
+                            ctx
+                            (Link.listAddresses @'Shelley wal1)
+                            Default
+                            Empty
+                        )
                 fmtResult "listAddresses      " t4
 
                 t5 <-
                     measureApiLogs
                         capture
-                        (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
+                        ( request @[ApiTransaction n]
+                            ctx
+                            (Link.listTransactions @'Shelley wal1)
+                            Default
+                            Empty
+                        )
                 fmtResult "listTransactions   " t5
 
-                (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
+                (_, txs) <-
+                    unsafeRequest @[ApiTransaction n]
+                        ctx
+                        (Link.listTransactions @'Shelley wal1)
+                        Empty
                 let txid = (head txs) ^. #id
                 t5a <-
                     measureApiLogs capture
@@ -437,7 +460,11 @@ walletApiBench capture ctx = do
                             Empty
                 fmtResult "getTransaction     " t5a
 
-                (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal2) Empty
+                (_, addrs) <-
+                    unsafeRequest @[ApiAddressWithPath n]
+                        ctx
+                        (Link.listAddresses @'Shelley wal2)
+                        Empty
                 let amt = minUTxOValue era
                 let destination = (addrs !! 1) ^. #id
                 let payload =
@@ -509,7 +536,8 @@ walletApiBench capture ctx = do
 
                 let assetsToSend = walMA ^. #assets . #total . #getApiT
                 let val = minUTxOValue era <$ pickAnAsset assetsToSend
-                payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
+                payloadMA <-
+                    mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
                 t7b <-
                     measureApiLogs capture
                         $ request @(ApiTransaction n)

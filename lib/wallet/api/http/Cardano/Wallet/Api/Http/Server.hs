@@ -715,7 +715,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer =
         derivePublicKey apilayer ApiVerificationKeyShared
-            :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p))
+            :<|> ( \wid ix p ->
+                    postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p)
+                 )
             :<|> getAccountPublicKey apilayer ApiAccountKeyShared
       where
         toKeyDataPurpose :: ApiPostAccountKeyData -> ApiPostAccountKeyDataWithPurpose

@@ -1478,7 +1478,8 @@ data NodeParams = NodeParams
     }
     deriving (Show)
 
-singleNodeParams :: GenesisFiles -> Severity -> Maybe (FilePath, Severity) -> NodeParams
+singleNodeParams
+    :: GenesisFiles -> Severity -> Maybe (FilePath, Severity) -> NodeParams
 singleNodeParams genesisFiles severity extraLogFile =
     let
         logCfg =
@@ -1674,7 +1675,8 @@ genNodeConfig
     -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
-    -> IO (FilePath, Block, NetworkParameters, NodeToClientVersionData, [PoolCertificate])
+    -> IO
+        (FilePath, Block, NetworkParameters, NodeToClientVersionData, [PoolCertificate])
 genNodeConfig dir name genesisFiles clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles{byronGenesis, shelleyGenesis, alonzoGenesis, conwayGenesis} =
@@ -1832,7 +1834,13 @@ genStakeAddrKeyPair tr (stakePrv, stakePub) = do
         ]
 
 -- | Issue a node operational certificate
-issueOpCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
+issueOpCert
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> FilePath
+    -> FilePath
+    -> FilePath
+    -> IO FilePath
 issueOpCert tr dir kesPub opPrv opCount = do
     let file = dir </> "op.cert"
     cli
@@ -1901,7 +1909,9 @@ stakePoolIdFromOperatorVerKey filepath = do
                 AsStakePoolKey
                 (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure
+        $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 poolVrfFromFile
     :: FilePath -> IO (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
@@ -1912,7 +1922,9 @@ poolVrfFromFile filepath = do
                 AsVrfKey
                 (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure
+        $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 stakingKeyHashFromFile
     :: FilePath -> IO (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
@@ -1923,7 +1935,9 @@ stakingKeyHashFromFile filepath = do
                 AsStakeKey
                 (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure
+        $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 stakingAddrFromVkFile
     :: FilePath -> IO (Ledger.Addr StandardCrypto)
@@ -1934,8 +1948,12 @@ stakingAddrFromVkFile filepath = do
                 AsStakeKey
                 (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    let payKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
-    let delegKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    let payKH =
+            either (error . show) snd
+                $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    let delegKH =
+            either (error . show) snd
+                $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
     return
         $ Ledger.Addr
             Mainnet
@@ -1964,7 +1982,8 @@ issuePoolRetirementCert tr dir opPub retirementEpoch = do
     pure file
 
 -- | Create a stake address delegation certificate.
-issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
+issueDlgCert
+    :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
 issueDlgCert tr dir stakePub opPub = do
     let file = dir </> "dlg.cert"
     cli
@@ -2474,7 +2493,8 @@ signTx tr dir rawTx keys = do
     pure file
 
 -- | Submit a transaction through a running node.
-submitTx :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> FilePath -> IO ()
+submitTx
+    :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> FilePath -> IO ()
 submitTx tr conn name signedTx =
     cliRetry tr ("Submitting transaction for " <> T.pack name)
         =<< cliConfigNode
@@ -2919,7 +2939,12 @@ instance ToText ClusterLog where
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli" : args)
       where
-        indent = T.unlines . map ("  " <>) . T.lines . T.decodeUtf8With T.lenientDecode . BL8.toStrict
+        indent =
+            T.unlines
+                . map ("  " <>)
+                . T.lines
+                . T.decodeUtf8With T.lenientDecode
+                . BL8.toStrict
 
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where

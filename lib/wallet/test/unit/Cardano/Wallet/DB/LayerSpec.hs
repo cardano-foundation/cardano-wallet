@@ -1281,7 +1281,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             -- -  174257 of fee
             --
             [
-                ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
+                ( Hash
+                    $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
                 , Coin 174_257
                 )
             , -- This one (chosen because of its very round fee) has:
@@ -1291,7 +1292,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               --
               -- which gives a delta (and fee) of 1000000
 
-                ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
+                ( Hash
+                    $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
                 , Coin 1_000_000
                 )
             , -- This one (chosen for its withdrawal) has:
@@ -1302,7 +1304,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               --
               -- which gives a delta (and fee) of 174389
 
-                ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
+                ( Hash
+                    $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
                 , Coin 174_389
                 )
             , -- This one (chosen for its high fee) has:
@@ -1312,7 +1315,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               --
               -- which gives a delta (and fee) of 875001
 
-                ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
+                ( Hash
+                    $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
                 , Coin 875_001
                 )
             , -- This one (chosen for having many inputs and many outputs) has:
@@ -1346,7 +1350,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               --
               -- which gives a delta (and fee) of 255613
 
-                ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
+                ( Hash
+                    $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
                 , Coin 255_613
                 )
             , -- This one (chosen for its high ratio input:output) has:
@@ -1357,7 +1362,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               --
               -- which gives a delta (and fee) of 267537
 
-                ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
+                ( Hash
+                    $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
                 , Coin 267_537
                 )
             ]

@@ -319,7 +319,8 @@ type instance PropertyValue "decimals" = AssetDecimals
 
 class HasValidator (name :: Symbol) where
     -- TODO: requires AllowAmbiguousTypes extension
-    validatePropertyValue :: PropertyValue name -> Either String (PropertyValue name)
+    validatePropertyValue
+        :: PropertyValue name -> Either String (PropertyValue name)
 
 instance HasValidator "name" where
     validatePropertyValue = validateMetadataName
@@ -498,7 +499,8 @@ instance ToText TokenMetadataLog where
 
 instance HasPrivacyAnnotation TokenMetadataLog
 
-traceRequestTimings :: Tracer IO TokenMetadataLog -> IO (Tracer IO TokenMetadataLog)
+traceRequestTimings
+    :: Tracer IO TokenMetadataLog -> IO (Tracer IO TokenMetadataLog)
 traceRequestTimings tr = produceTimings msgQuery trDiffTime
   where
     trDiffTime = contramap (uncurry MsgFetchMetadataTime) tr

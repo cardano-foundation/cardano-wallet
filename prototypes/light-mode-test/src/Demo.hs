@@ -86,7 +86,9 @@ testAddr :: Address
 testAddr = Address "addr_test1vzevguhvhthc8msxxx82z4pa86vk5cq5f63l6wermr4r7ws8tve8v"
 
 mainAddr :: Address
-mainAddr = Address "addr1qy3cw2t0r4763fwx0tlm4wxx7sjk0xr8hfczj9xn06s9hn2cjjl6ng8awddvfndxm56z0ww7ug0w4vnal3msdv5jk7jq4zp6hx"
+mainAddr =
+    Address
+        "addr1qy3cw2t0r4763fwx0tlm4wxx7sjk0xr8hfczj9xn06s9hn2cjjl6ng8awddvfndxm56z0ww7ug0w4vnal3msdv5jk7jq4zp6hx"
 
 genAddresses :: Int -> Address -> BlockfrostClient [Address]
 genAddresses n = repeatN n genAddress

@@ -557,7 +557,11 @@ instance MaybeLight (SharedState n k) where
 instance GenChange (SharedState n k) where
     type
         ArgGenChange (SharedState n k) =
-            (ScriptTemplate -> Maybe ScriptTemplate -> Index 'Soft 'CredFromScriptK -> Address)
+            ( ScriptTemplate
+              -> Maybe ScriptTemplate
+              -> Index 'Soft 'CredFromScriptK
+              -> Address
+            )
 
     genChange mkAddress st = case ready st of
         Pending ->

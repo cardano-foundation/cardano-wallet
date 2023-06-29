@@ -372,7 +372,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             let pubKeyWalName = "pub key wallet"
             let mnemonicWalName = "mnemonic wallet"
             -- create wallet from mnemonics
-            (c1, o1, e1) <- createWalletViaCLI ctx [mnemonicWalName] m "\n" "secure-passphrase"
+            (c1, o1, e1) <-
+                createWalletViaCLI ctx [mnemonicWalName] m "\n" "secure-passphrase"
             c1 `shouldBe` ExitSuccess
             T.unpack e1 `shouldContain` cmdOk
             mnemonicWal <- expectValidJSON (Proxy @ApiWallet) o1

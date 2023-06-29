@@ -66,7 +66,12 @@ import Cardano.Wallet.Address.Discovery.Shared
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , Readiness (Active, Pending)
-    , SharedAddressPools (SharedAddressPools, externalPool, internalPool, pendingChangeIxs)
+    , SharedAddressPools
+        ( SharedAddressPools
+        , externalPool
+        , internalPool
+        , pendingChangeIxs
+        )
     , SharedState (..)
     , SupportsDiscovery
     , newSharedAddressPool
@@ -275,11 +280,15 @@ validateScriptTemplates
     -> Either ErrScriptTemplate ()
 validateScriptTemplates kF accXPub level pTemplate dTemplateM = do
     checkTemplate Payment pTemplate
-    unless (checkXPub pTemplate) $ Left $ ErrScriptTemplateMissingKey Payment accXPubErr
+    unless (checkXPub pTemplate)
+        $ Left
+        $ ErrScriptTemplateMissingKey Payment accXPubErr
     case dTemplateM of
         Just dTemplate -> do
             checkTemplate Delegation dTemplate
-            unless (checkXPub dTemplate) $ Left $ ErrScriptTemplateMissingKey Delegation accXPubErr
+            unless (checkXPub dTemplate)
+                $ Left
+                $ ErrScriptTemplateMissingKey Delegation accXPubErr
         Nothing -> pure ()
   where
     -- when creating the shared wallet we can have cosigners in script with missing

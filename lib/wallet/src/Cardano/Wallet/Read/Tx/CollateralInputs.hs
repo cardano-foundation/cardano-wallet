@@ -66,7 +66,8 @@ type family CollateralInputsType era where
 
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 
-deriving instance (Show (CollateralInputsType era)) => Show (CollateralInputs era)
+deriving instance
+    (Show (CollateralInputsType era)) => Show (CollateralInputs era)
 deriving instance (Eq (CollateralInputsType era)) => Eq (CollateralInputs era)
 
 -- | Extract the collateral inputs from a 'Tx' in any era.

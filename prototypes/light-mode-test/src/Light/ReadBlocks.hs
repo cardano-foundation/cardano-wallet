@@ -208,7 +208,8 @@ mkPool addrs = Map.fromList $ zip addrs $ map toEnum [0 ..]
 -- this is probably not a good way to do it.
 genAddress :: Address -> BlockfrostClient (Maybe Address)
 genAddress addr = do
-    txs <- BF.getAddressTransactions' addr (BF.Paged 100 1) BF.Ascending Nothing Nothing
+    txs <-
+        BF.getAddressTransactions' addr (BF.Paged 100 1) BF.Ascending Nothing Nothing
     tx <- BF.getTxUtxos . BF._addressTransactionTxHash =<< choose txs
     let choices =
             map _utxoInputAddress (_transactionUtxosInputs tx)

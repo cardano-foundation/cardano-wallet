@@ -289,7 +289,8 @@ thousandPipeliningStrategy = PipeliningStrategy{..}
     getPipeliningSize _ = 1_000
     pipeliningStrategyName = "Constant pipelining of 1000 blocks"
 
-tunedForMainnetPipeliningStrategy :: (HasHeader block) => PipeliningStrategy block
+tunedForMainnetPipeliningStrategy
+    :: (HasHeader block) => PipeliningStrategy block
 tunedForMainnetPipeliningStrategy = PipeliningStrategy{..}
   where
     getPipeliningSize (blockNo -> n)

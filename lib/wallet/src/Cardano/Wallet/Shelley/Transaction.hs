@@ -686,7 +686,8 @@ signTransaction
         mkStakingScriptWitness a =
             mkShelleyWitness body <$> resolveStakingKeyInScript a
 
-        mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
+        mkExtraWitness
+            :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
         mkExtraWitness vkh = do
             -- NOTE: We cannot resolve key hashes directly, so create a one-time
             -- temporary address with that key hash which is fine to lookup via the

@@ -810,7 +810,10 @@ defaultSharedStatePrefix =
 instance Arbitrary (Script Cosigner) where
     arbitrary =
         pure
-            $ RequireAllOf [RequireSignatureOf (Cosigner 0), RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]]
+            $ RequireAllOf
+                [ RequireSignatureOf (Cosigner 0)
+                , RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]
+                ]
 
 genScriptTemplateHardCoded :: Gen ScriptTemplate
 genScriptTemplateHardCoded =

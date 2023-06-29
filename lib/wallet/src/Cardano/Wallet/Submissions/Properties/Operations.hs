@@ -39,7 +39,8 @@ import Test.QuickCheck
     , (.&.)
     )
 
-status' :: (Ord (TxId tx)) => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
+status'
+    :: (Ord (TxId tx)) => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
 status' x = status x . transactions
 
 -- | As described in the specification:

@@ -285,14 +285,17 @@ instance FromText AssetDecimals where
 validateMinLength :: Int -> Text -> Either String Text
 validateMinLength n text
     | len >= n = Right text
-    | otherwise = Left $ "Length must be at least " ++ show n ++ " characters, got " ++ show len
+    | otherwise =
+        Left $ "Length must be at least " ++ show n ++ " characters, got " ++ show len
   where
     len = T.length text
 
 validateMaxLength :: Int -> Text -> Either String Text
 validateMaxLength n text
     | len <= n = Right text
-    | otherwise = Left $ "Length must be no more than " ++ show n ++ " characters, got " ++ show len
+    | otherwise =
+        Left
+            $ "Length must be no more than " ++ show n ++ " characters, got " ++ show len
   where
     len = T.length text
 
@@ -321,7 +324,9 @@ validateMetadataURL =
 validateMetadataLogo :: AssetLogo -> Either String AssetLogo
 validateMetadataLogo logo
     | len <= maxLen = Right logo
-    | otherwise = Left $ "Length must be no more than " ++ show maxLen ++ " bytes, got " ++ show len
+    | otherwise =
+        Left
+            $ "Length must be no more than " ++ show maxLen ++ " bytes, got " ++ show len
   where
     len = BS.length $ unAssetLogo logo
     maxLen = 65536

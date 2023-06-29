@@ -638,7 +638,9 @@ instance
     gEveryPathParam _ =
         gEveryPathParam (Proxy @sub)
 
-    type MkBodyRequest (ReqBody '[OctetStream] a :> sub) = BodyParam a -> IO (MkBodyRequest sub)
+    type
+        MkBodyRequest (ReqBody '[OctetStream] a :> sub) =
+            BodyParam a -> IO (MkBodyRequest sub)
     gEveryBodyParam _ req b =
         gEveryBodyParam (Proxy @sub)
             <$> ( setRequestBody
@@ -651,7 +653,9 @@ instance
                         }
                 )
 
-    type MkHeaderRequest (ReqBody '[OctetStream] a :> sub) = Header "Content-Type" OctetStream -> MkHeaderRequest sub
+    type
+        MkHeaderRequest (ReqBody '[OctetStream] a :> sub) =
+            Header "Content-Type" OctetStream -> MkHeaderRequest sub
     gEveryHeader _ req (Header h) =
         gEveryHeader (Proxy @sub)
             $ req
@@ -670,11 +674,15 @@ instance
     gEveryPathParam _ =
         gEveryPathParam (Proxy @sub)
 
-    type MkBodyRequest (ReqBody '[ct] a :> sub) = BodyParam a -> IO (MkBodyRequest sub)
+    type
+        MkBodyRequest (ReqBody '[ct] a :> sub) =
+            BodyParam a -> IO (MkBodyRequest sub)
     gEveryBodyParam _ req b =
         gEveryBodyParam (Proxy @sub) <$> (setRequestBody b req)
 
-    type MkHeaderRequest (ReqBody '[ct] a :> sub) = Header "Content-Type" ct -> MkHeaderRequest sub
+    type
+        MkHeaderRequest (ReqBody '[ct] a :> sub) =
+            Header "Content-Type" ct -> MkHeaderRequest sub
     gEveryHeader _ req (Header h) =
         gEveryHeader (Proxy @sub)
             $ req

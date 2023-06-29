@@ -1630,7 +1630,8 @@ genTxBody era = do
 
 -- | Similar to 'genTxBody', but with a distribution better suitable for testing
 -- balancing.
-genTxBodyForBalancing :: (IsCardanoEra era) => CardanoEra era -> Gen (TxBody era)
+genTxBodyForBalancing
+    :: (IsCardanoEra era) => CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = do
     res <- createAndValidateTransactionBody <$> genStrippedContent
     case res of
@@ -1720,7 +1721,8 @@ genTx =
 -- TODO: Generate txs with no inputs
 -- TODO: Generate txs with existing key witnesses
 -- TODO: Generate txs with no outputs
-genTxForBalancing :: forall era. (IsCardanoEra era) => CardanoEra era -> Gen (Tx era)
+genTxForBalancing
+    :: forall era. (IsCardanoEra era) => CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
 
 --------------------------------------------------------------------------------

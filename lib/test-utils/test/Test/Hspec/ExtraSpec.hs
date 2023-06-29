@@ -214,7 +214,8 @@ aroundAllSpec = sequential $ do
     let withMockResource :: (MonadUnliftIO m) => a -> (a -> m r) -> m r
         withMockResource a = bracket (pure a) (const $ pure ())
 
-        withMVarResource :: (Show a, Eq a, MonadUnliftIO m) => a -> (MVar a -> m r) -> m r
+        withMVarResource
+            :: (Show a, Eq a, MonadUnliftIO m) => a -> (MVar a -> m r) -> m r
         withMVarResource a = bracket (newMVar a) (takeMVarCheck a)
 
         takeMVarCheck :: (Show a, Eq a, MonadUnliftIO m) => a -> MVar a -> m ()

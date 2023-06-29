@@ -736,7 +736,8 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                                 test (Just l) (Just r) Ascending Identity
                                     $ \slot -> slot >= l && slot <= r
 
-type DummyStateWithAddresses = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
+type DummyStateWithAddresses =
+    TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
 
 dummyStateWithAddressesF :: WalletFlavorS DummyStateWithAddresses
 dummyStateWithAddressesF = TestStateS defaultTestFeatures

@@ -374,7 +374,12 @@ instance ToText ClusterLog where
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli" : args)
       where
-        indent = T.unlines . map ("  " <>) . T.lines . T.decodeUtf8With T.lenientDecode . BL8.toStrict
+        indent =
+            T.unlines
+                . map ("  " <>)
+                . T.lines
+                . T.decodeUtf8With T.lenientDecode
+                . BL8.toStrict
 
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where

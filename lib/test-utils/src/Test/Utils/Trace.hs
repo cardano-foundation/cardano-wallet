@@ -56,7 +56,11 @@ withLogging :: (MonadUnliftIO m) => ((Tracer m msg, m [msg]) -> m a) -> m a
 withLogging = withLogging'
 
 -- | Same as 'withLogging', but with a different Tracer monad.
-withLogging' :: forall m mtr msg a. (MonadUnliftIO m, MonadIO mtr) => ((Tracer mtr msg, m [msg]) -> m a) -> m a
+withLogging'
+    :: forall m mtr msg a
+     . (MonadUnliftIO m, MonadIO mtr)
+    => ((Tracer mtr msg, m [msg]) -> m a)
+    -> m a
 withLogging' action = do
     tvar <- newTVarIO []
     let getMsgs = reverse <$> readTVarIO tvar
@@ -68,7 +72,11 @@ captureLogging :: (MonadUnliftIO m) => (Tracer m msg -> m a) -> m ([msg], a)
 captureLogging = captureLogging'
 
 -- | Same as 'captureLogging', but with a different Tracer monad.
-captureLogging' :: forall m mtr msg a. (MonadUnliftIO m, MonadIO mtr) => (Tracer mtr msg -> m a) -> m ([msg], a)
+captureLogging'
+    :: forall m mtr msg a
+     . (MonadUnliftIO m, MonadIO mtr)
+    => (Tracer mtr msg -> m a)
+    -> m ([msg], a)
 captureLogging' action = withLogging' @m @mtr $ \(tr, getMsgs) -> do
     res <- action tr
     msgs <- getMsgs

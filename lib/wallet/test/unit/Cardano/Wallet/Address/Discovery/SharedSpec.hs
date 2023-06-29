@@ -152,10 +152,14 @@ spec = do
             (property (prop_addressDiscoveryImpossibleFromOtherAccXPub @'Mainnet))
         it
             "address composed with our verification key must not be discoverable within the same mnemonic when other of its account is used"
-            (property (prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv @'Mainnet))
+            ( property
+                (prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv @'Mainnet)
+            )
         it
             "address composed with our verification key must not be discoverable within proper account is script changes structure"
-            (property (prop_addressDiscoveryImpossibleWithinAccountButDifferentScript @'Mainnet))
+            ( property
+                (prop_addressDiscoveryImpossibleWithinAccountButDifferentScript @'Mainnet)
+            )
         it
             "upon address discovery there is exact and consecutive number of Unused indices that amounts to the address pool gap number"
             (property (prop_addressDiscoveryDoesNotChangeGapInvariance @'Mainnet))
@@ -219,7 +223,8 @@ prop_addressDiscoveryMakesAddressUsed
 prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
         (snd <$> Map.lookup addr ourAddrs) === Just Used
-            .&&. fromIntegral (Map.size ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
+            .&&. fromIntegral (Map.size ourAddrs)
+                === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
     sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' g pTemplate' dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx

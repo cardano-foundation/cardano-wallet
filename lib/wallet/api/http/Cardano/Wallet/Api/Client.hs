@@ -390,11 +390,13 @@ byronTransactionClient =
             , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
             , deleteTransaction = _deleteTransaction
             , getTransaction = \wid txid _ -> _getTransaction wid txid
-            , balanceTransaction = error "balance transaction endpoint not supported for byron"
+            , balanceTransaction =
+                error "balance transaction endpoint not supported for byron"
             , decodeTransaction = error "decode transaction endpoint not supported for byron"
             , submitTransaction = error "submit transaction endpoint not supported for byron"
             , signTransaction = error "sign transaction endpoint not supported for byron"
-            , constructTransaction = error "construct transaction endpoint not supported for byron"
+            , constructTransaction =
+                error "construct transaction endpoint not supported for byron"
             }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

@@ -323,8 +323,12 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
         let setupContext smashUrl conn np baseUrl = bracketTracer' tr "setupContext" $ do
-                prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
-                ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
+                prometheusUrl <-
+                    (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p))
+                        <$> getPrometheusURL
+                ekgUrl <-
+                    (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p))
+                        <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
                 let fiveMinutes = 300 * 1_000 * 1_000 -- 5 minutes in microseconds
                 manager <-

@@ -356,7 +356,8 @@ serveWallet
                         $ wrk
 
         withMultisigApi netId netLayer =
-            lift $ apiLayer (newTransactionLayer SharedKeyS netId) netLayer Server.idleWorker
+            lift
+                $ apiLayer (newTransactionLayer SharedKeyS netId) netLayer Server.idleWorker
 
         startServer
             :: forall n

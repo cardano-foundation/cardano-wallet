@@ -703,7 +703,8 @@ semantics db (At c) =
     (At . fmap QSM.reference)
         <$> runIO db (fmap QSM.concrete c)
 
-symbolicResp :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
+symbolicResp
+    :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
 symbolicResp m c =
     At <$> traverse (const QSM.genSym) resp
   where

@@ -173,7 +173,8 @@ logScale :: Gen a -> Gen a
 logScale = logScale' $ exp 1
 
 -- | 'cover', lifted with 'fmap'.
-coverM :: (Functor f, Testable prop) => Double -> Bool -> String -> f prop -> f Property
+coverM
+    :: (Functor f, Testable prop) => Double -> Bool -> String -> f prop -> f Property
 coverM n c t = fmap $ cover n c t
 
 -- | Like 'frequency' but use only one generator with different filters.
@@ -223,7 +224,8 @@ unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 
 -- | A simpler interface for 'updateS' in tests, using 'unsafeLoadS'.
 -- Natural for use with 'foldM'.
-unsafeUpdateS :: (Applicative m) => Store m qa da -> Base da -> da -> m (Base da)
+unsafeUpdateS
+    :: (Applicative m) => Store m qa da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.

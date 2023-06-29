@@ -50,7 +50,8 @@ genUTxOIndex genUTxO = UTxOIndex.fromSequence <$> listOf genEntry
     genEntry :: Gen (u, TokenBundle)
     genEntry = (,) <$> genUTxO <*> genTokenBundleSmallRangePositive
 
-shrinkUTxOIndex :: forall u. (Ord u) => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
+shrinkUTxOIndex
+    :: forall u. (Ord u) => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
 shrinkUTxOIndex shrinkUTxO =
     shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
   where

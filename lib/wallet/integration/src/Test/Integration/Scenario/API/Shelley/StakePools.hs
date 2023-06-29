@@ -1570,7 +1570,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let epochs = poolGarbageCollectionEpochNo <$> events
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
-    it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
+    it
+        "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
         $ \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
             -- This can be slow; let's retry less frequently and with a longer
@@ -1633,7 +1634,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             expectResponseCode HTTP.status200 r
             expectField #health (`shouldBe` Available) r
 
-    describe "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured"
+    describe
+        "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured"
         $ forM_ ["direct", "none"]
         $ \fetching -> it fetching
             $ \ctx -> runResourceT $ bracketSettings ctx $ do

@@ -642,7 +642,9 @@ toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
 
 toPaymentHash :: Text -> Cardano.SimpleScript
 toPaymentHash txt =
-    case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
+    case Cardano.deserialiseFromRawBytesHex
+        (Cardano.AsHash Cardano.AsPaymentKey)
+        (T.encodeUtf8 txt) of
         Right payKeyHash -> Cardano.RequireSignature payKeyHash
         Left err -> error $ "toPaymentHash: " <> show err
 
@@ -698,9 +700,14 @@ scriptMatrix =
         )
     ,
         ( "RequireAllOf"
-        , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , RequireAllOf
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
         , toSimpleScript
-            $ Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+            $ Cardano.RequireAllOf
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
         )
     ,
         ( "RequireAnyOf"
@@ -710,21 +717,45 @@ scriptMatrix =
         )
     ,
         ( "RequireAnyOf"
-        , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , RequireAnyOf
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
         , toSimpleScript
-            $ Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+            $ Cardano.RequireAnyOf
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
         )
     ,
         ( "RequireSomeOf"
-        , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+        , RequireSomeOf
+            2
+            [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
         , toSimpleScript
-            $ Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+            $ Cardano.RequireMOf
+                2
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                ]
         )
     ,
         ( "RequireSomeOf"
-        , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+        , RequireSomeOf
+            2
+            [ toKeyHash hashKeyTxt1
+            , toKeyHash hashKeyTxt2
+            , toKeyHash hashKeyTxt3
+            , toKeyHash hashKeyTxt4
+            ]
         , toSimpleScript
-            $ Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+            $ Cardano.RequireMOf
+                2
+                [ toPaymentHash hashKeyTxt1
+                , toPaymentHash hashKeyTxt2
+                , toPaymentHash hashKeyTxt3
+                , toPaymentHash hashKeyTxt4
+                ]
         )
     ,
         ( "nested 1"
@@ -746,12 +777,17 @@ scriptMatrix =
         ( "nested 2"
         , RequireAllOf
             [ toKeyHash hashKeyTxt1
-            , RequireAnyOf [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+            , RequireAnyOf
+                [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
             ]
         , toSimpleScript
             $ Cardano.RequireAllOf
                 [ toPaymentHash hashKeyTxt1
-                , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                , Cardano.RequireAnyOf
+                    [ toPaymentHash hashKeyTxt2
+                    , toPaymentHash hashKeyTxt3
+                    , toPaymentHash hashKeyTxt4
+                    ]
                 ]
         )
     ,

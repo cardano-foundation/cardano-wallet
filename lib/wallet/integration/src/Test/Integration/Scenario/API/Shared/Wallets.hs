@@ -1881,7 +1881,12 @@ spec = describe "SHARED_WALLETS" $ do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
-            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w) headers Empty
+            r <-
+                request @ApiUtxoStatistics
+                    ctx
+                    (Link.getUTxOsStatistics @'Shared w)
+                    headers
+                    Empty
             verify r expectations
 
     it

@@ -324,8 +324,10 @@ propSpec = describe "Random Address Discovery Properties" $ do
         property prop_derivedKeysAreOwned
     it "GenChange address always satisfies isOurs" $ do
         property prop_changeAddressesBelongToUs
-    it "each address discovered by isOurs is in forbidden addresses and different than change address" $ do
-        property prop_forbiddenAddresses
+    it
+        "each address discovered by isOurs is in forbidden addresses and different than change address"
+        $ do
+            property prop_forbiddenAddresses
     it "address that are discovered via isOurs are marked as 'Used'" $ do
         property prop_oursAreUsed
 

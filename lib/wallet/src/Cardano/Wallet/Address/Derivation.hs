@@ -593,7 +593,8 @@ class (HardDerivation key) => SoftDerivation (key :: Depth -> Type -> Type) wher
 -- key types (in particular, Jörmungandr vs Shelley).
 class ToRewardAccount k where
     toRewardAccount :: k 'CredFromKeyK XPub -> RewardAccount
-    someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount, NonEmpty DerivationIndex)
+    someRewardAccount
+        :: SomeMnemonic -> (XPrv, RewardAccount, NonEmpty DerivationIndex)
 
 -- | Derive a reward account from a root private key. It is agreed by standard
 -- that every HD wallet will use only a single reward account. This account is

@@ -171,7 +171,9 @@ data DeleteSqliteDatabaseLog
 instance ToText DeleteSqliteDatabaseLog where
     toText msg = case msg of
         MsgRetryDelete retryNum ->
-            "retry " <> T.pack (show retryNum) <> " for lock/sharing violation - probably due to antivirus software"
+            "retry "
+                <> T.pack (show retryNum)
+                <> " for lock/sharing violation - probably due to antivirus software"
         MsgGaveUpDelete e ->
             "gave up on delete due to " <> T.pack e
 

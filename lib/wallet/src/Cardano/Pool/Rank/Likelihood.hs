@@ -175,7 +175,10 @@ instance Semigroup Likelihood where
         normalizeLikelihood $ Likelihood (StrictSeq.zipWith (+) x y)
 
 instance Monoid Likelihood where
-    mempty = Likelihood $ StrictSeq.forceToStrict $ Seq.replicate (length samplePositions) (LogWeight 0)
+    mempty =
+        Likelihood
+            $ StrictSeq.forceToStrict
+            $ Seq.replicate (length samplePositions) (LogWeight 0)
 
 normalizeLikelihood :: Likelihood -> Likelihood
 normalizeLikelihood (Likelihood xs) = Likelihood $ (\x -> x - m) <$> xs

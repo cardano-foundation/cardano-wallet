@@ -177,7 +177,8 @@ testPool :: TestPool
 testPool = AddressPool.new id 5
 
 -- | Fill a given pool from a list of address statuses
-fromUsage :: (Ord addr, Enum ix) => Pool addr ix -> [AddressState] -> Pool addr ix
+fromUsage
+    :: (Ord addr, Enum ix) => Pool addr ix -> [AddressState] -> Pool addr ix
 fromUsage pool =
     AddressPool.loadUnsafe pool
         . Map.fromList

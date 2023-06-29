@@ -1000,10 +1000,12 @@ instance IsServerError ErrAddCosignerKey where
 
 instance IsServerError ErrConstructSharedWallet where
     toServerError = \case
-        ErrConstructSharedWalletWrongScriptTemplate (ErrScriptTemplateInvalid cred reason) ->
-            handleTemplateErr cred (toText reason)
-        ErrConstructSharedWalletWrongScriptTemplate (ErrScriptTemplateMissingKey cred reason) ->
-            handleTemplateErr cred reason
+        ErrConstructSharedWalletWrongScriptTemplate
+            (ErrScriptTemplateInvalid cred reason) ->
+                handleTemplateErr cred (toText reason)
+        ErrConstructSharedWalletWrongScriptTemplate
+            (ErrScriptTemplateMissingKey cred reason) ->
+                handleTemplateErr cred reason
         ErrConstructSharedWalletInvalidIndex e -> toServerError e
       where
         handleTemplateErr cred reason =

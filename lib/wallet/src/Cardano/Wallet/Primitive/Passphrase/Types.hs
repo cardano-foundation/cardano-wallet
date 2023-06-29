@@ -187,7 +187,8 @@ instance ToText PassphraseScheme where
 
 newtype PassphraseHash = PassphraseHash {getPassphraseHash :: ScrubbedBytes}
     deriving stock (Show)
-    deriving newtype (Eq, Ord, Semigroup, Monoid, NFData, ByteArrayAccess, ByteArray)
+    deriving newtype
+        (Eq, Ord, Semigroup, Monoid, NFData, ByteArrayAccess, ByteArray)
 
 instance ToText PassphraseHash where
     toText = T.decodeUtf8 . convertToBase Base16 . getPassphraseHash

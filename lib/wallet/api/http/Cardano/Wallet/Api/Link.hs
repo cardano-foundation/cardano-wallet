@@ -389,7 +389,9 @@ getWalletKey w role_ index hashed =
     discriminate @style
         (endpoint @Api.GetWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
         (notSupported "Byron")
-        (endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
+        ( endpoint @Api.GetSharedWalletKey
+            (\mk -> mk wid (ApiT role_) (ApiT index) hashed)
+        )
   where
     wid = w ^. typed @(ApiT WalletId)
 

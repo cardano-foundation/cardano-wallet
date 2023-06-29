@@ -105,7 +105,8 @@ member node Chain{prev} = node `Map.member` prev
 type ChainContext node edge = Edge (Maybe (edge, node)) node
 
 -- | Look up the 'Context' of a node in a 'Chain'.
-lookup :: (Ord node) => node -> Chain node edge -> Maybe (ChainContext node edge)
+lookup
+    :: (Ord node) => node -> Chain node edge -> Maybe (ChainContext node edge)
 lookup node Chain{next, prev} =
     case (Map.lookup node next, Map.lookup node prev) of
         (_, Nothing) ->

@@ -226,10 +226,18 @@ instance FromJSON ApiVerificationKeyShared where
         pure $ ApiVerificationKeyShared (payload, role) hashing
       where
         parseRoleHashing = \case
-            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
-            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure (MutableAccount, WithoutHashing)
-            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, WithHashing)
-            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_shared_vk|] ->
+                    pure (UtxoExternal, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_shared_vk|] ->
+                    pure (MutableAccount, WithoutHashing)
+            hrp
+                | hrp == [humanReadablePart|addr_shared_vkh|] ->
+                    pure (UtxoExternal, WithHashing)
+            hrp
+                | hrp == [humanReadablePart|stake_shared_vkh|] ->
+                    pure (MutableAccount, WithHashing)
             _ -> fail errRole
           where
             errRole =
@@ -260,7 +268,8 @@ instance ToJSON ApiAccountKey where
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        (hrp, bytes) <-
+            parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
         (extended', purpose') <- parseHrp hrp
         pub <- parsePub bytes extended'
         pure $ ApiAccountKey pub extended' purpose'
@@ -268,8 +277,11 @@ instance FromJSON ApiAccountKey where
         parseHrp = \case
             hrp | hrp == [humanReadablePart|acct_xvk|] -> pure (Extended, purposeCIP1852)
             hrp | hrp == [humanReadablePart|acct_vk|] -> pure (NonExtended, purposeCIP1852)
-            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure (Extended, purposeCIP1854)
-            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure (NonExtended, purposeCIP1854)
+            hrp
+                | hrp == [humanReadablePart|acct_shared_xvk|] -> pure (Extended, purposeCIP1854)
+            hrp
+                | hrp == [humanReadablePart|acct_shared_vk|] ->
+                    pure (NonExtended, purposeCIP1854)
             _ -> fail errHrp
           where
             errHrp =
@@ -323,7 +335,8 @@ instance ToJSON ApiAccountKeyShared where
 
 instance FromJSON ApiAccountKeyShared where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        (hrp, bytes) <-
+            parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
         extended' <- parseHrp hrp
         pub <- parsePub bytes extended'
         pure $ ApiAccountKeyShared pub extended' purposeCIP1854

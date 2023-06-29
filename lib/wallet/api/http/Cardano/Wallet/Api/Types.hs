@@ -1941,7 +1941,10 @@ instance FromText ApiAccountSharedPublicKey where
                     Left _ -> Left $ TextDecodingError "Extended account's Bech32 has invalid text."
                     Right res -> pure res
                 let checkPayload bytes = case xpubFromBytes bytes of
-                        Nothing -> Left $ TextDecodingError "Extended public key cannot be retrieved from a given bytestring"
+                        Nothing ->
+                            Left
+                                $ TextDecodingError
+                                    "Extended public key cannot be retrieved from a given bytestring"
                         Just validXPub -> pure $ ApiAccountSharedPublicKey $ ApiT validXPub
                 let proceedWhenHrpCorrect = case Bech32.dataPartToBytes dp of
                         Nothing ->
@@ -1950,7 +1953,8 @@ instance FromText ApiAccountSharedPublicKey where
                 if Bech32.humanReadablePartToText hrp == "acct_shared_xvk"
                     then proceedWhenHrpCorrect
                     else Left $ TextDecodingError "Extended account must have 'acct_shared_xvk' prefix"
-            _ -> Left $ TextDecodingError "Extended account must be must be encoded as Bech32."
+            _ ->
+                Left $ TextDecodingError "Extended account must be must be encoded as Bech32."
 
 instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
@@ -2511,7 +2515,10 @@ instance ToJSON AnyAddress where
 instance (MkSomeMnemonic sizes) => FromJSON (ApiMnemonicT sizes) where
     parseJSON bytes = do
         xs <- parseJSON bytes
-        m <- eitherToParser $ left (ShowFmt . getMkSomeMnemonicError) $ mkSomeMnemonic @sizes xs
+        m <-
+            eitherToParser
+                $ left (ShowFmt . getMkSomeMnemonicError)
+                $ mkSomeMnemonic @sizes xs
         return $ ApiMnemonicT m
 
 instance ToJSON (ApiMnemonicT sizes) where

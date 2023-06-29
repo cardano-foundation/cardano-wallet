@@ -385,31 +385,33 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 (`shouldNotSatisfy` T.isPrefixOf "addr_test")
             ]
 
-    it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending" $ \ctx -> runResourceT @IO $ do
-        let verifyAddrs nTotal nUsed addrs = do
-                liftIO (length addrs `shouldBe` nTotal)
-                let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
-                liftIO (length onlyUsed `shouldBe` nUsed)
+    it
+        "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending"
+        $ \ctx -> runResourceT @IO $ do
+            let verifyAddrs nTotal nUsed addrs = do
+                    liftIO (length addrs `shouldBe` nTotal)
+                    let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
+                    liftIO (length onlyUsed `shouldBe` nUsed)
 
-        -- 1. Create Shelley wallets
-        let initialTotalA = 30
-        let initialUsedA = 10
-        wA <- fixtureWallet ctx
-        listAddresses @n ctx wA
-            >>= verifyAddrs initialTotalA initialUsedA
+            -- 1. Create Shelley wallets
+            let initialTotalA = 30
+            let initialUsedA = 10
+            wA <- fixtureWallet ctx
+            listAddresses @n ctx wA
+                >>= verifyAddrs initialTotalA initialUsedA
 
-        let initialTotalB = 20
-        let initialUsedB = 0
-        wB <- emptyWallet ctx
-        listAddresses @n ctx wB
-            >>= verifyAddrs initialTotalB initialUsedB
+            let initialTotalB = 20
+            let initialUsedB = 0
+            wB <- emptyWallet ctx
+            listAddresses @n ctx wB
+                >>= verifyAddrs initialTotalB initialUsedB
 
-        -- 2. Send a transaction from A -> B
-        destination <- view #id . head <$> listAddresses @n ctx wB
-        let amount = 10 * minUTxOValue (_mainEra ctx)
-        let payload =
-                Json
-                    [json|{
+            -- 2. Send a transaction from A -> B
+            destination <- view #id . head <$> listAddresses @n ctx wB
+            let amount = 10 * minUTxOValue (_mainEra ctx)
+            let payload =
+                    Json
+                        [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
@@ -419,56 +421,56 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, rtx) <-
-            unsafeRequest @(ApiTransaction n)
-                ctx
-                (Link.createTransactionOld @'Shelley wA)
-                payload
+            (_, rtx) <-
+                unsafeRequest @(ApiTransaction n)
+                    ctx
+                    (Link.createTransactionOld @'Shelley wA)
+                    payload
 
-        -- 3. Check that there's one more used addresses on A.
-        --
-        -- Ideally, we would also like to check that there's no used address on
-        -- B yet, but this would make the test quite flaky. Indeed, the integration
-        -- tests produces block very fast and by the time we make this call the
-        -- transaction may have already been inserted in the ledger and
-        -- discovered by B.
-        --
-        -- Similarly, we can't assert the length of used addresses on A. It
-        -- _should_ be 'initialUsedA` but the transaction could have already
-        -- been inserted and discovered by the time the 'listAddresses' call
-        -- resolves.
-        listAddresses @n ctx wA
-            >>= \addrs -> liftIO $ length addrs `shouldBe` (initialTotalA + 1)
+            -- 3. Check that there's one more used addresses on A.
+            --
+            -- Ideally, we would also like to check that there's no used address on
+            -- B yet, but this would make the test quite flaky. Indeed, the integration
+            -- tests produces block very fast and by the time we make this call the
+            -- transaction may have already been inserted in the ledger and
+            -- discovered by B.
+            --
+            -- Similarly, we can't assert the length of used addresses on A. It
+            -- _should_ be 'initialUsedA` but the transaction could have already
+            -- been inserted and discovered by the time the 'listAddresses' call
+            -- resolves.
+            listAddresses @n ctx wA
+                >>= \addrs -> liftIO $ length addrs `shouldBe` (initialTotalA + 1)
 
-        -- 4. Wait for transaction from A -> B to no longer be pending
-        eventually "Transaction from A -> B is discovered on B" $ do
-            request @(ApiTransaction n)
-                ctx
-                (Link.getTransaction @'Shelley wA rtx)
-                Default
-                Empty
-                >>= expectField #status (`shouldBe` ApiT InLedger)
-            request @(ApiTransaction n)
-                ctx
-                (Link.getTransaction @'Shelley wB rtx)
-                Default
-                Empty
-                >>= expectField #status (`shouldBe` ApiT InLedger)
+            -- 4. Wait for transaction from A -> B to no longer be pending
+            eventually "Transaction from A -> B is discovered on B" $ do
+                request @(ApiTransaction n)
+                    ctx
+                    (Link.getTransaction @'Shelley wA rtx)
+                    Default
+                    Empty
+                    >>= expectField #status (`shouldBe` ApiT InLedger)
+                request @(ApiTransaction n)
+                    ctx
+                    (Link.getTransaction @'Shelley wB rtx)
+                    Default
+                    Empty
+                    >>= expectField #status (`shouldBe` ApiT InLedger)
 
-        -- 5. Check that there's one more used and total addresses on the wallets
-        -- A and B.
-        --
-        -- On A: The address comes from the internal pool gap and was hidden up
-        --       until the transaction is created and remains after it is
-        --       inserted.
-        --
-        -- On B: There's a new total address because the address used was the
-        --       first unused address from the consecutive sequence of the address
-        --       pool. Thus the address window was shifted be exactly one.
-        listAddresses @n ctx wA
-            >>= verifyAddrs (initialTotalA + 1) (initialUsedA + 1)
-        listAddresses @n ctx wB
-            >>= verifyAddrs (initialTotalB + 1) (initialUsedB + 1)
+            -- 5. Check that there's one more used and total addresses on the wallets
+            -- A and B.
+            --
+            -- On A: The address comes from the internal pool gap and was hidden up
+            --       until the transaction is created and remains after it is
+            --       inserted.
+            --
+            -- On B: There's a new total address because the address used was the
+            --       first unused address from the consecutive sequence of the address
+            --       pool. Thus the address window was shifted be exactly one.
+            listAddresses @n ctx wA
+                >>= verifyAddrs (initialTotalA + 1) (initialUsedA + 1)
+            listAddresses @n ctx wB
+                >>= verifyAddrs (initialTotalB + 1) (initialUsedB + 1)
 
     it "ADDRESS_INSPECT_01 - Address inspect OK Icarus" $ \ctx -> do
         let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
@@ -485,7 +487,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             ]
 
     it "ADDRESS_INSPECT_02 - Address inspect OK Byron" $ \ctx -> do
-        let str = "37btjrVyb4KE2ByiPiJUQfAUBGaMyKScg4mnYjzVAsN2PUxj1WxTg98ien3oAo8vKBhP2KTuC9wi76vZ9kDNFkjbmzywdLTJgaz8n3RD3Rueim3Pd3"
+        let str =
+                "37btjrVyb4KE2ByiPiJUQfAUBGaMyKScg4mnYjzVAsN2PUxj1WxTg98ien3oAo8vKBhP2KTuC9wi76vZ9kDNFkjbmzywdLTJgaz8n3RD3Rueim3Pd3"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         verify
             r
@@ -518,7 +521,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectResponseCode HTTP.status400 r
 
     it "ADDRESS_INSPECT_05 - Address inspect OK bech32" $ \ctx -> do
-        let str = "addr_test1qzamu40sglnsrylzv9jylekjmzgaqsg5v5z9u6yk3jpnnxjwck77fqu8deuumsvnazjnjhwasc2eetfqpa2pvygts78ssd5388"
+        let str =
+                "addr_test1qzamu40sglnsrylzv9jylekjmzgaqsg5v5z9u6yk3jpnnxjwck77fqu8deuumsvnazjnjhwasc2eetfqpa2pvygts78ssd5388"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         verify
             r
@@ -543,29 +547,31 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- | cardano-address address payment --network-tag mainnet
     --- (b) from script
     --- $ cardano-address address payment --network-tag mainnet "$(cat script.txt)"
-    it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
-        --- $ cat script.txt
-        --- addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-        --- $ cardano-address script hash "$(cat script.txt)"
-        --- script1ccqe6wa40878s2pxrfwj0qxz9t7dxw8rhfreqwzjuy67gk2ausz
-        let payload1 =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature"
+        $ \ctx -> do
+            --- $ cat script.txt
+            --- addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+            --- $ cardano-address script hash "$(cat script.txt)"
+            --- script1ccqe6wa40878s2pxrfwj0qxz9t7dxw8rhfreqwzjuy67gk2ausz
+            let payload1 =
+                    Json
+                        [json|{
                 "payment": "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
             }|]
-        r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
-        expectResponseCode HTTP.status202 r1
-        let payload2 =
-                Json
-                    [json|{
+            r1 <- request @AnyAddress ctx Link.postAnyAddress Default payload1
+            expectResponseCode HTTP.status202 r1
+            let payload2 =
+                    Json
+                        [json|{
                 "payment": "script1ccqe6wa40878s2pxrfwj0qxz9t7dxw8rhfreqwzjuy67gk2ausz"
             }|]
-        r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
-        expectResponseCode HTTP.status202 r2
-        let goldenAddr =
-                "addr1w8rqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqm5wul2" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+            r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
+            expectResponseCode HTTP.status202 r2
+            let goldenAddr =
+                    "addr1w8rqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqm5wul2" :: Text
+            validateAddr r1 goldenAddr
+            validateAddr r2 goldenAddr
 
     it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
         --- $ cat script.txt
@@ -773,7 +779,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectResponseCode HTTP.status202 r4
 
         let goldenAddr =
-                "addr1xyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqu6mtx3" :: Text
+                "addr1xyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqu6mtx3"
+                    :: Text
         validateAddr r1 goldenAddr
         validateAddr r2 goldenAddr
         validateAddr r3 goldenAddr
@@ -792,17 +799,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --without-chain-code \
     --- > | cardano-address address payment --network-tag mainnet
-    it "ANY_ADDRESS_POST_07a - Golden tests for enterprise address - from non-extended public key" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_07a - Golden tests for enterprise address - from non-extended public key"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -813,17 +822,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --network-tag mainnet
-    it "ANY_ADDRESS_POST_07b - Golden tests for enterprise address - from extended public key" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_07b - Golden tests for enterprise address - from extended public key"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_xvk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwp3k2zz8796vdstcu7q0qp232wyvzjes0qkpmt7gzwa0x2q75h3qcgl5y4q0"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -858,17 +869,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
     --- > | cardano-address key public --without-chain-code \
     --- > | cardano-address address stake --network-tag mainnet
-    it "ANY_ADDRESS_POST_08a - Golden tests for reward account address - from non-extended public key" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_08a - Golden tests for reward account address - from non-extended public key"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
@@ -879,17 +892,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address stake --network-tag mainnet
-    it "ANY_ADDRESS_POST_08b - Golden tests for reward account address - from extended public key" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_08b - Golden tests for reward account address - from extended public key"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "stake": "stake_xvk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7yak6lmcyst8yclpm3yalrspc7q2wy9f6683x6f9z4e3gclhs5snslcst62"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
@@ -902,17 +917,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address key hash \
     --- > | cardano-address address stake --network-tag mainnet
-    it "ANY_ADDRESS_POST_08c - Golden tests for reward account address - from key hash" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_08c - Golden tests for reward account address - from key hash"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "stake": "stake_vkh1xswlmp8ut5aw8w3mlk2kjpzjxd3dc8r68vzc4azane3n6r07ddx"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
+            validateAddr r goldenAddr
 
     -- Golden address can be obtained via
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -931,40 +948,44 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.xvk)
-    it "ANY_ADDRESS_POST_09a - Golden tests for delegating address with both non-extended pub key credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09a - Golden tests for delegating address with both non-extended pub key credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
                 "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.xvk)
-    it "ANY_ADDRESS_POST_09b - Golden tests for delegating address with both extended pub key credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09b - Golden tests for delegating address with both extended pub key credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_xvk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwp3k2zz8796vdstcu7q0qp232wyvzjes0qkpmt7gzwa0x2q75h3qcgl5y4q0",
                 "stake": "stake_xvk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7yak6lmcyst8yclpm3yalrspc7q2wy9f6683x6f9z4e3gclhs5snslcst62"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -972,20 +993,22 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key hash \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.vkh)
-    it "ANY_ADDRESS_POST_09c - Golden tests for delegating address with both key hash credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09c - Golden tests for delegating address with both key hash credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vkh1gza7wc699kqnjv55ldmj74x0acledxfd7z8zvlvjcwnj2h09mcs",
                 "stake": "stake_vkh1xswlmp8ut5aw8w3mlk2kjpzjxd3dc8r68vzc4azane3n6r07ddx"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -993,20 +1016,22 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key hash \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.xvk)
-    it "ANY_ADDRESS_POST_09d - Golden tests for delegating address with mixed credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09d - Golden tests for delegating address with mixed credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vkh1gza7wc699kqnjv55ldmj74x0acledxfd7z8zvlvjcwnj2h09mcs",
                 "stake": "stake_xvk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7yak6lmcyst8yclpm3yalrspc7q2wy9f6683x6f9z4e3gclhs5snslcst62"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -1014,40 +1039,44 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key hash \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.xvk)
-    it "ANY_ADDRESS_POST_09e - Golden tests for delegating address with mixed credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09e - Golden tests for delegating address with mixed credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vkh1gza7wc699kqnjv55ldmj74x0acledxfd7z8zvlvjcwnj2h09mcs",
                 "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --network-tag mainnet \
     --- > | cardano-address address delegation $(cat stake.vkh)
-    it "ANY_ADDRESS_POST_09f - Golden tests for delegating address with mixed credentials" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_09f - Golden tests for delegating address with mixed credentials"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_xvk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwp3k2zz8796vdstcu7q0qp232wyvzjes0qkpmt7gzwa0x2q75h3qcgl5y4q0",
                 "stake": "stake_vkh1xswlmp8ut5aw8w3mlk2kjpzjxd3dc8r68vzc4azane3n6r07ddx"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
-                    :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                    \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2"
+                        :: Text
+            validateAddr r goldenAddr
 
     -- Generating golden test data for delegating address - payment from script, stake from pub key:
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -1057,10 +1086,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- $ cardano-address script hash "$(cat script.txt)" \
     --- | cardano-address address payment --from-script --network-tag mainnet \
     --- | cardano-address address delegation --from-key $(cat stake.xpub)
-    it "ANY_ADDRESS_POST_10 - Golden tests for delegating address - payment from script, stake from key" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_10 - Golden tests for delegating address - payment from script, stake from key"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1073,11 +1104,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                      },
                 "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle"
+                        :: Text
+            validateAddr r goldenAddr
 
     -- Generating golden test data for delegating address - payment from pub key, stake from script:
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -1085,10 +1117,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key public --with-chain-code \
     --- > | cardano-address address payment --from-key --network-tag mainnet \
     --- > | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script3.txt)")
-    it "ANY_ADDRESS_POST_11 - Golden tests for delegating address - payment from key, stake from script" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_11 - Golden tests for delegating address - payment from key, stake from script"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
                 "stake": {
                     "some": {
@@ -1101,11 +1135,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                          }
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
-        let goldenAddr =
-                "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq" :: Text
-        validateAddr r goldenAddr
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
+            let goldenAddr =
+                    "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq"
+                        :: Text
+            validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_12 - Delegating addresses API roundtrip" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -1115,7 +1150,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let indices = [0 .. 19]
         generatedAddresses <- forM indices $ \index -> do
             let paymentPath = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex index) Nothing
-            (_, paymentKey) <- unsafeRequest @ApiVerificationKeyShelley ctx paymentPath Empty
+            (_, paymentKey) <-
+                unsafeRequest @ApiVerificationKeyShelley ctx paymentPath Empty
 
             let stakePath = Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) Nothing
             (_, stakeKey) <- unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
@@ -1156,7 +1192,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1xy756z909yycvf5ah8j5pc4cvuedkhvhyylmgfz400t8jdwmwa0hp024gu7dm6h8n252lkgnzemp93mm9kyd48p64mjshqtu3c" :: Text
+                "addr1xy756z909yycvf5ah8j5pc4cvuedkhvhyylmgfz400t8jdwmwa0hp024gu7dm6h8n252lkgnzemp93mm9kyd48p64mjshqtu3c"
+                    :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_14a - at_least 0 is valid when non-validated" $ \ctx -> do
@@ -1196,10 +1233,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
 
-    it "ANY_ADDRESS_POST_14c - at_least 0 is not valid when validation is recommended" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_14c - at_least 0 is not valid when validation is recommended"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1212,9 +1251,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "recommended"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ScriptWrongCoeffcient r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400ScriptWrongCoeffcient r
 
     it "ANY_ADDRESS_POST_15a - at_least 4 is valid when non-validated" $ \ctx -> do
         let payload =
@@ -1254,10 +1293,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectResponseCode HTTP.status400 r
         expectErrorMessage errMsg400ScriptIllFormed r
 
-    it "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1270,14 +1311,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "recommended"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ScriptIllFormed r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400ScriptIllFormed r
 
-    it "ANY_ADDRESS_POST_16a - script with duplicated verification keys is valid when non-validated" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_16a - script with duplicated verification keys is valid when non-validated"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1289,13 +1332,15 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                          }
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
 
-    it "ANY_ADDRESS_POST_16b - script with duplicated verification keys is valid when required validation used" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_16b - script with duplicated verification keys is valid when required validation used"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1308,13 +1353,15 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "required"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
 
-    it "ANY_ADDRESS_POST_16c - script with duplicated verification keys is invalid when recommended validation used" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_16c - script with duplicated verification keys is invalid when recommended validation used"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1327,14 +1374,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "recommended"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ScriptDuplicateKeys r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400ScriptDuplicateKeys r
 
-    it "ANY_ADDRESS_POST_17a - Script with contradictory timelocks is valid when validation not used" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_17a - Script with contradictory timelocks is valid when validation not used"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "all" : [
                         "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
@@ -1349,13 +1398,15 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                         ]
                     }
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
 
-    it "ANY_ADDRESS_POST_17b - Script with contradictory timelocks is invalid when required validation is used" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_17b - Script with contradictory timelocks is invalid when required validation is used"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "all" : [
                         "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
@@ -1371,13 +1422,15 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "required"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status202 r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status202 r
 
-    it "ANY_ADDRESS_POST_17c - Script with contradictory timelocks is invalid when recommended validation is used" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_17c - Script with contradictory timelocks is invalid when recommended validation is used"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "all" : [
                         "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s",
@@ -1393,14 +1446,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "recommended"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ScriptTimelocksContradictory r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400ScriptTimelocksContradictory r
 
-    it "ANY_ADDRESS_POST_17d - script with mixed payment/delegation verification keys is invalid" $ \ctx -> do
-        let payload =
-                Json
-                    [json|{
+    it
+        "ANY_ADDRESS_POST_17d - script with mixed payment/delegation verification keys is invalid"
+        $ \ctx -> do
+            let payload =
+                    Json
+                        [json|{
                 "payment": {
                     "some": {
                         "from" : [
@@ -1412,9 +1467,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     },
                 "validation": "required"
             }|]
-        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ScriptNotUniformRoles r
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400ScriptNotUniformRoles r
 
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
         let initPoolGap = 10

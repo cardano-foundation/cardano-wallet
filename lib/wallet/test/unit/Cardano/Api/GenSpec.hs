@@ -695,7 +695,8 @@ genScriptValidityCoverage scriptValidity =
 instance Arbitrary ScriptValidity where
     arbitrary = genScriptValidity
 
-genTxScriptValidityCoverage :: CardanoEra era -> TxScriptValidity era -> Property
+genTxScriptValidityCoverage
+    :: CardanoEra era -> TxScriptValidity era -> Property
 genTxScriptValidityCoverage era scriptValidity =
     case txScriptValiditySupportedInCardanoEra era of
         Nothing ->

@@ -174,7 +174,11 @@ trMessage tr = Tracer $ \arg -> do
     meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
     traceWith tr (mempty, LogObject mempty meta (LogMessage arg))
 
-instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
+instance
+    forall m a
+     . (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
+    => Transformable Text m a
+    where
     trTransformer _verb = Tracer . traceWith . trMessageText
 
 -- | Trace transformer which removes empty traces.
@@ -201,7 +205,8 @@ stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
 
 -- | Run an 'ExceptT' action, then trace its result, all in one step.
 -- This is a more basic version of 'resultTracer'.
-traceWithExceptT :: (Monad m) => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
+traceWithExceptT
+    :: (Monad m) => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
 traceWithExceptT tr (ExceptT action) = ExceptT $ do
     res <- action
     traceWith tr res

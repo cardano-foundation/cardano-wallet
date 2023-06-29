@@ -337,7 +337,8 @@ instance Semigroupoid Embedding where
             pure (a, mbc `o` mab)
 
 -- | A pair of 'Embedding's gives an embedding of pairs.
-pair :: Embedding da1 db1 -> Embedding da2 db2 -> Embedding (da1, da2) (db1, db2)
+pair
+    :: Embedding da1 db1 -> Embedding da2 db2 -> Embedding (da1, da2) (db1, db2)
 pair (Embedding inject1 project1) (Embedding inject2 project2) =
     Embedding{inject, project}
   where

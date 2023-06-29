@@ -175,7 +175,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
         -- restore from account public key and make sure funds are there
         let accXPub = pubKeyFromMnemonics mnemonics
-        wDest' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+        wDest' <-
+            restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
 
         eventually "Balance of restored wallet is as expected" $ do
             rGet <-
@@ -201,7 +202,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wSrc <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -272,7 +274,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wSrc <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -300,7 +303,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can delete" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             r <-
                 request @ApiWallet
                     ctx
@@ -312,7 +316,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can see utxo" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             rStat <-
                 request @ApiUtxoStatistics
                     ctx
@@ -325,7 +330,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list addresses" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <-
@@ -369,7 +375,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list transactions" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             rt <-
                 request @([ApiTransaction n])
@@ -388,7 +395,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             rGet <-
                 request @ApiWallet
                     ctx
@@ -424,9 +432,15 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            r2' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+            r2' <-
+                restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
 
-            r1 <- request @ApiWallet ctx (Link.getWallet @'Shelley (getFromResponse id r1')) Default Empty
+            r1 <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley (getFromResponse id r1'))
+                    Default
+                    Empty
             r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley r2') Default Empty
 
             -- both wallets are available

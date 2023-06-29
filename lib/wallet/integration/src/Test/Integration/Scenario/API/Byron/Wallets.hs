@@ -162,9 +162,12 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> runResourceT $ do
         let pwd = fixturePassphrase
-        r1 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
-        r2 <- liftIO (genMnemonics M12) >>= \m -> (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
-        r3 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
+        r1 <-
+            liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
+        r2 <-
+            liftIO (genMnemonics M12) >>= \m -> (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
+        r3 <-
+            liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
         let wids = Set.fromList $ map (view walletId) [r1, r2, r3]
         rl <- listFilteredByronWallets wids ctx
         verify

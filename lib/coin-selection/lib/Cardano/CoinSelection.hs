@@ -360,7 +360,8 @@ performSelectionInner cs ps = do
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
 
-prepareOutputs :: (Applicative m) => PerformSelection m ctx (SelectionParams ctx)
+prepareOutputs
+    :: (Applicative m) => PerformSelection m ctx (SelectionParams ctx)
 prepareOutputs cs ps =
     withExceptT SelectionOutputErrorOf
         $ ExceptT

@@ -224,7 +224,8 @@ instance Buildable (RndState network) where
             <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
-type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
+type DerivationPath =
+    (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
 
 instance RndStateLike (RndState n) where
     importAddress addr s = do

@@ -218,7 +218,8 @@ data DBFresh m s = DBFresh
     -- ^ Load an existing database
     }
 
-hoistDBFresh :: (Functor m) => (forall a. m a -> n a) -> DBFresh m s -> DBFresh n s
+hoistDBFresh
+    :: (Functor m) => (forall a. m a -> n a) -> DBFresh m s -> DBFresh n s
 hoistDBFresh f (DBFresh boot load) =
     DBFresh
         { bootDBLayer = \params -> mapExceptT f $ hoistDBLayer f <$> boot params

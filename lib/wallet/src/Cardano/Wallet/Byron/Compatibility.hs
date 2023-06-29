@@ -318,7 +318,8 @@ fromByronHash :: ByronHash -> W.Hash "BlockHeader"
 fromByronHash =
     W.Hash . CC.hashToBytes . unByronHash
 
-fromChainHash :: W.Hash "Genesis" -> ChainHash ByronBlock -> W.Hash "BlockHeader"
+fromChainHash
+    :: W.Hash "Genesis" -> ChainHash ByronBlock -> W.Hash "BlockHeader"
 fromChainHash genesisHash = \case
     O.GenesisHash -> coerce genesisHash
     O.BlockHash h -> fromByronHash h
@@ -401,7 +402,8 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
     fromByronTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
-fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
+fromGenesisData
+    :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
     ( W.NetworkParameters
         { genesisParameters =

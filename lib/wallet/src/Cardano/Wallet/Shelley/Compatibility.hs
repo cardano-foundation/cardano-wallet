@@ -1280,7 +1280,8 @@ slottingParametersFromGenesis g =
         , getEpochLength =
             W.EpochLength . fromIntegral . unEpochSize $ sgEpochLength g
         , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient . fromRational . SL.unboundRational $ sgActiveSlotsCoeff g
+            W.ActiveSlotCoefficient . fromRational . SL.unboundRational
+                $ sgActiveSlotsCoeff g
         , getSecurityParameter =
             Quantity . fromIntegral $ sgSecurityParam g
         }
@@ -1495,7 +1496,8 @@ toPoolCertificates = mapMaybe isPoolCert
 toWalletCoin :: (HasCallStack) => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
-fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
+fromPoolMetadata
+    :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
     ( StakePoolMetadataUrl (urlToText (pmUrl meta))
     , StakePoolMetadataHash (pmHash meta)
@@ -1554,7 +1556,8 @@ toTxIn :: (SL.Crypto crypto) => W.TxIn -> SL.TxIn crypto
 toTxIn (W.TxIn tid ix) =
     SL.TxIn (toTxId tid) (SL.mkTxIxPartial $ fromIntegral ix)
 
-toTxId :: (Crypto.HashAlgorithm (SL.HASH crypto)) => W.Hash "Tx" -> SL.TxId crypto
+toTxId
+    :: (Crypto.HashAlgorithm (SL.HASH crypto)) => W.Hash "Tx" -> SL.TxId crypto
 toTxId (W.Hash h) =
     (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
 
@@ -1890,7 +1893,8 @@ toStakeKeyRegCert cred = case cred of
             . Cardano.SimpleScript
             $ toCardanoSimpleScript script
 
-toStakePoolDlgCert :: Either XPub (Script KeyHash) -> PoolId -> Cardano.Certificate
+toStakePoolDlgCert
+    :: Either XPub (Script KeyHash) -> PoolId -> Cardano.Certificate
 toStakePoolDlgCert cred (PoolId pid) = case cred of
     Left xpub ->
         Cardano.makeStakeAddressPoolDelegationCertificate
@@ -2112,7 +2116,8 @@ shelleyEncodeStakeAddress network acct =
                 putByteString bs
         W.FromScriptHash bs ->
             BL.toStrict $ runPut $ do
-                putWord8 $ (networkIdMask .&. toNetworkId network) .|. scripthashStakeAddressPrefix
+                putWord8
+                    $ (networkIdMask .&. toNetworkId network) .|. scripthashStakeAddressPrefix
                 putByteString bs
 
 shelleyDecodeStakeAddress
