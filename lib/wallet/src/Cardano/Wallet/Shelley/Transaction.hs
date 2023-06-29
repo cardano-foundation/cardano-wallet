@@ -7,7 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RoleAnnotations #-}
@@ -29,13 +29,6 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
-
-    -- * For balancing (To be moved)
-    , distributeSurplus
-    , distributeSurplusDelta
-    , sizeOfCoin
-    , maximumCostOfIncreasingCoin
-    , costOfIncreasingCoin
 
     -- * Internals
     , TxPayload (..)
@@ -116,7 +109,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxTokenQuantity )
+    ( txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -140,32 +133,25 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toLedger, toWallet) )
-import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
+    ( Convert (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
     , DelegationAction (..)
     , ErrMkTransaction (..)
-    , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
     , PreSelection (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
     , TransactionLayer (..)
-    , TxFeeAndChange (..)
     , ValidityIntervalExplicit
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
-    , mapTxFeeAndChange
     )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
-import Cardano.Wallet.Write.Tx
-    ( FeePerByte (..) )
 import Control.Arrow
     ( left, second )
 import Control.Lens
@@ -177,7 +163,7 @@ import Data.Bifunctor
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
@@ -202,7 +188,6 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -638,191 +623,6 @@ mkDelegationCertificates da cred =
             ]
        Quit -> [toStakeKeyDeregCert cred]
 
--- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
--- with the lovelace/byte cost given by the 'FeePolicy'.
---
--- Outputs values in the range of [0, 8 * perByteFee]
---
--- >>> let p = FeePolicy (Quantity 0) (Quantity 44)
---
--- >>> costOfIncreasingCoin p 4294967295 1
--- Coin 176 -- (9 bytes - 5 bytes) * 44 lovelace/byte
---
--- >>> costOfIncreasingCoin p 0 4294967296
--- Coin 352 -- 8 bytes * 44 lovelace/byte
-costOfIncreasingCoin
-    :: FeePerByte
-    -> Coin -- ^ Original coin
-    -> Coin -- ^ Increment
-    -> Coin
-costOfIncreasingCoin (FeePerByte perByte) from delta =
-    costOfCoin (from <> delta) `Coin.difference` costOfCoin from
-  where
-    costOfCoin = Coin . (perByte *) . unTxSize . sizeOfCoin
-
--- The maximum cost increase 'costOfIncreasingCoin' can return, which is the
--- cost of 8 bytes.
-maximumCostOfIncreasingCoin :: FeePerByte -> Coin
-maximumCostOfIncreasingCoin (FeePerByte perByte) = Coin $ 8 * perByte
-
--- | Calculate the size of a coin when encoded as CBOR.
-sizeOfCoin :: Coin -> TxSize
-sizeOfCoin (Coin c)
-    | c >= 4_294_967_296 = TxSize 9 -- c >= 2^32
-    | c >=        65_536 = TxSize 5 -- c >= 2^16
-    | c >=           256 = TxSize 3 -- c >= 2^ 8
-    | c >=            24 = TxSize 2
-    | otherwise          = TxSize 1
-
--- | Distributes a surplus transaction balance between the given change
--- outputs and the given fee. This function is aware of the fact that
--- any increase in a 'Coin' value could increase the size and fee
--- requirement of a transaction.
---
--- When comparing the original fee and change outputs to the adjusted
--- fee and change outputs, this function guarantees that:
---
---    - The number of the change outputs remains constant;
---
---    - The fee quantity either remains the same or increases.
---
---    - For each change output:
---        - the ada quantity either remains constant or increases.
---        - non-ada quantities remain the same.
---
---    - The surplus is conserved:
---        The total increase in the fee and change ada quantities is
---        exactly equal to the surplus.
---
---    - Any increase in cost is covered:
---        If the total cost has increased by 𝛿c, then the fee value
---        will have increased by at least 𝛿c.
---
--- If the cost of distributing the provided surplus is greater than the
--- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
--- the provided surplus is greater or equal to
--- @maximumCostOfIncreasingCoin feePolicy@, the function will always
--- return 'Right'.
-distributeSurplus
-    :: FeePerByte
-    -> Coin
-    -- ^ Surplus transaction balance to distribute.
-    -> TxFeeAndChange [TxOut]
-    -- ^ Original fee and change outputs.
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-    -- ^ Adjusted fee and change outputs.
-distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
-    distributeSurplusDelta feePolicy surplus
-        (mapTxFeeAndChange id (fmap TxOut.coin) fc)
-    <&> mapTxFeeAndChange
-        (fee <>)
-        (zipWith (flip TxOut.addCoin) change)
-
-distributeSurplusDelta
-    :: FeePerByte
-    -> Coin
-    -- ^ Surplus to distribute
-    -> TxFeeAndChange [Coin]
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange [Coin])
-distributeSurplusDelta feePolicy surplus (TxFeeAndChange fee change) =
-    case change of
-        changeHead : changeTail ->
-            distributeSurplusDeltaWithOneChangeCoin feePolicy surplus
-                (TxFeeAndChange fee changeHead)
-            <&> mapTxFeeAndChange id
-                (: (Coin 0 <$ changeTail))
-        [] ->
-            burnSurplusAsFees feePolicy surplus
-                (TxFeeAndChange fee ())
-            <&> mapTxFeeAndChange id
-                (\() -> [])
-
-distributeSurplusDeltaWithOneChangeCoin
-    :: FeePerByte
-    -> Coin -- ^ Surplus to distribute
-    -> TxFeeAndChange Coin
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange Coin)
-distributeSurplusDeltaWithOneChangeCoin
-    feePolicy surplus fc@(TxFeeAndChange fee0 change0) =
-    let
-        -- We calculate the maximum possible fee increase, by assuming the
-        -- **entire** surplus is added to the change.
-        extraFee = findFixpointIncreasingFeeBy $
-            costOfIncreasingCoin feePolicy change0 surplus
-    in
-        case surplus `Coin.subtract` extraFee of
-            Just extraChange ->
-                Right $ TxFeeAndChange
-                    { fee = extraFee
-                    , change = extraChange
-                    }
-            Nothing ->
-                -- The fee increase from adding the surplus to the change was
-                -- greater than the surplus itself. This could happen if the
-                -- surplus is small.
-                burnSurplusAsFees feePolicy surplus
-                    (mapTxFeeAndChange id (const ()) fc)
-                        <&> mapTxFeeAndChange id (\() -> Coin 0)
-  where
-    -- Increasing the fee may itself increase the fee. If that is the case, this
-    -- function will increase the fee further. The process repeats until the fee
-    -- doesn't need to be increased.
-    --
-    -- The function will always converge because the result of
-    -- 'costOfIncreasingCoin' is bounded to @8 * feePerByte@.
-    --
-    -- On mainnet it seems unlikely that the function would recurse more than
-    -- one time, and certainly not more than twice. If the protocol parameters
-    -- are updated to allow for slightly more expensive txs, it might be
-    -- possible to hit the boundary at ≈4 ada where the fee would need 9 bytes
-    -- rather than 5. This is already the largest boundary.
-    --
-    -- Note that both the argument and the result of this function are increases
-    -- relative to 'fee0'.
-    --
-    -- == Example ==
-    --
-    -- In this more extreme example the fee is increased from increasing the fee
-    -- itself:
-    --
-    -- @@
-    --     let fee0 = 23
-    --     let feePolicy = -- 300 lovelace / byte
-    --
-    --     findFixpointIncreasingFeeBy 1 = go 0 1
-    --     -- Recurse:
-    --     = go (0 + 1) (costOfIncreasingCoin feePolicy (23 + 0) 1)
-    --     = go (0 + 1) 300
-    --     -- Recurse:
-    --     = go (1 + 300) (costOfIncreasingCoin feePolicy (23 + 1) 300)
-    --     = go 301 300
-    --     = go (301 + 300) (costOfIncreasingCoin feePolicy (23 + 301) 300)
-    --     = go (301 + 300) 0
-    --     = go 601 0
-    --     = 601
-    -- @@
-    findFixpointIncreasingFeeBy = go mempty
-      where
-        go :: Coin -> Coin -> Coin
-        go c (Coin 0) = c
-        go c increase = go
-            (c <> increase)
-            (costOfIncreasingCoin feePolicy (c <> fee0) increase)
-
-burnSurplusAsFees
-    :: FeePerByte
-    -> Coin -- Surplus
-    -> TxFeeAndChange ()
-    -> Either ErrMoreSurplusNeeded (TxFeeAndChange ())
-burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
-    | shortfall > Coin 0 =
-        Left $ ErrMoreSurplusNeeded shortfall
-    | otherwise =
-        Right $ TxFeeAndChange surplus ()
-  where
-    costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
-    shortfall = costOfBurningSurplus `Coin.difference` surplus
-
 withShelleyBasedEra
     :: forall a
      . AnyCardanoEra
@@ -1221,8 +1021,3 @@ explicitFees era = case era of
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
     ShelleyBasedEraConway ->
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInConwayEra
-
--- Small helper function for summing values. Given a list of values, get the sum
--- of the values, after the given function has been applied to each value.
-sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
-sumVia f = F.foldl' (\t -> (t +) . f) 0

@@ -237,23 +237,19 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
-    , costOfIncreasingCoin
-    , distributeSurplus
-    , distributeSurplusDelta
-    , maximumCostOfIncreasingCoin
+    , TxWitnessTagFor (txWitnessTagFor)
     , mkByronWitness
     , mkDelegationCertificates
     , mkShelleyWitness
     , mkUnsignedTx
     , newTransactionLayer
-    , sizeOfCoin
     , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrMoreSurplusNeeded (..)
+    , TransactionCtx (..)
     , TransactionLayer (..)
-    , TxFeeAndChange (TxFeeAndChange)
+    , Withdrawal (..)
     , WitnessCountCtx (..)
     )
 import Cardano.Wallet.Unsafe
@@ -271,16 +267,23 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrMoreSurplusNeeded (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
+    , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , costOfIncreasingCoin
+    , distributeSurplus
+    , distributeSurplusDelta
+    , maximumCostOfIncreasingCoin
     , noTxUpdate
     , posAndNegFromCardanoValue
+    , sizeOfCoin
     , updateTx
     )
 import Cardano.Wallet.Write.Tx.Balance.CoinSelection
