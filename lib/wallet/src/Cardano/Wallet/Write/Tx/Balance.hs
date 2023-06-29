@@ -109,19 +109,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
-    ( KeyWitnessCount (..)
-    , TxSkeleton (..)
-    , distributeSurplus
-    , estimateKeyWitnessCount
-    , estimateSignedTxSize
-    , estimateTxCost
-    )
+    ( distributeSurplus, estimateKeyWitnessCount, estimateSignedTxSize )
 import Cardano.Wallet.Transaction
     ( ErrMoreSurplusNeeded (..), TxFeeAndChange (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
+    , KeyWitnessCount
     , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
@@ -143,6 +138,8 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
+import Cardano.Wallet.Write.Tx.Balance.CoinSelection
+    ( TxSkeleton (..), estimateTxCost )
 import Cardano.Wallet.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.TimeTranslation

@@ -106,7 +106,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , UnableToConstructChangeError (..)
-    , emptySkeleton
     , selectionDelta
     )
 import Cardano.Wallet
@@ -234,27 +233,23 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet )
+
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
-    , KeyWitnessCount (KeyWitnessCount)
-    , TxSkeleton (..)
+    , KeyWitnessCount (..)
     , TxWitnessTag (..)
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
     , estimateKeyWitnessCount
     , estimateSignedTxSize
-    , estimateTxSize
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
     , mkShelleyWitness
-    , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
     , sizeOfCoin
-    , sizeOf_BootstrapWitnesses
-    , txConstraints
     , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
@@ -263,7 +258,6 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
     , WitnessCountCtx (..)
-    , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
@@ -291,6 +285,12 @@ import Cardano.Wallet.Write.Tx.Balance
     , noTxUpdate
     , posAndNegFromCardanoValue
     , updateTx
+    )
+import Cardano.Wallet.Write.Tx.Balance.CoinSelection
+    ( TxSkeleton (..)
+    , estimateTxSize
+    , sizeOf_BootstrapWitnesses
+    , txConstraints
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )
@@ -1679,10 +1679,8 @@ dummyProtocolParameters = ProtocolParameters
 --------------------------------------------------------------------------------
 
 emptyTxSkeleton :: TxSkeleton
-emptyTxSkeleton = mkTxSkeleton
-    TxWitnessShelleyUTxO
-    defaultTransactionCtx
-    emptySkeleton
+emptyTxSkeleton =
+    TxSkeleton TxWitnessShelleyUTxO 0 [] [] Nothing
 
 mockFeePolicy :: FeePolicy
 mockFeePolicy = LinearFee $ LinearFunction
