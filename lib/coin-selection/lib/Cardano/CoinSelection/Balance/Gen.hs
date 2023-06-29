@@ -7,24 +7,34 @@ module Cardano.CoinSelection.Balance.Gen
     , shrinkSelectionSkeleton
     , shrinkSelectionStrategy
     )
-    where
+where
 
 import Prelude
 
 import Cardano.CoinSelection.Balance
-    ( SelectionSkeleton (..), SelectionStrategy (..) )
+    ( SelectionSkeleton (..)
+    , SelectionStrategy (..)
+    )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+    ( SelectionContext (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Test.QuickCheck
     ( Gen
     , NonNegative (..)
@@ -37,7 +47,10 @@ import Test.QuickCheck
     , suchThat
     )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, (<:>), (<@>) )
+    ( genericRoundRobinShrink
+    , (<:>)
+    , (<@>)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Set as Set
@@ -47,29 +60,32 @@ import qualified Data.Set as Set
 --------------------------------------------------------------------------------
 
 genSelectionSkeleton :: Gen (Address ctx) -> Gen (SelectionSkeleton ctx)
-genSelectionSkeleton genAddress = SelectionSkeleton
-    <$> genSkeletonInputCount
-    <*> genSkeletonOutputs
-    <*> genSkeletonChange
+genSelectionSkeleton genAddress =
+    SelectionSkeleton
+        <$> genSkeletonInputCount
+        <*> genSkeletonOutputs
+        <*> genSkeletonChange
   where
     genSkeletonInputCount =
         getNonNegative <$> arbitrary @(NonNegative Int)
     genSkeletonOutputs =
         listOf genSkeletonOutput
-    genSkeletonOutput = (,)
-        <$> genAddress
-        <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
+    genSkeletonOutput =
+        (,)
+            <$> genAddress
+            <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
 
 shrinkSelectionSkeleton
     :: (Address ctx -> [Address ctx])
     -> (SelectionSkeleton ctx -> [SelectionSkeleton ctx])
-shrinkSelectionSkeleton shrinkAddress = genericRoundRobinShrink
-    <@> shrinkSkeletonInputCount
-    <:> shrinkSkeletonOutputs
-    <:> shrinkSkeletonChange
-    <:> Nil
+shrinkSelectionSkeleton shrinkAddress =
+    genericRoundRobinShrink
+        <@> shrinkSkeletonInputCount
+        <:> shrinkSkeletonOutputs
+        <:> shrinkSkeletonChange
+        <:> Nil
   where
     shrinkSkeletonInputCount =
         shrink @Int
@@ -78,11 +94,12 @@ shrinkSelectionSkeleton shrinkAddress = genericRoundRobinShrink
     shrinkSkeletonOutput =
         genericRoundRobinShrink
             <@> shrinkAddress
-            <:> filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange
+            <:> filter tokenBundleHasNonZeroCoin
+            . shrinkTokenBundleSmallRange
             <:> Nil
     shrinkSkeletonChange =
-        shrinkList $
-        shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
+        shrinkList
+            $ shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0

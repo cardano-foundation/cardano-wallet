@@ -7,41 +7,47 @@
 -- License: Apache-2.0
 --
 -- Defines the 'MinimumUTxO' type and related functions.
---
 module Cardano.Wallet.Primitive.Types.MinimumUTxO
-    (
-    -- * Types
+    ( -- * Types
       MinimumUTxO (..)
     , MinimumUTxOForShelleyBasedEra (..)
 
-    -- * Constructor functions
+      -- * Constructor functions
     , minimumUTxONone
     , minimumUTxOConstant
     , minimumUTxOForShelleyBasedEra
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Api.Shelley
-    ( ShelleyBasedEra, ShelleyLedgerEra, fromLedgerPParams )
+    ( ShelleyBasedEra
+    , ShelleyLedgerEra
+    , fromLedgerPParams
+    )
 import Cardano.Ledger.Core
-    ( PParams )
+    ( PParams
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Fmt
-    ( Buildable (..), blockListF )
+    ( Buildable (..)
+    , blockListF
+    )
 
 --------------------------------------------------------------------------------
 -- The 'MinimumUTxO' type
 --------------------------------------------------------------------------------
 
 -- | Represents a function for computing minimum UTxO values.
---
 data MinimumUTxO where
     MinimumUTxONone
         :: MinimumUTxO
@@ -61,14 +67,16 @@ instance Buildable MinimumUTxO where
     build = \case
         MinimumUTxONone ->
             "MinimumUTxONone"
-        MinimumUTxOConstant c -> blockListF
-            [ "MinimumUTxOConstant"
-            , build c
-            ]
-        MinimumUTxOForShelleyBasedEraOf m -> blockListF
-            [ "MinimumUTxOForShelleyBasedEra"
-            , build m
-            ]
+        MinimumUTxOConstant c ->
+            blockListF
+                [ "MinimumUTxOConstant"
+                , build c
+                ]
+        MinimumUTxOForShelleyBasedEraOf m ->
+            blockListF
+                [ "MinimumUTxOForShelleyBasedEra"
+                , build m
+                ]
 
 instance Eq MinimumUTxO where
     (==) = (==) `on` show
@@ -86,21 +94,22 @@ instance Show MinimumUTxO where
     show = \case
         MinimumUTxONone ->
             "MinimumUTxONone"
-        MinimumUTxOConstant c -> unwords
-            [ "MinimumUTxOConstant"
-            , show c
-            ]
-        MinimumUTxOForShelleyBasedEraOf pp -> unwords
-            [ "MinimumUTxOForShelleyBasedEra"
-            , show pp
-            ]
+        MinimumUTxOConstant c ->
+            unwords
+                [ "MinimumUTxOConstant"
+                , show c
+                ]
+        MinimumUTxOForShelleyBasedEraOf pp ->
+            unwords
+                [ "MinimumUTxOForShelleyBasedEra"
+                , show pp
+                ]
 
 --------------------------------------------------------------------------------
 -- The 'MinimumUTxOForShelleyBasedEra' type
 --------------------------------------------------------------------------------
 
 -- | Represents a minimum UTxO function that is specific to a Shelley-based era.
---
 data MinimumUTxOForShelleyBasedEra where
     MinimumUTxOForShelleyBasedEra
         :: ShelleyBasedEra era
@@ -108,10 +117,11 @@ data MinimumUTxOForShelleyBasedEra where
         -> MinimumUTxOForShelleyBasedEra
 
 instance Buildable MinimumUTxOForShelleyBasedEra where
-    build (MinimumUTxOForShelleyBasedEra era _) = blockListF
-        [ "MinimumUTxOForShelleyBasedEra"
-        , show era
-        ]
+    build (MinimumUTxOForShelleyBasedEra era _) =
+        blockListF
+            [ "MinimumUTxOForShelleyBasedEra"
+            , show era
+            ]
 
 instance Eq MinimumUTxOForShelleyBasedEra where
     (==) = (==) `on` show
@@ -120,10 +130,11 @@ instance NFData MinimumUTxOForShelleyBasedEra where
     rnf (MinimumUTxOForShelleyBasedEra !_ !_) = rnf ()
 
 instance Show MinimumUTxOForShelleyBasedEra where
-    show (MinimumUTxOForShelleyBasedEra era pp) = unwords
-        [ show era
-        , show (fromLedgerPParams era pp)
-        ]
+    show (MinimumUTxOForShelleyBasedEra era pp) =
+        unwords
+            [ show era
+            , show (fromLedgerPParams era pp)
+            ]
 
 --------------------------------------------------------------------------------
 -- Constructor functions
@@ -140,5 +151,5 @@ minimumUTxOForShelleyBasedEra
     -> PParams (ShelleyLedgerEra era)
     -> MinimumUTxO
 minimumUTxOForShelleyBasedEra era pp =
-    MinimumUTxOForShelleyBasedEraOf $
-    MinimumUTxOForShelleyBasedEra era pp
+    MinimumUTxOForShelleyBasedEraOf
+        $ MinimumUTxOForShelleyBasedEra era pp

@@ -5,47 +5,60 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     ( integrity
     , txIntegrity
     )
-
- where
+where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Ledger.Alonzo.Tx
-    ( ScriptIntegrityHash )
+    ( ScriptIntegrityHash
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.SafeHash
-    ( SafeToHash (originalBytes) )
+    ( SafeToHash (originalBytes)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), EraValue, K (..), applyEraFun, extractEraValue )
+    ( EraFun (..)
+    , EraValue
+    , K (..)
+    , applyEraFun
+    , extractEraValue
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx )
+    ( Tx
+    )
 import Cardano.Wallet.Read.Tx.Integrity
-    ( Integrity (..), getEraIntegrity )
+    ( Integrity (..)
+    , getEraIntegrity
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Data.Maybe.Strict
-    ( StrictMaybe, strictMaybeToMaybe )
+    ( StrictMaybe
+    , strictMaybeToMaybe
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
 integrity :: EraFun Integrity (K (Maybe (W.Hash "ScriptIntegrity")))
-integrity = EraFun
-    { byronFun = noIntegrity
-    , shelleyFun = noIntegrity
-    , allegraFun = noIntegrity
-    , maryFun = noIntegrity
-    , alonzoFun = yesIntegrity
-    , babbageFun = yesIntegrity
-    , conwayFun = yesIntegrity
-    }
+integrity =
+    EraFun
+        { byronFun = noIntegrity
+        , shelleyFun = noIntegrity
+        , allegraFun = noIntegrity
+        , maryFun = noIntegrity
+        , alonzoFun = yesIntegrity
+        , babbageFun = yesIntegrity
+        , conwayFun = yesIntegrity
+        }
   where
     noIntegrity = const $ K Nothing
     yesIntegrity (Integrity es) = K $ getIntegrity es

@@ -8,8 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
-
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns#-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.DB.Store.Transactions.StoreSpec
     ( spec
@@ -18,11 +17,15 @@ module Cardano.Wallet.DB.Store.Transactions.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB
-    ( DBOpen (..) )
+    ( DBOpen (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
     ( StoreProperty
     , assertWith
@@ -32,9 +35,12 @@ import Cardano.Wallet.DB.Fixtures
     , withStoreProp
     )
 import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..), withDBOpenFromFile )
+    ( DefaultFieldValues (..)
+    , withDBOpenFromFile
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+    ( TxId (TxId)
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns
     , decorateTxInsForRelation
@@ -51,43 +57,70 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , mkTxSet
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
-    ( mkStoreTransactions, selectTx )
+    ( mkStoreTransactions
+    , selectTx
+    )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTxCBOR )
+    ( mkTxCBOR
+    )
 import Cardano.Wallet.Flavor
-    ( Flavored (..), WalletFlavorS (..) )
+    ( Flavored (..)
+    , WalletFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..) )
+    ( ActiveSlotCoefficient (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( roundTripTxCBor )
+    ( roundTripTxCBor
+    )
 import Control.Monad
-    ( forM_, (<=<), (>=>) )
+    ( forM_
+    , (<=<)
+    , (>=>)
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL
-    ( set )
+    ( set
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Store
-    ( Store (..) )
+    ( Store (..)
+    )
 import System.Directory
-    ( copyFile )
+    ( copyFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 import Test.Hspec
-    ( Spec, around, describe, it, shouldBe )
+    ( Spec
+    , around
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -101,11 +134,16 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( forAllM, pick )
+    ( forAllM
+    , pick
+    )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -117,14 +155,14 @@ spec :: Spec
 spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Transactions store" $ do
-            it "respects store laws" $
-                property . prop_StoreTransactionsLaws
-        describe "selectTx" $
-            it "retrieves transaction that was written" $
-                property . prop_selectTx
-        describe "mkQueryStoreTxSet" $
-            it "respects query law" $
-                property . prop_QueryLaw
+            it "respects store laws"
+                $ property . prop_StoreTransactionsLaws
+        describe "selectTx"
+            $ it "retrieves transaction that was written"
+            $ property . prop_selectTx
+        describe "mkQueryStoreTxSet"
+            $ it "respects query law"
+            $ property . prop_QueryLaw
 
     describe "TxOut decoration" $ do
         it
@@ -137,37 +175,47 @@ spec = do
             $ property prop_DecorateLinksTxCollateralsToTxOuts
 
     describe "Transaction CBOR roundtrip" $ do
-        it "works on a golden files" $ forM_
-            [ Flavored SharedWallet
-                "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
-            , Flavored ShelleyWallet
-                "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
-            , Flavored ByronWallet
-                "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
-            ] $ \(Flavored wF relPath) ->
-            withinCopiedFile relPath
-                $ \path -> withDBOpenFromFile wF nullTracer
-                    (Just defaultFieldValues) path
-                $ \DBOpen{atomically} -> do
-                    Right (TxSet txSet) <-
-                        atomically $ loadS mkStoreTransactions
-                    let cbors =
-                            mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
-                        Right cbors' = mapM roundTripTxCBor cbors
-                    cbors `shouldBe` cbors'
+        it "works on a golden files"
+            $ forM_
+                [ Flavored
+                    SharedWallet
+                    "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
+                , Flavored
+                    ShelleyWallet
+                    "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
+                , Flavored
+                    ByronWallet
+                    "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
+                ]
+            $ \(Flavored wF relPath) ->
+                withinCopiedFile relPath
+                    $ \path -> withDBOpenFromFile
+                        wF
+                        nullTracer
+                        (Just defaultFieldValues)
+                        path
+                        $ \DBOpen{atomically} -> do
+                            Right (TxSet txSet) <-
+                                atomically $ loadS mkStoreTransactions
+                            let cbors =
+                                    mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
+                                Right cbors' = mapM roundTripTxCBor cbors
+                            cbors `shouldBe` cbors'
 
 defaultFieldValues :: DefaultFieldValues
-defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
-    , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 1_000_000
-    , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 2_000_000
-    }
+defaultFieldValues =
+    DefaultFieldValues
+        { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+        , defaultDesiredNumberOfPool = 0
+        , defaultMinimumUTxOValue = Coin 1_000_000
+        , defaultHardforkEpoch = Nothing
+        , defaultKeyDeposit = Coin 2_000_000
+        }
 
 withinCopiedFile
     :: FilePath
-    -> (FilePath -> IO a) -> IO a
+    -> (FilePath -> IO a)
+    -> IO a
 withinCopiedFile dbName action = do
     let orig = $(getTestData) </> dbName
     withSystemTempDirectory "migration-db" $ \dir -> do
@@ -178,32 +226,33 @@ withinCopiedFile dbName action = do
 {-----------------------------------------------------------------------------
     Properties
 ------------------------------------------------------------------------------}
-{- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
-We do this by generating a set of random transactions, as well as a
-"guinea pig" transaction, whose inputs point to all outputs
-of the other transactions. Then, we expect that decorating the history
-will decorate all inputs of the "guinea pig" transaction.
--}
+
+-- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
+-- We do this by generating a set of random transactions, as well as a
+-- "guinea pig" transaction, whose inputs point to all outputs
+-- of the other transactions. Then, we expect that decorating the history
+-- will decorate all inputs of the "guinea pig" transaction.
 prop_DecorateLinksTxInToTxOuts :: Property
 prop_DecorateLinksTxInToTxOuts = do
     let transactionsGen = do
             transactions :: [W.Tx] <- arbitrary
             guinea <- arbitrary
             let guineaId = TxId $ txId guinea
-                (txins, txouts) = unzip
-                    [ (txin, txout)
-                    | Tx{txId,outputs} <- transactions
-                    , (txOutPos, txout) <- zip [0 ..] outputs
-                    , let txin = (W.TxIn txId txOutPos, Just txout)
-                    ]
+                (txins, txouts) =
+                    unzip
+                        [ (txin, txout)
+                        | Tx{txId, outputs} <- transactions
+                        , (txOutPos, txout) <- zip [0 ..] outputs
+                        , let txin = (W.TxIn txId txOutPos, Just txout)
+                        ]
             let guinea' = set #resolvedInputs txins guinea
             pure (guineaId, mkTxSet (guinea' : transactions), txouts)
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxInsForRelation' (TxSet pile) guinea
-        in  [ lookupTxOut (mkTxOutKey txin) deco | txin <- ins guinea]
-            === map Just txouts
+            deco = decorateTxInsForRelation' (TxSet pile) guinea
+        in  [lookupTxOut (mkTxOutKey txin) deco | txin <- ins guinea]
+                === map Just txouts
 
 decorateTxInsForRelation' :: TxSet -> TxRelation -> DecoratedTxIns
 decorateTxInsForRelation' (TxSet relations) =
@@ -211,34 +260,34 @@ decorateTxInsForRelation' (TxSet relations) =
   where
     lookupTx txid = Identity $ Map.lookup txid relations
 
-{- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
-We do this by generating a set of random transactions, as well as a
-"guinea pig" transaction, whose collaterals point to all outputs
-of the other transactions. Then, we expect that decorating the history
-will decorate all collaterals of the "guinea pig" transaction.
--}
+-- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
+-- We do this by generating a set of random transactions, as well as a
+-- "guinea pig" transaction, whose collaterals point to all outputs
+-- of the other transactions. Then, we expect that decorating the history
+-- will decorate all collaterals of the "guinea pig" transaction.
 prop_DecorateLinksTxCollateralsToTxOuts :: Property
 prop_DecorateLinksTxCollateralsToTxOuts = do
     let transactionsGen = do
             transactions :: [W.Tx] <- arbitrary
             guinea <- arbitrary
             let guineaId = TxId $ txId guinea
-                (txins, txouts) = unzip
-                    [ (txin, txout)
-                    | Tx{txId,outputs} <- transactions
-                    , (txOutPos, txout) <- zip [0 ..] outputs
-                    , let txin = (W.TxIn txId txOutPos, Just txout)
-                    ]
+                (txins, txouts) =
+                    unzip
+                        [ (txin, txout)
+                        | Tx{txId, outputs} <- transactions
+                        , (txOutPos, txout) <- zip [0 ..] outputs
+                        , let txin = (W.TxIn txId txOutPos, Just txout)
+                        ]
             let guinea' = set #resolvedCollateralInputs txins guinea
             pure (guineaId, mkTxSet (guinea' : transactions), txouts)
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxInsForRelation' (TxSet pile) guinea
+            deco = decorateTxInsForRelation' (TxSet pile) guinea
         in  [ lookupTxOut (mkTxOutKeyCollateral txcol) deco
             | txcol <- collateralIns guinea
             ]
-            === map Just txouts
+                === map Just txouts
 
 prop_StoreTransactionsLaws :: StoreProperty
 prop_StoreTransactionsLaws db =
@@ -266,11 +315,10 @@ prop_QueryLaw =
                 assertWith "GetTxById" <=< runQ
                     $ queryLaw TxSet.mkQueryStoreTxSet txs
                     $ TxSet.GetByTxId txId
-                index <- pick $ choose (0,5)
+                index <- pick $ choose (0, 5)
                 assertWith "GetTxOut" <=< runQ
                     $ queryLaw TxSet.mkQueryStoreTxSet txs
-                    $ TxSet.GetTxOut (txId,index)
-
+                    $ TxSet.GetTxOut (txId, index)
 
 {-----------------------------------------------------------------------------
     Generators
@@ -290,9 +338,9 @@ genDeltas (TxSet pile) =
             ( 2
             , DeleteTxs
                 <$> if null pile
-                    then Set.singleton. TxId <$> arbitrary
+                    then Set.singleton . TxId <$> arbitrary
                     else do
-                        k <- elements [1,3]
+                        k <- elements [1, 3]
                         fmap Set.fromList . vectorOf k . elements $ Map.keys pile
             )
         ]

@@ -8,7 +8,6 @@
 -- License: Apache-2.0
 --
 -- This module provides the 'RewardAccount' data type.
---
 module Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     ) where
@@ -16,30 +15,41 @@ module Cardano.Wallet.Primitive.Types.RewardAccount
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (String) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (String)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import Data.Text as T
 
 -- | A reward account is used in group-type addresses for delegation.
 --
 -- It is either the public key or script hash.
---
 data RewardAccount
     = FromKeyHash ByteString
     | FromScriptHash ByteString
@@ -60,9 +70,9 @@ instance FromText RewardAccount where
     fromText txt = case T.splitAt 1 txt of
         ("s", txt') ->
             fmap (FromScriptHash . getHash @"RewardAccount") . fromText $ txt'
-        _ -> -- Hash is hex encoded so 0-9af
+        _ ->
+            -- Hash is hex encoded so 0-9af
             fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt
-
 
 instance ToJSON RewardAccount where
     toJSON = String . toText

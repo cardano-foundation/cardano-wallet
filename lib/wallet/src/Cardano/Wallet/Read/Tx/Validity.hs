@@ -1,23 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw validity interval data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Validity
     ( getEraValidity
     , ValidityType
     , Validity (..)
     )
-    where
+where
 
 import Prelude
 
@@ -31,23 +29,32 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Allegra.Scripts
-    ( ValidityInterval )
+    ( ValidityInterval
+    )
 import Cardano.Ledger.Allegra.TxBody
-    ( vldtTxBodyL )
+    ( vldtTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( ttlTxBodyL )
+    ( ttlTxBodyL
+    )
 import Cardano.Ledger.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 type family ValidityType era where
     ValidityType ByronEra = ()
@@ -60,8 +67,8 @@ type family ValidityType era where
 
 newtype Validity era = Validity (ValidityType era)
 
-deriving instance Show (ValidityType era) => Show (Validity era)
-deriving instance Eq (ValidityType era) => Eq (Validity era)
+deriving instance (Show (ValidityType era)) => Show (Validity era)
+deriving instance (Eq (ValidityType era)) => Eq (Validity era)
 
 -- | Extract validity data from tx for any available era.
 getEraValidity :: EraFun Tx Validity

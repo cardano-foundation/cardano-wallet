@@ -16,11 +16,14 @@ module Cardano.Wallet.Delegation.Model
 import Prelude
 
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Data.Map.Strict as Map
 
@@ -68,5 +71,5 @@ cut :: (slot -> Bool) -> Change slot pool
 cut op = fst . Map.spanAntitone op
 
 -- | Status of the delegation at a given slot.
-status :: Ord slot => slot -> History slot pool -> Status pool
+status :: (Ord slot) => slot -> History slot pool -> Status pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)

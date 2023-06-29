@@ -9,17 +9,16 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Api
-    ( AlonzoEra )
+    ( AlonzoEra
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , auxDataTxL
@@ -37,31 +36,46 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Wallet.Read.Eras
-    ( alonzo, inject )
+    ( alonzo
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromAlonzoMetadata )
+    ( fromAlonzoMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( alonzoMint, fromLedgerScriptHash )
+    ( alonzoMint
+    , fromLedgerScriptHash
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromAlonzoTxOut )
+    ( fromAlonzoTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript )
+    ( toWalletScript
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -74,7 +88,10 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
@@ -105,14 +122,14 @@ fromAlonzoTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
-            (,Nothing) . fromShelleyTxIn <$>
-                tx ^.. bodyTxL.collateralInputsTxBodyL.folded
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL . collateralInputsTxBodyL . folded
         , outputs =
-            fromAlonzoTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
+            fromAlonzoTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
         , collateralOutput =
             Nothing -- Collateral outputs are not supported in Alonzo.
         , withdrawals =
@@ -127,15 +144,15 @@ fromAlonzoTx tx witCtx =
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        (fromAlonzoScriptMap <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        (fromAlonzoScriptMap <$> tx ^.. witsTxL . scriptTxWitsL . folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )
   where
     (assetsToMint, assetsToBurn) =
-        alonzoMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
+        alonzoMint (tx ^. bodyTxL . mintTxBodyL) (tx ^. witsTxL)
 
     fromAlonzoScriptMap = \case
         Alonzo.TimelockScript script ->

@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Cardano.Wallet.DB.Store.WalletState.StoreSpec
     ( spec
     ) where
@@ -12,23 +13,36 @@ module Cardano.Wallet.DB.Store.WalletState.StoreSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext, runQuery )
+    ( ForeignKeysSetting (..)
+    , SqliteContext
+    , runQuery
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, InitialCheckpoint (..) )
+    ( GenState
+    , InitialCheckpoint (..)
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWalletTable, withDBInMemory )
+    ( initializeWalletTable
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..) )
+    ( PersistAddressBook (..)
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
-    ( genDeltaCheckpoints )
+    ( genDeltaCheckpoints
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (WalletInfo) )
+    ( WalletInfo (WalletInfo)
+    )
 import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet )
+    ( mkStoreWallet
+    )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -37,30 +51,47 @@ import Cardano.Wallet.DB.WalletState
     , fromWallet
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+    ( dummyGenesisParameters
+    )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavorS (ShelleyWallet) )
+    ( KeyOf
+    , WalletFlavorS (ShelleyWallet)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( WalletId (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, (^.) )
+    ( over
+    , (^.)
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property )
+    ( Arbitrary (..)
+    , Property
+    , property
+    )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Update" $ do
-            it "mkStoreWallet" $
-                property . prop_StoreWallet (ShelleyWallet @'Mainnet)
+            it "mkStoreWallet"
+                $ property . prop_StoreWallet (ShelleyWallet @'Mainnet)
 
 {-------------------------------------------------------------------------------
     Properties
@@ -68,7 +99,8 @@ spec = do
 prop_StoreWallet
     :: forall s
      . ( PersistAddressBook s
-       , GenState s, Eq (KeyOf s 'RootK XPrv)
+       , GenState s
+       , Eq (KeyOf s 'RootK XPrv)
        )
     => WalletFlavorS s
     -> SqliteContext
@@ -92,7 +124,7 @@ prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
         pure $ fromJust . fromGenesis cp0 $ wi
 
 genDeltaWalletState
-    :: GenState s
+    :: (GenState s)
     => GenDelta (DeltaWalletState s)
 genDeltaWalletState =
     withCheckpoints $ genDeltaCheckpoints genCheckpoint

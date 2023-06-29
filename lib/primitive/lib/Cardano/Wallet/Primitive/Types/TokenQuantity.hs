@@ -4,8 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.TokenQuantity
-    (
-      -- * Type
+    ( -- * Type
       TokenQuantity (..)
 
       -- * Values
@@ -30,46 +29,73 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
 
       -- * Unsafe operations
     , unsafeSubtract
-
     ) where
 
 import Prelude hiding
-    ( pred, subtract, succ )
+    ( pred
+    , subtract
+    , succ
+    )
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural, partitionNatural )
+    ( equipartitionNatural
+    , partitionNatural
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive ((</>)), RightReductive )
+    ( LeftReductive
+    , Reductive ((</>))
+    , RightReductive
+    )
 import Data.Monoid.GCD
-    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+    ( GCDMonoid
+    , LeftGCDMonoid
+    , RightGCDMonoid
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)), OverlappingGCDMonoid )
+    ( Monus ((<\>))
+    , OverlappingGCDMonoid
+    )
 import Data.Monoid.Null
-    ( MonoidNull )
+    ( MonoidNull
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 --------------------------------------------------------------------------------
 -- Type
@@ -83,9 +109,8 @@ import Quiet
 --
 -- When we build support for minting and burning of tokens, we may wish to
 -- parameterize this type and allow it to be instantiated with 'Integer'.
---
 newtype TokenQuantity = TokenQuantity
-    { unTokenQuantity :: Natural }
+    {unTokenQuantity :: Natural}
     deriving stock (Eq, Ord, Generic)
     deriving anyclass (NFData, Hashable)
     deriving (Read, Show) via Quiet TokenQuantity
@@ -129,14 +154,12 @@ add = (<>)
 -- | Subtracts the second token quantity from the first.
 --
 -- Returns 'Nothing' if the first quantity is less than the second quantity.
---
 subtract :: TokenQuantity -> TokenQuantity -> Maybe TokenQuantity
 subtract = (</>)
 
 -- | Finds the predecessor of a given token quantity.
 --
 -- Returns 'Nothing' if the given quantity is zero.
---
 pred :: TokenQuantity -> Maybe TokenQuantity
 pred = (`subtract` TokenQuantity 1)
 
@@ -147,19 +170,16 @@ pred = (`subtract` TokenQuantity 1)
 -- Satisfies the following property:
 --
 -- >>> predZero x == x `difference` 1
---
 predZero :: TokenQuantity -> TokenQuantity
 predZero = fromMaybe zero . pred
 
 -- | Finds the successor of a given token quantity.
---
 succ :: TokenQuantity -> TokenQuantity
 succ = (`add` TokenQuantity 1)
 
 -- | Subtracts the second token quantity from the first.
 --
 -- Returns 'zero' if the first quantity is less than the second quantity.
---
 difference :: TokenQuantity -> TokenQuantity -> TokenQuantity
 difference = (<\>)
 
@@ -173,7 +193,6 @@ difference = (<\>)
 -- into 'n' smaller quantities whose values differ by no more than 1.
 --
 -- The resultant list is sorted in ascending order.
---
 equipartition
     :: TokenQuantity
     -- ^ The token quantity to be partitioned.
@@ -190,7 +209,6 @@ equipartition q =
 --   the number of weights.
 --
 -- Returns 'Nothing' if the sum of weights is equal to zero.
---
 partition
     :: TokenQuantity
     -- ^ The token quantity to be partitioned.
@@ -198,10 +216,10 @@ partition
     -- ^ The list of weights.
     -> Maybe (NonEmpty TokenQuantity)
     -- ^ The partitioned token quantities.
-partition c
-    = fmap (fmap TokenQuantity)
-    . partitionNatural (unTokenQuantity c)
-    . fmap unTokenQuantity
+partition c =
+    fmap (fmap TokenQuantity)
+        . partitionNatural (unTokenQuantity c)
+        . fmap unTokenQuantity
 
 -- | Partitions a token quantity into a number of parts, where the size of each
 --   part is proportional (modulo rounding) to the size of its corresponding
@@ -217,7 +235,6 @@ partition c
 -- 'equipartition' satisfying the following property:
 --
 -- prop> partitionDefault q ws == equipartition q ws
---
 partitionDefault
     :: TokenQuantity
     -- ^ The token quantity to be partitioned.
@@ -246,6 +263,5 @@ isZero = (== zero)
 -- Pre-condition: the first quantity is not less than the second quantity.
 --
 -- Throws a run-time exception if the pre-condition is violated.
---
 unsafeSubtract :: TokenQuantity -> TokenQuantity -> TokenQuantity
 unsafeSubtract (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x - y

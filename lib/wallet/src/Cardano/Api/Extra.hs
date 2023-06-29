@@ -20,24 +20,25 @@ import Cardano.Api
     , Tx
     )
 import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
+    ( ShelleyLedgerEra
+    )
 
 import qualified Cardano.Ledger.Core as Ledger
 
 -- | Helper function for more easily creating an existential
 -- @InAnyCardanoEra Tx@.
-inAnyCardanoEra :: IsCardanoEra era => Tx era -> InAnyCardanoEra Tx
+inAnyCardanoEra :: (IsCardanoEra era) => Tx era -> InAnyCardanoEra Tx
 inAnyCardanoEra = InAnyCardanoEra cardanoEra
 
 -- Not exposed by cardano-api
 unbundleLedgerShelleyBasedProtocolParams
-  :: ShelleyBasedEra era
-  -> BundledProtocolParameters era
-  -> Ledger.PParams (ShelleyLedgerEra era)
+    :: ShelleyBasedEra era
+    -> BundledProtocolParameters era
+    -> Ledger.PParams (ShelleyLedgerEra era)
 unbundleLedgerShelleyBasedProtocolParams = \case
-  ShelleyBasedEraShelley -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
-  ShelleyBasedEraAllegra -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
-  ShelleyBasedEraMary -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
-  ShelleyBasedEraAlonzo -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
-  ShelleyBasedEraBabbage -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
-  ShelleyBasedEraConway -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraShelley -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraAllegra -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraMary -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraAlonzo -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraBabbage -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+    ShelleyBasedEraConway -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp

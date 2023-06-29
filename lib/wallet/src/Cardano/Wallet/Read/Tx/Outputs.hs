@@ -1,23 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw era-dependent tx outputs data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Outputs
     ( OutputsType
     , Outputs (..)
     , getEraOutputs
     )
-    where
+where
 
 import Prelude
 
@@ -31,25 +29,36 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.TxOut
-    ( AlonzoTxOut )
+    ( AlonzoTxOut
+    )
 import Cardano.Ledger.Babbage.TxOut
-    ( BabbageTxOut )
+    ( BabbageTxOut
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, outputsTxBodyL )
+    ( bodyTxL
+    , outputsTxBodyL
+    )
 import Cardano.Ledger.Shelley.TxOut
-    ( ShelleyTxOut )
+    ( ShelleyTxOut
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardAllegra
     , StandardAlonzo
@@ -72,8 +81,8 @@ type family OutputsType era where
 
 newtype Outputs era = Outputs (OutputsType era)
 
-deriving instance Show (OutputsType era) => Show (Outputs era)
-deriving instance Eq (OutputsType era) => Eq (Outputs era)
+deriving instance (Show (OutputsType era)) => Show (Outputs era)
+deriving instance (Eq (OutputsType era)) => Eq (Outputs era)
 
 getEraOutputs :: EraFun Tx Outputs
 getEraOutputs =

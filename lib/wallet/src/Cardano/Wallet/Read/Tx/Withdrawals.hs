@@ -1,17 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw withdrawals data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Withdrawals
     ( WithdrawalsType
     , Withdrawals (..)
@@ -32,42 +30,52 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Address
-    ( RewardAcnt, unWithdrawals )
+    ( RewardAcnt
+    , unWithdrawals
+    )
 import Cardano.Ledger.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, withdrawalsTxBodyL )
+    ( bodyTxL
+    , withdrawalsTxBodyL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 
 import qualified Cardano.Ledger.Api as Ledger
 
 type family WithdrawalsType era where
-  WithdrawalsType ByronEra = ()
-  WithdrawalsType ShelleyEra = RewardWithdrawals
-  WithdrawalsType AllegraEra = RewardWithdrawals
-  WithdrawalsType MaryEra = RewardWithdrawals
-  WithdrawalsType AlonzoEra = RewardWithdrawals
-  WithdrawalsType BabbageEra = RewardWithdrawals
-  WithdrawalsType ConwayEra = RewardWithdrawals
+    WithdrawalsType ByronEra = ()
+    WithdrawalsType ShelleyEra = RewardWithdrawals
+    WithdrawalsType AllegraEra = RewardWithdrawals
+    WithdrawalsType MaryEra = RewardWithdrawals
+    WithdrawalsType AlonzoEra = RewardWithdrawals
+    WithdrawalsType BabbageEra = RewardWithdrawals
+    WithdrawalsType ConwayEra = RewardWithdrawals
 
 type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
 
-newtype Withdrawals era
-    = Withdrawals { withdrawalsAsMap :: WithdrawalsType era }
+newtype Withdrawals era = Withdrawals {withdrawalsAsMap :: WithdrawalsType era}
 
-deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
-deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
+deriving instance (Show (WithdrawalsType era)) => Show (Withdrawals era)
+deriving instance (Eq (WithdrawalsType era)) => Eq (Withdrawals era)
 
 -- | Extract withdrawals from tx for any available era.
 getEraWithdrawals :: EraFun Tx Withdrawals
@@ -85,7 +93,7 @@ getEraWithdrawals =
     withdrawals = onTx $ Withdrawals . shelleyWithdrawals
 
 shelleyWithdrawals
-    :: Ledger.EraTx era
+    :: (Ledger.EraTx era)
     => Ledger.Tx era
     -> Map (RewardAcnt (Ledger.EraCrypto era)) Coin
 shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)

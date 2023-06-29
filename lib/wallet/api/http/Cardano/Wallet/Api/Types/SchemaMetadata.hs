@@ -5,8 +5,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -23,15 +23,22 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata )
+    ( TxMetadata
+    )
 import Control.Applicative
-    ( liftA2, (<|>) )
+    ( liftA2
+    , (<|>)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Prelude
 
 -- | A tag to select the json codec
@@ -40,10 +47,10 @@ data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
 
 -- | A wrapper to drive the json codec of metadata
 data TxMetadataWithSchema = TxMetadataWithSchema
-    { -- | How to codec the metadata into json
-        txMetadataWithSchema_schema :: TxMetadataSchema
-    , -- | The metadata
-        txMetadataWithSchema_metadata :: TxMetadata
+    { txMetadataWithSchema_schema :: TxMetadataSchema
+    -- ^ How to codec the metadata into json
+    , txMetadataWithSchema_metadata :: TxMetadata
+    -- ^ The metadata
     }
     deriving (Show, Eq, Generic, NFData)
 
@@ -51,18 +58,16 @@ data TxMetadataWithSchema = TxMetadataWithSchema
 --
 -- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
 -- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
---
 parseSimpleMetadataFlag :: Bool -> TxMetadataSchema
 parseSimpleMetadataFlag flag =
     if flag
-    then TxMetadataNoSchema
-    else TxMetadataDetailedSchema
+        then TxMetadataNoSchema
+        else TxMetadataDetailedSchema
 
 -- | Produces a Boolean "simple-metadata" API flag.
 --
 -- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
 -- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
---
 toSimpleMetadataFlag :: TxMetadataSchema -> Bool
 toSimpleMetadataFlag = \case
     TxMetadataNoSchema -> True
@@ -81,13 +86,14 @@ noSchemaMetadata :: TxMetadata -> TxMetadataWithSchema
 noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
 
 instance FromJSON TxMetadataWithSchema where
-    parseJSON = liftA2
-        (<|>)
-        (fmap detailedMetadata
-            . either (fail . displayError) pure
-            . metadataFromJson TxMetadataJsonDetailedSchema
-        )
-        (fmap noSchemaMetadata
-            . either (fail . displayError) pure
-            . metadataFromJson TxMetadataJsonNoSchema
-        )
+    parseJSON =
+        liftA2
+            (<|>)
+            ( fmap detailedMetadata
+                . either (fail . displayError) pure
+                . metadataFromJson TxMetadataJsonDetailedSchema
+            )
+            ( fmap noSchemaMetadata
+                . either (fail . displayError) pure
+                . metadataFromJson TxMetadataJsonNoSchema
+            )

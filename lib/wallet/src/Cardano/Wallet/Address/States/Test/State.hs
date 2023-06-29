@@ -7,13 +7,17 @@ module Cardano.Wallet.Address.States.Test.State where
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth )
+    ( Depth
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 newtype
     TestState

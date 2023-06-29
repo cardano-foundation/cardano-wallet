@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Address.Derivation.MintBurnSpec
@@ -11,53 +10,104 @@ module Cardano.Wallet.Address.Derivation.MintBurnSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xprvToBytes )
+    ( XPrv
+    , XPub
+    , xprvToBytes
+    )
 import Cardano.Address.Script
-    ( KeyHash, KeyRole (..), Script (..), keyHashFromBytes )
+    ( KeyHash
+    , KeyRole (..)
+    , Script (..)
+    , keyHashFromBytes
+    )
 import Cardano.Mnemonic
-    ( Mnemonic, SomeMnemonic (..) )
+    ( Mnemonic
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey, scriptSlotIntervals, withinSlotInterval )
+    ( derivePolicyPrivateKey
+    , scriptSlotIntervals
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.DerivationSpec
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Keys.MintBurn
-    ( derivePolicyKeyAndHash )
+    ( derivePolicyKeyAndHash
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, hashVerificationKey, liftRawKey, publicKey )
+    ( getRawKey
+    , hashVerificationKey
+    , liftRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeBech32Decode, unsafeFromHex, unsafeMkMnemonic, unsafeXPrv )
+    ( unsafeBech32Decode
+    , unsafeFromHex
+    , unsafeMkMnemonic
+    , unsafeXPrv
+    )
 import Codec.Binary.Encoding
-    ( fromBase16 )
+    ( fromBase16
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Interval
-    ( Interval, empty, (<=..<=) )
+    ( Interval
+    , empty
+    , (<=..<=)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.TypeNats
-    ( KnownNat )
+    ( KnownNat
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, vector, (=/=), (===) )
+    ( Arbitrary (..)
+    , Property
+    , property
+    , vector
+    , (=/=)
+    , (===)
+    )
 import Test.QuickCheck.Arbitrary
-    ( arbitraryBoundedEnum )
+    ( arbitraryBoundedEnum
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -76,36 +126,45 @@ spec = do
                 "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
         let hashKey = toKeyHash hashKeyTxt
 
-        it "Policy key derivation from master key works for various indexes" $
-            property prop_keyDerivationFromXPrv
-        it "Policy public key hash matches private key" $
-            property prop_keyHashMatchesXPrv
-        it "The same index always returns the same private key" $
-            property prop_keyDerivationSameIndexSameKey
-        it "A different index always returns a different private key" $
-            property prop_keyDerivationDiffIndexDiffKey
-        it "Using derivePolicyKeyAndHash returns same private key as using derivePolicyPrivateKey" $
-            property prop_keyDerivationRelation
+        it "Policy key derivation from master key works for various indexes"
+            $ property prop_keyDerivationFromXPrv
+        it "Policy public key hash matches private key"
+            $ property prop_keyHashMatchesXPrv
+        it "The same index always returns the same private key"
+            $ property prop_keyDerivationSameIndexSameKey
+        it "A different index always returns a different private key"
+            $ property prop_keyDerivationDiffIndexDiffKey
+        it "Using derivePolicyKeyAndHash returns same private key as using derivePolicyPrivateKey"
+            $ property prop_keyDerivationRelation
         it "Deriving a policy key with cardano-address returns same result as cardano-wallet" $ do
-            unit_comparePolicyKeys goldenTestMnemonic (Index 0x80000000)
+            unit_comparePolicyKeys
+                goldenTestMnemonic
+                (Index 0x80000000)
                 "acct_xsk1tqqqnvtppk994fxm05wtlvp6uuu58srue9st8ew29vr5mxxf89tj2ze05pm8qjkyfetpzl58jkgx6dd3s96szhyxfajpc2gxv22xef0ems2cnvh5d5xjemgghg9m8489v6c9rvnt9za2pruyrtkp5y77l5ujxeug"
-                -- Child key 1855H/1815H/0H generated by cardano-address CLI
-                -- from test mnemonic
-            unit_comparePolicyKeyHashes goldenTestMnemonic (Index 0x80000000)
+            -- Child key 1855H/1815H/0H generated by cardano-address CLI
+            -- from test mnemonic
+            unit_comparePolicyKeyHashes
+                goldenTestMnemonic
+                (Index 0x80000000)
                 "6adb501348b99cd38172f355615d7c1d0b9d1e3fc69b565b85a98127"
-                -- Hash of child key 1855H/1815H/0H generated by cardano-address
-                -- CLI from test mnemonic
-            unit_comparePolicyKeys goldenTestMnemonic (Index 0x80000010)
+            -- Hash of child key 1855H/1815H/0H generated by cardano-address
+            -- CLI from test mnemonic
+            unit_comparePolicyKeys
+                goldenTestMnemonic
+                (Index 0x80000010)
                 "acct_xsk1rprds8krzhspy8xhkupk2270hzkexmkdga98zv5ns4x9d9kf89t4qp438a26sn62wsfldthkrvnwe6vnetuehgxyxt4hm46zsw03mknuwef0afcljmultpjjwx8zqm0ftnfkqucwvf5qr4gved6h3gnyeqcsur4p"
-                -- Child key 1855H/1815H/16H generated by cardano-address CLI
-                -- from test mnemonic
-            unit_comparePolicyKeyHashes goldenTestMnemonic (Index 0x80000010)
+            -- Child key 1855H/1815H/16H generated by cardano-address CLI
+            -- from test mnemonic
+            unit_comparePolicyKeyHashes
+                goldenTestMnemonic
+                (Index 0x80000010)
                 "1f07b91d27ca1cbf911ccfba254315733b3c908575ce2fc29d4c6965"
-                -- Hash of child key 1855H/1815H/16H generated by
-                -- cardano-address CLI from test mnemonic
+        -- Hash of child key 1855H/1815H/16H generated by
+        -- cardano-address CLI from test mnemonic
 
         it "Unit tests for scriptSlotIntervals" $ do
-            unit_scriptSlotIntervals hashKey
+            unit_scriptSlotIntervals
+                hashKey
                 [I.Finite @Natural 0 <=..<= maxSlot]
 
             unit_scriptSlotIntervals
@@ -133,7 +192,7 @@ spec = do
                 [minSlot <=..<= I.Finite @Natural 120]
 
             unit_scriptSlotIntervals
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , ActiveFromSlot 100
                     , ActiveUntilSlot 120
@@ -142,16 +201,16 @@ spec = do
                 [I.Finite @Natural 100 <=..<= I.Finite @Natural 120]
 
             unit_scriptSlotIntervals
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , ActiveFromSlot 120
                     , ActiveUntilSlot 100
                     ]
                 )
-                [ empty ]
+                [empty]
 
             unit_scriptSlotIntervals
-                (RequireAnyOf
+                ( RequireAnyOf
                     [ hashKey
                     , ActiveFromSlot 120
                     , ActiveUntilSlot 100
@@ -162,7 +221,8 @@ spec = do
                 ]
 
             unit_scriptSlotIntervals
-                (RequireSomeOf 1
+                ( RequireSomeOf
+                    1
                     [ hashKey
                     , ActiveFromSlot 120
                     , ActiveUntilSlot 100
@@ -199,94 +259,110 @@ spec = do
                 False
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , ActiveFromSlot 100
-                    , ActiveUntilSlot 120])
+                    , ActiveUntilSlot 120
+                    ]
+                )
                 (SlotNo 100, SlotNo 120)
                 True
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , ActiveFromSlot 100
-                    , ActiveUntilSlot 120])
+                    , ActiveUntilSlot 120
+                    ]
+                )
                 (SlotNo 90, SlotNo 100)
                 False
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , ActiveFromSlot 100
-                    , ActiveUntilSlot 120])
+                    , ActiveUntilSlot 120
+                    ]
+                )
                 (SlotNo 110, SlotNo 130)
                 False
 
             unit_withinSlotInterval
-                (RequireAnyOf
+                ( RequireAnyOf
                     [ hashKey
                     , ActiveFromSlot 120
-                    , ActiveUntilSlot 100])
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 (SlotNo 90, SlotNo 110)
                 False
 
             unit_withinSlotInterval
-                (RequireAnyOf
+                ( RequireAnyOf
                     [ hashKey
                     , ActiveFromSlot 120
-                    , ActiveUntilSlot 100])
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 (SlotNo 110, SlotNo 150)
                 False
 
             unit_withinSlotInterval
-                (RequireAnyOf
+                ( RequireAnyOf
                     [ hashKey
                     , ActiveFromSlot 120
-                    , ActiveUntilSlot 100])
+                    , ActiveUntilSlot 100
+                    ]
+                )
                 (SlotNo 120, SlotNo 150)
                 True
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , RequireAnyOf
                         [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
                         , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
                         ]
-                    ])
+                    ]
+                )
                 (SlotNo 60, SlotNo 90)
                 True
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , RequireAnyOf
                         [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
                         , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
                         ]
-                    ])
+                    ]
+                )
                 (SlotNo 155, SlotNo 190)
                 True
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , RequireAnyOf
                         [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
                         , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
                         ]
-                    ])
+                    ]
+                )
                 (SlotNo 155, SlotNo 210)
                 False
 
             unit_withinSlotInterval
-                (RequireAllOf
+                ( RequireAllOf
                     [ hashKey
                     , RequireAnyOf
                         [ RequireAllOf [ActiveFromSlot 50, ActiveUntilSlot 100]
                         , RequireAllOf [ActiveFromSlot 150, ActiveUntilSlot 200]
                         ]
-                    ])
+                    ]
+                )
                 (SlotNo 110, SlotNo 120)
                 False
 
@@ -318,15 +394,16 @@ prop_keyHashMatchesXPrv
     -> Index 'Hardened 'PolicyK
     -> Property
 prop_keyHashMatchesXPrv pwd masterkey policyIx =
-    hashVerificationKey ShelleyKeyS
-      CA.Payment
-      (getPublicKey rndKey)
-      === keyHash
+    hashVerificationKey
+        ShelleyKeyS
+        CA.Payment
+        (getPublicKey rndKey)
+        === keyHash
   where
     rndKey :: ShelleyKey 'PolicyK XPrv
     keyHash :: KeyHash
-    (rndKey, keyHash)
-        = derivePolicyKeyAndHash ShelleyKeyS pwd masterkey policyIx
+    (rndKey, keyHash) =
+        derivePolicyKeyAndHash ShelleyKeyS pwd masterkey policyIx
 
     getPublicKey
         :: ShelleyKey 'PolicyK XPrv
@@ -335,8 +412,8 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
         publicKey kF
             . (liftRawKey kF :: XPrv -> ShelleyKey 'CredFromScriptK XPrv)
             . getRawKey kF
-        where
-            kF = ShelleyKeyS
+      where
+        kF = ShelleyKeyS
 
 prop_keyDerivationSameIndexSameKey
     :: Passphrase "encryption"
@@ -377,14 +454,18 @@ prop_keyDerivationRelation pwd masterkey policyIx =
     key1 = derivePolicyPrivateKey pwd masterkey policyIx
 
     keyAndHash :: (ShelleyKey 'PolicyK XPrv, KeyHash)
-    keyAndHash = derivePolicyKeyAndHash ShelleyKeyS
-        pwd (liftRawKey ShelleyKeyS masterkey) policyIx
+    keyAndHash =
+        derivePolicyKeyAndHash
+            ShelleyKeyS
+            pwd
+            (liftRawKey ShelleyKeyS masterkey)
+            policyIx
 
     key2 :: XPrv
     key2 = getRawKey ShelleyKeyS $ fst keyAndHash
 
 unit_comparePolicyKeys
-    :: KnownNat n
+    :: (KnownNat n)
     => Mnemonic n
     -> Index 'Hardened 'PolicyK
     -> Text
@@ -394,7 +475,7 @@ unit_comparePolicyKeys mnemonic index goldenPolicyKeyBech32 =
         walletRootKey :: XPrv
         walletRootKey =
             Shelley.generateKeyFromSeed (SomeMnemonic mnemonic, Nothing) mempty
-            & getRawKey ShelleyKeyS
+                & getRawKey ShelleyKeyS
 
         walletPolicyKey :: XPrv
         walletPolicyKey =
@@ -410,7 +491,7 @@ unit_comparePolicyKeys mnemonic index goldenPolicyKeyBech32 =
         walletPolicyKeyBytes `shouldBe` goldenPolicyKeyBytes
 
 unit_comparePolicyKeyHashes
-    :: KnownNat n
+    :: (KnownNat n)
     => Mnemonic n
     -> Index 'Hardened 'PolicyK
     -> Text
@@ -420,13 +501,15 @@ unit_comparePolicyKeyHashes mnemonic index goldenPolicyKeyHashHex =
         walletRootKey :: XPrv
         walletRootKey =
             Shelley.generateKeyFromSeed (SomeMnemonic mnemonic, Nothing) mempty
-            & getRawKey ShelleyKeyS
+                & getRawKey ShelleyKeyS
 
         walletPolicyData :: (ShelleyKey 'PolicyK XPrv, KeyHash)
         walletPolicyData =
-            derivePolicyKeyAndHash ShelleyKeyS
-              (mempty :: Passphrase pwd)
-                (liftRawKey ShelleyKeyS walletRootKey) index
+            derivePolicyKeyAndHash
+                ShelleyKeyS
+                (mempty :: Passphrase pwd)
+                (liftRawKey ShelleyKeyS walletRootKey)
+                index
 
         walletPolicyKeyHashBytes :: BS.ByteString
         walletPolicyKeyHashBytes = CA.digest $ snd walletPolicyData
@@ -449,19 +532,38 @@ unit_withinSlotInterval
     -> (SlotNo, SlotNo)
     -> Bool
     -> Expectation
-unit_withinSlotInterval script (from,to) expectation =
+unit_withinSlotInterval script (from, to) expectation =
     withinSlotInterval from to (scriptSlotIntervals @KeyHash script)
-    `shouldBe` expectation
+        `shouldBe` expectation
 
 goldenTestMnemonic :: Mnemonic 24
-goldenTestMnemonic = unsafeMkMnemonic @24
-    [ "history", "stable", "illegal", "holiday"
-    , "push", "company", "aisle", "fly"
-    , "check", "dog", "earn", "admit"
-    , "smart", "rotate", "nation", "goddess"
-    , "fix", "wheat", "scissors", "across"
-    , "crazy", "actor", "fence", "baby"
-    ]
+goldenTestMnemonic =
+    unsafeMkMnemonic @24
+        [ "history"
+        , "stable"
+        , "illegal"
+        , "holiday"
+        , "push"
+        , "company"
+        , "aisle"
+        , "fly"
+        , "check"
+        , "dog"
+        , "earn"
+        , "admit"
+        , "smart"
+        , "rotate"
+        , "nation"
+        , "goddess"
+        , "fix"
+        , "wheat"
+        , "scissors"
+        , "across"
+        , "crazy"
+        , "actor"
+        , "fence"
+        , "baby"
+        ]
 
 instance Arbitrary XPrv where
     arbitrary = unsafeXPrv . BS.pack <$> vector 128

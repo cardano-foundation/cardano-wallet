@@ -7,33 +7,30 @@
 -- This implementation is based on the implementation of 'Data.Map.Strict'
 -- provided by the 'containers' package, but provides an extra guarantee
 -- that the map contains at least one entry at all times.
---
 module Data.Map.Strict.NonEmptyMap
-    (
-    -- * Map type
+    ( -- * Map type
       NonEmptyMap
 
-    -- * Construction
+      -- * Construction
     , fromList
     , fromMap
     , singleton
 
-    -- * Deconstruction
+      -- * Deconstruction
     , toList
     , toMap
 
-    -- * Insertion
+      -- * Insertion
     , insert
 
-    -- * Deletion
+      -- * Deletion
     , delete
 
-    -- * Lookup
+      -- * Lookup
     , lookup
 
-    -- * Combination
+      -- * Combination
     , unionWith
-
-   ) where
+    ) where
 
 import Data.Map.Strict.NonEmptyMap.Internal

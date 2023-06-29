@@ -11,10 +11,10 @@
 -- Dummy implementation of the database-layer, using 'MVar'. This may be good
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
-
 module Cardano.Wallet.DB.Pure.Layer
     ( newDBFresh
-    , throwErrorReadDB) where
+    , throwErrorReadDB
+    ) where
 
 import Prelude
 
@@ -38,27 +38,49 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( TimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId, wholeRange )
+    ( SortOrder (..)
+    , WalletId
+    , wholeRange
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo (..) )
+    ( TransactionInfo (..)
+    )
 import Control.Monad
-    ( join, unless )
+    ( join
+    , unless
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..) )
+    ( MonadIO (..)
+    , MonadUnliftIO (..)
+    )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( throwE
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import UnliftIO.Exception
-    ( Exception, throwIO )
+    ( Exception
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( MVar, isEmptyMVar, modifyMVar, newEmptyMVar, newMVar, putMVar, withMVar )
+    ( MVar
+    , isEmptyMVar
+    , modifyMVar
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , withMVar
+    )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -75,113 +97,103 @@ newDBFresh timeInterpreter wid = do
     db <- newEmptyMVar
 
     let
-      dbf = DBFresh
-            {
-              bootDBLayer = \sp -> do
-                t <- isEmptyMVar db
-                unless t $ throwE ErrWalletAlreadyInitialized
-                liftIO
-                    $ putMVar db
-                    $ mInitializeWallet wid sp
-                pure dbl
-            , loadDBLayer = error "loadDBLayer: not implemented"
-              }
-      dbl = DBLayer
+        dbf =
+            DBFresh
+                { bootDBLayer = \sp -> do
+                    t <- isEmptyMVar db
+                    unless t $ throwE ErrWalletAlreadyInitialized
+                    liftIO
+                        $ putMVar db
+                        $ mInitializeWallet wid sp
+                    pure dbl
+                , loadDBLayer = error "loadDBLayer: not implemented"
+                }
+        dbl =
+            DBLayer
+                { {-----------------------------------------------------------------------
+                                                Wallets
+                  -----------------------------------------------------------------------}
 
+                  walletId_ = wid
+                , {-----------------------------------------------------------------------
+                                              Checkpoints
+                  -----------------------------------------------------------------------}
+                  walletState = error "MVar.walletState: not implemented"
+                , transactionsStore = error "MVar.transactionsStore: not implemented"
+                , readCheckpoint = throwErrorReadDB db mReadCheckpoint
+                , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
+                , rollbackTo =
+                    noErrorAlterDB db
+                        . mRollbackTo
+                , {-----------------------------------------------------------------------
+                                             Wallet Metadata
+                  -----------------------------------------------------------------------}
 
-        {-----------------------------------------------------------------------
-                                      Wallets
-        -----------------------------------------------------------------------}
+                  -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        { walletId_ = wid
+                  {-----------------------------------------------------------------------
+                                               Tx History
+                  -----------------------------------------------------------------------}
 
-        {-----------------------------------------------------------------------
-                                    Checkpoints
-        -----------------------------------------------------------------------}
-        , walletState = error "MVar.walletState: not implemented"
-        , transactionsStore = error "MVar.transactionsStore: not implemented"
+                  putTxHistory = noErrorAlterDB db . mPutTxHistory
+                , readTransactions = \minWithdrawal order range mstatus _mlimit ->
+                    fmap (fromMaybe [])
+                        $ readDBMaybe db
+                        $ mReadTxHistory
+                            timeInterpreter
+                            minWithdrawal
+                            order
+                            range
+                            mstatus
+                , -- TODO: shift implementation to mGetTx
+                  getTx = \tid -> do
+                    txInfos <-
+                        fmap (fromMaybe [])
+                            $ readDBMaybe db
+                            $ mReadTxHistory
+                                timeInterpreter
+                                Nothing
+                                Descending
+                                wholeRange
+                                Nothing
+                    let txPresent (TransactionInfo{..}) = txInfoId == tid
+                    case filter txPresent txInfos of
+                        [] -> pure Nothing
+                        t : _ -> pure $ Just t
+                , {-----------------------------------------------------------------------
+                                                 Pending Tx
+                  -----------------------------------------------------------------------}
 
-        , readCheckpoint = throwErrorReadDB db mReadCheckpoint
+                  resubmitTx =
+                    error "resubmitTx not tested in State Machine tests"
+                , rollForwardTxSubmissions =
+                    error "rollForwardTxSubmissions not tested in State Machine tests"
+                , {-----------------------------------------------------------------------
+                                           Protocol Parameters
+                  -----------------------------------------------------------------------}
 
-        , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
+                  readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
+                , {-----------------------------------------------------------------------
+                                           Delegation Rewards
+                  -----------------------------------------------------------------------}
 
-        , rollbackTo = noErrorAlterDB db
-            . mRollbackTo
+                  putDelegationRewardBalance =
+                    noErrorAlterDB db
+                        . mPutDelegationRewardBalance
+                , readDelegationRewardBalance =
+                    fromMaybe (Coin 0)
+                        <$> readDBMaybe db mReadDelegationRewardBalance
+                , {-----------------------------------------------------------------------
+                                                Execution
+                  -----------------------------------------------------------------------}
 
-        {-----------------------------------------------------------------------
-                                   Wallet Metadata
-        -----------------------------------------------------------------------}
-
-        -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
-
-
-        {-----------------------------------------------------------------------
-                                     Tx History
-        -----------------------------------------------------------------------}
-
-        , putTxHistory = noErrorAlterDB db . mPutTxHistory
-
-        , readTransactions = \minWithdrawal order range mstatus _mlimit ->
-            fmap (fromMaybe []) $
-            readDBMaybe db $
-                mReadTxHistory
-                    timeInterpreter
-                    minWithdrawal
-                    order
-                    range
-                    mstatus
-
-        -- TODO: shift implementation to mGetTx
-        , getTx = \tid -> do
-                txInfos <- fmap (fromMaybe [])
-                    $ readDBMaybe db
-                    $ mReadTxHistory
-                        timeInterpreter
-                        Nothing
-                        Descending
-                        wholeRange
-                        Nothing
-                let txPresent (TransactionInfo{..}) = txInfoId == tid
-                case filter txPresent txInfos of
-                    [] -> pure Nothing
-                    t:_ -> pure $ Just t
-
-        {-----------------------------------------------------------------------
-                                       Pending Tx
-        -----------------------------------------------------------------------}
-
-        , resubmitTx =
-            error "resubmitTx not tested in State Machine tests"
-
-        , rollForwardTxSubmissions =
-            error "rollForwardTxSubmissions not tested in State Machine tests"
-
-        {-----------------------------------------------------------------------
-                                 Protocol Parameters
-        -----------------------------------------------------------------------}
-
-        , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
-
-        {-----------------------------------------------------------------------
-                                 Delegation Rewards
-        -----------------------------------------------------------------------}
-
-        , putDelegationRewardBalance = noErrorAlterDB db
-            . mPutDelegationRewardBalance
-
-        , readDelegationRewardBalance = fromMaybe (Coin 0)
-            <$> readDBMaybe db mReadDelegationRewardBalance
-
-        {-----------------------------------------------------------------------
-                                      Execution
-        -----------------------------------------------------------------------}
-
-        , atomically = \action -> withMVar lock $ \() -> action
-        }
+                  atomically = \action -> withMVar lock $ \() -> action
+                }
     pure dbf
 
 -- | Read the database, but return 'Nothing' if the operation fails.
-readDBMaybe :: MonadUnliftIO f
+readDBMaybe
+    :: (MonadUnliftIO f)
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> f (Maybe a)
@@ -191,7 +203,7 @@ readDBMaybe db = fmap (either (const Nothing) Just) . readDB db
 -- Failures are converted to 'Err' using the provided function.
 -- Failures that cannot be converted are rethrown as 'MVarDBError'.
 alterDB
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => (Err -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database WalletId s xprv)
@@ -207,7 +219,7 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
     bubble (Right a, !db') = pure (db', Right a)
 
 noErrorAlterDB
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> m a
@@ -218,7 +230,7 @@ noErrorAlterDB db op = do
         Right a -> pure a
 
 throwErrorReadDB
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv b
     -> m b
@@ -230,7 +242,7 @@ throwErrorReadDB db op = do
 
 -- | Run a query operation on the model database.
 readDB
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => MVar (Database WalletId s xprv)
     -- ^ The database variable
     -> ModelOp WalletId s xprv a

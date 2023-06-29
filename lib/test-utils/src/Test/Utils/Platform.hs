@@ -7,7 +7,6 @@
 -- License: Apache-2.0
 --
 -- Utility function for making test suites pass on difficult platforms.
-
 module Test.Utils.Platform
     ( -- * Skipping tests
       skipOnWindows
@@ -15,46 +14,57 @@ module Test.Utils.Platform
     , pendingOnWine
     , pendingOnMacOS
 
-    -- * OS detection
+      -- * OS detection
     , whenWindows
     , isWindows
     , isMacOS
     , getIsWine
 
-    -- * Cross-platform compatibility
+      -- * Cross-platform compatibility
     , nullFileName
     ) where
 
 import Prelude
 
 import Control.Monad
-    ( when )
+    ( when
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import Test.Hspec.Core.Spec
-    ( ResultStatus (..), pendingWith )
+    ( ResultStatus (..)
+    , pendingWith
+    )
 import Test.Hspec.Expectations
-    ( Expectation, HasCallStack )
+    ( Expectation
+    , HasCallStack
+    )
 import UnliftIO.Exception
-    ( IOException, handle, throwIO )
+    ( IOException
+    , handle
+    , throwIO
+    )
 import UnliftIO.Process
-    ( readProcessWithExitCode )
+    ( readProcessWithExitCode
+    )
 
-skipOnWindows :: HasCallStack => String -> Expectation
+skipOnWindows :: (HasCallStack) => String -> Expectation
 skipOnWindows _reason = whenWindows $ throwIO Success
 
-pendingOnWindows :: HasCallStack => String -> Expectation
+pendingOnWindows :: (HasCallStack) => String -> Expectation
 pendingOnWindows reason = whenWindows $ pendingWith reason
 
-pendingOnWine :: HasCallStack => String -> Expectation
+pendingOnWine :: (HasCallStack) => String -> Expectation
 pendingOnWine reason = whenWindows $ do
     wine <- getIsWine
     when wine $ pendingWith reason
 
 -- | Mark test pending if running on macOS
-pendingOnMacOS :: HasCallStack => String -> Expectation
+pendingOnMacOS :: (HasCallStack) => String -> Expectation
 pendingOnMacOS reason = when isMacOS $ pendingWith reason
 
 isWindows, isMacOS :: Bool

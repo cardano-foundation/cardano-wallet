@@ -10,22 +10,30 @@ module Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     , shrinkTxOut
     , shrinkTxOutCoin
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress, shrinkAddress )
+    ( genAddress
+    , shrinkAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genAssetIdLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( coinIsValidForTxOut
     , txOutMaxCoin
@@ -34,13 +42,24 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMinTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Test.QuickCheck
-    ( Gen, choose, frequency, oneof, shrinkMapBy, suchThat )
+    ( Gen
+    , choose
+    , frequency
+    , oneof
+    , shrinkMapBy
+    , suchThat
+    )
 import Test.QuickCheck.Extra
-    ( chooseNatural, shrinkInterleaved, shrinkNatural )
+    ( chooseNatural
+    , shrinkInterleaved
+    , shrinkNatural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -51,14 +70,17 @@ import qualified Data.List as L
 --------------------------------------------------------------------------------
 
 genTxOut :: Gen TxOut
-genTxOut = TxOut
-    <$> genAddress
-    <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
+genTxOut =
+    TxOut
+        <$> genAddress
+        <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
 shrinkTxOut :: TxOut -> [TxOut]
-shrinkTxOut (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
-    (a, shrinkAddress)
-    (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+shrinkTxOut (TxOut a b) =
+    uncurry TxOut
+        <$> shrinkInterleaved
+            (a, shrinkAddress)
+            (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
@@ -74,22 +96,25 @@ tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 --
 -- This can be useful when testing roundtrip conversions between different
 -- types.
---
 genTxOutCoin :: Gen Coin
-genTxOutCoin = frequency
-    [ (1, pure txOutMinCoin)
-    , (1, pure txOutMaxCoin)
-    , (8, Coin.fromNatural <$> chooseNatural
-        ( Coin.toNatural txOutMinCoin + 1
-        , Coin.toNatural txOutMaxCoin - 1
-        )
-      )
-    ]
+genTxOutCoin =
+    frequency
+        [ (1, pure txOutMinCoin)
+        , (1, pure txOutMaxCoin)
+        ,
+            ( 8
+            , Coin.fromNatural
+                <$> chooseNatural
+                    ( Coin.toNatural txOutMinCoin + 1
+                    , Coin.toNatural txOutMaxCoin - 1
+                    )
+            )
+        ]
 
 shrinkTxOutCoin :: Coin -> [Coin]
-shrinkTxOutCoin
-    = L.filter coinIsValidForTxOut
-    . shrinkMapBy Coin.fromNatural Coin.toNatural shrinkNatural
+shrinkTxOutCoin =
+    L.filter coinIsValidForTxOut
+        . shrinkMapBy Coin.fromNatural Coin.toNatural shrinkNatural
 
 --------------------------------------------------------------------------------
 -- Token bundles with fixed numbers of assets.
@@ -101,22 +126,25 @@ shrinkTxOutCoin
 --------------------------------------------------------------------------------
 
 genTxOutTokenBundle :: Int -> Gen TokenBundle
-genTxOutTokenBundle fixedAssetCount
-    = TokenBundle.fromFlatList
+genTxOutTokenBundle fixedAssetCount =
+    TokenBundle.fromFlatList
         <$> genTxOutCoin
         <*> replicateM fixedAssetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetIdLargeRange
-        <*> genTokenQuantity
-    genTokenQuantity = integerToTokenQuantity <$> oneof
-        [ pure $ tokenQuantityToInteger txOutMinTokenQuantity
-        , pure $ tokenQuantityToInteger txOutMaxTokenQuantity
-        , choose
-            ( tokenQuantityToInteger txOutMinTokenQuantity + 1
-            , tokenQuantityToInteger txOutMaxTokenQuantity - 1
-            )
-        ]
+    genAssetQuantity =
+        (,)
+            <$> genAssetIdLargeRange
+            <*> genTokenQuantity
+    genTokenQuantity =
+        integerToTokenQuantity
+            <$> oneof
+                [ pure $ tokenQuantityToInteger txOutMinTokenQuantity
+                , pure $ tokenQuantityToInteger txOutMaxTokenQuantity
+                , choose
+                    ( tokenQuantityToInteger txOutMinTokenQuantity + 1
+                    , tokenQuantityToInteger txOutMaxTokenQuantity - 1
+                    )
+                ]
       where
         tokenQuantityToInteger :: TokenQuantity -> Integer
         tokenQuantityToInteger = fromIntegral . unTokenQuantity

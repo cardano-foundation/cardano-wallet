@@ -20,17 +20,24 @@
 -- commands. Commands are turned into corresponding API calls, and submitted
 -- to an up-and-running server. Some commands do not require an active server
 -- and can be run "offline".
-
 module Main where
 
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Plugin
-    ( loadPlugin )
+    ( loadPlugin
+    )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
+    ( Trace
+    , appendName
+    , logDebug
+    , logError
+    , logInfo
+    , logNotice
+    )
 import Cardano.CLI
     ( LogOutput (..)
     , LoggingOptions
@@ -76,7 +83,10 @@ import Cardano.Wallet.Api.Client
     , walletClient
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference, Listen (..), TlsConfiguration )
+    ( HostPreference
+    , Listen (..)
+    , TlsConfiguration
+    )
 import Cardano.Wallet.Launch
     ( Mode (Normal)
     , NetworkConfiguration (..)
@@ -85,9 +95,14 @@ import Cardano.Wallet.Launch
     , parseGenesisData
     )
 import Cardano.Wallet.Logging
-    ( trMessage, transformTextTrace )
+    ( trMessage
+    , transformTextTrace
+    )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
+    ( PoolMetadataSource (..)
+    , Settings (..)
+    , TokenMetadataServer (..)
+    )
 import Cardano.Wallet.Shelley
     ( TracerSeverities
     , Tracers
@@ -98,30 +113,62 @@ import Cardano.Wallet.Shelley
     , tracerLabels
     )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Version
-    ( GitRevision, Version, showFullVersion )
+    ( GitRevision
+    , Version
+    , showFullVersion
+    )
 import Control.Applicative
-    ( Const (..), optional )
+    ( Const (..)
+    , optional
+    )
 import Control.Exception.Base
-    ( AsyncException (..) )
+    ( AsyncException (..)
+    )
 import Control.Monad
-    ( void, when )
+    ( void
+    , when
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Control.Tracer
-    ( contramap )
+    ( contramap
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Foldable
-    ( forM_ )
+    ( forM_
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
+
 -- See ADP-1910
+
+import Ouroboros.Network.Client.Wallet
+    ( tunedForMainnetPipeliningStrategy
+    )
+import System.Environment
+    ( getArgs
+    , getExecutablePath
+    )
+import System.Exit
+    ( ExitCode (..)
+    , exitWith
+    )
+import UnliftIO.Exception
+    ( withException
+    )
 import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod
@@ -136,14 +183,6 @@ import "optparse-applicative" Options.Applicative
     , progDesc
     , value
     )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
-import System.Environment
-    ( getArgs, getExecutablePath )
-import System.Exit
-    ( ExitCode (..), exitWith )
-import UnliftIO.Exception
-    ( withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Version as V
@@ -157,16 +196,18 @@ import qualified System.Info as I
 main :: IO ()
 main = withUtf8Encoding $ do
     enableWindowsANSI
-    runCli $ cli $ mempty
-        <> cmdServe
-        <> cmdMnemonic
-        <> cmdKey
-        <> cmdWallet cmdWalletCreate walletClient
-        <> cmdAddress addressClient
-        <> cmdTransaction transactionClient walletClient
-        <> cmdNetwork networkClient
-        <> cmdStakePool stakePoolClient
-        <> cmdVersion
+    runCli
+        $ cli
+        $ mempty
+            <> cmdServe
+            <> cmdMnemonic
+            <> cmdKey
+            <> cmdWallet cmdWalletCreate walletClient
+            <> cmdAddress addressClient
+            <> cmdTransaction transactionClient walletClient
+            <> cmdNetwork networkClient
+            <> cmdStakePool stakePoolClient
+            <> cmdVersion
 
 beforeMainLoop :: Trace IO MainLog -> URI -> IO ()
 beforeMainLoop tr = logInfo tr . MsgListenAddress
@@ -187,70 +228,78 @@ data ServeArgs = ServeArgs
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
     , _logging :: LoggingOptions TracerSeverities
-    } deriving (Show)
+    }
+    deriving (Show)
 
 cmdServe :: Mod CommandFields (IO ())
-cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
-    progDesc "Serve API that listens for commands/actions."
+cmdServe =
+    command "serve"
+        $ info (helper <*> helper' <*> cmd)
+        $ progDesc "Serve API that listens for commands/actions."
   where
     helper' = helperTracing tracerDescriptions
 
-    cmd = fmap exec $ ServeArgs
-        <$> hostPreferenceOption
-        <*> modeOption
-        <*> listenOption
-        <*> optional tlsOption
-        <*> networkConfigurationOption
-        <*> optional databaseOption
-        <*> shutdownHandlerFlag
-        <*> optional poolMetadataSourceOption
-        <*> optional tokenMetadataSourceOption
-        <*> loggingOptions tracerSeveritiesOption
+    cmd =
+        fmap exec
+            $ ServeArgs
+                <$> hostPreferenceOption
+                <*> modeOption
+                <*> listenOption
+                <*> optional tlsOption
+                <*> networkConfigurationOption
+                <*> optional databaseOption
+                <*> shutdownHandlerFlag
+                <*> optional poolMetadataSourceOption
+                <*> optional tokenMetadataSourceOption
+                <*> loggingOptions tracerSeveritiesOption
 
     exec :: ServeArgs -> IO ()
-    exec args@(ServeArgs
-      host
-      mode
-      listen
-      tlsConfig
-      networkConfig
-      databaseDir
-      enableShutdownHandler
-      poolMetadataFetching
-      tokenMetadataServerURI
-      logOpt) = withTracers logOpt $ \tr tracers -> do
-        withShutdownHandlerMaybe tr enableShutdownHandler $ do
-            logDebug tr $ MsgServeArgs args
+    exec
+        args@( ServeArgs
+                    host
+                    mode
+                    listen
+                    tlsConfig
+                    networkConfig
+                    databaseDir
+                    enableShutdownHandler
+                    poolMetadataFetching
+                    tokenMetadataServerURI
+                    logOpt
+                ) = withTracers logOpt $ \tr tracers -> do
+            withShutdownHandlerMaybe tr enableShutdownHandler $ do
+                logDebug tr $ MsgServeArgs args
 
-            (discriminant, netParams, vData, block0)
-                <- runExceptT (parseGenesisData networkConfig) >>= \case
+                (discriminant, netParams, vData, block0) <-
+                    runExceptT (parseGenesisData networkConfig) >>= \case
                         Right x -> pure x
                         Left err -> do
                             logError tr (MsgFailedToParseGenesis $ T.pack err)
                             exitWith $ ExitFailure 33
-            forM_ databaseDir $
-                setupDirectory (logInfo tr . MsgSetupDatabases)
+                forM_ databaseDir
+                    $ setupDirectory (logInfo tr . MsgSetupDatabases)
 
-            blockchainSource <- case mode of
-                Normal conn syncTolerance ->
-                    pure $ NodeSource conn vData syncTolerance
+                blockchainSource <- case mode of
+                    Normal conn syncTolerance ->
+                        pure $ NodeSource conn vData syncTolerance
 
-            exitWith =<< serveWallet
-                blockchainSource
-                netParams
-                tunedForMainnetPipeliningStrategy
-                discriminant
-                []
-                tracers
-                databaseDir
-                Nothing
-                host
-                listen
-                tlsConfig
-                (Settings <$> poolMetadataFetching)
-                tokenMetadataServerURI
-                block0
-                (beforeMainLoop tr)
+                exitWith
+                    =<< serveWallet
+                        blockchainSource
+                        netParams
+                        tunedForMainnetPipeliningStrategy
+                        discriminant
+                        []
+                        tracers
+                        databaseDir
+                        Nothing
+                        host
+                        listen
+                        tlsConfig
+                        (Settings <$> poolMetadataFetching)
+                        tokenMetadataServerURI
+                        block0
+                        (beforeMainLoop tr)
 
     withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
     withShutdownHandlerMaybe _ False = void
@@ -278,10 +327,14 @@ data MainLog
 instance ToText MainLog where
     toText = \case
         MsgCmdLine exe args ->
-            T.pack $ unwords ("Command line:":exe:args)
+            T.pack $ unwords ("Command line:" : exe : args)
         MsgVersion ver rev arch os ->
-            "Running as " <> T.pack (showFullVersion ver rev) <> " on " <>
-            T.pack arch <> "-" <> T.pack os
+            "Running as "
+                <> T.pack (showFullVersion ver rev)
+                <> " on "
+                <> T.pack arch
+                <> "-"
+                <> T.pack os
         MsgSetupStateDir txt ->
             "Wallet state: " <> txt
         MsgSetupDatabases txt ->
@@ -296,14 +349,16 @@ instance ToText MainLog where
             "Interrupted by user."
         MsgShutdownHandler msg' ->
             toText msg'
-        MsgFailedToParseGenesis hint -> T.unwords
-            [ "Failed to parse Byron genesis configuration. You may want to check"
-            , "the filepath given via --genesis and make sure it points to a "
-            , "valid JSON Byron genesis file. The genesis file must be Byron, not"
-            , "Shelley as it used to feed the wallet with the initial blockchain"
-            , "parameters."
-            , "Here's (perhaps) some helpful hint:", hint
-            ]
+        MsgFailedToParseGenesis hint ->
+            T.unwords
+                [ "Failed to parse Byron genesis configuration. You may want to check"
+                , "the filepath given via --genesis and make sure it points to a "
+                , "valid JSON Byron genesis file. The genesis file must be Byron, not"
+                , "Shelley as it used to feed the wallet with the initial blockchain"
+                , "parameters."
+                , "Here's (perhaps) some helpful hint:"
+                , hint
+                ]
 
 withTracers
     :: LoggingOptions TracerSeverities
@@ -321,26 +376,27 @@ withTracers logOpt action =
             logInterrupt _ = pure ()
         action trMain tracers `withException` logInterrupt
 
-
 {-------------------------------------------------------------------------------
                                  Options
 -------------------------------------------------------------------------------}
 
-
 tracerSeveritiesOption :: Parser TracerSeverities
-tracerSeveritiesOption = Tracers
-    <$> traceOpt applicationTracer (Just Info)
-    <*> traceOpt apiServerTracer (Just Info)
-    <*> traceOpt tokenMetadataTracer (Just Info)
-    <*> traceOpt walletEngineTracer (Just Info)
-    <*> traceOpt walletDbTracer (Just Info)
-    <*> traceOpt poolsEngineTracer (Just Info)
-    <*> traceOpt poolsDbTracer (Just Info)
-    <*> traceOpt ntpClientTracer (Just Info)
-    <*> traceOpt networkTracer (Just Info)
+tracerSeveritiesOption =
+    Tracers
+        <$> traceOpt applicationTracer (Just Info)
+        <*> traceOpt apiServerTracer (Just Info)
+        <*> traceOpt tokenMetadataTracer (Just Info)
+        <*> traceOpt walletEngineTracer (Just Info)
+        <*> traceOpt walletDbTracer (Just Info)
+        <*> traceOpt poolsEngineTracer (Just Info)
+        <*> traceOpt poolsDbTracer (Just Info)
+        <*> traceOpt ntpClientTracer (Just Info)
+        <*> traceOpt networkTracer (Just Info)
   where
-    traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
-        <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
-        <> value def
-        <> metavar "SEVERITY"
-        <> internal
+    traceOpt field def =
+        fmap Const . option loggingSeverityOrOffReader
+            $ mempty
+                <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
+                <> value def
+                <> metavar "SEVERITY"
+                <> internal

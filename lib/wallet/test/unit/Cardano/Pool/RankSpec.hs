@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 module Cardano.Pool.RankSpec
     ( spec
@@ -17,19 +18,29 @@ import Cardano.Pool.Rank
     , redelegationWarning
     )
 import Cardano.Wallet.Gen
-    ( genPercentage )
+    ( genPercentage
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..) )
+    ( EpochNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin )
+    ( genCoin
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.Quantity
-    ( clipToPercentage )
+    ( clipToPercentage
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -47,18 +58,18 @@ import Test.QuickCheck
     )
 
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
-
 
 spec :: Spec
 spec = do
     describe "Relegation warning" $ do
-        it "Fresh delegation never yields 'OtherPoolsBetter'" $
-            property prop_freshDelegation
-        it "'performanceEstimate' in 'StakePoolsSummary' is ignored" $
-            property prop_ignorePerformanceEstimate
+        it "Fresh delegation never yields 'OtherPoolsBetter'"
+            $ property prop_freshDelegation
+        it "'performanceEstimate' in 'StakePoolsSummary' is ignored"
+            $ property prop_ignorePerformanceEstimate
 
 {-------------------------------------------------------------------------------
     Properties
@@ -66,40 +77,44 @@ spec = do
 prop_freshDelegation :: RewardParams -> EpochNo -> Coin -> Property
 prop_freshDelegation rp now user =
     forAll (genRewardInfoPool rp) $ \info ->
-    forAll (genStakePoolsSummary rp) $ \ps ->
-        redelegationWarning now (info, user) ps now =/= OtherPoolsBetter
+        forAll (genStakePoolsSummary rp) $ \ps ->
+            redelegationWarning now (info, user) ps now =/= OtherPoolsBetter
 
 prop_ignorePerformanceEstimate :: RewardParams -> EpochNo -> Coin -> Property
 prop_ignorePerformanceEstimate rp now user =
     forAll (genRewardInfoPool rp) $ \info ->
-    forAll (genStakePoolsSummary rp) $ \ps ->
-        let ps' = ps
-                { pools = Map.map
-                    (\i -> i {performanceEstimate = undefined})
-                    (pools ps)
-                }
-        in  property $
-          (redelegationWarning (EpochNo 0) (info, user) ps' now) `seq` True
+        forAll (genStakePoolsSummary rp) $ \ps ->
+            let ps' =
+                    ps
+                        { pools =
+                            Map.map
+                                (\i -> i{performanceEstimate = undefined})
+                                (pools ps)
+                        }
+            in  property
+                    $ (redelegationWarning (EpochNo 0) (info, user) ps' now)
+                    `seq` True
 
 {-------------------------------------------------------------------------------
     Generators
 -------------------------------------------------------------------------------}
 genRewardInfoPool :: RewardParams -> Gen RewardInfoPool
 genRewardInfoPool RewardParams{totalStake} = do
-    stake <- chooseCoin (Coin 0,totalStake)
-    owner <- chooseCoin (Coin 0,stake)
+    stake <- chooseCoin (Coin 0, totalStake)
+    owner <- chooseCoin (Coin 0, stake)
     let stakeRelative = clipToPercentage (stake `proportionTo` totalStake)
         ownerStakeRelative = clipToPercentage (owner `proportionTo` totalStake)
         ownerStake = owner
-    ownerPledge <- oneof
-        [pure (Coin 0), chooseCoin (Coin 0,owner), chooseCoin (owner,stake)]
+    ownerPledge <-
+        oneof
+            [pure (Coin 0), chooseCoin (Coin 0, owner), chooseCoin (owner, stake)]
     cost <- genCoin
     margin <- genPercentage
-    performanceEstimate <- choose (0,1)
+    performanceEstimate <- choose (0, 1)
     pure $ RewardInfoPool{..}
 
 proportionTo :: Coin -> Coin -> Rational
-proportionTo _        (Coin 0) = 0
+proportionTo _ (Coin 0) = 0
 proportionTo (Coin x) (Coin y) = fromIntegral x / fromIntegral y
 
 genStakePoolsSummary :: RewardParams -> Gen StakePoolsSummary
@@ -109,9 +124,10 @@ genStakePoolsSummary rp =
 instance Arbitrary PoolId where
     arbitrary = PoolId . convertToBase Base16 . BS.pack <$> vector 16
 
-chooseCoin :: (Coin,Coin) -> Gen Coin
-chooseCoin (Coin a', Coin b') = Coin . fromIntegral <$>
-    frequency [(1,pure a), (1,pure b), (5,choose (a,b))]
+chooseCoin :: (Coin, Coin) -> Gen Coin
+chooseCoin (Coin a', Coin b') =
+    Coin . fromIntegral
+        <$> frequency [(1, pure a), (1, pure b), (5, choose (a, b))]
   where
     a = fromIntegral a' :: Integer
     b = fromIntegral b' :: Integer
@@ -120,11 +136,12 @@ instance Arbitrary Coin where
     arbitrary = genCoin
 
 instance Arbitrary RewardParams where
-    arbitrary = RewardParams
-        <$> (getPositive <$> arbitrary)
-        <*> (getPositive <$> arbitrary)
-        <*> arbitrary
-        <*> oneof [pure $ Coin 0, arbitrary]
+    arbitrary =
+        RewardParams
+            <$> (getPositive <$> arbitrary)
+            <*> (getPositive <$> arbitrary)
+            <*> arbitrary
+            <*> oneof [pure $ Coin 0, arbitrary]
 
 instance Arbitrary EpochNo where
     arbitrary = EpochNo <$> arbitrarySizedBoundedIntegral

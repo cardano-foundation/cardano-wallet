@@ -11,7 +11,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -19,26 +18,30 @@
 -- License: Apache-2.0
 --
 -- Implementation of address derivation for 'Shared' Keys.
-
 module Cardano.Wallet.Address.Derivation.Shared
     ( -- * Types
-      SharedKey(..)
+      SharedKey (..)
 
-    -- * Generation and derivation
+      -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-
     , purposeCIP1854
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey )
+    ( xpubPublicKey
+    )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, unXPub, xpub )
+    ( XPrv
+    , XPub
+    , unXPub
+    , xpub
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic )
+    ( SomeMnemonic
+    )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , Depth (..)
@@ -54,7 +57,9 @@ import Cardano.Wallet.Address.Derivation
     , toAddressParts
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..), purposeCIP1854 )
+    ( SharedKey (..)
+    , purposeCIP1854
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
@@ -62,25 +67,35 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , unsafeGenerateKeyFromSeedShelley
     )
 import Cardano.Wallet.Address.Discovery
-    ( GetPurpose (..) )
+    ( GetPurpose (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant
+    )
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..) )
+    ( Blake2b_224 (..)
+    )
 import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize) )
+    ( HashAlgorithm (hashDigestSize)
+    )
 import Crypto.Hash.Utils
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 
 import qualified Data.ByteString as BS
 
@@ -92,7 +107,7 @@ import qualified Data.ByteString as BS
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-       -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> SharedKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
@@ -103,7 +118,7 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-        -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> SharedKey depth XPrv
 unsafeGenerateKeyFromSeed mnemonics pwd =
@@ -146,13 +161,12 @@ instance PersistPublicKey (SharedKey depth) where
 instance MkKeyFingerprint SharedKey Address where
     paymentKeyFingerprint addr =
         let AddressParts{..} = toAddressParts addr
-            baseAddr = 0b00110000       -- scripthash; scripthash
+            baseAddr = 0b00110000 -- scripthash; scripthash
             enterpriseAddr = 0b01110000 -- scripthash
-            rewardAcct = 0b11110000     -- scripthash
-        in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSize rest
-           else
-            Left $ ErrInvalidAddress addr (Proxy @SharedKey)
+            rewardAcct = 0b11110000 -- scripthash
+        in  if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct]
+                then Right $ KeyFingerprint $ BS.take hashSize rest
+                else Left $ ErrInvalidAddress addr (Proxy @SharedKey)
 
 instance
     MkKeyFingerprint

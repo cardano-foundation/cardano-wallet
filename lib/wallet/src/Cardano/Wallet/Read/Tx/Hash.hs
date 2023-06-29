@@ -1,16 +1,15 @@
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash
@@ -18,28 +17,39 @@ module Cardano.Wallet.Read.Tx.Hash
     , fromShelleyTxId
     , getEraTxHash
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Chain.UTxO
-    ( ATxAux, taTx )
+    ( ATxAux
+    , taTx
+    )
 import Cardano.Crypto
-    ( serializeCborHash )
+    ( serializeCborHash
+    )
 import Cardano.Ledger.Block
-    ( txid )
+    ( txid
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.TxIn
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.Read
-    ( Tx )
+    ( Tx
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto
@@ -61,7 +71,7 @@ getEraTxHash =
   where
     mkShelleyHash = onTx $ \tx -> K $ shelleyTxHash tx
 
-shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
+shelleyTxHash :: (SL.Core.EraTx era) => SL.Core.Tx era -> Crypto.ByteString
 shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
 
 byronTxHash :: ATxAux a -> Crypto.ByteString

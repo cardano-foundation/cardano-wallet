@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Tx.Balance.Internal.CoinSelectionSpec
-    where
+where
 
 import Prelude
 
@@ -17,33 +17,56 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , toInternalUTxOMap
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, shrinkCoin )
+    ( genCoin
+    , shrinkCoin
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundle, shrinkTokenBundle )
+    ( genTokenBundle
+    , shrinkTokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap, shrinkTokenMap )
+    ( genTokenMap
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, genUTxOLarge, shrinkUTxO )
+    ( genUTxO
+    , genUTxOLarge
+    , shrinkUTxO
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Extra
-    ( parallel )
+    ( parallel
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -56,29 +79,39 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( genNonEmpty, genericRoundRobinShrink, shrinkNonEmpty, (<:>), (<@>) )
+    ( genNonEmpty
+    , genericRoundRobinShrink
+    , shrinkNonEmpty
+    , (<:>)
+    , (<@>)
+    )
 import Test.Utils.Pretty
-    ( (====) )
+    ( (====)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
+    parallel
+        $ describe
+            "Conversion between external (wallet) and internal UTxOs"
+        $ do
+            it "prop_toInternalUTxO_toExternalUTxO"
+                $ prop_toInternalUTxO_toExternalUTxO
+                & property
 
-    parallel $ describe
-        "Conversion between external (wallet) and internal UTxOs" $ do
+            it "prop_toInternalUTxOMap_toExternalUTxOMap"
+                $ prop_toInternalUTxOMap_toExternalUTxOMap
+                & property
 
-        it "prop_toInternalUTxO_toExternalUTxO" $
-            prop_toInternalUTxO_toExternalUTxO & property
-
-        it "prop_toInternalUTxOMap_toExternalUTxOMap" $
-            prop_toInternalUTxOMap_toExternalUTxOMap & property
-
-    parallel $ describe
-        "Conversion between external (wallet) and internal selections" $ do
-
-        it "prop_toInternalSelection_toExternalSelection" $
-            prop_toInternalSelection_toExternalSelection & property
+    parallel
+        $ describe
+            "Conversion between external (wallet) and internal selections"
+        $ do
+            it "prop_toInternalSelection_toExternalSelection"
+                $ prop_toInternalSelection_toExternalSelection
+                & property
 
 --------------------------------------------------------------------------------
 -- Conversion between external (wallet) and internal UTxOs
@@ -105,15 +138,16 @@ prop_toInternalSelection_toExternalSelection s =
 --------------------------------------------------------------------------------
 
 genSelection :: Gen Selection
-genSelection = Selection
-    <$> genInputs
-    <*> genCollateral
-    <*> genOutputs
-    <*> genChange
-    <*> genAssetsToMint
-    <*> genAssetsToBurn
-    <*> genExtraCoinSource
-    <*> genExtraCoinSink
+genSelection =
+    Selection
+        <$> genInputs
+        <*> genCollateral
+        <*> genOutputs
+        <*> genChange
+        <*> genAssetsToMint
+        <*> genAssetsToBurn
+        <*> genExtraCoinSource
+        <*> genExtraCoinSink
   where
     genInputs = genNonEmpty ((,) <$> genTxIn <*> genTxOut)
     genCollateral = listOf ((,) <$> genTxIn <*> genTxOutCoin)
@@ -126,16 +160,17 @@ genSelection = Selection
     genTxOutCoin = TxOut <$> genAddress <*> (TokenBundle.fromCoin <$> genCoin)
 
 shrinkSelection :: Selection -> [Selection]
-shrinkSelection = genericRoundRobinShrink
-    <@> shrinkInputs
-    <:> shrinkCollateral
-    <:> shrinkOutputs
-    <:> shrinkChange
-    <:> shrinkAssetsToMint
-    <:> shrinkAssetsToBurn
-    <:> shrinkExtraCoinSource
-    <:> shrinkExtraCoinSink
-    <:> Nil
+shrinkSelection =
+    genericRoundRobinShrink
+        <@> shrinkInputs
+        <:> shrinkCollateral
+        <:> shrinkOutputs
+        <:> shrinkChange
+        <:> shrinkAssetsToMint
+        <:> shrinkAssetsToBurn
+        <:> shrinkExtraCoinSource
+        <:> shrinkExtraCoinSink
+        <:> Nil
   where
     shrinkInputs = shrinkNonEmpty (liftShrink2 shrinkTxIn shrinkTxOut)
     shrinkCollateral = shrinkList (liftShrink2 shrinkTxIn shrinkTxOut)
@@ -163,8 +198,9 @@ instance Arbitrary TxOut where
     shrink = shrinkTxOut
 
 instance Arbitrary UTxO where
-    arbitrary = oneof
-        [ genUTxO
-        , genUTxOLarge
-        ]
+    arbitrary =
+        oneof
+            [ genUTxO
+            , genUTxOLarge
+            ]
     shrink = shrinkUTxO

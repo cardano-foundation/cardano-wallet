@@ -3,9 +3,11 @@ module Main where
 import Prelude
 
 import Cardano.Startup
-    ( withUtf8Encoding )
+    ( withUtf8Encoding
+    )
 import Test.Hspec.Extra
-    ( hspecMain )
+    ( hspecMain
+    )
 
 import qualified Spec
 

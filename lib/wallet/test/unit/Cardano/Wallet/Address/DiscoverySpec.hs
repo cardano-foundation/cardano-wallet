@@ -14,9 +14,11 @@ module Cardano.Wallet.Address.DiscoverySpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
@@ -24,17 +26,26 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( ByronKey
+    , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..), knownAddresses )
+    ( IsOurs (..)
+    , knownAddresses
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( mkRndState )
+    ( mkRndState
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ByronKeyS) )
+    ( KeyFlavorS (ByronKeyS)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (EncryptWithPBKDF2)
@@ -43,15 +54,24 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -84,7 +104,7 @@ spec = do
 
 prop_derivedKeysAreOurs
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
@@ -92,14 +112,17 @@ prop_derivedKeysAreOurs
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isJust resPos .&&. addr `elem` (fst' <$> knownAddresses stPos') .&&.
-    isNothing resNeg .&&. addr `notElem` (fst' <$> knownAddresses stNeg')
+    isJust resPos
+        .&&. addr `elem` (fst' <$> knownAddresses stPos')
+        .&&. isNothing resNeg
+        .&&. addr `notElem` (fst' <$> knownAddresses stNeg')
   where
-    fst' (a,_,_) = a
+    fst' (a, _, _) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKey ByronKeyS
-        $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
+    key =
+        publicKey ByronKeyS
+            $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddressS @n key
 
@@ -120,8 +143,9 @@ instance Arbitrary (ByronKey 'RootK XPrv) where
     arbitrary = genRootKeys
 
 instance Arbitrary (Passphrase "encryption") where
-    arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "user")
+    arbitrary =
+        preparePassphrase EncryptWithPBKDF2
+            <$> arbitrary @(Passphrase "user")
 
 genRootKeys :: Gen (ByronKey 'RootK XPrv)
 genRootKeys = do

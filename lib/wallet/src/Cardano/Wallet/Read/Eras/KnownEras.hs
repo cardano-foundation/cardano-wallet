@@ -10,7 +10,6 @@
 -- License: Apache-2.0
 --
 -- A type list of known eras, useful for indexed-by-era operations.
-
 module Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
     , knownEraIndices
@@ -28,7 +27,9 @@ import Cardano.Api
     , ShelleyEra
     )
 import Generics.SOP
-    ( Proxy (..), lengthSList )
+    ( Proxy (..)
+    , lengthSList
+    )
 
 -- | Known eras, for simplicity we reuse the types from 'Cardano.API'.
 type KnownEras =

@@ -34,34 +34,50 @@ module Cardano.Wallet.Flavor
     , IncludingStates
     , KeyFlavor (..)
     , CredFromOf
-    , Flavored(..)
+    , Flavored (..)
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
+    ( ByronKey
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndAnyState, RndState (..) )
+    ( RndAnyState
+    , RndState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAnyState, SeqState )
+    ( SeqAnyState
+    , SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState (..) )
+    ( SharedState (..)
+    )
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf, NetworkOf )
+    ( CredFromOf
+    , KeyOf
+    , NetworkOf
+    )
 import Cardano.Wallet.Address.States.Features
-    ( TestFeatures )
+    ( TestFeatures
+    )
 import Cardano.Wallet.Address.States.Test.State
-    ( TestState )
+    ( TestState
+    )
 import Cardano.Wallet.TypeLevel
-    ( Excluding, Including )
+    ( Excluding
+    , Including
+    )
 
 -- | A singleton type to capture the flavor of a state.
 data WalletFlavorS s where
@@ -72,7 +88,7 @@ data WalletFlavorS s where
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
     TestStateS
-        :: KeyFlavor k
+        :: (KeyFlavor k)
         => TestFeatures (TestState s1 n k kt)
         -> WalletFlavorS (TestState s1 n k kt)
 
@@ -168,15 +184,16 @@ keyOfWallet (TestStateS _) = keyFlavor
 -- > keyFlavorFromState @s
 keyFlavorFromState
     :: forall s
-     . WalletFlavor s
+     . (WalletFlavor s)
     => KeyFlavorS (KeyOf s)
 keyFlavorFromState = keyOfWallet (walletFlavor @s)
 
 -- | Constraints for a state with a specific key.
 type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
 
-notByronKey :: KeyFlavorS k
-    -> (Excluding '[ByronKey] k  => KeyFlavorS k -> x)
+notByronKey
+    :: KeyFlavorS k
+    -> ((Excluding '[ByronKey] k) => KeyFlavorS k -> x)
     -> Maybe x
 notByronKey x h = case x of
     ByronKeyS -> Nothing
@@ -188,8 +205,10 @@ notByronKey x h = case x of
 shelleyOrShared
     :: WalletFlavorS s
     -> x
-    -> (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
-            => WalletFlavorS s -> x)
+    -> ( (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s))
+         => WalletFlavorS s
+         -> x
+       )
     -> x
 shelleyOrShared x r h = case x of
     ShelleyWallet -> h ShelleyWallet

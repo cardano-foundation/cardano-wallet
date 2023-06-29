@@ -15,7 +15,12 @@ module Cardano.Wallet.Api.Aeson.Variant
 import Prelude
 
 import Data.Aeson.Types
-    ( Object, Parser, Value, modifyFailure, withObject )
+    ( Object
+    , Parser
+    , Value
+    , modifyFailure
+    , withObject
+    )
 
 -- | Specification of a JSON parser suitable for 'variants'.
 data Variant a = Variant
@@ -30,9 +35,12 @@ data Variant a = Variant
 -- A predicate checks whether a given 'Value' belongs to this variant;
 -- the 'Value' is parsed only if this this check succeeds.
 variant
-    :: String -- ^ Error message suffix in case of parse failure.
-    -> (Object -> Bool) -- ^ Check whether this variant applies.
-    -> (Value -> Parser a) -- ^ Parser for this variant.
+    :: String
+    -- ^ Error message suffix in case of parse failure.
+    -> (Object -> Bool)
+    -- ^ Check whether this variant applies.
+    -> (Value -> Parser a)
+    -- ^ Parser for this variant.
     -> Variant a
 variant = Variant
 
@@ -49,9 +57,12 @@ variant = Variant
 -- Instead, the predicates of the variants can be used to disambiguate a
 -- 'Value' by checking the presence of absence of certain JSON object keys.
 variants
-    :: String -- ^ Error message suffix in case of parse failure.
-    -> [Variant a] -- ^ Possible variants.
-    -> Value -- ^ Value to parse.
+    :: String
+    -- ^ Error message suffix in case of parse failure.
+    -> [Variant a]
+    -- ^ Possible variants.
+    -> Value
+    -- ^ Value to parse.
     -> Parser a
 variants ctx xs v = withObject ctx run v
   where
@@ -63,5 +74,5 @@ variants ctx xs v = withObject ctx run v
     mkParser obj (Variant v_ctx s p)
         | s obj =
             let ctx' = ", " <> v_ctx <> " variant"
-            in pure $ modifyFailure (<> ctx') $ p v
+            in  pure $ modifyFailure (<> ctx') $ p v
         | otherwise = []

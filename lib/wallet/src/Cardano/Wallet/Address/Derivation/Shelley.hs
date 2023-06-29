@@ -19,16 +19,15 @@
 -- License: Apache-2.0
 --
 -- Implementation of address derivation for 'Shelley' Keys.
-
 module Cardano.Wallet.Address.Derivation.Shelley
     ( -- * Types
-      ShelleyKey(..)
+      ShelleyKey (..)
     , shelleyKey
 
-    -- * Constants
+      -- * Constants
     , minSeedLengthBytes
 
-    -- * Generation and derivation
+      -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     , unsafeGenerateKeyFromSeedShelley
@@ -36,7 +35,7 @@ module Cardano.Wallet.Address.Derivation.Shelley
     , deriveAddressPrivateKeyShelley
     , deriveAddressPublicKeyShelley
 
-    -- * Reward Account
+      -- * Reward Account
     , toRewardAccountRaw
     ) where
 
@@ -54,7 +53,10 @@ import Cardano.Crypto.Wallet
     , xpub
     )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
+    ( SomeMnemonic (..)
+    , entropyToBytes
+    , mnemonicToEntropy
+    )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
@@ -79,7 +81,11 @@ import Cardano.Wallet.Address.Derivation
     , toAddressParts
     )
 import Cardano.Wallet.Address.Discovery
-    ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
+    ( DiscoverTxs (..)
+    , GetPurpose (..)
+    , IsOurs (..)
+    , MaybeLight (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
@@ -89,9 +95,11 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant (..)
@@ -100,29 +108,48 @@ import Cardano.Wallet.Read.NetworkId
     , networkDiscriminantBits
     )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..), TxWitnessTagFor (..) )
+    ( TxWitnessTag (..)
+    , TxWitnessTagFor (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( Iso, iso, over, (^.) )
+    ( Iso
+    , iso
+    , over
+    , (^.)
+    )
 import Control.Monad
-    ( guard, (<=<) )
+    ( guard
+    , (<=<)
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..) )
+    ( Blake2b_224 (..)
+    )
 import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize) )
+    ( HashAlgorithm (hashDigestSize)
+    )
 import Crypto.Hash.Utils
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Binary.Put
-    ( putByteString, putWord8, runPut )
+    ( putByteString
+    , putWord8
+    , runPut
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -141,14 +168,13 @@ import qualified Data.List.NonEmpty as NE
 -- let accountPubKey = ShelleyKey 'AccountK XPub
 -- let addressPubKey = ShelleyKey 'CredFromKeyK XPub
 -- @
-newtype ShelleyKey (depth :: Depth) key =
-    ShelleyKey { getKey :: key }
+newtype ShelleyKey (depth :: Depth) key = ShelleyKey {getKey :: key}
     deriving stock (Generic, Show, Eq)
 
 shelleyKey :: Iso (ShelleyKey depth key) (ShelleyKey depth key') key key'
 shelleyKey = iso getKey ShelleyKey
 
-instance NFData key => NFData (ShelleyKey depth key)
+instance (NFData key) => NFData (ShelleyKey depth key)
 
 instance TxWitnessTagFor ShelleyKey where
     txWitnessTagFor = TxWitnessShelleyUTxO
@@ -162,7 +188,7 @@ minSeedLengthBytes = 16
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-       -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> ShelleyKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
@@ -173,7 +199,7 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
-        -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> ShelleyKey depth XPrv
 unsafeGenerateKeyFromSeed mnemonics pwd =
@@ -181,22 +207,23 @@ unsafeGenerateKeyFromSeed mnemonics pwd =
 
 unsafeGenerateKeyFromSeedShelley
     :: (SomeMnemonic, Maybe SomeMnemonic)
-        -- ^ The actual seed and its recovery / generation passphrase
+    -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> XPrv
 unsafeGenerateKeyFromSeedShelley (root, m2nd) pwd =
     generateNew validSeed (maybe mempty mnemonicToBytes m2nd) (unPassphrase pwd)
   where
     mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
-    seed  = mnemonicToBytes root
+    seed = mnemonicToBytes root
     validSeed =
         if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
             then seed
-            else error . unwords $
-                [ "seed length:"
-                , show (BA.length seed)
-                , "in (Passphrase \"seed\") is not valid"
-                ]
+            else
+                error . unwords
+                    $ [ "seed length:"
+                      , show (BA.length seed)
+                      , "in (Passphrase \"seed\") is not valid"
+                      ]
 
 deriveAccountPrivateKeyShelley
     :: Index 'Hardened 'PurposeK
@@ -206,15 +233,18 @@ deriveAccountPrivateKeyShelley
     -> XPrv
 deriveAccountPrivateKeyShelley purpose (Passphrase pwd) rootXPrv (Index accIx) =
     let
-        purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
+        purposeXPrv =
+            -- lvl1 derivation; hardened derivation of purpose'
             deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purpose)
-        coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
+        coinTypeXPrv =
+            -- lvl2 derivation; hardened derivation of coin_type'
             deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
-     -- lvl3 derivation; hardened derivation of account' index
-    in deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
+    in
+        -- lvl3 derivation; hardened derivation of account' index
+        deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
 
 deriveAddressPrivateKeyShelley
-    :: Enum a
+    :: (Enum a)
     => Passphrase "encryption"
     -> XPrv
     -> a
@@ -224,13 +254,15 @@ deriveAddressPrivateKeyShelley (Passphrase pwd) accXPrv role (Index addrIx) =
     let
         changeCode =
             fromIntegral $ fromEnum role
-        changeXPrv = -- lvl4 derivation; soft derivation of change chain
+        changeXPrv =
+            -- lvl4 derivation; soft derivation of change chain
             deriveXPrv DerivationScheme2 pwd accXPrv changeCode
-       -- lvl5 derivation; soft derivation of address index
-    in deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
+    in
+        -- lvl5 derivation; soft derivation of address index
+        deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
 
 deriveAddressPublicKeyShelley
-    :: Enum a
+    :: (Enum a)
     => XPub
     -> a
     -> Index derivationType level
@@ -243,11 +275,14 @@ deriveAddressPublicKeyShelley accXPub role (Index addrIx) =
         -- lvl5 derivation in bip44 is derivation of address chain
         deriveXPub DerivationScheme2 changeXPub addrIx
   where
-      errWrongIndex = error $
-          "deriveAddressPublicKey failed: was given an hardened (or too big) \
-          \index for soft path derivation ( " ++ show addrIx ++ "). This is \
-          \either a programmer error, or, we may have reached the maximum \
-          \number of addresses for a given wallet."
+    errWrongIndex =
+        error
+            $ "deriveAddressPublicKey failed: was given an hardened (or too big) \
+              \index for soft path derivation ( "
+                ++ show addrIx
+                ++ "). This is \
+                   \either a programmer error, or, we may have reached the maximum \
+                   \number of addresses for a given wallet."
 
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
@@ -322,7 +357,7 @@ instance DelegationAddress ShelleyKey 'CredFromKeyK where
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString fingerprint
-            putByteString . blake2b224. xpubPublicKey . getKey $ stakingK
+            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
       where
         base = 0
         networkId = 1
@@ -338,13 +373,12 @@ instance DelegationAddress ShelleyKey 'CredFromKeyK where
 instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint addr =
         let AddressParts{..} = toAddressParts addr
-            baseAddr = 0b00000000       -- keyhash; keyhash
+            baseAddr = 0b00000000 -- keyhash; keyhash
             enterpriseAddr = 0b01100000 -- keyhash
-            rewardAcct = 0b11100000     -- keyhash
-        in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSize rest
-           else
-            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
+            rewardAcct = 0b11100000 -- keyhash
+        in  if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct]
+                then Right $ KeyFingerprint $ BS.take hashSize rest
+                else Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
 instance
     MkKeyFingerprint
@@ -364,18 +398,18 @@ instance NetworkDiscriminantCheck ShelleyKey where
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n ShelleyKey) RewardAccount
-  where
+instance IsOurs (SeqState n ShelleyKey) RewardAccount where
     isOurs account state@SeqState{derivationPrefix} =
         let
             DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
-            path = NE.fromList
-                [ DerivationIndex $ getIndex purpose
-                , DerivationIndex $ getIndex coinType
-                , DerivationIndex $ getIndex accountIx
-                , DerivationIndex $ getIndex mutableAccount
-                , DerivationIndex $ getIndex @'Soft minBound
-                ]
+            path =
+                NE.fromList
+                    [ DerivationIndex $ getIndex purpose
+                    , DerivationIndex $ getIndex coinType
+                    , DerivationIndex $ getIndex accountIx
+                    , DerivationIndex $ getIndex mutableAccount
+                    , DerivationIndex $ getIndex @'Soft minBound
+                    ]
         in
             (guard (account == ourAccount) *> Just path, state)
       where
@@ -385,17 +419,20 @@ instance ToRewardAccount ShelleyKey where
     toRewardAccount = toRewardAccountRaw . getKey
     someRewardAccount mw =
         let
-            path = NE.fromList
-                [ DerivationIndex $ getIndex purposeCIP1852
-                , DerivationIndex $ getIndex coinTypeAda
-                , DerivationIndex $ getIndex @'Hardened minBound
-                , DerivationIndex $ getIndex mutableAccount
-                , DerivationIndex $ getIndex @'Soft minBound
-                ]
+            path =
+                NE.fromList
+                    [ DerivationIndex $ getIndex purposeCIP1852
+                    , DerivationIndex $ getIndex coinTypeAda
+                    , DerivationIndex $ getIndex @'Hardened minBound
+                    , DerivationIndex $ getIndex mutableAccount
+                    , DerivationIndex $ getIndex @'Soft minBound
+                    ]
         in
-            (stakK ^. shelleyKey, toRewardAccount
+            ( stakK ^. shelleyKey
+            , toRewardAccount
                 (over shelleyKey toXPub stakK)
-            , path)
+            , path
+            )
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
         acctK = deriveAccountPrivateKey mempty rootK minBound
@@ -404,8 +441,7 @@ instance ToRewardAccount ShelleyKey where
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = FromKeyHash . blake2b224 . xpubPublicKey
 
-instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey)
-  where
+instance (HasSNetworkId n) => MaybeLight (SeqState n ShelleyKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
 instance AccountIxForStaking (SeqState n ShelleyKey) where

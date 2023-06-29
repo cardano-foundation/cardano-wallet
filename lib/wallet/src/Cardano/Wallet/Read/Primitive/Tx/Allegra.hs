@@ -14,19 +14,19 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyRole (..) )
+    ( KeyRole (..)
+    )
 import Cardano.Api
-    ( AllegraEra )
+    ( AllegraEra
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , auxDataTxL
@@ -41,33 +41,48 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Core
-    ()
+    (
+    )
 import Cardano.Ledger.Shelley.Tx
-    ( ShelleyTx )
+    ( ShelleyTx
+    )
 import Cardano.Wallet.Read.Eras
-    ( allegra, inject )
+    ( allegra
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromAllegraMetadata )
+    ( fromAllegraMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromAllegraTxOut )
+    ( fromAllegraTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript )
+    ( toWalletScript
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -77,9 +92,13 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -109,7 +128,7 @@ fromAllegraTx tx =
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
             [] -- TODO: (ADP-957)
         , outputs =
@@ -126,11 +145,12 @@ fromAllegraTx tx =
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        ((`NativeExplicitScript` ViaSpending)
-         . toWalletScript (\_vkey -> Payment)
-            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        ( (`NativeExplicitScript` ViaSpending)
+            . toWalletScript (\_vkey -> Payment)
+            <$> tx ^.. witsTxL . scriptTxWitsL . folded
+        )
+        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )

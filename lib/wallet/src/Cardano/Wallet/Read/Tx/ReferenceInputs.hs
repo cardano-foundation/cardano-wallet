@@ -1,23 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Reference input data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.ReferenceInputs
     ( ReferenceInputsType
     , ReferenceInputs (..)
     , getEraReferenceInputs
     )
-    where
+where
 
 import Prelude
 
@@ -31,21 +29,29 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Babbage.TxBody
-    ( referenceInputsTxBodyL )
+    ( referenceInputsTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Ledger.Shelley.API as SH
 
@@ -60,8 +66,8 @@ type family ReferenceInputsType era where
 
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 
-deriving instance Show (ReferenceInputsType era) => Show (ReferenceInputs era)
-deriving instance Eq (ReferenceInputsType era) => Eq (ReferenceInputs era)
+deriving instance (Show (ReferenceInputsType era)) => Show (ReferenceInputs era)
+deriving instance (Eq (ReferenceInputsType era)) => Eq (ReferenceInputs era)
 
 getEraReferenceInputs :: EraFun Tx ReferenceInputs
 getEraReferenceInputs =

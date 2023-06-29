@@ -24,22 +24,32 @@ module Cardano.Wallet.Read.NetworkId
     , withSNetworkId
     , networkIdVal
     )
-  where
+where
 
 import Prelude
 
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.TypeNats
-    ( KnownNat, Nat, SomeNat (..), natVal, someNatVal )
+    ( KnownNat
+    , Nat
+    , SomeNat (..)
+    , natVal
+    , someNatVal
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Data.Text as T
@@ -58,7 +68,6 @@ import qualified Data.Text as T
 --              and, that requires _explicit_ network discrimination in
 --              addresses. Genesis file needs to be passed explicitly when
 --              starting the application.
---
 data NetworkDiscriminant = Mainnet | Testnet Nat
     deriving (Typeable)
 
@@ -75,7 +84,7 @@ data NetworkId
     deriving (Eq, Show)
 
 data SNat (n :: Nat) where
-    SNat :: KnownNat n => Proxy n -> SNat n
+    SNat :: (KnownNat n) => Proxy n -> SNat n
 
 deriving instance Show (SNat n)
 deriving instance Eq (SNat n)
@@ -83,7 +92,7 @@ deriving instance Eq (SNat n)
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
-withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
+withSNat :: Natural -> (forall (n :: Nat). (KnownNat n) => SNat n -> a) -> a
 withSNat nat f = case someNatVal nat of
     SomeNat proxy -> f (SNat proxy)
 
@@ -106,7 +115,7 @@ class HasSNetworkId n where
 instance HasSNetworkId 'Mainnet where
     sNetworkId = SMainnet
 
-instance KnownNat i => HasSNetworkId ('Testnet i) where
+instance (KnownNat i) => HasSNetworkId ('Testnet i) where
     sNetworkId = STestnet $ SNat Proxy
 
 {-----------------------------------------------------------------------------
@@ -115,8 +124,8 @@ instance KnownNat i => HasSNetworkId ('Testnet i) where
 
 networkDiscriminantVal :: SNetworkId n -> Text
 networkDiscriminantVal SMainnet = "mainnet"
-networkDiscriminantVal (STestnet pm)
-    = "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
+networkDiscriminantVal (STestnet pm) =
+    "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
 
 networkDiscriminantBits :: SNetworkId n -> Word8
 networkDiscriminantBits SMainnet = 0b00000001
@@ -126,9 +135,9 @@ networkDiscriminantBits (STestnet _) = 0b00000000
 networkIdVal :: SNetworkId n -> Cardano.NetworkId
 networkIdVal SMainnet = Cardano.Mainnet
 networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
-      where
-        networkMagic =
-            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+  where
+    networkMagic =
+        Cardano.NetworkMagic . fromIntegral $ fromSNat snat
 
 {-----------------------------------------------------------------------------
    conversions
@@ -149,4 +158,4 @@ withSNetworkId
        )
     -> a
 withSNetworkId NMainnet f = f SMainnet
-withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
+withSNetworkId (NTestnet i) f = withSNat i $ f . STestnet

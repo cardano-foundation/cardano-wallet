@@ -6,17 +6,16 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Api
-    ( MaryEra )
+    ( MaryEra
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , auxDataTxL
@@ -32,31 +31,45 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Wallet.Read.Eras
-    ( inject, mary )
+    ( inject
+    , mary
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromMaryMetadata )
+    ( fromMaryMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( maryMint )
+    ( maryMint
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromMaryTxOut )
+    ( fromMaryTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (Tx) )
+    ( Tx (Tx)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript )
+    ( toWalletScript
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -67,7 +80,10 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -95,13 +111,13 @@ fromMaryTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
             []
         , outputs =
-            fromMaryTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
+            fromMaryTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
         , collateralOutput =
             Nothing -- Collateral outputs are not supported in Mary.
         , withdrawals =
@@ -111,17 +127,18 @@ fromMaryTx tx witCtx =
         , scriptValidity =
             Nothing
         }
-    , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        ((`NativeExplicitScript` ViaSpending)
-         . toWalletScript (toKeyRole witCtx)
-            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        ( (`NativeExplicitScript` ViaSpending)
+            . toWalletScript (toKeyRole witCtx)
+            <$> tx ^.. witsTxL . scriptTxWitsL . folded
+        )
+        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )
   where
     (assetsToMint, assetsToBurn) =
-        maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
+        maryMint (tx ^. bodyTxL . mintTxBodyL) (tx ^. witsTxL)

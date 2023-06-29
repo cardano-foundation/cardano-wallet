@@ -21,28 +21,48 @@ module Test.Hspec.Goldens
     ( Settings (..)
     , textGolden
     )
-    where
+where
 
 import Prelude
 
 import Data.Either.Combinators
-    ( rightToMaybe )
+    ( rightToMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Fmt
-    ( Builder, fmt, (+|), (+||), (|+), (||+) )
+    ( Builder
+    , fmt
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.FilePath
-    ( (<.>), (</>) )
+    ( (<.>)
+    , (</>)
+    )
 import System.IO.Error
-    ( ioeGetErrorType, isDoesNotExistErrorType )
+    ( ioeGetErrorType
+    , isDoesNotExistErrorType
+    )
 import Test.Hspec
-    ( Expectation, expectationFailure, shouldBe )
+    ( Expectation
+    , expectationFailure
+    , shouldBe
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
 import UnliftIO.Exception
-    ( IOException, try, tryJust )
+    ( IOException
+    , try
+    , tryJust
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -53,15 +73,17 @@ data Settings = Settings
     }
 
 -- | Wrapper for text which is easier to read in HSpec failure messages.
-newtype GoldenText = GoldenText { getGoldenText :: Text } deriving Eq
+newtype GoldenText = GoldenText {getGoldenText :: Text} deriving (Eq)
 
 instance Show GoldenText where
     show = T.unpack . getGoldenText
 
 textGolden
     :: Settings
-    -> String -- ^ Filename for the test
-    -> Text  -- ^ Value to compare with the golden file
+    -> String
+    -- ^ Filename for the test
+    -> Text
+    -- ^ Value to compare with the golden file
     -> Expectation
 textGolden settings title value =
     (,) <$> lookupEnv "OVERWRITE_GOLDENS" <*> readGolden >>= \case
@@ -71,21 +93,22 @@ textGolden settings title value =
             writeGoldenAndFail f value "Overwriting goldens"
         (_, (f, Nothing)) ->
             writeGoldenAndFail f value "No existing golden file found"
-
   where
     golden = goldenDirectory settings </> title
     -- If running on windows, we will use the windows-specific golden first,
     -- if it exists.
     goldenWin = if isWindows then Just (golden <.> "win") else Nothing
 
-    -- | Gets the contents of a golden text file, if it exists, and returns the
+    -- \| Gets the contents of a golden text file, if it exists, and returns the
     -- path of the actual file which was read.
     readGolden :: IO (FilePath, Maybe GoldenText)
-    readGolden = fmap (fmap GoldenText) <$> case goldenWin of
-        Just win -> readTextFile win >>= \case
-            Just text -> pure (win, Just text)
+    readGolden =
+        fmap (fmap GoldenText) <$> case goldenWin of
+            Just win ->
+                readTextFile win >>= \case
+                    Just text -> pure (win, Just text)
+                    Nothing -> (golden,) <$> readTextFile golden
             Nothing -> (golden,) <$> readTextFile golden
-        Nothing -> (golden,) <$> readTextFile golden
 
     readTextFile :: FilePath -> IO (Maybe Text)
     readTextFile = fmap rightToMaybe . tryJust handler . TIO.readFile
@@ -97,7 +120,8 @@ textGolden settings title value =
     writeGoldenAndFail
         :: FilePath
         -> Text
-        -> String -- ^ Error message prefix on failure
+        -> String
+        -- \^ Error message prefix on failure
         -> IO ()
     writeGoldenAndFail f text errMsg =
         try (TIO.writeFile f text') >>= expectationFailure . fmt . msg
@@ -105,8 +129,9 @@ textGolden settings title value =
         text' = postProcess settings text
 
         msg :: Either IOException () -> Builder
-        msg res = errMsg|+"... "+|case res of
-            Right () ->
-                "Now written to disk. Please check for correctness and commit."
-            Left err ->
-                "Unable to write the new value to disk because of:\n"+||err||+""
+        msg res =
+            errMsg |+ "... " +| case res of
+                Right () ->
+                    "Now written to disk. Please check for correctness and commit."
+                Left err ->
+                    "Unable to write the new value to disk because of:\n" +|| err ||+ ""

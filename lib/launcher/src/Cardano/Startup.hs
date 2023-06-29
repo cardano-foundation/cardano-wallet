@@ -7,54 +7,78 @@
 --
 -- This module contains functions relating to startup and shutdown of the
 -- @cardano-wallet serve@ program.
-
 module Cardano.Startup
-    (
-    -- * Program startup
+    ( -- * Program startup
       withUtf8Encoding
     , setUtf8EncodingHandles
 
-    -- * Clean shutdown
+      -- * Clean shutdown
     , withShutdownHandler
     , withShutdownHandler'
     , installSignalHandlers
     , installSignalHandlersNoLogging
     , killProcess
 
-    -- * File permissions
+      -- * File permissions
     , setDefaultFilePermissions
     , restrictFileMode
 
-    -- * Logging
-    , ShutdownHandlerLog(..)
+      -- * Logging
+    , ShutdownHandlerLog (..)
     ) where
 
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.IO.Encoding
-    ( setFileSystemEncoding )
+    ( setFileSystemEncoding
+    )
 import System.IO
-    ( Handle, hIsOpen, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
+    ( Handle
+    , hIsOpen
+    , hSetEncoding
+    , mkTextEncoding
+    , stderr
+    , stdin
+    , stdout
+    )
 import System.IO.CodePage
-    ( withCP65001 )
+    ( withCP65001
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( forkIO )
+    ( forkIO
+    )
 import UnliftIO.Exception
-    ( IOException, catch, handle, throwIO )
+    ( IOException
+    , catch
+    , handle
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
@@ -116,11 +140,12 @@ withShutdownHandler' tr h action = do
     readerLoop = do
         handle (traceWith tr . MsgShutdownError) readerLoop'
         traceWith tr MsgShutdownEOF
-    readerLoop' = waitForInput >>= \case
-        "" -> pure () -- eof: stop loop
-        _ -> readerLoop' -- repeat
-    -- Wait indefinitely for input to be available.
-    -- Runs in separate thread so that it does not deadlock on Windows.
+    readerLoop' =
+        waitForInput >>= \case
+            "" -> pure () -- eof: stop loop
+            _ -> readerLoop' -- repeat
+            -- Wait indefinitely for input to be available.
+            -- Runs in separate thread so that it does not deadlock on Windows.
     waitForInput = do
         v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
         _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
@@ -136,12 +161,13 @@ instance ToText ShutdownHandlerLog where
     toText = \case
         MsgShutdownHandler enabled ->
             "Cross-platform subprocess shutdown handler is "
-            <> if enabled then "enabled." else "disabled."
+                <> if enabled then "enabled." else "disabled."
         MsgShutdownEOF ->
             "Starting clean shutdown..."
         MsgShutdownError e ->
-            "Error waiting for shutdown: " <> T.pack (show e)
-            <> ". Shutting down..."
+            "Error waiting for shutdown: "
+                <> T.pack (show e)
+                <> ". Shutting down..."
 
 instance HasPrivacyAnnotation ShutdownHandlerLog
 instance HasSeverityAnnotation ShutdownHandlerLog where

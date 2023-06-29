@@ -10,9 +10,15 @@ module Cardano.Wallet.DB.Store.UTxOHistory.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( DeltaUTxOSlots (..), DeltaUTxOValue (..), EntityField (..), Key (..) )
+    ( DeltaUTxOSlots (..)
+    , DeltaUTxOValue (..)
+    , EntityField (..)
+    , Key (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..), getTxId )
+    ( TxId (..)
+    , getTxId
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
@@ -24,30 +30,51 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     , reverseMapOfSets
     )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
-    ( UTxOHistory (..) )
+    ( UTxOHistory (..)
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
-    ( deserializeTxOut, serializeTxOut )
+    ( deserializeTxOut
+    , serializeTxOut
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId, WithOrigin (..) )
+    ( WalletId
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO (..) )
+    ( DeltaUTxO (..)
+    , UTxO (..)
+    )
 import Control.Lens
-    ( lazy, strict, view, (<&>) )
+    ( lazy
+    , strict
+    , view
+    , (<&>)
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either.Extra
 import Data.Foldable
-    ( foldl', forM_ )
+    ( foldl'
+    , forM_
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Database.Persist.Sql
     ( PersistQueryWrite (deleteWhere)
     , SqlPersistT
@@ -64,9 +91,12 @@ import Database.Persist.Sql
     , (>.)
     )
 import GHC.Exception
-    ( Exception, SomeException )
+    ( Exception
+    , SomeException
+    )
 import GHC.Exception.Type
-    ( toException )
+    ( toException
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -76,10 +106,11 @@ import qualified Database.Persist as Sql
 mkStoreUTxOHistory
     :: WalletId
     -> UpdateStore (SqlPersistT IO) DeltaUTxOHistory
-mkStoreUTxOHistory wid = mkUpdateStore
-    (load wid)
-    (write wid)
-    (update wid)
+mkStoreUTxOHistory wid =
+    mkUpdateStore
+        (load wid)
+        (write wid)
+        (update wid)
 
 -- | Issues with UTxOHistory operations.
 data UTxOHistoryError
@@ -94,7 +125,7 @@ load wid = do
             <$> selectFirst [DeltaUTxOSlotsWallet ==. wid] []
     case slots of
         Nothing -> pure $ Left $ toException $ UTxOHistoryNotFound wid
-        Just DeltaUTxOSlots {deltaUTxOSlotsTip, deltaUTxOSlotsFinality} -> do
+        Just DeltaUTxOSlots{deltaUTxOSlotsTip, deltaUTxOSlotsFinality} -> do
             xs <-
                 fmap entityVal
                     <$> selectList [DeltaUTxOValueWalletId ==. wid] []
@@ -103,8 +134,8 @@ load wid = do
                     (toException $ UTxOHistoryNotDeserializationError wid)
                 $ foldl'
                     patchByRow
-                    ( Just $
-                        UTxOHistory
+                    ( Just
+                        $ UTxOHistory
                             mempty
                             mempty
                             mempty
@@ -146,21 +177,21 @@ patchByRow
                         history
                         (<> (UTxO $ Map.singleton txIn txOut))
                 , creationSlots =
-                    onNotBoot creationSlots $
-                        Map.insertWith (<>) deltaUTxOValueCreation txInSingleton
+                    onNotBoot creationSlots
+                        $ Map.insertWith (<>) deltaUTxOValueCreation txInSingleton
                 , creationTxIns =
-                    onNotBoot creationTxIns $
-                        Map.insert txIn deltaUTxOValueCreation
+                    onNotBoot creationTxIns
+                        $ Map.insert txIn deltaUTxOValueCreation
                 , spentSlots = case deltaUTxOValueSpent of
                     Unspent -> spentSlots
                     Spent slot ->
-                        onNotBoot spentSlots $
-                            Map.insertWith (<>) slot txInSingleton
+                        onNotBoot spentSlots
+                            $ Map.insertWith (<>) slot txInSingleton
                 , spentTxIns = case deltaUTxOValueSpent of
                     Unspent -> spentTxIns
                     Spent slot ->
-                        onNotBoot spentTxIns $
-                            Map.insert txIn slot
+                        onNotBoot spentTxIns
+                            $ Map.insert txIn slot
                 , tip
                 , finality
                 , boot =
@@ -191,16 +222,16 @@ write
         insert_ $ DeltaUTxOSlots wid finality tip
         deleteWhere [DeltaUTxOValueWalletId ==. wid]
         insertMany_ $ do
-            (txIn@TxIn {inputId, inputIx}, txOut) <-
+            (txIn@TxIn{inputId, inputIx}, txOut) <-
                 Map.assocs $ unUTxO history
             creation <-
-                maybeToList $
-                    Map.lookup txIn $
-                        reverseMapOfSets creationSlots
+                maybeToList
+                    $ Map.lookup txIn
+                    $ reverseMapOfSets creationSlots
             let
                 spent = Map.lookup txIn $ reverseMapOfSets spentSlots
-            pure $
-                DeltaUTxOValue
+            pure
+                $ DeltaUTxOValue
                     wid
                     creation
                     (maybe Unspent Spent spent)
@@ -209,11 +240,11 @@ write
                     (encodeTxOut txOut)
                     False
         insertMany_ $ do
-            (TxIn {inputId, inputIx}, txOut) <-
-                Map.assocs $
-                    unUTxO boot
-            pure $
-                DeltaUTxOValue
+            (TxIn{inputId, inputIx}, txOut) <-
+                Map.assocs
+                    $ unUTxO boot
+            pure
+                $ DeltaUTxOValue
                     wid
                     Origin
                     Unspent
@@ -237,11 +268,11 @@ update wid = updateLoad (load wid) throwIO updateJust
                         new = received delta
                         spent = excluded delta
                     insertMany_ $ do
-                        (TxIn {inputId, inputIx}, txOut) <-
-                            Map.assocs $
-                                unUTxO new
-                        pure $
-                            DeltaUTxOValue
+                        (TxIn{inputId, inputIx}, txOut) <-
+                            Map.assocs
+                                $ unUTxO new
+                        pure
+                            $ DeltaUTxOValue
                                 wid
                                 (At newTip)
                                 Unspent
@@ -256,7 +287,6 @@ update wid = updateLoad (load wid) throwIO updateJust
                     updateWhere
                         [DeltaUTxOSlotsWallet ==. wid]
                         [DeltaUTxOSlotsTip =. At newTip]
-
             Rollback slot -> constrainingRollback (pure ()) old slot $ \case
                 Just newTip -> do
                     deleteWhere

@@ -10,11 +10,15 @@ module Test.Integration.Scenario.API.Blocks
 import Prelude
 
 import Cardano.Wallet.Api.Types.BlockHeader
-    ( ApiBlockHeader )
+    ( ApiBlockHeader
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -30,7 +34,12 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: SpecWith Context
 spec = describe "BLOCKS" $ do
     it "LATEST_BLOCK Current tip is reported" $ \ctx -> do
-        r <- request
-            @ApiBlockHeader ctx Link.getBlocksLatestHeader Default Empty
+        r <-
+            request
+                @ApiBlockHeader
+                ctx
+                Link.getBlocksLatestHeader
+                Default
+                Empty
         expectSuccess r
         expectResponseCode @IO HTTP.status200 r

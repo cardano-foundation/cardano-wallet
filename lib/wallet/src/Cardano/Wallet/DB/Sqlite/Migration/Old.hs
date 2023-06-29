@@ -14,7 +14,6 @@
 -- Old-style manual migrations of the SQLlite database.
 -- These migrations are soon to be removed in favor of
 -- a file format with version number.
-
 module Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     , migrateManually
@@ -29,7 +28,7 @@ module Cardano.Wallet.DB.Sqlite.Migration.Old
     , SqlColumnStatus (..)
     , isTablePresentByName
     )
-    where
+where
 
 import Prelude
 
@@ -43,41 +42,68 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..) )
+    ( EntityField (..)
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseScheme (..) )
+    ( PassphraseScheme (..)
+    )
 import Control.Monad
-    ( forM_, guard, void, when )
+    ( forM_
+    , guard
+    , void
+    , when
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Foldable
-    ( for_ )
+    ( for_
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..), fromText )
+    ( ToText (..)
+    , fromText
+    )
 import Data.Word
-    ( Word16 )
+    ( Word16
+    )
 import Database.Persist.Class
-    ( toPersistValue )
+    ( toPersistValue
+    )
 import Database.Persist.Types
-    ( PersistValue (..), fromPersistValueText )
+    ( PersistValue (..)
+    , fromPersistValueText
+    )
 import List.Transformer
-    ( runListT, select )
+    ( runListT
+    , select
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import UnliftIO.Exception
-    ( Exception, throwIO, throwString )
+    ( Exception
+    , throwIO
+    , throwString
+    )
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
@@ -107,17 +133,16 @@ data SqlColumnStatus
     = TableMissing
     | ColumnMissing
     | ColumnPresent
-    deriving Eq
+    deriving (Eq)
 
 data TableCreationResult
     = TableCreated
     | TableExisted
 
 newtype SchemaVersion = SchemaVersion Natural
-  deriving newtype (Eq, Ord, Read, Show )
+    deriving newtype (Eq, Ord, Read, Show)
 
-data InvalidDatabaseSchemaVersion
-    = InvalidDatabaseSchemaVersion
+data InvalidDatabaseSchemaVersion = InvalidDatabaseSchemaVersion
     { expectedVersion :: SchemaVersion
     , actualVersion :: SchemaVersion
     }
@@ -147,33 +172,33 @@ migrateManually
     -> DefaultFieldValues
     -> ManualMigration
 migrateManually tr key defaultFieldValues =
-    onlyOnSchemaForOldMigrations $ foldMigrations
-    [ initializeSchemaVersionTable
-    , cleanupCheckpointTable
-    , assignDefaultPassphraseScheme
-    , addDesiredPoolNumberIfMissing
-    , addMinimumUTxOValueIfMissing
-    , addHardforkEpochIfMissing
-
-      -- FIXME
-      -- Temporary migration to fix Daedalus flight wallets. This should
-      -- really be removed as soon as we have a fix for the cardano-sl:wallet
-      -- currently in production.
-    , removeSoftRndAddresses
-    , removeOldTxParametersTable
-    , addAddressStateIfMissing
-    , addSeqStateDerivationPrefixIfMissing
-    , renameRoleColumn
-    , renameRoleFields
-    , updateFeeValueAndAddKeyDeposit
-    , addFeeToTransaction
-    , moveRndUnusedAddresses
-    , cleanupSeqStateTable
-    , addPolicyXPubIfMissing
-    , removeOldSubmissions
-    , removeMetasOfSubmissions
-    , createAndPopulateSubmissionsSlotTable
-    ]
+    onlyOnSchemaForOldMigrations
+        $ foldMigrations
+            [ initializeSchemaVersionTable
+            , cleanupCheckpointTable
+            , assignDefaultPassphraseScheme
+            , addDesiredPoolNumberIfMissing
+            , addMinimumUTxOValueIfMissing
+            , addHardforkEpochIfMissing
+            , -- FIXME
+              -- Temporary migration to fix Daedalus flight wallets. This should
+              -- really be removed as soon as we have a fix for the cardano-sl:wallet
+              -- currently in production.
+              removeSoftRndAddresses
+            , removeOldTxParametersTable
+            , addAddressStateIfMissing
+            , addSeqStateDerivationPrefixIfMissing
+            , renameRoleColumn
+            , renameRoleFields
+            , updateFeeValueAndAddKeyDeposit
+            , addFeeToTransaction
+            , moveRndUnusedAddresses
+            , cleanupSeqStateTable
+            , addPolicyXPubIfMissing
+            , removeOldSubmissions
+            , removeMetasOfSubmissions
+            , createAndPopulateSubmissionsSlotTable
+            ]
   where
     initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
     initializeSchemaVersionTable conn =
@@ -182,28 +207,33 @@ migrateManually tr key defaultFieldValues =
             TableExisted -> do
                 schemaVersion <- getSchemaVersion conn
                 case compare schemaVersion currentSchemaVersion of
-                    GT -> throwIO InvalidDatabaseSchemaVersion
-                        { expectedVersion = currentSchemaVersion
-                        , actualVersion = schemaVersion
-                        }
+                    GT ->
+                        throwIO
+                            InvalidDatabaseSchemaVersion
+                                { expectedVersion = currentSchemaVersion
+                                , actualVersion = schemaVersion
+                                }
                     LT -> putSchemaVersion conn currentSchemaVersion
                     EQ -> pure ()
 
-    createSchemaVersionTableIfMissing ::
-        Sqlite.Connection -> IO TableCreationResult
+    createSchemaVersionTableIfMissing
+        :: Sqlite.Connection -> IO TableCreationResult
     createSchemaVersionTableIfMissing conn = do
-        res <- runSql conn
-            "SELECT name FROM sqlite_master \
-            \WHERE type='table' AND name='database_schema_version'"
+        res <-
+            runSql
+                conn
+                "SELECT name FROM sqlite_master \
+                \WHERE type='table' AND name='database_schema_version'"
         case res of
-           [] -> TableCreated <$ runSql conn
-            "CREATE TABLE database_schema_version\
-            \( name TEXT PRIMARY KEY \
-            \, version INTEGER NOT NULL \
-            \)"
-           _ -> pure TableExisted
-
-
+            [] ->
+                TableCreated
+                    <$ runSql
+                        conn
+                        "CREATE TABLE database_schema_version\
+                        \( name TEXT PRIMARY KEY \
+                        \, version INTEGER NOT NULL \
+                        \)"
+            _ -> pure TableExisted
 
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
@@ -223,7 +253,6 @@ migrateManually tr key defaultFieldValues =
                 let excluding = ["script_gap"]
                 let filtered = mapMaybe (filterColumn excluding) info
                 dropColumnOp conn orig tmp filtered
-
             _ -> return ()
 
         -- 2. Drop supplementrary tables
@@ -240,11 +269,10 @@ migrateManually tr key defaultFieldValues =
 
     filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
     filterColumn excluding = \case
-        [ _, PersistText colName, PersistText colType, colNull, _, _] ->
-            if colName `elem` excluding then
-                Nothing
-            else
-                Just [PersistText colName, PersistText colType, colNull]
+        [_, PersistText colName, PersistText colType, colNull, _, _] ->
+            if colName `elem` excluding
+                then Nothing
+                else Just [PersistText colName, PersistText colType, colNull]
         _ ->
             Nothing
 
@@ -263,33 +291,41 @@ migrateManually tr key defaultFieldValues =
 
         return ()
       where
-        createTable table cols = mconcat
-            [ "CREATE TABLE ", table, " ("
-            , T.intercalate ", " (mapMaybe createColumn cols)
-            , ");"
-            ]
-        copyTable source destination cols = mconcat
-            [ "INSERT INTO ", destination, " SELECT "
-            , T.intercalate ", " (mapMaybe selectColumn cols)
-            , " FROM ", source
-            , ";"
-            ]
-        renameTable from to = mconcat
-            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
+        createTable table cols =
+            mconcat
+                [ "CREATE TABLE "
+                , table
+                , " ("
+                , T.intercalate ", " (mapMaybe createColumn cols)
+                , ");"
+                ]
+        copyTable source destination cols =
+            mconcat
+                [ "INSERT INTO "
+                , destination
+                , " SELECT "
+                , T.intercalate ", " (mapMaybe selectColumn cols)
+                , " FROM "
+                , source
+                , ";"
+                ]
+        renameTable from to =
+            mconcat
+                ["ALTER TABLE ", from, " RENAME TO ", to, ";"]
 
         selectColumn :: [PersistValue] -> Maybe Text
         selectColumn = \case
-            [ PersistText colName, _ , _ ] ->
+            [PersistText colName, _, _] ->
                 Just colName
             _ ->
                 Nothing
 
         createColumn :: [PersistValue] -> Maybe Text
         createColumn = \case
-            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
-                Just $ T.unwords [ colName, colType, "NOT NULL" ]
-            [ PersistText colName, PersistText colType, _ ] ->
-                Just $ T.unwords [ colName, colType ]
+            [PersistText colName, PersistText colType, PersistInt64 1] ->
+                Just $ T.unwords [colName, colType, "NOT NULL"]
+            [PersistText colName, PersistText colType, _] ->
+                Just $ T.unwords [colName, colType]
             _ ->
                 Nothing
 
@@ -326,7 +362,8 @@ migrateManually tr key defaultFieldValues =
                             (DBField WalGenesisStart)
                             (quotes genesisStart)
                     _ ->
-                        error "cleanupCheckpointTable: genesis_hash and \
+                        error
+                            "cleanupCheckpointTable: genesis_hash and \
                             \genesis_start not found"
 
         -- 2. Drop columns from the 'checkpoint' table
@@ -338,19 +375,26 @@ migrateManually tr key defaultFieldValues =
                 let filtered = mapMaybe (filterColumn excluding) info
                       where
                         excluding =
-                            [ "genesis_hash", "genesis_start", "fee_policy"
-                            , "slot_length", "epoch_length", "tx_max_size"
-                            , "epoch_stability", "active_slot_coeff"
+                            [ "genesis_hash"
+                            , "genesis_start"
+                            , "fee_policy"
+                            , "slot_length"
+                            , "epoch_length"
+                            , "tx_max_size"
+                            , "epoch_stability"
+                            , "active_slot_coeff"
                             ]
                 dropColumnOp conn orig tmp filtered
             _ -> return ()
-
       where
-        select' fields table = mconcat
-            [ "SELECT ", T.intercalate ", " fields
-            , " FROM ", table
-            , " ORDER BY slot ASC LIMIT 1;"
-            ]
+        select' fields table =
+            mconcat
+                [ "SELECT "
+                , T.intercalate ", " fields
+                , " FROM "
+                , table
+                , " ORDER BY slot ASC LIMIT 1;"
+                ]
 
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -372,32 +416,48 @@ migrateManually tr key defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName passphraseScheme
-                    , "ADD COLUMN", fieldName passphraseScheme
-                    , fieldType passphraseScheme, " NULL"
-                    , ";"
-                    ]
+                query <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "ALTER TABLE"
+                            , tableName passphraseScheme
+                            , "ADD COLUMN"
+                            , fieldName passphraseScheme
+                            , fieldType passphraseScheme
+                            , " NULL"
+                            , ";"
+                            ]
                 Sqlite.step query *> Sqlite.finalize query
                 assignDefaultPassphraseScheme conn -- loop to apply case below
-            ColumnPresent  -> do
-                value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
-                    fromPersistValueText (toPersistValue EncryptWithPBKDF2)
+            ColumnPresent -> do
+                value <-
+                    either (fail . show) (\x -> pure $ "\"" <> x <> "\"")
+                        $ fromPersistValueText (toPersistValue EncryptWithPBKDF2)
                 traceWith tr . MsgExpectedMigration
                     $ MsgManualMigrationNeeded passphraseScheme value
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "UPDATE", tableName passphraseScheme
-                    , "SET", fieldName passphraseScheme, "=", value
-                    , "WHERE", fieldName passphraseScheme, "IS NULL"
-                    , "AND", fieldName passphraseLastUpdatedAt, "IS NOT NULL"
-                    , ";"
-                    ]
+                query <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "UPDATE"
+                            , tableName passphraseScheme
+                            , "SET"
+                            , fieldName passphraseScheme
+                            , "="
+                            , value
+                            , "WHERE"
+                            , fieldName passphraseScheme
+                            , "IS NULL"
+                            , "AND"
+                            , fieldName passphraseLastUpdatedAt
+                            , "IS NOT NULL"
+                            , ";"
+                            ]
                 Sqlite.step query *> Sqlite.finalize query
       where
         passphraseScheme = DBField WalPassphraseScheme
         passphraseLastUpdatedAt = DBField WalPassphraseLastUpdatedAt
 
-    -- | Remove any addresses that were wrongly generated in previous releases.
+    -- \| Remove any addresses that were wrongly generated in previous releases.
     -- See comment below in 'selectState' from 'RndState'.
     --
     -- Important: this _may_ remove USED addresses from the discovered set which
@@ -421,18 +481,24 @@ migrateManually tr key defaultFieldValues =
             ColumnPresent -> do
                 traceWith tr . MsgExpectedMigration
                     $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
-                stmt <- Sqlite.prepare conn $ T.unwords
-                    [ "DELETE FROM", tableName rndAccountIx
-                    , "WHERE", fieldName rndAccountIx, "<", hardLowerBound
-                    , ";"
-                    ]
+                stmt <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "DELETE FROM"
+                            , tableName rndAccountIx
+                            , "WHERE"
+                            , fieldName rndAccountIx
+                            , "<"
+                            , hardLowerBound
+                            , ";"
+                            ]
                 _ <- Sqlite.step stmt
                 Sqlite.finalize stmt
       where
         hardLowerBound = toText $ fromEnum $ minBound @(W.Index 'W.Hardened _)
-        rndAccountIx   = DBField RndStateAddressAccountIndex
+        rndAccountIx = DBField RndStateAddressAccountIndex
 
-    -- | When we implemented the 'importAddress' and 'createAddress' features,
+    -- \| When we implemented the 'importAddress' and 'createAddress' features,
     -- we mistakenly added all imported addresses in the discovered section and
     -- table of the RndState. This makes them affected by rollbacks, which is
     -- very much an issue. While fixing this, we can also take the opportunity
@@ -451,61 +517,77 @@ migrateManually tr key defaultFieldValues =
             ColumnPresent -> do
                 let unused = quotes $ toText W.Unused
 
-                [[PersistInt64 n]] <- runSql conn $ T.unwords
-                    [ "SELECT COUNT(*)"
-                    , "FROM", tableName rndStateAddressStatus
-                    , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                    , ";"
-                    ]
+                [[PersistInt64 n]] <-
+                    runSql conn
+                        $ T.unwords
+                            [ "SELECT COUNT(*)"
+                            , "FROM"
+                            , tableName rndStateAddressStatus
+                            , "WHERE"
+                            , fieldName rndStateAddressStatus
+                            , "="
+                            , unused
+                            , ";"
+                            ]
 
                 if n > 0
                     then do
-                    traceWith tr $
-                        MsgManualMigrationNeeded rndStateAddressStatus "-"
+                        traceWith tr
+                            $ MsgManualMigrationNeeded rndStateAddressStatus "-"
 
-                    void $ runSql conn $ T.unwords
-                        [ "INSERT INTO", rndStatePendingTable
-                        , "(wallet_id, account_ix, address_ix, address)"
-                        , "SELECT wallet_id, account_ix, address_ix, address"
-                        , "FROM", rndStateDiscoveredTable
-                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                        , ";"
-                        ]
+                        void
+                            $ runSql conn
+                            $ T.unwords
+                                [ "INSERT INTO"
+                                , rndStatePendingTable
+                                , "(wallet_id, account_ix, address_ix, address)"
+                                , "SELECT wallet_id, account_ix, address_ix, address"
+                                , "FROM"
+                                , rndStateDiscoveredTable
+                                , "WHERE"
+                                , fieldName rndStateAddressStatus
+                                , "="
+                                , unused
+                                , ";"
+                                ]
 
-                    void $ runSql conn $ T.unwords
-                        [ "DELETE FROM", rndStateDiscoveredTable
-                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                        , ";"
-                        ]
+                        void
+                            $ runSql conn
+                            $ T.unwords
+                                [ "DELETE FROM"
+                                , rndStateDiscoveredTable
+                                , "WHERE"
+                                , fieldName rndStateAddressStatus
+                                , "="
+                                , unused
+                                , ";"
+                                ]
                     else
-                        traceWith tr $
-                            MsgManualMigrationNotNeeded rndStateAddressStatus
+                        traceWith tr
+                            $ MsgManualMigrationNotNeeded rndStateAddressStatus
       where
         rndStateAddressStatus = DBField RndStateAddressStatus
         rndStateDiscoveredTable = tableName $ DBField RndStateAddressWalletId
-        rndStatePendingTable  = tableName $ DBField RndStatePendingAddressWalletId
+        rndStatePendingTable = tableName $ DBField RndStatePendingAddressWalletId
 
-    -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
+    -- \| Adds an 'desired_pool_number' column to the 'protocol_parameters'
     -- table if it is missing.
-    --
     addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
     addDesiredPoolNumberIfMissing conn = do
         addColumn_ conn True (DBField ProtocolParametersDesiredNumberOfPools) value
       where
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
-    -- | Adds an 'minimum_utxo_value' column to the 'protocol_parameters'
+    -- \| Adds an 'minimum_utxo_value' column to the 'protocol_parameters'
     -- table if it is missing.
-    --
     addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
     addMinimumUTxOValueIfMissing conn = do
         addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
         value = T.pack $ show $ W.unCoin $ defaultMinimumUTxOValue defaultFieldValues
 
-    -- | Adds an 'hardfork_epoch' column to the 'protocol_parameters'
+    -- \| Adds an 'hardfork_epoch' column to the 'protocol_parameters'
     -- table if it is missing.
-    --
     addHardforkEpochIfMissing :: Sqlite.Connection -> IO ()
     addHardforkEpochIfMissing conn = do
         addColumn_ conn False (DBField ProtocolParametersHardforkEpoch) value
@@ -514,51 +596,60 @@ migrateManually tr key defaultFieldValues =
             Nothing -> "NULL"
             Just v -> T.pack $ show $ W.unEpochNo v
 
-    -- | Adds a 'key_deposit column to the 'protocol_parameters' table if it is
+    -- \| Adds a 'key_deposit column to the 'protocol_parameters' table if it is
     -- missing.
-    --
     addKeyDepositIfMissing :: Sqlite.Connection -> Text -> IO ()
     addKeyDepositIfMissing conn =
         addColumn_ conn True (DBField ProtocolParametersKeyDeposit)
 
-    -- | This table became @protocol_parameters@.
+    -- \| This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
         dropTable' <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
         void $ Sqlite.stepConn conn dropTable'
         Sqlite.finalize dropTable'
 
-    -- | In order to make listing addresses bearable for large wallet, we
+    -- \| In order to make listing addresses bearable for large wallet, we
     -- altered the discovery process to mark addresses as used as they are
     -- discovered. Existing databases don't have that pre-computed field.
     addAddressStateIfMissing :: Sqlite.Connection -> IO ()
     addAddressStateIfMissing conn = do
-        _  <- addColumn conn False (DBField SeqStateAddressStatus) (toText W.Unused)
+        _ <- addColumn conn False (DBField SeqStateAddressStatus) (toText W.Unused)
         st <- addColumn conn False (DBField RndStateAddressStatus) (toText W.Unused)
         when (st == ColumnMissing) $ do
             markAddressesAsUsed (DBField SeqStateAddressStatus)
             markAddressesAsUsed (DBField RndStateAddressStatus)
       where
         markAddressesAsUsed field = do
-            query <- Sqlite.prepare conn $ T.unwords
-                [ "UPDATE", tableName field
-                , "SET status = '" <> toText W.Used <> "'"
-                , "WHERE", tableName field <> ".address", "IN"
-                , "(SELECT DISTINCT(address) FROM tx_out)"
-                ]
+            query <-
+                Sqlite.prepare conn
+                    $ T.unwords
+                        [ "UPDATE"
+                        , tableName field
+                        , "SET status = '" <> toText W.Used <> "'"
+                        , "WHERE"
+                        , tableName field <> ".address"
+                        , "IN"
+                        , "(SELECT DISTINCT(address) FROM tx_out)"
+                        ]
             _ <- Sqlite.step query
             Sqlite.finalize query
 
     addSeqStateDerivationPrefixIfMissing :: Sqlite.Connection -> IO ()
     addSeqStateDerivationPrefixIfMissing conn = case key of
-        IcarusKeyS -> addColumn_ conn True (DBField SeqStateDerivationPrefix)
-            $ prefix Seq.purposeBIP44
-        ShelleyKeyS -> addColumn_ conn True (DBField SeqStateDerivationPrefix)
-            $ prefix Seq.purposeCIP1852
+        IcarusKeyS ->
+            addColumn_ conn True (DBField SeqStateDerivationPrefix)
+                $ prefix Seq.purposeBIP44
+        ShelleyKeyS ->
+            addColumn_ conn True (DBField SeqStateDerivationPrefix)
+                $ prefix Seq.purposeCIP1852
         _ -> pure ()
       where
-        prefix t = T.pack $ show $ toText
-            $ Seq.DerivationPrefix (t , Seq.coinTypeAda, minBound)
+        prefix t =
+            T.pack
+                $ show
+                $ toText
+                $ Seq.DerivationPrefix (t, Seq.coinTypeAda, minBound)
 
     --
     --   - UTxOInternal
@@ -574,12 +665,18 @@ migrateManually tr key defaultFieldValues =
     -- pirouette here.
     renameRoleFields :: Sqlite.Connection -> IO ()
     renameRoleFields conn = do
-        renameColumnField conn (DBField SeqStateAddressRole)
-            "u_tx_o_internal" "utxo_internal"
-        renameColumnField conn (DBField SeqStateAddressRole)
-            "u_tx_o_external" "utxo_external"
+        renameColumnField
+            conn
+            (DBField SeqStateAddressRole)
+            "u_tx_o_internal"
+            "utxo_internal"
+        renameColumnField
+            conn
+            (DBField SeqStateAddressRole)
+            "u_tx_o_external"
+            "utxo_external"
 
-    -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
+    -- \| Rename column table of SeqStateAddress from 'accounting_style' to `role`
     -- if needed.
     renameRoleColumn :: Sqlite.Connection -> IO ()
     renameRoleColumn conn =
@@ -588,12 +685,15 @@ migrateManually tr key defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded roleField
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNeeded roleField "accounting_style"
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName roleField
-                    , "RENAME COLUMN accounting_style TO"
-                    , fieldName roleField
-                    , ";"
-                    ]
+                query <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "ALTER TABLE"
+                            , tableName roleField
+                            , "RENAME COLUMN accounting_style TO"
+                            , fieldName roleField
+                            , ";"
+                            ]
                 Sqlite.step query *> Sqlite.finalize query
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded roleField
@@ -633,7 +733,7 @@ migrateManually tr key defaultFieldValues =
     addFeeToTransaction :: Sqlite.Connection -> IO ()
     addFeeToTransaction conn = do
         isFieldPresent conn fieldFee >>= \case
-            TableMissing  ->
+            TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded fieldFee
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded fieldFee
@@ -641,85 +741,107 @@ migrateManually tr key defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNeeded fieldFee "NULL"
 
                 rows <-
-                    (mkQuery >>= runSql conn) <&> fmap (\case
-                        [ PersistText txid
-                            , PersistInt64 nOuts
-                            , PersistInt64 delta ] -> (txid, nOuts, delta)
-                        _ -> error "addFeeToTransaction: impossible"
-                    )
+                    (mkQuery >>= runSql conn)
+                        <&> fmap
+                            ( \case
+                                [ PersistText txid
+                                    , PersistInt64 nOuts
+                                    , PersistInt64 delta
+                                    ] -> (txid, nOuts, delta)
+                                _ -> error "addFeeToTransaction: impossible"
+                            )
 
-                _ <- runSql conn $ T.unwords
-                    [ "ALTER TABLE", tableName fieldFee
-                    , "ADD COLUMN", fieldName fieldFee
-                    , fieldType fieldFee
-                    , ";"
-                    ]
+                _ <-
+                    runSql conn
+                        $ T.unwords
+                            [ "ALTER TABLE"
+                            , tableName fieldFee
+                            , "ADD COLUMN"
+                            , fieldName fieldFee
+                            , fieldType fieldFee
+                            , ";"
+                            ]
 
                 forM_ rows $ \(txid, nOuts, delta) -> do
-                    let fee = T.pack $ show $
-                            if isKeyRegistration nOuts delta
-                            then delta - keyDepositValue
-                            else delta
+                    let fee =
+                            T.pack
+                                $ show
+                                $ if isKeyRegistration nOuts delta
+                                    then delta - keyDepositValue
+                                    else delta
 
-                    runSql conn $ T.unwords
-                        [ "UPDATE", tableName fieldFee
-                        , "SET", fieldName fieldFee, "=", quotes fee
-                        , "WHERE", fieldName fieldTxId, "=", quotes txid
-                        , ";"
-                        ]
+                    runSql conn
+                        $ T.unwords
+                            [ "UPDATE"
+                            , tableName fieldFee
+                            , "SET"
+                            , fieldName fieldFee
+                            , "="
+                            , quotes fee
+                            , "WHERE"
+                            , fieldName fieldTxId
+                            , "="
+                            , quotes txid
+                            , ";"
+                            ]
       where
-        fieldFee  = DBField TxMetaFee
+        fieldFee = DBField TxMetaFee
         fieldTxId = DBField TxMetaTxId
 
         isKeyRegistration nOuts delta =
             nOuts <= 1 && delta > max keyDepositValue minUtxoValue
 
-        minUtxoValue
-            = fromIntegral
-            $ W.unCoin
-            $ defaultMinimumUTxOValue defaultFieldValues
+        minUtxoValue =
+            fromIntegral
+                $ W.unCoin
+                $ defaultMinimumUTxOValue defaultFieldValues
 
-        keyDepositValue
-            = fromIntegral
-            $ W.unCoin
-            $ defaultKeyDeposit defaultFieldValues
+        keyDepositValue =
+            fromIntegral
+                $ W.unCoin
+                $ defaultKeyDeposit defaultFieldValues
 
-        mkQuery = isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
-            -- On rather old databases, the tx_withdrawal table doesn't even exists.
-            TableMissing -> T.unwords
-                [ "SELECT tx_id, num_out, total_in - total_out FROM tx_meta"
-                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
-                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
-                , "WHERE direction = 0"
-                , ";"
+        mkQuery =
+            isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
+                -- On rather old databases, the tx_withdrawal table doesn't even exists.
+                TableMissing ->
+                    T.unwords
+                        [ "SELECT tx_id, num_out, total_in - total_out FROM tx_meta"
+                        , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                        , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                        , "WHERE direction = 0"
+                        , ";"
+                        ]
+                _ ->
+                    T.unwords
+                        [ "SELECT tx_id, num_out, total_in + IFNULL(total_wdrl, 0) - total_out FROM tx_meta"
+                        , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                        , "LEFT JOIN (" <> withdrawalsQuery <> ") USING (tx_id)"
+                        , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                        , "WHERE direction = 0"
+                        , ";"
+                        ]
+
+        resolvedInputsQuery =
+            T.unwords
+                [ "SELECT tx_in.tx_id, SUM(tx_out.amount) AS total_in FROM tx_in"
+                , "JOIN tx_out ON tx_out.tx_id = tx_in.source_tx_id AND tx_out.'index' = tx_in.source_index"
+                , "GROUP BY tx_in.tx_id"
                 ]
 
-            _ -> T.unwords
-                [ "SELECT tx_id, num_out, total_in + IFNULL(total_wdrl, 0) - total_out FROM tx_meta"
-                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
-                , "LEFT JOIN (" <> withdrawalsQuery <> ") USING (tx_id)"
-                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
-                , "WHERE direction = 0"
-                , ";"
+        withdrawalsQuery =
+            T.unwords
+                [ "SELECT tx_id, SUM(amount) AS total_wdrl FROM tx_withdrawal"
+                , "GROUP BY tx_id"
                 ]
 
-        resolvedInputsQuery = T.unwords
-            [ "SELECT tx_in.tx_id, SUM(tx_out.amount) AS total_in FROM tx_in"
-            , "JOIN tx_out ON tx_out.tx_id = tx_in.source_tx_id AND tx_out.'index' = tx_in.source_index"
-            , "GROUP BY tx_in.tx_id"
-            ]
+        outputsQuery =
+            T.unwords
+                [ "SELECT tx_id, SUM(amount) AS total_out, COUNT(*) AS num_out FROM tx_out"
+                , "GROUP BY tx_id"
+                ]
 
-        withdrawalsQuery = T.unwords
-            [ "SELECT tx_id, SUM(amount) AS total_wdrl FROM tx_withdrawal"
-            , "GROUP BY tx_id"
-            ]
-
-        outputsQuery = T.unwords
-            [ "SELECT tx_id, SUM(amount) AS total_out, COUNT(*) AS num_out FROM tx_out"
-            , "GROUP BY tx_id"
-            ]
-
-    -- | Since key deposit and fee value are intertwined, we migrate them both
+    -- \| Since key deposit and fee value are intertwined, we migrate them both
     -- here.
     updateFeeValueAndAddKeyDeposit :: Sqlite.Connection -> IO ()
     updateFeeValueAndAddKeyDeposit conn = do
@@ -729,25 +851,34 @@ migrateManually tr key defaultFieldValues =
                 -- and first, we also need to update the fee policy and drop
                 -- the third component of the fee policy which is now captured
                 -- by the stake key deposit.
-                feePolicyInfo <- Sqlite.prepare conn $ T.unwords
-                    [ "SELECT", fieldName fieldFeePolicy
-                    , "FROM", tableName fieldFeePolicy
-                    , ";"
-                    ]
+                feePolicyInfo <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "SELECT"
+                            , fieldName fieldFeePolicy
+                            , "FROM"
+                            , tableName fieldFeePolicy
+                            , ";"
+                            ]
                 row <- Sqlite.step feePolicyInfo >> Sqlite.columns feePolicyInfo
                 Sqlite.finalize feePolicyInfo
 
                 case filter (/= PersistNull) row of
                     [PersistText t] -> case T.splitOn " + " t of
-                        [a,b,c] -> do
+                        [a, b, c] -> do
                             traceWith tr $ MsgManualMigrationNeeded fieldFeePolicy t
                             -- update fee policy
                             let newVal = a <> " + " <> b
-                            query <- Sqlite.prepare conn $ T.unwords
-                                [ "UPDATE", tableName fieldFeePolicy
-                                , "SET", fieldName fieldFeePolicy, "= '" <> newVal <> "'"
-                                , ";"
-                                ]
+                            query <-
+                                Sqlite.prepare conn
+                                    $ T.unwords
+                                        [ "UPDATE"
+                                        , tableName fieldFeePolicy
+                                        , "SET"
+                                        , fieldName fieldFeePolicy
+                                        , "= '" <> newVal <> "'"
+                                        , ";"
+                                        ]
                             Sqlite.step query *> Sqlite.finalize query
                             case fromText @Double (T.dropEnd 1 c) of
                                 Right stakeKeyVal ->
@@ -767,12 +898,11 @@ migrateManually tr key defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded fieldFeePolicy
                 traceWith tr $ MsgManualMigrationNotNeeded fieldKeyDeposit
       where
-        fieldFeePolicy  = DBField ProtocolParametersFeePolicy
+        fieldFeePolicy = DBField ProtocolParametersFeePolicy
         fieldKeyDeposit = DBField ProtocolParametersKeyDeposit
 
-    -- | Adds an 'policy_xpub' column to the 'seq_state'
+    -- \| Adds an 'policy_xpub' column to the 'seq_state'
     -- table if it is missing.
-    --
     addPolicyXPubIfMissing :: Sqlite.Connection -> IO ()
     addPolicyXPubIfMissing conn = do
         addColumn_ conn False (DBField SeqStatePolicyXPub) value
@@ -788,7 +918,7 @@ migrateManually tr key defaultFieldValues =
     addColumn_ a b c =
         void . addColumn a b c
 
-    -- | A migration for adding a non-existing column to a table. Factor out as
+    -- \| A migration for adding a non-existing column to a table. Factor out as
     -- it's a common use-case.
     addColumn
         :: Sqlite.Connection
@@ -797,22 +927,29 @@ migrateManually tr key defaultFieldValues =
         -> Text
         -> IO SqlColumnStatus
     addColumn conn notNull field value = do
-        isFieldPresent conn field >>= \st -> st <$ case st of
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded field value
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName field
-                    , "ADD COLUMN", fieldName field
-                    , fieldType field, if notNull then "NOT NULL" else ""
-                    , "DEFAULT", value
-                    , ";"
-                    ]
-                _ <- Sqlite.step query
-                Sqlite.finalize query
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
+        isFieldPresent conn field >>= \st ->
+            st <$ case st of
+                TableMissing ->
+                    traceWith tr $ MsgManualMigrationNotNeeded field
+                ColumnMissing -> do
+                    traceWith tr $ MsgManualMigrationNeeded field value
+                    query <-
+                        Sqlite.prepare conn
+                            $ T.unwords
+                                [ "ALTER TABLE"
+                                , tableName field
+                                , "ADD COLUMN"
+                                , fieldName field
+                                , fieldType field
+                                , if notNull then "NOT NULL" else ""
+                                , "DEFAULT"
+                                , value
+                                , ";"
+                                ]
+                    _ <- Sqlite.step query
+                    Sqlite.finalize query
+                ColumnPresent ->
+                    traceWith tr $ MsgManualMigrationNotNeeded field
 
     renameColumnField
         :: Sqlite.Connection
@@ -827,55 +964,70 @@ migrateManually tr key defaultFieldValues =
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnPresent -> do
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "UPDATE", tableName field
-                    , "SET", fieldName field, "=", quotes new
-                    , "WHERE", fieldName field, "=", quotes old
-                    ]
+                query <-
+                    Sqlite.prepare conn
+                        $ T.unwords
+                            [ "UPDATE"
+                            , tableName field
+                            , "SET"
+                            , fieldName field
+                            , "="
+                            , quotes new
+                            , "WHERE"
+                            , fieldName field
+                            , "="
+                            , quotes old
+                            ]
                 _ <- Sqlite.step query
                 changes <- Sqlite.changes conn
-                traceWith tr $ if changes > 0
-                    then MsgManualMigrationNeeded field old
-                    else MsgManualMigrationNotNeeded field
+                traceWith tr
+                    $ if changes > 0
+                        then MsgManualMigrationNeeded field old
+                        else MsgManualMigrationNotNeeded field
                 Sqlite.finalize query
 
-    -- | This table is replaced by Submissions talbles.
+    -- \| This table is replaced by Submissions talbles.
     removeOldSubmissions :: Sqlite.Connection -> IO ()
-    removeOldSubmissions conn = void $
-        runSql conn "DROP TABLE IF EXISTS local_tx_submission;"
+    removeOldSubmissions conn =
+        void
+            $ runSql conn "DROP TABLE IF EXISTS local_tx_submission;"
 
     removeMetasOfSubmissions :: Sqlite.Connection -> IO ()
     removeMetasOfSubmissions conn = do
         onFieldPresent conn (DBField TxMetaStatus) $ do
             metas <- runSql conn "select * from tx_meta;"
             runListT $ do
-                (PersistText txId : _ :  PersistText txStatus : _)
-                    <- select metas
+                (PersistText txId : _ : PersistText txStatus : _) <-
+                    select metas
                 type' <- select ["pending", "expired"]
                 guard $ txStatus == type'
-                t <- select
-                    [ DBField TxMetaTxId
-                    , DBField TxInputTxId
-                    , DBField TxCollateralTxId
-                    , DBField TxOutputTxId
-                    , DBField TxOutTokenTxId
-                    , DBField TxWithdrawalTxId
-                    , DBField TxCollateralOutTxId
-                    , DBField TxCollateralOutTokenTxId
-                    , DBField CborTxId
-                    ]
+                t <-
+                    select
+                        [ DBField TxMetaTxId
+                        , DBField TxInputTxId
+                        , DBField TxCollateralTxId
+                        , DBField TxOutputTxId
+                        , DBField TxOutTokenTxId
+                        , DBField TxWithdrawalTxId
+                        , DBField TxCollateralOutTxId
+                        , DBField TxCollateralOutTokenTxId
+                        , DBField CborTxId
+                        ]
                 lift $ do
-                    onFieldPresent conn t $
-                        void $ runSql conn $ T.unwords
+                    onFieldPresent conn t
+                        $ void
+                        $ runSql conn
+                        $ T.unwords
                             [ "DELETE FROM " <> tableName t
                             , "WHERE tx_id = '" <> txId <> "';"
                             ]
     createAndPopulateSubmissionsSlotTable :: Sqlite.Connection -> IO ()
     createAndPopulateSubmissionsSlotTable conn = do
-
         let action = do
-                void $ runSql conn
-                    [i|
+                void
+                    $ runSql
+                        conn
+                        [i|
                         CREATE TABLE "submissions_slots"
                             (   "finality" INTEGER NOT NULL
                             ,   "tip" INTEGER NOT NULL
@@ -886,13 +1038,17 @@ migrateManually tr key defaultFieldValues =
                 xs <- runSql conn ("SELECT wallet_id FROM wallet")
                 for_ xs $ \case
                     [PersistText wid] -> do
-                        void $ runSql conn $ T.unwords
-                            [ "INSERT INTO submissions_slots"
-                            , "(finality, tip, wallet_id)"
-                            , "VALUES (0, 0, '" <> wid <> "');"
-                            ]
-                    _ -> error "migration failed for submissions_slots table \
-                               \ when reading wallet_id from wallet table."
+                        void
+                            $ runSql conn
+                            $ T.unwords
+                                [ "INSERT INTO submissions_slots"
+                                , "(finality, tip, wallet_id)"
+                                , "VALUES (0, 0, '" <> wid <> "');"
+                                ]
+                    _ ->
+                        error
+                            "migration failed for submissions_slots table \
+                            \ when reading wallet_id from wallet table."
 
         isFieldPresent conn (DBField SubmissionsSlotsWallet) >>= \case
             TableMissing -> onFieldPresent conn (DBField WalletId) action
@@ -921,21 +1077,27 @@ runSql conn raw = do
                 return (reverse acc)
 
 putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
-putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
-    [ "INSERT INTO database_schema_version (name, version)"
-    , "VALUES ('schema',"
-    , version
-    , ") ON CONFLICT (name) DO UPDATE SET version ="
-    , version
-    ]
-    where
+putSchemaVersion conn schemaVersion =
+    void
+        $ runSql conn
+        $ T.unwords
+            [ "INSERT INTO database_schema_version (name, version)"
+            , "VALUES ('schema',"
+            , version
+            , ") ON CONFLICT (name) DO UPDATE SET version ="
+            , version
+            ]
+  where
     version = T.pack $ show schemaVersion
 
 getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
 getSchemaVersion conn =
     runSql conn "SELECT version FROM database_schema_version" >>= \case
-        [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
-            $ fromIntegral int
+        [[PersistInt64 int]]
+            | int >= 0 ->
+                pure
+                    $ SchemaVersion
+                    $ fromIntegral int
         _ -> throwString "Database metadata table is corrupt"
 
 onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
@@ -952,27 +1114,32 @@ isFieldPresent conn field =
 
 isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
 isFieldPresentByName conn table field = do
-    getTableInfo' <- Sqlite.prepare conn $ mconcat
-        [ "SELECT sql FROM sqlite_master "
-        , "WHERE type = 'table' "
-        , "AND name = '" <> table <> "';"
-        ]
-    row <- Sqlite.step getTableInfo'
-        >> Sqlite.columns getTableInfo'
+    getTableInfo' <-
+        Sqlite.prepare conn
+            $ mconcat
+                [ "SELECT sql FROM sqlite_master "
+                , "WHERE type = 'table' "
+                , "AND name = '" <> table <> "';"
+                ]
+    row <-
+        Sqlite.step getTableInfo'
+            >> Sqlite.columns getTableInfo'
     Sqlite.finalize getTableInfo'
     pure $ case row of
         [PersistText t]
             | field `T.isInfixOf` t -> ColumnPresent
-            | otherwise             -> ColumnMissing
+            | otherwise -> ColumnMissing
         _ -> TableMissing
 
 isTablePresentByName :: Sqlite.Connection -> Text -> IO Bool
 isTablePresentByName conn table = do
-    getTableInfo' <- Sqlite.prepare conn $ mconcat
-        [ "SELECT sql FROM sqlite_master "
-        , "WHERE type = 'table' "
-        , "AND name = '" <> table <> "';"
-        ]
+    getTableInfo' <-
+        Sqlite.prepare conn
+            $ mconcat
+                [ "SELECT sql FROM sqlite_master "
+                , "WHERE type = 'table' "
+                , "AND name = '" <> table <> "';"
+                ]
     mrow <- Sqlite.step getTableInfo'
     Sqlite.finalize getTableInfo'
     pure $ case mrow of

@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Address.Derivation.IcarusSpec
@@ -15,9 +14,11 @@ module Cardano.Wallet.Address.Derivation.IcarusSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -35,21 +36,31 @@ import Cardano.Wallet.Address.Derivation.Icarus
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Address.DerivationSpec
-    ()
+    (
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (IcarusKeyS) )
+    ( KeyFlavorS (IcarusKeyS)
+    )
 import Cardano.Wallet.Gen
-    ( genLegacyAddress )
+    ( genLegacyAddress
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
+    ( SNetworkId (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -66,14 +77,14 @@ import qualified Data.ByteString as BS
 spec :: Spec
 spec = do
     describe "BIP-0044 Derivation Properties" $ do
-        it "deriveAccountPrivateKey works for various indexes" $
-            property prop_accountKeyDerivation
-        it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
-            property prop_publicChildKeyDerivation
+        it "deriveAccountPrivateKey works for various indexes"
+            $ property prop_accountKeyDerivation
+        it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)"
+            $ property prop_publicChildKeyDerivation
 
     describe "MkKeyFingerprint Properties" $ do
-        it "paymentKeyFingerprint . liftPaymentAddress == pure" $
-            property prop_roundtripFingerprintLift
+        it "paymentKeyFingerprint . liftPaymentAddress == pure"
+            $ property prop_roundtripFingerprintLift
 
 {-------------------------------------------------------------------------------
                                  Properties
@@ -105,7 +116,7 @@ prop_publicChildKeyDerivation seed encPwd cc ix =
   where
     accXPrv = unsafeGenerateKeyFromSeed seed encPwd :: IcarusKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
-    addrXPub1 = publicKey IcarusKeyS  $ deriveAddressPrivateKey encPwd accXPrv cc ix
+    addrXPub1 = publicKey IcarusKeyS $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
     addrXPub2 = deriveAddressPublicKey (publicKey IcarusKeyS accXPrv) cc ix
 
@@ -126,8 +137,9 @@ prop_roundtripFingerprintLift
 prop_roundtripFingerprintLift addr =
     let
         fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
-            <$> fingerprint
+        eAddr =
+            liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
+                <$> fingerprint
     in
         eAddr === Right addr
 

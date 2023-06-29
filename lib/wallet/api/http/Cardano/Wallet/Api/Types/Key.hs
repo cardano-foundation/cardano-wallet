@@ -8,13 +8,11 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StrictData #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -26,44 +24,69 @@ module Cardano.Wallet.Api.Types.Key
     , computeKeyPayload
     , parseBech32
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
+    ( XPub
+    , xpubPublicKey
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..), Role (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( purposeCIP1854 )
+    ( purposeCIP1854
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeCIP1852 )
+    ( purposeCIP1852
+    )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultSum (..) )
+    ( DefaultSum (..)
+    )
 import Codec.Binary.Bech32
-    ( dataPartFromBytes, dataPartToBytes )
+    ( dataPartFromBytes
+    , dataPartToBytes
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Crypto.Hash.Utils
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Aeson.Types
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.String
-    ( IsString )
+    ( IsString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (TextDecodingError), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (TextDecodingError)
+    , ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Servant.API
-    ( ToHttpApiData )
+    ( ToHttpApiData
+    )
 import Web.Internal.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
@@ -77,8 +100,8 @@ parseBech32
 parseBech32 err =
     either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
   where
-      errBech32 =
-          T.unpack err <>". Expected a bech32-encoded key."
+    errBech32 =
+        T.unpack err <> ". Expected a bech32-encoded key."
 
 parseDataPart
     :: (Bech32.HumanReadablePart, Bech32.DataPart)
@@ -86,36 +109,36 @@ parseDataPart
 parseDataPart =
     maybe (fail errDataPart) pure . traverse dataPartToBytes
   where
-      errDataPart =
-          "Couldn't decode data-part to valid UTF-8 bytes."
+    errDataPart =
+        "Couldn't decode data-part to valid UTF-8 bytes."
 
-parsePubVer :: MonadFail f => ByteString -> f ByteString
+parsePubVer :: (MonadFail f) => ByteString -> f ByteString
 parsePubVer bytes
     | BS.length bytes == 32 =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+        fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
 
-parsePubVerHash :: MonadFail f => ByteString -> f ByteString
+parsePubVerHash :: (MonadFail f) => ByteString -> f ByteString
 parsePubVerHash bytes
     | BS.length bytes == 28 =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
+        fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
 
-parsePubErr :: IsString p => KeyFormat -> p
+parsePubErr :: (IsString p) => KeyFormat -> p
 parsePubErr = \case
     Extended ->
         "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
     NonExtended ->
         "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
 
-parsePub :: MonadFail f => ByteString -> KeyFormat -> f ByteString
+parsePub :: (MonadFail f) => ByteString -> KeyFormat -> f ByteString
 parsePub bytes extd
     | BS.length bytes == bytesExpectedLength =
-          pure bytes
+        pure bytes
     | otherwise =
-          fail $ parsePubErr extd
+        fail $ parsePubErr extd
   where
     bytesExpectedLength = case extd of
         Extended -> 64
@@ -134,14 +157,14 @@ computeKeyPayload hashed' k = case hashing of
 
 data VerificationKeyHashing = WithHashing | WithoutHashing
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiPolicyKey = ApiPolicyKey
     { getApiPolicyKey :: ByteString
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiPolicyKey where
     toJSON (ApiPolicyKey pub hashed') =
@@ -176,7 +199,7 @@ data ApiVerificationKeyShared = ApiVerificationKeyShared
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiVerificationKeyShared where
     toJSON (ApiVerificationKeyShared (pub, role_) hashed') =
@@ -200,7 +223,7 @@ instance FromJSON ApiVerificationKeyShared where
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
             WithHashing -> parsePubVerHash bytes
-        pure $ ApiVerificationKeyShared (payload,role) hashing
+        pure $ ApiVerificationKeyShared (payload, role) hashing
       where
         parseRoleHashing = \case
             hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
@@ -221,7 +244,7 @@ data ApiAccountKey = ApiAccountKey
     , purpose :: Index 'Hardened 'PurposeK
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd purpose') =
@@ -229,11 +252,11 @@ instance ToJSON ApiAccountKey where
       where
         hrp p
             | p == purposeCIP1854 = case extd of
-                  Extended -> [humanReadablePart|acct_shared_xvk|]
-                  NonExtended -> [humanReadablePart|acct_shared_vk|]
+                Extended -> [humanReadablePart|acct_shared_xvk|]
+                NonExtended -> [humanReadablePart|acct_shared_vk|]
             | otherwise = case extd of
-                  Extended -> [humanReadablePart|acct_xvk|]
-                  NonExtended -> [humanReadablePart|acct_vk|]
+                Extended -> [humanReadablePart|acct_xvk|]
+                NonExtended -> [humanReadablePart|acct_vk|]
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
@@ -249,16 +272,16 @@ instance FromJSON ApiAccountKey where
             hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure (NonExtended, purposeCIP1854)
             _ -> fail errHrp
           where
-              errHrp =
-                  "Unrecognized human-readable part. Expected one of:\
-                  \ \"acct_xvk\", \"acct_vk\", \"acct_shared_xvk\" or \"acct_shared_vk\"."
+            errHrp =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"acct_xvk\", \"acct_vk\", \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 -- KeyFormat
 
 data KeyFormat = Extended | NonExtended
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultSum KeyFormat
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToText KeyFormat where
     toText Extended = "extended"
@@ -271,10 +294,14 @@ instance FromText KeyFormat where
     fromText txt = case txt of
         "extended" -> Right Extended
         "non_extended" -> Right NonExtended
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given key format."
-            , "I am expecting one of the words 'extended' or"
-            , "'non_extended'."]
+        _ ->
+            Left
+                $ TextDecodingError
+                $ unwords
+                    [ "I couldn't parse the given key format."
+                    , "I am expecting one of the words 'extended' or"
+                    , "'non_extended'."
+                    ]
 
 -- ApiAccountKeyShared
 
@@ -284,7 +311,7 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     , purpose :: Index 'Hardened 'PurposeK
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiAccountKeyShared where
     toJSON (ApiAccountKeyShared pub extd _) =
@@ -306,9 +333,9 @@ instance FromJSON ApiAccountKeyShared where
             hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure NonExtended
             _ -> fail errHrp
           where
-              errHrp =
-                  "Unrecognized human-readable part. Expected one of:\
-                  \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
+            errHrp =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 -- ApiVerificationKetShelley
 
@@ -317,7 +344,7 @@ data ApiVerificationKeyShelley = ApiVerificationKeyShelley
     , hashed :: VerificationKeyHashing
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiVerificationKeyShelley where
     toJSON (ApiVerificationKeyShelley (pub, role_) hashed') =
@@ -341,7 +368,7 @@ instance FromJSON ApiVerificationKeyShelley where
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
             WithHashing -> parsePubVerHash bytes
-        pure $ ApiVerificationKeyShelley (payload,role) hashing
+        pure $ ApiVerificationKeyShelley (payload, role) hashing
       where
         parseRoleHashing = \case
             hrp | hrp == [humanReadablePart|addr_vk|] -> pure (UtxoExternal, WithoutHashing)

@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
@@ -17,13 +16,18 @@ module Main where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Plugin
-    ( loadPlugin )
+    ( loadPlugin
+    )
 import Cardano.BM.Trace
-    ( appendName )
+    ( appendName
+    )
 import Cardano.CLI
     ( LogOutput (..)
     , Port (..)
@@ -33,14 +37,16 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher
-    ( ProcessHasExited (..) )
+    ( ProcessHasExited (..)
+    )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
 import Cardano.Wallet.Launch
-    ( withSystemTempDir )
+    ( withSystemTempDir
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterLog
     , Credential (..)
@@ -61,43 +67,76 @@ import Cardano.Wallet.Launch.Cluster
     , withSMASH
     )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
+    ( BracketLog
+    , bracketTracer
+    , stdoutTextTracer
+    , trMessageText
+    )
 import Cardano.Wallet.Network.Ports
-    ( portFromURL )
+    ( portFromURL
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.Shelley
-    ( Tracers, serveWallet, setupTracers, tracerSeverities )
+    ( Tracers
+    , serveWallet
+    , setupTracers
+    , tracerSeverities
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
+    ( decodeAddress
+    , encodeAddress
+    )
 import Cardano.Wallet.Shelley.Faucet
-    ( initFaucet )
+    ( initFaucet
+    )
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( queryServerStatic, withMetadataServer )
+    ( queryServerStatic
+    , withMetadataServer
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
+    ( Tracer (..)
+    , contramap
+    , traceWith
+    )
 import Data.Either.Combinators
-    ( whenLeft )
+    ( whenLeft
+    )
 import Data.IORef
-    ( IORef, atomicModifyIORef', newIORef )
+    ( IORef
+    , atomicModifyIORef'
+    , newIORef
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -105,19 +144,31 @@ import Network.HTTP.Client
     , responseTimeoutMicro
     )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
+    ( tunedForMainnetPipeliningStrategy
+    )
 import System.Directory
-    ( createDirectory )
+    ( createDirectory
+    )
 import System.Environment
-    ( setEnv )
+    ( setEnv
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec.Core.Spec
-    ( Spec, SpecWith, describe, parallel, sequential )
+    ( Spec
+    , SpecWith
+    , describe
+    , parallel
+    , sequential
+    )
 import Test.Hspec.Extra
-    ( aroundAll, hspecMain )
+    ( aroundAll
+    , hspecMain
+    )
 import Test.Integration.Faucet
     ( byronIntegrationTestFunds
     , genRewardAccounts
@@ -128,15 +179,29 @@ import Test.Integration.Faucet
     , shelleyIntegrationTestFunds
     )
 import Test.Integration.Framework.Context
-    ( Context (..), PoolGarbageCollectionEvent (..) )
+    ( Context (..)
+    , PoolGarbageCollectionEvent (..)
+    )
 import Test.Utils.Paths
-    ( getTestData, inNixBuild )
+    ( getTestData
+    , inNixBuild
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Exception
-    ( SomeException, isAsyncException, throwIO, withException )
+    ( SomeException
+    , isAsyncException
+    , throwIO
+    , withException
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
+    ( newEmptyMVar
+    , newMVar
+    , putMVar
+    , takeMVar
+    , withMVar
+    )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool
@@ -175,8 +240,10 @@ main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspecMain $ do
-        describe "No backend required" $
-            parallelIf (not nix) $ describe "Miscellaneous CLI tests"
+        describe "No backend required"
+            $ parallelIf (not nix)
+            $ describe
+                "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
         specWithServer testDir tracers $ do
             describe "API Specifications" $ do
@@ -234,10 +301,12 @@ withTestsSetup action = do
 
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
-    withUtf8Encoding $
+    withUtf8Encoding
+        $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
-        withSystemTempDir stdoutTextTracer "test" $ \testDir ->
+        withSystemTempDir stdoutTextTracer "test"
+        $ \testDir ->
             withTracers testDir $ action testDir
 
 specWithServer
@@ -258,37 +327,45 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
                 let fiveMinutes = 300 * 1_000 * 1_000 -- 5 minutes in microseconds
-                manager <- newManager $ defaultManagerSettings
-                    { managerResponseTimeout = responseTimeoutMicro fiveMinutes
-                    }
+                manager <-
+                    newManager
+                        $ defaultManagerSettings
+                            { managerResponseTimeout = responseTimeoutMicro fiveMinutes
+                            }
                 faucet <- initFaucet
 
                 era <- clusterEraFromEnv
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
-                putMVar ctx $ Context
-                    { _cleanup = pure ()
-                    , _manager = (baseUrl, manager)
-                    , _walletPort = Port . fromIntegral $ portFromURL baseUrl
-                    , _faucet = faucet
-                    , _networkParameters = np
-                    , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
-                    , _mainEra = clusterToApiEra era
-                    , _smashUrl = smashUrl
-                    , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
-                        withMVar mintSeaHorseAssetsLock $ \() ->
-                            sendFaucetAssetsTo tr' conn testDir era batchSize
-                                $ encodeAddresses
-                                $ seaHorseTestAssets nPerAddr c addrs
-                    , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr' conn testDir era
-                            [(ScriptCredential script, coin)]
-                    }
+                putMVar ctx
+                    $ Context
+                        { _cleanup = pure ()
+                        , _manager = (baseUrl, manager)
+                        , _walletPort = Port . fromIntegral $ portFromURL baseUrl
+                        , _faucet = faucet
+                        , _networkParameters = np
+                        , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
+                        , _mainEra = clusterToApiEra era
+                        , _smashUrl = smashUrl
+                        , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
+                            withMVar mintSeaHorseAssetsLock $ \() ->
+                                sendFaucetAssetsTo tr' conn testDir era batchSize
+                                    $ encodeAddresses
+                                    $ seaHorseTestAssets nPerAddr c addrs
+                        , _moveRewardsToScript = \(script, coin) ->
+                            moveInstantaneousRewardsTo
+                                tr'
+                                conn
+                                testDir
+                                era
+                                [(ScriptCredential script, coin)]
+                        }
         let action' = bracketTracer' tr "spec" . action
-        res <- race
-            (withServer dbEventRecorder setupContext)
-            (takeMVar ctx >>= action')
+        res <-
+            race
+                (withServer dbEventRecorder setupContext)
+                (takeMVar ctx >>= action')
         whenLeft res (throwIO . ProcessHasExited "integration")
 
     -- A decorator for the pool database that records all calls to the
@@ -302,8 +379,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         -> Pool.DBDecorator IO
     recordPoolGarbageCollectionEvents eventsRef = Pool.DBDecorator decorate
       where
-        decorate Pool.DBLayer {..} =
-            Pool.DBLayer {removeRetiredPools = removeRetiredPoolsDecorated, ..}
+        decorate Pool.DBLayer{..} =
+            Pool.DBLayer{removeRetiredPools = removeRetiredPoolsDecorated, ..}
           where
             removeRetiredPoolsDecorated epochNo = do
                 certificates <- removeRetiredPools epochNo
@@ -313,8 +390,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     atomicModifyIORef' eventsRef ((,()) . (event :))
                 pure certificates
 
-    withServer dbDecorator onReady = bracketTracer' tr "withServer" $
-        withSMASH tr' testDir $ \smashUrl -> do
+    withServer dbDecorator onReady = bracketTracer' tr "withServer"
+        $ withSMASH tr' testDir
+        $ \smashUrl -> do
             clusterCfg <- localClusterConfigFromEnv
             withCluster tr' testDir clusterCfg faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
@@ -322,18 +400,19 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     tr' = contramap MsgCluster tr
     encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
-    faucetFunds = FaucetFunds
-        { pureAdaFunds =
-            shelleyIntegrationTestFunds
-             <> byronIntegrationTestFunds
-             <> map (first unsafeDecodeAddr) hwWalletFunds
-        , maFunds =
-            maryIntegrationTestAssets (Coin 10_000_000)
-        , mirFunds =
-            first KeyCredential
-            . (,Coin $ fromIntegral oneMillionAda)
-            <$> concatMap genRewardAccounts mirMnemonics
-        }
+    faucetFunds =
+        FaucetFunds
+            { pureAdaFunds =
+                shelleyIntegrationTestFunds
+                    <> byronIntegrationTestFunds
+                    <> map (first unsafeDecodeAddr) hwWalletFunds
+            , maFunds =
+                maryIntegrationTestAssets (Coin 10_000_000)
+            , mirFunds =
+                first KeyCredential
+                    . (,Coin $ fromIntegral oneMillionAda)
+                    <$> concatMap genRewardAccounts mirMnemonics
+            }
 
     unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
@@ -377,25 +456,28 @@ data TestsLog
 instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
-        MsgBaseUrl walletUrl ekgUrl prometheusUrl smashUrl -> T.unlines
-            [ "Wallet url: " <> T.pack (show walletUrl)
-            , "EKG url: " <> ekgUrl
-            , "Prometheus url: " <> prometheusUrl
-            , "SMASH url: " <> smashUrl
-            ]
+        MsgBaseUrl walletUrl ekgUrl prometheusUrl smashUrl ->
+            T.unlines
+                [ "Wallet url: " <> T.pack (show walletUrl)
+                , "EKG url: " <> ekgUrl
+                , "Prometheus url: " <> prometheusUrl
+                , "SMASH url: " <> smashUrl
+                ]
         MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
-        MsgPoolGarbageCollectionEvent e -> mconcat
-            [ "Intercepted pool garbage collection event for epoch "
-            , toText (poolGarbageCollectionEpochNo e)
-            , ". "
-            , case poolGarbageCollectionCertificates e of
-                [] -> "No pools were removed from the database."
-                ps -> mconcat
-                    [ "The following pools were removed from the database: "
-                    , T.unwords (T.pack . show <$> ps)
-                    ]
-            ]
+        MsgPoolGarbageCollectionEvent e ->
+            mconcat
+                [ "Intercepted pool garbage collection event for epoch "
+                , toText (poolGarbageCollectionEpochNo e)
+                , ". "
+                , case poolGarbageCollectionCertificates e of
+                    [] -> "No pools were removed from the database."
+                    ps ->
+                        mconcat
+                            [ "The following pools were removed from the database: "
+                            , T.unwords (T.pack . show <$> ps)
+                            ]
+                ]
         MsgServerError e
             | isAsyncException e -> "Server thread cancelled"
             | otherwise -> T.pack (show e)
@@ -405,7 +487,7 @@ instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgBracket _ _ -> Debug
         MsgSettingUpFaucet -> Notice
-        MsgBaseUrl {} -> Notice
+        MsgBaseUrl{} -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
         MsgServerError e

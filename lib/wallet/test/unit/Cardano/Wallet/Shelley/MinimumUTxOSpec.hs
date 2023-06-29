@@ -3,8 +3,8 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Shelley.MinimumUTxOSpec
@@ -14,19 +14,26 @@ module Cardano.Wallet.Shelley.MinimumUTxOSpec
 import Prelude
 
 import Cardano.Api
-    ( ShelleyBasedEra (..) )
+    ( ShelleyBasedEra (..)
+    )
 import Cardano.Api.Gen
-    ( genAddressAny )
+    ( genAddressAny
+    )
 import Cardano.Ledger.Core
-    ( ppMinUTxOValueL )
+    ( ppMinUTxOValueL
+    )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
-    ( maxLengthAddressFor )
+    ( maxLengthAddressFor
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..)
     , MinimumUTxOForShelleyBasedEra (..)
@@ -44,41 +51,73 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     , testParameter_minUTxOValue_Shelley
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( shrinkTokenBundle )
+    ( shrinkTokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap, shrinkTokenMap )
+    ( genTokenMap
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (UnsafeTokenName) )
+    ( TokenName (UnsafeTokenName)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( mkTokenPolicyId )
+    ( mkTokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
+    ( txOutMaxTokenQuantity
+    , txOutMinTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutTokenBundle )
+    ( genTxOutTokenBundle
+    )
 import Cardano.Wallet.Shelley.MinimumUTxO
-    ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
+    ( computeMinimumCoinForUTxO
+    , isBelowMinimumCoinForUTxO
+    )
 import Control.Lens
-    ( (.~) )
+    ( (.~)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Default
-    ( Default (..) )
+    ( Default (..)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, elements, frequency, property, sized, (===) )
+    ( Arbitrary (..)
+    , Property
+    , elements
+    , frequency
+    , property
+    , sized
+    , (===)
+    )
 import Test.QuickCheck.Classes
-    ( eqLaws, showLaws )
+    ( eqLaws
+    , showLaws
+    )
 import Test.QuickCheck.Extra
-    ( report, verify )
+    ( report
+    , verify
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
@@ -96,17 +135,13 @@ spec = do
             ]
 
     describe "computeMinimumCoinForUTxO" $ do
-
         describe "Properties" $ do
-
-            it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
-                prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
-                    & property
+            it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO"
+                $ prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
+                & property
 
         describe "Golden Tests" $ do
-
             describe "Byron-style addresses" $ do
-
                 goldenTests_computeMinimumCoinForUTxO
                     "Shelley"
                     goldenMinimumUTxO_ShelleyEra
@@ -129,7 +164,6 @@ spec = do
                     goldenMinimumCoins_ByronAddress_BabbageEra
 
             describe "Shelley-style addresses" $ do
-
                 goldenTests_computeMinimumCoinForUTxO
                     "Shelley"
                     goldenMinimumUTxO_ShelleyEra
@@ -160,9 +194,11 @@ spec = do
 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
     :: MinimumUTxO -> Address -> TokenMap -> Property
 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO minimumUTxO addr m =
-    isBelowMinimumCoinForUTxO minimumUTxO addr
+    isBelowMinimumCoinForUTxO
+        minimumUTxO
+        addr
         (TokenBundle (computeMinimumCoinForUTxO minimumUTxO addr m) m)
-    === False
+        === False
 
 --------------------------------------------------------------------------------
 -- Golden tests
@@ -177,20 +213,25 @@ goldenTests_computeMinimumCoinForUTxO
     -- ^ Mappings from 'TokenMap' values to expected minimum 'Coin' values.
     -> Spec
 goldenTests_computeMinimumCoinForUTxO
-    testName minimumUTxO expectedMinimumCoins =
-        goldenTests title
+    testName
+    minimumUTxO
+    expectedMinimumCoins =
+        goldenTests
+            title
             (\(minUTxO, addr, m) -> computeMinimumCoinForUTxO minUTxO addr m)
             (mkTest <$> expectedMinimumCoins)
-  where
-    mkTest
-        :: (Address, TokenMap, Coin)
-        -> GoldenTestData (MinimumUTxO, Address, TokenMap) Coin
-    mkTest (addr, tokenMap, coinExpected) = GoldenTestData
-        { params = (minimumUTxO, addr, tokenMap)
-        , resultExpected = coinExpected
-        }
-    title = unwords
-        ["goldenTests_computeMinimumCoinForUTxO:", testName]
+      where
+        mkTest
+            :: (Address, TokenMap, Coin)
+            -> GoldenTestData (MinimumUTxO, Address, TokenMap) Coin
+        mkTest (addr, tokenMap, coinExpected) =
+            GoldenTestData
+                { params = (minimumUTxO, addr, tokenMap)
+                , resultExpected = coinExpected
+                }
+        title =
+            unwords
+                ["goldenTests_computeMinimumCoinForUTxO:", testName]
 
 --------------------------------------------------------------------------------
 -- Golden 'MinimumUTxO' values
@@ -198,18 +239,21 @@ goldenTests_computeMinimumCoinForUTxO
 
 goldenMinimumUTxO_ShelleyEra :: MinimumUTxO
 goldenMinimumUTxO_ShelleyEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley $
-        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Shelley
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
+        $ def
+        & ppMinUTxOValueL .~ testParameter_minUTxOValue_Shelley
 
 goldenMinimumUTxO_AllegraEra :: MinimumUTxO
 goldenMinimumUTxO_AllegraEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra $
-        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Allegra
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
+        $ def
+        & ppMinUTxOValueL .~ testParameter_minUTxOValue_Allegra
 
 goldenMinimumUTxO_MaryEra :: MinimumUTxO
 goldenMinimumUTxO_MaryEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary $
-        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Mary
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary
+        $ def
+        & ppMinUTxOValueL .~ testParameter_minUTxOValue_Mary
 
 goldenMinimumUTxO_AlonzoEra :: MinimumUTxO
 goldenMinimumUTxO_AlonzoEra =
@@ -259,7 +303,7 @@ goldenMinimumCoins_ByronAddress_MaryEra =
 
 goldenMinimumCoins_ByronAddress_AlonzoEra :: [(Address, TokenMap, Coin)]
 goldenMinimumCoins_ByronAddress_AlonzoEra =
-    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin   999_978)
+    [ (maxLengthAddressBryon, goldenTokenMap_0, Coin 999_978)
     , (maxLengthAddressBryon, goldenTokenMap_1, Coin 1_344_798)
     , (maxLengthAddressBryon, goldenTokenMap_2, Coin 1_448_244)
     , (maxLengthAddressBryon, goldenTokenMap_3, Coin 1_620_654)
@@ -311,7 +355,7 @@ goldenMinimumCoins_ShelleyAddress_MaryEra =
 
 goldenMinimumCoins_ShelleyAddress_AlonzoEra :: [(Address, TokenMap, Coin)]
 goldenMinimumCoins_ShelleyAddress_AlonzoEra =
-    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin   999_978)
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin 999_978)
     , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_344_798)
     , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_448_244)
     , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_620_654)
@@ -320,7 +364,7 @@ goldenMinimumCoins_ShelleyAddress_AlonzoEra =
 
 goldenMinimumCoins_ShelleyAddress_BabbageEra :: [(Address, TokenMap, Coin)]
 goldenMinimumCoins_ShelleyAddress_BabbageEra =
-    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin   995_610)
+    [ (maxLengthAddressShelley, goldenTokenMap_0, Coin 995_610)
     , (maxLengthAddressShelley, goldenTokenMap_1, Coin 1_150_770)
     , (maxLengthAddressShelley, goldenTokenMap_2, Coin 1_323_170)
     , (maxLengthAddressShelley, goldenTokenMap_3, Coin 1_323_170)
@@ -344,30 +388,34 @@ goldenTokenMap_0 :: TokenMap
 goldenTokenMap_0 = TokenMap.empty
 
 goldenTokenMap_1 :: TokenMap
-goldenTokenMap_1 = TokenMap.fromFlatList
-    [ (goldenAssetId_A_1_short, txOutMinTokenQuantity)
-    ]
+goldenTokenMap_1 =
+    TokenMap.fromFlatList
+        [ (goldenAssetId_A_1_short, txOutMinTokenQuantity)
+        ]
 
 goldenTokenMap_2 :: TokenMap
-goldenTokenMap_2 = TokenMap.fromFlatList
-    [ (goldenAssetId_A_1_long, txOutMaxTokenQuantity)
-    ]
+goldenTokenMap_2 =
+    TokenMap.fromFlatList
+        [ (goldenAssetId_A_1_long, txOutMaxTokenQuantity)
+        ]
 
 goldenTokenMap_3 :: TokenMap
-goldenTokenMap_3 = TokenMap.fromFlatList
-    [ (goldenAssetId_A_1_short, txOutMinTokenQuantity)
-    , (goldenAssetId_A_2_short, txOutMinTokenQuantity)
-    , (goldenAssetId_B_1_short, txOutMinTokenQuantity)
-    , (goldenAssetId_B_2_short, txOutMinTokenQuantity)
-    ]
+goldenTokenMap_3 =
+    TokenMap.fromFlatList
+        [ (goldenAssetId_A_1_short, txOutMinTokenQuantity)
+        , (goldenAssetId_A_2_short, txOutMinTokenQuantity)
+        , (goldenAssetId_B_1_short, txOutMinTokenQuantity)
+        , (goldenAssetId_B_2_short, txOutMinTokenQuantity)
+        ]
 
 goldenTokenMap_4 :: TokenMap
-goldenTokenMap_4 = TokenMap.fromFlatList
-    [ (goldenAssetId_A_1_long, txOutMaxTokenQuantity)
-    , (goldenAssetId_A_2_long, txOutMaxTokenQuantity)
-    , (goldenAssetId_B_1_long, txOutMaxTokenQuantity)
-    , (goldenAssetId_B_2_long, txOutMaxTokenQuantity)
-    ]
+goldenTokenMap_4 =
+    TokenMap.fromFlatList
+        [ (goldenAssetId_A_1_long, txOutMaxTokenQuantity)
+        , (goldenAssetId_A_2_long, txOutMaxTokenQuantity)
+        , (goldenAssetId_B_1_long, txOutMaxTokenQuantity)
+        , (goldenAssetId_B_2_long, txOutMaxTokenQuantity)
+        ]
 
 --------------------------------------------------------------------------------
 -- Golden 'AssetId' values
@@ -398,9 +446,10 @@ goldenAssetId_B_2_long :: AssetId
 goldenAssetId_B_2_long = mkAssetId 'B' (replicate 32 '2')
 
 mkAssetId :: Char -> String -> AssetId
-mkAssetId pid name = AssetId
-    (mkTokenPolicyId pid)
-    (UnsafeTokenName $ T.encodeUtf8 $ T.pack name)
+mkAssetId pid name =
+    AssetId
+        (mkTokenPolicyId pid)
+        (UnsafeTokenName $ T.encodeUtf8 $ T.pack name)
 
 --------------------------------------------------------------------------------
 -- Golden test support
@@ -419,18 +468,19 @@ goldenTests
     -> [GoldenTestData params result]
     -> Spec
 goldenTests title f goldenTestData =
-    describe title $
-    forM_ (zip testNumbers goldenTestData) $ \(testNumber, testData) -> do
-        let subtitle = "golden test #" <> show testNumber
-        it subtitle $ do
-            let GoldenTestData {params, resultExpected} = testData
-            let resultReturned = f params
-            property True
-                & verify
-                    (resultReturned == resultExpected)
-                    "resultReturned == resultExpected"
-                & report resultReturned "resultReturned"
-                & report resultExpected "resultExpected"
+    describe title
+        $ forM_ (zip testNumbers goldenTestData)
+        $ \(testNumber, testData) -> do
+            let subtitle = "golden test #" <> show testNumber
+            it subtitle $ do
+                let GoldenTestData{params, resultExpected} = testData
+                let resultReturned = f params
+                property True
+                    & verify
+                        (resultReturned == resultExpected)
+                        "resultReturned == resultExpected"
+                    & report resultReturned "resultReturned"
+                    & report resultExpected "resultExpected"
   where
     testNumbers :: [Int]
     testNumbers = [0 ..]
@@ -440,7 +490,7 @@ goldenTests title f goldenTestData =
 --------------------------------------------------------------------------------
 
 fromCardanoAddressAny :: Cardano.AddressAny -> Address
-fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
+fromCardanoAddressAny = Address . Cardano.serialiseToRawBytes
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
@@ -465,8 +515,9 @@ instance Arbitrary MinimumUTxOForShelleyBasedEra where
     shrink = shrinkMinimumUTxOForShelleyBasedEra
 
 instance Arbitrary TokenMap where
-    arbitrary = frequency
-        [ (4, genTokenMap)
-        , (1, elements goldenTokenMaps)
-        ]
+    arbitrary =
+        frequency
+            [ (4, genTokenMap)
+            , (1, elements goldenTokenMaps)
+            ]
     shrink = shrinkTokenMap

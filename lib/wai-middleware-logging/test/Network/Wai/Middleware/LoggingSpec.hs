@@ -12,37 +12,59 @@ module Network.Wai.Middleware.LoggingSpec (spec) where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..) )
+    ( HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Trace
-    ( traceInTVarIO )
+    ( traceInTVarIO
+    )
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>)
+    , (<&>)
+    )
 import Data.List
-    ( isInfixOf )
+    ( isInfixOf
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Streaming.Network
-    ( HostPreference, bindPortTCP, bindRandomPortTCP )
+    ( HostPreference
+    , bindPortTCP
+    , bindRandomPortTCP
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
     ( Manager
     , Request
@@ -56,11 +78,17 @@ import Network.HTTP.Client
     , requestHeaders
     )
 import Network.HTTP.Types.Header
-    ( hContentType )
+    ( hContentType
+    )
 import Network.Socket
-    ( Socket, close )
+    ( Socket
+    , close
+    )
 import Network.Wai.Handler.Warp
-    ( Port, runSettingsSocket, setBeforeMainLoop )
+    ( Port
+    , runSettingsSocket
+    , setBeforeMainLoop
+    )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..)
     , ApiLoggerSettings
@@ -70,9 +98,7 @@ import Network.Wai.Middleware.Logging
     , withApiLogger
     )
 import Servant
-    ( (:<|>) (..)
-    , (:>)
-    , Application
+    ( Application
     , DeleteNoContent
     , Get
     , JSON
@@ -86,9 +112,12 @@ import Servant
     , err503
     , serve
     , throwError
+    , (:<|>) (..)
+    , (:>)
     )
 import Servant.Server
-    ( Handler )
+    ( Handler
+    )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -97,21 +126,46 @@ import System.IO.Error
     , isUserError
     )
 import Test.Hspec
-    ( Spec, after, before, describe, it, shouldBe, shouldContain )
+    ( Spec
+    , after
+    , before
+    , describe
+    , it
+    , shouldBe
+    , shouldContain
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), choose )
+    ( Arbitrary (..)
+    , choose
+    )
 import UnliftIO
-    ( IOException, bracket, tryJust )
+    ( IOException
+    , bracket
+    , tryJust
+    )
 import UnliftIO.Async
-    ( Async, async, cancel )
+    ( Async
+    , async
+    , cancel
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( onException, throwString )
+    ( onException
+    , throwString
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, readMVar, tryPutMVar )
+    ( newEmptyMVar
+    , putMVar
+    , readMVar
+    , tryPutMVar
+    )
 import UnliftIO.STM
-    ( TVar, newTVarIO, readTVarIO )
+    ( TVar
+    , newTVarIO
+    , readTVarIO
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
@@ -122,7 +176,8 @@ spec = describe "Logging Middleware" $ do
     before setup $ after tearDown $ do
         it "GET, 200, no query" $ \ctx -> do
             get ctx "/get"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /get")
                 , (Debug, "")
@@ -133,7 +188,8 @@ spec = describe "Logging Middleware" $ do
 
         it "GET, 200, with query" $ \ctx -> do
             get ctx "/get?query=patate"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /get?query=patate")
                 , (Debug, "")
@@ -144,7 +200,8 @@ spec = describe "Logging Middleware" $ do
 
         it "GET, 200, not json" $ \ctx -> do
             get ctx "/not-json"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /not-json")
                 , (Debug, "")
@@ -154,8 +211,9 @@ spec = describe "Logging Middleware" $ do
                 ]
 
         it "POST, 201, with sensitive fields" $ \ctx -> do
-            post ctx "/post" (MkJson { field = "patate", sensitive = 14 })
-            expectLogs ctx
+            post ctx "/post" (MkJson{field = "patate", sensitive = 14})
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[POST] /post")
                 , (Debug, "{\"field\":\"patate\",\"sensitive\":\"*****\"}")
@@ -166,7 +224,8 @@ spec = describe "Logging Middleware" $ do
 
         it "POST, 400, invalid payload (not json)" $ \ctx -> do
             postIlled ctx "/post" "\NUL\NUL\NUL"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[POST] /post")
                 , (Debug, "Invalid payload: not JSON")
@@ -177,7 +236,8 @@ spec = describe "Logging Middleware" $ do
 
         it "DELETE, 202, no query" $ \ctx -> do
             delete ctx "/delete"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[DELETE] /delete")
                 , (Debug, "")
@@ -188,7 +248,8 @@ spec = describe "Logging Middleware" $ do
 
         it "GET, 400" $ \ctx -> do
             get ctx "/error400"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /error400")
                 , (Debug, "")
@@ -199,7 +260,8 @@ spec = describe "Logging Middleware" $ do
 
         it "GET, 500" $ \ctx -> do
             get ctx "/error500"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /error500")
                 , (Debug, "")
@@ -210,7 +272,8 @@ spec = describe "Logging Middleware" $ do
 
         it "GET, 503" $ \ctx -> do
             get ctx "/error503"
-            expectLogs ctx
+            expectLogs
+                ctx
                 [ (Debug, "LogRequestStart")
                 , (Info, "[GET] /error503")
                 , (Debug, "")
@@ -224,8 +287,9 @@ spec = describe "Logging Middleware" $ do
         tvar <- newTVarIO []
         let tr = traceInTVarIO tvar
         mvar <- newEmptyMVar
-        task <- async
-            (run tr (putMVar mvar) `onException` tryPutMVar mvar (Left Nothing))
+        task <-
+            async
+                (run tr (putMVar mvar) `onException` tryPutMVar mvar (Left Nothing))
         Context tvar
             <$> newManager defaultManagerSettings
             <*> (readMVar mvar >>= either bomb (pure . id))
@@ -233,10 +297,12 @@ spec = describe "Logging Middleware" $ do
 
     run tr cb = withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
         Right (p, socket) -> do
-            logSettings <- newApiLoggerSettings
-                <&> obfuscateKeys (`seq` ["sensitive"])
-            let warpSettings = Warp.defaultSettings &
-                    setBeforeMainLoop (cb (Right p))
+            logSettings <-
+                newApiLoggerSettings
+                    <&> obfuscateKeys (`seq` ["sensitive"])
+            let warpSettings =
+                    Warp.defaultSettings
+                        & setBeforeMainLoop (cb (Right p))
             start logSettings warpSettings tr socket
         Left e -> cb (Left (Just e))
 
@@ -268,8 +334,9 @@ waitForServerToComplete = threadDelay 500_000
 -------------------------------------------------------------------------------}
 
 baseRequest :: Context -> String -> IO Request
-baseRequest ctx path = parseRequest $
-    "http://localhost:" <> show (port ctx) <> path
+baseRequest ctx path =
+    parseRequest
+        $ "http://localhost:" <> show (port ctx) <> path
 
 get :: Context -> String -> IO ()
 get ctx path = do
@@ -279,26 +346,34 @@ get ctx path = do
 delete :: Context -> String -> IO ()
 delete ctx path = do
     req <- baseRequest ctx path
-    void $ httpLbs (req { method = "DELETE" }) (manager ctx)
+    void $ httpLbs (req{method = "DELETE"}) (manager ctx)
 
-post :: ToJSON a => Context -> String -> a -> IO ()
+post :: (ToJSON a) => Context -> String -> a -> IO ()
 post ctx path json = do
     let body = RequestBodyLBS $ Aeson.encode json
     req <- baseRequest ctx path
-    void $ httpLbs (req
-        { method = "POST"
-        , requestBody = body
-        , requestHeaders = [(hContentType, "application/json")]
-        }) (manager ctx)
+    void
+        $ httpLbs
+            ( req
+                { method = "POST"
+                , requestBody = body
+                , requestHeaders = [(hContentType, "application/json")]
+                }
+            )
+            (manager ctx)
 
 postIlled :: Context -> String -> ByteString -> IO ()
 postIlled ctx path body = do
     req <- baseRequest ctx path
-    void $ httpLbs (req
-        { method = "POST"
-        , requestBody = RequestBodyBS body
-        , requestHeaders = [(hContentType, "application/json")]
-        }) (manager ctx)
+    void
+        $ httpLbs
+            ( req
+                { method = "POST"
+                , requestBody = RequestBodyBS body
+                , requestHeaders = [(hContentType, "application/json")]
+                }
+            )
+            (manager ctx)
 
 expectLogs :: Context -> [(Severity, String)] -> IO ()
 expectLogs ctx expectations = do
@@ -306,9 +381,13 @@ expectLogs ctx expectations = do
 
     entries <- takeLogs ctx
 
-    when (length entries /= length expectations) $
-        fail $ "Expected exactly " <> show (length expectations)
-            <> " log entries but got " <> show (length entries) <> ": "
+    when (length entries /= length expectations)
+        $ fail
+        $ "Expected exactly "
+            <> show (length expectations)
+            <> " log entries but got "
+            <> show (length entries)
+            <> ": "
             <> show entries
 
     forM_ (zip entries expectations) $ \(l, (sev, str)) -> do
@@ -336,14 +415,14 @@ ms = 1_000
                             Arbitrary instances
 -------------------------------------------------------------------------------}
 
-newtype NumberOfRequests = NumberOfRequests Int deriving Show
+newtype NumberOfRequests = NumberOfRequests Int deriving (Show)
 
 instance Arbitrary NumberOfRequests where
     shrink (NumberOfRequests n) =
         fmap NumberOfRequests $ filter (> 0) $ shrink n
     arbitrary = NumberOfRequests <$> choose (1, 100)
 
-newtype RandomIndex = RandomIndex Int deriving Show
+newtype RandomIndex = RandomIndex Int deriving (Show)
 
 -- | Give a random number of request 'n' and a random index 'i' such that:
 --
@@ -355,8 +434,10 @@ newtype RandomIndex = RandomIndex Int deriving Show
 instance {-# OVERLAPS #-} Arbitrary (NumberOfRequests, RandomIndex) where
     shrink (NumberOfRequests n, RandomIndex i) =
         [ (NumberOfRequests n', RandomIndex i')
-        | n' <- shrink n, n' > 0
-        , i' <- shrink i, i' > 0 && i' < n'
+        | n' <- shrink n
+        , n' > 0
+        , i' <- shrink i
+        , i' > 0 && i' < n'
         ]
     arbitrary = do
         n <- choose (1, 10)
@@ -370,14 +451,16 @@ instance {-# OVERLAPS #-} Arbitrary (NumberOfRequests, RandomIndex) where
 data MkJson = MkJson
     { field :: String
     , sensitive :: Int
-    } deriving Generic
+    }
+    deriving (Generic)
 instance ToJSON MkJson
 instance FromJSON MkJson
 
 data ResponseJson = ResponseJson
     { status :: String
     , whatever :: Int
-    } deriving Generic
+    }
+    deriving (Generic)
 instance ToJSON ResponseJson
 instance FromJSON ResponseJson
 
@@ -389,47 +472,49 @@ start
     -> IO ()
 start logSettings warpSettings trace socket = do
     runSettingsSocket warpSettings socket
-        $ withApiLogger trace logSettings
-        application
+        $ withApiLogger
+            trace
+            logSettings
+            application
   where
     application :: Application
     application = serve (Proxy @Api) handler
     handler :: Server Api
     handler =
         hGet
-        :<|> hDelete
-        :<|> hPost
-        :<|> hJson
-        :<|> hLong
-        :<|> hErr400
-        :<|> hErr500
-        :<|> hErr503
+            :<|> hDelete
+            :<|> hPost
+            :<|> hJson
+            :<|> hLong
+            :<|> hErr400
+            :<|> hErr500
+            :<|> hErr503
       where
         hGet = return 14 :: Handler Int
         hDelete = return NoContent :: Handler NoContent
         hPost _ = return (ResponseJson "ok" 42) :: Handler ResponseJson
         hJson = return "\NUL\NUL\NUL" :: Handler ByteString
-        hLong = liftIO (threadDelay $ 200*ms) $> 14 :: Handler Int
+        hLong = liftIO (threadDelay $ 200 * ms) $> 14 :: Handler Int
         hErr400 = throwError err400 :: Handler ()
         hErr500 = throwError err500 :: Handler ()
         hErr503 = throwError err503 :: Handler ()
 
 type Api =
     "get" :> Get '[JSON] Int
-    :<|> "delete" :> DeleteNoContent
-    :<|> "post" :> ReqBody '[JSON] MkJson :> PostCreated '[JSON] ResponseJson
-    :<|> "not-json" :> Get '[OctetStream] ByteString
-    :<|> "long" :> Get '[JSON] Int
-    :<|> "error400" :> Get '[JSON] ()
-    :<|> "error500" :> Get '[JSON] ()
-    :<|> "error503" :> Get '[JSON] ()
+        :<|> "delete" :> DeleteNoContent
+        :<|> "post" :> ReqBody '[JSON] MkJson :> PostCreated '[JSON] ResponseJson
+        :<|> "not-json" :> Get '[OctetStream] ByteString
+        :<|> "long" :> Get '[JSON] Int
+        :<|> "error400" :> Get '[JSON] ()
+        :<|> "error500" :> Get '[JSON] ()
+        :<|> "error503" :> Get '[JSON] ()
 
 -- | How the server should listen for incoming requests.
 data Listen
-    = ListenOnPort Port
-      -- ^ Listen on given TCP port
-    | ListenOnRandomPort
-      -- ^ Listen on an unused TCP port, selected at random
+    = -- | Listen on given TCP port
+      ListenOnPort Port
+    | -- | Listen on an unused TCP port, selected at random
+      ListenOnRandomPort
     deriving (Show, Eq)
 
 withListeningSocket

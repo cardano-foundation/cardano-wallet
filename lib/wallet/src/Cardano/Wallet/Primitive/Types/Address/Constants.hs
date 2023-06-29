@@ -6,7 +6,6 @@
 -- License: Apache-2.0
 --
 -- Provides various 'Address' constants used by the wallet or its tests.
---
 module Cardano.Wallet.Primitive.Types.Address.Constants
     ( maxLengthAddress
     ) where
@@ -14,13 +13,17 @@ module Cardano.Wallet.Primitive.Types.Address.Constants
 import Prelude
 
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
-    ( maxLengthAddressFor )
+    ( maxLengthAddressFor
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -31,11 +34,12 @@ import qualified Data.List as L
 --
 --  - never be used for anything besides its length and validity properties.
 --  - never be used as a payment target within a real transaction.
---
 maxLengthAddress :: Address
-maxLengthAddress = L.maximumBy (compare `on` (BS.length . unAddress))
-    [ maxLengthAddressFor ByronKeyS
-    , maxLengthAddressFor IcarusKeyS
-    , maxLengthAddressFor ShelleyKeyS
-    , maxLengthAddressFor SharedKeyS
-    ]
+maxLengthAddress =
+    L.maximumBy
+        (compare `on` (BS.length . unAddress))
+        [ maxLengthAddressFor ByronKeyS
+        , maxLengthAddressFor IcarusKeyS
+        , maxLengthAddressFor ShelleyKeyS
+        , maxLengthAddressFor SharedKeyS
+        ]

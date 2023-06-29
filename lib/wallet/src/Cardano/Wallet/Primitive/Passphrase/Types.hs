@@ -10,8 +10,6 @@
 -- |
 -- Copyright: © 2018-2021 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Passphrase.Types
     ( -- * Passphrases from the user
       Passphrase (..)
@@ -25,33 +23,49 @@ module Cardano.Wallet.Primitive.Passphrase.Types
     , WalletPassphraseInfo (..)
 
       -- * Error types
-    , ErrWrongPassphrase(..)
+    , ErrWrongPassphrase (..)
     ) where
 
 import Prelude
 
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Crypto.Random.Types
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
+    ( ByteArray
+    , ByteArrayAccess
+    , ScrubbedBytes
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.Text as T
@@ -76,9 +90,8 @@ import qualified Data.Text.Encoding as T
 --    as the key for encrypting wallet keys.
 --
 --  * @"salt"@ - the random salt part of a hashed passphrase.
---
 newtype Passphrase (purpose :: Symbol) = Passphrase
-    { unPassphrase :: ScrubbedBytes }
+    {unPassphrase :: ScrubbedBytes}
     deriving stock (Eq, Show)
     deriving newtype (Semigroup, Monoid, NFData, ByteArrayAccess)
 
@@ -105,7 +118,6 @@ type role Passphrase phantom
 --
 -- >>> encryptPassphrase pwd (Passphrase @"salt" salt)
 -- Hash "..."
---
 instance MonadRandom ((->) (Passphrase "salt")) where
     getRandomBytes _ (Passphrase salt) = BA.convert salt
 
@@ -124,17 +136,21 @@ instance PassphraseMinLength "lenient" where passphraseMinLength _ = 0
 instance PassphraseMaxLength "lenient" where passphraseMaxLength _ = 255
 
 validatePassphrase
-    :: forall purpose.
-       (PassphraseMaxLength purpose, PassphraseMinLength purpose)
+    :: forall purpose
+     . (PassphraseMaxLength purpose, PassphraseMinLength purpose)
     => Text
     -> Either String (Passphrase purpose)
 validatePassphrase pwd
-    | T.length pwd < minLength = Left $
-        "passphrase is too short: expected at least "
-        <> show minLength <> " characters"
-    | T.length pwd > maxLength = Left $
-        "passphrase is too long: expected at most "
-        <> show maxLength <> " characters"
+    | T.length pwd < minLength =
+        Left
+            $ "passphrase is too short: expected at least "
+                <> show minLength
+                <> " characters"
+    | T.length pwd > maxLength =
+        Left
+            $ "passphrase is too long: expected at most "
+                <> show maxLength
+                <> " characters"
     | otherwise = Right $ Passphrase $ BA.convert $ T.encodeUtf8 pwd
   where
     minLength = passphraseMinLength (Proxy :: Proxy purpose)
@@ -143,7 +159,9 @@ validatePassphrase pwd
 instance
     ( PassphraseMaxLength purpose
     , PassphraseMinLength purpose
-    ) => FromText (Passphrase purpose) where
+    )
+    => FromText (Passphrase purpose)
+    where
     fromText = first TextDecodingError . validatePassphrase
 
 instance ToText (Passphrase purpose) where
@@ -155,10 +173,10 @@ instance ToText (Passphrase purpose) where
 
 -- | A type to capture which encryption scheme should be used
 data PassphraseScheme
-    = EncryptWithScrypt
-        -- ^ Legacy encryption scheme for passphrases
-    | EncryptWithPBKDF2
-        -- ^ Encryption scheme used since cardano-wallet
+    = -- | Legacy encryption scheme for passphrases
+      EncryptWithScrypt
+    | -- | Encryption scheme used since cardano-wallet
+      EncryptWithPBKDF2
     deriving (Generic, Eq, Ord, Show, Read)
 
 instance NFData PassphraseScheme
@@ -167,7 +185,7 @@ instance ToText PassphraseScheme where
     toText EncryptWithScrypt = "scrypt"
     toText EncryptWithPBKDF2 = "pbkdf2-hmac-sha512"
 
-newtype PassphraseHash = PassphraseHash { getPassphraseHash :: ScrubbedBytes }
+newtype PassphraseHash = PassphraseHash {getPassphraseHash :: ScrubbedBytes}
     deriving stock (Show)
     deriving newtype (Eq, Ord, Semigroup, Monoid, NFData, ByteArrayAccess, ByteArray)
 
@@ -177,7 +195,8 @@ instance ToText PassphraseHash where
 data WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime
     , passphraseScheme :: PassphraseScheme
-    } deriving (Generic, Eq, Ord, Show)
+    }
+    deriving (Generic, Eq, Ord, Show)
 
 instance NFData WalletPassphraseInfo
 

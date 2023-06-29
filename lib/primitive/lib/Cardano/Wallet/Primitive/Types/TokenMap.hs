@@ -16,58 +16,56 @@
 -- This module is meant to be imported qualified. For example:
 --
 -- >>> import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
---
 module Cardano.Wallet.Primitive.Types.TokenMap
-    (
-    -- * Types
+    ( -- * Types
 
-      -- Important:
-      --
-      -- The default data constructor for 'TokenMap' is not exported, by design,
-      -- as the internal data structure has an invariant that must be preserved
-      -- across all operations.
-      --
-      -- Exporting the default constructor would make it possible for functions
-      -- outside the 'TokenMap' module to break the invariant, opening the door
-      -- to subtle regressions.
-      --
-      -- See the definition of 'TokenMap' for more details of the invariant.
-      --
-      -- To construct a 'TokenMap', use one of the provided constructors, all
-      -- of which are tested to check that they respect the invariant.
-      --
+    -- Important:
+    --
+    -- The default data constructor for 'TokenMap' is not exported, by design,
+    -- as the internal data structure has an invariant that must be preserved
+    -- across all operations.
+    --
+    -- Exporting the default constructor would make it possible for functions
+    -- outside the 'TokenMap' module to break the invariant, opening the door
+    -- to subtle regressions.
+    --
+    -- See the definition of 'TokenMap' for more details of the invariant.
+    --
+    -- To construct a 'TokenMap', use one of the provided constructors, all
+    -- of which are tested to check that they respect the invariant.
+    --
       TokenMap
     , AssetId (..)
 
-    -- * Construction
+      -- * Construction
     , empty
     , singleton
     , fromFlatList
     , fromNestedList
     , fromNestedMap
 
-    -- * Deconstruction
+      -- * Deconstruction
     , toFlatList
     , toNestedList
     , toNestedMap
 
-    -- * Filtering
+      -- * Filtering
     , filter
 
-    -- * Arithmetic
+      -- * Arithmetic
     , add
     , subtract
     , difference
     , intersection
 
-    -- * Queries
+      -- * Queries
     , size
 
-    -- * Tests
+      -- * Tests
     , isEmpty
     , isNotEmpty
 
-    -- * Quantities
+      -- * Quantities
     , getQuantity
     , setQuantity
     , hasQuantity
@@ -75,80 +73,119 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , removeQuantity
     , maximumQuantity
 
-    -- * Partitioning
+      -- * Partitioning
     , equipartitionAssets
     , equipartitionQuantities
     , equipartitionQuantitiesWithUpperBound
 
-    -- * Ordering
+      -- * Ordering
     , Lexicographic (..)
 
-    -- * Serialization
+      -- * Serialization
     , Flat (..)
     , Nested (..)
 
-    -- * Queries
+      -- * Queries
     , getAssets
 
-    -- * Transformations
+      -- * Transformations
     , mapAssetIds
 
-    -- * Unsafe operations
+      -- * Unsafe operations
     , unsafeSubtract
-
     ) where
 
 import Prelude hiding
-    ( filter, subtract )
+    ( filter
+    , subtract
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Numeric.Util
-    ( equipartitionNatural )
+    ( equipartitionNatural
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( guard, when, (<=<) )
+    ( guard
+    , when
+    , (<=<)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
 import Data.Aeson.Types
-    ( Options (..), Parser )
+    ( Options (..)
+    , Parser
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Hashable
-    ( Hashable (..), hashUsing )
+    ( Hashable (..)
+    , hashUsing
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Map.Strict.NonEmptyMap
-    ( NonEmptyMap )
+    ( NonEmptyMap
+    )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe
+    , isJust
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Fmt
-    ( Buildable (..), Builder, blockListF', blockMapF )
+    ( Buildable (..)
+    , Builder
+    , blockListF'
+    , blockMapF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( ErrorMessage (..), TypeError )
+    ( ErrorMessage (..)
+    , TypeError
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson
@@ -179,7 +216,6 @@ import qualified Data.Set as Set
 -- As a consequence of this invariant, the token map data structure is
 -- always in its canonical form: we can perform an equality check without
 -- needing any extra canonicalization steps.
---
 newtype TokenMap = TokenMap
     { unTokenMap
         :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
@@ -199,7 +235,6 @@ instance Monoid TokenMap where
 
 -- | A combination of a token policy identifier and a token name that can be
 --   used as a compound identifier.
---
 data AssetId = AssetId
     { tokenPolicyId
         :: !TokenPolicyId
@@ -223,9 +258,10 @@ instance NFData AssetId
 -- If some arbitrary ordering is needed (for example, so that token maps can
 -- be included in an ordered set), the recommended course of action is to
 -- define a newtype with its own dedicated 'Ord' instance.
---
-instance TypeError ('Text "Ord not supported for token maps")
-        => Ord TokenMap where
+instance
+    (TypeError ('Text "Ord not supported for token maps"))
+    => Ord TokenMap
+    where
     compare = error "Ord not supported for token maps"
 
 -- | Partial ordering for token maps.
@@ -256,14 +292,13 @@ instance TypeError ('Text "Ord not supported for token maps")
 --     >>> y = fromFlatList [(assetA, 2), (assetB, 1)]
 --
 -- In the above example, map 'x' is strictly less than map 'y'.
---
 instance PartialOrd TokenMap where
-    m1 `leq` m2 = F.all
-        (\a -> getQuantity m1 a <= getQuantity m2 a)
-        (getAssets m1 `Set.union` getAssets m2)
+    m1 `leq` m2 =
+        F.all
+            (\a -> getQuantity m1 a <= getQuantity m2 a)
+            (getAssets m1 `Set.union` getAssets m2)
 
 -- | Defines a lexicographic ordering.
---
 newtype Lexicographic a = Lexicographic {unLexicographic :: a}
     deriving (Eq, Show)
 
@@ -277,18 +312,16 @@ instance Ord (Lexicographic TokenMap) where
 -- | When used with the 'Buildable' or 'ToJSON' instances, provides a flat
 -- serialization style, where token quantities are paired with their asset
 -- identifiers.
---
-newtype Flat a = Flat { getFlat :: a }
+newtype Flat a = Flat {getFlat :: a}
     deriving stock (Eq, Generic, Ord)
-    deriving Show via (Quiet (Flat a))
+    deriving (Show) via (Quiet (Flat a))
 
 -- | When used with the 'Buildable' or 'ToJSON' instances, provides a nested
 -- serialization style, where token quantities are grouped by policy
 -- identifier.
---
-newtype Nested a = Nested { getNested :: a }
+newtype Nested a = Nested {getNested :: a}
     deriving stock (Eq, Generic, Ord)
-    deriving Show via (Quiet (Nested a))
+    deriving (Show) via (Quiet (Nested a))
 
 --------------------------------------------------------------------------------
 -- Text serialization
@@ -299,34 +332,51 @@ instance Buildable (Flat TokenMap) where
       where
         buildTokenMap =
             buildList buildAssetQuantity . toFlatList
-        buildAssetQuantity (AssetId policy token, quantity) = buildMap
-            [ ("policy",
-                build policy)
-            , ("token",
-                build token)
-            , ("quantity",
-                build quantity)
-            ]
+        buildAssetQuantity (AssetId policy token, quantity) =
+            buildMap
+                [
+                    ( "policy"
+                    , build policy
+                    )
+                ,
+                    ( "token"
+                    , build token
+                    )
+                ,
+                    ( "quantity"
+                    , build quantity
+                    )
+                ]
 
 instance Buildable (Nested TokenMap) where
     build = buildTokenMap . unTokenMap . getNested
       where
         buildTokenMap =
             buildList buildPolicy . Map.toList
-        buildPolicy (policy, assetMap) = buildMap
-            [ ("policy",
-                build policy)
-            , ("tokens",
-                buildList buildTokenQuantity (NEMap.toList assetMap))
-            ]
-        buildTokenQuantity (token, quantity) = buildMap
-            [ ("token",
-                build token)
-            , ("quantity",
-                build quantity)
-            ]
+        buildPolicy (policy, assetMap) =
+            buildMap
+                [
+                    ( "policy"
+                    , build policy
+                    )
+                ,
+                    ( "tokens"
+                    , buildList buildTokenQuantity (NEMap.toList assetMap)
+                    )
+                ]
+        buildTokenQuantity (token, quantity) =
+            buildMap
+                [
+                    ( "token"
+                    , build token
+                    )
+                ,
+                    ( "quantity"
+                    , build quantity
+                    )
+                ]
 
-buildList :: Foldable f => (a -> Builder) -> f a -> Builder
+buildList :: (Foldable f) => (a -> Builder) -> f a -> Builder
 buildList = blockListF' "-"
 
 buildMap :: [(String, Builder)] -> Builder
@@ -337,26 +387,33 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 
 jsonOptions :: Aeson.Options
-jsonOptions = Aeson.defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_') }
+jsonOptions =
+    Aeson.defaultOptions
+        { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+        }
 
 jsonFailWith :: String -> Parser a
-jsonFailWith s = fail $
-    "Error while deserializing token map from JSON: " <> s <> "."
+jsonFailWith s =
+    fail
+        $ "Error while deserializing token map from JSON: " <> s <> "."
 
 jsonFailWithEmptyTokenList :: TokenPolicyId -> Parser a
-jsonFailWithEmptyTokenList policy = jsonFailWith $ unwords
-    [ "Encountered empty token list for policy"
-    , show (toText policy)
-    ]
+jsonFailWithEmptyTokenList policy =
+    jsonFailWith
+        $ unwords
+            [ "Encountered empty token list for policy"
+            , show (toText policy)
+            ]
 
 jsonFailWithZeroValueTokenQuantity :: TokenPolicyId -> TokenName -> Parser a
-jsonFailWithZeroValueTokenQuantity policy token = jsonFailWith $ unwords
-    [ "Encountered zero-valued quantity for token"
-    , show (toText token)
-    , "within policy"
-    , show (toText policy)
-    ]
+jsonFailWithZeroValueTokenQuantity policy token =
+    jsonFailWith
+        $ unwords
+            [ "Encountered zero-valued quantity for token"
+            , show (toText token)
+            , "within policy"
+            , show (toText policy)
+            ]
 
 --------------------------------------------------------------------------------
 -- JSON serialization (flat)
@@ -373,8 +430,8 @@ instance FromJSON (Flat TokenMap) where
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
         parseTuple (FlatAssetQuantity p t q) = do
-            when (TokenQuantity.isZero q) $
-                jsonFailWithZeroValueTokenQuantity p t
+            when (TokenQuantity.isZero q)
+                $ jsonFailWithZeroValueTokenQuantity p t
             pure (AssetId p t, q)
 
 -- Used for JSON serialization only: not exported.
@@ -382,7 +439,8 @@ data FlatAssetQuantity = FlatAssetQuantity
     { _policyId :: !TokenPolicyId
     , _assetName :: !TokenName
     , _quantity :: !TokenQuantity
-    } deriving Generic
+    }
+    deriving (Generic)
 
 instance FromJSON FlatAssetQuantity where
     parseJSON = genericParseJSON jsonOptions
@@ -409,8 +467,9 @@ instance FromJSON (Nested TokenMap) where
             :: NestedMapEntry
             -> Parser (TokenPolicyId, NonEmpty (TokenName, TokenQuantity))
         parseEntry (NestedMapEntry policy mTokens) = do
-            tokens <- maybe (jsonFailWithEmptyTokenList policy) pure $
-                NE.nonEmpty mTokens
+            tokens <-
+                maybe (jsonFailWithEmptyTokenList policy) pure
+                    $ NE.nonEmpty mTokens
             (policy,) <$> mapM (parseToken policy) tokens
 
         parseToken
@@ -418,21 +477,23 @@ instance FromJSON (Nested TokenMap) where
             -> NestedTokenQuantity
             -> Parser (TokenName, TokenQuantity)
         parseToken policy (NestedTokenQuantity token quantity) = do
-            when (TokenQuantity.isZero quantity) $
-                jsonFailWithZeroValueTokenQuantity policy token
+            when (TokenQuantity.isZero quantity)
+                $ jsonFailWithZeroValueTokenQuantity policy token
             pure (token, quantity)
 
 -- Used for JSON serialization only: not exported.
 data NestedMapEntry = NestedMapEntry
     { _policyId :: !TokenPolicyId
     , _tokens :: ![NestedTokenQuantity]
-    } deriving Generic
+    }
+    deriving (Generic)
 
 -- Used for JSON serialization only: not exported.
 data NestedTokenQuantity = NestedTokenQuantity
     { _assetName :: !TokenName
     , _quantity :: !TokenQuantity
-    } deriving Generic
+    }
+    deriving (Generic)
 
 instance FromJSON NestedMapEntry where
     parseJSON = genericParseJSON jsonOptions
@@ -449,7 +510,6 @@ instance ToJSON NestedTokenQuantity where
 --------------------------------------------------------------------------------
 
 -- | The empty token map.
---
 empty :: TokenMap
 empty = TokenMap mempty
 
@@ -457,7 +517,6 @@ empty = TokenMap mempty
 --
 -- If the specified token quantity is zero, then the resultant map will be
 -- equal to the 'empty' map.
---
 singleton :: AssetId -> TokenQuantity -> TokenMap
 singleton = setQuantity empty
 
@@ -465,7 +524,6 @@ singleton = setQuantity empty
 --
 -- If a token name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
---
 fromFlatList :: [(AssetId, TokenQuantity)] -> TokenMap
 fromFlatList = F.foldl' acc empty
   where
@@ -475,17 +533,16 @@ fromFlatList = F.foldl' acc empty
 --
 -- If a token name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
---
 fromNestedList
     :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))] -> TokenMap
-fromNestedList entries = fromFlatList
-    [ (AssetId policy token, quantity)
-    | (policy, tokenQuantities) <- entries
-    , (token, quantity) <- NE.toList tokenQuantities
-    ]
+fromNestedList entries =
+    fromFlatList
+        [ (AssetId policy token, quantity)
+        | (policy, tokenQuantities) <- entries
+        , (token, quantity) <- NE.toList tokenQuantities
+        ]
 
 -- | Creates a token map from a nested map.
---
 fromNestedMap
     :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
     -> TokenMap
@@ -496,7 +553,6 @@ fromNestedMap = fromNestedList . Map.toList . fmap NEMap.toList
 --------------------------------------------------------------------------------
 
 -- | Converts a token map to a flat list.
---
 toFlatList :: TokenMap -> [(AssetId, TokenQuantity)]
 toFlatList b =
     [ (AssetId policy token, quantity)
@@ -505,14 +561,12 @@ toFlatList b =
     ]
 
 -- | Converts a token map to a nested list.
---
 toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
 toNestedList =
     fmap (fmap NEMap.toList) . Map.toList . unTokenMap
 
 -- | Converts a token map to a nested map.
---
 toNestedMap
     :: TokenMap
     -> Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
@@ -530,7 +584,6 @@ filter f = fromFlatList . L.filter (f . fst) . toFlatList
 --------------------------------------------------------------------------------
 
 -- | Adds one token map to another.
---
 add :: TokenMap -> TokenMap -> TokenMap
 add a b = F.foldl' acc a $ toFlatList b
   where
@@ -541,7 +594,6 @@ add a b = F.foldl' acc a $ toFlatList b
 --
 -- Returns 'Nothing' if the second map is not less than or equal to the first
 -- map when compared with the `leq` function.
---
 subtract :: TokenMap -> TokenMap -> Maybe TokenMap
 subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 
@@ -578,15 +630,16 @@ difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
 -- >>> m2 = [          ("b", 3), ("c", 2), ("d", 1)]
 -- >>> intersection m1 m2
 --          [          ("b", 2), ("c", 2)          ]
---
 intersection :: TokenMap -> TokenMap -> TokenMap
 intersection m1 m2 =
     fromFlatList (getMinimumQuantity <$> F.toList sharedAssets)
   where
     getMinimumQuantity :: AssetId -> (AssetId, TokenQuantity)
-    getMinimumQuantity a = (a, ) $ min
-        (getQuantity m1 a)
-        (getQuantity m2 a)
+    getMinimumQuantity a =
+        (a,)
+            $ min
+                (getQuantity m1 a)
+                (getQuantity m2 a)
 
     sharedAssets :: Set AssetId
     sharedAssets = Set.intersection (getAssets m1) (getAssets m2)
@@ -596,7 +649,6 @@ intersection m1 m2 =
 --------------------------------------------------------------------------------
 
 -- | Returns the number of unique assets in a token map.
---
 size :: TokenMap -> Int
 size = Set.size . getAssets
 
@@ -605,12 +657,10 @@ size = Set.size . getAssets
 --------------------------------------------------------------------------------
 
 -- | Returns true if and only if the given map is empty.
---
 isEmpty :: TokenMap -> Bool
 isEmpty = (== empty)
 
 -- | Returns true if and only if the given map is not empty.
---
 isNotEmpty :: TokenMap -> Bool
 isNotEmpty = (/= empty)
 
@@ -622,7 +672,6 @@ isNotEmpty = (/= empty)
 --
 -- If the given map does not have an entry for the specified asset, this
 -- function returns a value of zero.
---
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
 getQuantity (TokenMap m) (AssetId policy token) =
     fromMaybe TokenQuantity.zero $ NEMap.lookup token =<< Map.lookup policy m
@@ -631,22 +680,24 @@ getQuantity (TokenMap m) (AssetId policy token) =
 --
 -- If the given quantity is zero, the resultant map will not have an entry for
 -- the given asset.
---
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
 setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
     case getPolicyMap originalMap policy of
-        Nothing | TokenQuantity.isZero quantity ->
-            originalMap
+        Nothing
+            | TokenQuantity.isZero quantity ->
+                originalMap
         Nothing ->
             createPolicyMap
-        Just policyMap | TokenQuantity.isZero quantity ->
-            removeQuantityFromPolicyMap policyMap
+        Just policyMap
+            | TokenQuantity.isZero quantity ->
+                removeQuantityFromPolicyMap policyMap
         Just policyMap ->
             updateQuantityInPolicyMap policyMap
   where
-    createPolicyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.singleton token quantity
+    createPolicyMap =
+        TokenMap
+            $ flip (Map.insert policy) m
+            $ NEMap.singleton token quantity
 
     removeQuantityFromPolicyMap policyMap =
         case NEMap.delete token policyMap of
@@ -655,13 +706,13 @@ setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
             Just newPolicyMap ->
                 TokenMap $ Map.insert policy newPolicyMap m
 
-    updateQuantityInPolicyMap policyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.insert token quantity policyMap
+    updateQuantityInPolicyMap policyMap =
+        TokenMap
+            $ flip (Map.insert policy) m
+            $ NEMap.insert token quantity policyMap
 
 -- | Returns true if and only if the given map has a non-zero quantity for the
 --   given asset.
---
 hasQuantity :: TokenMap -> AssetId -> Bool
 hasQuantity (TokenMap m) (AssetId policy token) =
     isJust $ NEMap.lookup token =<< Map.lookup policy m
@@ -671,7 +722,6 @@ hasQuantity (TokenMap m) (AssetId policy token) =
 --
 -- If the result of adjusting the quantity is equal to zero, the resultant map
 -- will not have an entry for the given asset.
---
 adjustQuantity
     :: TokenMap
     -> AssetId
@@ -683,12 +733,10 @@ adjustQuantity m asset adjust =
 -- | Removes the quantity associated with the given asset.
 --
 -- This is equivalent to calling 'setQuantity' with a value of zero.
---
 removeQuantity :: TokenMap -> AssetId -> TokenMap
 removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 
 -- | Get the largest quantity from this map.
---
 maximumQuantity :: TokenMap -> TokenQuantity
 maximumQuantity =
     Map.foldl' (\a -> Map.foldr findMaximum a . NEMap.toMap) zero . unTokenMap
@@ -714,7 +762,6 @@ maximumQuantity =
 -- size will differ by no more than 1.
 --
 -- The quantities of each asset are unchanged.
---
 equipartitionAssets
     :: TokenMap
     -- ^ The token map to be partitioned.
@@ -731,8 +778,9 @@ equipartitionAssets m mapCount =
 
     -- How many asset quantities to include in each chunk.
     assetCounts :: NonEmpty Int
-    assetCounts = fromIntegral @Natural @Int <$>
-        equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
+    assetCounts =
+        fromIntegral @Natural @Int
+            <$> equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
 
     -- Generates a single chunk of asset quantities.
     generateChunk :: (NonEmpty Int, [aq]) -> ([aq], Maybe (NonEmpty Int, [aq]))
@@ -750,7 +798,6 @@ equipartitionAssets m mapCount =
 --
 -- The resultant list is sorted into ascending order when maps are compared
 -- with the 'leq' function.
---
 equipartitionQuantities
     :: TokenMap
     -- ^ The map to be partitioned.
@@ -765,9 +812,10 @@ equipartitionQuantities m count =
         :: NonEmpty TokenMap
         -> (AssetId, TokenQuantity)
         -> NonEmpty TokenMap
-    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
-        singleton asset <$>
-            TokenQuantity.equipartition quantity count
+    accumulate maps (asset, quantity) =
+        NE.zipWith (<>) maps
+            $ singleton asset
+                <$> TokenQuantity.equipartition quantity count
 
 -- | Partitions a token map into 'n' smaller maps, where the quantity of each
 --   token is equipartitioned across the resultant maps, with the goal that no
@@ -776,7 +824,6 @@ equipartitionQuantities m count =
 -- The value 'n' is computed automatically, and is the minimum value required
 -- to achieve the goal that no token quantity in any of the resulting maps
 -- exceeds the maximum allowable token quantity.
---
 equipartitionQuantitiesWithUpperBound
     :: TokenMap
     -> TokenQuantity
@@ -796,10 +843,12 @@ equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
     extraPartCount :: Int
     extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
 
-    maxQuantityZeroError = error $ unwords
-        [ "equipartitionQuantitiesWithUpperBound:"
-        , "the maximum allowable token quantity cannot be zero."
-        ]
+    maxQuantityZeroError =
+        error
+            $ unwords
+                [ "equipartitionQuantitiesWithUpperBound:"
+                , "the maximum allowable token quantity cannot be zero."
+                ]
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -825,7 +874,6 @@ mapAssetIds f m = fromFlatList $ first f <$> toFlatList m
 -- compared with the `leq` function.
 --
 -- Throws a run-time exception if the pre-condition is violated.
---
 unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
 unsafeSubtract a b = F.foldl' acc a $ toFlatList b
   where

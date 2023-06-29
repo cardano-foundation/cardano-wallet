@@ -24,54 +24,81 @@
 -- More than 6K lines end-up being generated from the instructions below! As a
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
-
 module Cardano.Wallet.DB.Store.Delegations.Migration.Schema where
 
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( sqlSettings' )
+    ( sqlSettings'
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, digestFromByteString )
+    ( Blake2b_160
+    , Digest
+    , digestFromByteString
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON), Value (String) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    , Value (String)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Data
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Database.Persist.Class
-    ( PersistField (..) )
+    ( PersistField (..)
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText, fromPersistValueRead )
+    ( fromPersistValueFromText
+    , fromPersistValueRead
+    )
 import Database.Persist.Sql
-    ( PersistFieldSql (..) )
+    ( PersistFieldSql (..)
+    )
 import Database.Persist.TH
-    ( mkPersist, persistLowerCase, share )
+    ( mkPersist
+    , persistLowerCase
+    , share
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 
 import qualified Data.Text.Encoding as T
 
-newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
+newtype WalletId = WalletId {getWalletId :: Digest Blake2b_160}
     deriving (Generic, Eq, Ord, Show)
 
 instance FromText WalletId where
-    fromText txt = maybe
-        (Left $ TextDecodingError msg)
-        (Right . WalletId)
-        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+    fromText txt =
+        maybe
+            (Left $ TextDecodingError msg)
+            (Right . WalletId)
+            (decodeHex txt >>= digestFromByteString @_ @ByteString)
       where
         msg = "wallet id should be a hex-encoded string of 40 characters"
         decodeHex =

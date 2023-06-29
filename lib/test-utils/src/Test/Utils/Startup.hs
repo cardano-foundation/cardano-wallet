@@ -6,19 +6,29 @@ module Test.Utils.Startup
 import Prelude
 
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import UnliftIO.Exception
-    ( IOException, bracket, tryJust )
+    ( IOException
+    , bracket
+    , tryJust
+    )
 import UnliftIO.IO
-    ( BufferMode (..), hGetBuffering, hSetBuffering, stderr, stdout )
+    ( BufferMode (..)
+    , hGetBuffering
+    , hSetBuffering
+    , stderr
+    , stdout
+    )
 
-withLineBuffering, withNoBuffering :: MonadUnliftIO m => m a -> m a
+withLineBuffering, withNoBuffering :: (MonadUnliftIO m) => m a -> m a
 withLineBuffering = withBuffering LineBuffering
 withNoBuffering = withBuffering NoBuffering
 
-withBuffering :: MonadUnliftIO m => BufferMode -> m a -> m a
+withBuffering :: (MonadUnliftIO m) => BufferMode -> m a -> m a
 withBuffering mode = bracket before after . const
   where
     before = do

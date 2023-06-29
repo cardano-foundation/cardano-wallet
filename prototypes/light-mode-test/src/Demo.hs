@@ -2,20 +2,27 @@
 module Demo where
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Data.List
-    ( nub )
+    ( nub
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
 import Light.ReadBlocks
 import Light.Types
 import Say
-    ( say, sayString )
+    ( say
+    , sayString
+    )
 
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -27,6 +34,7 @@ import qualified Blockfrost.Client as BF
 {-----------------------------------------------------------------------------
     Main
 ------------------------------------------------------------------------------}
+
 -- | Test that we can connect to the Blockfrost API.
 main :: IO ()
 main = run BF.getLatestBlock >>= print
@@ -44,8 +52,9 @@ testDiscovery = do
     let blocks = mkBlockSummaryBlockfrost Origin now
     pool0 <- (mkPool . take 10 <$> liftIO someAddresses)
     -- let pool0 = mkPool [mainAddr]
-    ((res,_), t) <- timed $
-        discoverTransactions (query blocks) (pool0 :: Pool Address Int)
+    ((res, _), t) <-
+        timed
+            $ discoverTransactions (query blocks) (pool0 :: Pool Address Int)
     liftIO $ do
         say "discoverTransactions"
         sayString $ "  transactions: " <> show (Set.size res)
@@ -87,31 +96,32 @@ printAddresses n addr = do
     xs <- nub <$> genAddresses n (Address addr)
     prints $ map unAddress xs
 
-prints :: MonadIO m => [Text] -> m ()
+prints :: (MonadIO m) => [Text] -> m ()
 prints = mapM_ say
 
 {-----------------------------------------------------------------------------
     Utilities
 ------------------------------------------------------------------------------}
-repeatN :: Monad m => Int -> (a -> m (Maybe a)) -> a -> m [a]
+repeatN :: (Monad m) => Int -> (a -> m (Maybe a)) -> a -> m [a]
 repeatN 0 _ a = pure [a]
 repeatN n f a1 = do
     ma2 <- f a1
     case ma2 of
-      Nothing -> pure []
-      Just a2 -> (a2:) <$> repeatN (n-1) f a2
+        Nothing -> pure []
+        Just a2 -> (a2 :) <$> repeatN (n - 1) f a2
 
 -- | Monadic unfold
-unfoldrM :: Monad m => (b -> m (Maybe (a, b))) -> b -> m [a]
-unfoldrM f = go where
+unfoldrM :: (Monad m) => (b -> m (Maybe (a, b))) -> b -> m [a]
+unfoldrM f = go
+  where
     go b = do
         m <- f b
         case m of
-            Nothing      -> return []
+            Nothing -> return []
             Just (a, b') -> (a :) <$> (go b')
 
 -- | Execution time of a monadic action
-timed :: MonadIO m => m a -> m (a, NominalDiffTime)
+timed :: (MonadIO m) => m a -> m (a, NominalDiffTime)
 timed action = do
     start <- liftIO getCurrentTime
     res <- action

@@ -8,8 +8,8 @@
 
 module Cardano.Pool.Types
     ( StakePoolsSummary (..)
-    , PoolId(..)
-    , PoolOwner(..)
+    , PoolId (..)
+    , PoolOwner (..)
     , poolIdBytesLength
     , decodePoolIdBech32
     , encodePoolIdBech32
@@ -19,43 +19,72 @@ module Cardano.Pool.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.List
-    ( intercalate )
+    ( intercalate
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage )
+    ( Percentage
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (TextDecodingError), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (TextDecodingError)
+    , ToText (..)
+    )
 import Data.Text.Encoding
-    ( decodeUtf8, encodeUtf8 )
+    ( decodeUtf8
+    , encodeUtf8
+    )
 import Database.Persist.Class.PersistField
-    ( PersistField (..) )
+    ( PersistField (..)
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText )
+    ( fromPersistValueFromText
+    )
 import Database.Persist.Sqlite
-    ( PersistFieldSql (..) )
+    ( PersistFieldSql (..)
+    )
 import Fmt
-    ( Buildable (..), listF', mapF, prefixF, pretty )
+    ( Buildable (..)
+    , listF'
+    , mapF
+    , prefixF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -64,17 +93,17 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 
 -- | Very short name for a stake pool.
-newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
+newtype StakePoolTicker = StakePoolTicker {unStakePoolTicker :: Text}
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (ToText)
 
 instance FromText StakePoolTicker where
     fromText t
-        | T.length t >= 3 && T.length t <= 5
-            = Right $ StakePoolTicker t
-        | otherwise
-            = Left . TextDecodingError $
-                "stake pool ticker length must be 3-5 characters"
+        | T.length t >= 3 && T.length t <= 5 =
+            Right $ StakePoolTicker t
+        | otherwise =
+            Left . TextDecodingError
+                $ "stake pool ticker length must be 3-5 characters"
 
 -- Here to avoid needless orphan instances in the API types.
 instance FromJSON StakePoolTicker where
@@ -93,7 +122,7 @@ instance PersistFieldSql StakePoolTicker where
 -- | Identifies a stake pool.
 -- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool
 -- registration certificate.
-newtype PoolId = PoolId { getPoolId :: ByteString }
+newtype PoolId = PoolId {getPoolId :: ByteString}
     deriving (Generic, Eq, Show, Ord)
 
 poolIdBytesLength :: [Int]
@@ -102,30 +131,36 @@ poolIdBytesLength = [28, 32]
 instance NFData PoolId
 
 instance Buildable PoolId where
-    build poolId = mempty
-        <> prefixF 8 poolIdF
+    build poolId =
+        mempty
+            <> prefixF 8 poolIdF
       where
         poolIdF = build (toText poolId)
 
 instance ToText PoolId where
-    toText = decodeUtf8
-        . convertToBase Base16
-        . getPoolId
+    toText =
+        decodeUtf8
+            . convertToBase Base16
+            . getPoolId
 
 instance FromText PoolId where
     fromText t = case convertFromBase Base16 $ encodeUtf8 t of
         Left _ ->
             textDecodingError
-        Right bytes | BS.length bytes `elem` poolIdBytesLength ->
-            Right $ PoolId bytes
+        Right bytes
+            | BS.length bytes `elem` poolIdBytesLength ->
+                Right $ PoolId bytes
         Right _ ->
             textDecodingError
       where
-        textDecodingError = Left $ TextDecodingError $ unwords
-            [ "Invalid stake pool id: expecting a hex-encoded value that is"
-            , intercalate " or " (show <$> poolIdBytesLength)
-            , "bytes in length."
-            ]
+        textDecodingError =
+            Left
+                $ TextDecodingError
+                $ unwords
+                    [ "Invalid stake pool id: expecting a hex-encoded value that is"
+                    , intercalate " or " (show <$> poolIdBytesLength)
+                    , "bytes in length."
+                    ]
 
 -- | Encode 'PoolId' as Bech32 with "pool" hrp.
 encodePoolIdBech32 :: PoolId -> T.Text
@@ -144,15 +179,17 @@ decodePoolIdBech32 t =
         Right (_, Just bytes) ->
             Right $ PoolId bytes
         Right _ -> Left textDecodingError
-      where
-        textDecodingError = TextDecodingError $ unwords
-            [ "Invalid stake pool id: expecting a Bech32 encoded value"
-            , "with human readable part of 'pool'."
-            ]
+  where
+    textDecodingError =
+        TextDecodingError
+            $ unwords
+                [ "Invalid stake pool id: expecting a Bech32 encoded value"
+                , "with human readable part of 'pool'."
+                ]
 
 -- | A stake pool owner, which is a public key encoded in bech32 with prefix
 -- ed25519_pk.
-newtype PoolOwner = PoolOwner { getPoolOwner :: ByteString }
+newtype PoolOwner = PoolOwner {getPoolOwner :: ByteString}
     deriving (Generic, Eq, Show, Ord)
 
 poolOwnerPrefix :: Bech32.HumanReadablePart
@@ -164,28 +201,31 @@ instance Buildable PoolOwner where
     build poolId = build (toText poolId)
 
 instance ToText PoolOwner where
-    toText = Bech32.encodeLenient poolOwnerPrefix
-        . Bech32.dataPartFromBytes
-        . getPoolOwner
+    toText =
+        Bech32.encodeLenient poolOwnerPrefix
+            . Bech32.dataPartFromBytes
+            . getPoolOwner
 
 instance FromText PoolOwner where
     fromText t = case fmap Bech32.dataPartToBytes <$> Bech32.decode t of
         Left err ->
-            Left $ TextDecodingError $
-            "Stake pool owner is not a valid bech32 string: "
-            <> show err
+            Left
+                $ TextDecodingError
+                $ "Stake pool owner is not a valid bech32 string: "
+                    <> show err
         Right (hrp, Just bytes)
             | hrp == poolOwnerPrefix ->
                 Right $ PoolOwner bytes
             | otherwise ->
-                Left $ TextDecodingError $
-                "Stake pool owner has wrong prefix:"
-                <> " expected "
-                <> T.unpack (Bech32.humanReadablePartToText poolOwnerPrefix)
-                <> " but got "
-                <> show hrp
+                Left
+                    $ TextDecodingError
+                    $ "Stake pool owner has wrong prefix:"
+                        <> " expected "
+                        <> T.unpack (Bech32.humanReadablePartToText poolOwnerPrefix)
+                        <> " but got "
+                        <> show hrp
         Right (_, Nothing) ->
-                Left $ TextDecodingError "Stake pool owner is invalid"
+            Left $ TextDecodingError "Stake pool owner is invalid"
 
 instance FromJSON PoolOwner where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
@@ -217,11 +257,14 @@ data StakePoolsSummary = StakePoolsSummary
     { nOpt :: Int
     , rewards :: Map PoolId Coin
     , stake :: Map PoolId Percentage
-    } deriving (Show, Eq)
+    }
+    deriving (Show, Eq)
 
 instance Buildable StakePoolsSummary where
-    build StakePoolsSummary{nOpt,rewards,stake} = listF' id
-        [ "Stake: " <> mapF (Map.toList stake)
-        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
-        , "Optimum number of pools: " <> pretty nOpt
-        ]
+    build StakePoolsSummary{nOpt, rewards, stake} =
+        listF'
+            id
+            [ "Stake: " <> mapF (Map.toList stake)
+            , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
+            , "Optimum number of pools: " <> pretty nOpt
+            ]

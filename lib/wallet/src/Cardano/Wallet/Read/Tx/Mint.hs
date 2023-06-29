@@ -1,19 +1,17 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw mint data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Mint
     ( MintType
     , Mint (..)
@@ -32,42 +30,50 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Mary.Core
-    ( mintTxBodyL )
+    ( mintTxBodyL
+    )
 import Cardano.Ledger.Mary.Value
-    ( MultiAsset )
+    ( MultiAsset
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 
 type family MintType era where
-  MintType ByronEra = ()
-  MintType ShelleyEra = ()
-  MintType AllegraEra = ()
-  MintType MaryEra = MultiAsset StandardCrypto
-  MintType AlonzoEra = MultiAsset StandardCrypto
-  MintType BabbageEra = MultiAsset StandardCrypto
-  MintType ConwayEra = MultiAsset StandardCrypto
+    MintType ByronEra = ()
+    MintType ShelleyEra = ()
+    MintType AllegraEra = ()
+    MintType MaryEra = MultiAsset StandardCrypto
+    MintType AlonzoEra = MultiAsset StandardCrypto
+    MintType BabbageEra = MultiAsset StandardCrypto
+    MintType ConwayEra = MultiAsset StandardCrypto
 
 newtype Mint era = Mint (MintType era)
 
-deriving instance Show (MintType era) => Show (Mint era)
-deriving instance Eq (MintType era) => Eq (Mint era)
+deriving instance (Show (MintType era)) => Show (Mint era)
+deriving instance (Eq (MintType era)) => Eq (Mint era)
 
 getEraMint :: EraFun Tx Mint
 getEraMint =
     EraFun
         { byronFun = \_ -> Mint ()
         , shelleyFun = \_ -> Mint ()
-        , allegraFun =  \_ -> Mint ()
+        , allegraFun = \_ -> Mint ()
         , maryFun = mint
         , alonzoFun = mint
         , babbageFun = mint

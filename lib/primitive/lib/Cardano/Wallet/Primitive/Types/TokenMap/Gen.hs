@@ -16,7 +16,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName
     , genTokenNameLargeRange
@@ -28,21 +30,32 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , testTokenPolicyIds
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantity, genTokenQuantityPartition, shrinkTokenQuantity )
+    ( genTokenQuantity
+    , genTokenQuantityPartition
+    , shrinkTokenQuantity
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.List
-    ( elemIndex, transpose )
+    ( elemIndex
+    , transpose
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Safe
-    ( fromJustNote )
+    ( fromJustNote
+    )
 import Test.QuickCheck
     ( CoArbitrary (..)
     , Function (..)
@@ -55,7 +68,9 @@ import Test.QuickCheck
     , variant
     )
 import Test.QuickCheck.Extra
-    ( genSized2With, shrinkInterleaved )
+    ( genSized2With
+    , shrinkInterleaved
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -69,18 +84,21 @@ genAssetId :: Gen AssetId
 genAssetId = genSized2With AssetId genTokenPolicyId genTokenName
 
 shrinkAssetId :: AssetId -> [AssetId]
-shrinkAssetId (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
-    (p, shrinkTokenPolicyId)
-    (t, shrinkTokenName)
+shrinkAssetId (AssetId p t) =
+    uncurry AssetId
+        <$> shrinkInterleaved
+            (p, shrinkTokenPolicyId)
+            (t, shrinkTokenName)
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a large range (to minimize collisions)
 --------------------------------------------------------------------------------
 
 genAssetIdLargeRange :: Gen AssetId
-genAssetIdLargeRange = AssetId
-    <$> genTokenPolicyIdLargeRange
-    <*> genTokenNameLargeRange
+genAssetIdLargeRange =
+    AssetId
+        <$> genTokenPolicyIdLargeRange
+        <*> genTokenNameLargeRange
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from ranges that depend on the
@@ -92,9 +110,10 @@ genTokenMap = sized $ \size -> do
     assetCount <- choose (0, size)
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetId
-        <*> genTokenQuantity
+    genAssetQuantity =
+        (,)
+            <$> genAssetId
+            <*> genTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
@@ -102,26 +121,29 @@ genTokenMap = sized $ \size -> do
 
 genTokenMapSmallRange :: Gen TokenMap
 genTokenMapSmallRange = do
-    assetCount <- oneof
-        [ pure 0
-        , pure 1
-        , choose (2, 16)
-        ]
+    assetCount <-
+        oneof
+            [ pure 0
+            , pure 1
+            , choose (2, 16)
+            ]
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetId
-        <*> genTokenQuantity
+    genAssetQuantity =
+        (,)
+            <$> genAssetId
+            <*> genTokenQuantity
 
 shrinkTokenMap :: TokenMap -> [TokenMap]
-shrinkTokenMap
-    = fmap TokenMap.fromFlatList
-    . shrinkList shrinkAssetQuantity
-    . TokenMap.toFlatList
+shrinkTokenMap =
+    fmap TokenMap.fromFlatList
+        . shrinkList shrinkAssetQuantity
+        . TokenMap.toFlatList
   where
-    shrinkAssetQuantity (a, q) = shrinkInterleaved
-        (a, shrinkAssetId)
-        (q, shrinkTokenQuantity)
+    shrinkAssetQuantity (a, q) =
+        shrinkInterleaved
+            (a, shrinkAssetId)
+            (q, shrinkTokenQuantity)
 
 --------------------------------------------------------------------------------
 -- Filtering functions
@@ -137,7 +159,7 @@ instance CoArbitrary AssetIdF where
     coarbitrary (AssetIdF AssetId{tokenName, tokenPolicyId}) genB = do
         let n = fromMaybe 0 (elemIndex tokenName testTokenNames)
         let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
-        variant (n+m) genB
+        variant (n + m) genB
 
 --------------------------------------------------------------------------------
 -- Partitioning token maps
@@ -149,14 +171,13 @@ instance CoArbitrary AssetIdF where
 --
 -- prop> forAll (genTokenMapPartition m i) $ (== m      ) . fold
 -- prop> forAll (genTokenMapPartition m i) $ (== max 1 i) . length
---
 genTokenMapPartition :: TokenMap -> Int -> Gen (NonEmpty TokenMap)
 genTokenMapPartition m i
     | TokenMap.isEmpty m =
         pure $ NE.fromList $ replicate (max 1 i) mempty
     | otherwise =
-        fmap TokenMap.fromFlatList . transposeNE <$>
-        traverse partitionAQ (TokenMap.toFlatList m)
+        fmap TokenMap.fromFlatList . transposeNE
+            <$> traverse partitionAQ (TokenMap.toFlatList m)
   where
     partitionAQ :: (a, TokenQuantity) -> Gen (NonEmpty (a, TokenQuantity))
     partitionAQ = fmap sequenceA . traverse (`genTokenQuantityPartition` i)
@@ -167,7 +188,6 @@ genTokenMapPartition m i
         note = "genTokenMapPartition.transposeNE: unexpected empty list"
 
 -- | Like 'genTokenMapPartition', but with empty values removed from the result.
---
 genTokenMapPartitionNonNull :: TokenMap -> Int -> Gen [TokenMap]
 genTokenMapPartitionNonNull m i =
     filter (/= mempty) . F.toList <$> genTokenMapPartition m i

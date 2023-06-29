@@ -16,7 +16,6 @@
 --
 -- FIXME during ADP-1043: Actually include everything,
 -- e.g. TxHistory, Pending transactions, …
-
 module Cardano.Wallet.DB.WalletState
     ( -- * Wallet state
       WalletState (..)
@@ -24,18 +23,18 @@ module Cardano.Wallet.DB.WalletState
     , getLatest
     , findNearestPoint
 
-    -- * WalletCheckpoint (internal use mostly)
+      -- * WalletCheckpoint (internal use mostly)
     , WalletCheckpoint (..)
     , toWallet
     , fromWallet
     , getBlockHeight
     , getSlot
 
-    -- * Delta types
+      -- * Delta types
     , DeltaWalletState1 (..)
     , DeltaWalletState
 
-    -- * Helpers
+      -- * Helpers
     , updateCheckpoints
     , updateSubmissions
     ) where
@@ -43,45 +42,74 @@ module Cardano.Wallet.DB.WalletState
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..), Discoveries, Prologue )
+    ( AddressBookIso (..)
+    , Discoveries
+    , Prologue
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+    ( Depth (RootK)
+    )
 import Cardano.Wallet.Checkpoints
-    ( Checkpoints )
+    ( Checkpoints
+    )
 import Cardano.Wallet.DB.Store.Delegations.Model
-    ( Delegations, DeltaDelegations )
+    ( Delegations
+    , DeltaDelegations
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo, WalletInfo (..) )
+    ( DeltaWalletInfo
+    , WalletInfo (..)
+    )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( DeltaPrivateKey )
+    ( DeltaPrivateKey
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( emptyTxSubmissions )
+    ( emptyTxSubmissions
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DeltaTxSubmissions, TxSubmissions )
+    ( DeltaTxSubmissions
+    , TxSubmissions
+    )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyOf
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader )
+    ( BlockHeader
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials )
+    ( HashedCredentials
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Delta.Update
-    ( Update, updateField )
+    ( Update
+    , updateField
+    )
 import Data.Generics.Internal.VL
-    ( withIso )
+    ( withIso
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..), pretty )
+    ( Buildable (..)
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -90,15 +118,17 @@ import qualified Cardano.Wallet.Primitive.Types as W
 {-------------------------------------------------------------------------------
     Wallet Checkpoint
 -------------------------------------------------------------------------------}
+
 -- | Data stored in a single checkpoint.
 -- Only includes the 'UTxO' and the 'Discoveries', but not the 'Prologue'.
 data WalletCheckpoint s = WalletCheckpoint
     { currentTip :: !BlockHeader
     , utxo :: !UTxO
     , discoveries :: !(Discoveries s)
-    } deriving (Generic)
+    }
+    deriving (Generic)
 
-deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
+deriving instance (AddressBookIso s) => Eq (WalletCheckpoint s)
 
 -- | Helper function: Get the block height of a wallet checkpoint.
 getBlockHeight :: WalletCheckpoint s -> Word32
@@ -111,12 +141,12 @@ getSlot (WalletCheckpoint currentTip _ _) =
     W.toSlot . W.chainPointFromBlockHeader $ currentTip
 
 -- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
-toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
+toWallet :: (AddressBookIso s) => Prologue s -> WalletCheckpoint s -> W.Wallet s
 toWallet pro (WalletCheckpoint pt utxo dis) =
-    W.unsafeInitWallet utxo pt $ withIso addressIso $ \_ from -> from (pro,dis)
+    W.unsafeInitWallet utxo pt $ withIso addressIso $ \_ from -> from (pro, dis)
 
 -- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
-fromWallet :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
+fromWallet :: (AddressBookIso s) => W.Wallet s -> (Prologue s, WalletCheckpoint s)
 fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
   where
     (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
@@ -124,6 +154,7 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 {-------------------------------------------------------------------------------
     Wallet State
 -------------------------------------------------------------------------------}
+
 -- | Wallet state. Currently includes:
 --
 -- * Prologue of the address discovery state
@@ -132,13 +163,14 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 -- FIXME during ADP-1043: Include also TxHistory, pending transactions, …,
 -- everything.
 data WalletState s = WalletState
-    { prologue    :: !(Prologue s)
+    { prologue :: !(Prologue s)
     , checkpoints :: !(Checkpoints (WalletCheckpoint s))
     , submissions :: !TxSubmissions
     , info :: !WalletInfo
     , credentials :: Maybe (HashedCredentials (KeyOf s))
     , delegations :: Delegations
-    } deriving (Generic)
+    }
+    deriving (Generic)
 
 deriving instance
     (AddressBookIso s, Eq (KeyOf s 'RootK XPrv))
@@ -146,7 +178,7 @@ deriving instance
 
 -- | Create a wallet from the genesis block.
 fromGenesis
-    :: AddressBookIso s
+    :: (AddressBookIso s)
     => W.Wallet s
     -> WalletInfo
     -> Maybe (WalletState s)
@@ -167,7 +199,7 @@ fromGenesis cp winfo
     (prologue, checkpoint) = fromWallet cp
 
 -- | Get the wallet checkpoint with the largest slot number
-getLatest :: AddressBookIso s => WalletState s -> W.Wallet s
+getLatest :: (AddressBookIso s) => WalletState s -> W.Wallet s
 getLatest w =
     toWallet (w ^. #prologue) . snd $ CPS.getLatest (w ^. #checkpoints)
 
@@ -181,10 +213,10 @@ findNearestPoint = CPS.findNearestPoint . view #checkpoints
 type DeltaWalletState s = [DeltaWalletState1 s]
 
 data DeltaWalletState1 s
-    = ReplacePrologue (Prologue s)
-    -- ^ Replace the prologue of the address discovery state
-    | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
-    -- ^ Update the wallet checkpoints.
+    = -- | Replace the prologue of the address discovery state
+      ReplacePrologue (Prologue s)
+    | -- | Update the wallet checkpoints.
+      UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     | UpdateSubmissions DeltaTxSubmissions
     | UpdateInfo DeltaWalletInfo
     | UpdateCredentials (DeltaPrivateKey (KeyOf s))
@@ -216,9 +248,9 @@ instance Show (DeltaWalletState1 s) where
 updateCheckpoints
     :: Update (CPS.DeltasCheckpoints (WalletCheckpoint s)) r
     -> Update (DeltaWalletState s) r
-updateCheckpoints = updateField checkpoints ((:[]) . UpdateCheckpoints)
+updateCheckpoints = updateField checkpoints ((: []) . UpdateCheckpoints)
 
 updateSubmissions
     :: Update DeltaTxSubmissions r
     -> Update (DeltaWalletState s) r
-updateSubmissions = updateField submissions ((:[]) . UpdateSubmissions)
+updateSubmissions = updateField submissions ((: []) . UpdateSubmissions)

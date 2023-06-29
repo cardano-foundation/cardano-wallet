@@ -8,12 +8,13 @@ module Data.Function.Utils
 import Prelude
 
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Data.Set as Set
 
 -- | Apply a function 'n' times to the specified input.
-applyN :: Integral n => n -> (a -> a) -> a -> a
+applyN :: (Integral n) => n -> (a -> a) -> a -> a
 applyN !n !f !a
     | n <= 0 = a
     | otherwise = applyN (n - 1) f (f a)
@@ -28,6 +29,5 @@ applyN !n !f !a
 --
 -- >>> (`div` 2) `isInjectiveOver` Set.fromList [1 .. 10]
 -- False
---
-isInjectiveOver :: Ord b => (a -> b) -> Set a -> Bool
+isInjectiveOver :: (Ord b) => (a -> b) -> Set a -> Bool
 isInjectiveOver f domain = Set.size domain == Set.size (Set.map f domain)

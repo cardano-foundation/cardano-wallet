@@ -1,3 +1,6 @@
+{- HLINT ignore "Use camelCase" -}
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -12,12 +15,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{- HLINT ignore "Use camelCase" -}
-
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
@@ -44,7 +43,8 @@ module Cardano.CoinSelection.BalanceSpec
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.CoinSelection.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -97,24 +97,37 @@ import Cardano.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.CoinSelection.Balance.Gen
-    ( genSelectionStrategy, shrinkSelectionStrategy )
+    ( genSelectionStrategy
+    , shrinkSelectionStrategy
+    )
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+    ( inAscendingPartialOrder
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle (..) )
+    ( Flat (..)
+    , TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId
     , genAssetIdLargeRange
@@ -123,67 +136,121 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName )
+    ( genTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
+    ( genTokenQuantityPositive
+    , shrinkTokenQuantityPositive
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex )
+    ( Asset (..)
+    , SelectionFilter (..)
+    , UTxOIndex
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , genUTxOIndexLarge
+    , genUTxOIndexLargeN
+    , shrinkUTxOIndex
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection, UTxOSelectionNonEmpty )
+    ( UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
+    ( genUTxOSelection
+    , shrinkUTxOSelection
+    )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_
+    , replicateM
+    )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap
+    , second
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, listToMaybe )
+    ( fromMaybe
+    , isJust
+    , isNothing
+    , listToMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Tuple
-    ( swap )
+    ( swap
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Fmt
-    ( Buildable (..), blockListF, pretty )
-import Generics.SOP
-    ( NP (..) )
+    ( Buildable (..)
+    , blockListF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
+import Generics.SOP
+    ( NP (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 import Test.Hspec
-    ( Expectation, Spec, SpecWith, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , SpecWith
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -219,17 +286,34 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, ordLaws )
+    ( eqLaws
+    , ordLaws
+    )
 import Test.QuickCheck.Extra
-    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genFunction
+    , genericRoundRobinShrink
+    , report
+    , verify
+    , (<:>)
+    , (<@>)
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM (..), assert, monadicIO, monitor, run )
+    ( PropertyM (..)
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
+    ( Hexadecimal (..)
+    , Quid
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Pretty
-    ( Pretty (..) )
+    ( Pretty (..)
+    )
 
 import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -246,236 +330,230 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = describe "Cardano.CoinSelection.BalanceSpec" $
+spec = describe "Cardano.CoinSelection.BalanceSpec"
+    $ modifyMaxSuccess (const 1_000)
+    $ do
+        describe "Coverage" $ do
+            it "prop_Small_UTxOIndex_coverage"
+                $ property prop_Small_UTxOIndex_coverage
+            it "prop_Large_UTxOIndex_coverage"
+                $ property prop_Large_UTxOIndex_coverage
 
-    modifyMaxSuccess (const 1_000) $ do
+        describe "Class instances respect laws" $ do
+            testLawsMany @(AssetCount TokenMap)
+                [ eqLaws
+                , ordLaws
+                ]
 
-    describe "Coverage" $ do
+        describe "Ordering of token maps" $ do
+            it "prop_AssetCount_TokenMap_placesEmptyMapsFirst"
+                $ property prop_AssetCount_TokenMap_placesEmptyMapsFirst
 
-        it "prop_Small_UTxOIndex_coverage" $
-            property prop_Small_UTxOIndex_coverage
-        it "prop_Large_UTxOIndex_coverage" $
-            property prop_Large_UTxOIndex_coverage
+        describe "Performing a selection" $ do
+            it "prop_performSelection_small"
+                $ property prop_performSelection_small
+            it "prop_performSelection_large"
+                $ property prop_performSelection_large
+            it "prop_performSelection_huge"
+                $ property prop_performSelection_huge
 
-    describe "Class instances respect laws" $ do
+        describe "Performing a selection with zero outputs" $ do
+            it "prop_performSelectionEmpty"
+                $ property prop_performSelectionEmpty
 
-        testLawsMany @(AssetCount TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
+        describe "Running a selection (without making change)" $ do
+            it "prop_runSelection_UTxO_empty"
+                $ property prop_runSelection_UTxO_empty
+            it "prop_runSelection_UTxO_notEnough"
+                $ property prop_runSelection_UTxO_notEnough
+            it "prop_runSelection_UTxO_exactlyEnough"
+                $ property prop_runSelection_UTxO_exactlyEnough
+            it "prop_runSelection_UTxO_moreThanEnough"
+                $ property prop_runSelection_UTxO_moreThanEnough
+            it "prop_runSelection_UTxO_muchMoreThanEnough"
+                $ property prop_runSelection_UTxO_muchMoreThanEnough
 
-    describe "Ordering of token maps" $ do
+        describe "Running a selection (non-empty)" $ do
+            it "prop_runSelectionNonEmpty"
+                $ property prop_runSelectionNonEmpty
 
-        it "prop_AssetCount_TokenMap_placesEmptyMapsFirst" $
-            property prop_AssetCount_TokenMap_placesEmptyMapsFirst
-
-    describe "Performing a selection" $ do
-
-        it "prop_performSelection_small" $
-            property prop_performSelection_small
-        it "prop_performSelection_large" $
-            property prop_performSelection_large
-        it "prop_performSelection_huge" $
-            property prop_performSelection_huge
-
-    describe "Performing a selection with zero outputs" $ do
-
-        it "prop_performSelectionEmpty" $
-            property prop_performSelectionEmpty
-
-    describe "Running a selection (without making change)" $ do
-
-        it "prop_runSelection_UTxO_empty" $
-            property prop_runSelection_UTxO_empty
-        it "prop_runSelection_UTxO_notEnough" $
-            property prop_runSelection_UTxO_notEnough
-        it "prop_runSelection_UTxO_exactlyEnough" $
-            property prop_runSelection_UTxO_exactlyEnough
-        it "prop_runSelection_UTxO_moreThanEnough" $
-            property prop_runSelection_UTxO_moreThanEnough
-        it "prop_runSelection_UTxO_muchMoreThanEnough" $
-            property prop_runSelection_UTxO_muchMoreThanEnough
-
-    describe "Running a selection (non-empty)" $ do
-
-        it "prop_runSelectionNonEmpty" $
-            property prop_runSelectionNonEmpty
-
-    describe "Running a selection step" $ do
-
-        it "prop_runSelectionStep_supplyExhausted" $
-            prop_runSelectionStep_supplyExhausted
+        describe "Running a selection step" $ do
+            it "prop_runSelectionStep_supplyExhausted"
+                $ prop_runSelectionStep_supplyExhausted
                 & property
-        it "prop_runSelectionStep_notYetEnoughToSatisfyMinimum" $
-            prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+            it "prop_runSelectionStep_notYetEnoughToSatisfyMinimum"
+                $ prop_runSelectionStep_notYetEnoughToSatisfyMinimum
                 & property
-        it "prop_runSelectionStep_preciselyEnoughToSatisfyMinimum" $
-            prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
+            it "prop_runSelectionStep_preciselyEnoughToSatisfyMinimum"
+                $ prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
                 & property
-        it "prop_runSelectionStep_exceedsMinimalTarget" $
-            prop_runSelectionStep_exceedsMinimalTarget
+            it "prop_runSelectionStep_exceedsMinimalTarget"
+                $ prop_runSelectionStep_exceedsMinimalTarget
                 & property
-        it "prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt" $
-            prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
+            it "prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt"
+                $ prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
                 & property
-        it "prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt" $
-            prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
+            it "prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt"
+                $ prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
                 & property
-        it "prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway" $
-            prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
+            it "prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway"
+                $ prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
                 & property
 
-    describe "Behaviour of selection lenses" $ do
+        describe "Behaviour of selection lenses" $ do
+            it "prop_assetSelectionLens_givesPriorityToSingletonAssets"
+                $ property prop_assetSelectionLens_givesPriorityToSingletonAssets
+            it "prop_coinSelectionLens_givesPriorityToCoins"
+                $ property prop_coinSelectionLens_givesPriorityToCoins
 
-        it "prop_assetSelectionLens_givesPriorityToSingletonAssets" $
-            property prop_assetSelectionLens_givesPriorityToSingletonAssets
-        it "prop_coinSelectionLens_givesPriorityToCoins" $
-            property prop_coinSelectionLens_givesPriorityToCoins
+        describe "Boundary tests" $ do
+            unit_testBoundaries
+                "Large token quantities"
+                boundaryTestMatrix_largeTokenQuantities
+            unit_testBoundaries
+                "Large asset counts"
+                boundaryTestMatrix_largeAssetCounts
+            unit_testBoundaries
+                "Comparison of selection strategies"
+                boundaryTestMatrix_selectionStrategies
 
-    describe "Boundary tests" $ do
+        describe "Making change" $ do
+            it "prop_makeChange_identity"
+                $ property prop_makeChange_identity
+            it "prop_makeChange_length"
+                $ property prop_makeChange_length
+            it "prop_makeChange"
+                $ property prop_makeChange
+            unitTests
+                "makeChange"
+                unit_makeChange
 
-        unit_testBoundaries "Large token quantities"
-            boundaryTestMatrix_largeTokenQuantities
-        unit_testBoundaries "Large asset counts"
-            boundaryTestMatrix_largeAssetCounts
-        unit_testBoundaries "Comparison of selection strategies"
-            boundaryTestMatrix_selectionStrategies
+        describe "Collating non-user specified asset quantities" $ do
+            it "prop_collateNonUserSpecifiedAssetQuantities"
+                $ property prop_collateNonUserSpecifiedAssetQuantities
+            describe
+                "unit_collateNonUserSpecifiedAssetQuantities"
+                unit_collateNonUserSpecifiedAssetQuantities
 
-    describe "Making change" $ do
+        describe "assignCoinsToChangeMaps" $ do
+            unitTests
+                "assignCoinsToChangeMaps"
+                unit_assignCoinsToChangeMaps
 
-        it "prop_makeChange_identity" $
-            property prop_makeChange_identity
-        it "prop_makeChange_length" $
-            property prop_makeChange_length
-        it "prop_makeChange" $
-            property prop_makeChange
-        unitTests "makeChange"
-            unit_makeChange
+        describe "Making change for coins" $ do
+            it "prop_makeChangeForCoin_sum"
+                $ property prop_makeChangeForCoin_sum
+            it "prop_makeChangeForCoin_length"
+                $ property prop_makeChangeForCoin_length
+            unitTests
+                "makeChangeForCoin"
+                unit_makeChangeForCoin
 
-    describe "Collating non-user specified asset quantities" $ do
+        describe "Making change for one non-user-specified asset" $ do
+            it "prop_makeChangeForNonUserSpecifiedAsset_sum"
+                $ property prop_makeChangeForNonUserSpecifiedAsset_sum
+            it "prop_makeChangeForNonUserSpecifiedAsset_order"
+                $ property prop_makeChangeForNonUserSpecifiedAsset_order
+            it "prop_makeChangeForNonUserSpecifiedAsset_length"
+                $ property prop_makeChangeForNonUserSpecifiedAsset_length
+            unitTests
+                "makeChangeForNonUserSpecifiedAsset"
+                unit_makeChangeForNonUserSpecifiedAsset
 
-        it "prop_collateNonUserSpecifiedAssetQuantities" $
-            property prop_collateNonUserSpecifiedAssetQuantities
-        describe "unit_collateNonUserSpecifiedAssetQuantities"
-            unit_collateNonUserSpecifiedAssetQuantities
+        describe "Making change for many non-user-specified assets" $ do
+            it "prop_makeChangeForNonUserSpecifiedAssets_length"
+                $ property prop_makeChangeForNonUserSpecifiedAssets_length
+            it "prop_makeChangeForNonUserSpecifiedAssets_order"
+                $ property prop_makeChangeForNonUserSpecifiedAssets_order
+            it "prop_makeChangeForNonUserSpecifiedAssets_sum"
+                $ property prop_makeChangeForNonUserSpecifiedAssets_sum
+            describe
+                "unit_makeChangeForNonUserSpecifiedAssets"
+                unit_makeChangeForNonUserSpecifiedAssets
 
-    describe "assignCoinsToChangeMaps" $ do
-        unitTests "assignCoinsToChangeMaps"
-            unit_assignCoinsToChangeMaps
+        describe "Making change for user-specified assets" $ do
+            it "prop_makeChangeForUserSpecifiedAsset_sum"
+                $ property prop_makeChangeForUserSpecifiedAsset_sum
+            it "prop_makeChangeForUserSpecifiedAsset_length"
+                $ property prop_makeChangeForUserSpecifiedAsset_length
+            unitTests
+                "makeChangeForUserSpecifiedAsset"
+                unit_makeChangeForUserSpecifiedAsset
 
-    describe "Making change for coins" $ do
+        describe "Splitting bundles with excessive asset counts" $ do
+            it "prop_splitBundleIfAssetCountExcessive_length"
+                $ property prop_splitBundleIfAssetCountExcessive_length
+            it "prop_splitBundleIfAssetCountExcessive_maximalSplitting"
+                $ property prop_splitBundleIfAssetCountExcessive_maximalSplitting
+            it "prop_splitBundleIfAssetCountExcessive_postCondition"
+                $ property prop_splitBundleIfAssetCountExcessive_postCondition
+            it "prop_splitBundleIfAssetCountExcessive_sum"
+                $ property prop_splitBundleIfAssetCountExcessive_sum
+            it "prop_splitBundlesWithExcessiveAssetCounts_length"
+                $ property prop_splitBundlesWithExcessiveAssetCounts_length
+            it "prop_splitBundlesWithExcessiveAssetCounts_sum"
+                $ property prop_splitBundlesWithExcessiveAssetCounts_sum
 
-        it "prop_makeChangeForCoin_sum" $
-            property prop_makeChangeForCoin_sum
-        it "prop_makeChangeForCoin_length" $
-            property prop_makeChangeForCoin_length
-        unitTests "makeChangeForCoin"
-            unit_makeChangeForCoin
+        describe "Splitting bundles with excessive token quantities" $ do
+            it "prop_splitBundlesWithExcessiveTokenQuantities_length"
+                $ property prop_splitBundlesWithExcessiveTokenQuantities_length
+            it "prop_splitBundlesWithExcessiveTokenQuantities_sum"
+                $ property prop_splitBundlesWithExcessiveTokenQuantities_sum
 
-    describe "Making change for one non-user-specified asset" $ do
+        describe "Grouping and ungrouping" $ do
+            it "prop_groupByKey_ungroupByKey"
+                $ property
+                $ prop_groupByKey_ungroupByKey @Int @Int
+            it "prop_ungroupByKey_groupByKey"
+                $ property
+                $ prop_ungroupByKey_groupByKey @Int @Int
 
-        it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
-            property prop_makeChangeForNonUserSpecifiedAsset_sum
-        it "prop_makeChangeForNonUserSpecifiedAsset_order" $
-            property prop_makeChangeForNonUserSpecifiedAsset_order
-        it "prop_makeChangeForNonUserSpecifiedAsset_length" $
-            property prop_makeChangeForNonUserSpecifiedAsset_length
-        unitTests "makeChangeForNonUserSpecifiedAsset"
-            unit_makeChangeForNonUserSpecifiedAsset
+        describe "Round-robin processing" $ do
+            it "prop_runRoundRobin_identity"
+                $ property
+                $ prop_runRoundRobin_identity @Int
+            it "prop_runRoundRobin_iterationCount"
+                $ property
+                $ prop_runRoundRobin_iterationCount @TokenName @Word8
+            it "prop_runRoundRobin_iterationOrder"
+                $ property
+                $ prop_runRoundRobin_iterationOrder @TokenName @Word8
+            it "prop_runRoundRobin_generationCount"
+                $ property
+                $ prop_runRoundRobin_generationCount @TokenName @Word8
+            it "prop_runRoundRobin_generationOrder"
+                $ property
+                $ prop_runRoundRobin_generationOrder @TokenName @Word8
 
-    describe "Making change for many non-user-specified assets" $ do
+        describe "Utility functions" $ do
+            it "prop_mapMaybe_oracle"
+                $ property prop_mapMaybe_oracle
 
-        it "prop_makeChangeForNonUserSpecifiedAssets_length" $
-            property prop_makeChangeForNonUserSpecifiedAssets_length
-        it "prop_makeChangeForNonUserSpecifiedAssets_order" $
-            property prop_makeChangeForNonUserSpecifiedAssets_order
-        it "prop_makeChangeForNonUserSpecifiedAssets_sum" $
-            property prop_makeChangeForNonUserSpecifiedAssets_sum
-        describe "unit_makeChangeForNonUserSpecifiedAssets"
-            unit_makeChangeForNonUserSpecifiedAssets
+        describe "Minting and burning values from the change maps" $ do
+            it "prop_addMintValueToChangeMaps_value"
+                $ property prop_addMintValueToChangeMaps_value
+            it "prop_addMintValueToChangeMaps_length"
+                $ property prop_addMintValueToChangeMaps_length
+            it "prop_addMintValueToChangeMaps_order"
+                $ property prop_addMintValueToChangeMaps_order
+            it "prop_addMintValuesToChangeMaps"
+                $ property prop_addMintValuesToChangeMaps
 
-    describe "Making change for user-specified assets" $ do
+            it "prop_removeBurnValueFromChangeMaps_value"
+                $ property prop_removeBurnValueFromChangeMaps_value
+            it "prop_removeBurnValueFromChangeMaps_length"
+                $ property prop_removeBurnValueFromChangeMaps_length
+            it "prop_removeBurnValueFromChangeMaps_order"
+                $ property prop_removeBurnValueFromChangeMaps_order
+            it "prop_removeBurnValuesFromChangeMaps"
+                $ property prop_removeBurnValuesFromChangeMaps
 
-        it "prop_makeChangeForUserSpecifiedAsset_sum" $
-            property prop_makeChangeForUserSpecifiedAsset_sum
-        it "prop_makeChangeForUserSpecifiedAsset_length" $
-            property prop_makeChangeForUserSpecifiedAsset_length
-        unitTests "makeChangeForUserSpecifiedAsset"
-            unit_makeChangeForUserSpecifiedAsset
-
-    describe "Splitting bundles with excessive asset counts" $ do
-
-        it "prop_splitBundleIfAssetCountExcessive_length" $
-            property prop_splitBundleIfAssetCountExcessive_length
-        it "prop_splitBundleIfAssetCountExcessive_maximalSplitting" $
-            property prop_splitBundleIfAssetCountExcessive_maximalSplitting
-        it "prop_splitBundleIfAssetCountExcessive_postCondition" $
-            property prop_splitBundleIfAssetCountExcessive_postCondition
-        it "prop_splitBundleIfAssetCountExcessive_sum" $
-            property prop_splitBundleIfAssetCountExcessive_sum
-        it "prop_splitBundlesWithExcessiveAssetCounts_length" $
-            property prop_splitBundlesWithExcessiveAssetCounts_length
-        it "prop_splitBundlesWithExcessiveAssetCounts_sum" $
-            property prop_splitBundlesWithExcessiveAssetCounts_sum
-
-    describe "Splitting bundles with excessive token quantities" $ do
-
-        it "prop_splitBundlesWithExcessiveTokenQuantities_length" $
-            property prop_splitBundlesWithExcessiveTokenQuantities_length
-        it "prop_splitBundlesWithExcessiveTokenQuantities_sum" $
-            property prop_splitBundlesWithExcessiveTokenQuantities_sum
-
-    describe "Grouping and ungrouping" $ do
-
-        it "prop_groupByKey_ungroupByKey" $
-            property $ prop_groupByKey_ungroupByKey @Int @Int
-        it "prop_ungroupByKey_groupByKey" $
-            property $ prop_ungroupByKey_groupByKey @Int @Int
-
-    describe "Round-robin processing" $ do
-
-        it "prop_runRoundRobin_identity" $
-            property $ prop_runRoundRobin_identity @Int
-        it "prop_runRoundRobin_iterationCount" $
-            property $ prop_runRoundRobin_iterationCount @TokenName @Word8
-        it "prop_runRoundRobin_iterationOrder" $
-            property $ prop_runRoundRobin_iterationOrder @TokenName @Word8
-        it "prop_runRoundRobin_generationCount" $
-            property $ prop_runRoundRobin_generationCount @TokenName @Word8
-        it "prop_runRoundRobin_generationOrder" $
-            property $ prop_runRoundRobin_generationOrder @TokenName @Word8
-
-    describe "Utility functions" $ do
-
-        it "prop_mapMaybe_oracle" $
-            property prop_mapMaybe_oracle
-
-    describe "Minting and burning values from the change maps" $ do
-
-        it "prop_addMintValueToChangeMaps_value" $
-            property prop_addMintValueToChangeMaps_value
-        it "prop_addMintValueToChangeMaps_length" $
-            property prop_addMintValueToChangeMaps_length
-        it "prop_addMintValueToChangeMaps_order" $
-            property prop_addMintValueToChangeMaps_order
-        it "prop_addMintValuesToChangeMaps" $
-            property prop_addMintValuesToChangeMaps
-
-        it "prop_removeBurnValueFromChangeMaps_value" $
-            property prop_removeBurnValueFromChangeMaps_value
-        it "prop_removeBurnValueFromChangeMaps_length" $
-            property prop_removeBurnValueFromChangeMaps_length
-        it "prop_removeBurnValueFromChangeMaps_order" $
-            property prop_removeBurnValueFromChangeMaps_order
-        it "prop_removeBurnValuesFromChangeMaps" $
-            property prop_removeBurnValuesFromChangeMaps
-
-        it "prop_reduceTokenQuantities_value" $
-            property prop_reduceTokenQuantities_value
-        it "prop_reduceTokenQuantities_length" $
-            property prop_reduceTokenQuantities_length
-        it "prop_reduceTokenQuantities_order" $
-            property prop_reduceTokenQuantities_order
+            it "prop_reduceTokenQuantities_value"
+                $ property prop_reduceTokenQuantities_value
+            it "prop_reduceTokenQuantities_length"
+                $ property prop_reduceTokenQuantities_length
+            it "prop_reduceTokenQuantities_order"
+                $ property prop_reduceTokenQuantities_order
 
 --------------------------------------------------------------------------------
 -- Coverage
@@ -483,22 +561,35 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
 
 prop_Small_UTxOIndex_coverage :: Small (UTxOIndex TestUTxO) -> Property
 prop_Small_UTxOIndex_coverage (Small index) =
-    checkCoverage $ property
+    checkCoverage
+        $ property
         -- Asset counts:
-        $ cover 1 (assetCount == 0)
+        $ cover
+            1
+            (assetCount == 0)
             "asset count = 0"
-        $ cover 80 (assetCount > 0)
+        $ cover
+            80
+            (assetCount > 0)
             "asset count > 0"
-        $ cover 40 (assetCount > 8)
+        $ cover
+            40
+            (assetCount > 8)
             "asset count > 8"
         -- Entry counts:
-        $ cover 1 (entryCount == 0)
+        $ cover
+            1
+            (entryCount == 0)
             "UTxO set size = 0 entries"
-        $ cover 40 (entryCount > 16)
+        $ cover
+            40
+            (entryCount > 16)
             "UTxO set size > 16 entries"
-        $ cover 10 (entryCount > 32)
+        $ cover
+            10
+            (entryCount > 32)
             "UTxO set size > 32 entries"
-        True
+            True
   where
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
@@ -506,18 +597,28 @@ prop_Small_UTxOIndex_coverage (Small index) =
 prop_Large_UTxOIndex_coverage :: Large (UTxOIndex TestUTxO) -> Property
 prop_Large_UTxOIndex_coverage (Large index) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
-    withMaxSuccess 100 $ checkCoverage $ property
+    withMaxSuccess 100
+        $ checkCoverage
+        $ property
         -- Asset counts:
-        $ cover 80 (assetCount > 8)
+        $ cover
+            80
+            (assetCount > 8)
             "asset count > 8"
         -- Entry counts:
-        $ cover 80 (entryCount >= 1_024)
+        $ cover
+            80
+            (entryCount >= 1_024)
             "UTxO set size >= 1024 entries"
-        $ cover 20 (entryCount >= 2_048)
+        $ cover
+            20
+            (entryCount >= 2_048)
             "UTxO set size >= 2048 entries"
-        $ cover 10 (entryCount >= 3_072)
+        $ cover
+            10
+            (entryCount >= 3_072)
             "UTxO set size >= 3072 entries"
-        True
+            True
   where
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
@@ -532,30 +633,47 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst
 prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
     checkCoverage
         -- Check counts of empty maps and non-empty maps:
-        $ cover 80 (emptyMapCount >= 1 && nonEmptyMapCount >= 1)
+        $ cover
+            80
+            (emptyMapCount >= 1 && nonEmptyMapCount >= 1)
             "empty map count >= 1 && non-empty map count >= 1"
-        $ cover 60 (emptyMapCount >= 2 && nonEmptyMapCount >= 2)
+        $ cover
+            60
+            (emptyMapCount >= 2 && nonEmptyMapCount >= 2)
             "empty map count >= 2 && non-empty map count >= 2"
-        $ cover 40 (emptyMapCount >= 4 && nonEmptyMapCount >= 4)
+        $ cover
+            40
+            (emptyMapCount >= 4 && nonEmptyMapCount >= 4)
             "empty map count >= 4 && non-empty map count >= 4"
-        $ cover 20 (emptyMapCount >= 8 && nonEmptyMapCount >= 8)
+        $ cover
+            20
+            (emptyMapCount >= 8 && nonEmptyMapCount >= 8)
             "empty map count >= 8 && non-empty map count >= 8"
         -- Check head and last element of list:
-        $ cover 20 (isEmptyMap $ NE.head maps)
+        $ cover
+            20
+            (isEmptyMap $ NE.head maps)
             "head element is empty map"
-        $ cover 40 (not $ isEmptyMap $ NE.head maps)
+        $ cover
+            40
+            (not $ isEmptyMap $ NE.head maps)
             "head element is non-empty map"
-        $ cover 20 (isEmptyMap $ NE.last maps)
+        $ cover
+            20
+            (isEmptyMap $ NE.last maps)
             "last element is empty map"
-        $ cover 40 (not $ isEmptyMap $ NE.last maps)
+        $ cover
+            40
+            (not $ isEmptyMap $ NE.last maps)
             "last element is non-empty map"
-        prop
+            prop
   where
-    prop = (===)
-        ( NE.span isEmptyMap $ NE.sortWith AssetCount maps )
-        ( L.sortOn AssetCount emptyMaps
-        , L.sortOn AssetCount nonEmptyMaps
-        )
+    prop =
+        (===)
+            (NE.span isEmptyMap $ NE.sortWith AssetCount maps)
+            ( L.sortOn AssetCount emptyMaps
+            , L.sortOn AssetCount nonEmptyMaps
+            )
 
     isEmptyMap = TokenMap.isEmpty
     (emptyMaps, nonEmptyMaps) = NE.partition isEmptyMap maps
@@ -568,10 +686,10 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 -- | The result of calling 'performSelection'.
 --
 -- We define this type alias to shorten type signatures.
---
-type PerformSelectionResult = Either
-    (SelectionBalanceError TestSelectionContext)
-    (SelectionResult TestSelectionContext)
+type PerformSelectionResult =
+    Either
+        (SelectionBalanceError TestSelectionContext)
+        (SelectionResult TestSelectionContext)
 
 genSelectionParams
     :: Gen (TestUTxO -> Bool)
@@ -579,39 +697,44 @@ genSelectionParams
     -> Gen (SelectionParams TestSelectionContext)
 genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
-    isInputPreselected <- oneof
-        [ genPreselectedInputs
-        , genPreselectedInputsNone
-        ]
-    outputCount <- elements
-        [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
+    isInputPreselected <-
+        oneof
+            [ genPreselectedInputs
+            , genPreselectedInputsNone
+            ]
+    outputCount <-
+        elements
+            [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
-        replicateM outputCount $ (,)
-            <$> arbitrary @TestAddress
-            <*> genTokenBundleSmallRangePositive
+        replicateM outputCount
+            $ (,)
+                <$> arbitrary @TestAddress
+                <*> genTokenBundleSmallRangePositive
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
         oneof [pure $ Coin 0, genCoinPositive]
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     selectionStrategy <- genSelectionStrategy
-    pure $ SelectionParams
-        { outputsToCover
-        , utxoAvailable =
-            UTxOSelection.fromIndexFiltered isInputPreselected utxoAvailable
-        , extraCoinSource
-        , extraCoinSink
-        , assetsToMint
-        , assetsToBurn
-        , selectionStrategy
-        }
+    pure
+        $ SelectionParams
+            { outputsToCover
+            , utxoAvailable =
+                UTxOSelection.fromIndexFiltered isInputPreselected utxoAvailable
+            , extraCoinSource
+            , extraCoinSink
+            , assetsToMint
+            , assetsToBurn
+            , selectionStrategy
+            }
   where
     genAssetsToMintAndBurn :: UTxOIndex TestUTxO -> Gen (TokenMap, TokenMap)
     genAssetsToMintAndBurn utxoAvailable = do
         assetsToMint <- genTokenMapSmallRange
-        let assetsToBurn = adjustAllTokenMapQuantities
-                (`div` 2)
-                (utxoAvailableAssets <> assetsToMint)
+        let assetsToBurn =
+                adjustAllTokenMapQuantities
+                    (`div` 2)
+                    (utxoAvailableAssets <> assetsToMint)
         pure (assetsToMint, assetsToBurn)
       where
         utxoAvailableAssets :: TokenMap
@@ -623,20 +746,22 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
 shrinkSelectionParams
     :: SelectionParams TestSelectionContext
     -> [SelectionParams TestSelectionContext]
-shrinkSelectionParams = genericRoundRobinShrink
-    <@> shrinkList shrinkOutput
-    <:> shrinkUTxOSelection (shrink @TestUTxO)
-    <:> shrinkCoin
-    <:> shrinkCoin
-    <:> shrinkTokenMap
-    <:> shrinkTokenMap
-    <:> shrinkSelectionStrategy
-    <:> Nil
-  where
-    shrinkOutput = genericRoundRobinShrink
-        <@> shrink @TestAddress
-        <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+shrinkSelectionParams =
+    genericRoundRobinShrink
+        <@> shrinkList shrinkOutput
+        <:> shrinkUTxOSelection (shrink @TestUTxO)
+        <:> shrinkCoin
+        <:> shrinkCoin
+        <:> shrinkTokenMap
+        <:> shrinkTokenMap
+        <:> shrinkSelectionStrategy
         <:> Nil
+  where
+    shrinkOutput =
+        genericRoundRobinShrink
+            <@> shrink @TestAddress
+            <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+            <:> Nil
       where
         tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
         tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
@@ -646,110 +771,166 @@ prop_performSelection_small
     -> Blind (Small (SelectionParams TestSelectionContext))
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
-    checkCoverage $
-
-    -- Inspect the balance:
-    cover 20 (isUTxOBalanceSufficient params)
-        "balance sufficient" $
-    cover 25 (not $ isUTxOBalanceSufficient params)
-        "balance insufficient" $
-
-    -- Inspect the UTxO and user-specified outputs:
-    cover 5 (utxoHasAtLeastOneAsset)
-        "UTxO has at least one asset" $
-    cover 5 (not outputsHaveAtLeastOneAsset)
-        "No assets to cover" $
-    cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
-        "Assets to cover, but no assets in UTxO" $
-    cover 10 (null (view #outputsToCover params))
-        "Outputs to cover = 0" $
-    cover 10 (length (view #outputsToCover params) == 1)
-        "Outputs to cover = 1" $
-    cover 10 (length (view #outputsToCover params) > 1)
-        "Outputs to cover > 1" $
-
-    cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) == 0)
-        "Number of inputs preselected == 0" $
-    cover 2 (UTxOSelection.selectedSize (view #utxoAvailable params) == 1)
-        "Number of inputs preselected == 1" $
-    cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) >= 2)
-        "Number of inputs preselected >= 2" $
-
-    -- Inspect the selection strategy:
-    cover 20 (view #selectionStrategy params == SelectionStrategyMinimal)
-        "Selection strategy: minimal" $
-    cover 20 (view #selectionStrategy params == SelectionStrategyOptimal)
-        "Selection strategy: optimal" $
-
-    -- Inspect the extra coin source and sink:
-    let nonZeroExtraCoinSource =
-            Coin 0 < (params & view #extraCoinSource)
-        nonZeroExtraCoinSink =
-            Coin 0 < (params & view #extraCoinSink)
-    in
-    cover 20
-        (nonZeroExtraCoinSource && nonZeroExtraCoinSink)
-        "nonZeroExtraCoinSource && nonZeroExtraCoinSink" $
-    cover 20
-        (not nonZeroExtraCoinSource && nonZeroExtraCoinSink)
-        "not nonZeroExtraCoinSource && nonZeroExtraCoinSink" $
-    cover 20
-        (nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
-        "nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
-    cover 20
-        (not nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
-        "not nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
-
-    -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint params /= TokenMap.empty)
-        "Have some assets to mint" $
-    cover 20 (view #assetsToBurn params /= TokenMap.empty)
-        "Have some assets to burn" $
-    cover 2 (view #assetsToMint params == TokenMap.empty)
-        "Have no assets to mint" $
-    cover 2 (view #assetsToBurn params == TokenMap.empty)
-        "Have no assets to burn" $
-
-    -- Inspect the intersection between minted assets and burned assets:
-    cover 2 (someAssetsAreBothMintedAndBurned)
-        "Some assets are both minted and burned" $
-    cover 2 (noAssetsAreBothMintedAndBurned)
-        "No assets are both minted and burned" $
-
-    -- Inspect the intersection between minted assets and spent assets:
-    cover 2 (someAssetsAreBothMintedAndSpent)
-        "Some assets are both minted and spent" $
-    cover 2 (noAssetsAreBothMintedAndSpent)
-        "No assets are both minted and spent" $
-
-    -- Inspect the intersection between spent assets and burned assets:
-    cover 2 (someAssetsAreBothSpentAndBurned)
-        "Some assets are both spent and burned" $
-    cover 2 (noAssetsAreBothSpentAndBurned)
-        "No assets are both spent and burned" $
-
-    -- Inspect the relationship between minted, burned, and spent assets:
-    cover 2 (allMintedAssetsEitherBurnedOrSpent)
-        "All minted assets were either spent or burned" $
-    cover 2 (not allMintedAssetsEitherBurnedOrSpent)
-        "Some minted assets were neither spent nor burned" $
-
-    prop_performSelection mockConstraints params $ \result ->
-        cover 10 (selectionSufficient result)
-            "selection sufficient"
+    checkCoverage
+        $
+        -- Inspect the balance:
+        cover
+            20
+            (isUTxOBalanceSufficient params)
+            "balance sufficient"
+        $ cover
+            25
+            (not $ isUTxOBalanceSufficient params)
+            "balance insufficient"
+        $
+        -- Inspect the UTxO and user-specified outputs:
+        cover
+            5
+            (utxoHasAtLeastOneAsset)
+            "UTxO has at least one asset"
+        $ cover
+            5
+            (not outputsHaveAtLeastOneAsset)
+            "No assets to cover"
+        $ cover
+            2
+            (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
+            "Assets to cover, but no assets in UTxO"
+        $ cover
+            10
+            (null (view #outputsToCover params))
+            "Outputs to cover = 0"
+        $ cover
+            10
+            (length (view #outputsToCover params) == 1)
+            "Outputs to cover = 1"
+        $ cover
+            10
+            (length (view #outputsToCover params) > 1)
+            "Outputs to cover > 1"
+        $ cover
+            10
+            (UTxOSelection.selectedSize (view #utxoAvailable params) == 0)
+            "Number of inputs preselected == 0"
+        $ cover
+            2
+            (UTxOSelection.selectedSize (view #utxoAvailable params) == 1)
+            "Number of inputs preselected == 1"
+        $ cover
+            10
+            (UTxOSelection.selectedSize (view #utxoAvailable params) >= 2)
+            "Number of inputs preselected >= 2"
+        $
+        -- Inspect the selection strategy:
+        cover
+            20
+            (view #selectionStrategy params == SelectionStrategyMinimal)
+            "Selection strategy: minimal"
+        $ cover
+            20
+            (view #selectionStrategy params == SelectionStrategyOptimal)
+            "Selection strategy: optimal"
+        $
+        -- Inspect the extra coin source and sink:
+        let nonZeroExtraCoinSource =
+                Coin 0 < (params & view #extraCoinSource)
+            nonZeroExtraCoinSink =
+                Coin 0 < (params & view #extraCoinSink)
+        in  cover
+                20
+                (nonZeroExtraCoinSource && nonZeroExtraCoinSink)
+                "nonZeroExtraCoinSource && nonZeroExtraCoinSink"
+                $ cover
+                    20
+                    (not nonZeroExtraCoinSource && nonZeroExtraCoinSink)
+                    "not nonZeroExtraCoinSource && nonZeroExtraCoinSink"
+                $ cover
+                    20
+                    (nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
+                    "nonZeroExtraCoinSource && not nonZeroExtraCoinSink"
+                $ cover
+                    20
+                    (not nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
+                    "not nonZeroExtraCoinSource && not nonZeroExtraCoinSink"
+                $
+                -- Inspect the sets of minted and burned assets:
+                cover
+                    20
+                    (view #assetsToMint params /= TokenMap.empty)
+                    "Have some assets to mint"
+                $ cover
+                    20
+                    (view #assetsToBurn params /= TokenMap.empty)
+                    "Have some assets to burn"
+                $ cover
+                    2
+                    (view #assetsToMint params == TokenMap.empty)
+                    "Have no assets to mint"
+                $ cover
+                    2
+                    (view #assetsToBurn params == TokenMap.empty)
+                    "Have no assets to burn"
+                $
+                -- Inspect the intersection between minted assets and burned assets:
+                cover
+                    2
+                    (someAssetsAreBothMintedAndBurned)
+                    "Some assets are both minted and burned"
+                $ cover
+                    2
+                    (noAssetsAreBothMintedAndBurned)
+                    "No assets are both minted and burned"
+                $
+                -- Inspect the intersection between minted assets and spent assets:
+                cover
+                    2
+                    (someAssetsAreBothMintedAndSpent)
+                    "Some assets are both minted and spent"
+                $ cover
+                    2
+                    (noAssetsAreBothMintedAndSpent)
+                    "No assets are both minted and spent"
+                $
+                -- Inspect the intersection between spent assets and burned assets:
+                cover
+                    2
+                    (someAssetsAreBothSpentAndBurned)
+                    "Some assets are both spent and burned"
+                $ cover
+                    2
+                    (noAssetsAreBothSpentAndBurned)
+                    "No assets are both spent and burned"
+                $
+                -- Inspect the relationship between minted, burned, and spent assets:
+                cover
+                    2
+                    (allMintedAssetsEitherBurnedOrSpent)
+                    "All minted assets were either spent or burned"
+                $ cover
+                    2
+                    (not allMintedAssetsEitherBurnedOrSpent)
+                    "Some minted assets were neither spent nor burned"
+                $ prop_performSelection mockConstraints params
+                $ \result ->
+                    cover
+                        10
+                        (selectionSufficient result)
+                        "selection sufficient"
   where
-    utxoHasAtLeastOneAsset = not
-        . Set.null
-        . TokenBundle.getAssets
-        $ computeUTxOBalanceAvailable params
+    utxoHasAtLeastOneAsset =
+        not
+            . Set.null
+            . TokenBundle.getAssets
+            $ computeUTxOBalanceAvailable params
 
     outputsHaveAtLeastOneAsset =
         not . Set.null $ TokenBundle.getAssets outputTokens
       where
-        outputTokens = mconcat
-            . F.toList
-            . fmap snd
-            $ view #outputsToCover params
+        outputTokens =
+            mconcat
+                . F.toList
+                . fmap snd
+                $ view #outputsToCover params
 
     selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
@@ -762,30 +943,31 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
-        view #assetsToMint params `leq` TokenMap.add
-            (view #assetsToBurn params)
-            (assetsSpentByUserSpecifiedOutputs)
+        view #assetsToMint params
+            `leq` TokenMap.add
+                (view #assetsToBurn params)
+                (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothMintedAndBurned :: Bool
-    someAssetsAreBothMintedAndBurned
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (view #assetsToMint params)
-            (view #assetsToBurn params)
+    someAssetsAreBothMintedAndBurned =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (view #assetsToMint params)
+                (view #assetsToBurn params)
 
     someAssetsAreBothMintedAndSpent :: Bool
-    someAssetsAreBothMintedAndSpent
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (view #assetsToMint params)
-            (assetsSpentByUserSpecifiedOutputs)
+    someAssetsAreBothMintedAndSpent =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (view #assetsToMint params)
+                (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothSpentAndBurned :: Bool
-    someAssetsAreBothSpentAndBurned
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (assetsSpentByUserSpecifiedOutputs)
-            (view #assetsToBurn params)
+    someAssetsAreBothSpentAndBurned =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (assetsSpentByUserSpecifiedOutputs)
+                (view #assetsToBurn params)
 
     noAssetsAreBothMintedAndBurned :: Bool
     noAssetsAreBothMintedAndBurned = not someAssetsAreBothMintedAndBurned
@@ -802,19 +984,24 @@ prop_performSelection_large
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
-    withMaxSuccess 100 $
-    checkCoverage $
-    cover 50 (isUTxOBalanceSufficient params)
-        "UTxO balance sufficient" $
-    prop_performSelection mockConstraints params (const id)
+    withMaxSuccess 100
+        $ checkCoverage
+        $ cover
+            50
+            (isUTxOBalanceSufficient params)
+            "UTxO balance sufficient"
+        $ prop_performSelection mockConstraints params (const id)
 
 prop_performSelection_huge :: Property
-prop_performSelection_huge = ioProperty $
-    -- The UTxO index is generated outside of the property in order to avoid
-    -- the cost of re-generating it on every pass. This will still generate
-    -- interesting cases, since selection within that large index is random.
-    property . prop_performSelection_huge_inner <$> generate
-        (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50_000)
+prop_performSelection_huge =
+    ioProperty
+        $
+        -- The UTxO index is generated outside of the property in order to avoid
+        -- the cost of re-generating it on every pass. This will still generate
+        -- interesting cases, since selection within that large index is random.
+        property . prop_performSelection_huge_inner
+            <$> generate
+                (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50_000)
 
 prop_performSelection_huge_inner
     :: UTxOIndex TestUTxO
@@ -822,12 +1009,14 @@ prop_performSelection_huge_inner
     -> Large (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
-    withMaxSuccess 5 $
-    prop_performSelection mockConstraints params' (const id)
+    withMaxSuccess 5
+        $ prop_performSelection mockConstraints params' (const id)
   where
     params' :: SelectionParams TestSelectionContext
-    params' = params
-        { utxoAvailable = UTxOSelection.fromIndex utxoAvailable }
+    params' =
+        params
+            { utxoAvailable = UTxOSelection.fromIndex utxoAvailable
+            }
 
 prop_performSelection
     :: MockSelectionConstraints
@@ -835,18 +1024,23 @@ prop_performSelection
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
-    report extraCoinSource
-        "extraCoinSource" $
-    report extraCoinSink
-        "extraCoinSink" $
-    report assetsToMint
-        "assetsToMint" $
-    report assetsToBurn
-        "assetsToBurn" $
-    monadicIO $ do
-        result <- run $ performSelection constraints params
-        monitor (coverage result)
-        pure $ either onFailure onSuccess result
+    report
+        extraCoinSource
+        "extraCoinSource"
+        $ report
+            extraCoinSink
+            "extraCoinSink"
+        $ report
+            assetsToMint
+            "assetsToMint"
+        $ report
+            assetsToBurn
+            "assetsToBurn"
+        $ monadicIO
+        $ do
+            result <- run $ performSelection constraints params
+            monitor (coverage result)
+            pure $ either onFailure onSuccess result
   where
     constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
@@ -860,61 +1054,60 @@ prop_performSelection mockConstraints params coverage =
 
     onSuccess :: SelectionResultOf [] TestSelectionContext -> Property
     onSuccess result =
-        counterexample "onSuccess" $
-        report
-            (utxoBalanceAvailable)
-            "available UTXO balance" $
-        report
-            (utxoBalanceRequired)
-            "required UTXO balance" $
-        report
-            (F.fold $ view #changeGenerated result)
-            "change balance" $
-        report
-            (selectionDeltaAllAssets result)
-            "actual delta" $
-        report
-            (selectionMinimumCost constraints result)
-            "minimum cost" $
-        report
-            (length $ view #outputsCovered result)
-            "number of outputs" $
-        report
-            (length $ view #changeGenerated result)
-            "number of change outputs" $
-        verify
-            (isUTxOBalanceSufficient params)
-            "isUTxOBalanceSufficient params" $
-        verify
-            (selectionHasValidSurplus constraints result)
-            "selectionHasValidSurplus constraints result" $
-        verify
-            (initialSelectionIsSubsetOfFinalSelection)
-            "initialSelectionIsSubsetOfFinalSelection" $
-        verify
-            (view #outputsCovered result == view #outputsToCover params)
-            "view #outputsCovered result == view #outputsToCover params" $
-        verify
-            (view #assetsToMint result == view #assetsToMint params)
-            "view #assetsToMint result == view #assetsToMint params" $
-        verify
-            (view #assetsToBurn result == view #assetsToBurn params)
-            "view #assetsToBurn result == view #assetsToBurn params" $
-        verify
-            (view #extraCoinSource result == view #extraCoinSource params)
-            "view #extraCoinSource result == view #extraCoinSource params" $
-        verify
-            (view #extraCoinSink result == view #extraCoinSink params)
-            "view #extraCoinSink result == view #extraCoinSink params" $
-        property True
+        counterexample "onSuccess"
+            $ report
+                (utxoBalanceAvailable)
+                "available UTXO balance"
+            $ report
+                (utxoBalanceRequired)
+                "required UTXO balance"
+            $ report
+                (F.fold $ view #changeGenerated result)
+                "change balance"
+            $ report
+                (selectionDeltaAllAssets result)
+                "actual delta"
+            $ report
+                (selectionMinimumCost constraints result)
+                "minimum cost"
+            $ report
+                (length $ view #outputsCovered result)
+                "number of outputs"
+            $ report
+                (length $ view #changeGenerated result)
+                "number of change outputs"
+            $ verify
+                (isUTxOBalanceSufficient params)
+                "isUTxOBalanceSufficient params"
+            $ verify
+                (selectionHasValidSurplus constraints result)
+                "selectionHasValidSurplus constraints result"
+            $ verify
+                (initialSelectionIsSubsetOfFinalSelection)
+                "initialSelectionIsSubsetOfFinalSelection"
+            $ verify
+                (view #outputsCovered result == view #outputsToCover params)
+                "view #outputsCovered result == view #outputsToCover params"
+            $ verify
+                (view #assetsToMint result == view #assetsToMint params)
+                "view #assetsToMint result == view #assetsToMint params"
+            $ verify
+                (view #assetsToBurn result == view #assetsToBurn params)
+                "view #assetsToBurn result == view #assetsToBurn params"
+            $ verify
+                (view #extraCoinSource result == view #extraCoinSource params)
+                "view #extraCoinSource result == view #extraCoinSource params"
+            $ verify
+                (view #extraCoinSink result == view #extraCoinSink params)
+                "view #extraCoinSink result == view #extraCoinSink params"
+            $ property True
       where
         initialSelectionIsSubsetOfFinalSelection :: Bool
         initialSelectionIsSubsetOfFinalSelection =
             view #utxoAvailable params
-            `UTxOSelection.isSubSelectionOf`
-            UTxOSelection.selectMany
-                (view #inputsSelected result <&> fst)
-                (view #utxoAvailable params)
+                `UTxOSelection.isSubSelectionOf` UTxOSelection.selectMany
+                    (view #inputsSelected result <&> fst)
+                    (view #utxoAvailable params)
 
     onFailure :: SelectionBalanceError TestSelectionContext -> Property
     onFailure = \case
@@ -927,26 +1120,29 @@ prop_performSelection mockConstraints params coverage =
 
     onBalanceInsufficient :: BalanceInsufficientError -> Property
     onBalanceInsufficient e =
-        counterexample "onBalanceInsufficient" $
-        report utxoBalanceAvailable
-            "available balance" $
-        report utxoBalanceRequired
-            "required balance" $
-        report errorBalanceShortfall
-            "missing balance" $
-        verify
-            (not $ isUTxOBalanceSufficient params)
-            "not $ isUTxOBalanceSufficient params" $
-        verify
-            (utxoBalanceAvailable == errorBalanceAvailable)
-            "utxoBalanceAvailable == errorBalanceAvailable" $
-        verify
-            (utxoBalanceRequired == errorBalanceRequired)
-            "utxoBalanceRequired == errorBalanceRequired" $
-        verify
-            (errorBalanceShortfall == balanceSufficiencyShortfall)
-            "errorBalanceShortfall == balanceSufficiencyShortfall" $
-        property True
+        counterexample "onBalanceInsufficient"
+            $ report
+                utxoBalanceAvailable
+                "available balance"
+            $ report
+                utxoBalanceRequired
+                "required balance"
+            $ report
+                errorBalanceShortfall
+                "missing balance"
+            $ verify
+                (not $ isUTxOBalanceSufficient params)
+                "not $ isUTxOBalanceSufficient params"
+            $ verify
+                (utxoBalanceAvailable == errorBalanceAvailable)
+                "utxoBalanceAvailable == errorBalanceAvailable"
+            $ verify
+                (utxoBalanceRequired == errorBalanceRequired)
+                "utxoBalanceRequired == errorBalanceRequired"
+            $ verify
+                (errorBalanceShortfall == balanceSufficiencyShortfall)
+                "errorBalanceShortfall == balanceSufficiencyShortfall"
+            $ property True
       where
         balanceSufficiencyShortfall =
             view #difference utxoBalanceSufficiencyInfo
@@ -957,59 +1153,63 @@ prop_performSelection mockConstraints params coverage =
 
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =
-        counterexample "onUnableToConstructChange" $
-        counterexample (show e) $
-        verify
-            (shortfall e > Coin 0)
-            "shortfall e > Coin 0" $
-
-        -- We expect that this error is caused by one or more of the following
-        -- conditions:
-        --
-        --    1.  There's not enough ada available to pay for the fee;
-        --    2.  There's not enough ada available to pay for the minimum ada
-        --        quantities of all change outputs;
-        --    3.  One or more of the generated change bundles are in excess of
-        --        the maximum token bundle size, so it's necessary to break
-        --        them up, but there isn't enough ada to pay for either the fee
-        --        or the minimum ada quantities of the broken-up outputs.
-        --
-        -- So to test that our expectation is really true, we run the selection
-        -- again with modified constraints that:
-        --
-        --    1.  Require no fee.
-        --    2.  Require no minimum ada quantity.
-        --    3.  Impose no maximum token bundle size.
-        --
-        -- We expect that the selection should succeed.
-        --
-        let constraints' =
-                constraints
-                    { assessTokenBundleSize = unMockAssessTokenBundleSize
-                        MockAssessTokenBundleSizeUnlimited
-                    , computeMinimumAdaQuantity =
-                        const computeMinimumAdaQuantityZero
-                    , computeMinimumCost = computeMinimumCostZero
-                    } :: SelectionConstraints TestSelectionContext
-            performSelection' = performSelection constraints' params
-        in
-        monadicIO $ run performSelection' >>= \case
-            Left e' -> do
-                monitor $ counterexample $ unlines
-                    [ "Failed to re-run selection with relaxed constraints."
-                    , show e'
-                    ]
-                assert False
-            Right{} -> do
-                assert True
+        counterexample "onUnableToConstructChange"
+            $ counterexample (show e)
+            $ verify
+                (shortfall e > Coin 0)
+                "shortfall e > Coin 0"
+            $
+            -- We expect that this error is caused by one or more of the following
+            -- conditions:
+            --
+            --    1.  There's not enough ada available to pay for the fee;
+            --    2.  There's not enough ada available to pay for the minimum ada
+            --        quantities of all change outputs;
+            --    3.  One or more of the generated change bundles are in excess of
+            --        the maximum token bundle size, so it's necessary to break
+            --        them up, but there isn't enough ada to pay for either the fee
+            --        or the minimum ada quantities of the broken-up outputs.
+            --
+            -- So to test that our expectation is really true, we run the selection
+            -- again with modified constraints that:
+            --
+            --    1.  Require no fee.
+            --    2.  Require no minimum ada quantity.
+            --    3.  Impose no maximum token bundle size.
+            --
+            -- We expect that the selection should succeed.
+            --
+            let constraints' =
+                    constraints
+                        { assessTokenBundleSize =
+                            unMockAssessTokenBundleSize
+                                MockAssessTokenBundleSizeUnlimited
+                        , computeMinimumAdaQuantity =
+                            const computeMinimumAdaQuantityZero
+                        , computeMinimumCost = computeMinimumCostZero
+                        }
+                        :: SelectionConstraints TestSelectionContext
+                performSelection' = performSelection constraints' params
+            in  monadicIO
+                    $ run performSelection' >>= \case
+                        Left e' -> do
+                            monitor
+                                $ counterexample
+                                $ unlines
+                                    [ "Failed to re-run selection with relaxed constraints."
+                                    , show e'
+                                    ]
+                            assert False
+                        Right{} -> do
+                            assert True
 
     onEmptyUTxO :: Property
     onEmptyUTxO =
-        counterexample "onEmptyUTxO" $
-        verify
-            (view #utxoAvailable params == UTxOSelection.empty)
-            "view #utxoAvailable params == UTxOSelection.empty" $
-        property True
+        counterexample "onEmptyUTxO"
+            $ verify
+                (view #utxoAvailable params == UTxOSelection.empty)
+                "view #utxoAvailable params == UTxOSelection.empty"
+            $ property True
 
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
@@ -1023,66 +1223,73 @@ prop_performSelection mockConstraints params coverage =
 --   on 'performSelectionNonEmpty'.
 --
 -- Both the parameters and the result are verified.
---
 prop_performSelectionEmpty
     :: MockSelectionConstraints
     -> Small (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelectionEmpty mockConstraints (Small params) =
-    checkCoverage $
-    cover 10 (null (view #outputsToCover params))
-        "number of outputs = 0" $
-    cover 10 (not $ null (view #outputsToCover params))
-        "number of outputs > 0" $
-    cover 20 (isUTxOBalanceSufficient params)
-        "UTxO balance is sufficient" $
-    conjoin
-        [ prop_conservation
-        , prop_transformation
-        ]
+    checkCoverage
+        $ cover
+            10
+            (null (view #outputsToCover params))
+            "number of outputs = 0"
+        $ cover
+            10
+            (not $ null (view #outputsToCover params))
+            "number of outputs > 0"
+        $ cover
+            20
+            (isUTxOBalanceSufficient params)
+            "UTxO balance is sufficient"
+        $ conjoin
+            [ prop_conservation
+            , prop_transformation
+            ]
   where
     -- Checks that functions on the parameters and the result are conserved.
-    prop_conservation = conjoin
-        [ prop_computeUTxOBalanceSufficiencyInfo
-        , prop_computeDeficitInOut
-        , prop_selectionDeltaAllAssets
-        , prop_selectionHasValidSurplus
-        ]
+    prop_conservation =
+        conjoin
+            [ prop_computeUTxOBalanceSufficiencyInfo
+            , prop_computeDeficitInOut
+            , prop_selectionDeltaAllAssets
+            , prop_selectionHasValidSurplus
+            ]
       where
         prop_computeUTxOBalanceSufficiencyInfo =
-            counterexample "computeUTxOBalanceSufficiencyInfo" $
-            computeUTxOBalanceSufficiencyInfo params ===
-            computeUTxOBalanceSufficiencyInfo paramsTransformed
+            counterexample "computeUTxOBalanceSufficiencyInfo"
+                $ computeUTxOBalanceSufficiencyInfo params
+                    === computeUTxOBalanceSufficiencyInfo paramsTransformed
 
         prop_computeDeficitInOut =
-            counterexample "computeDeficitInOut" $
-            computeDeficitInOut params ===
-            computeDeficitInOut paramsTransformed
+            counterexample "computeDeficitInOut"
+                $ computeDeficitInOut params
+                    === computeDeficitInOut paramsTransformed
 
         prop_selectionDeltaAllAssets =
-            counterexample "selectionDeltaAllAssets" $
-            selectionDeltaAllAssets result ===
-            selectionDeltaAllAssets resultTransformed
+            counterexample "selectionDeltaAllAssets"
+                $ selectionDeltaAllAssets result
+                    === selectionDeltaAllAssets resultTransformed
 
         prop_selectionHasValidSurplus =
-            counterexample "selectionHasValidSurplus" $
-            selectionHasValidSurplus constraints result .&&.
-            selectionHasValidSurplus constraints resultTransformed
+            counterexample "selectionHasValidSurplus"
+                $ selectionHasValidSurplus constraints result
+                .&&. selectionHasValidSurplus constraints resultTransformed
 
     -- Checks that the transformation is correct.
     prop_transformation =
-        counterexample "transformation correct" $
-        conjoin $ if null (view #outputsToCover params)
-        then
-            [ length (view #outputsToCover paramsTransformed) === 1
-            , length (view #outputsCovered resultTransformed) === 0
-            ]
-        else
-            -- If the initial list of outputs is non-empty, then no
-            -- transformation should take place:
-            [ params === paramsTransformed'
-            , resultTransformed === result'
-            ]
+        counterexample "transformation correct"
+            $ conjoin
+            $ if null (view #outputsToCover params)
+                then
+                    [ length (view #outputsToCover paramsTransformed) === 1
+                    , length (view #outputsCovered resultTransformed) === 0
+                    ]
+                else -- If the initial list of outputs is non-empty, then no
+                -- transformation should take place:
+
+                    [ params === paramsTransformed'
+                    , resultTransformed === result'
+                    ]
 
     constraints :: SelectionConstraints TestSelectionContext
     constraints = unMockSelectionConstraints mockConstraints
@@ -1091,15 +1298,19 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     paramsTransformed = view #paramsTransformed transformationReport
 
     paramsTransformed' :: SelectionParamsOf [] TestSelectionContext
-    paramsTransformed' = paramsTransformed
-        { outputsToCover = F.toList (view #outputsToCover paramsTransformed) }
+    paramsTransformed' =
+        paramsTransformed
+            { outputsToCover = F.toList (view #outputsToCover paramsTransformed)
+            }
 
     result :: SelectionResultOf NonEmpty TestSelectionContext
     result = expectRight $ view #result transformationReport
 
     result' :: SelectionResultOf [] TestSelectionContext
-    result' = result
-        { outputsCovered = F.toList (view #outputsCovered result) }
+    result' =
+        result
+            { outputsCovered = F.toList (view #outputsCovered result)
+            }
 
     resultTransformed :: SelectionResultOf [] TestSelectionContext
     resultTransformed =
@@ -1110,29 +1321,27 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     --
     transformationReport = performSelectionEmpty f constraints params
       where
-        f constraints' params' = withTransformationReport params'
-            $ runIdentity
-            $ mockPerformSelectionNonEmpty constraints' params'
+        f constraints' params' =
+            withTransformationReport params'
+                $ runIdentity
+                $ mockPerformSelectionNonEmpty constraints' params'
 
 -- | Provides a report of how function 'f' transforms function 'g', where
 --   function 'f' modifies both the parameters and the result of 'g'.
---
-data TransformationReport paramsTransformed result resultTransformed =
-    TransformationReport
-        { paramsTransformed :: paramsTransformed
-            -- ^ The transformed parameters.
-        , result :: result
-            -- ^ The untransformed result.
-        , resultTransformed :: resultTransformed
-            -- ^ The transformed result.
-        }
+data TransformationReport paramsTransformed result resultTransformed = TransformationReport
+    { paramsTransformed :: paramsTransformed
+    -- ^ The transformed parameters.
+    , result :: result
+    -- ^ The untransformed result.
+    , resultTransformed :: resultTransformed
+    -- ^ The transformed result.
+    }
     deriving (Functor, Generic)
 
 -- | Constructs a function transformation report.
 --
 -- Both results are initially untransformed. The 'Functor' instance allows the
 -- final result to be transformed by the function transformer.
---
 withTransformationReport
     :: params -> result -> TransformationReport params result result
 withTransformationReport p r = TransformationReport p r r
@@ -1144,30 +1353,31 @@ withTransformationReport p r = TransformationReport p r r
 --
 --    - a single input to cover the cost and input deficit.
 --    - a single change output to cover the output deficit.
---
 mockPerformSelectionNonEmpty
     :: PerformSelection Identity NonEmpty TestSelectionContext
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
     result :: SelectionResultOf NonEmpty TestSelectionContext
-    result = resultWithoutDelta
-        { inputsSelected =
-            makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost
-        }
+    result =
+        resultWithoutDelta
+            { inputsSelected =
+                makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost
+            }
       where
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
     resultWithoutDelta :: SelectionResultOf NonEmpty TestSelectionContext
-    resultWithoutDelta = SelectionResult
-        { inputsSelected = makeInputsOfValue deficitIn
-        , changeGenerated = makeChangeOfValue deficitOut
-        , assetsToBurn = view #assetsToBurn params
-        , assetsToMint = view #assetsToMint params
-        , extraCoinSink = view #extraCoinSink params
-        , extraCoinSource = view #extraCoinSource params
-        , outputsCovered = view #outputsToCover params
-        }
+    resultWithoutDelta =
+        SelectionResult
+            { inputsSelected = makeInputsOfValue deficitIn
+            , changeGenerated = makeChangeOfValue deficitOut
+            , assetsToBurn = view #assetsToBurn params
+            , assetsToMint = view #assetsToMint params
+            , extraCoinSink = view #extraCoinSink params
+            , extraCoinSource = view #extraCoinSource params
+            , outputsCovered = view #outputsToCover params
+            }
 
     makeInputsOfValue :: TokenBundle -> NonEmpty (TestUTxO, TokenBundle)
     makeInputsOfValue v = (TestUTxO 0, v) :| []
@@ -1184,12 +1394,14 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
 
 prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
 prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
-    result <- run $ runSelection @_ @TestUTxO
-        RunSelectionParams
-            { utxoAvailable
-            , minimumBalance = balanceRequested
-            , selectionStrategy = strategy
-            }
+    result <-
+        run
+            $ runSelection @_ @TestUTxO
+                RunSelectionParams
+                    { utxoAvailable
+                    , minimumBalance = balanceRequested
+                    , selectionStrategy = strategy
+                    }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
@@ -1207,12 +1419,14 @@ prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
 prop_runSelection_UTxO_notEnough
     :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
-    result <- run $ runSelection
-        RunSelectionParams
-            { utxoAvailable
-            , minimumBalance = balanceRequested
-            , selectionStrategy = strategy
-            }
+    result <-
+        run
+            $ runSelection
+                RunSelectionParams
+                    { utxoAvailable
+                    , minimumBalance = balanceRequested
+                    , selectionStrategy = strategy
+                    }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
@@ -1231,12 +1445,14 @@ prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
 prop_runSelection_UTxO_exactlyEnough
     :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
-    result <- run $ runSelection
-        RunSelectionParams
-            { utxoAvailable
-            , minimumBalance = balanceRequested
-            , selectionStrategy = strategy
-            }
+    result <-
+        run
+            $ runSelection
+                RunSelectionParams
+                    { utxoAvailable
+                    , minimumBalance = balanceRequested
+                    , selectionStrategy = strategy
+                    }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
@@ -1245,43 +1461,53 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     assertWith
         "balanceLeftover == TokenBundle.empty"
         (balanceLeftover == TokenBundle.empty)
-    if utxoAvailable == UTxOSelection.empty then
-        assertWith
-            "balanceSelected == TokenBundle.empty"
-            (balanceSelected == TokenBundle.empty)
-    else
-        assertWith
-            "balanceSelected == balanceRequested"
-            (balanceSelected == balanceRequested)
+    if utxoAvailable == UTxOSelection.empty
+        then
+            assertWith
+                "balanceSelected == TokenBundle.empty"
+                (balanceSelected == TokenBundle.empty)
+        else
+            assertWith
+                "balanceSelected == balanceRequested"
+                (balanceSelected == balanceRequested)
   where
     balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
 prop_runSelection_UTxO_moreThanEnough
     :: UTxOSelection TestUTxO -> SelectionStrategy -> Property
 prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
-    result <- run $ runSelection
-        RunSelectionParams
-            { utxoAvailable
-            , minimumBalance = balanceRequested
-            , selectionStrategy = strategy
-            }
+    result <-
+        run
+            $ runSelection
+                RunSelectionParams
+                    { utxoAvailable
+                    , minimumBalance = balanceRequested
+                    , selectionStrategy = strategy
+                    }
     let balanceSelected = UTxOSelection.selectedBalance result
     let balanceLeftover = UTxOSelection.leftoverBalance result
-    monitor $ cover 80
-        (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
-        "assetsRequested ⊂ assetsAvailable"
-    monitor $ cover 50 (Set.size assetsRequested >= 4)
-        "size assetsRequested >= 4"
-    monitor $ counterexample $ unlines
-        [ "balance available:"
-        , pretty (Flat balanceAvailable)
-        , "balance requested:"
-        , pretty (Flat balanceRequested)
-        , "balance selected:"
-        , pretty (Flat balanceSelected)
-        , "balance leftover:"
-        , pretty (Flat balanceLeftover)
-        ]
+    monitor
+        $ cover
+            80
+            (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
+            "assetsRequested ⊂ assetsAvailable"
+    monitor
+        $ cover
+            50
+            (Set.size assetsRequested >= 4)
+            "size assetsRequested >= 4"
+    monitor
+        $ counterexample
+        $ unlines
+            [ "balance available:"
+            , pretty (Flat balanceAvailable)
+            , "balance requested:"
+            , pretty (Flat balanceRequested)
+            , "balance selected:"
+            , pretty (Flat balanceSelected)
+            , "balance leftover:"
+            , pretty (Flat balanceLeftover)
+            ]
     assertWith
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
@@ -1295,8 +1521,9 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
-    balanceRequested = adjustAllTokenBundleQuantities (`div` 8) $
-        cutAssetSetSizeInHalf balanceAvailable
+    balanceRequested =
+        adjustAllTokenBundleQuantities (`div` 8)
+            $ cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
     :: Blind (Large (UTxOIndex TestUTxO))
@@ -1304,47 +1531,58 @@ prop_runSelection_UTxO_muchMoreThanEnough
     -> Property
 prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
-    withMaxSuccess 100 $
-    checkCoverage $
-    monadicIO $ do
-        result <- run $ runSelection
-            RunSelectionParams
-                { utxoAvailable
-                , minimumBalance = balanceRequested
-                , selectionStrategy = strategy
-                }
-        let balanceSelected = UTxOSelection.selectedBalance result
-        let balanceLeftover = UTxOSelection.leftoverBalance result
-        monitor $ cover 80
-            (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
-            "assetsRequested ⊂ assetsAvailable"
-        monitor $ cover 50 (Set.size assetsRequested >= 4)
-            "size assetsRequested >= 4"
-        monitor $ counterexample $ unlines
-            [ "balance available:"
-            , pretty (Flat balanceAvailable)
-            , "balance requested:"
-            , pretty (Flat balanceRequested)
-            , "balance selected:"
-            , pretty (Flat balanceSelected)
-            , "balance leftover:"
-            , pretty (Flat balanceLeftover)
-            ]
-        assertWith
-            "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
-            (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
-        assertWith
-            "balanceRequested `leq` balanceSelected"
-            (balanceRequested `leq` balanceSelected)
-        assertWith
-            "balanceAvailable == balanceSelected <> balanceLeftover"
-            (balanceAvailable == balanceSelected <> balanceLeftover)
+    withMaxSuccess 100
+        $ checkCoverage
+        $ monadicIO
+        $ do
+            result <-
+                run
+                    $ runSelection
+                        RunSelectionParams
+                            { utxoAvailable
+                            , minimumBalance = balanceRequested
+                            , selectionStrategy = strategy
+                            }
+            let balanceSelected = UTxOSelection.selectedBalance result
+            let balanceLeftover = UTxOSelection.leftoverBalance result
+            monitor
+                $ cover
+                    80
+                    (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
+                    "assetsRequested ⊂ assetsAvailable"
+            monitor
+                $ cover
+                    50
+                    (Set.size assetsRequested >= 4)
+                    "size assetsRequested >= 4"
+            monitor
+                $ counterexample
+                $ unlines
+                    [ "balance available:"
+                    , pretty (Flat balanceAvailable)
+                    , "balance requested:"
+                    , pretty (Flat balanceRequested)
+                    , "balance selected:"
+                    , pretty (Flat balanceSelected)
+                    , "balance leftover:"
+                    , pretty (Flat balanceLeftover)
+                    ]
+            assertWith
+                "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
+                (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
+            assertWith
+                "balanceRequested `leq` balanceSelected"
+                (balanceRequested `leq` balanceSelected)
+            assertWith
+                "balanceAvailable == balanceSelected <> balanceLeftover"
+                (balanceAvailable == balanceSelected <> balanceLeftover)
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
     balanceAvailable = view #balance index
-    balanceRequested = adjustAllTokenBundleQuantities (`div` 256) $
-        cutAssetSetSizeInHalf balanceAvailable
+    balanceRequested =
+        adjustAllTokenBundleQuantities (`div` 256)
+            $ cutAssetSetSizeInHalf balanceAvailable
     utxoAvailable = UTxOSelection.fromIndex index
 
 --------------------------------------------------------------------------------
@@ -1380,23 +1618,29 @@ prop_runSelectionNonEmpty result =
     haveSelected = UTxOSelection.selectedSize result > 0
 
     checkResultNonEmpty :: Property
-    checkResultNonEmpty = checkSelectedElement &
-        fromMaybe (error "Failed to select an entry when one was available")
+    checkResultNonEmpty =
+        checkSelectedElement
+            & fromMaybe (error "Failed to select an entry when one was available")
       where
         checkSelectedElement :: Maybe Property
         checkSelectedElement = do
             resultNonEmpty <- maybeResultNonEmpty
-            (i, o) <- matchSingletonList $
-                UTxOSelection.selectedList resultNonEmpty
-            pure $
-                UTxOIndex.insert i o
+            (i, o) <-
+                matchSingletonList
+                    $ UTxOSelection.selectedList resultNonEmpty
+            pure
+                $ UTxOIndex.insert
+                    i
+                    o
                     (UTxOSelection.leftoverIndex resultNonEmpty)
-                === UTxOSelection.leftoverIndex result
+                    === UTxOSelection.leftoverIndex result
 
     maybeResultNonEmpty :: Maybe (UTxOSelectionNonEmpty TestUTxO)
-    maybeResultNonEmpty = runIdentity $ runSelectionNonEmptyWith
-        (Identity <$> mockSelectSingleEntry)
-        (result)
+    maybeResultNonEmpty =
+        runIdentity
+            $ runSelectionNonEmptyWith
+                (Identity <$> mockSelectSingleEntry)
+                (result)
 
 mockSelectSingleEntry
     :: UTxOSelection TestUTxO -> Maybe (UTxOSelectionNonEmpty TestUTxO)
@@ -1418,13 +1662,13 @@ mockSelectSingleEntry state =
 
 data MockSelectionStepData = MockSelectionStepData
     { mockNext :: Maybe Natural
-      -- ^ Quantity to be yielded 'by selectQuantity'.
+    -- ^ Quantity to be yielded 'by selectQuantity'.
     , mockSelected :: Natural
-      -- ^ Quantity already selected.
+    -- ^ Quantity already selected.
     , mockMinimum :: Natural
-      -- ^ Minimum quantity to select.
+    -- ^ Minimum quantity to select.
     , mockSelectionStrategy :: SelectionStrategy
-      -- ^ Which selection strategy to use.
+    -- ^ Which selection strategy to use.
     }
     deriving (Eq, Show)
 
@@ -1434,19 +1678,19 @@ data MockSelectionStepData = MockSelectionStepData
 -- to increase) then this function returns the updated total selected quantity.
 --
 -- If no additional quantity was selected, then this function returns 'Nothing'.
---
 runMockSelectionStep :: MockSelectionStepData -> Maybe Natural
 runMockSelectionStep d =
     runIdentity $ runSelectionStep lens $ mockSelected d
   where
     lens :: SelectionLens Identity Natural Natural
-    lens = SelectionLens
-        { currentQuantity = id
-        , updatedQuantity = id
-        , minimumQuantity = mockMinimum d
-        , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
-        , selectionStrategy = mockSelectionStrategy d
-        }
+    lens =
+        SelectionLens
+            { currentQuantity = id
+            , updatedQuantity = id
+            , minimumQuantity = mockMinimum d
+            , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
+            , selectionStrategy = mockSelectionStrategy d
+            }
 
 -- Simulates a selection step where there is nothing available to select.
 --
@@ -1459,15 +1703,17 @@ prop_runSelectionStep_supplyExhausted
     -> Positive Word8
     -> Property
 prop_runSelectionStep_supplyExhausted
-    strategy (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === Nothing
-  where
-    mockData = MockSelectionStepData {..}
-    mockSelected = fromIntegral x
-    mockMinimum = fromIntegral y
-    mockNext = Nothing
-    mockSelectionStrategy = strategy
+    strategy
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === Nothing
+      where
+        mockData = MockSelectionStepData{..}
+        mockSelected = fromIntegral x
+        mockMinimum = fromIntegral y
+        mockNext = Nothing
+        mockSelectionStrategy = strategy
 
 -- Simulates a selection step where the next quantity to be yielded will not
 -- yet allow us to reach the minimum amount.
@@ -1481,17 +1727,19 @@ prop_runSelectionStep_notYetEnoughToSatisfyMinimum
     -> Positive Word8
     -> Property
 prop_runSelectionStep_notYetEnoughToSatisfyMinimum
-    strategy (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
-  where
-    p = fromIntegral $ max x y
-    q = fromIntegral $ min x y
-    mockData = MockSelectionStepData {..}
-    mockSelected = p
-    mockMinimum = p + q  + 1
-    mockNext = Just q
-    mockSelectionStrategy = strategy
+    strategy
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+      where
+        p = fromIntegral $ max x y
+        q = fromIntegral $ min x y
+        mockData = MockSelectionStepData{..}
+        mockSelected = p
+        mockMinimum = p + q + 1
+        mockNext = Just q
+        mockSelectionStrategy = strategy
 
 -- Simulates a selection step where the next quantity to be yielded will allow
 -- us to precisely reach the minimum amount (and not exceed it).
@@ -1505,17 +1753,19 @@ prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
     -> Positive Word8
     -> Property
 prop_runSelectionStep_preciselyEnoughToSatisfyMinimum
-    strategy (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
-  where
-    p = fromIntegral $ max x y
-    q = fromIntegral $ min x y
-    mockData = MockSelectionStepData {..}
-    mockSelected = p
-    mockMinimum = p + q
-    mockNext = Just q
-    mockSelectionStrategy = strategy
+    strategy
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+      where
+        p = fromIntegral $ max x y
+        q = fromIntegral $ min x y
+        mockData = MockSelectionStepData{..}
+        mockSelected = p
+        mockMinimum = p + q
+        mockNext = Just q
+        mockSelectionStrategy = strategy
 
 -- Simulates a selection step under the "minimal" selection strategy, where the
 -- minimum amount has already reached.
@@ -1529,14 +1779,16 @@ prop_runSelectionStep_exceedsMinimalTarget
     -> Positive Word8
     -> Property
 prop_runSelectionStep_exceedsMinimalTarget
-    (Positive x) (Positive y) (Positive z) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === Nothing
-  where
-    [next, mockMinimum, mockSelected] = fromIntegral <$> L.sort [x, y, z]
-    mockNext = Just next
-    mockData = MockSelectionStepData {..}
-    mockSelectionStrategy = SelectionStrategyMinimal
+    (Positive x)
+    (Positive y)
+    (Positive z) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === Nothing
+      where
+        [next, mockMinimum, mockSelected] = fromIntegral <$> L.sort [x, y, z]
+        mockNext = Just next
+        mockData = MockSelectionStepData{..}
+        mockSelectionStrategy = SelectionStrategyMinimal
 
 -- Simulates a selection step under the "optimal" selection strategy, where the
 -- minimum amount has already been reached, and the next quantity to be yielded
@@ -1549,17 +1801,18 @@ prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
     -> Positive Word8
     -> Property
 prop_runSelectionStep_getsCloserToOptimalTargetButDoesNotExceedIt
-    (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
-  where
-    p = fromIntegral $ max x y
-    q = fromIntegral $ min x y
-    mockData = MockSelectionStepData {..}
-    mockSelected = p
-    mockMinimum = p
-    mockNext = Just q
-    mockSelectionStrategy = SelectionStrategyOptimal
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+      where
+        p = fromIntegral $ max x y
+        q = fromIntegral $ min x y
+        mockData = MockSelectionStepData{..}
+        mockSelected = p
+        mockMinimum = p
+        mockNext = Just q
+        mockSelectionStrategy = SelectionStrategyOptimal
 
 -- Simulates a selection step under the "optimal" selection strategy, where the
 -- minimum amount has already been reached, and the next quantity to be yielded
@@ -1572,17 +1825,18 @@ prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
     -> Positive Word8
     -> Property
 prop_runSelectionStep_getsCloserToOptimalTargetAndExceedsIt
-    (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
-  where
-    p = fromIntegral $ max x y
-    q = fromIntegral $ min x y
-    mockData = MockSelectionStepData {..}
-    mockSelected = (2 * p) - q
-    mockMinimum = p
-    mockNext = Just ((2 * q) - 1)
-    mockSelectionStrategy = SelectionStrategyOptimal
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+      where
+        p = fromIntegral $ max x y
+        q = fromIntegral $ min x y
+        mockData = MockSelectionStepData{..}
+        mockSelected = (2 * p) - q
+        mockMinimum = p
+        mockNext = Just ((2 * q) - 1)
+        mockSelectionStrategy = SelectionStrategyOptimal
 
 -- Simulates a selection step under the "optimal" selection strategy, where the
 -- minimum amount has already been reached, and the next quantity to be yielded
@@ -1595,17 +1849,18 @@ prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
     -> Positive Word8
     -> Property
 prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
-    (Positive x) (Positive y) =
-        counterexample (show mockData) $
-        runMockSelectionStep mockData === Nothing
-  where
-    p = fromIntegral $ max x y
-    q = fromIntegral $ min x y
-    mockData = MockSelectionStepData {..}
-    mockSelected = (2 * p) - q
-    mockMinimum = p
-    mockNext = Just ((2 * q) + 1)
-    mockSelectionStrategy = SelectionStrategyOptimal
+    (Positive x)
+    (Positive y) =
+        counterexample (show mockData)
+            $ runMockSelectionStep mockData === Nothing
+      where
+        p = fromIntegral $ max x y
+        q = fromIntegral $ min x y
+        mockData = MockSelectionStepData{..}
+        mockSelected = (2 * p) - q
+        mockMinimum = p
+        mockNext = Just ((2 * q) + 1)
+        mockSelectionStrategy = SelectionStrategyOptimal
 
 --------------------------------------------------------------------------------
 -- Behaviour of selection lenses
@@ -1615,88 +1870,115 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets
     :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
-    nonAdaAssetCount >= 2 ==> monadicIO $ do
-
-        -- TODO: ADP-1449
-        -- Use 'SelectSingleton' rather than 'SelectPairWith'.
-        --
-        -- Ideally, this function would test using 'SelectSingleton', rather
-        -- than 'SelectPairWith'.
-        --
-        -- However, our 'TokenBundle' generators currently have a distribution
-        -- that is skewed toward token bundles with *non-zero* ada quantities.
-        --
-        -- This means that only a *very small* proportion of generated token
-        -- bundles will have a single non-ada asset and no ada, and only very
-        -- few token bundles will be matched by 'SelectSingleton'.
-        --
-        -- Therefore, to ensure that we get sufficient coverage, we use the
-        -- 'SelectPairWith' filter condition, which will not match bundles with
-        -- more than two assets.
-        --
-        hasSingletonAsset <- isJust <$>
-            run (UTxOIndex.selectRandom u $
-            SelectPairWith (Asset nonAdaAsset))
-        monitor $ cover 20 hasSingletonAsset
-            "There is at least one singleton entry that matches"
-        monitor $ cover 20 (not hasSingletonAsset)
-            "There are no singleton entries that match"
-        monitor $ counterexample $ unlines
-            ["UTxO index:", pretty $ UTxOIndex.toList u]
-        mUpdatedState <- run $ runSelectionStep lens initialState
-        case mUpdatedState of
-            Nothing -> do
-                -- This should never happen: we should always be able to select
-                -- _something_ that matches.
-                monitor $ counterexample "Error: unable to select any entry"
-                assert False
-            Just result -> do
-                let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
-                case F.toList $ TokenBundle.getAssets bundle of
-                    [a] -> assertWith
-                        "a == nonAdaAsset"
-                        (a == nonAdaAsset)
-                    _ -> assertWith
-                        "not hasSingletonAsset"
-                        (not hasSingletonAsset)
+    nonAdaAssetCount >= 2 ==>
+        monadicIO $ do
+            -- TODO: ADP-1449
+            -- Use 'SelectSingleton' rather than 'SelectPairWith'.
+            --
+            -- Ideally, this function would test using 'SelectSingleton', rather
+            -- than 'SelectPairWith'.
+            --
+            -- However, our 'TokenBundle' generators currently have a distribution
+            -- that is skewed toward token bundles with *non-zero* ada quantities.
+            --
+            -- This means that only a *very small* proportion of generated token
+            -- bundles will have a single non-ada asset and no ada, and only very
+            -- few token bundles will be matched by 'SelectSingleton'.
+            --
+            -- Therefore, to ensure that we get sufficient coverage, we use the
+            -- 'SelectPairWith' filter condition, which will not match bundles with
+            -- more than two assets.
+            --
+            hasSingletonAsset <-
+                isJust
+                    <$> run
+                        ( UTxOIndex.selectRandom u
+                            $ SelectPairWith (Asset nonAdaAsset)
+                        )
+            monitor
+                $ cover
+                    20
+                    hasSingletonAsset
+                    "There is at least one singleton entry that matches"
+            monitor
+                $ cover
+                    20
+                    (not hasSingletonAsset)
+                    "There are no singleton entries that match"
+            monitor
+                $ counterexample
+                $ unlines
+                    ["UTxO index:", pretty $ UTxOIndex.toList u]
+            mUpdatedState <- run $ runSelectionStep lens initialState
+            case mUpdatedState of
+                Nothing -> do
+                    -- This should never happen: we should always be able to select
+                    -- _something_ that matches.
+                    monitor $ counterexample "Error: unable to select any entry"
+                    assert False
+                Just result -> do
+                    let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
+                    case F.toList $ TokenBundle.getAssets bundle of
+                        [a] ->
+                            assertWith
+                                "a == nonAdaAsset"
+                                (a == nonAdaAsset)
+                        _ ->
+                            assertWith
+                                "not hasSingletonAsset"
+                                (not hasSingletonAsset)
   where
     nonAdaAsset = Set.findMin (utxoIndexNonAdaAssets u)
     nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
-    lens = assetSelectionLens
-        SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
+    lens =
+        assetSelectionLens
+            SelectionStrategyOptimal
+            (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
     :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
 prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
-    entryCount > 0 ==> monadicIO $ do
-        hasCoin <- isJust <$>
-            run (UTxOIndex.selectRandom u (SelectSingleton AssetLovelace))
-        monitor $ cover 20 hasCoin
-            "There is at least one coin"
-        monitor $ cover 1 (not hasCoin)
-            "There are no coins"
-        monitor $ counterexample $ unlines
-            ["UTxO index:", pretty $ UTxOIndex.toList u]
-        mUpdatedState <- run $ runSelectionStep lens initialState
-        case mUpdatedState of
-            Nothing -> do
-                -- This should never happen: we should always be able to select
-                -- _something_ that matches.
-                monitor $ counterexample "Error: unable to select any entry"
-                assert False
-            Just result -> do
-                let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
-                case F.toList $ TokenBundle.getAssets bundle of
-                    [] -> assertWith     "hasCoin" (    hasCoin)
-                    _  -> assertWith "not hasCoin" (not hasCoin)
+    entryCount > 0 ==>
+        monadicIO $ do
+            hasCoin <-
+                isJust
+                    <$> run (UTxOIndex.selectRandom u (SelectSingleton AssetLovelace))
+            monitor
+                $ cover
+                    20
+                    hasCoin
+                    "There is at least one coin"
+            monitor
+                $ cover
+                    1
+                    (not hasCoin)
+                    "There are no coins"
+            monitor
+                $ counterexample
+                $ unlines
+                    ["UTxO index:", pretty $ UTxOIndex.toList u]
+            mUpdatedState <- run $ runSelectionStep lens initialState
+            case mUpdatedState of
+                Nothing -> do
+                    -- This should never happen: we should always be able to select
+                    -- _something_ that matches.
+                    monitor $ counterexample "Error: unable to select any entry"
+                    assert False
+                Just result -> do
+                    let bundle = NE.head $ snd <$> UTxOSelection.selectedList result
+                    case F.toList $ TokenBundle.getAssets bundle of
+                        [] -> assertWith "hasCoin" (hasCoin)
+                        _ -> assertWith "not hasCoin" (not hasCoin)
   where
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
-    lens = coinSelectionLens
-        SelectionStrategyOptimal minimumCoinQuantity
+    lens =
+        coinSelectionLens
+            SelectionStrategyOptimal
+            minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
@@ -1738,45 +2020,50 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
-    actualResult <- performSelection constraints
-        (encodeBoundaryTestCriteria params)
+    actualResult <-
+        performSelection
+            constraints
+            (encodeBoundaryTestCriteria params)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
   where
-    constraints = SelectionConstraints
-        { computeMinimumAdaQuantity = const computeMinimumAdaQuantityZero
-        , computeMinimumCost = computeMinimumCostZero
-        , assessTokenBundleSize = unMockAssessTokenBundleSize $
-            boundaryTestBundleSizeAssessor params
-        , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
-        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
-        , maximumLengthChangeAddress = TestAddress 0x0
-        , nullAddress = TestAddress 0x0
-        }
+    constraints =
+        SelectionConstraints
+            { computeMinimumAdaQuantity = const computeMinimumAdaQuantityZero
+            , computeMinimumCost = computeMinimumCostZero
+            , assessTokenBundleSize =
+                unMockAssessTokenBundleSize
+                    $ boundaryTestBundleSizeAssessor params
+            , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+            , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
+            , maximumLengthChangeAddress = TestAddress 0x0
+            , nullAddress = TestAddress 0x0
+            }
 
 encodeBoundaryTestCriteria
     :: BoundaryTestCriteria
     -> SelectionParams TestSelectionContext
-encodeBoundaryTestCriteria c = SelectionParams
-    { outputsToCover =
-        zip
-            dummyAddresses
-            (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
-    , utxoAvailable =
-        UTxOSelection.fromIndex
-        $ UTxOIndex.fromSequence
-        $ zip dummyTestUTxOs
-        $ uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c
-    , extraCoinSource =
-        Coin 0
-    , extraCoinSink =
-        Coin 0
-    , assetsToMint =
-        TokenMap.empty
-    , assetsToBurn =
-        TokenMap.empty
-    , selectionStrategy =
-        boundaryTestSelectionStrategy c
-    }
+encodeBoundaryTestCriteria c =
+    SelectionParams
+        { outputsToCover =
+            zip
+                dummyAddresses
+                (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
+        , utxoAvailable =
+            UTxOSelection.fromIndex
+                $ UTxOIndex.fromSequence
+                $ zip dummyTestUTxOs
+                $ uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c
+        , extraCoinSource =
+            Coin 0
+        , extraCoinSink =
+            Coin 0
+        , assetsToMint =
+            TokenMap.empty
+        , assetsToBurn =
+            TokenMap.empty
+        , selectionStrategy =
+            boundaryTestSelectionStrategy c
+        }
   where
     dummyTestUTxOs :: [TestUTxO]
     dummyTestUTxOs = TestUTxO . fromIntegral @Natural <$> [0 ..]
@@ -1786,12 +2073,15 @@ encodeBoundaryTestCriteria c = SelectionParams
 
 decodeBoundaryTestResult
     :: SelectionResult TestSelectionContext -> BoundaryTestResult
-decodeBoundaryTestResult r = BoundaryTestResult
-    { boundaryTestInputs = L.sort $ NE.toList $
-        TokenBundle.toFlatList . snd <$> view #inputsSelected r
-    , boundaryTestChange =
-        TokenBundle.toFlatList <$> view #changeGenerated r
-    }
+decodeBoundaryTestResult r =
+    BoundaryTestResult
+        { boundaryTestInputs =
+            L.sort
+                $ NE.toList
+                $ TokenBundle.toFlatList . snd <$> view #inputsSelected r
+        , boundaryTestChange =
+            TokenBundle.toFlatList <$> view #changeGenerated r
+        }
 
 --------------------------------------------------------------------------------
 -- Boundary tests: handling of large token quantities
@@ -1816,10 +2106,11 @@ boundaryTestMatrix_largeTokenQuantities =
 -- We expect no splitting of token bundles.
 --
 boundaryTest_largeTokenQuantities_1 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_1 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_1 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     (q1, q2) =
         ( TokenQuantity 1
@@ -1828,17 +2119,17 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_500_000, []) ]
+        [(Coin 1_500_000, [])]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", q1)])
-      , (Coin 1_000_000, [(mockAsset "A", q2)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", q1)])
+        , (Coin 1_000_000, [(mockAsset "A", q2)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", q1)])
-      , (Coin 1_000_000, [(mockAsset "A", q2)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", q1)])
+        , (Coin 1_000_000, [(mockAsset "A", q2)])
+        ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
+        [(Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1849,27 +2140,30 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
 -- We expect no splitting of token bundles.
 --
 boundaryTest_largeTokenQuantities_2 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_2 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_2 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
-    q1 :| [q2] = TokenQuantity.equipartition
-        testMaximumOutputTokenQuantity (() :| [()])
+    q1 :| [q2] =
+        TokenQuantity.equipartition
+            testMaximumOutputTokenQuantity
+            (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_500_000, []) ]
+        [(Coin 1_500_000, [])]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", q1)])
-      , (Coin 1_000_000, [(mockAsset "A", q2)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", q1)])
+        , (Coin 1_000_000, [(mockAsset "A", q2)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", q1)])
-      , (Coin 1_000_000, [(mockAsset "A", q2)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", q1)])
+        , (Coin 1_000_000, [(mockAsset "A", q2)])
+        ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)]) ]
+        [(Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1880,29 +2174,32 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
 -- We expect splitting of change bundles.
 --
 boundaryTest_largeTokenQuantities_3 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_3 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_3 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
-    q1 :| [q2] = TokenQuantity.equipartition
-        (TokenQuantity.succ testMaximumOutputTokenQuantity) (() :| [()])
+    q1 :| [q2] =
+        TokenQuantity.equipartition
+            (TokenQuantity.succ testMaximumOutputTokenQuantity)
+            (() :| [()])
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_500_000, []) ]
+        [(Coin 1_500_000, [])]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestChange =
-      [ (Coin 250_000, [(mockAsset "A", q1)])
-      , (Coin 250_000, [(mockAsset "A", q2)])
-      ]
+        [ (Coin 250_000, [(mockAsset "A", q1)])
+        , (Coin 250_000, [(mockAsset "A", q2)])
+        ]
 
 -- Reach (but do not exceed) exactly twice the maximum token quantity by
 -- selecting inputs with the following quantities:
@@ -1913,27 +2210,28 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
 -- We expect splitting of change bundles.
 --
 boundaryTest_largeTokenQuantities_4 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_4 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_4 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_500_000, []) ]
+        [(Coin 1_500_000, [])]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestChange =
-      [ (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 250_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
 
 -- In the event that generated change bundles must be split, demonstrate that
 -- the change generation algorithm terminates after only a subset of the UTxO
@@ -1942,37 +2240,38 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
 -- See: https://input-output.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_5 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_5 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_5 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 2_000_000, []) ]
+        [(Coin 2_000_000, [])]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
 
 -- In the event that generated change bundles must be split, demonstrate that
 -- the change generation algorithm terminates after only a subset of the UTxO
@@ -1981,39 +2280,40 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
 -- See: https://input-output.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_6 :: BoundaryTestData
-boundaryTest_largeTokenQuantities_6 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeTokenQuantities_6 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_000_000, [])
-      , (Coin 1_000_000, [])
-      ]
+        [ (Coin 1_000_000, [])
+        , (Coin 1_000_000, [])
+        ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 1_000_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
     boundaryTestChange =
-      [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
-      ]
+        [ (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        , (Coin 500_000, [(mockAsset "A", testMaximumOutputTokenQuantity)])
+        ]
 
 --------------------------------------------------------------------------------
 -- Boundary tests: handling of large asset counts
@@ -2032,115 +2332,121 @@ boundaryTestMatrix_largeAssetCounts =
 -- We expect no splitting of change bundles.
 --
 boundaryTest_largeAssetCounts_1 :: BoundaryTestData
-boundaryTest_largeAssetCounts_1 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeAssetCounts_1 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 4
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_000_000, []) ]
+        [(Coin 1_000_000, [])]
     boundaryTestUTxO =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1])
-      , (Coin 500_000, [mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1])
-      , (Coin 500_000, [mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1])
+        , (Coin 500_000, [mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1])
+        , (Coin 500_000, [mockAssetQuantity "D" 1])
+        ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ ( Coin 1_000_000
-        , [ mockAssetQuantity "A" 1
-          , mockAssetQuantity "B" 1
-          , mockAssetQuantity "C" 1
-          , mockAssetQuantity "D" 1
-          ]
-        )
-      ]
+        [
+            ( Coin 1_000_000
+            ,
+                [ mockAssetQuantity "A" 1
+                , mockAssetQuantity "B" 1
+                , mockAssetQuantity "C" 1
+                , mockAssetQuantity "D" 1
+                ]
+            )
+        ]
 
 -- Exceed the maximum per-bundle asset count of 3.
 --
 -- We expect splitting of change bundles.
 --
 boundaryTest_largeAssetCounts_2 :: BoundaryTestData
-boundaryTest_largeAssetCounts_2 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeAssetCounts_2 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 3
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_000_000, []) ]
+        [(Coin 1_000_000, [])]
     boundaryTestUTxO =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1])
-      , (Coin 500_000, [mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1])
-      , (Coin 500_000, [mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1])
+        , (Coin 500_000, [mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1])
+        , (Coin 500_000, [mockAssetQuantity "D" 1])
+        ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
+        ]
 
 -- Exceed the maximum per-bundle asset count of 2.
 --
 -- We expect splitting of change bundles.
 --
 boundaryTest_largeAssetCounts_3 :: BoundaryTestData
-boundaryTest_largeAssetCounts_3 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeAssetCounts_3 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 2
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_000_000, []) ]
+        [(Coin 1_000_000, [])]
     boundaryTestUTxO =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1])
-      , (Coin 500_000, [mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1])
-      , (Coin 500_000, [mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1])
+        , (Coin 500_000, [mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1])
+        , (Coin 500_000, [mockAssetQuantity "D" 1])
+        ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
+        ]
 
 -- Exceed the maximum per-bundle asset count of 1.
 --
 -- We expect splitting of change bundles.
 --
 boundaryTest_largeAssetCounts_4 :: BoundaryTestData
-boundaryTest_largeAssetCounts_4 = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_largeAssetCounts_4 =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 1
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1_000_000, []) ]
+        [(Coin 1_000_000, [])]
     boundaryTestUTxO =
-      [ (Coin 500_000, [mockAssetQuantity "A" 1])
-      , (Coin 500_000, [mockAssetQuantity "B" 1])
-      , (Coin 500_000, [mockAssetQuantity "C" 1])
-      , (Coin 500_000, [mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 500_000, [mockAssetQuantity "A" 1])
+        , (Coin 500_000, [mockAssetQuantity "B" 1])
+        , (Coin 500_000, [mockAssetQuantity "C" 1])
+        , (Coin 500_000, [mockAssetQuantity "D" 1])
+        ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ (Coin 250_000, [mockAssetQuantity "A" 1])
-      , (Coin 250_000, [mockAssetQuantity "B" 1])
-      , (Coin 250_000, [mockAssetQuantity "C" 1])
-      , (Coin 250_000, [mockAssetQuantity "D" 1])
-      ]
+        [ (Coin 250_000, [mockAssetQuantity "A" 1])
+        , (Coin 250_000, [mockAssetQuantity "B" 1])
+        , (Coin 250_000, [mockAssetQuantity "C" 1])
+        , (Coin 250_000, [mockAssetQuantity "D" 1])
+        ]
 
 --------------------------------------------------------------------------------
 -- Boundary tests: comparison of selection strategies
@@ -2159,182 +2465,191 @@ boundaryTestMatrix_selectionStrategies =
     ]
 
 boundaryTest_selectionStrategies_1_minimal :: BoundaryTestData
-boundaryTest_selectionStrategies_1_minimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_1_minimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyMinimal
     boundaryTestOutputs =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
     boundaryTestUTxO =
-      [ (Coin 1, []), (Coin 1, []) ]
+        [(Coin 1, []), (Coin 1, [])]
     boundaryTestInputs =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
     boundaryTestChange =
-      [ (Coin 0, []) ]
-      -- Note that a single empty change bundle is expected here, as:
-      --    - we attempt to always generate one change output for
-      --      each user-specified output.
-      --    - the minimum ada quantity is zero.
+        [(Coin 0, [])]
+
+-- Note that a single empty change bundle is expected here, as:
+--    - we attempt to always generate one change output for
+--      each user-specified output.
+--    - the minimum ada quantity is zero.
 
 boundaryTest_selectionStrategies_1_optimal :: BoundaryTestData
-boundaryTest_selectionStrategies_1_optimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_1_optimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
     boundaryTestUTxO =
-      [ (Coin 1, []), (Coin 1, []) ]
+        [(Coin 1, []), (Coin 1, [])]
     boundaryTestInputs =
-      [ (Coin 1, []), (Coin 1, []) ]
+        [(Coin 1, []), (Coin 1, [])]
     boundaryTestChange =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
 
 boundaryTest_selectionStrategies_2_minimal :: BoundaryTestData
-boundaryTest_selectionStrategies_2_minimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_2_minimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyMinimal
     boundaryTestOutputs =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+        [(Coin 1, [mockAssetQuantity "A" 1])]
     boundaryTestChange =
-      [ (Coin 0, [mockAssetQuantity "A" 1]) ]
+        [(Coin 0, [mockAssetQuantity "A" 1])]
 
 boundaryTest_selectionStrategies_2_optimal :: BoundaryTestData
-boundaryTest_selectionStrategies_2_optimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_2_optimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1, []) ]
+        [(Coin 1, [])]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestChange =
-      [ (Coin 1, [mockAssetQuantity "A" 2]) ]
+        [(Coin 1, [mockAssetQuantity "A" 2])]
 
 boundaryTest_selectionStrategies_3_minimal :: BoundaryTestData
-boundaryTest_selectionStrategies_3_minimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_3_minimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyMinimal
     boundaryTestOutputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+        [(Coin 1, [mockAssetQuantity "A" 1])]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+        [(Coin 1, [mockAssetQuantity "A" 1])]
     boundaryTestChange =
-      [ (Coin 0, []) ]
+        [(Coin 0, [])]
 
 boundaryTest_selectionStrategies_3_optimal :: BoundaryTestData
-boundaryTest_selectionStrategies_3_optimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_3_optimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+        [(Coin 1, [mockAssetQuantity "A" 1])]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 1])
-      , (Coin 1, [mockAssetQuantity "A" 1])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 1])
+        , (Coin 1, [mockAssetQuantity "A" 1])
+        ]
     boundaryTestChange =
-      [ (Coin 1, [mockAssetQuantity "A" 1]) ]
+        [(Coin 1, [mockAssetQuantity "A" 1])]
 
 boundaryTest_selectionStrategies_4_minimal :: BoundaryTestData
-boundaryTest_selectionStrategies_4_minimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_4_minimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyMinimal
     boundaryTestOutputs =
-      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestChange =
-      [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
 
 boundaryTest_selectionStrategies_4_optimal :: BoundaryTestData
-boundaryTest_selectionStrategies_4_optimal = BoundaryTestData
-    { boundaryTestCriteria = BoundaryTestCriteria {..}
-    , boundaryTestExpectedResult = BoundaryTestResult {..}
-    }
+boundaryTest_selectionStrategies_4_optimal =
+    BoundaryTestData
+        { boundaryTestCriteria = BoundaryTestCriteria{..}
+        , boundaryTestExpectedResult = BoundaryTestResult{..}
+        }
   where
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
-      ]
+        [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+        ]
     boundaryTestChange =
-      [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6_000])
-      ]
+        [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6_000])
+        ]
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -2347,48 +2662,51 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
-genMockSelectionConstraints = MockSelectionConstraints
-    <$> genMockAssessTokenBundleSize
-    <*> genMockComputeMinimumAdaQuantity
-    <*> genMockComputeMinimumCost
+genMockSelectionConstraints =
+    MockSelectionConstraints
+        <$> genMockAssessTokenBundleSize
+        <*> genMockComputeMinimumAdaQuantity
+        <*> genMockComputeMinimumCost
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
-shrinkMockSelectionConstraints = genericRoundRobinShrink
-    <@> shrinkMockAssessTokenBundleSize
-    <:> shrinkMockComputeMinimumAdaQuantity
-    <:> shrinkMockComputeMinimumCost
-    <:> Nil
+shrinkMockSelectionConstraints =
+    genericRoundRobinShrink
+        <@> shrinkMockAssessTokenBundleSize
+        <:> shrinkMockComputeMinimumAdaQuantity
+        <:> shrinkMockComputeMinimumCost
+        <:> Nil
 
 unMockSelectionConstraints
     :: MockSelectionConstraints
     -> SelectionConstraints TestSelectionContext
-unMockSelectionConstraints m = SelectionConstraints
-    { assessTokenBundleSize =
-        unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
-    , computeMinimumAdaQuantity =
-        unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
-    , computeMinimumCost =
-        unMockComputeMinimumCost $ view #computeMinimumCost m
-    , maximumOutputAdaQuantity =
-        testMaximumOutputAdaQuantity
-    , maximumOutputTokenQuantity =
-        testMaximumOutputTokenQuantity
-    , maximumLengthChangeAddress =
-        TestAddress 0x0
-    , nullAddress =
-        TestAddress 0x0
-    }
+unMockSelectionConstraints m =
+    SelectionConstraints
+        { assessTokenBundleSize =
+            unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
+        , computeMinimumAdaQuantity =
+            unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+        , computeMinimumCost =
+            unMockComputeMinimumCost $ view #computeMinimumCost m
+        , maximumOutputAdaQuantity =
+            testMaximumOutputAdaQuantity
+        , maximumOutputTokenQuantity =
+            testMaximumOutputTokenQuantity
+        , maximumLengthChangeAddress =
+            TestAddress 0x0
+        , nullAddress =
+            TestAddress 0x0
+        }
 
 -- | Specifies the largest ada quantity that can appear in the token bundle
 --   of an output.
 --
 -- For the moment, we use the same constant that is used in the wallet. In
 -- future, we can improve our test coverage by allowing this value to vary.
---
 testMaximumOutputAdaQuantity :: Coin
 testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 
@@ -2397,7 +2715,6 @@ testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 --
 -- For the moment, we use the same constant that is used in the wallet. In
 -- future, we can improve our test coverage by allowing this value to vary.
---
 testMaximumOutputTokenQuantity :: TokenQuantity
 testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 
@@ -2430,7 +2747,6 @@ unMockComputeMinimumAdaQuantity = \case
         const computeMinimumAdaQuantityLinear
 
 -- | Returns a constant minimum ada quantity of zero.
---
 computeMinimumAdaQuantityZero :: TokenMap -> Coin
 computeMinimumAdaQuantityZero = const $ Coin 0
 
@@ -2440,7 +2756,6 @@ computeMinimumAdaQuantityZero = const $ Coin 0
 -- The only property we want this function to have is that is becomes more
 -- expensive with the number of unique assets in the map. So, looking at the
 -- size of the asset set is enough.
---
 computeMinimumAdaQuantityLinear :: TokenMap -> Coin
 computeMinimumAdaQuantityLinear m =
     Coin (1 + fromIntegral (TokenMap.size m))
@@ -2478,31 +2793,32 @@ computeMinimumCostZero :: SelectionSkeleton TestSelectionContext -> Coin
 computeMinimumCostZero = const $ Coin 0
 
 computeMinimumCostLinear :: SelectionSkeleton TestSelectionContext -> Coin
-computeMinimumCostLinear s
-    = Coin
-    $ fromIntegral
-    $ skeletonInputCount s
-    + F.length (TokenMap.size . view #tokens . snd <$> skeletonOutputs s)
-    + F.sum (Set.size <$> skeletonChange s)
+computeMinimumCostLinear s =
+    Coin
+        $ fromIntegral
+        $ skeletonInputCount s
+            + F.length (TokenMap.size . view #tokens . snd <$> skeletonOutputs s)
+            + F.sum (Set.size <$> skeletonChange s)
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
 --------------------------------------------------------------------------------
 
 data MockAssessTokenBundleSize
-    = MockAssessTokenBundleSizeUnlimited
-      -- ^ Indicates that there is no limit on a token bundle's size.
-    | MockAssessTokenBundleSizeUpperLimit Int
-      -- ^ Indicates an inclusive positive upper bound on the number of assets
+    = -- | Indicates that there is no limit on a token bundle's size.
+      MockAssessTokenBundleSizeUnlimited
+    | -- | Indicates an inclusive positive upper bound on the number of assets
       -- in a token bundle.
+      MockAssessTokenBundleSizeUpperLimit Int
     deriving (Eq, Show)
 
 genMockAssessTokenBundleSize :: Gen MockAssessTokenBundleSize
-genMockAssessTokenBundleSize = oneof
-    [ pure MockAssessTokenBundleSizeUnlimited
-    , MockAssessTokenBundleSizeUpperLimit . getPositive
-        <$> arbitrary @(Positive Int)
-    ]
+genMockAssessTokenBundleSize =
+    oneof
+        [ pure MockAssessTokenBundleSizeUnlimited
+        , MockAssessTokenBundleSizeUpperLimit . getPositive
+            <$> arbitrary @(Positive Int)
+        ]
 
 shrinkMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> [MockAssessTokenBundleSize]
@@ -2520,11 +2836,11 @@ unMockAssessTokenBundleSize = \case
         const TokenBundleSizeWithinLimit
     MockAssessTokenBundleSizeUpperLimit upperLimit ->
         \bundle ->
-            let assetCount = Set.size $ TokenBundle.getAssets bundle in
-            case assetCount `compare` upperLimit of
-                LT -> TokenBundleSizeWithinLimit
-                EQ -> TokenBundleSizeWithinLimit
-                GT -> TokenBundleSizeExceedsLimit
+            let assetCount = Set.size $ TokenBundle.getAssets bundle
+            in  case assetCount `compare` upperLimit of
+                    LT -> TokenBundleSizeWithinLimit
+                    EQ -> TokenBundleSizeWithinLimit
+                    GT -> TokenBundleSizeExceedsLimit
 
 mkTokenBundleSizeAssessor
     :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
@@ -2539,9 +2855,10 @@ type MakeChangeData =
     MakeChangeCriteria MockComputeMinimumAdaQuantity MockAssessTokenBundleSize
 
 isValidMakeChangeData :: MakeChangeData -> Bool
-isValidMakeChangeData p = (&&)
-    (totalOutputValue `leq` totalInputValue)
-    (totalOutputCoinValue > Coin 0)
+isValidMakeChangeData p =
+    (&&)
+        (totalOutputValue `leq` totalInputValue)
+        (totalOutputCoinValue > Coin 0)
   where
     totalInputValue =
         F.fold (inputBundles p)
@@ -2586,9 +2903,10 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     genRequiredCost = genCoin
 
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
-    genTokenBundles count = (:|)
-        <$> genTokenBundleSmallRangePositive
-        <*> replicateM count genTokenBundleSmallRangePositive
+    genTokenBundles count =
+        (:|)
+            <$> genTokenBundleSmallRangePositive
+            <*> replicateM count genTokenBundleSmallRangePositive
 
     genMaximumOutputAdaQuantity :: Gen Coin
     genMaximumOutputAdaQuantity = pure testMaximumOutputAdaQuantity
@@ -2599,33 +2917,37 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
-makeChangeWith p = makeChange p
-    { minCoinFor =
-        unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
-    , bundleSizeAssessor =
-        mkTokenBundleSizeAssessor $ bundleSizeAssessor p
-    }
+makeChangeWith p =
+    makeChange
+        p
+            { minCoinFor =
+                unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
+            , bundleSizeAssessor =
+                mkTokenBundleSizeAssessor $ bundleSizeAssessor p
+            }
 
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
-prop_makeChange_identity bundles = (===)
-    (F.fold <$> makeChange criteria)
-    (Right TokenBundle.empty)
+prop_makeChange_identity bundles =
+    (===)
+        (F.fold <$> makeChange criteria)
+        (Right TokenBundle.empty)
   where
-    criteria = MakeChangeCriteria
-        { minCoinFor = const (Coin 0)
-        , requiredCost = Coin 0
-        , extraCoinSource = Coin 0
-        , extraCoinSink = Coin 0
-        , bundleSizeAssessor =
-            mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
-        , inputBundles = bundles
-        , outputBundles = bundles
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
-        , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
-        , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
-        }
+    criteria =
+        MakeChangeCriteria
+            { minCoinFor = const (Coin 0)
+            , requiredCost = Coin 0
+            , extraCoinSource = Coin 0
+            , extraCoinSink = Coin 0
+            , bundleSizeAssessor =
+                mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
+            , inputBundles = bundles
+            , outputBundles = bundles
+            , assetsToMint = TokenMap.empty
+            , assetsToBurn = TokenMap.empty
+            , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+            , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
+            }
 
 -- | Tests that 'makeChange' generates the correct number of change bundles.
 --
@@ -2642,7 +2964,6 @@ prop_makeChange_identity bundles = (===)
 --
 --    - when change bundles are not split.
 --    - when change bundles are split.
---
 prop_makeChange_length
     :: MakeChangeData
     -> Property
@@ -2656,126 +2977,156 @@ prop_makeChange_length p =
   where
     prop :: [TokenBundle] -> [TokenBundle] -> Property
     prop changeUnsplit changeSplit =
-        checkCoverage $
-        cover 50 (changeSplit /= changeUnsplit)
-            "able to generate split change" $
-        tabulate
-            "largest asset set sizes (unsplit change, split change)"
-            [ show
-                ( getLargestAssetSetSize changeUnsplit
-                , getLargestAssetSetSize changeSplit
-                )
-            ] $
-        if (changeSplit == changeUnsplit)
-        then
-            property (length (outputBundles p) == length changeUnsplit)
-        else
-            conjoin
-                [ property (length (outputBundles p) == length changeUnsplit)
-                , property (length (outputBundles p) <  length changeSplit)
-                , property (F.fold changeSplit == F.fold changeUnsplit)
+        checkCoverage
+            $ cover
+                50
+                (changeSplit /= changeUnsplit)
+                "able to generate split change"
+            $ tabulate
+                "largest asset set sizes (unsplit change, split change)"
+                [ show
+                    ( getLargestAssetSetSize changeUnsplit
+                    , getLargestAssetSetSize changeSplit
+                    )
                 ]
+            $ if (changeSplit == changeUnsplit)
+                then property (length (outputBundles p) == length changeUnsplit)
+                else
+                    conjoin
+                        [ property (length (outputBundles p) == length changeUnsplit)
+                        , property (length (outputBundles p) < length changeSplit)
+                        , property (F.fold changeSplit == F.fold changeUnsplit)
+                        ]
 
     mChangeUnsplit =
-        makeChange zeroCostMakeChangeScenario
-            { bundleSizeAssessor =
-                mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
-            }
-    mChangeSplit = mChangeUnsplit >>= \changeUnsplit ->
-        makeChange zeroCostMakeChangeScenario
-            { bundleSizeAssessor = mkTokenBundleSizeAssessor
-                $ MockAssessTokenBundleSizeUpperLimit
-                $ max 1
-                $ (`div` 2)
-                $ getLargestAssetSetSize changeUnsplit
-            }
+        makeChange
+            zeroCostMakeChangeScenario
+                { bundleSizeAssessor =
+                    mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
+                }
+    mChangeSplit =
+        mChangeUnsplit >>= \changeUnsplit ->
+            makeChange
+                zeroCostMakeChangeScenario
+                    { bundleSizeAssessor =
+                        mkTokenBundleSizeAssessor
+                            $ MockAssessTokenBundleSizeUpperLimit
+                            $ max 1
+                            $ (`div` 2)
+                            $ getLargestAssetSetSize changeUnsplit
+                    }
 
     getLargestAssetSetSize :: [TokenBundle] -> Int
     getLargestAssetSetSize = \case
         [] -> 0
         bs -> F.maximum $ fmap (Set.size . TokenBundle.getAssets) bs
 
-    zeroCostMakeChangeScenario = p
-        { minCoinFor = computeMinimumAdaQuantityZero
-        , requiredCost = Coin 0
-        }
+    zeroCostMakeChangeScenario =
+        p
+            { minCoinFor = computeMinimumAdaQuantityZero
+            , requiredCost = Coin 0
+            }
 
 prop_makeChange
     :: MakeChangeData
     -> Property
 prop_makeChange p =
-    checkCoverage $
-
-    -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint p /= TokenMap.empty)
-        "Have some assets to mint" $
-    cover 20 (view #assetsToBurn p /= TokenMap.empty)
-        "Have some assets to burn" $
-    cover 2 (view #assetsToMint p == TokenMap.empty)
-        "Have no assets to mint" $
-    cover 2 (view #assetsToBurn p == TokenMap.empty)
-        "Have no assets to burn" $
-
-    -- Inspect the intersection between minted assets and burned assets:
-    cover 2 (someAssetsAreBothMintedAndBurned)
-        "Some assets are both minted and burned" $
-    cover 2 (noAssetsAreBothMintedAndBurned)
-        "No assets are both minted and burned" $
-
-    -- Inspect the intersection between minted assets and spent assets:
-    cover 2 (someAssetsAreBothMintedAndSpent)
-        "Some assets are both minted and spent" $
-    cover 2 (noAssetsAreBothMintedAndSpent)
-        "No assets are both minted and spent" $
-
-    -- Inspect the intersection between spent assets and burned assets:
-    cover 2 (someAssetsAreBothSpentAndBurned)
-        "Some assets are both spent and burned" $
-    cover 2 (noAssetsAreBothSpentAndBurned)
-        "No assets are both spent and burned" $
-
-    -- Verify that some assets are minted but not spent or burned:
-    cover 2 (someAssetsAreMintedButNotSpentOrBurned)
-        "Some assets are minted but not spent or burned" $
-
-    case makeChangeWith p of
-        Left{} -> disjoin
-            [ prop_makeChange_fail_costTooBig p     & label "cost too big"
-            , prop_makeChange_fail_minValueTooBig p & label "min value too big"
-            ]
-        Right change -> conjoin
-            [ prop_makeChange_success_delta p change
-            , prop_makeChange_success_minValueRespected p change
-            ] & label "success"
+    checkCoverage
+        $
+        -- Inspect the sets of minted and burned assets:
+        cover
+            20
+            (view #assetsToMint p /= TokenMap.empty)
+            "Have some assets to mint"
+        $ cover
+            20
+            (view #assetsToBurn p /= TokenMap.empty)
+            "Have some assets to burn"
+        $ cover
+            2
+            (view #assetsToMint p == TokenMap.empty)
+            "Have no assets to mint"
+        $ cover
+            2
+            (view #assetsToBurn p == TokenMap.empty)
+            "Have no assets to burn"
+        $
+        -- Inspect the intersection between minted assets and burned assets:
+        cover
+            2
+            (someAssetsAreBothMintedAndBurned)
+            "Some assets are both minted and burned"
+        $ cover
+            2
+            (noAssetsAreBothMintedAndBurned)
+            "No assets are both minted and burned"
+        $
+        -- Inspect the intersection between minted assets and spent assets:
+        cover
+            2
+            (someAssetsAreBothMintedAndSpent)
+            "Some assets are both minted and spent"
+        $ cover
+            2
+            (noAssetsAreBothMintedAndSpent)
+            "No assets are both minted and spent"
+        $
+        -- Inspect the intersection between spent assets and burned assets:
+        cover
+            2
+            (someAssetsAreBothSpentAndBurned)
+            "Some assets are both spent and burned"
+        $ cover
+            2
+            (noAssetsAreBothSpentAndBurned)
+            "No assets are both spent and burned"
+        $
+        -- Verify that some assets are minted but not spent or burned:
+        cover
+            2
+            (someAssetsAreMintedButNotSpentOrBurned)
+            "Some assets are minted but not spent or burned"
+        $ case makeChangeWith p of
+            Left{} ->
+                disjoin
+                    [ prop_makeChange_fail_costTooBig p & label "cost too big"
+                    , prop_makeChange_fail_minValueTooBig p & label "min value too big"
+                    ]
+            Right change ->
+                conjoin
+                    [ prop_makeChange_success_delta p change
+                    , prop_makeChange_success_minValueRespected p change
+                    ]
+                    & label "success"
   where
     assetsSpentByUserSpecifiedOutputs :: TokenMap
     assetsSpentByUserSpecifiedOutputs =
         F.foldMap (view #tokens) (outputBundles p)
 
     someAssetsAreBothMintedAndBurned :: Bool
-    someAssetsAreBothMintedAndBurned
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (view #assetsToMint p)
-            (view #assetsToBurn p)
+    someAssetsAreBothMintedAndBurned =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (view #assetsToMint p)
+                (view #assetsToBurn p)
 
     someAssetsAreBothMintedAndSpent :: Bool
-    someAssetsAreBothMintedAndSpent
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (view #assetsToMint p)
-            (assetsSpentByUserSpecifiedOutputs)
+    someAssetsAreBothMintedAndSpent =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (view #assetsToMint p)
+                (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothSpentAndBurned :: Bool
-    someAssetsAreBothSpentAndBurned
-        = TokenMap.isNotEmpty
-        $ TokenMap.intersection
-            (assetsSpentByUserSpecifiedOutputs)
-            (view #assetsToBurn p)
+    someAssetsAreBothSpentAndBurned =
+        TokenMap.isNotEmpty
+            $ TokenMap.intersection
+                (assetsSpentByUserSpecifiedOutputs)
+                (view #assetsToBurn p)
 
-    someAssetsAreMintedButNotSpentOrBurned :: Bool
-        = TokenMap.isNotEmpty
-        $ assetsMinted `TokenMap.difference` assetsSpentOrBurned
+    someAssetsAreMintedButNotSpentOrBurned :: Bool =
+        TokenMap.isNotEmpty
+            $ assetsMinted `TokenMap.difference` assetsSpentOrBurned
       where
         assetsMinted =
             view #assetsToMint p
@@ -2803,41 +3154,42 @@ prop_makeChange_success_delta
     -> Property
 prop_makeChange_success_delta p change =
     let
-        totalOutputWithChange = TokenBundle.add
-            totalOutputValue
-            (F.fold change)
+        totalOutputWithChange =
+            TokenBundle.add
+                totalOutputValue
+                (F.fold change)
 
         delta = TokenBundle.difference totalInputValue totalOutputWithChange
     in
         (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
-
   where
     counterExampleText :: String
-    counterExampleText = unlines
-        [ "totalInputValue"
-        , pretty (Flat totalInputValue)
-        , "totalOutputValue"
-        , pretty (Flat totalOutputValue)
-        , "required cost"
-        , pretty (Flat $ TokenBundle.fromCoin (view #requiredCost p))
-        , "assetsToMint"
-        , pretty (Flat $ view #assetsToMint p)
-        , "assetsToBurn"
-        , pretty (Flat $ view #assetsToBurn p)
-        , "change"
-        , pretty (Flat $ F.fold change)
-        , "outputsToCover"
-        , pretty (Flat $ F.fold (outputBundles p))
-        , "selected:"
-        , pretty (Flat $ F.fold (inputBundles p))
-        , "totalChangeValue:"
-        , pretty totalChangeCoin
-        , "totalOutputValue:"
-        , pretty totalOutputCoin
-        , "totalInputValue:"
-        , pretty totalInputCoin
-        ]
+    counterExampleText =
+        unlines
+            [ "totalInputValue"
+            , pretty (Flat totalInputValue)
+            , "totalOutputValue"
+            , pretty (Flat totalOutputValue)
+            , "required cost"
+            , pretty (Flat $ TokenBundle.fromCoin (view #requiredCost p))
+            , "assetsToMint"
+            , pretty (Flat $ view #assetsToMint p)
+            , "assetsToBurn"
+            , pretty (Flat $ view #assetsToBurn p)
+            , "change"
+            , pretty (Flat $ F.fold change)
+            , "outputsToCover"
+            , pretty (Flat $ F.fold (outputBundles p))
+            , "selected:"
+            , pretty (Flat $ F.fold (inputBundles p))
+            , "totalChangeValue:"
+            , pretty totalChangeCoin
+            , "totalOutputValue:"
+            , pretty totalOutputCoin
+            , "totalInputValue:"
+            , pretty totalInputCoin
+            ]
     totalInputValue =
         F.fold (inputBundles p)
             <> TokenBundle.fromCoin (view #extraCoinSource p)
@@ -2869,16 +3221,17 @@ prop_makeChange_success_minValueRespected p =
         unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
 
     checkMinValue :: TokenBundle -> Property
-    checkMinValue m@TokenBundle{coin,tokens} =
+    checkMinValue m@TokenBundle{coin, tokens} =
         coin >= minCoinValue
-          & counterexample counterexampleText
+            & counterexample counterexampleText
       where
-        counterexampleText = unlines
-            [ "bundle:"
-            , pretty (Flat m)
-            , "minCoinValue:"
-            , pretty minCoinValue
-            ]
+        counterexampleText =
+            unlines
+                [ "bundle:"
+                , pretty (Flat m)
+                , "minCoinValue:"
+                , pretty minCoinValue
+                ]
         minCoinValue = minCoinValueFor tokens
 
 -- The 'makeChange' function may fail when the required cost for a transaction
@@ -2891,9 +3244,11 @@ prop_makeChange_fail_costTooBig
     -> Property
 prop_makeChange_fail_costTooBig p =
     let
-        deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
-            totalInputValue
-            totalOutputValue
+        deltaCoin =
+            TokenBundle.getCoin
+                $ TokenBundle.difference
+                    totalInputValue
+                    totalOutputValue
     in
         deltaCoin < view #requiredCost p
             & counterexample ("delta: " <> pretty deltaCoin)
@@ -2916,45 +3271,51 @@ prop_makeChange_fail_minValueTooBig
     :: MakeChangeData
     -> Property
 prop_makeChange_fail_minValueTooBig p =
-    let makeChangeData = p
-            { requiredCost = Coin 0
-            , minCoinFor = MockComputeMinimumAdaQuantityZero
-            }
-    in
-    case makeChangeWith makeChangeData of
-        Left{} ->
-            property False & counterexample "makeChange failed with no cost!"
-        -- If 'makeChange' failed to generate change, we try to re-run it with
-        -- computeMinimumCostZero and noMinValue requirement.
-        -- The result _must_ be 'Just'.
-        --
-        -- From there, we can manually compute the total deposit needed for all
-        -- change generated and make sure that there were indeed not enough
-        -- coins available to generate all change outputs.
-        Right change ->
-            conjoin
-                [ deltaCoin <
-                    totalMinCoinDeposit `Coin.add` view #requiredCost p
-                , deltaCoin >=
-                    view #requiredCost p
-                ]
-                & counterexample counterexampleText
-          where
-            counterexampleText = unlines
-                [ "change:"
-                , pretty (blockListF (Flat <$> change))
-                , "delta:"
-                , pretty deltaCoin
-                , "totalMinCoinDeposit:"
-                , pretty totalMinCoinDeposit
-                ]
-            deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
-                totalInputValue
-                totalOutputValue
-            minCoinValueFor =
-                unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
-            totalMinCoinDeposit = F.foldr Coin.add (Coin 0)
-                (minCoinValueFor . view #tokens <$> change)
+    let makeChangeData =
+            p
+                { requiredCost = Coin 0
+                , minCoinFor = MockComputeMinimumAdaQuantityZero
+                }
+    in  case makeChangeWith makeChangeData of
+            Left{} ->
+                property False & counterexample "makeChange failed with no cost!"
+            -- If 'makeChange' failed to generate change, we try to re-run it with
+            -- computeMinimumCostZero and noMinValue requirement.
+            -- The result _must_ be 'Just'.
+            --
+            -- From there, we can manually compute the total deposit needed for all
+            -- change generated and make sure that there were indeed not enough
+            -- coins available to generate all change outputs.
+            Right change ->
+                conjoin
+                    [ deltaCoin
+                        < totalMinCoinDeposit `Coin.add` view #requiredCost p
+                    , deltaCoin
+                        >= view #requiredCost p
+                    ]
+                    & counterexample counterexampleText
+              where
+                counterexampleText =
+                    unlines
+                        [ "change:"
+                        , pretty (blockListF (Flat <$> change))
+                        , "delta:"
+                        , pretty deltaCoin
+                        , "totalMinCoinDeposit:"
+                        , pretty totalMinCoinDeposit
+                        ]
+                deltaCoin =
+                    TokenBundle.getCoin
+                        $ TokenBundle.difference
+                            totalInputValue
+                            totalOutputValue
+                minCoinValueFor =
+                    unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
+                totalMinCoinDeposit =
+                    F.foldr
+                        Coin.add
+                        (Coin 0)
+                        (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue =
         F.fold (inputBundles p)
@@ -2970,69 +3331,73 @@ unit_makeChange
 unit_makeChange =
     [ makeChange criteria `shouldBe` expectation
     | ( minCoinFor
-      , extraCoinSource
-      , extraCoinSink
-      , i
-      , o
-      , expectation
-      ) <- matrix
-    , let criteria = MakeChangeCriteria
-              { minCoinFor
-              , requiredCost = Coin 0
-              , extraCoinSource
-              , extraCoinSink
-              , bundleSizeAssessor
-              , inputBundles = i
-              , outputBundles = o
-              , assetsToMint = TokenMap.empty
-              , assetsToBurn = TokenMap.empty
-              , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
-              , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
-              }
+        , extraCoinSource
+        , extraCoinSink
+        , i
+        , o
+        , expectation
+        ) <-
+        matrix
+    , let criteria =
+            MakeChangeCriteria
+                { minCoinFor
+                , requiredCost = Coin 0
+                , extraCoinSource
+                , extraCoinSink
+                , bundleSizeAssessor
+                , inputBundles = i
+                , outputBundles = o
+                , assetsToMint = TokenMap.empty
+                , assetsToBurn = TokenMap.empty
+                , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
+                , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
+                }
     ]
   where
     bundleSizeAssessor =
         mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
-        [ ( computeMinimumAdaQuantityZero
-          , Coin 0
-          , Coin 0
-          , b 2 [] :| []
-          , b 1 [] :| []
-          , Right [b 1 []]
-          )
+        [
+            ( computeMinimumAdaQuantityZero
+            , Coin 0
+            , Coin 0
+            , b 2 [] :| []
+            , b 1 [] :| []
+            , Right [b 1 []]
+            )
+        , -- Two outputs, no cost, changes are proportional, no extra assets
 
-        -- Two outputs, no cost, changes are proportional, no extra assets
-        , ( computeMinimumAdaQuantityZero
-          , Coin 0
-          , Coin 0
-          , b 9 [(assetA, 9), (assetB, 6)] :| []
-          , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
-          , Right
-              [ b 4 [(assetA, 2)]
-              , b 2 [(assetA, 4), (assetB, 3)]
-              ]
-          )
+            ( computeMinimumAdaQuantityZero
+            , Coin 0
+            , Coin 0
+            , b 9 [(assetA, 9), (assetB, 6)] :| []
+            , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
+            , Right
+                [ b 4 [(assetA, 2)]
+                , b 2 [(assetA, 4), (assetB, 3)]
+                ]
+            )
+        , -- Extra non-user-specified assets. Large assets end up in 'large'
+          -- bundles and small extra assets in smaller bundles.
 
-        -- Extra non-user-specified assets. Large assets end up in 'large'
-        -- bundles and small extra assets in smaller bundles.
-        , ( computeMinimumAdaQuantityZero
-          , Coin 0
-          , Coin 0
-          , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
-          , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
-          , Right
-              [ b 0 [(assetA, 5), (assetC, 1)]
-              , b 0 [(assetB, 1), (assetC, 8)]
-              ]
-          )
+            ( computeMinimumAdaQuantityZero
+            , Coin 0
+            , Coin 0
+            , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
+            , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
+            , Right
+                [ b 0 [(assetA, 5), (assetC, 1)]
+                , b 0 [(assetB, 1), (assetC, 8)]
+                ]
+            )
         ]
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin.fromWord64 c)
-        . TokenMap.fromFlatList
-        . fmap (second TokenQuantity)
+    b c =
+        TokenBundle (Coin.fromWord64 c)
+            . TokenMap.fromFlatList
+            . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
@@ -3054,20 +3419,28 @@ prop_collateNonUserSpecifiedAssetQuantities
     -- ^ Set of all assets in user-specified outputs.
     -> Property
 prop_collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
-    checkCoverage $
-    cover 40 bothSetsNonEmpty
-        "both sets non-empty" $
-    cover 1 nonUserSpecifiedAssetIdsEmpty
-        "non-user-specified asset id set is empty" $
-    cover 1 userSpecifiedAssetIdsEmpty
-        "user-specified asset id set is empty" $
-    cover 0.1 bothSetsEmpty
-        "both sets empty" $
-    conjoin
-        [ actualResult === expectedResult
-        , property $
-            userSpecifiedAssetIds `Set.disjoint` nonUserSpecifiedAssetIds
-        ]
+    checkCoverage
+        $ cover
+            40
+            bothSetsNonEmpty
+            "both sets non-empty"
+        $ cover
+            1
+            nonUserSpecifiedAssetIdsEmpty
+            "non-user-specified asset id set is empty"
+        $ cover
+            1
+            userSpecifiedAssetIdsEmpty
+            "user-specified asset id set is empty"
+        $ cover
+            0.1
+            bothSetsEmpty
+            "both sets empty"
+        $ conjoin
+            [ actualResult === expectedResult
+            , property
+                $ userSpecifiedAssetIds `Set.disjoint` nonUserSpecifiedAssetIds
+            ]
   where
     actualResult :: Map AssetId (NonEmpty TokenQuantity)
     actualResult =
@@ -3076,184 +3449,220 @@ prop_collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
     expectedResult :: Map AssetId (NonEmpty TokenQuantity)
     expectedResult = Map.fromSet getQuantitiesForAsset nonUserSpecifiedAssetIds
       where
-        getQuantitiesForAsset assetId = NE.fromList $ NE.filter
-            (> TokenQuantity 0)
-            ((`TokenMap.getQuantity` assetId) <$> inputMaps)
+        getQuantitiesForAsset assetId =
+            NE.fromList
+                $ NE.filter
+                    (> TokenQuantity 0)
+                    ((`TokenMap.getQuantity` assetId) <$> inputMaps)
 
     nonUserSpecifiedAssetIds :: Set AssetId
     nonUserSpecifiedAssetIds =
         TokenMap.getAssets (F.fold inputMaps)
-        `Set.difference`
-        userSpecifiedAssetIds
+            `Set.difference` userSpecifiedAssetIds
 
     bothSetsEmpty :: Bool
-    bothSetsEmpty = (&&)
-        (Set.null userSpecifiedAssetIds)
-        (Set.null nonUserSpecifiedAssetIds)
+    bothSetsEmpty =
+        (&&)
+            (Set.null userSpecifiedAssetIds)
+            (Set.null nonUserSpecifiedAssetIds)
 
     bothSetsNonEmpty :: Bool
-    bothSetsNonEmpty = (&&)
-        (not $ Set.null userSpecifiedAssetIds)
-        (not $ Set.null nonUserSpecifiedAssetIds)
+    bothSetsNonEmpty =
+        (&&)
+            (not $ Set.null userSpecifiedAssetIds)
+            (not $ Set.null nonUserSpecifiedAssetIds)
 
     nonUserSpecifiedAssetIdsEmpty :: Bool
-    nonUserSpecifiedAssetIdsEmpty = (&&)
-        (not $ Set.null userSpecifiedAssetIds)
-        (Set.null nonUserSpecifiedAssetIds)
+    nonUserSpecifiedAssetIdsEmpty =
+        (&&)
+            (not $ Set.null userSpecifiedAssetIds)
+            (Set.null nonUserSpecifiedAssetIds)
 
     userSpecifiedAssetIdsEmpty :: Bool
-    userSpecifiedAssetIdsEmpty = (&&)
-        (Set.null userSpecifiedAssetIds)
-        (not $ Set.null nonUserSpecifiedAssetIds)
+    userSpecifiedAssetIdsEmpty =
+        (&&)
+            (Set.null userSpecifiedAssetIds)
+            (not $ Set.null nonUserSpecifiedAssetIds)
 
-data TestDataForCollateNonUserSpecifiedAssetQuantities =
-    TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps
-            :: NonEmpty TokenMap
-        , userSpecifiedAssetIds
-            :: Set AssetId
-        , expectedResult
-            :: Map AssetId (NonEmpty TokenQuantity)
-        }
+data TestDataForCollateNonUserSpecifiedAssetQuantities = TestDataForCollateNonUserSpecifiedAssetQuantities
+    { selectedInputMaps
+        :: NonEmpty TokenMap
+    , userSpecifiedAssetIds
+        :: Set AssetId
+    , expectedResult
+        :: Map AssetId (NonEmpty TokenQuantity)
+    }
     deriving (Eq, Generic)
 
 unit_collateNonUserSpecifiedAssetQuantities :: Spec
 unit_collateNonUserSpecifiedAssetQuantities =
-    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+    forM_ (zip [1 ..] tests) $ \(testNumber :: Int, test) -> do
         let title = "Unit test #" <> show testNumber
-        it title $ property $
-            collateNonUserSpecifiedAssetQuantities
+        it title
+            $ property
+            $ collateNonUserSpecifiedAssetQuantities
                 (view #selectedInputMaps test)
                 (view #userSpecifiedAssetIds test)
-                ===
-                (view #expectedResult test)
+                === (view #expectedResult test)
   where
     mkSelectedInputMaps :: [[(ByteString, Natural)]] -> NonEmpty TokenMap
-    mkSelectedInputMaps
-        = NE.fromList
-        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+    mkSelectedInputMaps =
+        NE.fromList
+            . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
 
     mkUserSpecifiedAssetIds :: [ByteString] -> Set AssetId
-    mkUserSpecifiedAssetIds
-        = Set.fromList . fmap mockAsset
+    mkUserSpecifiedAssetIds =
+        Set.fromList . fmap mockAsset
 
     mkExpectedResult
         :: [(ByteString, [Natural])]
         -> Map AssetId (NonEmpty TokenQuantity)
-    mkExpectedResult
-        = fmap NE.fromList
-        . Map.fromList
-        . fmap (bimap mockAsset (fmap TokenQuantity))
+    mkExpectedResult =
+        fmap NE.fromList
+            . Map.fromList
+            . fmap (bimap mockAsset (fmap TokenQuantity))
 
     tests :: [TestDataForCollateNonUserSpecifiedAssetQuantities]
     tests = [test1, test2, test3, test4, test5, test6, test7, test8]
 
-    test1 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1)]
-            , [("A", 2)]
-            , [("A", 3)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            []
-        , expectedResult = mkExpectedResult
-            [ ("A", [1, 2, 3]) ]
-        }
+    test1 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1)]
+                    , [("A", 2)]
+                    , [("A", 3)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    []
+            , expectedResult =
+                mkExpectedResult
+                    [("A", [1, 2, 3])]
+            }
 
-    test2 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1)]
-            , [("A", 2)]
-            , [("A", 3)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "A" ]
-        , expectedResult = mkExpectedResult
-            []
-        }
+    test2 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1)]
+                    , [("A", 2)]
+                    , [("A", 3)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["A"]
+            , expectedResult =
+                mkExpectedResult
+                    []
+            }
 
-    test3 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1), ("B", 3)          ]
-            , [          ("B", 4), ("C", 5)]
-            , [("A", 2),           ("C", 6)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            []
-        , expectedResult = mkExpectedResult
-            [ ("A", [1, 2])
-            , ("B", [3, 4])
-            , ("C", [5, 6])
-            ]
-        }
+    test3 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1), ("B", 3)]
+                    , [("B", 4), ("C", 5)]
+                    , [("A", 2), ("C", 6)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    []
+            , expectedResult =
+                mkExpectedResult
+                    [ ("A", [1, 2])
+                    , ("B", [3, 4])
+                    , ("C", [5, 6])
+                    ]
+            }
 
-    test4 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1), ("B", 3)          ]
-            , [          ("B", 4), ("C", 5)]
-            , [("A", 2),           ("C", 6)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "A" ]
-        , expectedResult = mkExpectedResult
-            [ ("B", [3, 4])
-            , ("C", [5, 6])
-            ]
-        }
+    test4 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1), ("B", 3)]
+                    , [("B", 4), ("C", 5)]
+                    , [("A", 2), ("C", 6)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["A"]
+            , expectedResult =
+                mkExpectedResult
+                    [ ("B", [3, 4])
+                    , ("C", [5, 6])
+                    ]
+            }
 
-    test5 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1), ("B", 3)          ]
-            , [          ("B", 4), ("C", 5)]
-            , [("A", 2),           ("C", 6)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "B" ]
-        , expectedResult = mkExpectedResult
-            [ ("A", [1, 2])
-            , ("C", [5, 6])
-            ]
-        }
+    test5 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1), ("B", 3)]
+                    , [("B", 4), ("C", 5)]
+                    , [("A", 2), ("C", 6)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["B"]
+            , expectedResult =
+                mkExpectedResult
+                    [ ("A", [1, 2])
+                    , ("C", [5, 6])
+                    ]
+            }
 
-    test6 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1), ("B", 3)          ]
-            , [          ("B", 4), ("C", 5)]
-            , [("A", 2),           ("C", 6)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "C" ]
-        , expectedResult = mkExpectedResult
-            [ ("A", [1, 2])
-            , ("B", [3, 4])
-            ]
-        }
+    test6 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1), ("B", 3)]
+                    , [("B", 4), ("C", 5)]
+                    , [("A", 2), ("C", 6)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["C"]
+            , expectedResult =
+                mkExpectedResult
+                    [ ("A", [1, 2])
+                    , ("B", [3, 4])
+                    ]
+            }
 
-    test7 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1)          ]
-            , [          ("B", 3)]
-            , [("A", 2)          ]
-            , [          ("B", 4)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "A" ]
-        , expectedResult = mkExpectedResult
-            [ ("B", [3, 4]) ]
-        }
+    test7 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1)]
+                    , [("B", 3)]
+                    , [("A", 2)]
+                    , [("B", 4)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["A"]
+            , expectedResult =
+                mkExpectedResult
+                    [("B", [3, 4])]
+            }
 
-    test8 = TestDataForCollateNonUserSpecifiedAssetQuantities
-        { selectedInputMaps = mkSelectedInputMaps
-            [ [("A", 1)          ]
-            , [          ("B", 3)]
-            , [("A", 2)          ]
-            , [          ("B", 4)]
-            ]
-        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
-            [ "B" ]
-        , expectedResult = mkExpectedResult
-            [ ("A", [1, 2]) ]
-        }
+    test8 =
+        TestDataForCollateNonUserSpecifiedAssetQuantities
+            { selectedInputMaps =
+                mkSelectedInputMaps
+                    [ [("A", 1)]
+                    , [("B", 3)]
+                    , [("A", 2)]
+                    , [("B", 4)]
+                    ]
+            , userSpecifiedAssetIds =
+                mkUserSpecifiedAssetIds
+                    ["B"]
+            , expectedResult =
+                mkExpectedResult
+                    [("A", [1, 2])]
+            }
 
 --------------------------------------------------------------------------------
 -- Assigning coins to change maps
@@ -3268,65 +3677,68 @@ unit_assignCoinsToChangeMaps =
   where
     matrix =
         -- Simple case with a single Ada-only output
-        [ ( Coin 1
-          , computeMinimumAdaQuantityLinear
-          , m 42 [] :| []
-          , Right [b 1 []]
-          )
+        [
+            ( Coin 1
+            , computeMinimumAdaQuantityLinear
+            , m 42 [] :| []
+            , Right [b 1 []]
+            )
+        , -- Simple case, with a single MA output
 
-        -- Simple case, with a single MA output
-        , ( Coin 2
-          , computeMinimumAdaQuantityLinear
-          , m 42 [(assetA, 1_337)] :| []
-          , Right [b 2 [(assetA, 1_337)]]
-          )
+            ( Coin 2
+            , computeMinimumAdaQuantityLinear
+            , m 42 [(assetA, 1_337)] :| []
+            , Right [b 2 [(assetA, 1_337)]]
+            )
+        , -- Single Ada-only output, but not enough left to create a change
 
-        -- Single Ada-only output, but not enough left to create a change
-        , ( Coin 1
-          , (`Coin.add` Coin 1) . computeMinimumAdaQuantityLinear
-          , m 42 [] :| []
-          , Right []
-          )
+            ( Coin 1
+            , (`Coin.add` Coin 1) . computeMinimumAdaQuantityLinear
+            , m 42 [] :| []
+            , Right []
+            )
+        , -- Single MA output, but not enough left to create a change
 
-        -- Single MA output, but not enough left to create a change
-        , ( Coin 1
-          , computeMinimumAdaQuantityLinear
-          , m 42 [(assetA, 1_337)] :| []
-          , Left (Coin 1)
-          )
+            ( Coin 1
+            , computeMinimumAdaQuantityLinear
+            , m 42 [(assetA, 1_337)] :| []
+            , Left (Coin 1)
+            )
+        , -- Multiple Ada-only change, not enough Ada left to create them all
 
-        -- Multiple Ada-only change, not enough Ada left to create them all
-        , ( Coin 2
-          , computeMinimumAdaQuantityLinear
-          , NE.fromList
-            [ m 1_337 []
-            , m   14 []
-            , m   42 []
-            ]
-          , Right [b 1 [], b 1 []]
-          )
+            ( Coin 2
+            , computeMinimumAdaQuantityLinear
+            , NE.fromList
+                [ m 1_337 []
+                , m 14 []
+                , m 42 []
+                ]
+            , Right [b 1 [], b 1 []]
+            )
+        , -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
 
-        -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
-        , ( Coin 2
-          , computeMinimumAdaQuantityLinear
-          , NE.fromList
-            [ m 42 []
-            , m 14 []
-            , m  2 [(assetA, 1_337)]
-            ]
-          , Right [b 2 [(assetA, 1_337)]]
-          )
+            ( Coin 2
+            , computeMinimumAdaQuantityLinear
+            , NE.fromList
+                [ m 42 []
+                , m 14 []
+                , m 2 [(assetA, 1_337)]
+                ]
+            , Right [b 2 [(assetA, 1_337)]]
+            )
         ]
 
     m :: Word64 -> [(AssetId, Natural)] -> (TokenMap, Coin)
-    m c = (, Coin.fromWord64 c)
-        . TokenMap.fromFlatList
-        . fmap (second TokenQuantity)
+    m c =
+        (,Coin.fromWord64 c)
+            . TokenMap.fromFlatList
+            . fmap (second TokenQuantity)
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin.fromWord64 c)
-        . TokenMap.fromFlatList
-        . fmap (second TokenQuantity)
+    b c =
+        TokenBundle (Coin.fromWord64 c)
+            . TokenMap.fromFlatList
+            . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
@@ -3355,17 +3767,21 @@ unit_makeChangeForCoin =
     ]
   where
     matrix =
-        [ ( Coin <$> 1 :| [], Coin 1
-          , Coin <$> 1 :| []
-          )
-
-        , ( Coin <$> 1 :| [2, 3], Coin 12
-          , Coin <$> 2 :| [4, 6]
-          )
-
-        , ( Coin <$> 1 :| [2, 3], Coin 5
-          , Coin <$> 1 :| [2, 2]
-          )
+        [
+            ( Coin <$> 1 :| []
+            , Coin 1
+            , Coin <$> 1 :| []
+            )
+        ,
+            ( Coin <$> 1 :| [2, 3]
+            , Coin 12
+            , Coin <$> 2 :| [4, 6]
+            )
+        ,
+            ( Coin <$> 1 :| [2, 3]
+            , Coin 5
+            , Coin <$> 1 :| [2, 2]
+            )
         ]
 
 --------------------------------------------------------------------------------
@@ -3386,7 +3802,8 @@ prop_makeChangeForNonUserSpecifiedAsset_order
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
 prop_makeChangeForNonUserSpecifiedAsset_order n assetQuantities =
-    property $ inAscendingPartialOrder
+    property
+        $ inAscendingPartialOrder
         $ makeChangeForNonUserSpecifiedAsset n assetQuantities
 
 prop_makeChangeForNonUserSpecifiedAsset_length
@@ -3402,26 +3819,28 @@ unit_makeChangeForNonUserSpecifiedAsset
     :: [Expectation]
 unit_makeChangeForNonUserSpecifiedAsset =
     [ makeChangeForNonUserSpecifiedAsset
-        (mkChangeMapCount changeMapCount) surplus
+        (mkChangeMapCount changeMapCount)
+        surplus
         `shouldBe` expectation
     | (changeMapCount, surplus, expectation) <- matrix
     ]
   where
     matrix =
-        [ ( 2
-          , (assetA, q <$> 1 :| [1])
-          , m [(assetA, q 1)] :| [m [(assetA, q 1)]]
-          )
-
-        , ( 2
-          , (assetA, q <$> 1 :| [1, 1])
-          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
-          )
-
-        , ( 2
-          , (assetA, q <$> 1 :| [])
-          , m [(assetA, q 0)] :| [m [(assetA, q 1)]]
-          )
+        [
+            ( 2
+            , (assetA, q <$> 1 :| [1])
+            , m [(assetA, q 1)] :| [m [(assetA, q 1)]]
+            )
+        ,
+            ( 2
+            , (assetA, q <$> 1 :| [1, 1])
+            , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
+            )
+        ,
+            ( 2
+            , (assetA, q <$> 1 :| [])
+            , m [(assetA, q 0)] :| [m [(assetA, q 1)]]
+            )
         ]
 
     mkChangeMapCount :: Int -> NonEmpty ()
@@ -3446,33 +3865,50 @@ checkCoverageFor_makeChangeForNonUserSpecifiedAssets
     -> Property
     -> Property
 checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap prop =
-    checkCoverage $
-
-    -- Number of distinct assets:
-    cover 1 (Map.size assetQuantityMap == 1)
-        "number of distinct assets == 1" $
-    cover 50 (Map.size assetQuantityMap >= 2)
-        "number of distinct assets >= 2" $
-    cover 10 (Map.size assetQuantityMap >= 4)
-        "number of distinct assets >= 4" $
-
-    -- Number of change maps:
-    cover 1 (length n == 1)
-        "number of change maps == 1" $
-    cover 50 (length n >= 2)
-        "number of change maps >= 2" $
-    cover 10 (length n >= 4)
-        "number of change maps >= 4" $
-
-    -- Largest number of distinct token quantities for a given asset:
-    cover 1 (largestTokenQuantityCount == 1)
-        "largest number of token quantities == 1" $
-    cover 50 (largestTokenQuantityCount >= 2)
-        "largest number of token quantities >= 2" $
-    cover 10 (largestTokenQuantityCount >= 4)
-        "largest number of token quantities >= 4"
-
-    prop
+    checkCoverage
+        $
+        -- Number of distinct assets:
+        cover
+            1
+            (Map.size assetQuantityMap == 1)
+            "number of distinct assets == 1"
+        $ cover
+            50
+            (Map.size assetQuantityMap >= 2)
+            "number of distinct assets >= 2"
+        $ cover
+            10
+            (Map.size assetQuantityMap >= 4)
+            "number of distinct assets >= 4"
+        $
+        -- Number of change maps:
+        cover
+            1
+            (length n == 1)
+            "number of change maps == 1"
+        $ cover
+            50
+            (length n >= 2)
+            "number of change maps >= 2"
+        $ cover
+            10
+            (length n >= 4)
+            "number of change maps >= 4"
+        $
+        -- Largest number of distinct token quantities for a given asset:
+        cover
+            1
+            (largestTokenQuantityCount == 1)
+            "largest number of token quantities == 1"
+        $ cover
+            50
+            (largestTokenQuantityCount >= 2)
+            "largest number of token quantities >= 2"
+        $ cover
+            10
+            (largestTokenQuantityCount >= 4)
+            "largest number of token quantities >= 4"
+            prop
   where
     largestTokenQuantityCount :: Int
     largestTokenQuantityCount = maximum (length <$> F.toList (assetQuantityMap))
@@ -3482,15 +3918,16 @@ prop_makeChangeForNonUserSpecifiedAssets_length
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
     -> Property
 prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities =
-    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
-    lengthActual === lengthExpected
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap
+        $ lengthActual === lengthExpected
   where
     assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
     assetQuantityMap = Map.fromList (F.toList assetQuantities)
 
     lengthActual :: Int
-    lengthActual = length
-        (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
+    lengthActual =
+        length
+            (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
 
     lengthExpected :: Int
     lengthExpected = length n
@@ -3500,8 +3937,9 @@ prop_makeChangeForNonUserSpecifiedAssets_order
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
     -> Property
 prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities =
-    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
-    property $ inAscendingPartialOrder result
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap
+        $ property
+        $ inAscendingPartialOrder result
   where
     assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
     assetQuantityMap = Map.fromList (F.toList assetQuantities)
@@ -3514,8 +3952,8 @@ prop_makeChangeForNonUserSpecifiedAssets_sum
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
     -> Property
 prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
-    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
-    sumActual === sumExpected
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap
+        $ sumActual === sumExpected
   where
     assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
     assetQuantityMap = Map.fromList (F.toList assetQuantities)
@@ -3528,27 +3966,26 @@ prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
     sumExpected =
         TokenMap.fromFlatList (Map.toList $ F.fold <$> assetQuantityMap)
 
-data TestDataForMakeChangeForNonUserSpecifiedAssets =
-    TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount
-            :: NonEmpty ()
-        , nonUserSpecifiedAssetQuantities
-            :: Map AssetId (NonEmpty TokenQuantity)
-        , expectedResult
-            :: NonEmpty TokenMap
-        }
+data TestDataForMakeChangeForNonUserSpecifiedAssets = TestDataForMakeChangeForNonUserSpecifiedAssets
+    { changeMapCount
+        :: NonEmpty ()
+    , nonUserSpecifiedAssetQuantities
+        :: Map AssetId (NonEmpty TokenQuantity)
+    , expectedResult
+        :: NonEmpty TokenMap
+    }
     deriving (Eq, Generic)
 
 unit_makeChangeForNonUserSpecifiedAssets :: Spec
 unit_makeChangeForNonUserSpecifiedAssets =
-    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+    forM_ (zip [1 ..] tests) $ \(testNumber :: Int, test) -> do
         let title = "Unit test #" <> show testNumber
-        it title $ property $
-            makeChangeForNonUserSpecifiedAssets
+        it title
+            $ property
+            $ makeChangeForNonUserSpecifiedAssets
                 (view #changeMapCount test)
                 (view #nonUserSpecifiedAssetQuantities test)
-                ===
-                (view #expectedResult test)
+                === (view #expectedResult test)
   where
     mkChangeMapCount :: Int -> NonEmpty ()
     mkChangeMapCount n = NE.fromList $ replicate n ()
@@ -3562,124 +3999,156 @@ unit_makeChangeForNonUserSpecifiedAssets =
     mkExpectedResult
         :: [[(ByteString, Natural)]]
         -> NonEmpty TokenMap
-    mkExpectedResult
-        = NE.fromList
-        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+    mkExpectedResult =
+        NE.fromList
+            . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
 
     tests :: [TestDataForMakeChangeForNonUserSpecifiedAssets]
     tests = [test1, test2, test3, test4, test5, test6, test7, test8]
 
-    test1 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            1
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [1])
-            , ("B", [3, 2, 1])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [("A", 1), ("B", 6)] ]
-        }
+    test1 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    1
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [1])
+                    , ("B", [3, 2, 1])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [[("A", 1), ("B", 6)]]
+            }
 
-    test2 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            2
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [1])
-            , ("B", [3, 2, 1])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [          ("B", 3)]
-            , [("A", 1), ("B", 3)]
-            ]
-        }
+    test2 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    2
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [1])
+                    , ("B", [3, 2, 1])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ [("B", 3)]
+                    , [("A", 1), ("B", 3)]
+                    ]
+            }
 
-    test3 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            3
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [1])
-            , ("B", [3, 2, 1])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [          ("B", 1)]
-            , [          ("B", 2)]
-            , [("A", 1), ("B", 3)]
-            ]
-        }
+    test3 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    3
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [1])
+                    , ("B", [3, 2, 1])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ [("B", 1)]
+                    , [("B", 2)]
+                    , [("A", 1), ("B", 3)]
+                    ]
+            }
 
-    test4 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            4
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [1])
-            , ("B", [3, 2, 1])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [                  ]
-            , [          ("B", 1)]
-            , [          ("B", 2)]
-            , [("A", 1), ("B", 3)]
-            ]
-        }
+    test4 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    4
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [1])
+                    , ("B", [3, 2, 1])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ []
+                    , [("B", 1)]
+                    , [("B", 2)]
+                    , [("A", 1), ("B", 3)]
+                    ]
+            }
 
-    test5 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            1
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [4, 1, 3, 2])
-            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [("A", 10), ("B", 45)] ]
-        }
+    test5 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    1
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [4, 1, 3, 2])
+                    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [[("A", 10), ("B", 45)]]
+            }
 
-    test6 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            2
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [4, 1, 3, 2])
-            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [("A", 4), ("B", 18)]
-            , [("A", 6), ("B", 27)]
-            ]
-        }
+    test6 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    2
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [4, 1, 3, 2])
+                    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ [("A", 4), ("B", 18)]
+                    , [("A", 6), ("B", 27)]
+                    ]
+            }
 
-    test7 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            4
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [4, 1, 3, 2])
-            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [("A", 1), ("B",  9)]
-            , [("A", 2), ("B",  9)]
-            , [("A", 3), ("B", 12)]
-            , [("A", 4), ("B", 15)]
-            ]
-        }
+    test7 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    4
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [4, 1, 3, 2])
+                    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ [("A", 1), ("B", 9)]
+                    , [("A", 2), ("B", 9)]
+                    , [("A", 3), ("B", 12)]
+                    , [("A", 4), ("B", 15)]
+                    ]
+            }
 
-    test8 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            9
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [4, 1, 3, 2])
-            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
-            ]
-        , expectedResult = mkExpectedResult
-            [ [          ("B",  1)]
-            , [          ("B",  2)]
-            , [          ("B",  3)]
-            , [          ("B",  4)]
-            , [          ("B",  5)]
-            , [("A", 1), ("B",  6)]
-            , [("A", 2), ("B",  7)]
-            , [("A", 3), ("B",  8)]
-            , [("A", 4), ("B",  9)]
-            ]
-        }
+    test8 =
+        TestDataForMakeChangeForNonUserSpecifiedAssets
+            { changeMapCount =
+                mkChangeMapCount
+                    9
+            , nonUserSpecifiedAssetQuantities =
+                mkNonUserSpecifiedAssetQuantities
+                    [ ("A", [4, 1, 3, 2])
+                    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+                    ]
+            , expectedResult =
+                mkExpectedResult
+                    [ [("B", 1)]
+                    , [("B", 2)]
+                    , [("B", 3)]
+                    , [("B", 4)]
+                    , [("B", 5)]
+                    , [("A", 1), ("B", 6)]
+                    , [("A", 2), ("B", 7)]
+                    , [("A", 3), ("B", 8)]
+                    , [("A", 4), ("B", 9)]
+                    ]
+            }
 
 --------------------------------------------------------------------------------
 -- Making change for known assets
@@ -3690,10 +4159,9 @@ prop_makeChangeForUserSpecifiedAsset_sum
     -> (AssetId, TokenQuantity)
     -> Property
 prop_makeChangeForUserSpecifiedAsset_sum weights (asset, quantity) =
-    if any (`TokenMap.hasQuantity` asset) weights then
-        quantity === totalChangeValue
-    else
-        totalChangeValue === TokenQuantity 0
+    if any (`TokenMap.hasQuantity` asset) weights
+        then quantity === totalChangeValue
+        else totalChangeValue === TokenQuantity 0
   where
     changes = makeChangeForUserSpecifiedAsset weights (asset, quantity)
     totalChangeValue = F.fold ((`TokenMap.getQuantity` asset) <$> changes)
@@ -3715,20 +4183,21 @@ unit_makeChangeForUserSpecifiedAsset =
     ]
   where
     matrix =
-        [ ( m [(assetA, q 1)] :| []
-          , (assetA, q 3)
-          , m [(assetA, q 3)] :| []
-          )
-
-        , ( m [(assetA, q 1)] :| [m [(assetA, q 2), (assetB, q 1)]]
-          , (assetA, q 3)
-          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
-          )
-
-        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q 1)
-          , m [(assetA, q 0)] :| [m [(assetA, q 0)]]
-          )
+        [
+            ( m [(assetA, q 1)] :| []
+            , (assetA, q 3)
+            , m [(assetA, q 3)] :| []
+            )
+        ,
+            ( m [(assetA, q 1)] :| [m [(assetA, q 2), (assetB, q 1)]]
+            , (assetA, q 3)
+            , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
+            )
+        ,
+            ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+            , (assetC, q 1)
+            , m [(assetA, q 0)] :| [m [(assetA, q 0)]]
+            )
         ]
 
     q :: Natural -> TokenQuantity
@@ -3753,35 +4222,52 @@ unit_makeChangeForUserSpecifiedAsset =
 prop_splitBundleIfAssetCountExcessive_length
     :: Blind (Large TokenBundle) -> Positive Int -> Property
 prop_splitBundleIfAssetCountExcessive_length
-    (Blind (Large b)) (Positive maxAssetCount) =
-        checkCoverage $ property $
-        cover 5 (resultLength == 1)
-            "length = 1" $
-        cover 5 (resultLength >= 2 && resultLength < 8)
-            "length >= 2 && length < 8" $
-        cover 5 (resultLength >= 8 && resultLength < 16)
-            "length >= 8 && length < 16"
-        True
-  where
-    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
-    result = splitBundleIfAssetCountExcessive b isExcessive
-    resultLength = NE.length result
+    (Blind (Large b))
+    (Positive maxAssetCount) =
+        checkCoverage
+            $ property
+            $ cover
+                5
+                (resultLength == 1)
+                "length = 1"
+            $ cover
+                5
+                (resultLength >= 2 && resultLength < 8)
+                "length >= 2 && length < 8"
+            $ cover
+                5
+                (resultLength >= 8 && resultLength < 16)
+                "length >= 8 && length < 16"
+                True
+      where
+        isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+        result = splitBundleIfAssetCountExcessive b isExcessive
+        resultLength = NE.length result
 
 prop_splitBundleIfAssetCountExcessive_maximalSplitting
     :: Blind (Large TokenBundle) -> Property
 prop_splitBundleIfAssetCountExcessive_maximalSplitting (Blind (Large b)) =
-    checkCoverage $ property $
-    cover 5 (assetCount == 0)
-        "asset count = 0" $
-    cover 5 (assetCount == 1)
-        "asset count = 1" $
-    cover 5 (assetCount >= 2 && assetCount < 8)
-        "asset count >= 2 && asset count < 8" $
-    cover 5 (assetCount >= 8 && assetCount < 16)
-        "asset count >= 8 && asset count < 16" $
-    (.&&.)
-        (NE.length result === max 1 assetCount)
-        (F.all ((<= 1) . Set.size . TokenBundle.getAssets) result)
+    checkCoverage
+        $ property
+        $ cover
+            5
+            (assetCount == 0)
+            "asset count = 0"
+        $ cover
+            5
+            (assetCount == 1)
+            "asset count = 1"
+        $ cover
+            5
+            (assetCount >= 2 && assetCount < 8)
+            "asset count >= 2 && asset count < 8"
+        $ cover
+            5
+            (assetCount >= 8 && assetCount < 16)
+            "asset count >= 8 && asset count < 16"
+        $ (.&&.)
+            (NE.length result === max 1 assetCount)
+            (F.all ((<= 1) . Set.size . TokenBundle.getAssets) result)
   where
     assetCount = Set.size $ TokenBundle.getAssets b
     isExcessive = (> 1) . Set.size . TokenBundle.getAssets
@@ -3790,56 +4276,68 @@ prop_splitBundleIfAssetCountExcessive_maximalSplitting (Blind (Large b)) =
 prop_splitBundleIfAssetCountExcessive_postCondition
     :: Blind (Large TokenBundle) -> Positive Int -> Property
 prop_splitBundleIfAssetCountExcessive_postCondition
-    (Blind (Large b)) (Positive maxAssetCount) =
+    (Blind (Large b))
+    (Positive maxAssetCount) =
         property $ F.all (not . isExcessive) results
-  where
-    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
-    results = splitBundleIfAssetCountExcessive b isExcessive
+      where
+        isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+        results = splitBundleIfAssetCountExcessive b isExcessive
 
 prop_splitBundleIfAssetCountExcessive_sum
     :: Blind (Large TokenBundle) -> Positive Int -> Property
 prop_splitBundleIfAssetCountExcessive_sum
-    (Blind (Large b)) (Positive maxAssetCount) =
+    (Blind (Large b))
+    (Positive maxAssetCount) =
         F.fold (splitBundleIfAssetCountExcessive b isExcessive) === b
-  where
-    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+      where
+        isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
 
 prop_splitBundlesWithExcessiveAssetCounts_length
     :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
 prop_splitBundlesWithExcessiveAssetCounts_length
-    (Blind input) (Positive maxAssetCount) =
-        checkCoverage $ property $
-        cover 5 (lengthOutput > lengthInput)
-            "length has increased" $
-        cover 5 (lengthOutput == lengthInput)
-            "length has remained the same" $
-        case compare lengthOutput lengthInput of
-            GT -> (&&)
-                (F.any isExcessive input)
-                (F.all (not . isExcessive) output)
-            EQ -> (&&)
-                (F.all (not . isExcessive) input)
-                (input == output)
-            LT ->
-                error "length has unexpectedly decreased"
-  where
-    isExcessive =
-        (> maxAssetCount) . Set.size . TokenBundle.getAssets
-    lengthInput =
-        NE.length input
-    lengthOutput =
-        NE.length output
-    output =
-        splitBundlesWithExcessiveAssetCounts input isExcessive
+    (Blind input)
+    (Positive maxAssetCount) =
+        checkCoverage
+            $ property
+            $ cover
+                5
+                (lengthOutput > lengthInput)
+                "length has increased"
+            $ cover
+                5
+                (lengthOutput == lengthInput)
+                "length has remained the same"
+            $ case compare lengthOutput lengthInput of
+                GT ->
+                    (&&)
+                        (F.any isExcessive input)
+                        (F.all (not . isExcessive) output)
+                EQ ->
+                    (&&)
+                        (F.all (not . isExcessive) input)
+                        (input == output)
+                LT ->
+                    error "length has unexpectedly decreased"
+      where
+        isExcessive =
+            (> maxAssetCount) . Set.size . TokenBundle.getAssets
+        lengthInput =
+            NE.length input
+        lengthOutput =
+            NE.length output
+        output =
+            splitBundlesWithExcessiveAssetCounts input isExcessive
 
 prop_splitBundlesWithExcessiveAssetCounts_sum
     :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
 prop_splitBundlesWithExcessiveAssetCounts_sum
-    (Blind bundles) (Positive maxAssetCount) = (===)
-        (F.fold $ splitBundlesWithExcessiveAssetCounts bundles isExcessive)
-        (F.fold bundles)
-  where
-    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    (Blind bundles)
+    (Positive maxAssetCount) =
+        (===)
+            (F.fold $ splitBundlesWithExcessiveAssetCounts bundles isExcessive)
+            (F.fold bundles)
+      where
+        isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
 
 --------------------------------------------------------------------------------
 -- Splitting bundles with excessive token quantities
@@ -3848,20 +4346,28 @@ prop_splitBundlesWithExcessiveAssetCounts_sum
 prop_splitBundlesWithExcessiveTokenQuantities_length
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
 prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
-    maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
-        cover 5 (lengthOutput > lengthInput)
-            "length has increased" $
-        cover 5 (lengthOutput == lengthInput)
-            "length has remained the same" $
-        case compare lengthOutput lengthInput of
-            GT -> (&&)
-                (maxQuantityAllowed <  maxQuantityInput)
-                (maxQuantityAllowed >= maxQuantityOutput)
-            EQ -> (&&)
-                (maxQuantityAllowed >= maxQuantityInput)
-                (input == output)
-            LT ->
-                error "length has unexpectedly decreased"
+    maxQuantityAllowed > TokenQuantity.zero ==>
+        checkCoverage
+            $ property
+            $ cover
+                5
+                (lengthOutput > lengthInput)
+                "length has increased"
+            $ cover
+                5
+                (lengthOutput == lengthInput)
+                "length has remained the same"
+            $ case compare lengthOutput lengthInput of
+                GT ->
+                    (&&)
+                        (maxQuantityAllowed < maxQuantityInput)
+                        (maxQuantityAllowed >= maxQuantityOutput)
+                EQ ->
+                    (&&)
+                        (maxQuantityAllowed >= maxQuantityInput)
+                        (input == output)
+                LT ->
+                    error "length has unexpectedly decreased"
   where
     lengthInput =
         NE.length input
@@ -3886,14 +4392,16 @@ prop_splitBundlesWithExcessiveTokenQuantities_sum ms maxQuantity =
 --------------------------------------------------------------------------------
 
 prop_groupByKey_ungroupByKey
-    :: forall k v. (Ord k, Ord v, Show k, Show v)
+    :: forall k v
+     . (Ord k, Ord v, Show k, Show v)
     => [(k, v)]
     -> Property
 prop_groupByKey_ungroupByKey kvs =
     L.sort kvs === L.sort (ungroupByKey $ groupByKey kvs)
 
 prop_ungroupByKey_groupByKey
-    :: forall k v. (Ord k, Ord v, Show k, Show v)
+    :: forall k v
+     . (Ord k, Ord v, Show k, Show v)
     => Map k (NonEmpty v)
     -> Property
 prop_ungroupByKey_groupByKey kvs =
@@ -3906,10 +4414,11 @@ prop_ungroupByKey_groupByKey kvs =
 data MockRoundRobinState k n = MockRoundRobinState
     { processorLifetimes :: Map k n
     , accumulatedEntries :: [(k, n)]
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 genMockRoundRobinState
-    :: forall k n. Ord k => Gen k -> Gen n -> Gen (MockRoundRobinState k n)
+    :: forall k n. (Ord k) => Gen k -> Gen n -> Gen (MockRoundRobinState k n)
 genMockRoundRobinState genKey genLifetime = do
     processorCount <- choose (0, 16)
     MockRoundRobinState
@@ -3921,28 +4430,30 @@ genMockRoundRobinState genKey genLifetime = do
         Map.fromList <$> replicateM processorCount genProcessorLifetime
 
     genProcessorLifetime :: Gen (k, n)
-    genProcessorLifetime = (,)
-        <$> genKey
-        <*> genLifetime
+    genProcessorLifetime =
+        (,)
+            <$> genKey
+            <*> genLifetime
 
 shrinkMockRoundRobinState
-    :: Ord k
+    :: (Ord k)
     => (n -> [n])
     -> MockRoundRobinState k n
     -> [MockRoundRobinState k n]
 shrinkMockRoundRobinState shrinkLifetime s =
-    [ s { processorLifetimes = processorLifetimes' }
+    [ s{processorLifetimes = processorLifetimes'}
     | processorLifetimes' <- shrinkProcessorLifetimes $ processorLifetimes s
     ]
   where
-    shrinkProcessorLifetimes
-        = fmap Map.fromList
-        . shrinkList shrinkProcessorLifetime
-        . Map.toList
-    shrinkProcessorLifetime (k, n) = (k, ) <$> shrinkLifetime n
+    shrinkProcessorLifetimes =
+        fmap Map.fromList
+            . shrinkList shrinkProcessorLifetime
+            . Map.toList
+    shrinkProcessorLifetime (k, n) = (k,) <$> shrinkLifetime n
 
 runMockRoundRobin
-    :: forall k n. (Ord k, Integral n)
+    :: forall k n
+     . (Ord k, Integral n)
     => MockRoundRobinState k n
     -> MockRoundRobinState k n
 runMockRoundRobin initialState = runRoundRobin initialState id processors
@@ -3955,10 +4466,12 @@ runMockRoundRobin initialState = runRoundRobin initialState id processors
     mkProcessor (k, n) s
         | remainingLifetime <= 0 =
             Nothing
-        | otherwise = Just $ MockRoundRobinState
-            { processorLifetimes = Map.adjust pred k (processorLifetimes s)
-            , accumulatedEntries = entry : accumulatedEntries s
-            }
+        | otherwise =
+            Just
+                $ MockRoundRobinState
+                    { processorLifetimes = Map.adjust pred k (processorLifetimes s)
+                    , accumulatedEntries = entry : accumulatedEntries s
+                    }
       where
         entry :: (k, n)
         entry = (k, n - remainingLifetime)
@@ -3972,17 +4485,20 @@ prop_runRoundRobin_identity state processors =
     runRoundRobin state id (const Nothing <$ processors) === state
 
 prop_runRoundRobin_iterationCount
-    :: forall k n. (Ord k, Integral n)
+    :: forall k n
+     . (Ord k, Integral n)
     => MockRoundRobinState k n
     -> Property
-prop_runRoundRobin_iterationCount initialState = (===)
-    (toInteger $ length $ accumulatedEntries finalState)
-    (F.sum $ toInteger <$> processorLifetimes initialState)
+prop_runRoundRobin_iterationCount initialState =
+    (===)
+        (toInteger $ length $ accumulatedEntries finalState)
+        (F.sum $ toInteger <$> processorLifetimes initialState)
   where
     finalState = runMockRoundRobin initialState
 
 prop_runRoundRobin_iterationOrder
-    :: forall k n. (Ord k, Show k, Integral n, Show n)
+    :: forall k n
+     . (Ord k, Show k, Integral n, Show n)
     => MockRoundRobinState k n
     -> Property
 prop_runRoundRobin_iterationOrder initialState =
@@ -3993,7 +4509,8 @@ prop_runRoundRobin_iterationOrder initialState =
     sortDescending = L.sortBy (flip compare)
 
 prop_runRoundRobin_generationCount
-    :: forall k n. (Ord k, Show k, Integral n, Show n)
+    :: forall k n
+     . (Ord k, Show k, Integral n, Show n)
     => MockRoundRobinState k n
     -> Property
 prop_runRoundRobin_generationCount initialState =
@@ -4002,25 +4519,29 @@ prop_runRoundRobin_generationCount initialState =
   where
     finalState = runMockRoundRobin initialState
     generationCounts :: Map k n
-    generationCounts = accumulatedEntries finalState
-        & groupByKey
-        & fmap (fromIntegral . NE.length)
+    generationCounts =
+        accumulatedEntries finalState
+            & groupByKey
+            & fmap (fromIntegral . NE.length)
 
 prop_runRoundRobin_generationOrder
-    :: forall k n. (Ord k, Integral n)
+    :: forall k n
+     . (Ord k, Integral n)
     => MockRoundRobinState k n
     -> Property
-prop_runRoundRobin_generationOrder initialState = property $
-    all (uncurry Set.isSubsetOf)
+prop_runRoundRobin_generationOrder initialState =
+    property
+        $ all (uncurry Set.isSubsetOf)
         $ consecutivePairs
         $ snd <$> Map.toDescList generations
   where
     finalState = runMockRoundRobin initialState
     generations :: Map n (Set k)
-    generations = accumulatedEntries finalState
-        & fmap swap
-        & groupByKey
-        & fmap (Set.fromList . F.toList)
+    generations =
+        accumulatedEntries finalState
+            & fmap swap
+            & groupByKey
+            & fmap (Set.fromList . F.toList)
 
 --------------------------------------------------------------------------------
 -- Testing utility functions
@@ -4030,8 +4551,7 @@ prop_runRoundRobin_generationOrder initialState = property $
 prop_mapMaybe_oracle :: NonEmpty Int -> Fun Int (Maybe Int) -> Property
 prop_mapMaybe_oracle xs fn =
     Maybe.mapMaybe (applyFun fn) (NE.toList xs)
-    ===
-    mapMaybe (applyFun fn) xs
+        === mapMaybe (applyFun fn) xs
 
 --------------------------------------------------------------------------------
 -- Testing change map mint/burn functions
@@ -4043,11 +4563,11 @@ prop_mapMaybe_oracle xs fn =
 -- change maps.
 prop_addMintValueToChangeMaps_value
     :: (AssetId, TokenQuantity)
-    -> NonEmpty TokenMap -> Property
+    -> NonEmpty TokenMap
+    -> Property
 prop_addMintValueToChangeMaps_value (assetId, qty) changeMaps =
     F.fold changeMaps <> TokenMap.singleton assetId qty
-    ===
-    F.fold (addMintValueToChangeMaps (assetId, qty) changeMaps)
+        === F.fold (addMintValueToChangeMaps (assetId, qty) changeMaps)
 
 -- Add a mint value to the change maps does not change their length (length is
 -- determined entirely by the number of outputs to cover).
@@ -4057,8 +4577,7 @@ prop_addMintValueToChangeMaps_length
     -> Property
 prop_addMintValueToChangeMaps_length mint changeMaps =
     NE.length changeMaps
-    ===
-    NE.length (addMintValueToChangeMaps mint changeMaps)
+        === NE.length (addMintValueToChangeMaps mint changeMaps)
 
 -- Adding a mint value to the change maps preserves the ascending partial order
 -- of the change maps.
@@ -4081,8 +4600,7 @@ prop_addMintValueToChangeMaps_order mint changeMapDiffs =
 prop_addMintValuesToChangeMaps :: TokenMap -> NonEmpty TokenMap -> Property
 prop_addMintValuesToChangeMaps mints changeMaps =
     F.foldr addMintValueToChangeMaps changeMaps (TokenMap.toFlatList mints)
-    ===
-    addMintValuesToChangeMaps mints changeMaps
+        === addMintValuesToChangeMaps mints changeMaps
 
 -- The total value of the change maps after calling this function decreases by
 -- the value of the burned tokens exactly. i.e. The value of the change maps
@@ -4094,8 +4612,7 @@ prop_removeBurnValueFromChangeMaps_value
     -> Property
 prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
     F.fold changeMaps `TokenMap.difference` TokenMap.singleton assetId qty
-    ===
-    F.fold (removeBurnValueFromChangeMaps (assetId, qty) changeMaps)
+        === F.fold (removeBurnValueFromChangeMaps (assetId, qty) changeMaps)
 
 -- Removing a burned value from the change maps does not change their length
 -- (length is determined entirely by the number of outputs to cover).
@@ -4105,8 +4622,7 @@ prop_removeBurnValueFromChangeMaps_length
     -> Property
 prop_removeBurnValueFromChangeMaps_length burn changeMaps =
     NE.length changeMaps
-    ===
-    NE.length (removeBurnValueFromChangeMaps burn changeMaps)
+        === NE.length (removeBurnValueFromChangeMaps burn changeMaps)
 
 -- Removing a burned value from the change maps preserves the ascending partial
 -- order of the change maps.
@@ -4129,8 +4645,7 @@ prop_removeBurnValueFromChangeMaps_order burn changeMapDiffs =
 prop_removeBurnValuesFromChangeMaps :: TokenMap -> NonEmpty TokenMap -> Property
 prop_removeBurnValuesFromChangeMaps burns changeMaps =
     F.foldr removeBurnValueFromChangeMaps changeMaps (TokenMap.toFlatList burns)
-    ===
-    removeBurnValuesFromChangeMaps burns changeMaps
+        === removeBurnValuesFromChangeMaps burns changeMaps
 
 -- reduceTokenQuantities reduces the total value of the token quantity list by
 -- the amount it was asked to.
@@ -4138,16 +4653,14 @@ prop_reduceTokenQuantities_value
     :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_reduceTokenQuantities_value reduceQty qtys =
     F.fold qtys `TokenQuantity.difference` reduceQty
-    ===
-    F.fold (reduceTokenQuantities reduceQty qtys)
+        === F.fold (reduceTokenQuantities reduceQty qtys)
 
 -- The length of the token quantity list is preserved when reducing quantities.
 prop_reduceTokenQuantities_length
     :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_reduceTokenQuantities_length reduceQty qtys =
     NE.length qtys
-    ===
-    NE.length (reduceTokenQuantities reduceQty qtys)
+        === NE.length (reduceTokenQuantities reduceQty qtys)
 
 -- If the token quantity list is in ascending order, "reduceTokenQuantities"
 -- preserves the order of the list.
@@ -4170,17 +4683,19 @@ prop_reduceTokenQuantities_order reduceQty qtyDiffs =
 -- Utility functions
 --------------------------------------------------------------------------------
 
-assertWith :: Monad m => String -> Bool -> PropertyM m ()
+assertWith :: (Monad m) => String -> Bool -> PropertyM m ()
 assertWith description condition = do
     monitor $ counterexample ("Assertion failed: " <> description)
     assert condition
 
 adjustAllTokenBundleQuantities
     :: (Natural -> Natural) -> TokenBundle -> TokenBundle
-adjustAllTokenBundleQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
-    (adjustCoin)
-    (fmap (fmap adjustTokenQuantity))
-    (TokenBundle.toFlatList b)
+adjustAllTokenBundleQuantities f b =
+    uncurry TokenBundle.fromFlatList
+        $ bimap
+            (adjustCoin)
+            (fmap (fmap adjustTokenQuantity))
+            (TokenBundle.toFlatList b)
   where
     adjustCoin :: Coin -> Coin
     adjustCoin = Coin . fromIntegral . f . fromIntegral . unCoin
@@ -4190,14 +4705,16 @@ adjustAllTokenBundleQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
 
 adjustAllTokenMapQuantities
     :: (Natural -> Natural) -> TokenMap -> TokenMap
-adjustAllTokenMapQuantities f m = view #tokens
-    $ adjustAllTokenBundleQuantities f
-    $ TokenBundle.fromTokenMap m
+adjustAllTokenMapQuantities f m =
+    view #tokens
+        $ adjustAllTokenBundleQuantities f
+        $ TokenBundle.fromTokenMap m
 
 cutAssetSetSizeInHalf :: TokenBundle -> TokenBundle
-cutAssetSetSizeInHalf = uncurry TokenBundle.fromFlatList
-    . second cutListInHalf
-    . TokenBundle.toFlatList
+cutAssetSetSizeInHalf =
+    uncurry TokenBundle.fromFlatList
+        . second cutListInHalf
+        . TokenBundle.toFlatList
 
 cutListInHalf :: [a] -> [a]
 cutListInHalf xs = take half xs
@@ -4217,7 +4734,7 @@ expectRight = \case
 matchSingletonList :: NonEmpty a -> Maybe a
 matchSingletonList = \case
     a :| [] -> Just a
-    _   -> Nothing
+    _ -> Nothing
 
 mockAsset :: ByteString -> AssetId
 mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeTokenName "1")
@@ -4227,15 +4744,15 @@ mockAssetQuantity a q = (mockAsset a, TokenQuantity q)
 
 unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
-    forM_ (zip [1..] cases) $ \(i, test) ->
+    forM_ (zip [1 ..] cases) $ \(i, test) ->
         it (lbl <> " example #" <> show @Int i) test
 
 utxoIndexNonAdaAssets :: UTxOIndex u -> Set AssetId
-utxoIndexNonAdaAssets
-    = Set.fromList
-    . Maybe.mapMaybe toNonAdaAsset
-    . Set.toList
-    . UTxOIndex.assets
+utxoIndexNonAdaAssets =
+    Set.fromList
+        . Maybe.mapMaybe toNonAdaAsset
+        . Set.toList
+        . UTxOIndex.assets
 
 toNonAdaAsset :: Asset -> Maybe AssetId
 toNonAdaAsset = \case
@@ -4247,7 +4764,6 @@ toNonAdaAsset = \case
 --------------------------------------------------------------------------------
 
 -- | A test selection context.
---
 data TestSelectionContext
 
 instance SC.SelectionContext TestSelectionContext where
@@ -4255,13 +4771,13 @@ instance SC.SelectionContext TestSelectionContext where
     type UTxO TestSelectionContext = TestUTxO
 
 newtype TestAddress = TestAddress (Hexadecimal Quid)
-    deriving Arbitrary via Quid
-    deriving Buildable via (Pretty TestAddress)
+    deriving (Arbitrary) via Quid
+    deriving (Buildable) via (Pretty TestAddress)
     deriving stock (Eq, Ord, Read, Show)
 
 newtype TestUTxO = TestUTxO (Hexadecimal Quid)
     deriving (Arbitrary, CoArbitrary) via Quid
-    deriving Buildable via (Pretty TestUTxO)
+    deriving (Buildable) via (Pretty TestUTxO)
     deriving stock (Eq, Ord, Read, Show)
 
 instance Buildable (TestUTxO, TokenBundle) where
@@ -4271,11 +4787,11 @@ instance Buildable (TestUTxO, TokenBundle) where
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance Arbitrary a => Arbitrary (NonEmpty a) where
+instance (Arbitrary a) => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary a => Arbitrary (AssetCount a) where
+instance (Arbitrary a) => Arbitrary (AssetCount a) where
     arbitrary = AssetCount <$> arbitrary
     shrink = fmap AssetCount . shrink . unAssetCount
 
@@ -4295,23 +4811,28 @@ instance Arbitrary TokenBundle where
     shrink = shrinkTokenBundleSmallRangePositive
 
 instance Arbitrary (Large TokenBundle) where
-    arbitrary = fmap Large $ TokenBundle
-        <$> genCoinPositive
-        <*> genTokenMapLarge
-    -- No shrinking
+    arbitrary =
+        fmap Large
+            $ TokenBundle
+                <$> genCoinPositive
+                <*> genTokenMapLarge
+
+-- No shrinking
 
 genTokenMapLarge :: Gen TokenMap
 genTokenMapLarge = do
-    assetCount <- frequency
-        [ (1, pure 0)
-        , (1, pure 1)
-        , (8, choose (2, 63))
-        ]
+    assetCount <-
+        frequency
+            [ (1, pure 0)
+            , (1, pure 1)
+            , (8, choose (2, 63))
+            ]
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
-    genAssetQuantity = (,)
-        <$> genAssetIdLargeRange
-        <*> genTokenQuantityPositive
+    genAssetQuantity =
+        (,)
+            <$> genAssetIdLargeRange
+            <*> genTokenQuantityPositive
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
@@ -4326,23 +4847,27 @@ instance (Arbitrary u, Ord u, Show u) => Arbitrary (UTxOSelection u) where
     shrink = shrinkUTxOSelection (shrink @u)
 
 newtype Large a = Large
-    { getLarge :: a }
+    {getLarge :: a}
     deriving (Eq, Show)
 
 newtype Small a = Small
-    { getSmall:: a }
+    {getSmall :: a}
     deriving (Eq, Show)
 
 instance Arbitrary (Large (SelectionParams TestSelectionContext)) where
-    arbitrary = Large <$> genSelectionParams
-        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
-        (genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO)))
+    arbitrary =
+        Large
+            <$> genSelectionParams
+                (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+                (genUTxOIndexLarge (resize 256 (arbitrary @TestUTxO)))
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small (SelectionParams TestSelectionContext)) where
-    arbitrary = Small <$> genSelectionParams
-        (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
-        (genUTxOIndex (arbitrary @TestUTxO))
+    arbitrary =
+        Small
+            <$> genSelectionParams
+                (genFunction (coarbitrary @TestUTxO) (arbitrary @Bool))
+                (genUTxOIndex (arbitrary @TestUTxO))
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance (Arbitrary u, Ord u) => Arbitrary (Large (UTxOIndex u)) where

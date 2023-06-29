@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Test.Integration.Scenario.API.Byron.Network
@@ -12,13 +11,21 @@ module Test.Integration.Scenario.API.Byron.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkParameters (..) )
+    ( ApiNetworkParameters (..)
+    )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Quantity (..)
+    , mkPercentage
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -40,6 +47,8 @@ spec = describe "BYRON_NETWORK" $ do
         let Right d = Quantity <$> mkPercentage (0 % 1)
         -- for Byron desiredPoolNumber is 0
         let nOpt = 0
-        verify r
+        verify
+            r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
-            , expectField (#desiredPoolNumber) (`shouldBe` nOpt)]
+            , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
+            ]

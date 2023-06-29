@@ -1,6 +1,5 @@
 module Cardano.Wallet.Primitive.Types.Address.Gen
-    (
-      -- * Generators and shrinkers
+    ( -- * Generators and shrinkers
       genAddress
     , shrinkAddress
 
@@ -8,14 +7,18 @@ module Cardano.Wallet.Primitive.Types.Address.Gen
     , addressParity
     , Parity (..)
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Test.QuickCheck
-    ( Gen, elements, sized )
+    ( Gen
+    , elements
+    , sized
+    )
 
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
@@ -62,20 +65,18 @@ addresses = mkAddress <$> ['0' ..]
 --    - ...
 --    - 0b11111110 : odd  (Hamming weight = 7)
 --    - 0b11111111 : even (Hamming weight = 8)
---
 addressParity :: Address -> Parity
 addressParity = parity . addressPopCount
   where
     addressPopCount :: Address -> Int
     addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
 
-    parity :: Integral a => a -> Parity
+    parity :: (Integral a) => a -> Parity
     parity a
-        | even a    = Even
+        | even a = Even
         | otherwise = Odd
 
 -- | Represents the parity of a value (whether the value is even or odd).
---
 data Parity = Even | Odd
     deriving (Eq, Show)
 

@@ -1,3 +1,6 @@
+{- HLINT ignore "Use ||" -}
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -12,53 +15,58 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-
-{- HLINT ignore "Use ||" -}
-
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
 module Cardano.Wallet.Write.Tx.Balance
-    (
-    -- * Balancing transactions
+    ( -- * Balancing transactions
       balanceTransaction
     , BalanceTxLog (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
 
-    -- * Change addresses
+      -- * Change addresses
     , ChangeAddressGen (..)
     , assignChangeAddresses
 
-    -- * Partial transactions
+      -- * Partial transactions
     , PartialTx (..)
 
-    -- * UTxO assumptions
+      -- * UTxO assumptions
     , UTxOAssumptions (..)
 
-    -- * UTxO indices
+      -- * UTxO indices
     , UTxOIndex
     , constructUTxOIndex
 
-    -- * Utilities
+      -- * Utilities
     , posAndNegFromCardanoValue
     )
-    where
+where
 
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation, HasSeverityAnnotation, Tracer )
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation
+    , Tracer
+    )
 import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (..), Severity (..), traceWith )
+    ( HasSeverityAnnotation (..)
+    , Severity (..)
+    , traceWith
+    )
 import Cardano.Ledger.Alonzo.Core
-    ( ppCollateralPercentageL, ppMaxCollateralInputsL )
+    ( ppCollateralPercentageL
+    , ppMaxCollateralInputsL
+    )
 import Cardano.Ledger.Api
-    ( outputsTxBodyL, ppMaxTxSizeL, ppMaxValSizeL )
+    ( outputsTxBodyL
+    , ppMaxTxSizeL
+    , ppMaxValSizeL
+    )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -80,21 +88,33 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , toInternalUTxOMap
     )
 import Cardano.Wallet.Primitive.Types
-    ( TokenBundleMaxSize (TokenBundleMaxSize) )
+    ( TokenBundleMaxSize (TokenBundleMaxSize)
+    )
 import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer )
+    ( Redeemer
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, sealedTxFromCardano )
+    ( SealedTx
+    , sealedTxFromCardano
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin )
+    ( TxSize (..)
+    , txOutMaxCoin
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
+    ( UTxOSelection
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromCardanoValue )
+    ( fromCardanoValue
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
+    ( fromCardanoTxIn
+    , fromCardanoTxOut
+    , toCardanoUTxO
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
@@ -115,7 +135,8 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Write.ProtocolParameters
-    ( ProtocolParameters (..) )
+    ( ProtocolParameters (..)
+    )
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
     , PParams
@@ -139,41 +160,75 @@ import Cardano.Wallet.Write.Tx
     , withConstraints
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
-    ( TimeTranslation )
+    ( TimeTranslation
+    )
 import Cardano.Wallet.Write.UTxOAssumptions
-    ( UTxOAssumptions (..), assumedInputScriptTemplate, assumedTxWitnessTag )
+    ( UTxOAssumptions (..)
+    , assumedInputScriptTemplate
+    , assumedTxWitnessTag
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Monad
-    ( forM, unless, when )
+    ( forM
+    , unless
+    , when
+    )
 import Control.Monad.Random
-    ( MonadRandom, evalRand )
+    ( MonadRandom
+    , evalRand
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (ExceptT), catchE, except, runExceptT, throwE, withExceptT )
+    ( ExceptT (ExceptT)
+    , catchE
+    , except
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Monad.Trans.State
-    ( runState, state )
+    ( runState
+    , state
+    )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap
+    , second
+    )
 import Data.Bits
-    ( Bits )
+    ( Bits
+    )
 import Data.Either
-    ( lefts, partitionEithers )
+    ( lefts
+    , partitionEithers
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
-    ( intCastMaybe )
+    ( intCastMaybe
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( testEquality
+    , (:~:) (..)
+    )
 import Fmt
     ( Buildable
     , Builder
@@ -187,15 +242,22 @@ import Fmt
     , (||+)
     )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
+    ( StdGenSeed (..)
+    , stdGenFromSeed
+    , stdGenSeed
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -219,11 +281,13 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 -- | Helper wrapper type for the sake of logging.
-data BuildableInAnyEra tx = forall era.
-    ( Eq (tx era)
-    , Show (tx era)
-    , Buildable (tx era)
-    ) => BuildableInAnyEra (Cardano.CardanoEra era) (tx era)
+data BuildableInAnyEra tx
+    = forall era.
+        ( Eq (tx era)
+        , Show (tx era)
+        , Buildable (tx era)
+        ) =>
+      BuildableInAnyEra (Cardano.CardanoEra era) (tx era)
 
 instance Show (BuildableInAnyEra a) where
     show (BuildableInAnyEra _ a) = show a
@@ -248,19 +312,27 @@ data BalanceTxLog
 instance ToText BalanceTxLog where
     toText = \case
         MsgSelectionStart utxoSize recipients ->
-            "Starting coin selection " <>
-            "|utxo| = "+|utxoSize|+" " <>
-            "#recipients = "+|length recipients|+""
+            "Starting coin selection "
+                <> "|utxo| = "
+                +| utxoSize
+                |+ " "
+                    <> "#recipients = "
+                +| length recipients
+                |+ ""
         MsgSelectionForBalancingStart utxoSize partialTx ->
-            "Starting coin selection for balancing " <>
-            "|utxo| = "+|utxoSize|+" " <>
-            "partialTx = "+|partialTx|+""
+            "Starting coin selection for balancing "
+                <> "|utxo| = "
+                +| utxoSize
+                |+ " "
+                    <> "partialTx = "
+                +| partialTx
+                |+ ""
         MsgSelectionError e ->
-            "Failed to select assets:\n"+|| e ||+""
+            "Failed to select assets:\n" +|| e ||+ ""
         MsgSelectionReportSummarized s ->
-            "Selection report (summarized):\n"+| s |+""
+            "Selection report (summarized):\n" +| s |+ ""
         MsgSelectionReportDetailed s ->
-            "Selection report (detailed):\n"+| s |+""
+            "Selection report (detailed):\n" +| s |+ ""
 
 instance HasPrivacyAnnotation BalanceTxLog
 instance HasSeverityAnnotation BalanceTxLog where
@@ -315,17 +387,19 @@ data ErrBalanceTx
 data PartialTx era = PartialTx
     { tx :: Cardano.Tx era
     , inputs :: Cardano.UTxO era
-      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
+    -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
-    } deriving (Show, Generic, Eq)
+    }
+    deriving (Show, Generic, Eq)
 
 instance Buildable (PartialTx era) where
-    build (PartialTx tx (Cardano.UTxO ins) redeemers)
-        = nameF "PartialTx" $ mconcat
-            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
-            , nameF "redeemers" (pretty redeemers)
-            , nameF "tx" (cardanoTxF tx)
-            ]
+    build (PartialTx tx (Cardano.UTxO ins) redeemers) =
+        nameF "PartialTx"
+            $ mconcat
+                [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+                , nameF "redeemers" (pretty redeemers)
+                , nameF "tx" (cardanoTxF tx)
+                ]
       where
         inF = build . show
 
@@ -338,18 +412,18 @@ data UTxOIndex era = UTxOIndex
     , cardanoUTxO :: !(Cardano.UTxO era)
     }
 
-constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
+constructUTxOIndex :: (IsRecentEra era) => W.UTxO -> UTxOIndex era
 constructUTxOIndex walletUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex, cardanoUTxO}
+    UTxOIndex{walletUTxO, walletUTxOIndex, cardanoUTxO}
   where
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
 
 balanceTransaction
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState
+     . ( MonadRandom m
+       , IsRecentEra era
+       )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
     -> ProtocolParameters era
@@ -385,77 +459,83 @@ balanceTransaction
     utxo
     genChange
     s
-    partialTx
-    = do
-    let adjustedPartialTx =
-            over #tx (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp)) partialTx
-    let balanceWith strategy =
-            balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                @era @m @changeState
-                tr
-                utxoAssumptions
-                pp
-                timeTranslation
-                utxo
-                genChange
-                s
-                strategy
-                adjustedPartialTx
-    balanceWith SelectionStrategyOptimal
-        `catchE` \e ->
-            if minimalStrategyIsWorthTrying e
-            then balanceWith SelectionStrategyMinimal
-            else throwE e
-  where
-    -- Determines whether or not the minimal selection strategy is worth trying.
-    -- This depends upon the way in which the optimal selection strategy failed.
-    minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
-    minimalStrategyIsWorthTrying e = or
-        [ maxSizeLimitExceeded
-        , unableToConstructChange
-        , selectionCollateralError
-        ]
+    partialTx =
+        do
+            let adjustedPartialTx =
+                    over #tx (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp)) partialTx
+            let balanceWith strategy =
+                    balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+                        @era
+                        @m
+                        @changeState
+                        tr
+                        utxoAssumptions
+                        pp
+                        timeTranslation
+                        utxo
+                        genChange
+                        s
+                        strategy
+                        adjustedPartialTx
+            balanceWith SelectionStrategyOptimal
+                `catchE` \e ->
+                    if minimalStrategyIsWorthTrying e
+                        then balanceWith SelectionStrategyMinimal
+                        else throwE e
       where
-        -- The size of a transaction can be reduced by selecting fewer inputs,
-        -- or by generating less change. Since the minimal selection strategy
-        -- selects as few inputs and generates as little change as possible,
-        -- using this strategy might allow us to generate a transaction within
-        -- the size limit.
-        maxSizeLimitExceeded = case e of
-            ErrBalanceTxMaxSizeLimitExceeded ->
-                True
-            _someOtherError ->
-                False
+        -- Determines whether or not the minimal selection strategy is worth trying.
+        -- This depends upon the way in which the optimal selection strategy failed.
+        minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
+        minimalStrategyIsWorthTrying e =
+            or
+                [ maxSizeLimitExceeded
+                , unableToConstructChange
+                , selectionCollateralError
+                ]
+          where
+            -- The size of a transaction can be reduced by selecting fewer inputs,
+            -- or by generating less change. Since the minimal selection strategy
+            -- selects as few inputs and generates as little change as possible,
+            -- using this strategy might allow us to generate a transaction within
+            -- the size limit.
+            maxSizeLimitExceeded = case e of
+                ErrBalanceTxMaxSizeLimitExceeded ->
+                    True
+                _someOtherError ->
+                    False
 
-        -- In situations where the available supply of ada is constrained, or
-        -- where all available ada is bundled up with other tokens, this can
-        -- prevent us from generating change. In this case, trying again with
-        -- the minimal selection strategy might allow us to select fewer
-        -- inputs, generate less change, lower the amount of ada required to
-        -- pay for the change, and therefore increase the chance that we can
-        -- generate change successfully.
-        unableToConstructChange = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf
-                (UnableToConstructChange {}))) ->
-                True
-            _someOtherError ->
-                False
+            -- In situations where the available supply of ada is constrained, or
+            -- where all available ada is bundled up with other tokens, this can
+            -- prevent us from generating change. In this case, trying again with
+            -- the minimal selection strategy might allow us to select fewer
+            -- inputs, generate less change, lower the amount of ada required to
+            -- pay for the change, and therefore increase the chance that we can
+            -- generate change successfully.
+            unableToConstructChange = case e of
+                ErrBalanceTxSelectAssets
+                    ( ErrSelectAssetsSelectionError
+                            ( SelectionBalanceErrorOf
+                                    (UnableToConstructChange{})
+                                )
+                        ) ->
+                        True
+                _someOtherError ->
+                    False
 
-        -- The minimum required amount of collateral depends on the transaction
-        -- fee, which in turn depends on the space occupied by ordinary inputs
-        -- and generated change. If we select fewer inputs and generate less
-        -- change, we can lower the transaction fee, lower the minimum required
-        -- amount of collateral, and increase the chance of being able to
-        -- satisfy the minimum.
-        selectionCollateralError = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionCollateralErrorOf {})) ->
-                True
-            _someOtherError ->
-                False
+            -- The minimum required amount of collateral depends on the transaction
+            -- fee, which in turn depends on the space occupied by ordinary inputs
+            -- and generated change. If we select fewer inputs and generate less
+            -- change, we can lower the transaction fee, lower the minimum required
+            -- amount of collateral, and increase the chance of being able to
+            -- satisfy the minimum.
+            selectionCollateralError = case e of
+                ErrBalanceTxSelectAssets
+                    ( ErrSelectAssetsSelectionError
+                            (SelectionCollateralErrorOf{})
+                        ) ->
+                        True
+                _someOtherError ->
+                    False
 
 -- | Increases the ada value of any 0-ada outputs in the transaction to the
 -- minimum according to 'computeMinimumCoinForTxOut'.
@@ -465,18 +545,21 @@ increaseZeroAdaOutputs
     -> PParams (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
     -> Cardano.Tx era
-increaseZeroAdaOutputs era pp = withConstraints era $
-    modifyLedgerBody $ over outputsTxBodyL $ fmap modifyTxOut
+increaseZeroAdaOutputs era pp =
+    withConstraints era
+        $ modifyLedgerBody
+        $ over outputsTxBodyL
+        $ fmap modifyTxOut
   where
     modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
         if c == mempty then computeMinimumCoinForTxOut era pp out else c
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState
+     . ( MonadRandom m
+       , IsRecentEra era
+       )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
     -> ProtocolParameters era
@@ -496,345 +579,373 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers)
-    = do
-    guardExistingCollateral partialTx
-    guardExistingTotalCollateral partialTx
-    guardExistingReturnCollateral partialTx
-    guardConflictingWithdrawalNetworks partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
+    ptx@(PartialTx partialTx inputUTxO redeemers) =
+        do
+            guardExistingCollateral partialTx
+            guardExistingTotalCollateral partialTx
+            guardExistingReturnCollateral partialTx
+            guardConflictingWithdrawalNetworks partialTx
+            guardWalletUTxOConsistencyWith inputUTxO
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
+            (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral', extraOutputs, s') <- do
+            (extraInputs, extraCollateral', extraOutputs, s') <- do
+                -- NOTE: It is not possible to know the script execution cost in
+                -- advance because it actually depends on the final transaction. Inputs
+                -- selected as part of the fee balancing might have an influence on the
+                -- execution cost.
+                -- However, they are bounded so it is possible to balance the
+                -- transaction considering only the maximum cost, and only after, try to
+                -- adjust the change and ExUnits of each redeemer to something more
+                -- sensible than the max execution cost.
 
-        -- NOTE: It is not possible to know the script execution cost in
-        -- advance because it actually depends on the final transaction. Inputs
-        -- selected as part of the fee balancing might have an influence on the
-        -- execution cost.
-        -- However, they are bounded so it is possible to balance the
-        -- transaction considering only the maximum cost, and only after, try to
-        -- adjust the change and ExUnits of each redeemer to something more
-        -- sensible than the max execution cost.
+                randomSeed <- stdGenSeed
+                let
+                    transform
+                        :: Selection
+                        -> ( [(W.TxIn, W.TxOut)]
+                           , [(W.TxIn, W.TxOut)]
+                           , [W.TxOut]
+                           , changeState
+                           )
+                    transform sel =
+                        let (sel', s') = assignChangeAddresses genChange sel s
+                            inputs = F.toList (sel' ^. #inputs)
+                        in  ( inputs
+                            , sel' ^. #collateral
+                            , sel' ^. #change
+                            , s'
+                            )
 
-        randomSeed <- stdGenSeed
-        let
-            transform
-                :: Selection
-                -> ( [(W.TxIn, W.TxOut)]
-                   , [(W.TxIn, W.TxOut)]
-                   , [W.TxOut]
-                   , changeState
-                   )
-            transform sel =
-                let (sel', s') = assignChangeAddresses genChange sel s
-                    inputs = F.toList (sel' ^. #inputs)
-                in  ( inputs
-                    , sel' ^. #collateral
-                    , sel' ^. #change
-                    , s'
+                lift
+                    $ traceWith tr
+                    $ MsgSelectionForBalancingStart
+                        (UTxOIndex.size internalUtxoAvailable)
+                        (BuildableInAnyEra Cardano.cardanoEra ptx)
+
+                externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+
+                let mSel =
+                        selectAssets
+                            (recentEra @era)
+                            protocolParameters
+                            utxoAssumptions
+                            (extractOutputsFromTx partialTx)
+                            redeemers
+                            ( UTxOSelection.fromIndexPair
+                                (internalUtxoAvailable, externalSelectedUtxo)
+                            )
+                            balance0
+                            (fromCardanoLovelace minfee0)
+                            randomSeed
+                            genChange
+                            selectionStrategy
+
+                case mSel of
+                    Left e -> lift $ traceWith tr $ MsgSelectionError e
+                    Right sel -> lift $ do
+                        traceWith tr
+                            $ MsgSelectionReportSummarized
+                            $ makeSelectionReportSummarized sel
+                        traceWith tr
+                            $ MsgSelectionReportDetailed
+                            $ makeSelectionReportDetailed sel
+
+                withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
+                    . except
+                    $ transform <$> mSel
+
+            -- NOTE:
+            -- Once the coin selection is done, we need to
+            --
+            -- (a) Add selected inputs, collateral and change outputs to the transaction
+            -- (b) Assign correct execution units to every redeemer
+            -- (c) Correctly reference redeemed entities with redeemer pointers
+            -- (d) Adjust fees and change output(s) to the new fees.
+            -- (e) If added inputs are native script originated coresponding scripts
+            --     need to be added as witnesses
+            --
+            -- There's a strong assumption that modifying the fee value AND increasing
+            -- the coin values of change outputs does not modify transaction fees; or
+            -- more exactly, does not modify the execution units of scripts. This is in
+            -- principle a fair assumption because script validators ought to be
+            -- unaware of change outputs. If their execution costs increase when change
+            -- output values increase, then it becomes impossible to guarantee that fee
+            -- balancing will ever converge towards a fixed point. A script validator
+            -- doing such a thing is considered bonkers and this is not a behavior we
+            -- ought to support.
+
+            let extraInputScripts =
+                    case utxoAssumptions of
+                        AllKeyPaymentCredentials -> []
+                        AllByronKeyPaymentCredentials -> []
+                        AllScriptPaymentCredentialsFrom _template toInpScripts ->
+                            toInpScripts . view #address . snd
+                                <$> extraInputs <> extraCollateral'
+
+            let extraCollateral = fst <$> extraCollateral'
+            let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+            candidateTx <-
+                assembleTransaction
+                    $ TxUpdate
+                        { extraInputs
+                        , extraCollateral
+                        , extraOutputs
+                        , extraInputScripts
+                        , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
+                        }
+
+            (balance, candidateMinFee, witCount) <- balanceAfterSettingMinFee candidateTx
+            surplus <- case Cardano.selectLovelace balance of
+                (Cardano.Lovelace c)
+                    | c >= 0 ->
+                        pure $ Coin.unsafeFromIntegral c
+                    | otherwise ->
+                        throwE . ErrBalanceTxInternalError
+                            $ ErrUnderestimatedFee
+                                (Coin.unsafeFromIntegral (-c))
+                                (toSealed candidateTx)
+                                witCount
+
+            let feeAndChange =
+                    TxFeeAndChange
+                        (unsafeFromLovelace candidateMinFee)
+                        (extraOutputs)
+
+            let feePerByte = getFeePerByte (recentEra @era) pp
+
+            -- @distributeSurplus@ should never fail becase we have provided enough
+            -- padding in @selectAssets@.
+            TxFeeAndChange updatedFee updatedChange <-
+                withExceptT
+                    ( \(ErrMoreSurplusNeeded c) ->
+                        ErrBalanceTxInternalError
+                            $ ErrUnderestimatedFee c (toSealed candidateTx) witCount
+                    )
+                    ( ExceptT . pure
+                        $ distributeSurplus feePerByte surplus feeAndChange
                     )
 
-        lift $ traceWith tr $ MsgSelectionForBalancingStart
-            (UTxOIndex.size internalUtxoAvailable)
-            (BuildableInAnyEra Cardano.cardanoEra ptx)
-
-        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
-
-        let mSel = selectAssets
-                (recentEra @era)
-                protocolParameters
-                utxoAssumptions
-                (extractOutputsFromTx partialTx)
-                redeemers
-                (UTxOSelection.fromIndexPair
-                    (internalUtxoAvailable, externalSelectedUtxo))
-                balance0
-                (fromCardanoLovelace minfee0)
-                randomSeed
-                genChange
-                selectionStrategy
-
-        case mSel of
-            Left e -> lift $ traceWith tr $ MsgSelectionError e
-            Right sel -> lift $ do
-                traceWith tr $ MsgSelectionReportSummarized
-                    $ makeSelectionReportSummarized sel
-                traceWith tr $ MsgSelectionReportDetailed
-                    $ makeSelectionReportDetailed sel
-
-        withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
-            . except
-            $ transform <$> mSel
-
-    -- NOTE:
-    -- Once the coin selection is done, we need to
-    --
-    -- (a) Add selected inputs, collateral and change outputs to the transaction
-    -- (b) Assign correct execution units to every redeemer
-    -- (c) Correctly reference redeemed entities with redeemer pointers
-    -- (d) Adjust fees and change output(s) to the new fees.
-    -- (e) If added inputs are native script originated coresponding scripts
-    --     need to be added as witnesses
-    --
-    -- There's a strong assumption that modifying the fee value AND increasing
-    -- the coin values of change outputs does not modify transaction fees; or
-    -- more exactly, does not modify the execution units of scripts. This is in
-    -- principle a fair assumption because script validators ought to be
-    -- unaware of change outputs. If their execution costs increase when change
-    -- output values increase, then it becomes impossible to guarantee that fee
-    -- balancing will ever converge towards a fixed point. A script validator
-    -- doing such a thing is considered bonkers and this is not a behavior we
-    -- ought to support.
-
-    let extraInputScripts =
-            case utxoAssumptions of
-                AllKeyPaymentCredentials -> []
-                AllByronKeyPaymentCredentials -> []
-                AllScriptPaymentCredentialsFrom _template toInpScripts ->
-                    toInpScripts . view #address . snd <$>
-                        extraInputs <> extraCollateral'
-
-    let extraCollateral = fst <$> extraCollateral'
-    let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
-    candidateTx <- assembleTransaction $ TxUpdate
-        { extraInputs
-        , extraCollateral
-        , extraOutputs
-        , extraInputScripts
-        , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
-        }
-
-    (balance, candidateMinFee, witCount) <- balanceAfterSettingMinFee candidateTx
-    surplus <- case Cardano.selectLovelace balance of
-        (Cardano.Lovelace c)
-            | c >= 0 ->
-                pure $ Coin.unsafeFromIntegral c
-            | otherwise ->
-                throwE . ErrBalanceTxInternalError $
-                ErrUnderestimatedFee
-                    (Coin.unsafeFromIntegral (-c))
-                    (toSealed candidateTx)
-                    witCount
-
-    let feeAndChange = TxFeeAndChange
-            (unsafeFromLovelace candidateMinFee)
-            (extraOutputs)
-
-    let feePerByte = getFeePerByte (recentEra @era) pp
-
-    -- @distributeSurplus@ should never fail becase we have provided enough
-    -- padding in @selectAssets@.
-    TxFeeAndChange updatedFee updatedChange <- withExceptT
-        (\(ErrMoreSurplusNeeded c) ->
-            ErrBalanceTxInternalError $
-                ErrUnderestimatedFee c (toSealed candidateTx) witCount)
-        (ExceptT . pure $
-            distributeSurplus feePerByte surplus feeAndChange)
-
-    fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
-        TxUpdate
-            { extraInputs
-            , extraCollateral
-            , extraOutputs = updatedChange
-            , extraInputScripts
-            , feeUpdate = UseNewTxFee updatedFee
-            }
-  where
-    toSealed :: Cardano.Tx era -> SealedTx
-    toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
-
-    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
-    -- corresponding 'TxOut' according to @combinedUTxO@.
-    --
-    -- === Examples using pseudo-code
-    --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
-    -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Right (UTxOIndex.fromMap {inA -> outA})
-    --
-    -- >>> let extraUTxO = {inB -> outB }
-    -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
-    extractExternallySelectedUTxO
-        :: PartialTx era
-        -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
-        let res = flip map txIns $ \(i, _) -> do
-                case Map.lookup i utxo of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = fromCardanoTxIn i
-                        let W.TxOut addr bundle = fromCardanoTxOut o
-                        pure (WalletUTxO i' addr, bundle)
-
-        case partitionEithers res of
-            ([], resolved) ->
-                pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead:unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                . fmap fromCardanoTxIn
-                $ (unresolvedInsHead :| unresolvedInsTail)
+            fmap (,s') . guardTxSize witCount
+                =<< guardTxBalanced
+                =<< assembleTransaction
+                    TxUpdate
+                        { extraInputs
+                        , extraCollateral
+                        , extraOutputs = updatedChange
+                        , extraInputScripts
+                        , feeUpdate = UseNewTxFee updatedFee
+                        }
       where
-        Cardano.UTxO utxo = combinedUTxO
-        Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
-            = tx
+        toSealed :: Cardano.Tx era -> SealedTx
+        toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
-    guardTxSize
-        :: KeyWitnessCount
-        -> Cardano.Tx era
-        -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) =
-        withConstraints (recentEra @era) $ do
-            let maxSize = TxSize (pp ^. ppMaxTxSizeL)
-            when (estimateSignedTxSize pp witCount body > maxSize) $
-                throwE ErrBalanceTxMaxSizeLimitExceeded
-            pure tx
-
-    guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    guardTxBalanced tx = do
-        let bal = txBalance tx
-        if bal == mempty
-            then pure tx
-            else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
-
-    txBalance :: Cardano.Tx era -> Cardano.Value
-    txBalance
-        = toCardanoValue @era
-        . evaluateTransactionBalance (recentEra @era) pp
-            (fromCardanoUTxO combinedUTxO)
-        . txBody (recentEra @era)
-        . fromCardanoTx
-
-    balanceAfterSettingMinFee
-        :: Cardano.Tx era
-        -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
-    balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
-        let minfee = W.toWalletCoin $ evaluateMinimumFee
-                (recentEra @era) pp (fromCardanoTx tx) witCount
-        let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
-        let balance = txBalance tx'
-        let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
-        return (balance, minfee', witCount)
-      where
-        getBody (Cardano.Tx body _) = body
-
-    -- | Ensure the wallet UTxO is consistent with a provided @Cardano.UTxO@.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    -- The @Cardano.UTxO era@ is allowed to contain additional information, like
-    -- datum hashes, which the wallet UTxO cannot represent.
-    --
-    -- NOTE: Representing the wallet utxo as a @Cardano.UTxO@ will not make this
-    -- check easier, even if it may be useful in other regards.
-    guardWalletUTxOConsistencyWith
-        :: Cardano.UTxO era
-        -> ExceptT ErrBalanceTx m ()
-    guardWalletUTxOConsistencyWith u' = do
-        let u = Map.mapKeys fromCardanoTxIn
-                . Map.map fromCardanoTxOut
-                $ (unUTxO u')
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
-                case i `UTxO.lookup` walletUTxO of
-                    Just o' -> unless (o == o') $ Left (o, o')
-                    Nothing -> pure ()
-
-        case conflicts of
-            [] -> return ()
-            (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-      where
-         unUTxO (Cardano.UTxO u) = u
-
-    combinedUTxO :: Cardano.UTxO era
-    combinedUTxO = Cardano.UTxO $ mconcat
-         -- The @Cardano.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ unUTxO inputUTxO
-         , unUTxO cardanoUTxO
-         ]
-
-      where
-         unUTxO (Cardano.UTxO u) = u
-
-    extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
-    extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
-    extractOutputsFromTx (Cardano.ShelleyTx _ tx) =
-        map fromLedgerTxOut
-        $ outputs (recentEra @era)
-        $ txBody (recentEra @era) tx
-      where
-        fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
-        fromLedgerTxOut o = case recentEra @era of
-           RecentEraBabbage -> W.fromBabbageTxOut o
-           RecentEraConway -> W.fromConwayTxOut o
-
-    assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
-        left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers
-                pp timeTranslation combinedUTxO redeemers tx'
-
-    guardConflictingWithdrawalNetworks
-        (Cardano.Tx (Cardano.TxBody body) _) = do
-        -- Use of withdrawals with different networks breaks balancing.
+        -- \| Extract the inputs from the raw 'tx' of the 'Partialtx', with the
+        -- corresponding 'TxOut' according to @combinedUTxO@.
         --
-        -- For instance the partial tx might contain two withdrawals with the
-        -- same key but different networks:
-        -- [ (Mainnet, pkh1, coin1)
-        -- , (Testnet, pkh1, coin2)
-        -- ]
+        -- === Examples using pseudo-code
         --
-        -- Even though this is absurd, the node/ledger
-        -- @evaluateTransactionBalance@ will count @coin1+coin2@ towards the
-        -- total balance. Because the wallet does not consider the network tag,
-        -- it will drop one of the two, leading to a discrepancy.
-        let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
-        let conflictingWdrlNetworks = case Cardano.txWithdrawals body of
-                Cardano.TxWithdrawalsNone -> False
-                Cardano.TxWithdrawals _ wdrls -> Set.size
-                    (Set.fromList $ map networkOfWdrl wdrls) > 1
-        when conflictingWdrlNetworks $
-            throwE ErrBalanceTxConflictingNetworks
+        -- >>> let extraUTxO = {inA -> outA, inB -> outB }
+        -- >>> let tx = addInputs [inA] emptyTx
+        -- >>> let ptx = PartialTx tx extraUTxO []
+        -- >>> extractExternallySelectedUTxO ptx
+        -- Right (UTxOIndex.fromMap {inA -> outA})
+        --
+        -- >>> let extraUTxO = {inB -> outB }
+        -- >>> let tx = addInputs [inA, inC] emptyTx
+        -- >>> let ptx = PartialTx tx extraUTxO []
+        -- >>> extractExternallySelectedUTxO ptx
+        -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
+        extractExternallySelectedUTxO
+            :: PartialTx era
+            -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
+        extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
+            let res = flip map txIns $ \(i, _) -> do
+                    case Map.lookup i utxo of
+                        Nothing ->
+                            Left i
+                        Just o -> do
+                            let i' = fromCardanoTxIn i
+                            let W.TxOut addr bundle = fromCardanoTxOut o
+                            pure (WalletUTxO i' addr, bundle)
 
-    guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
-        -- Coin selection does not support pre-defining collateral. In Sep 2021
-        -- consensus was that we /could/ allow for it with just a day's work or
-        -- so, but that the need for it was unclear enough that it was not in
-        -- any way a priority.
-        case Cardano.txInsCollateral body of
-            Cardano.TxInsCollateralNone -> return ()
-            Cardano.TxInsCollateral _ [] -> return ()
-            Cardano.TxInsCollateral _ _ ->
-                throwE ErrBalanceTxExistingCollateral
+            case partitionEithers res of
+                ([], resolved) ->
+                    pure $ UTxOIndex.fromSequence resolved
+                (unresolvedInsHead : unresolvedInsTail, _) ->
+                    throwE
+                        . ErrBalanceTxUnresolvedInputs
+                        . fmap fromCardanoTxIn
+                        $ (unresolvedInsHead :| unresolvedInsTail)
+          where
+            Cardano.UTxO utxo = combinedUTxO
+            Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent{Cardano.txIns})) _ =
+                tx
 
-    guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
-        case Cardano.txTotalCollateral body of
-            Cardano.TxTotalCollateralNone -> return ()
-            Cardano.TxTotalCollateral _ _ ->
-               throwE ErrBalanceTxExistingTotalCollateral
+        guardTxSize
+            :: KeyWitnessCount
+            -> Cardano.Tx era
+            -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+        guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) =
+            withConstraints (recentEra @era) $ do
+                let maxSize = TxSize (pp ^. ppMaxTxSizeL)
+                when (estimateSignedTxSize pp witCount body > maxSize)
+                    $ throwE ErrBalanceTxMaxSizeLimitExceeded
+                pure tx
 
-    guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
-        case Cardano.txReturnCollateral body of
-            Cardano.TxReturnCollateralNone -> return ()
-            Cardano.TxReturnCollateral _ _ ->
-               throwE ErrBalanceTxExistingReturnCollateral
+        guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+        guardTxBalanced tx = do
+            let bal = txBalance tx
+            if bal == mempty
+                then pure tx
+                else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
 
-    fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+        txBalance :: Cardano.Tx era -> Cardano.Value
+        txBalance =
+            toCardanoValue @era
+                . evaluateTransactionBalance
+                    (recentEra @era)
+                    pp
+                    (fromCardanoUTxO combinedUTxO)
+                . txBody (recentEra @era)
+                . fromCardanoTx
+
+        balanceAfterSettingMinFee
+            :: Cardano.Tx era
+            -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
+        balanceAfterSettingMinFee tx = ExceptT . pure $ do
+            let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
+            let minfee =
+                    W.toWalletCoin
+                        $ evaluateMinimumFee
+                            (recentEra @era)
+                            pp
+                            (fromCardanoTx tx)
+                            witCount
+            let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
+            tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
+            let balance = txBalance tx'
+            let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
+            return (balance, minfee', witCount)
+          where
+            getBody (Cardano.Tx body _) = body
+
+        -- \| Ensure the wallet UTxO is consistent with a provided @Cardano.UTxO@.
+        --
+        -- They are not consistent iff an input can be looked up in both UTxO sets
+        -- with different @Address@, or @TokenBundle@ values.
+        --
+        -- The @Cardano.UTxO era@ is allowed to contain additional information, like
+        -- datum hashes, which the wallet UTxO cannot represent.
+        --
+        -- NOTE: Representing the wallet utxo as a @Cardano.UTxO@ will not make this
+        -- check easier, even if it may be useful in other regards.
+        guardWalletUTxOConsistencyWith
+            :: Cardano.UTxO era
+            -> ExceptT ErrBalanceTx m ()
+        guardWalletUTxOConsistencyWith u' = do
+            let u =
+                    Map.mapKeys fromCardanoTxIn
+                        . Map.map fromCardanoTxOut
+                        $ (unUTxO u')
+            let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
+                    case i `UTxO.lookup` walletUTxO of
+                        Just o' -> unless (o == o') $ Left (o, o')
+                        Nothing -> pure ()
+
+            case conflicts of
+                [] -> return ()
+                (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+          where
+            unUTxO (Cardano.UTxO u) = u
+
+        combinedUTxO :: Cardano.UTxO era
+        combinedUTxO =
+            Cardano.UTxO
+                $ mconcat
+                    -- The @Cardano.UTxO@ can contain strictly more information than
+                    -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
+                    -- precedence. This matters if a user is trying to balance a tx making
+                    -- use of a datum hash in a UTxO which is also present in the wallet
+                    -- UTxO set. (Whether or not this is a sane thing for the user to do,
+                    -- is another question.)
+                    [ unUTxO inputUTxO
+                    , unUTxO cardanoUTxO
+                    ]
+          where
+            unUTxO (Cardano.UTxO u) = u
+
+        extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
+        extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
+        extractOutputsFromTx (Cardano.ShelleyTx _ tx) =
+            map fromLedgerTxOut
+                $ outputs (recentEra @era)
+                $ txBody (recentEra @era) tx
+          where
+            fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
+            fromLedgerTxOut o = case recentEra @era of
+                RecentEraBabbage -> W.fromBabbageTxOut o
+                RecentEraConway -> W.fromConwayTxOut o
+
+        assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+        assembleTransaction update = ExceptT . pure $ do
+            tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
+            left ErrBalanceTxAssignRedeemers
+                $ assignScriptRedeemers
+                    pp
+                    timeTranslation
+                    combinedUTxO
+                    redeemers
+                    tx'
+
+        guardConflictingWithdrawalNetworks
+            (Cardano.Tx (Cardano.TxBody body) _) = do
+                -- Use of withdrawals with different networks breaks balancing.
+                --
+                -- For instance the partial tx might contain two withdrawals with the
+                -- same key but different networks:
+                -- [ (Mainnet, pkh1, coin1)
+                -- , (Testnet, pkh1, coin2)
+                -- ]
+                --
+                -- Even though this is absurd, the node/ledger
+                -- @evaluateTransactionBalance@ will count @coin1+coin2@ towards the
+                -- total balance. Because the wallet does not consider the network tag,
+                -- it will drop one of the two, leading to a discrepancy.
+                let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
+                let conflictingWdrlNetworks = case Cardano.txWithdrawals body of
+                        Cardano.TxWithdrawalsNone -> False
+                        Cardano.TxWithdrawals _ wdrls ->
+                            Set.size
+                                (Set.fromList $ map networkOfWdrl wdrls)
+                                > 1
+                when conflictingWdrlNetworks
+                    $ throwE ErrBalanceTxConflictingNetworks
+
+        guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
+            -- Coin selection does not support pre-defining collateral. In Sep 2021
+            -- consensus was that we /could/ allow for it with just a day's work or
+            -- so, but that the need for it was unclear enough that it was not in
+            -- any way a priority.
+            case Cardano.txInsCollateral body of
+                Cardano.TxInsCollateralNone -> return ()
+                Cardano.TxInsCollateral _ [] -> return ()
+                Cardano.TxInsCollateral _ _ ->
+                    throwE ErrBalanceTxExistingCollateral
+
+        guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
+            case Cardano.txTotalCollateral body of
+                Cardano.TxTotalCollateralNone -> return ()
+                Cardano.TxTotalCollateral _ _ ->
+                    throwE ErrBalanceTxExistingTotalCollateral
+
+        guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
+            case Cardano.txReturnCollateral body of
+                Cardano.TxReturnCollateralNone -> return ()
+                Cardano.TxReturnCollateral _ _ ->
+                    throwE ErrBalanceTxExistingReturnCollateral
+
+        fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
 
 -- | Select assets to cover the specified balance and fee.
 --
@@ -859,130 +970,151 @@ selectAssets
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
-selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
-    utxoSelection balance fee0 seed changeGen selectionStrategy =
+selectAssets
+    era
+    (ProtocolParameters pp)
+    utxoAssumptions
+    outs
+    redeemers
+    utxoSelection
+    balance
+    fee0
+    seed
+    changeGen
+    selectionStrategy =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
-  where
-    selectionConstraints = SelectionConstraints
-        { assessTokenBundleSize =
-            withConstraints era $
-                -- TODO (ADP-2967): avoid importing Compatibility.
-                Compatibility.tokenBundleSizeAssessor
-                    (TokenBundleMaxSize (TxSize (pp ^. ppMaxValSizeL)))
-                        ^. #assessTokenBundleSize
-        , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
-            computeMinimumCoinForTxOut
-                era
-                pp
-                (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
-        , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut
-                era
-                pp
-                (mkLedgerTxOut era addr bundle)
-        , computeMinimumCost = \skeleton -> mconcat
-            [ feePadding
-            , fee0
-            , txPlutusScriptExecutionCost
-            , calculateMinimumFee
-                feePerByte
-                (assumedTxWitnessTag utxoAssumptions)
-                (defaultTransactionCtx
-                    { txPaymentCredentialScriptTemplate =
-                        assumedInputScriptTemplate utxoAssumptions })
-                skeleton
-            ] `Coin.difference` boringFee
-        , maximumCollateralInputCount = withConstraints era $
-            unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
-    , minimumCollateralPercentage =
-        withConstraints era $ pp ^. ppCollateralPercentageL
-    , maximumLengthChangeAddress =
-        maxLengthChangeAddress changeGen
-    }
-
-    selectionParams = SelectionParams
-        -- The following fields are essentially adjusting the coin selection
-        -- algorithm's notion of balance by @balance0 - sum inputs + sum
-        -- outputs + fee0@ where @balance0@ is the balance of the
-        -- partial tx.
-        { extraValueIn =
-            balancePositive <> valueOfOutputs <> TokenBundle.fromCoin fee0
-        , extraValueOut =
-            balanceNegative <> valueOfInputs
-        -- NOTE: It is important that coin selection has the correct
-        -- notion of fees, because it will be used to tell how much
-        -- collateral is needed.
-        , collateralRequirement
-        , outputsToCover = outs
-        , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
-        , utxoAvailableForInputs = utxoSelection
-        , selectionStrategy = selectionStrategy
-        }
       where
-        (balancePositive, balanceNegative) = posAndNegFromCardanoValue balance
-        valueOfOutputs = F.foldMap' (view #tokens) outs
-        valueOfInputs = UTxOSelection.selectedBalance utxoSelection
+        selectionConstraints =
+            SelectionConstraints
+                { assessTokenBundleSize =
+                    withConstraints era
+                        $
+                        -- TODO (ADP-2967): avoid importing Compatibility.
+                        Compatibility.tokenBundleSizeAssessor
+                            (TokenBundleMaxSize (TxSize (pp ^. ppMaxValSizeL)))
+                            ^. #assessTokenBundleSize
+                , computeMinimumAdaQuantity = \addr tokens ->
+                    W.toWallet
+                        $ computeMinimumCoinForTxOut
+                            era
+                            pp
+                            (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
+                , isBelowMinimumAdaQuantity = \addr bundle ->
+                    isBelowMinimumCoinForTxOut
+                        era
+                        pp
+                        (mkLedgerTxOut era addr bundle)
+                , computeMinimumCost = \skeleton ->
+                    mconcat
+                        [ feePadding
+                        , fee0
+                        , txPlutusScriptExecutionCost
+                        , calculateMinimumFee
+                            feePerByte
+                            (assumedTxWitnessTag utxoAssumptions)
+                            ( defaultTransactionCtx
+                                { txPaymentCredentialScriptTemplate =
+                                    assumedInputScriptTemplate utxoAssumptions
+                                }
+                            )
+                            skeleton
+                        ]
+                        `Coin.difference` boringFee
+                , maximumCollateralInputCount =
+                    withConstraints era
+                        $ unsafeIntCast @Natural @Int
+                        $ pp ^. ppMaxCollateralInputsL
+                , minimumCollateralPercentage =
+                    withConstraints era $ pp ^. ppCollateralPercentageL
+                , maximumLengthChangeAddress =
+                    maxLengthChangeAddress changeGen
+                }
 
-    mkLedgerTxOut
-        :: HasCallStack
-        => RecentEra era
-        -> W.Address
-        -> TokenBundle
-        -> TxOut (ShelleyLedgerEra era)
-    mkLedgerTxOut txOutEra address bundle =
-        case txOutEra of
-            RecentEraBabbage -> W.toBabbageTxOut txOut
-            RecentEraConway -> W.toConwayTxOut txOut
+        selectionParams =
+            SelectionParams
+                { -- The following fields are essentially adjusting the coin selection
+                  -- algorithm's notion of balance by @balance0 - sum inputs + sum
+                  -- outputs + fee0@ where @balance0@ is the balance of the
+                  -- partial tx.
+                  extraValueIn =
+                    balancePositive <> valueOfOutputs <> TokenBundle.fromCoin fee0
+                , extraValueOut =
+                    balanceNegative <> valueOfInputs
+                , -- NOTE: It is important that coin selection has the correct
+                  -- notion of fees, because it will be used to tell how much
+                  -- collateral is needed.
+                  collateralRequirement
+                , outputsToCover = outs
+                , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
+                , utxoAvailableForInputs = utxoSelection
+                , selectionStrategy = selectionStrategy
+                }
+          where
+            (balancePositive, balanceNegative) = posAndNegFromCardanoValue balance
+            valueOfOutputs = F.foldMap' (view #tokens) outs
+            valueOfInputs = UTxOSelection.selectedBalance utxoSelection
+
+        mkLedgerTxOut
+            :: (HasCallStack)
+            => RecentEra era
+            -> W.Address
+            -> TokenBundle
+            -> TxOut (ShelleyLedgerEra era)
+        mkLedgerTxOut txOutEra address bundle =
+            case txOutEra of
+                RecentEraBabbage -> W.toBabbageTxOut txOut
+                RecentEraConway -> W.toConwayTxOut txOut
           where
             txOut = W.TxOut address bundle
 
-    txPlutusScriptExecutionCost = W.toWallet @W.Coin $
-        if null redeemers
-            then mempty
-            else maxScriptExecutionCost era pp
+        txPlutusScriptExecutionCost =
+            W.toWallet @W.Coin
+                $ if null redeemers
+                    then mempty
+                    else maxScriptExecutionCost era pp
 
-    collateralRequirement =
-        if txPlutusScriptExecutionCost > W.Coin 0
-            then SelectionCollateralRequired
-            else SelectionCollateralNotRequired
+        collateralRequirement =
+            if txPlutusScriptExecutionCost > W.Coin 0
+                then SelectionCollateralRequired
+                else SelectionCollateralNotRequired
 
-    feePerByte = getFeePerByte era pp
+        feePerByte = getFeePerByte era pp
 
-    boringFee =
-        calculateMinimumFee
-            feePerByte
-            (assumedTxWitnessTag utxoAssumptions)
-            defaultTransactionCtx
-            SelectionSkeleton
-                { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
-                , skeletonOutputs = outs
-                , skeletonChange = []
-                }
+        boringFee =
+            calculateMinimumFee
+                feePerByte
+                (assumedTxWitnessTag utxoAssumptions)
+                defaultTransactionCtx
+                SelectionSkeleton
+                    { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
+                    , skeletonOutputs = outs
+                    , skeletonChange = []
+                    }
 
-    feePadding
-        = W.toWallet . feeOfBytes feePerByte
-        $ extraBytes + scriptIntegrityHashBytes
-      where
-        -- Could be made smarter by only padding for the script
-        -- integrity hash when we intend to add one. [ADP-2621]
-        scriptIntegrityHashBytes = 32 + 2
+        feePadding =
+            W.toWallet . feeOfBytes feePerByte
+                $ extraBytes + scriptIntegrityHashBytes
+          where
+            -- Could be made smarter by only padding for the script
+            -- integrity hash when we intend to add one. [ADP-2621]
+            scriptIntegrityHashBytes = 32 + 2
 
-        -- Add padding to allow the fee value to increase.
-        -- Out of caution, assume it can increase by the theoretical
-        -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
-        --
-        -- NOTE: It's not convenient to import the constant at the
-        -- moment because of the package split.
-        --
-        -- Any overestimation will be reduced by 'distributeSurplus'
-        -- in the final stage of 'balanceTransaction'.
-        extraBytes = 8
+            -- Add padding to allow the fee value to increase.
+            -- Out of caution, assume it can increase by the theoretical
+            -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+            --
+            -- NOTE: It's not convenient to import the constant at the
+            -- moment because of the package split.
+            --
+            -- Any overestimation will be reduced by 'distributeSurplus'
+            -- in the final stage of 'balanceTransaction'.
+            extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (W.Address, s)
-
-    -- | Returns the longest address that the wallet can generate for a given
+    , maxLengthChangeAddress :: W.Address
+    -- ^ Returns the longest address that the wallet can generate for a given
     --   key.
     --
     -- This is useful in situations where we want to compute some function of
@@ -993,8 +1125,6 @@ data ChangeAddressGen s = ChangeAddressGen
     --
     --  - never be used for anything besides its length and validity properties.
     --  - never be used as a payment target within a real transaction.
-    --
-    , maxLengthChangeAddress :: W.Address
     }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
@@ -1009,7 +1139,7 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
         pure $ W.TxOut addr bundle
-    pure $ (sel :: SelectionOf TokenBundle) { change = changeOuts }
+    pure $ (sel :: SelectionOf TokenBundle){change = changeOuts}
 
 -- | Convert a 'Cardano.Value' into a positive and negative component. Useful
 -- to convert the potentially negative balance of a partial tx into
@@ -1017,12 +1147,12 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
 posAndNegFromCardanoValue
     :: Cardano.Value
     -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
-posAndNegFromCardanoValue
-    = bimap
+posAndNegFromCardanoValue =
+    bimap
         (fromCardanoValue . Cardano.valueFromList)
         (fromCardanoValue . Cardano.valueFromList . L.map (second negate))
-    . L.partition ((>= 0) . snd)
-    . Cardano.valueToList
+        . L.partition ((>= 0) . snd)
+        . Cardano.valueToList
 
 unsafeIntCast
     :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)

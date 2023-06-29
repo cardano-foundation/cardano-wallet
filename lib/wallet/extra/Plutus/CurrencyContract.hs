@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 {- Serialise the contract
 
     Plutus.Contracts.Currency
@@ -19,11 +20,18 @@ module CurrencyContract where
 import Prelude
 
 import Codec.Serialise
-    ( serialise )
+    ( serialise
+    )
 import Ledger
-    ( MintingPolicy (..), Script, TxId (..), TxOutRef (..) )
+    ( MintingPolicy (..)
+    , Script
+    , TxId (..)
+    , TxOutRef (..)
+    )
 import Plutus.Contracts.Currency as Example
-    ( OneShotCurrency (..), curPolicy )
+    ( OneShotCurrency (..)
+    , curPolicy
+    )
 import PlutusTx.Builtins.Class
 
 import qualified Data.ByteString as BS
@@ -39,7 +47,7 @@ myscript :: Script
 myscript = getMintingPolicy $ Example.curPolicy mycurrency
 
 mycurrency :: OneShotCurrency
-mycurrency = OneShotCurrency (h,i) amounts
+mycurrency = OneShotCurrency (h, i) amounts
   where
     TxOutRef h i = dummyTxOutRef
     amounts = AssocMap.fromList [("apfel", 1000), ("banana", 1)]
@@ -47,6 +55,7 @@ mycurrency = OneShotCurrency (h,i) amounts
 {-----------------------------------------------------------------------------
     Utility functions for serialization
 ------------------------------------------------------------------------------}
+
 -- | Hex encoded bytes
 type Base16 = String
 
@@ -57,7 +66,8 @@ rawScript = B8.unpack . B16.encode . BL.toStrict . serialise
 -- | A dummy TxOutRef that is easy to copy & replace.
 dummyTxOutRef :: TxOutRef
 dummyTxOutRef = TxOutRef (mkTxId s32) 31
-    where s32 = mconcat $ replicate 8 "DEADBEEF" -- 32 = 4*8
+  where
+    s32 = mconcat $ replicate 8 "DEADBEEF" -- 32 = 4*8
 
 -- | TxId corresponds to 32 bytes
 mkTxId :: Base16 -> TxId

@@ -15,12 +15,11 @@
 -- Extend the 'Data.Text' module with an extra abstraction to encode and decode
 -- values safely to and from 'Text'. It's very similar to 'FromJSON' and
 -- 'ToJSON' from 'Data.Aeson'.
-
 module Data.Text.Class
     ( -- * Producing and consuming text from arbitrary types
       ToText (..)
     , FromText (..)
-    , TextDecodingError(..)
+    , TextDecodingError (..)
     , fromTextMaybe
 
       -- * Producing and consuming text from bounded enumeration types
@@ -35,35 +34,55 @@ module Data.Text.Class
 import Prelude
 
 import Control.Monad
-    ( unless, (<=<) )
+    ( unless
+    , (<=<)
+    )
 import Data.Bifunctor
-    ( bimap, first )
+    ( bimap
+    , first
+    )
 import Data.List
-    ( find )
+    ( find
+    )
 import Data.List.Extra
-    ( enumerate )
+    ( enumerate
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Read
-    ( decimal, signed )
+    ( decimal
+    , signed
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Formatting
-    ( builder, sformat )
+    ( builder
+    , sformat
+    )
 import Formatting.Buildable
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Text.Read
-    ( readEither )
+    ( readEither
+    )
 
 import qualified Data.Char as C
 import qualified Data.Text as T
@@ -81,8 +100,7 @@ import qualified Text.Casing as Casing
 class ToText a where
     -- | Encode the specified value as text.
     toText :: a -> Text
-
-    default toText :: Buildable a => a -> Text
+    default toText :: (Buildable a) => a -> Text
     toText = sformat builder . build
 
 -- | Defines a textual decoding for a type.
@@ -92,12 +110,12 @@ class FromText a where
 
 -- | Indicates an error that occurred while decoding from text.
 newtype TextDecodingError = TextDecodingError
-    { getTextDecodingError :: String }
+    {getTextDecodingError :: String}
     deriving stock (Eq, Show)
-    deriving newtype Buildable
+    deriving newtype (Buildable)
 
 -- | Decode the specified text with a 'Maybe' result type.
-fromTextMaybe :: FromText a => Text -> Maybe a
+fromTextMaybe :: (FromText a) => Text -> Maybe a
 fromTextMaybe = either (const Nothing) Just . fromText
 
 {-------------------------------------------------------------------------------
@@ -122,12 +140,13 @@ instance FromText Int where
         unless (T.null unconsumedInput) $ Left err
         pure parsedValue
       where
-        err = TextDecodingError $
-            "Int is an integer number between "
-                <> show (minBound @Int)
-                <> " and "
-                <> show (maxBound @Int)
-                <> "."
+        err =
+            TextDecodingError
+                $ "Int is an integer number between "
+                    <> show (minBound @Int)
+                    <> " and "
+                    <> show (maxBound @Int)
+                    <> "."
 
 instance ToText Int where
     toText = intToText
@@ -148,7 +167,7 @@ instance FromText Word32 where
         validate <=< (fmap fromIntegral . fromText @Natural)
       where
         validate x
-            | (x >= (minBound @Word32)) && (x <= (maxBound @Word32))  =
+            | (x >= (minBound @Word32)) && (x <= (maxBound @Word32)) =
                 return x
             | otherwise =
                 Left $ TextDecodingError "Word32 is out of bounds"
@@ -187,19 +206,21 @@ instance ToText NominalDiffTime where
 -- Note: This parser doesn't allow fractional or negative durations.
 instance FromText NominalDiffTime where
     fromText t = case T.splitOn "s" t of
-        [v,""] -> bimap (const err) (fromIntegral @Natural) (fromText v)
+        [v, ""] -> bimap (const err) (fromIntegral @Natural) (fromText v)
         _ -> Left err
       where
-        err = TextDecodingError $ unwords
-            [ "Cannot parse given time duration."
-            , "Values must be given as whole positive seconds, and must"
-            , "finish with \"s\". For example: \"3s\", \"3600s\", \"42s\"."
-            ]
+        err =
+            TextDecodingError
+                $ unwords
+                    [ "Cannot parse given time duration."
+                    , "Values must be given as whole positive seconds, and must"
+                    , "finish with \"s\". For example: \"3s\", \"3600s\", \"42s\"."
+                    ]
 
-realFloatToText :: RealFloat a => a -> T.Text
+realFloatToText :: (RealFloat a) => a -> T.Text
 realFloatToText = TL.toStrict . B.toLazyText . B.realFloat
 
-intToText :: Integral a => a -> T.Text
+intToText :: (Integral a) => a -> T.Text
 intToText = TL.toStrict . B.toLazyText . B.decimal
 
 {-------------------------------------------------------------------------------
@@ -208,18 +229,18 @@ intToText = TL.toStrict . B.toLazyText . B.decimal
 
 -- | Represents a case style for multi-word strings.
 data CaseStyle
-    = CamelCase
-      -- ^ A string in the style of "doNotRepeatYourself"
-    | PascalCase
-      -- ^ A string in the style of "DoNotRepeatYourself"
-    | KebabLowerCase
-      -- ^ A string in the style of "do-not-repeat-yourself"
-    | SnakeLowerCase
-      -- ^ A string in the style of "do_not_repeat_yourself"
-    | SnakeUpperCase
-      -- ^ A string in the style of "DO_NOT_REPEAT_YOURSELF"
-    | SpacedLowerCase
-      -- ^ A string in the style of "do not repeat yourself"
+    = -- | A string in the style of "doNotRepeatYourself"
+      CamelCase
+    | -- | A string in the style of "DoNotRepeatYourself"
+      PascalCase
+    | -- | A string in the style of "do-not-repeat-yourself"
+      KebabLowerCase
+    | -- | A string in the style of "do_not_repeat_yourself"
+      SnakeLowerCase
+    | -- | A string in the style of "DO_NOT_REPEAT_YOURSELF"
+      SnakeUpperCase
+    | -- | A string in the style of "do not repeat yourself"
+      SpacedLowerCase
     deriving (Bounded, Enum, Eq, Generic, Show)
 
 -- | Converts the given value to text, according to the specified 'CaseStyle'.
@@ -227,10 +248,12 @@ data CaseStyle
 -- This function guarantees to satisfy the following property:
 --
 -- > fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a
---
 toTextFromBoundedEnum
-    :: forall a . (Bounded a, Enum a, Show a)
-    => CaseStyle -> a -> Text
+    :: forall a
+     . (Bounded a, Enum a, Show a)
+    => CaseStyle
+    -> a
+    -> Text
 toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 
 -- | Parses the given text to a value, according to the specified 'CaseStyle'.
@@ -238,43 +261,49 @@ toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 -- This function guarantees to satisfy the following property:
 --
 -- > fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a
---
 fromTextToBoundedEnum
-    :: forall a . (Bounded a, Enum a, Show a)
-    => CaseStyle -> Text -> Either TextDecodingError a
+    :: forall a
+     . (Bounded a, Enum a, Show a)
+    => CaseStyle
+    -> Text
+    -> Either TextDecodingError a
 fromTextToBoundedEnum cs t =
     case matchingValue of
         Just mv -> Right mv
-        Nothing -> Left $ TextDecodingError $ mempty
-            <> "Unable to decode the given text value. "
-            <> "Please specify one of the following values: "
-            <> T.unpack (T.intercalate ", " allValuesInRequiredCase)
-            <> "."
+        Nothing ->
+            Left
+                $ TextDecodingError
+                $ mempty
+                    <> "Unable to decode the given text value. "
+                    <> "Please specify one of the following values: "
+                    <> T.unpack (T.intercalate ", " allValuesInRequiredCase)
+                    <> "."
   where
     allValuesInPascalCase = toTextFromBoundedEnum PascalCase <$> enumerate @a
     allValuesInRequiredCase = toTextFromBoundedEnum cs <$> enumerate @a
     inputInPascalCase =
         T.pack . Casing.toPascal <$> fromCaseStyle cs (T.unpack t)
-    matchingValue = fmap (toEnum . snd) $
-        find ((== inputInPascalCase) . fst) $
-            (Just <$> allValuesInPascalCase) `zip` [0 :: Int ..]
+    matchingValue =
+        fmap (toEnum . snd)
+            $ find ((== inputInPascalCase) . fst)
+            $ (Just <$> allValuesInPascalCase) `zip` [0 :: Int ..]
 
 toCaseStyle :: CaseStyle -> Casing.Identifier String -> String
 toCaseStyle = \case
-    CamelCase       -> Casing.toCamel
-    PascalCase      -> Casing.toPascal
-    KebabLowerCase  -> Casing.toKebab
-    SnakeLowerCase  -> Casing.toQuietSnake
-    SnakeUpperCase  -> Casing.toScreamingSnake
+    CamelCase -> Casing.toCamel
+    PascalCase -> Casing.toPascal
+    KebabLowerCase -> Casing.toKebab
+    SnakeLowerCase -> Casing.toQuietSnake
+    SnakeUpperCase -> Casing.toScreamingSnake
     SpacedLowerCase -> fmap C.toLower <$> Casing.toWords
 
 fromCaseStyle :: CaseStyle -> String -> Maybe (Casing.Identifier String)
 fromCaseStyle = \case
-    CamelCase       -> fmap Casing.fromHumps . ensureFirstCharLowerCase
-    PascalCase      -> fmap Casing.fromHumps . ensureFirstCharUpperCase
-    KebabLowerCase  -> fmap Casing.fromKebab . ensureAllLowerCase
-    SnakeLowerCase  -> fmap Casing.fromSnake . ensureAllLowerCase
-    SnakeUpperCase  -> fmap Casing.fromSnake . ensureAllUpperCase
+    CamelCase -> fmap Casing.fromHumps . ensureFirstCharLowerCase
+    PascalCase -> fmap Casing.fromHumps . ensureFirstCharUpperCase
+    KebabLowerCase -> fmap Casing.fromKebab . ensureAllLowerCase
+    SnakeLowerCase -> fmap Casing.fromSnake . ensureAllLowerCase
+    SnakeUpperCase -> fmap Casing.fromSnake . ensureAllUpperCase
     SpacedLowerCase -> fmap Casing.fromWords . ensureAllLowerCase
   where
     ensureAllLowerCase s =
@@ -291,5 +320,5 @@ fromCaseStyle = \case
 -------------------------------------------------------------------------------}
 
 -- | Show a data-type through its 'ToText' instance
-showT :: ToText a => a -> String
+showT :: (ToText a) => a -> String
 showT = T.unpack . toText

@@ -16,14 +16,13 @@
 -- Representation of values with an associated (free) unit of measure. Useful to
 -- disambiguate primitive types like 'Int' or 'String' which can be in different
 -- bases depending on the context.
-
 module Data.Quantity
     ( -- * Polymorphic Quantity
-      Quantity(..)
+      Quantity (..)
 
       -- * Percentage
     , Percentage
-    , MkPercentageError(..)
+    , MkPercentageError (..)
     , mkPercentage
     , getPercentage
     , clipToPercentage
@@ -34,11 +33,14 @@ module Data.Quantity
 import Prelude
 
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -50,29 +52,48 @@ import Data.Aeson
     , (.=)
     )
 import Data.Aeson.Types
-    ( Parser )
+    ( Parser
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Scientific
-    ( FPFormat (Fixed), Scientific (..), formatScientific )
+    ( FPFormat (Fixed)
+    , Scientific (..)
+    , formatScientific
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Text.Read
-    ( rational )
+    ( rational
+    )
 import Fmt
-    ( Buildable (..), fmt )
+    ( Buildable (..)
+    , fmt
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownSymbol
+    , Symbol
+    , symbolVal
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Data.Text as T
 
@@ -99,23 +120,24 @@ import qualified Data.Text as T
 --
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
+newtype Quantity (unit :: Symbol) a = Quantity {getQuantity :: a}
     deriving stock (Data, Generic, Eq, Ord)
     deriving newtype (Bounded, Enum, Hashable)
-    deriving Show via (Quiet (Quantity unit a))
+    deriving (Show) via (Quiet (Quantity unit a))
 
-instance NoThunks a => NoThunks (Quantity unit a)
+instance (NoThunks a) => NoThunks (Quantity unit a)
 
 instance Functor (Quantity any) where
     fmap f (Quantity a) = Quantity (f a)
 
-instance NFData a => NFData (Quantity unit a)
+instance (NFData a) => NFData (Quantity unit a)
 
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
-    toJSON (Quantity a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy unit)
-        , "quantity" .= toJSON a
-        ]
+    toJSON (Quantity a) =
+        object
+            [ "unit" .= symbolVal (Proxy :: Proxy unit)
+            , "quantity" .= toJSON a
+            ]
 
 instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
     parseJSON = withObject "Quantity" $ \o -> do
@@ -125,17 +147,21 @@ instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
         verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
         verifyUnit proxy = \case
             String u' | u' == T.pack u -> pure ()
-            _ -> fail $
-                "failed to parse quantified value. Expected value in '" <> u
-                <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ... })"
-                <> " but got something else."
+            _ ->
+                fail
+                    $ "failed to parse quantified value. Expected value in '"
+                        <> u
+                        <> "' (e.g. { \"unit\": \""
+                        <> u
+                        <> "\", \"quantity\": ... })"
+                        <> " but got something else."
           where
             u = symbolVal proxy
 
-instance FromText b => FromText (Quantity sym b) where
+instance (FromText b) => FromText (Quantity sym b) where
     fromText = fmap Quantity . fromText
 
-instance ToText b => ToText (Quantity sym b) where
+instance (ToText b) => ToText (Quantity sym b) where
     toText (Quantity b) = toText b
 
 -- Builds (Quantity "lovelace" Word64) as "42 lovelace"
@@ -150,9 +176,9 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { getPercentage :: Rational }
+    {getPercentage :: Rational}
     deriving stock (Generic, Eq, Ord)
-    deriving Show via (Quiet Percentage)
+    deriving (Show) via (Quiet Percentage)
 
 instance NoThunks Percentage
 
@@ -164,16 +190,16 @@ instance Buildable Percentage where
 instance ToJSON Percentage where
     toJSON =
         toJSON
-        . rationalToToScientific percentageNumberOfFractionalDigits
-        . (* 100)
-        . getPercentage
+            . rationalToToScientific percentageNumberOfFractionalDigits
+            . (* 100)
+            . getPercentage
 
 instance FromJSON Percentage where
     parseJSON = withScientific "Percentage [0,100]" $ \s ->
         either (fail . show) return
-        . mkPercentage
-        . toRational
-        $ (s / 100)
+            . mkPercentage
+            . toRational
+            $ (s / 100)
 
 instance Bounded Percentage where
     minBound = Percentage 0
@@ -182,15 +208,16 @@ instance Bounded Percentage where
 instance ToText Percentage where
     toText =
         (<> "%")
-        . T.pack
-        . showS
-        . rationalToToScientific percentageNumberOfFractionalDigits
-        . (* 100)
-        . getPercentage
+            . T.pack
+            . showS
+            . rationalToToScientific percentageNumberOfFractionalDigits
+            . (* 100)
+            . getPercentage
       where
-        showS = formatScientific
-            Fixed
-            (Just percentageNumberOfFractionalDigits)
+        showS =
+            formatScientific
+                Fixed
+                (Just percentageNumberOfFractionalDigits)
 
 instance FromText Percentage where
     fromText txt = do
@@ -198,8 +225,9 @@ instance FromText Percentage where
         unless (u == "%") $ Left err
         left (const err) . mkPercentage $ (p / 100)
       where
-        err = TextDecodingError
-            "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
+        err =
+            TextDecodingError
+                "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 -- | Safe constructor for 'Percentage'
 --
@@ -228,7 +256,7 @@ clipToPercentage = Percentage . min 1 . max 0
 --
 -- Example: The 'complementPercentage' of 0.7 is 0.3.
 complementPercentage :: Percentage -> Percentage
-complementPercentage (Percentage p) = Percentage (1-p)
+complementPercentage (Percentage p) = Percentage (1 - p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.

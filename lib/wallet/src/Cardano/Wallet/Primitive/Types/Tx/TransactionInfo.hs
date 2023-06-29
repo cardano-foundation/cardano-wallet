@@ -13,45 +13,62 @@
 -- License: Apache-2.0
 --
 -- This module provides the `TransactionInfo` data types used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     , fromTransactionInfo
     , toTxHistory
     , hasStatus
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxMetadata, TxScriptValidity )
+    ( Tx (..)
+    , TxMetadata
+    , TxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta, TxStatus, status )
+    ( TxMeta
+    , TxStatus
+    , status
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
+    ( TxCBOR
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 -- | Full expanded and resolved information about a transaction, suitable for
 -- presentation to the user.
@@ -85,24 +102,26 @@ data TransactionInfo = TransactionInfo
     -- ^ Tag indicating whether non-native scripts in this transaction passed
     -- validation. This is added by the block creator when constructing the
     -- block. May be 'Nothing' for pre-Alonzo and pending transactions.
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
 
 -- | Reconstruct a transaction from a transaction info.
 fromTransactionInfo :: TransactionInfo -> Tx
-fromTransactionInfo info = Tx
-    { txId = txInfoId info
-    , txCBOR = txInfoCBOR info
-    , fee = txInfoFee info
-    , resolvedInputs = txInfoInputs info
-    , resolvedCollateralInputs = txInfoCollateralInputs info
-    , outputs = txInfoOutputs info
-    , collateralOutput = txInfoCollateralOutput info
-    , withdrawals = txInfoWithdrawals info
-    , metadata = txInfoMetadata info
-    , scriptValidity = txInfoScriptValidity info
-    }
+fromTransactionInfo info =
+    Tx
+        { txId = txInfoId info
+        , txCBOR = txInfoCBOR info
+        , fee = txInfoFee info
+        , resolvedInputs = txInfoInputs info
+        , resolvedCollateralInputs = txInfoCollateralInputs info
+        , outputs = txInfoOutputs info
+        , collateralOutput = txInfoCollateralOutput info
+        , withdrawals = txInfoWithdrawals info
+        , metadata = txInfoMetadata info
+        , scriptValidity = txInfoScriptValidity info
+        }
 
 -- | Drop time-specific information
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)

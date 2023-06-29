@@ -19,14 +19,12 @@
 -- number of entries that can be successfully migrated.
 --
 -- Use 'createPlan' to create a migration plan.
---
 module Cardano.Wallet.Primitive.Migration.Planning
-    (
-    -- * Migration planning
+    ( -- * Migration planning
       createPlan
     , MigrationPlan (..)
 
-    -- * UTxO entry categorization
+      -- * UTxO entry categorization
     , CategorizedUTxO (..)
     , UTxOEntryCategory (..)
     , categorizeUTxO
@@ -34,35 +32,48 @@ module Cardano.Wallet.Primitive.Migration.Planning
     , categorizeUTxOEntry
     , uncategorizeUTxO
     , uncategorizeUTxOEntries
-
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..), SelectionError (..) )
+    ( RewardWithdrawal (..)
+    , Selection (..)
+    , SelectionError (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..) )
+    ( TxConstraints (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -77,16 +88,15 @@ import qualified Data.Map.Strict as Map
 -- | Represents a plan for migrating a set of UTxO entries.
 --
 -- Use 'createPlan' to create a migration plan.
---
 data MigrationPlan input = MigrationPlan
     { selections :: ![Selection input]
-      -- ^ A list of generated selections: each selection is the basis for a
-      -- single transaction.
+    -- ^ A list of generated selections: each selection is the basis for a
+    -- single transaction.
     , unselected :: !(CategorizedUTxO input)
-      -- ^ The portion of the UTxO that was not selected.
+    -- ^ The portion of the UTxO that was not selected.
     , totalFee :: !Coin
-      -- ^ The total fee payable: equal to the sum of the fees of the
-      -- individual selections.
+    -- ^ The total fee payable: equal to the sum of the fees of the
+    -- individual selections.
     }
     deriving (Eq, Generic, Show)
 
@@ -94,7 +104,6 @@ data MigrationPlan input = MigrationPlan
 --   withdrawal amount.
 --
 -- See 'MigrationPlan'.
---
 createPlan
     :: TxConstraints
     -> CategorizedUTxO input
@@ -107,11 +116,12 @@ createPlan constraints =
         case createSelection constraints utxo reward of
             Just (utxo', selection) ->
                 run (selection : selections) utxo' (RewardWithdrawal $ Coin 0)
-            Nothing -> MigrationPlan
-                { selections
-                , unselected = utxo
-                , totalFee = F.foldMap (view #fee) selections
-                }
+            Nothing ->
+                MigrationPlan
+                    { selections
+                    , unselected = utxo
+                    , totalFee = F.foldMap (view #fee) selections
+                    }
 
 -- | Creates an individual selection for inclusion in a migration plan.
 --
@@ -119,7 +129,6 @@ createPlan constraints =
 --
 -- Returns 'Nothing' if it was not possible to create a selection with the UTxO
 -- entries that remain.
---
 createSelection
     :: TxConstraints
     -> CategorizedUTxO input
@@ -127,13 +136,12 @@ createSelection
     -> Maybe (CategorizedUTxO input, Selection input)
 createSelection constraints utxo rewardWithdrawal =
     initializeSelection constraints utxo rewardWithdrawal
-    <&> extendSelectionUntilFull constraints
+        <&> extendSelectionUntilFull constraints
 
 -- | Initializes a selection with a single entry.
 --
 -- Returns 'Nothing' if it was not possible to initialize a selection with the
 -- UTxO entries that remain.
---
 initializeSelection
     :: TxConstraints
     -> CategorizedUTxO input
@@ -156,7 +164,6 @@ initializeSelection constraints utxoAtStart reward =
 -- Priority is given to selecting "freerider" entries: entries that cannot pay
 -- for themselves. A "supporter" entry is only added to the selection if there
 -- is not enough ada to pay for a "freerider" entry.
---
 extendSelectionUntilFull
     :: TxConstraints
     -> (CategorizedUTxO input, Selection input)
@@ -203,7 +210,7 @@ extendWith category constraints (utxo, selection) =
                     Right (utxo', selection')
                 Left SelectionAdaInsufficient ->
                     Left ExtendSelectionAdaInsufficient
-                Left SelectionFull {} ->
+                Left SelectionFull{} ->
                     Left ExtendSelectionFull
         Nothing ->
             Left ExtendSelectionEntriesExhausted
@@ -218,11 +225,11 @@ select utxo = \case
     Ignorable -> selectIgnorable
   where
     selectSupporter = case supporters utxo of
-        entry : remaining -> Just (entry, utxo {supporters = remaining})
+        entry : remaining -> Just (entry, utxo{supporters = remaining})
         [] -> Nothing
     selectFreerider = case freeriders utxo of
-        entry : remaining -> Just (entry, utxo {freeriders = remaining})
-        [] ->  Nothing
+        entry : remaining -> Just (entry, utxo{freeriders = remaining})
+        [] -> Nothing
     selectIgnorable =
         -- We never select an entry that should be ignored:
         Nothing
@@ -232,14 +239,14 @@ select utxo = \case
 --------------------------------------------------------------------------------
 
 data UTxOEntryCategory
-    = Supporter
-    -- ^ A coin or bundle that is capable of paying for its own marginal fee
-    -- and the base transaction fee.
-    | Freerider
-    -- ^ A coin or bundle that is not capable of paying for itself.
-    | Ignorable
-    -- ^ A coin that should not be added to a selection, because its value is
-    -- lower than the marginal fee for an input.
+    = -- | A coin or bundle that is capable of paying for its own marginal fee
+      -- and the base transaction fee.
+      Supporter
+    | -- | A coin or bundle that is not capable of paying for itself.
+      Freerider
+    | -- | A coin that should not be added to a selection, because its value is
+      -- lower than the marginal fee for an input.
+      Ignorable
     deriving (Eq, Show)
 
 data CategorizedUTxO input = CategorizedUTxO
@@ -253,22 +260,26 @@ categorizeUTxO
     :: TxConstraints
     -> UTxO
     -> CategorizedUTxO (TxIn, TxOut)
-categorizeUTxO constraints (UTxO u) = categorizeUTxOEntries constraints $
-    (\(i, o) -> ((i, o), view #tokens o)) <$> Map.toList u
+categorizeUTxO constraints (UTxO u) =
+    categorizeUTxOEntries constraints
+        $ (\(i, o) -> ((i, o), view #tokens o)) <$> Map.toList u
 
 categorizeUTxOEntries
-    :: forall input. TxConstraints
+    :: forall input
+     . TxConstraints
     -> [(input, TokenBundle)]
     -> CategorizedUTxO input
-categorizeUTxOEntries constraints uncategorizedEntries = CategorizedUTxO
-    { supporters = entriesMatching Supporter
-    , freeriders = entriesMatching Freerider
-    , ignorables = entriesMatching Ignorable
-    }
+categorizeUTxOEntries constraints uncategorizedEntries =
+    CategorizedUTxO
+        { supporters = entriesMatching Supporter
+        , freeriders = entriesMatching Freerider
+        , ignorables = entriesMatching Ignorable
+        }
   where
     categorizedEntries :: [(input, (TokenBundle, UTxOEntryCategory))]
-    categorizedEntries = uncategorizedEntries
-        <&> (\(i, b) -> (i, (b, categorizeUTxOEntry constraints b)))
+    categorizedEntries =
+        uncategorizedEntries
+            <&> (\(i, b) -> (i, (b, categorizeUTxOEntry constraints b)))
 
     entriesMatching :: UTxOEntryCategory -> [(input, TokenBundle)]
     entriesMatching category =
@@ -279,7 +290,8 @@ categorizeUTxOEntry
     -> TokenBundle
     -> UTxOEntryCategory
 categorizeUTxOEntry constraints b
-    | Just c <- TokenBundle.toCoin b, coinIsIgnorable c =
+    | Just c <- TokenBundle.toCoin b
+    , coinIsIgnorable c =
         Ignorable
     | bundleIsSupporter =
         Supporter
@@ -287,8 +299,9 @@ categorizeUTxOEntry constraints b
         Freerider
   where
     bundleIsSupporter :: Bool
-    bundleIsSupporter = isRight $
-        Selection.create constraints (RewardWithdrawal $ Coin 0) [((), b)]
+    bundleIsSupporter =
+        isRight
+            $ Selection.create constraints (RewardWithdrawal $ Coin 0) [((), b)]
 
     coinIsIgnorable :: Coin -> Bool
     coinIsIgnorable c = c <= txInputCost constraints
@@ -297,8 +310,9 @@ uncategorizeUTxO :: CategorizedUTxO (TxIn, TxOut) -> UTxO
 uncategorizeUTxO = UTxO . Map.fromList . fmap fst . uncategorizeUTxOEntries
 
 uncategorizeUTxOEntries :: CategorizedUTxO input -> [(input, TokenBundle)]
-uncategorizeUTxOEntries utxo = mconcat
-    [ supporters utxo
-    , freeriders utxo
-    , ignorables utxo
-    ]
+uncategorizeUTxOEntries utxo =
+    mconcat
+        [ supporters utxo
+        , freeriders utxo
+        , ignorables utxo
+        ]

@@ -4,29 +4,34 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx
     ( fromCardanoTx
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx )
+    ( fromAllegraTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    ( fromAlonzoTx )
+    ( fromAlonzoTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx )
+    ( fromBabbageTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux )
+    ( fromTxAux
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Conway
-    ( fromConwayTx )
+    ( fromConwayTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromMaryTx )
+    ( fromMaryTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx )
+    ( fromShelleyTx
+    )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
@@ -38,7 +43,8 @@ import Cardano.Wallet.Transaction
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
-    ( Tx (ByronTx) )
+    ( Tx (ByronTx)
+    )
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -46,13 +52,13 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 fromCardanoTx
     :: WitnessCountCtx
     -> Cardano.Tx era
-    ->  ( W.Tx
-        , TokenMapWithScripts
-        , TokenMapWithScripts
-        , [W.Certificate]
-        , Maybe ValidityIntervalExplicit
-        , WitnessCount
-        )
+    -> ( W.Tx
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , [W.Certificate]
+       , Maybe ValidityIntervalExplicit
+       , WitnessCount
+       )
 fromCardanoTx witCtx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->

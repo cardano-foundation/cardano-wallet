@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+
 module Cardano.Wallet.CheckpointsSpec
     ( spec
     ) where
@@ -6,15 +7,25 @@ module Cardano.Wallet.CheckpointsSpec
 import Prelude
 
 import Cardano.Wallet.Checkpoints
-    ( SparseCheckpointsConfig (..), gapSize, sparseCheckpoints )
+    ( SparseCheckpointsConfig (..)
+    , gapSize
+    , sparseCheckpoints
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -31,53 +42,74 @@ import Test.QuickCheck
 
 import qualified Data.List as L
 
-
 spec :: Spec
 spec = do
     describe "sparseCheckpoints" $ do
         it "k=2160, h=42" $ \_ -> do
-            let cfg = SparseCheckpointsConfig
-                    { edgeSize = 10
-                    , epochStability = 2160
-                    }
+            let cfg =
+                    SparseCheckpointsConfig
+                        { edgeSize = 10
+                        , epochStability = 2160
+                        }
             let h = Quantity 42
 
             -- First unstable block: 0
-            sparseCheckpoints cfg h `shouldBe`
-                [ 0
-                , 32,33,34,35,36,37,38,39,40,41 -- Short-term checkpoints
-                , 42 -- Tip
-                ]
+            sparseCheckpoints cfg h
+                `shouldBe` [ 0
+                           , 32
+                           , 33
+                           , 34
+                           , 35
+                           , 36
+                           , 37
+                           , 38
+                           , 39
+                           , 40
+                           , 41 -- Short-term checkpoints
+                           , 42 -- Tip
+                           ]
 
         it "k=2160, h=2414" $ \_ -> do
-            let cfg = SparseCheckpointsConfig
-                    { edgeSize = 10
-                    , epochStability = 2160
-                    }
+            let cfg =
+                    SparseCheckpointsConfig
+                        { edgeSize = 10
+                        , epochStability = 2160
+                        }
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints cfg h `shouldBe`
-                [ 0
-                , 720, 1440, 2160               -- Long-term checkpoints
-
-                , 2704, 2705, 2706, 2707, 2708  -- Short-term checkpoints
-                , 2709, 2710, 2711, 2712, 2713  -- edgeSize = 10
-
-                , 2714  -- Tip
-                ]
+            sparseCheckpoints cfg h
+                `shouldBe` [ 0
+                           , 720
+                           , 1440
+                           , 2160 -- Long-term checkpoints
+                           , 2704
+                           , 2705
+                           , 2706
+                           , 2707
+                           , 2708 -- Short-term checkpoints
+                           , 2709
+                           , 2710
+                           , 2711
+                           , 2712
+                           , 2713 -- edgeSize = 10
+                           , 2714 -- Tip
+                           ]
 
         it "k=2160, h=2414" $ \_ -> do
-            let cfg = SparseCheckpointsConfig
-                    { edgeSize = 0
-                    , epochStability = 2160
-                    }
+            let cfg =
+                    SparseCheckpointsConfig
+                        { edgeSize = 0
+                        , epochStability = 2160
+                        }
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints cfg h `shouldBe`
-                [ 0
-                , 720, 1440, 2160               -- Long-term checkpoints
-                , 2714  -- Tip
-                ]
+            sparseCheckpoints cfg h
+                `shouldBe` [ 0
+                           , 720
+                           , 1440
+                           , 2160 -- Long-term checkpoints
+                           , 2714 -- Tip
+                           ]
 
         it "The tip is always a checkpoint" $ \_ ->
             property prop_sparseCheckpointTipAlwaysThere
@@ -94,13 +126,15 @@ spec = do
 {-------------------------------------------------------------------------------
     Checkpoint hygiene
 -------------------------------------------------------------------------------}
+
 -- | No matter what, the current tip is always a checkpoint.
 prop_sparseCheckpointTipAlwaysThere
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg h) = prop
-    & counterexample ("Checkpoints: " <> show cps)
-    & counterexample ("h=" <> show h)
+prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg h) =
+    prop
+        & counterexample ("Checkpoints: " <> show cps)
+        & counterexample ("h=" <> show h)
   where
     cps = sparseCheckpoints cfg (Quantity h)
 
@@ -112,9 +146,10 @@ prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg h) = prop
 prop_sparseCheckpointMinimum
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) = prop
-    & counterexample ("Checkpoints: " <> show cps)
-    & counterexample ("h=" <> show h)
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) =
+    prop
+        & counterexample ("Checkpoints: " <> show cps)
+        & counterexample ("h=" <> show h)
   where
     cps = sparseCheckpoints cfg (Quantity h)
 
@@ -128,12 +163,13 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) = prop
 prop_sparseCheckpointEdgeSize0
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg h) = prop
-    & counterexample ("Checkpoints: " <> show cps)
-    & counterexample ("h=" <> show h)
+prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg h) =
+    prop
+        & counterexample ("Checkpoints: " <> show cps)
+        & counterexample ("h=" <> show h)
   where
-    cps  = sparseCheckpoints cfg (Quantity h)
-    cps' = sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity h)
+    cps' = sparseCheckpoints (cfg{edgeSize = 0}) (Quantity h)
 
     prop :: Property
     prop = property (cps' `L.isSubsequenceOf` cps)
@@ -164,19 +200,19 @@ prop_checkpointsEventuallyEqual
     :: GenSparseCheckpointsArgs
     -> Property
 prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) =
-    h > epochStability cfg ==> forAll (genBatches args) $ \(Batches batches) ->
-        let
-            tip =
-                Quantity $ last $ mconcat batches
-            emptyDB =
-                SparseCheckpointsDB []
-            dbs =
-                L.scanl (\db batch -> prune $ step batch db) emptyDB batches
-        in
-            ( prop_eventuallyReachesExpectedTip tip dbs
-              .&&.
-              prop_canNeverRollbackMoreThanKPlusGap tip dbs
-            )
+    h > epochStability cfg ==>
+        forAll (genBatches args) $ \(Batches batches) ->
+            let
+                tip =
+                    Quantity $ last $ mconcat batches
+                emptyDB =
+                    SparseCheckpointsDB []
+                dbs =
+                    L.scanl (\db batch -> prune $ step batch db) emptyDB batches
+            in
+                ( prop_eventuallyReachesExpectedTip tip dbs
+                    .&&. prop_canNeverRollbackMoreThanKPlusGap tip dbs
+                )
   where
     prop_eventuallyReachesExpectedTip
         :: Quantity "block" Word32
@@ -204,16 +240,16 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) =
             in
                 property
                     (farthestRollback <= epochStability cfg + gapSize cfg)
-                & counterexample
-                    ("database: " <> show db)
-                & counterexample
-                    ("stable checkpoints: " <> show db')
+                    & counterexample
+                        ("database: " <> show db)
+                    & counterexample
+                        ("stable checkpoints: " <> show db')
 
     step :: [Word32] -> SparseCheckpointsDB -> SparseCheckpointsDB
     step cps (SparseCheckpointsDB db) =
         let
             toKeep =
-                sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity h)
+                sparseCheckpoints (cfg{edgeSize = 0}) (Quantity h)
             cps' =
                 last cps : (toKeep `L.intersect` cps)
         in
@@ -229,13 +265,13 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) =
         in
             SparseCheckpointsDB db'
 
-newtype Batches = Batches [[Word32]] deriving Show
+newtype Batches = Batches [[Word32]] deriving (Show)
 
 newtype SparseCheckpointsDB = SparseCheckpointsDB [Word32] deriving (Show, Eq)
 
 data GenSparseCheckpointsArgs
     = GenSparseCheckpointsArgs SparseCheckpointsConfig Word32
-    deriving Show
+    deriving (Show)
 
 instance Arbitrary GenSparseCheckpointsArgs where
     arbitrary = do
@@ -253,13 +289,13 @@ genBatches
     :: GenSparseCheckpointsArgs
     -> Gen Batches
 genBatches (GenSparseCheckpointsArgs cfg h) = do
-    bs <- go [0..h] []
+    bs <- go [0 .. h] []
     let e = fromIntegral $ edgeSize cfg
-    let oneByOne = pure <$> [h+1..h+e]
+    let oneByOne = pure <$> [h + 1 .. h + e]
     pure (Batches (bs ++ oneByOne))
   where
     go :: [Word32] -> [[Word32]] -> Gen [[Word32]]
-    go []     batches = pure $ reverse batches
+    go [] batches = pure $ reverse batches
     go source batches = do
         -- NOTE:
         -- Generate batches that can be larger than the chosen gap size, to make

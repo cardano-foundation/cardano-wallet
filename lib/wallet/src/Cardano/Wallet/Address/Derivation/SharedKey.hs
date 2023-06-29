@@ -17,12 +17,10 @@
 -- License: Apache-2.0
 --
 -- Definition of 'Shared' Keys.
-
 module Cardano.Wallet.Address.Derivation.SharedKey
     ( -- * Types
-      SharedKey(..)
+      SharedKey (..)
     , sharedKey
-
     , purposeCIP1854
     , constructAddressFromIx
     , toNetworkTag
@@ -32,36 +30,62 @@ module Cardano.Wallet.Address.Derivation.SharedKey
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), toScriptHash )
+    ( Cosigner
+    , KeyHash
+    , Script (..)
+    , ScriptTemplate (..)
+    , toScriptHash
+    )
 import Cardano.Address.Style.Shared
-    ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
+    ( deriveAddressPublicKey
+    , deriveDelegationPublicKey
+    , hashKey
+    , liftXPub
+    )
 import Cardano.Address.Style.Shelley
-    ( Credential (..), delegationAddress, paymentAddress )
+    ( Credential (..)
+    , delegationAddress
+    , paymentAddress
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..), Role (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId), SNetworkId (..) )
+    ( HasSNetworkId (sNetworkId)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..), TxWitnessTagFor (..) )
+    ( TxWitnessTag (..)
+    , TxWitnessTagFor (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( Iso, iso )
+    ( Iso
+    , iso
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
-
 
 -- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
 -- CIP-1854 Multi-signature Wallets.
@@ -81,21 +105,20 @@ purposeCIP1854 = toEnum 0x8000073E
 -- let accountPubKey = SharedKey 'AccountK XPub
 -- let addressPubKey = SharedKey 'CredFromScriptK XPub
 -- @
-newtype SharedKey (depth :: Depth) key =
-    SharedKey { getKey :: key }
+newtype SharedKey (depth :: Depth) key = SharedKey {getKey :: key}
     deriving stock (Generic, Show, Eq)
 
 sharedKey :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
 sharedKey = iso getKey SharedKey
 
-instance NFData key => NFData (SharedKey depth key)
+instance (NFData key) => NFData (SharedKey depth key)
 
 instance TxWitnessTagFor SharedKey where
     txWitnessTagFor = TxWitnessShelleyUTxO
 
 constructAddressFromIx
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => Role
     -> ScriptTemplate
     -> Maybe ScriptTemplate
@@ -106,13 +129,16 @@ constructAddressFromIx role pTemplate dTemplate ix =
         paymentCredential = PaymentFromScriptHash . toScriptHash
         tag = toNetworkTag @n
         createBaseAddress pScript' dScript' =
-            CA.unAddress $
-            delegationAddress tag
-            (paymentCredential pScript') (delegationCredential dScript')
+            CA.unAddress
+                $ delegationAddress
+                    tag
+                    (paymentCredential pScript')
+                    (delegationCredential dScript')
         createEnterpriseAddress pScript' =
-            CA.unAddress $
-            paymentAddress tag
-            (paymentCredential pScript')
+            CA.unAddress
+                $ paymentAddress
+                    tag
+                    (paymentCredential pScript')
         role' = case role of
             UtxoExternal -> CA.UTxOExternal
             UtxoInternal -> CA.UTxOInternal
@@ -122,11 +148,11 @@ constructAddressFromIx role pTemplate dTemplate ix =
             replaceCosignersWithVerKeys role' pTemplate ix
         dScript s =
             replaceCosignersWithVerKeys CA.Stake s minBound
-    in Address $ case dTemplate of
-        Just dTemplate' ->
-            createBaseAddress pScript (dScript dTemplate')
-        Nothing ->
-            createEnterpriseAddress pScript
+    in  Address $ case dTemplate of
+            Just dTemplate' ->
+                createBaseAddress pScript (dScript dTemplate')
+            Nothing ->
+                createEnterpriseAddress pScript
 
 replaceCosignersWithVerKeys
     :: CA.Role
@@ -139,23 +165,23 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner :: Script Cosigner -> Script KeyHash
     replaceCosigner = \case
         RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
-        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
-        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
-        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
-        ActiveFromSlot s     -> ActiveFromSlot s
-        ActiveUntilSlot s    -> ActiveUntilSlot s
+        RequireAllOf xs -> RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs -> RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs -> RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s -> ActiveFromSlot s
+        ActiveUntilSlot s -> ActiveUntilSlot s
 
-    convertIndex ::
-        Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
+    convertIndex
+        :: Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
 
-    toKeyHash :: HasCallStack => Cosigner -> KeyHash
+    toKeyHash :: (HasCallStack) => Cosigner -> KeyHash
     toKeyHash c =
         case Map.lookup c xpubs of
             Nothing -> error "Impossible: cosigner without accXPpub."
             Just accXPub ->
-                hashKey walletRole $
-                    deriveMultisigPublicKey (liftXPub accXPub) (convertIndex ix)
+                hashKey walletRole
+                    $ deriveMultisigPublicKey (liftXPub accXPub) (convertIndex ix)
 
     walletRole = case role' of
         CA.UTxOExternal -> CA.Payment
@@ -168,7 +194,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
-toNetworkTag :: forall n. HasSNetworkId n => CA.NetworkTag
+toNetworkTag :: forall n. (HasSNetworkId n) => CA.NetworkTag
 toNetworkTag = case sNetworkId @n of
     SMainnet -> CA.NetworkTag 1
     STestnet _ -> CA.NetworkTag 0 -- fixme: Not all testnets have NetworkTag=0

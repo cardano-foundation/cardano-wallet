@@ -10,7 +10,6 @@
 -- Dummy implementation of the database-layer, using 'MVar'. This may be good
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
-
 module Cardano.Pool.DB.MVar
     ( newDBLayer
     ) where
@@ -18,7 +17,9 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    )
 import Cardano.Pool.DB.Model
     ( ModelOp
     , PoolDatabase
@@ -58,25 +59,38 @@ import Cardano.Pool.DB.Model
     , mUnfetchedPoolMetadataRefs
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( TimeInterpreter
+    )
 import Control.DeepSeq
-    ( deepseq )
+    ( deepseq
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..)
+    )
 import Control.Monad.Trans.State.Strict
-    ( runStateT )
+    ( runStateT
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Functor.Identity
-    ( Identity )
+    ( Identity
+    )
 import Data.Tuple
-    ( swap )
+    ( swap
+    )
 import UnliftIO.Exception
-    ( Exception, throwIO )
+    ( Exception
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar )
+    ( MVar
+    , modifyMVar
+    , newMVar
+    )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -85,7 +99,7 @@ newDBLayer timeInterpreter = do
     db <- newMVar emptyPoolDatabase
     pure $ mkDBLayer db
   where
-    mkDBLayer db = DBLayer {..}
+    mkDBLayer db = DBLayer{..}
       where
         readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
@@ -93,9 +107,10 @@ newDBLayer timeInterpreter = do
         readPoolRetirement =
             readPoolDB db . mReadPoolRetirement
 
-        putPoolProduction sl pool = ExceptT $
-            pool `deepseq`
-                alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
+        putPoolProduction sl pool =
+            ExceptT
+                $ pool
+                `deepseq` alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
 
         readPoolProduction =
             readPoolDB db . mReadPoolProduction timeInterpreter
@@ -112,16 +127,18 @@ newDBLayer timeInterpreter = do
         readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        putPoolRegistration cpt cert = void
-              $ alterPoolDB (const Nothing) db
-              $ mPutPoolRegistration cpt cert
+        putPoolRegistration cpt cert =
+            void
+                $ alterPoolDB (const Nothing) db
+                $ mPutPoolRegistration cpt cert
 
         readPoolLifeCycleStatus =
             readPoolDB db . mReadPoolLifeCycleStatus
 
-        putPoolRetirement cpt cert = void
-            $ alterPoolDB (const Nothing) db
-            $ mPutPoolRetirement cpt cert
+        putPoolRetirement cpt cert =
+            void
+                $ alterPoolDB (const Nothing) db
+                $ mPutPoolRetirement cpt cert
 
         unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs

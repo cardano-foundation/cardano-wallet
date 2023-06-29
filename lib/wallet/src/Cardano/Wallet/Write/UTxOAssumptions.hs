@@ -6,41 +6,44 @@
 --
 -- Module containing 'UTxOAssumptions' and related functionality.
 module Cardano.Wallet.Write.UTxOAssumptions
-    (
-    -- * UTxOAssumptions
+    ( -- * UTxOAssumptions
       UTxOAssumptions (..)
     , assumedInputScriptTemplate
     , assumedTxWitnessTag
 
-    -- * Validation
+      -- * Validation
     , validateAddress
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Ledger.Shelley.API
-    ( Addr (..), Credential (..) )
+    ( Addr (..)
+    , Credential (..)
+    )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
+    ( TxWitnessTag (..)
+    )
 import Cardano.Wallet.Write.Tx
-    ( Address )
+    ( Address
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 
 -- | Assumptions about UTxOs that are needed for coin selection.
 data UTxOAssumptions
-    = AllKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
-    -- key payment credentials.
-    | AllByronKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the boostrap/byron
-    -- key payment credentials.
-    | AllScriptPaymentCredentialsFrom
-    -- ^ Assumes all 'UTxO' entries have addresses with script
-    -- payment credentials, where the scripts are both derived
-    -- from the 'ScriptTemplate' and can be looked up using the given function.
+    = -- | Assumes all 'UTxO' entries have addresses with the post-Shelley
+      -- key payment credentials.
+      AllKeyPaymentCredentials
+    | -- | Assumes all 'UTxO' entries have addresses with the boostrap/byron
+      -- key payment credentials.
+      AllByronKeyPaymentCredentials
+    | -- | Assumes all 'UTxO' entries have addresses with script
+      -- payment credentials, where the scripts are both derived
+      -- from the 'ScriptTemplate' and can be looked up using the given function.
+      AllScriptPaymentCredentialsFrom
         !CA.ScriptTemplate
         !(W.Address -> CA.Script CA.KeyHash)
 
@@ -54,12 +57,12 @@ assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
 assumedTxWitnessTag = \case
     AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
     AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
-    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+    AllScriptPaymentCredentialsFrom{} -> TxWitnessShelleyUTxO
 
 validateAddress :: UTxOAssumptions -> Address -> Bool
 validateAddress = valid
   where
-    valid AllKeyPaymentCredentials          (Addr _ KeyHashObj{}    _) = True
+    valid AllKeyPaymentCredentials (Addr _ KeyHashObj{} _) = True
     valid AllScriptPaymentCredentialsFrom{} (Addr _ ScriptHashObj{} _) = True
-    valid AllByronKeyPaymentCredentials     (AddrBootstrap _)          = True
-    valid _                                 _                          = False
+    valid AllByronKeyPaymentCredentials (AddrBootstrap _) = True
+    valid _ _ = False

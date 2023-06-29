@@ -4,8 +4,6 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx
     , fromSealedTx
@@ -15,9 +13,11 @@ module Cardano.Wallet.Read.Tx.Cardano
 import Prelude
 
 import Cardano.Api
-    ( InAnyCardanoEra (..) )
+    ( InAnyCardanoEra (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (unsafeCardanoTx) )
+    ( SealedTx (unsafeCardanoTx)
+    )
 import Cardano.Wallet.Read.Eras
     ( EraValue
     , K (..)
@@ -31,13 +31,18 @@ import Cardano.Wallet.Read.Eras
     , shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun, applyEraFun )
+    ( EraFun
+    , applyEraFun
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( extractEraValue )
+    ( extractEraValue
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -55,7 +60,7 @@ fromCardanoApiTx = \case
         Cardano.ShelleyBasedEraConway -> inject conway $ Tx tx
     Cardano.ByronTx tx -> inject byron $ Tx $ void tx
 
-fromSealedTx:: W.SealedTx -> EraValue Tx
+fromSealedTx :: W.SealedTx -> EraValue Tx
 fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx

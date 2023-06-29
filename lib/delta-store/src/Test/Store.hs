@@ -11,12 +11,12 @@ module Test.Store
       GenDelta
     , prop_StoreUpdate
 
-    -- * Generators
+      -- * Generators
     , Chain (..)
     , genChain
     , shrinkChain
 
-    -- * Unit test DSL for developing a Store
+      -- * Unit test DSL for developing a Store
     , unitTestStore
     , applyS
     , checkLaw
@@ -29,11 +29,16 @@ module Test.Store
 import Prelude
 
 import Control.Exception
-    ( throwIO )
+    ( throwIO
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.RWS
-    ( RWST, evalRWST, lift )
+    ( RWST
+    , evalRWST
+    , lift
+    )
 import Control.Monad.RWS.Class
     ( MonadReader (ask)
     , MonadState (get, put)
@@ -41,13 +46,19 @@ import Control.Monad.RWS.Class
     , censor
     )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Store
-    ( Store (loadS, updateS, writeS) )
+    ( Store (loadS, updateS, writeS)
+    )
 import Fmt
-    ( Buildable, listF, pretty )
+    ( Buildable
+    , listF
+    , pretty
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -59,11 +70,16 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 
 {-----------------------------------------------------------------------------
     Store laws
 ------------------------------------------------------------------------------}
+
 -- | Given a value, generate a random delta that applies to this value.
 type GenDelta da = Base da -> Gen da
 
@@ -72,17 +88,17 @@ type GenDelta da = Base da -> Gen da
 -- The delta that is applied *last* appears in the list *first*.
 data Chain da = Chain [(Base da, da)] (Base da)
 
-instance Show da => Show (Chain da) where
+instance (Show da) => Show (Chain da) where
     show (Chain adas _) = show . map snd $ adas
 
 -- | Randomly generate a chain of deltas.
-genChain :: Delta da => Gen (Base da) -> GenDelta da -> Gen (Chain da)
+genChain :: (Delta da) => Gen (Base da) -> GenDelta da -> Gen (Chain da)
 genChain gen0 more = do
     n <- getSize
     a0 <- gen0
     go n a0 [] a0
   where
-    go 0 _  das a0 = pure $ Chain das a0
+    go 0 _ das a0 = pure $ Chain das a0
     go n alast das a0 = do
         da <- more alast
         let a = apply da alast
@@ -92,7 +108,7 @@ genChain gen0 more = do
 shrinkChain :: Chain da -> [Chain da]
 shrinkChain (Chain [] _) = []
 shrinkChain (Chain das a0) =
-    [ Chain [] a0, Chain [last das] a0, Chain (tail das) a0 ]
+    [Chain [] a0, Chain [last das] a0, Chain (tail das) a0]
 
 -- | Test whether the law on 'updateS' is satisfied.
 --
@@ -110,31 +126,35 @@ prop_StoreUpdate
     -> Property
 prop_StoreUpdate toIO mkStore gen0 more =
     forAll gen0 $ \a0' ->
-    forAllShrink (genChain (pure a0') more) shrinkChain $ \chain ->
-        let Chain adas a0 = chain
-            as = map fst adas ++ [a0]
-            das = map snd adas
-        in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
-            $ monadicIO $ do
-                ea <- run . toIO $ do
-                    store <- mkStore
-                    writeS store a0
-                    -- first update is applied last!
-                    let updates = reverse $ zip das (drop 1 as)
-                    forM_ updates $ \(da, a) -> updateS store (Just a) da
-                    loadS store
-                case ea of
-                    Left err -> run $ throwIO err
-                    Right a -> do
-                        monitor $ counterexample
-                            $ "\nExpected:\n" <> show (head as)
-                        monitor $ counterexample
-                            $ "\nGot:\n" <> show a
-                        assert $ a == head as
+        forAllShrink (genChain (pure a0') more) shrinkChain $ \chain ->
+            let Chain adas a0 = chain
+                as = map fst adas ++ [a0]
+                das = map snd adas
+            in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
+                    $ monadicIO
+                    $ do
+                        ea <- run . toIO $ do
+                            store <- mkStore
+                            writeS store a0
+                            -- first update is applied last!
+                            let updates = reverse $ zip das (drop 1 as)
+                            forM_ updates $ \(da, a) -> updateS store (Just a) da
+                            loadS store
+                        case ea of
+                            Left err -> run $ throwIO err
+                            Right a -> do
+                                monitor
+                                    $ counterexample
+                                    $ "\nExpected:\n" <> show (head as)
+                                monitor
+                                    $ counterexample
+                                    $ "\nGot:\n" <> show a
+                                assert $ a == head as
 
 {-----------------------------------------------------------------------------
     DSL for developing
 ------------------------------------------------------------------------------}
+
 -- | A DSL to unit test a 'Store'.
 type StoreUnitTest m qa da =
     RWST
@@ -169,7 +189,7 @@ checkLaw = do
     rightOf _ = undefined
 
 -- | Reset the store state to the initial value.
-reset :: Monad m => StoreUnitTest m qa da ()
+reset :: (Monad m) => StoreUnitTest m qa da ()
 reset = do
     s <- ask
     (q, _, _) <- get
@@ -187,7 +207,7 @@ unitTestStore x s f = conjoin . snd <$> evalRWST (f >> checkLaw) s (x, x, [])
 
 -- | Add a context to test.
 context
-    :: Monad m
+    :: (Monad m)
     => (Property -> Property)
     -> StoreUnitTest m qa da x
     -> StoreUnitTest m qa da x
@@ -197,11 +217,11 @@ context d f = do
     pure x
 
 -- | Observe a property on the current value of the store.
-observe :: Monad m => (Base da -> Property) -> StoreUnitTest m qa da ()
+observe :: (Monad m) => (Base da -> Property) -> StoreUnitTest m qa da ()
 observe f = do
     (_, s, _) <- get
     tell [f s]
 
 -- | Ignore the properties of a sub-test.
-ignore :: Monad m => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
+ignore :: (Monad m) => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
 ignore = censor (const [])

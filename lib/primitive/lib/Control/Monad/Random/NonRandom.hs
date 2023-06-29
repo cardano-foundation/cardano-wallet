@@ -8,34 +8,34 @@
 -- License: Apache-2.0
 --
 -- This module provides the 'NonRandom' type and related instances.
---
 module Control.Monad.Random.NonRandom
-    (
-    -- * Non-random contexts
-      NonRandom (..)
-
+    ( NonRandom (..)
     ) where
 
 import Prelude
 
 import Control.Applicative
-    ( Applicative (..) )
+    ( Applicative (..)
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Random
-    ( Random (..), RandomGen (..) )
+    ( Random (..)
+    , RandomGen (..)
+    )
 
 -- | Provides a stateless context for computations that must be non-random.
 --
 -- This type is useful for testing functions that require a 'MonadRandom'
 -- context, but when actual randomness is not required or even desired.
---
-newtype NonRandom a = NonRandom
-    { runNonRandom :: a }
+newtype NonRandom a = NonRandom {runNonRandom :: a}
     deriving (Eq, Generic, Ord, Show)
 
 instance Functor NonRandom where
@@ -56,7 +56,6 @@ instance MonadRandom NonRandom where
     getRandoms = pure $ randoms NonRandomGen
 
 -- | Provides a stateless and non-random implementation of 'RandomGen'
---
 data NonRandomGen = NonRandomGen
 
 instance RandomGen NonRandomGen where

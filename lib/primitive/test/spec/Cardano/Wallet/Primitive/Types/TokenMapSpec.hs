@@ -3,13 +3,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Functor law" -}
 
@@ -20,11 +21,14 @@ module Cardano.Wallet.Primitive.Types.TokenMapSpec
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+    ( inAscendingPartialOrder
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     , Flat (..)
@@ -44,11 +48,19 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId, mkTokenName )
+    ( TokenName
+    , TokenPolicyId
+    , mkTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName, genTokenPolicyId, shrinkTokenName, shrinkTokenPolicyId )
+    ( genTokenName
+    , genTokenPolicyId
+    , shrinkTokenName
+    , shrinkTokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantity
     , genTokenQuantityPositive
@@ -56,45 +68,73 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     , shrinkTokenQuantityPositive
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.Bifunctor
-    ( bimap, first, second )
+    ( bimap
+    , first
+    , second
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.String.QQ
-    ( s )
+    ( s
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( fromText, toText )
+    ( fromText
+    , toText
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -119,15 +159,24 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+    ( eqLaws
+    , monoidLaws
+    , ordLaws
+    , semigroupLaws
+    , semigroupMonoidLaws
+    )
 import Test.QuickCheck.Instances.ByteString
-    ()
+    (
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Laws.PartialOrd
-    ( partialOrdLaws )
+    ( partialOrdLaws
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -142,204 +191,199 @@ import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
 spec =
-    describe "Token map properties" $
-    modifyMaxSuccess (const 1000) $ do
+    describe "Token map properties"
+        $ modifyMaxSuccess (const 1000)
+        $ do
+            describe "Class instances obey laws" $ do
+                testLawsMany @TokenMap
+                    [ eqLaws
+                    , monoidLaws
+                    , partialOrdLaws
+                    , semigroupLaws
+                    , semigroupMonoidLaws
+                    ]
+                testLawsMany @(Lexicographic TokenMap)
+                    [ eqLaws
+                    , ordLaws
+                    ]
 
-    describe "Class instances obey laws" $ do
-        testLawsMany @TokenMap
-            [ eqLaws
-            , monoidLaws
-            , partialOrdLaws
-            , semigroupLaws
-            , semigroupMonoidLaws
-            ]
-        testLawsMany @(Lexicographic TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
+            describe
+                "All operations preserve the invariant: \
+                \all token quantities held within a map are non-zero"
+                $ do
+                    it "prop_arbitrary_invariant"
+                        $ property prop_arbitrary_invariant
+                    it "prop_shrink_invariant"
+                        $ property prop_shrink_invariant
+                    it "prop_empty_invariant"
+                        $ property prop_empty_invariant
+                    it "prop_singleton_invariant"
+                        $ property prop_singleton_invariant
+                    it "prop_fromFlatList_invariant"
+                        $ property prop_fromFlatList_invariant
+                    it "prop_fromNestedList_invariant"
+                        $ property prop_fromNestedList_invariant
+                    it "prop_add_invariant"
+                        $ property prop_add_invariant
+                    it "prop_subtract_invariant"
+                        $ property prop_subtract_invariant
+                    it "prop_difference_invariant"
+                        $ property prop_difference_invariant
+                    it "prop_intersection_invariant"
+                        $ property prop_intersection_invariant
+                    it "prop_setQuantity_invariant"
+                        $ property prop_setQuantity_invariant
+                    it "prop_adjustQuantity_invariant"
+                        $ property prop_adjustQuantity_invariant
 
-    describe
-        "All operations preserve the invariant: \
-        \all token quantities held within a map are non-zero" $ do
+            describe "Construction and deconstruction" $ do
+                it "prop_fromFlatList"
+                    $ property prop_fromFlatList
+                it "prop_fromNestedList"
+                    $ property prop_fromNestedList
+                it "prop_empty_toFlatList"
+                    $ property prop_empty_toFlatList
+                it "prop_singleton_toFlatList"
+                    $ property prop_singleton_toFlatList
+                it "prop_toFlatList_fromFlatList"
+                    $ property prop_toFlatList_fromFlatList
+                it "prop_toNestedList_fromNestedList"
+                    $ property prop_toNestedList_fromNestedList
 
-        it "prop_arbitrary_invariant" $
-            property prop_arbitrary_invariant
-        it "prop_shrink_invariant" $
-            property prop_shrink_invariant
-        it "prop_empty_invariant" $
-            property prop_empty_invariant
-        it "prop_singleton_invariant" $
-            property prop_singleton_invariant
-        it "prop_fromFlatList_invariant" $
-            property prop_fromFlatList_invariant
-        it "prop_fromNestedList_invariant" $
-            property prop_fromNestedList_invariant
-        it "prop_add_invariant" $
-            property prop_add_invariant
-        it "prop_subtract_invariant" $
-            property prop_subtract_invariant
-        it "prop_difference_invariant" $
-            property prop_difference_invariant
-        it "prop_intersection_invariant" $
-            property prop_intersection_invariant
-        it "prop_setQuantity_invariant" $
-            property prop_setQuantity_invariant
-        it "prop_adjustQuantity_invariant" $
-            property prop_adjustQuantity_invariant
+            describe "Filtering" $ do
+                it "prop_filter_conjoin"
+                    $ property prop_filter_conjoin
+                it "prop_filter_partition"
+                    $ property prop_filter_partition
+                it "prop_filter_twice"
+                    $ property prop_filter_twice
 
-    describe "Construction and deconstruction" $ do
+            describe "Arithmetic" $ do
+                it "prop_add_commutative"
+                    $ property prop_add_commutative
+                it "prop_add_associative"
+                    $ property prop_add_associative
+                it "prop_add_subtract_associative"
+                    $ property prop_add_subtract_associative
+                it "prop_subtract_null"
+                    $ property prop_subtract_null
+                it "prop_difference_zero (x - 0 = x)"
+                    $ property prop_difference_zero
+                it "prop_difference_zero2 (0 - x = 0)"
+                    $ property prop_difference_zero2
+                it "prop_difference_zero3 (x - x = 0)"
+                    $ property prop_difference_zero3
+                it "prop_difference_leq (x - y ⊆ x)"
+                    $ property prop_difference_leq
+                it "prop_difference_add ((x - y) + y ⊇ x)"
+                    $ property prop_difference_add
+                it "prop_difference_subtract"
+                    $ property prop_difference_subtract
+                it "prop_difference_equality"
+                    $ property prop_difference_equality
+                it "prop_intersection_associativity"
+                    $ property prop_intersection_associativity
+                it "prop_intersection_commutativity"
+                    $ property prop_intersection_commutativity
+                it "prop_intersection_empty"
+                    $ property prop_intersection_empty
+                it "prop_intersection_equality"
+                    $ property prop_intersection_equality
+                it "prop_intersection_identity"
+                    $ property prop_intersection_identity
+                it "prop_intersection_subset"
+                    $ property prop_intersection_subset
 
-        it "prop_fromFlatList" $
-            property prop_fromFlatList
-        it "prop_fromNestedList" $
-            property prop_fromNestedList
-        it "prop_empty_toFlatList" $
-            property prop_empty_toFlatList
-        it "prop_singleton_toFlatList" $
-            property prop_singleton_toFlatList
-        it "prop_toFlatList_fromFlatList" $
-            property prop_toFlatList_fromFlatList
-        it "prop_toNestedList_fromNestedList" $
-            property prop_toNestedList_fromNestedList
+            describe "Quantities" $ do
+                it "prop_removeQuantity_isEmpty"
+                    $ property prop_removeQuantity_isEmpty
+                it "prop_setQuantity_getQuantity"
+                    $ property prop_setQuantity_getQuantity
+                it "prop_setQuantity_hasQuantity"
+                    $ property prop_setQuantity_hasQuantity
+                it "prop_adjustQuantity_getQuantity"
+                    $ property prop_adjustQuantity_getQuantity
+                it "prop_adjustQuantity_hasQuantity"
+                    $ property prop_adjustQuantity_hasQuantity
+                it "prop_maximumQuantity_all"
+                    $ property prop_maximumQuantity_all
 
-    describe "Filtering" $ do
+            describe "Queries" $ do
+                it "prop_size_isEmpty" $ do
+                    property prop_size_isEmpty
+                it "prop_size_toFlatList" $ do
+                    property prop_size_toFlatList
 
-        it "prop_filter_conjoin" $
-            property prop_filter_conjoin
-        it "prop_filter_partition" $
-            property prop_filter_partition
-        it "prop_filter_twice" $
-            property prop_filter_twice
+            describe "Transformations" $ do
+                it "prop_mapAssetIds_identity" $ do
+                    prop_mapAssetIds_identity & property
+                it "prop_mapAssetIds_composition" $ do
+                    prop_mapAssetIds_composition & property
 
-    describe "Arithmetic" $ do
+            describe "Partitioning assets" $ do
+                it "prop_equipartitionAssets_coverage"
+                    $ property prop_equipartitionAssets_coverage
+                it "prop_equipartitionAssets_length"
+                    $ property prop_equipartitionAssets_length
+                it "prop_equipartitionAssets_sizes"
+                    $ property prop_equipartitionAssets_sizes
+                it "prop_equipartitionAssets_sum"
+                    $ property prop_equipartitionAssets_sum
 
-        it "prop_add_commutative" $
-            property prop_add_commutative
-        it "prop_add_associative" $
-            property prop_add_associative
-        it "prop_add_subtract_associative" $
-            property prop_add_subtract_associative
-        it "prop_subtract_null" $
-            property prop_subtract_null
-        it "prop_difference_zero (x - 0 = x)" $
-            property prop_difference_zero
-        it "prop_difference_zero2 (0 - x = 0)" $
-            property prop_difference_zero2
-        it "prop_difference_zero3 (x - x = 0)" $
-            property prop_difference_zero3
-        it "prop_difference_leq (x - y ⊆ x)" $
-            property prop_difference_leq
-        it "prop_difference_add ((x - y) + y ⊇ x)" $
-            property prop_difference_add
-        it "prop_difference_subtract" $
-            property prop_difference_subtract
-        it "prop_difference_equality" $
-            property prop_difference_equality
-        it "prop_intersection_associativity" $
-            property prop_intersection_associativity
-        it "prop_intersection_commutativity" $
-            property prop_intersection_commutativity
-        it "prop_intersection_empty" $
-            property prop_intersection_empty
-        it "prop_intersection_equality" $
-            property prop_intersection_equality
-        it "prop_intersection_identity" $
-            property prop_intersection_identity
-        it "prop_intersection_subset" $
-            property prop_intersection_subset
+            describe "Partitioning quantities" $ do
+                it "prop_equipartitionQuantities_fair"
+                    $ property prop_equipartitionQuantities_fair
+                it "prop_equipartitionQuantities_length"
+                    $ property prop_equipartitionQuantities_length
+                it "prop_equipartitionQuantities_order"
+                    $ property prop_equipartitionQuantities_order
+                it "prop_equipartitionQuantities_sum"
+                    $ property prop_equipartitionQuantities_sum
 
-    describe "Quantities" $ do
+            describe "Partitioning quantities with an upper bound" $ do
+                it "prop_equipartitionQuantitiesWithUpperBound_coverage"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_coverage
+                it "prop_equipartitionQuantitiesWithUpperBound_length"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_length
+                it "prop_equipartitionQuantitiesWithUpperBound_max"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_max
+                it "prop_equipartitionQuantitiesWithUpperBound_order"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_order
+                it "prop_equipartitionQuantitiesWithUpperBound_sum"
+                    $ property prop_equipartitionQuantitiesWithUpperBound_sum
 
-        it "prop_removeQuantity_isEmpty" $
-            property prop_removeQuantity_isEmpty
-        it "prop_setQuantity_getQuantity" $
-            property prop_setQuantity_getQuantity
-        it "prop_setQuantity_hasQuantity" $
-            property prop_setQuantity_hasQuantity
-        it "prop_adjustQuantity_getQuantity" $
-            property prop_adjustQuantity_getQuantity
-        it "prop_adjustQuantity_hasQuantity" $
-            property prop_adjustQuantity_hasQuantity
-        it "prop_maximumQuantity_all" $
-            property prop_maximumQuantity_all
+            describe "Generating partitions" $ do
+                it "prop_genTokenMapPartition_fold"
+                    $ prop_genTokenMapPartition_fold
+                    & property
+                it "prop_genTokenMapPartition_length"
+                    $ prop_genTokenMapPartition_length
+                    & property
+                it "prop_genTokenMapPartition_nonPositive"
+                    $ prop_genTokenMapPartition_nonPositive
+                    & property
 
-    describe "Queries" $ do
+            describe "JSON serialization" $ do
+                describe "Roundtrip tests" $ do
+                    testJson $ Proxy @(Flat TokenMap)
+                    testJson $ Proxy @(Nested TokenMap)
 
-        it "prop_size_isEmpty" $ do
-            property prop_size_isEmpty
-        it "prop_size_toFlatList" $ do
-            property prop_size_toFlatList
+                describe "Negative tests" $ do
+                    it
+                        "Zero-valued token quantity (from flat representation)"
+                        testZeroValuedTokenQuantityFlat
+                    it
+                        "Zero-valued token quantity (from nested representation)"
+                        testZeroValuedTokenQuantityNested
+                    it
+                        "Empty token list"
+                        testEmptyTokenList
 
-    describe "Transformations" $ do
-
-        it "prop_mapAssetIds_identity" $ do
-            prop_mapAssetIds_identity & property
-        it "prop_mapAssetIds_composition" $ do
-            prop_mapAssetIds_composition & property
-
-    describe "Partitioning assets" $ do
-
-        it "prop_equipartitionAssets_coverage" $
-            property prop_equipartitionAssets_coverage
-        it "prop_equipartitionAssets_length" $
-            property prop_equipartitionAssets_length
-        it "prop_equipartitionAssets_sizes" $
-            property prop_equipartitionAssets_sizes
-        it "prop_equipartitionAssets_sum" $
-            property prop_equipartitionAssets_sum
-
-    describe "Partitioning quantities" $ do
-
-        it "prop_equipartitionQuantities_fair" $
-            property prop_equipartitionQuantities_fair
-        it "prop_equipartitionQuantities_length" $
-            property prop_equipartitionQuantities_length
-        it "prop_equipartitionQuantities_order" $
-            property prop_equipartitionQuantities_order
-        it "prop_equipartitionQuantities_sum" $
-            property prop_equipartitionQuantities_sum
-
-    describe "Partitioning quantities with an upper bound" $ do
-
-        it "prop_equipartitionQuantitiesWithUpperBound_coverage" $
-            property prop_equipartitionQuantitiesWithUpperBound_coverage
-        it "prop_equipartitionQuantitiesWithUpperBound_length" $
-            property prop_equipartitionQuantitiesWithUpperBound_length
-        it "prop_equipartitionQuantitiesWithUpperBound_max" $
-            property prop_equipartitionQuantitiesWithUpperBound_max
-        it "prop_equipartitionQuantitiesWithUpperBound_order" $
-            property prop_equipartitionQuantitiesWithUpperBound_order
-        it "prop_equipartitionQuantitiesWithUpperBound_sum" $
-            property prop_equipartitionQuantitiesWithUpperBound_sum
-
-    describe "Generating partitions" $ do
-
-        it "prop_genTokenMapPartition_fold" $
-            prop_genTokenMapPartition_fold & property
-        it "prop_genTokenMapPartition_length" $
-            prop_genTokenMapPartition_length & property
-        it "prop_genTokenMapPartition_nonPositive" $
-            prop_genTokenMapPartition_nonPositive & property
-
-    describe "JSON serialization" $ do
-
-        describe "Roundtrip tests" $ do
-            testJson $ Proxy @(Flat TokenMap)
-            testJson $ Proxy @(Nested TokenMap)
-
-        describe "Negative tests" $ do
-            it "Zero-valued token quantity (from flat representation)"
-                testZeroValuedTokenQuantityFlat
-            it "Zero-valued token quantity (from nested representation)"
-                testZeroValuedTokenQuantityNested
-            it "Empty token list"
-                testEmptyTokenList
-
-    describe "Textual serialization" $ do
-        it "Flat style" $
-            property testPrettyFlat
-        it "Nested style" $
-            property testPrettyNested
+            describe "Textual serialization" $ do
+                it "Flat style"
+                    $ property testPrettyFlat
+                it "Nested style"
+                    $ property testPrettyNested
 
 --------------------------------------------------------------------------------
 -- Invariant properties
@@ -363,8 +407,10 @@ prop_empty_invariant :: Property
 prop_empty_invariant = property $ invariantHolds TokenMap.empty
 
 prop_singleton_invariant :: (AssetId, TokenQuantity) -> Property
-prop_singleton_invariant (asset, quantity) = property $
-    invariantHolds $ TokenMap.singleton asset quantity
+prop_singleton_invariant (asset, quantity) =
+    property
+        $ invariantHolds
+        $ TokenMap.singleton asset quantity
 
 prop_fromFlatList_invariant :: [(AssetId, TokenQuantity)] -> Property
 prop_fromFlatList_invariant entries =
@@ -379,8 +425,10 @@ prop_add_invariant :: TokenMap -> TokenMap -> Property
 prop_add_invariant b1 b2 = property $ invariantHolds $ TokenMap.add b1 b2
 
 prop_subtract_invariant :: TokenMap -> TokenMap -> Property
-prop_subtract_invariant m1 m2 = property $
-    m2 `leq` m1 ==> invariantHolds result
+prop_subtract_invariant m1 m2 =
+    property
+        $ m2 `leq` m1
+        ==> invariantHolds result
   where
     result =
         case TokenMap.subtract m1 m2 of
@@ -397,27 +445,39 @@ prop_intersection_invariant m1 m2 =
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
-prop_setQuantity_invariant b asset quantity = property $
-    invariantHolds $ TokenMap.setQuantity b asset quantity
+prop_setQuantity_invariant b asset quantity =
+    property
+        $ invariantHolds
+        $ TokenMap.setQuantity b asset quantity
 
 prop_adjustQuantity_invariant :: TokenMap -> AssetId -> Property
-prop_adjustQuantity_invariant b asset = property $
-    invariantHolds $ TokenMap.adjustQuantity b asset TokenQuantity.predZero
+prop_adjustQuantity_invariant b asset =
+    property
+        $ invariantHolds
+        $ TokenMap.adjustQuantity b asset TokenQuantity.predZero
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
 --------------------------------------------------------------------------------
 
 prop_fromFlatList :: [(AssetId, TokenQuantity)] -> Property
-prop_fromFlatList assetQuantities = checkCoverage $ property $
-    cover 2 (length assetQuantities == length combinedAssetQuantities)
-        "Every asset has exactly one quantity" $
-    cover 20 (length assetQuantities > length combinedAssetQuantities)
-        "Some assets have more than one quantity" $
-    -- Check that multiple quantities for the same asset are combined
-    -- additively:
-    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
-        combinedAssetQuantities
+prop_fromFlatList assetQuantities =
+    checkCoverage
+        $ property
+        $ cover
+            2
+            (length assetQuantities == length combinedAssetQuantities)
+            "Every asset has exactly one quantity"
+        $ cover
+            20
+            (length assetQuantities > length combinedAssetQuantities)
+            "Some assets have more than one quantity"
+        $
+        -- Check that multiple quantities for the same asset are combined
+        -- additively:
+        F.all
+            (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+            combinedAssetQuantities
   where
     tokenMap = TokenMap.fromFlatList assetQuantities
     combinedAssetQuantities =
@@ -426,19 +486,28 @@ prop_fromFlatList assetQuantities = checkCoverage $ property $
 prop_fromNestedList
     :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
     -> Property
-prop_fromNestedList assetQuantities = checkCoverage $ property $
-    cover 2 (length flattenedAssetQuantities == length combinedAssetQuantities)
-        "Every asset has exactly one quantity" $
-    cover 20 (length flattenedAssetQuantities > length combinedAssetQuantities)
-        "Some assets have more than one quantity" $
-    -- Check that multiple quantities for the same asset are combined
-    -- additively:
-    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
-        combinedAssetQuantities
+prop_fromNestedList assetQuantities =
+    checkCoverage
+        $ property
+        $ cover
+            2
+            (length flattenedAssetQuantities == length combinedAssetQuantities)
+            "Every asset has exactly one quantity"
+        $ cover
+            20
+            (length flattenedAssetQuantities > length combinedAssetQuantities)
+            "Some assets have more than one quantity"
+        $
+        -- Check that multiple quantities for the same asset are combined
+        -- additively:
+        F.all
+            (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+            combinedAssetQuantities
   where
     tokenMap = TokenMap.fromNestedList assetQuantities
-    combinedAssetQuantities = Map.toList $
-        Map.fromListWith TokenQuantity.add flattenedAssetQuantities
+    combinedAssetQuantities =
+        Map.toList
+            $ Map.fromListWith TokenQuantity.add flattenedAssetQuantities
     flattenedAssetQuantities =
         [ (AssetId p t, q)
         | (p, tq) <- fmap (fmap NE.toList) assetQuantities
@@ -451,8 +520,8 @@ prop_empty_toFlatList =
 
 prop_singleton_toFlatList
     :: (AssetId, TokenQuantity) -> Property
-prop_singleton_toFlatList entry@(asset, quantity) = property $
-    case TokenMap.toFlatList $ TokenMap.singleton asset quantity of
+prop_singleton_toFlatList entry@(asset, quantity) = property
+    $ case TokenMap.toFlatList $ TokenMap.singleton asset quantity of
         [] -> quantity === TokenQuantity.zero
         [entryRetrieved] -> entryRetrieved === entry
         _ -> error "prop_singleton_toFlatList"
@@ -491,7 +560,7 @@ prop_filter_partition f b =
 prop_filter_twice :: Fun AssetIdF Bool -> TokenMap -> Property
 prop_filter_twice f b =
     let
-        once  = TokenMap.filter (applyFun f . AssetIdF) b
+        once = TokenMap.filter (applyFun f . AssetIdF) b
         twice = TokenMap.filter (applyFun f . AssetIdF) once
     in
         once === twice
@@ -505,16 +574,18 @@ prop_add_commutative b1 b2 =
     b1 `TokenMap.add` b2 === b2 `TokenMap.add` b1
 
 prop_add_associative :: TokenMap -> TokenMap -> TokenMap -> Property
-prop_add_associative b1 b2 b3 = (===)
-    ((b1 `TokenMap.add` b2) `TokenMap.add` b3)
-    (b1 `TokenMap.add` (b2 `TokenMap.add` b3))
+prop_add_associative b1 b2 b3 =
+    (===)
+        ((b1 `TokenMap.add` b2) `TokenMap.add` b3)
+        (b1 `TokenMap.add` (b2 `TokenMap.add` b3))
 
 prop_add_subtract_associative
     :: TokenMap -> TokenMap -> TokenMap -> Property
 prop_add_subtract_associative m1 m2 m3 =
-    m3 `leq` m2 ==> (===)
-        ((m1 `TokenMap.add` m2) `TokenMap.subtract` m3)
-        (fmap (m1 `TokenMap.add`) (m2 `TokenMap.subtract` m3))
+    m3 `leq` m2 ==>
+        (===)
+            ((m1 `TokenMap.add` m2) `TokenMap.subtract` m3)
+            (fmap (m1 `TokenMap.add`) (m2 `TokenMap.subtract` m3))
 
 prop_subtract_null :: TokenMap -> Property
 prop_subtract_null m =
@@ -524,7 +595,7 @@ prop_difference_zero :: TokenMap -> Property
 prop_difference_zero x =
     x `difference` mempty === x
 
-prop_difference_zero2 :: TokenMap-> Property
+prop_difference_zero2 :: TokenMap -> Property
 prop_difference_zero2 x =
     mempty `difference` x === mempty
 
@@ -533,8 +604,9 @@ prop_difference_zero3 x =
     x `difference` x === mempty
 
 prop_difference_leq :: TokenMap -> TokenMap -> Property
-prop_difference_leq x y = property $
-    x `difference` y `leq` x
+prop_difference_leq x y =
+    property
+        $ x `difference` y `leq` x
 
 -- (x - y) + y ⊇ x
 prop_difference_add :: TokenMap -> TokenMap -> Property
@@ -543,21 +615,26 @@ prop_difference_add x y =
         delta = x `difference` y
         yAndDelta = delta `TokenMap.add` y
     in
-        counterexample ("x - y = " <> show delta) $
-        counterexample ("(x - y) + y = " <> show yAndDelta) $
-        property $ x `leq` yAndDelta
+        counterexample ("x - y = " <> show delta)
+            $ counterexample ("(x - y) + y = " <> show yAndDelta)
+            $ property
+            $ x `leq` yAndDelta
 
 prop_difference_subtract :: TokenMap -> TokenMap -> Property
 prop_difference_subtract x y =
-    y `leq` x ==> (===)
-        (x `TokenMap.subtract` y)
-        (Just $ x `TokenMap.difference` y)
+    y `leq` x ==>
+        (===)
+            (x `TokenMap.subtract` y)
+            (Just $ x `TokenMap.difference` y)
 
 prop_difference_equality :: TokenMap -> TokenMap -> Property
-prop_difference_equality x y = checkCoverage $
-    cover 5 (TokenMap.isNotEmpty xReduced)
-        "reduced maps are not empty" $
-    xReduced === yReduced
+prop_difference_equality x y =
+    checkCoverage
+        $ cover
+            5
+            (TokenMap.isNotEmpty xReduced)
+            "reduced maps are not empty"
+        $ xReduced === yReduced
   where
     xReduced = x `TokenMap.difference` xExcess
     yReduced = y `TokenMap.difference` yExcess
@@ -567,19 +644,23 @@ prop_difference_equality x y = checkCoverage $
 prop_intersection_associativity :: Property
 prop_intersection_associativity =
     forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    forAllBlind gen $ \z ->
-    prop_inner x y z
+        forAllBlind gen $ \y ->
+            forAllBlind gen $ \z ->
+                prop_inner x y z
   where
     gen = scale (* 4) genTokenMap
     prop_inner x y z =
-        checkCoverage $
-        cover 50 (x /= y && y /= z)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-            "intersection is not empty" $
-        counterexample (pretty (Flat <$> [x, y, z, r1, r2])) $
-        r1 == r2
+        checkCoverage
+            $ cover
+                50
+                (x /= y && y /= z)
+                "maps are different"
+            $ cover
+                50
+                (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+                "intersection is not empty"
+            $ counterexample (pretty (Flat <$> [x, y, z, r1, r2]))
+            $ r1 == r2
       where
         r1 = (x `TokenMap.intersection` y) `TokenMap.intersection` z
         r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
@@ -587,75 +668,91 @@ prop_intersection_associativity =
 prop_intersection_commutativity :: Property
 prop_intersection_commutativity =
     forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
+        forAllBlind gen $ \y ->
+            prop_inner x y
   where
     gen = scale (* 2) genTokenMap
     prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-            "intersection is not empty" $
-        counterexample (pretty (Flat <$> [x, y, r1, r2])) $
-        r1 == r2
+        checkCoverage
+            $ cover
+                50
+                (x /= y)
+                "maps are different"
+            $ cover
+                50
+                (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+                "intersection is not empty"
+            $ counterexample (pretty (Flat <$> [x, y, r1, r2]))
+            $ r1 == r2
       where
         r1 = x `TokenMap.intersection` y
         r2 = y `TokenMap.intersection` x
 
 prop_intersection_empty :: TokenMap -> Property
 prop_intersection_empty x =
-    checkCoverage $
-    cover 50 (TokenMap.isNotEmpty x)
-        "map is not empty" $
-    x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
+    checkCoverage
+        $ cover
+            50
+            (TokenMap.isNotEmpty x)
+            "map is not empty"
+        $ x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
 
 prop_intersection_equality :: Property
 prop_intersection_equality =
     forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
+        forAllBlind gen $ \y ->
+            prop_inner x y
   where
     gen = scale (* 2) genTokenMap
     prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-            "maps are not empty" $
-        counterexample (pretty (Flat <$> [x, y, total])) $
-        conjoin
-            [ total `TokenMap.intersection` x === x
-            , total `TokenMap.intersection` y === y
-            ]
+        checkCoverage
+            $ cover
+                50
+                (x /= y)
+                "maps are different"
+            $ cover
+                50
+                (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+                "maps are not empty"
+            $ counterexample (pretty (Flat <$> [x, y, total]))
+            $ conjoin
+                [ total `TokenMap.intersection` x === x
+                , total `TokenMap.intersection` y === y
+                ]
       where
         total = x <> y
 
 prop_intersection_identity :: TokenMap -> Property
 prop_intersection_identity x =
-    checkCoverage $
-    cover 50 (TokenMap.isNotEmpty x)
-        "map is not empty" $
-    x `TokenMap.intersection` x === x
+    checkCoverage
+        $ cover
+            50
+            (TokenMap.isNotEmpty x)
+            "map is not empty"
+        $ x `TokenMap.intersection` x === x
 
 prop_intersection_subset :: Property
 prop_intersection_subset =
     forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
+        forAllBlind gen $ \y ->
+            prop_inner x y
   where
     gen = scale (* 2) genTokenMap
     prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-            "maps are not empty" $
-        counterexample (pretty (Flat <$> [x, y, intersection])) $
-        conjoin
-            [ intersection `leq` x
-            , intersection `leq` y
-            ]
+        checkCoverage
+            $ cover
+                50
+                (x /= y)
+                "maps are different"
+            $ cover
+                50
+                (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+                "maps are not empty"
+            $ counterexample (pretty (Flat <$> [x, y, intersection]))
+            $ conjoin
+                [ intersection `leq` x
+                , intersection `leq` y
+                ]
       where
         intersection = x `TokenMap.intersection` y
 
@@ -712,23 +809,23 @@ prop_maximumQuantity_all b =
 
 prop_size_isEmpty :: TokenMap -> Property
 prop_size_isEmpty m =
-    checkCoverage_size m $
-    if TokenMap.isEmpty m
-    then TokenMap.size m == 0
-    else TokenMap.size m > 0
+    checkCoverage_size m
+        $ if TokenMap.isEmpty m
+            then TokenMap.size m == 0
+            else TokenMap.size m > 0
 
 prop_size_toFlatList :: TokenMap -> Property
 prop_size_toFlatList m =
-    checkCoverage_size m $
-    TokenMap.size m === length (TokenMap.toFlatList m)
+    checkCoverage_size m
+        $ TokenMap.size m === length (TokenMap.toFlatList m)
 
-checkCoverage_size :: Testable prop => TokenMap -> (prop -> Property)
-checkCoverage_size m
-    = checkCoverage
-    . cover 2 (TokenMap.size m == 0) "size == 0"
-    . cover 2 (TokenMap.size m == 1) "size == 1"
-    . cover 2 (TokenMap.size m == 2) "size == 2"
-    . cover 2 (TokenMap.size m >= 3) "size >= 3"
+checkCoverage_size :: (Testable prop) => TokenMap -> (prop -> Property)
+checkCoverage_size m =
+    checkCoverage
+        . cover 2 (TokenMap.size m == 0) "size == 0"
+        . cover 2 (TokenMap.size m == 1) "size == 1"
+        . cover 2 (TokenMap.size m == 2) "size == 2"
+        . cover 2 (TokenMap.size m >= 3) "size >= 3"
 
 --------------------------------------------------------------------------------
 -- Transformations
@@ -741,8 +838,8 @@ prop_mapAssetIds_identity m =
 prop_mapAssetIds_composition
     :: TokenMap -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
 prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
-    TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m) ===
-    TokenMap.mapAssetIds (f . g) m
+    TokenMap.mapAssetIds f (TokenMap.mapAssetIds g m)
+        === TokenMap.mapAssetIds (f . g) m
 
 --------------------------------------------------------------------------------
 -- Partitioning assets
@@ -750,16 +847,25 @@ prop_mapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
 
 prop_equipartitionAssets_coverage
     :: Blind (Large TokenMap) -> Property
-prop_equipartitionAssets_coverage m = checkCoverage $
-    cover 4 (assetCount == 0)
-        "asset count = 0" $
-    cover 4 (assetCount == 1)
-        "asset count = 1" $
-    cover 20 (2 <= assetCount && assetCount <= 31)
-        "2 <= asset count <= 31" $
-    cover 20 (32 <= assetCount && assetCount <= 63)
-        "32 <= asset count <= 63"
-    True
+prop_equipartitionAssets_coverage m =
+    checkCoverage
+        $ cover
+            4
+            (assetCount == 0)
+            "asset count = 0"
+        $ cover
+            4
+            (assetCount == 1)
+            "asset count = 1"
+        $ cover
+            20
+            (2 <= assetCount && assetCount <= 31)
+            "2 <= asset count <= 31"
+        $ cover
+            20
+            (32 <= assetCount && assetCount <= 63)
+            "32 <= asset count <= 63"
+            True
   where
     assetCount = TokenMap.size $ getLarge $ getBlind m
 
@@ -770,9 +876,10 @@ prop_equipartitionAssets_length (Blind (Large m)) count =
 
 prop_equipartitionAssets_sizes
     :: Blind (Large TokenMap) -> NonEmpty () -> Property
-prop_equipartitionAssets_sizes (Blind (Large m)) count = (.||.)
-    (assetCountDifference == 0)
-    (assetCountDifference == 1)
+prop_equipartitionAssets_sizes (Blind (Large m)) count =
+    (.||.)
+        (assetCountDifference == 0)
+        (assetCountDifference == 1)
   where
     assetCounts = TokenMap.size <$> results
     assetCountMin = F.minimum assetCounts
@@ -794,8 +901,9 @@ prop_equipartitionAssets_sum (Blind (Large m)) count =
 -- Each token quantity portion must be within unity of the ideal portion.
 --
 prop_equipartitionQuantities_fair :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionQuantities_fair m count = property $
-    isZeroOrOne maximumDifference
+prop_equipartitionQuantities_fair m count =
+    property
+        $ isZeroOrOne maximumDifference
   where
     -- Here we take advantage of the fact that the resultant maps are sorted
     -- into ascending order when compared with the 'leq' function.
@@ -827,8 +935,9 @@ prop_equipartitionQuantities_length m count =
     NE.length (TokenMap.equipartitionQuantities m count) === NE.length count
 
 prop_equipartitionQuantities_order :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionQuantities_order m count = property $
-    inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
+prop_equipartitionQuantities_order m count =
+    property
+        $ inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
 
 prop_equipartitionQuantities_sum :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionQuantities_sum m count =
@@ -840,35 +949,50 @@ prop_equipartitionQuantities_sum m count =
 
 -- | Computes the number of parts that 'equipartitionQuantitiesWithUpperBound'
 --   should return.
---
 equipartitionQuantitiesWithUpperBound_expectedLength
     :: TokenMap -> TokenQuantity -> Int
 equipartitionQuantitiesWithUpperBound_expectedLength
-    m (TokenQuantity maxQuantity) =
+    m
+    (TokenQuantity maxQuantity) =
         max 1 $ ceiling $ currentMaxQuantity % maxQuantity
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+      where
+        TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 
 prop_equipartitionQuantitiesWithUpperBound_coverage
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
-    checkCoverage $
-    cover 4 (maxQuantity == TokenQuantity 1)
-        "Maximum allowable quantity == 1" $
-    cover 4 (maxQuantity == TokenQuantity 2)
-        "Maximum allowable quantity == 2" $
-    cover 8 (maxQuantity >= TokenQuantity 3)
-        "Maximum allowable quantity >= 3" $
-    cover 8 (expectedLength == 1)
-        "Expected number of parts == 1" $
-    cover 8 (expectedLength == 2)
-        "Expected number of parts == 2" $
-    cover 8 (expectedLength >= 3)
-        "Expected number of parts >= 3" $
-    property $ expectedLength > 0
+    checkCoverage
+        $ cover
+            4
+            (maxQuantity == TokenQuantity 1)
+            "Maximum allowable quantity == 1"
+        $ cover
+            4
+            (maxQuantity == TokenQuantity 2)
+            "Maximum allowable quantity == 2"
+        $ cover
+            8
+            (maxQuantity >= TokenQuantity 3)
+            "Maximum allowable quantity >= 3"
+        $ cover
+            8
+            (expectedLength == 1)
+            "Expected number of parts == 1"
+        $ cover
+            8
+            (expectedLength == 2)
+            "Expected number of parts == 2"
+        $ cover
+            8
+            (expectedLength >= 3)
+            "Expected number of parts >= 3"
+        $ property
+        $ expectedLength > 0
   where
-    expectedLength = equipartitionQuantitiesWithUpperBound_expectedLength
-        m maxQuantity
+    expectedLength =
+        equipartitionQuantitiesWithUpperBound_expectedLength
+            m
+            maxQuantity
 
 prop_equipartitionQuantitiesWithUpperBound_length
     :: TokenMap -> Positive TokenQuantity -> Property
@@ -879,10 +1003,13 @@ prop_equipartitionQuantitiesWithUpperBound_length m (Positive maxQuantity) =
 prop_equipartitionQuantitiesWithUpperBound_max
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
-    checkCoverage $
-    cover 10 (maxResultQuantity == maxQuantity)
-        "At least one resultant token map has a maximal quantity" $
-    property $ maxResultQuantity <= maxQuantity
+    checkCoverage
+        $ cover
+            10
+            (maxResultQuantity == maxQuantity)
+            "At least one resultant token map has a maximal quantity"
+        $ property
+        $ maxResultQuantity <= maxQuantity
   where
     results = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
     maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
@@ -890,8 +1017,9 @@ prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
 prop_equipartitionQuantitiesWithUpperBound_order
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_order m (Positive maxQuantity) =
-    property $ inAscendingPartialOrder
-        (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+    property
+        $ inAscendingPartialOrder
+            (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
 
 prop_equipartitionQuantitiesWithUpperBound_sum
     :: TokenMap -> Positive TokenQuantity -> Property
@@ -922,15 +1050,16 @@ prop_genTokenMapPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
 --------------------------------------------------------------------------------
 
 failurePreamble :: String
-failurePreamble = unwords
-    [ "Error in $:"
-    , "Error while deserializing token map from JSON:"
-    ]
+failurePreamble =
+    unwords
+        [ "Error in $:"
+        , "Error while deserializing token map from JSON:"
+        ]
 
 testZeroValuedTokenQuantityFlat :: Expectation
 testZeroValuedTokenQuantityFlat =
-    Aeson.parseEither (parseJSON @(Flat TokenMap)) json `shouldBe`
-        Left message
+    Aeson.parseEither (parseJSON @(Flat TokenMap)) json
+        `shouldBe` Left message
   where
     policy = dummyTokenPolicyId 'A'
     token = dummyTokenName "DUMMY-TOKEN"
@@ -942,18 +1071,19 @@ testZeroValuedTokenQuantityFlat =
             }
           ]
         |]
-    message = unwords
-        [ failurePreamble
-        , "Encountered zero-valued quantity for token"
-        , show (toText token)
-        , "within policy"
-        , show (toText policy) <> "."
-        ]
+    message =
+        unwords
+            [ failurePreamble
+            , "Encountered zero-valued quantity for token"
+            , show (toText token)
+            , "within policy"
+            , show (toText policy) <> "."
+            ]
 
 testZeroValuedTokenQuantityNested :: Expectation
 testZeroValuedTokenQuantityNested =
-    Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
-        Left message
+    Aeson.parseEither (parseJSON @(Nested TokenMap)) json
+        `shouldBe` Left message
   where
     policy = dummyTokenPolicyId 'A'
     token = dummyTokenName "DUMMY-TOKEN"
@@ -964,26 +1094,28 @@ testZeroValuedTokenQuantityNested =
             }
           ]
         |]
-    message = unwords
-        [ failurePreamble
-        , "Encountered zero-valued quantity for token"
-        , show (toText token)
-        , "within policy"
-        , show (toText policy) <> "."
-        ]
+    message =
+        unwords
+            [ failurePreamble
+            , "Encountered zero-valued quantity for token"
+            , show (toText token)
+            , "within policy"
+            , show (toText policy) <> "."
+            ]
 
 testEmptyTokenList :: Expectation
 testEmptyTokenList =
-    Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
-        Left message
+    Aeson.parseEither (parseJSON @(Nested TokenMap)) json
+        `shouldBe` Left message
   where
     policy = dummyTokenPolicyId 'A'
     json = [aesonQQ|[{"policy_id": #{policy}, "tokens": []}]|]
-    message = unwords
-        [ failurePreamble
-        , "Encountered empty token list for policy"
-        , show (toText policy) <> "."
-        ]
+    message =
+        unwords
+            [ failurePreamble
+            , "Encountered empty token list for policy"
+            , show (toText policy) <> "."
+            ]
 
 testJson
     :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
@@ -991,12 +1123,13 @@ testJson = Roundtrip.jsonRoundtripAndGolden testJsonDataDirectory
 
 testJsonDataDirectory :: FilePath
 testJsonDataDirectory =
-    ($(getTestData)
+    ( $(getTestData)
         </> "Cardano"
         </> "Wallet"
         </> "Primitive"
         </> "Types"
-        </> "TokenMap")
+        </> "TokenMap"
+    )
 
 --------------------------------------------------------------------------------
 -- Textual serialization
@@ -1011,22 +1144,24 @@ testPrettyNested =
     pretty (Nested testMap) `shouldBe` testMapPrettyNested
 
 testMap :: TokenMap
-testMap = testMapData
-    & fmap (second TokenQuantity)
-    & fmap (first (bimap dummyTokenPolicyId dummyTokenName))
-    & fmap (first (uncurry AssetId))
-    & TokenMap.fromFlatList
+testMap =
+    testMapData
+        & fmap (second TokenQuantity)
+        & fmap (first (bimap dummyTokenPolicyId dummyTokenName))
+        & fmap (first (uncurry AssetId))
+        & TokenMap.fromFlatList
 
 testMapData :: [((Char, ByteString), Natural)]
 testMapData =
-    [ (('A', "APPLE"    ), 1)
-    , (('A', "AVOCADO"  ), 2)
-    , (('B', "BANANA"   ), 3)
+    [ (('A', "APPLE"), 1)
+    , (('A', "AVOCADO"), 2)
+    , (('B', "BANANA"), 3)
     , (('B', "BLUEBERRY"), 4)
     ]
 
 testMapPrettyFlat :: Text
-testMapPrettyFlat = [s|
+testMapPrettyFlat =
+    [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   token: 4150504c45
   quantity: 1
@@ -1042,7 +1177,8 @@ testMapPrettyFlat = [s|
 |]
 
 testMapPrettyNested :: Text
-testMapPrettyNested = [s|
+testMapPrettyNested =
+    [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
     - token: 4150504c45
@@ -1064,20 +1200,22 @@ testMapPrettyNested = [s|
 dummyTokenName :: ByteString -> TokenName
 dummyTokenName t = fromRight reportError $ mkTokenName t
   where
-    reportError = error $
-        "Unable to construct dummy token name from bytes: " <> show t
+    reportError =
+        error
+            $ "Unable to construct dummy token name from bytes: " <> show t
 
 -- The input must be a character in the range [0-9] or [A-Z].
 --
 dummyTokenPolicyId :: Char -> TokenPolicyId
-dummyTokenPolicyId c
-    = fromRight reportError
-    $ fromText
-    $ T.pack
-    $ replicate tokenPolicyIdHexStringLength c
+dummyTokenPolicyId c =
+    fromRight reportError
+        $ fromText
+        $ T.pack
+        $ replicate tokenPolicyIdHexStringLength c
   where
-    reportError = error $
-        "Unable to construct dummy token policy id from character: " <> show c
+    reportError =
+        error
+            $ "Unable to construct dummy token policy id from character: " <> show c
 
 tokenPolicyIdHexStringLength :: Int
 tokenPolicyIdHexStringLength = 56
@@ -1087,24 +1225,24 @@ tokenPolicyIdHexStringLength = 56
 --------------------------------------------------------------------------------
 
 newtype Large a = Large
-    { getLarge :: a }
+    {getLarge :: a}
     deriving (Eq, Show)
 
 newtype Positive a = Positive
-    { getPositive :: a }
+    {getPositive :: a}
     deriving (Eq, Show)
 
 deriving newtype instance Arbitrary (Lexicographic TokenMap)
 
-instance Arbitrary a => Arbitrary (Flat a) where
+instance (Arbitrary a) => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary
     shrink = fmap Flat . shrink . getFlat
 
-instance Arbitrary a => Arbitrary (Nested a) where
+instance (Arbitrary a) => Arbitrary (Nested a) where
     arbitrary = Nested <$> arbitrary
     shrink = fmap Nested . shrink . getNested
 
-instance Arbitrary a => Arbitrary (NonEmpty a) where
+instance (Arbitrary a) => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = mapMaybe NE.nonEmpty . shrink . NE.toList
 
@@ -1120,18 +1258,22 @@ instance Arbitrary TokenMap where
     shrink = shrinkTokenMap
 
 instance Arbitrary (Large TokenMap) where
-    arbitrary = Large <$> do
-        assetCount <- frequency
-            [ (1, pure 0)
-            , (1, pure 1)
-            , (8, choose (2, 63))
-            ]
-        TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+    arbitrary =
+        Large <$> do
+            assetCount <-
+                frequency
+                    [ (1, pure 0)
+                    , (1, pure 1)
+                    , (8, choose (2, 63))
+                    ]
+            TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
       where
-        genAssetQuantity = (,)
-            <$> genAssetIdLargeRange
-            <*> genTokenQuantityPositive
-    -- No shrinking
+        genAssetQuantity =
+            (,)
+                <$> genAssetIdLargeRange
+                <*> genTokenQuantityPositive
+
+-- No shrinking
 
 instance Arbitrary TokenName where
     arbitrary = genTokenName

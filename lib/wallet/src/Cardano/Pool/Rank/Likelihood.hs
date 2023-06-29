@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
@@ -18,7 +19,7 @@ module Cardano.Pool.Rank.Likelihood
     , PerformanceEstimate (..)
     , estimatePoolPerformance
 
-    -- * Likelihood computations
+      -- * Likelihood computations
     , LogWeight (..)
     , Likelihood (..)
     , likelihood
@@ -26,7 +27,7 @@ module Cardano.Pool.Rank.Likelihood
     , Histogram (..)
     , percentile'
     )
-    where
+where
 
 import Prelude
 
@@ -38,27 +39,38 @@ import Cardano.Wallet.Primitive.Types
     , getFederationPercentage
     )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Foldable
-    ( find )
+    ( find
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.List
-    ( foldl' )
+    ( foldl'
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Quantity
-    ( Percentage (..) )
+    ( Percentage (..)
+    )
 import Data.Sequence
-    ( Seq )
+    ( Seq
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
 
 import qualified Data.Sequence as Seq
@@ -67,13 +79,14 @@ import qualified Data.Sequence.Strict as StrictSeq
 {-------------------------------------------------------------------------------
     Estimating pool performance
 -------------------------------------------------------------------------------}
+
 -- | Information about block production of a pool in one epoch.
 data BlockProduction = BlockProduction
     { blocksProduced :: !Natural
-        -- ^ Blocks produced in the given epoch.
+    -- ^ Blocks produced in the given epoch.
     , stakeRelative :: !Rational
-        -- ^ Relative stake of the pool that was relevant for block production.
-        -- (i.e. from the "set" snapshot).
+    -- ^ Relative stake of the pool that was relevant for block production.
+    -- (i.e. from the "set" snapshot).
     }
 
 -- | Estimate the performance of a pool from historical block production data.
@@ -84,27 +97,29 @@ estimatePoolPerformance
     :: SlottingParameters
     -> DecentralizationLevel
     -> Seq BlockProduction
-        -- ^ Historical block production data. Most recent data comes /first/.
-        -- Recent performance weighs more than past performance:
-        --
-        -- * Block production from > 25 epochs ago has less than 10% influence
-        -- on the likelihoods.
-        -- * Block production from > 50 epochs ago has less than 1% influence
-        -- on the likelihoods and can be ignored.
+    -- ^ Historical block production data. Most recent data comes /first/.
+    -- Recent performance weighs more than past performance:
+    --
+    -- * Block production from > 25 epochs ago has less than 10% influence
+    -- on the likelihoods.
+    -- * Block production from > 50 epochs ago has less than 1% influence
+    -- on the likelihoods and can be ignored.
     -> PerformanceEstimate
 estimatePoolPerformance sp d history =
     percentile' $ foldl' considerEpoch mempty (Seq.reverse history)
   where
     considerEpoch li perf = applyDecay decayFactor li <> likelihood' perf
 
-    prob perf = leaderProbability
-        (toActiveSlotCoeff $ getActiveSlotCoefficient sp)
-        (stakeRelative perf)
-        (getPercentage $ getFederationPercentage d)
-    likelihood' perf = likelihood
-        (blocksProduced perf)
-        (prob perf)
-        (fromIntegral $ unEpochLength $ getEpochLength sp)
+    prob perf =
+        leaderProbability
+            (toActiveSlotCoeff $ getActiveSlotCoefficient sp)
+            (stakeRelative perf)
+            (getPercentage $ getFederationPercentage d)
+    likelihood' perf =
+        likelihood
+            (blocksProduced perf)
+            (prob perf)
+            (fromIntegral $ unEpochLength $ getEpochLength sp)
 
 decayFactor :: Float
 decayFactor = 0.9
@@ -124,7 +139,7 @@ toActiveSlotCoeff :: ActiveSlotCoefficient -> ActiveSlotCoeff
 toActiveSlotCoeff (ActiveSlotCoefficient x) = ActiveSlotCoeff (realToFrac x)
 
 newtype ActiveSlotCoeff = ActiveSlotCoeff
-    { activeSlotVal :: PositiveUnitInterval }
+    {activeSlotVal :: PositiveUnitInterval}
 
 {-------------------------------------------------------------------------------
     Copied material
@@ -134,8 +149,8 @@ newtype ActiveSlotCoeff = ActiveSlotCoeff
 -------------------------------------------------------------------------------}
 -- ---- begin copy ----
 newtype LogWeight = LogWeight {unLogWeight :: Float}
-  deriving (Eq, Generic, Ord, Num, NFData, NoThunks)
-  deriving (Show) via Quiet LogWeight
+    deriving (Eq, Generic, Ord, Num, NFData, NoThunks)
+    deriving (Show) via Quiet LogWeight
 
 toLogWeight :: Double -> LogWeight
 toLogWeight d = LogWeight (realToFrac $ log d)
@@ -144,23 +159,23 @@ fromLogWeight :: LogWeight -> Double
 fromLogWeight (LogWeight l) = exp (realToFrac l)
 
 newtype Histogram = Histogram {unHistogram :: StrictSeq LogWeight}
-  deriving (Eq, Show, Generic)
+    deriving (Eq, Show, Generic)
 
 newtype Likelihood = Likelihood {unLikelihood :: StrictSeq LogWeight}
-  -- TODO: replace with small data structure
-  deriving (Show, Ord, Generic, NFData)
+    -- TODO: replace with small data structure
+    deriving (Show, Ord, Generic, NFData)
 
 instance NoThunks Likelihood
 
 instance Eq Likelihood where
-  (==) = (==) `on` unLikelihood . normalizeLikelihood
+    (==) = (==) `on` unLikelihood . normalizeLikelihood
 
 instance Semigroup Likelihood where
-  (Likelihood x) <> (Likelihood y) =
-    normalizeLikelihood $ Likelihood (StrictSeq.zipWith (+) x y)
+    (Likelihood x) <> (Likelihood y) =
+        normalizeLikelihood $ Likelihood (StrictSeq.zipWith (+) x y)
 
 instance Monoid Likelihood where
-  mempty = Likelihood $ StrictSeq.forceToStrict $ Seq.replicate (length samplePositions) (LogWeight 0)
+    mempty = Likelihood $ StrictSeq.forceToStrict $ Seq.replicate (length samplePositions) (LogWeight 0)
 
 normalizeLikelihood :: Likelihood -> Likelihood
 normalizeLikelihood (Likelihood xs) = Likelihood $ (\x -> x - m) <$> xs
@@ -169,7 +184,7 @@ normalizeLikelihood (Likelihood xs) = Likelihood $ (\x -> x - m) <$> xs
 
 leaderProbability :: ActiveSlotCoeff -> Rational -> UnitInterval -> Double
 leaderProbability activeSlotCoeff relativeStake decentralizationParameter =
-  (1 - (1 - asc) ** s) * (1 - d')
+    (1 - (1 - asc) ** s) * (1 - d')
   where
     d' = realToFrac . unboundRational $ decentralizationParameter
     asc = realToFrac . unboundRational . activeSlotVal $ activeSlotCoeff
@@ -178,14 +193,14 @@ leaderProbability activeSlotCoeff relativeStake decentralizationParameter =
 samplePositions :: StrictSeq Double
 samplePositions = (\x -> (x + 0.5) / 100.0) <$> StrictSeq.fromList [0.0 .. 99.0]
 
-likelihood ::
-  Natural -> -- number of blocks produced this epoch
-  Double -> -- chance we're allowed to produce a block in this slot
-  EpochSize ->
-  Likelihood
+likelihood
+    :: Natural -- number of blocks produced this epoch
+    -> Double -- chance we're allowed to produce a block in this slot
+    -> EpochSize
+    -> Likelihood
 likelihood blocks t slotsPerEpoch =
-  Likelihood $
-    sample <$> samplePositions
+    Likelihood
+        $ sample <$> samplePositions
   where
     -- The likelihood function L(x) is the probability of observing the data we got
     -- under the assumption that the underlying pool performance is equal to x.
@@ -223,8 +238,9 @@ applyDecay decay (Likelihood logWeights) = Likelihood $ mul decay <$> logWeights
 
 posteriorDistribution :: Histogram -> Likelihood -> Histogram
 posteriorDistribution (Histogram points) (Likelihood likelihoods) =
-  normalize $
-    Histogram $ StrictSeq.zipWith (+) points likelihoods
+    normalize
+        $ Histogram
+        $ StrictSeq.zipWith (+) points likelihoods
 
 -- | Normalize the histogram so that the total area is 1
 normalize :: Histogram -> Histogram
@@ -239,15 +255,15 @@ normalize (Histogram values) = Histogram $ (\x -> x - logArea) <$> values'
 -- k is a value between 0 and 1. The 0 percentile is 0 and the 1 percentile is 1
 percentile :: Double -> Histogram -> Likelihood -> PerformanceEstimate
 percentile p prior likelihoods =
-  PerformanceEstimate . fst $
-    fromMaybe (1, 1) $
-      find (\(_x, fx) -> fx > p) cdf
+    PerformanceEstimate . fst
+        $ fromMaybe (1, 1)
+        $ find (\(_x, fx) -> fx > p) cdf
   where
     (Histogram values) = posteriorDistribution prior likelihoods
     cdf =
-      Seq.zip
-        (StrictSeq.fromStrict samplePositions)
-        (StrictSeq.fromStrict (StrictSeq.scanl (+) 0 (fromLogWeight <$> values)))
+        Seq.zip
+            (StrictSeq.fromStrict samplePositions)
+            (StrictSeq.fromStrict (StrictSeq.scanl (+) 0 (fromLogWeight <$> values)))
 
 percentile' :: Likelihood -> PerformanceEstimate
 percentile' = percentile 0.5 h
@@ -263,5 +279,6 @@ riemannSum width heights = sum $ fmap (width *) heights
 -- | This is a estimate of the proportion of allowed blocks a pool will
 -- make in the future. It is used for ranking pools in delegation.
 newtype PerformanceEstimate = PerformanceEstimate {unPerformanceEstimate :: Double}
-  deriving (Show, Eq, Generic, NoThunks)
+    deriving (Show, Eq, Generic, NoThunks)
+
 -- ---- end copy ----

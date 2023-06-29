@@ -11,35 +11,64 @@ module Cardano.Wallet.DB.Store.Wallets.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
+    ( WalletProperty
+    , initializeWalletTable
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (..) )
+    ( TxMeta (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Layer
-    ( mkQueryStoreTxMeta )
+    ( mkQueryStoreTxMeta
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( TxMetaHistory (..) )
+    ( TxMetaHistory (..)
+    )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
+    ( DeltaTxWalletsHistory (..)
+    )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreTxWalletsHistory )
+    ( mkStoreTxWalletsHistory
+    )
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM )
+    ( MonadSTM
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow )
+    ( MonadThrow
+    )
 import Data.Delta
-    ( Delta )
+    ( Delta
+    )
 import Data.Store
-    ( UpdateStore, newStore )
+    ( UpdateStore
+    , newStore
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, NonEmptyList (..), arbitrary, choose, frequency, property )
+    ( Gen
+    , NonEmptyList (..)
+    , arbitrary
+    , choose
+    , frequency
+    , property
+    )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
@@ -88,4 +117,4 @@ genDeltaTxWallets wid (_, metas) = do
             : metaGens
 
 chooseFromMap :: Map.Map k a -> Gen a
-chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m-1)
+chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m - 1)

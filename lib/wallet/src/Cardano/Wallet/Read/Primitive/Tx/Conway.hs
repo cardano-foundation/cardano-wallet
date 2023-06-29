@@ -9,19 +9,19 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Conway
     ( fromConwayTx
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Api
-    ( ConwayEra )
+    ( ConwayEra
+    )
 import Cardano.Ledger.Alonzo.Scripts
-    ( AlonzoScript )
+    ( AlonzoScript
+    )
 import Cardano.Ledger.Api
     ( StandardCrypto
     , addrTxWitsL
@@ -42,37 +42,56 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Babbage
-    ( BabbageTxOut )
+    ( BabbageTxOut
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId (..) )
+    ( TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( conway, inject )
+    ( conway
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( fromConwayCerts )
+    ( fromConwayCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromConwayMetadata )
+    ( fromConwayMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( conwayMint, fromLedgerScriptHash )
+    ( conwayMint
+    , fromLedgerScriptHash
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromConwayTxOut )
+    ( fromConwayTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript, toWalletTokenPolicyId )
+    ( toWalletScript
+    , toWalletTokenPolicyId
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -86,17 +105,26 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (<&>), (^.), (^..) )
+    ( folded
+    , (<&>)
+    , (^.)
+    , (^..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe.Strict
-    ( strictMaybeToMaybe )
+    ( strictMaybeToMaybe
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Ouroboros.Consensus.Cardano.Block
-    ( StandardConway )
+    ( StandardConway
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
@@ -130,18 +158,18 @@ fromConwayTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject conway $ Tx tx
         , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+                <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
             (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.collateralInputsTxBodyL.folded
+                <$> tx ^.. bodyTxL . collateralInputsTxBodyL . folded
         , outputs =
-            fst . fromConwayTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
+            fst . fromConwayTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
         , collateralOutput =
-            strictMaybeToMaybe $
-                fst . fromConwayTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
+            strictMaybeToMaybe
+                $ fst . fromConwayTxOut <$> tx ^. bodyTxL . collateralReturnTxBodyL
         , withdrawals =
             fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
@@ -154,11 +182,11 @@ fromConwayTx tx witCtx =
     , fmap fromConwayCerts . toList $ tx ^. bodyTxL . conwayCertsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
         (Map.elems $ Map.union anyScriptsFromWits anyScriptsFromTxOuts)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )
   where
     txId = W.Hash $ shelleyTxHash tx
@@ -167,8 +195,11 @@ fromConwayTx tx witCtx =
     anyScriptsFromTxOuts =
         Map.fromList
             [ fromLedgerToAnyScript ledgerScript
-            | Just ledgerScript <- L.zipWith scriptWithHashIx
-                [0..] (tx ^.. bodyTxL.outputsTxBodyL.folded)
+            | Just ledgerScript <-
+                L.zipWith
+                    scriptWithHashIx
+                    [0 ..]
+                    (tx ^.. bodyTxL . outputsTxBodyL . folded)
             ]
       where
         scriptWithHashIx
@@ -190,13 +221,13 @@ fromConwayTx tx witCtx =
     anyScriptsFromWits =
         Map.fromList
             [ fromLedgerToAnyScript (ViaSpending, scriptH, script)
-            | (scriptH, script) <- Map.toList (tx ^. witsTxL.scriptTxWitsL)
+            | (scriptH, script) <- Map.toList (tx ^. witsTxL . scriptTxWitsL)
             ]
 
     (assetsToMint, assetsToBurn) =
         conwayMint
-            (tx ^. bodyTxL.referenceInputsTxBodyL)
-            (tx ^. bodyTxL.mintTxBodyL)
+            (tx ^. bodyTxL . referenceInputsTxBodyL)
+            (tx ^. bodyTxL . mintTxBodyL)
             (tx ^. witsTxL)
 
     fromLedgerToAnyScript
@@ -215,9 +246,10 @@ fromConwayTx tx witCtx =
                     scriptRef
             Alonzo.PlutusScript ver _ ->
                 PlutusExplicitScript
-                    (PlutusScriptInfo
+                    ( PlutusScriptInfo
                         (toPlutusVer ver)
-                        (fromLedgerScriptHash $ hashConwayScript script))
+                        (fromLedgerScriptHash $ hashConwayScript script)
+                    )
                     scriptRef
 
         toPlutusVer Language.PlutusV1 = PlutusVersionV1

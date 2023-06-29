@@ -10,19 +10,32 @@ module Test.Integration.Scenario.CLI.Miscellaneous
 import Prelude
 
 import Cardano.Wallet.Version
-    ( showVersionAsDate, version )
+    ( showVersionAsDate
+    , version
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith
+    , describe
+    , it
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI )
+    ( cardanoWalletCLI
+    )
 
 import qualified Data.List as L
 
@@ -31,7 +44,7 @@ spec = describe "COMMON_CLI_MISC" $ do
     it "CLI_VERSION - cardano-wallet shows version" $ do
         (Exit c, Stdout out) <- cardanoWalletCLI @_ @IO ["version"]
         let v = L.dropWhileEnd (== '\n') out
-        v `shouldContain` (showVersionAsDate version <> " (git revision: " )
+        v `shouldContain` (showVersionAsDate version <> " (git revision: ")
         c `shouldBe` ExitSuccess
 
     describe "CLI_HELP - cardano-wallet shows help on bad arg or param" $ do
@@ -39,62 +52,62 @@ spec = describe "COMMON_CLI_MISC" $ do
         let badArgs =
                 [ "--bad param"
                 , "bad arg"
-                -- serve
-                , "serve --network testnet --random-por --quiet"
+                , -- serve
+                  "serve --network testnet --random-por --quiet"
                 , "serve --network testnet --random-port --bridge-port 666 --vebrose"
                 , "serve --network"
                 , "server --verbose"
                 , "serve --database"
-                --launch
-                , "launch --quit"
+                , -- launch
+                  "launch --quit"
                 , "launch --network mainnet --state-dir"
                 , "launch --randomport 666 --state-dir tempdir"
                 , "launcher --verbose"
-                --mnemonic
-                , "mnemonic generate --size"
+                , -- mnemonic
+                  "mnemonic generate --size"
                 , "mnemnic generate"
                 , "mnemonic --size 15"
-                -- wallet list
-                , "wallet list --port"
-                -- wallet create
-                , "wallet create"
+                , -- wallet list
+                  "wallet list --port"
+                , -- wallet create
+                  "wallet create"
                 , "wallet"
                 , "create"
                 , "wallet crate name"
                 , "wallet create --port name"
                 , "wallet create name --address-pool-gap"
-                -- wallet get
-                , "wallet get"
+                , -- wallet get
+                  "wallet get"
                 , "get"
                 , "get " ++ wid
                 , "wallet get " ++ wid ++ " --port"
-                -- wallet update
-                , "wallet update"
+                , -- wallet update
+                  "wallet update"
                 , "update"
                 , "update " ++ wid
                 , "wallet update " ++ wid ++ " --port"
-                -- wallet delete
-                , "wallet delete"
+                , -- wallet delete
+                  "wallet delete"
                 , "delete"
                 , "delete " ++ wid
                 , "wallet delete " ++ wid ++ " --port"
-                -- wallet UTxO
-                , "wallet utxo"
+                , -- wallet UTxO
+                  "wallet utxo"
                 , "utxo"
                 , "utxo " ++ wid
                 , "wallet utxo " ++ wid ++ " --port"
-                -- transaction create
-                , "transaction create " ++ wid ++ " --payment"
+                , -- transaction create
+                  "transaction create " ++ wid ++ " --payment"
                 , "transaction create " ++ wid ++ " --payment 22@2cWKMJemoBaiPcjZZKQzTHzjRkaAee5dx246Ren8U5KcDGt9QX6FZQPskzykhYL1AW62U --payment"
                 , "transaction create --port " ++ wid ++ " --payment 22@ --payment"
                 , "transaction create"
-                -- address list
-                , "address"
+                , -- address list
+                  "address"
                 , "list"
                 , "address list"
                 , "address list " ++ wid ++ " --port"
-                -- network information
-                , "network"
+                , -- network information
+                  "network"
                 , "network info"
                 , "networ information"
                 , "network information --port"
@@ -105,7 +118,7 @@ spec = describe "COMMON_CLI_MISC" $ do
             o `shouldBe` ""
             e `shouldContain` "Usage:"
 
-    describe "CLI_HELP - cardano-wallet shows help with" $  do
+    describe "CLI_HELP - cardano-wallet shows help with" $ do
         let test option = it option $ do
                 (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @_ @IO [option]
                 e `shouldBe` ""

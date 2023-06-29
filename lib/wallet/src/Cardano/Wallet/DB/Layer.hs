@@ -15,36 +15,38 @@
 -- License: Apache-2.0
 --
 -- An implementation of the DBFresh which uses Persistent and SQLite.
-
 module Cardano.Wallet.DB.Layer
     ( -- * Directory of single-file wallet databases
       newDBFactory
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Open a database
+      -- * Open a database
     , withDBOpenFromFile
     , newDBOpenInMemory
     , retrieveWalletId
     , WalletDBLog (..)
     , DefaultFieldValues (..)
 
-    -- * Database for a specific 'WalletId'
+      -- * Database for a specific 'WalletId'
     , withDBFresh
     , withDBFreshInMemory
     , newDBFreshInMemory
     , withDBFreshFromDBOpen
 
-    -- * Interfaces
+      -- * Interfaces
     , PersistAddressBook (..)
     ) where
 
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
@@ -61,11 +63,14 @@ import Cardano.DB.Sqlite.Delete
     , withRef
     )
 import Cardano.Slotting.Slot
-    ( WithOrigin (..) )
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( keyTypeDescriptor )
+    ( keyTypeDescriptor
+    )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( DeltaCheckpoints (..)
+    )
 import Cardano.Wallet.DB
     ( DBCheckpoints (..)
     , DBDelegation (..)
@@ -83,9 +88,12 @@ import Cardano.Wallet.DB
     , transactionsStore
     )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations )
+    ( runNewStyleMigrations
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( DefaultFieldValues (..), migrateManually )
+    ( DefaultFieldValues (..)
+    , migrateManually
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
     , DelegationReward (..)
@@ -97,35 +105,49 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), TxId (..) )
+    ( BlockId (..)
+    , TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..), blockHeaderFromEntity )
+    ( PersistAddressBook (..)
+    , blockHeaderFromEntity
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (..) )
+    ( WalletInfo (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( mkTxMetaFromEntity )
+    ( mkTxMetaFromEntity
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( rollBackSubmissions )
+    ( rollBackSubmissions
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( submissionMetaFromTxMeta )
+    ( submissionMetaFromTxMeta
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut
     , decorateTxInsForRelationFromLookupTxOut
     )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..), txCBORPrism )
+    ( TxRelation (..)
+    , txCBORPrism
+    )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfoFromReadTx, mkTransactionInfoFromRelation )
+    ( mkTransactionInfoFromReadTx
+    , mkTransactionInfoFromRelation
+    )
+import Cardano.Wallet.DB.Store.WalletState.Store
+    ( mkStoreWallet
+    )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( QueryStoreTxWalletsHistory
     , QueryTxWalletsHistory (..)
     , newQueryStoreTxWalletsHistory
     )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
-import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet )
+    ( DeltaTxWalletsHistory (..)
+    )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -134,45 +156,80 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS, WalletFlavorS, keyOfWallet )
+    ( KeyFlavorS
+    , WalletFlavorS
+    , keyOfWallet
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+    ( TimeInterpreter
+    , hoistTimeInterpreter
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue )
+    ( EraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( parseTxFromCBOR )
+    ( parseTxFromCBOR
+    )
 import Control.DeepSeq
-    ( force )
+    ( force
+    )
 import Control.Exception
-    ( evaluate, throw )
+    ( evaluate
+    , throw
+    )
 import Control.Monad
-    ( forM, unless, when )
+    ( forM
+    , unless
+    , when
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( mapExceptT, throwE )
+    ( mapExceptT
+    , throwE
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.DBVar
-    ( DBVar, initDBVar, loadDBVar, readDBVar )
+    ( DBVar
+    , initDBVar
+    , loadDBVar
+    , readDBVar
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes
+    , fromMaybe
+    )
 import Data.Store
-    ( Store (..), UpdateStore )
+    ( Store (..)
+    , UpdateStore
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..), fromText )
+    ( ToText (..)
+    , fromText
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
@@ -183,19 +240,34 @@ import Database.Persist.Sql
     , (==.)
     )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import Fmt
-    ( pretty, (+|), (|+) )
+    ( pretty
+    , (+|)
+    , (|+)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Directory
-    ( doesFileExist, listDirectory )
+    ( doesFileExist
+    , listDirectory
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import UnliftIO.Exception
-    ( Exception, bracket, throwIO )
+    ( Exception
+    , bracket
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( modifyMVar
+    , modifyMVar_
+    , newMVar
+    , readMVar
+    )
 
 import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -218,17 +290,17 @@ import qualified Data.Text as T
 -- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -> Tracer IO DBFactoryLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
+    -- ^ Default database field values, used during migration.
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+    -- ^ Time interpreter for slot to time conversions
     -> Maybe FilePath
-       -- ^ Path to database directory, or Nothing for in-memory database
-    -> IO (DBFactory IO s )
+    -- ^ Path to database directory, or Nothing for in-memory database
+    -> IO (DBFactory IO s)
 newDBFactory wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
@@ -243,56 +315,62 @@ newDBFactory wf tr defaultFieldValues ti = \case
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
-        pure DBFactory
-            { withDatabase = \wid action -> do
-                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                    Just db -> pure (m, db)
-                    Nothing -> do
-                        let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
-                        pure (Map.insert wid db m, db)
-                action db
-            , removeDatabase = \wid -> do
-                traceWith tr $ MsgRemoving (pretty wid)
-                modifyMVar_ mvar (pure . Map.delete wid)
-
-            , listDatabases =
-                Map.keys <$> readMVar mvar
-            }
-
+        pure
+            DBFactory
+                { withDatabase = \wid action -> do
+                    db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                        Just db -> pure (m, db)
+                        Nothing -> do
+                            let tr' = contramap (MsgWalletDB "") tr
+                            (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
+                            pure (Map.insert wid db m, db)
+                    action db
+                , removeDatabase = \wid -> do
+                    traceWith tr $ MsgRemoving (pretty wid)
+                    modifyMVar_ mvar (pure . Map.delete wid)
+                , listDatabases =
+                    Map.keys <$> readMVar mvar
+                }
     Just databaseDir -> do
         refs <- newRefCount
-        pure DBFactory
-            { withDatabase = \wid action -> withRef refs wid $ withDBFresh wf
-                (contramap (MsgWalletDB (databaseFile wid)) tr)
-                (Just defaultFieldValues)
-                (databaseFile wid)
-                ti
-                wid
-                action
-            , removeDatabase = \wid -> do
-                let widp = pretty wid
-                -- try to wait for all 'withDatabase' calls to finish before
-                -- deleting database file.
-                let trWait = contramap (MsgWaitingForDatabase widp) tr
-                -- TODO: rather than refcounting, why not keep retrying the
-                -- delete until there are no file busy errors?
-                waitForFree trWait refs wid $ \inUse -> do
-                    unless (inUse == 0) $
-                        traceWith tr $ MsgRemovingInUse widp inUse
-                    traceWith tr $ MsgRemoving widp
-                    let trDel = contramap (MsgRemovingDatabaseFile widp) tr
-                    deleteSqliteDatabase trDel (databaseFile wid)
-            , listDatabases =
-                findDatabases key tr databaseDir
-            }
+        pure
+            DBFactory
+                { withDatabase = \wid action ->
+                    withRef refs wid
+                        $ withDBFresh
+                            wf
+                            (contramap (MsgWalletDB (databaseFile wid)) tr)
+                            (Just defaultFieldValues)
+                            (databaseFile wid)
+                            ti
+                            wid
+                            action
+                , removeDatabase = \wid -> do
+                    let widp = pretty wid
+                    -- try to wait for all 'withDatabase' calls to finish before
+                    -- deleting database file.
+                    let trWait = contramap (MsgWaitingForDatabase widp) tr
+                    -- TODO: rather than refcounting, why not keep retrying the
+                    -- delete until there are no file busy errors?
+                    waitForFree trWait refs wid $ \inUse -> do
+                        unless (inUse == 0)
+                            $ traceWith tr
+                            $ MsgRemovingInUse widp inUse
+                        traceWith tr $ MsgRemoving widp
+                        let trDel = contramap (MsgRemovingDatabaseFile widp) tr
+                        deleteSqliteDatabase trDel (databaseFile wid)
+                , listDatabases =
+                    findDatabases key tr databaseDir
+                }
       where
         key = keyOfWallet wf
         databaseFilePrefix = keyTypeDescriptor key
         databaseFile wid =
-            databaseDir </>
-            databaseFilePrefix <> "." <>
-            T.unpack (toText wid) <> ".sqlite"
+            databaseDir
+                </> databaseFilePrefix
+                    <> "."
+                    <> T.unpack (toText wid)
+                    <> ".sqlite"
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
@@ -343,26 +421,33 @@ instance ToText DBFactoryLog where
     toText = \case
         MsgFoundDatabase _file wid ->
             "Found existing wallet: " <> wid
-        MsgUnknownDBFile file -> mconcat
-            [ "Found something other than a database file in "
-            , "the database folder: ", T.pack file
-            ]
+        MsgUnknownDBFile file ->
+            mconcat
+                [ "Found something other than a database file in "
+                , "the database folder: "
+                , T.pack file
+                ]
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
         MsgRemovingDatabaseFile wid msg ->
             "Removing " <> wid <> ": " <> toText msg
         MsgWaitingForDatabase wid Nothing ->
-            "Database "+|wid|+" is ready to be deleted"
+            "Database " +| wid |+ " is ready to be deleted"
         MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+            "Waiting for " +| count |+ " withDatabase " +| wid |+ " call(s) to finish"
         MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
-            "Attempting to remove the database anyway."
+            "Timed out waiting for "
+                +| count
+                |+ " withDatabase "
+                +| wid
+                |+ " call(s) to finish. "
+                    <> "Attempting to remove the database anyway."
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
     DBOpen
 -------------------------------------------------------------------------------}
+
 -- | Open an SQLite database file and run an action on it.
 --
 -- Database migrations are run to create tables if necessary.
@@ -371,14 +456,14 @@ instance ToText DBFactoryLog where
 withDBOpenFromFile
     :: WalletFlavorS s
     -> Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- Use 'Nothing' to skip manual migrations.
+    -- ^ Default database field values, used during manual migration.
+    -- Use 'Nothing' to skip manual migrations.
     -> FilePath
-       -- ^ Path to database file
+    -- ^ Path to database file
     -> (DBOpen (SqlPersistT IO) IO s -> IO a)
-       -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
 withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
@@ -387,10 +472,14 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
                 noManualMigration
                 (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
-    let autoMigrations   = migrateAll
-    res <- withSqliteContextFile trDB dbFile
-            manualMigrations autoMigrations runNewStyleMigrations
-        $ \ctx -> action $ DBOpen { atomically = runQuery ctx}
+    let autoMigrations = migrateAll
+    res <- withSqliteContextFile
+        trDB
+        dbFile
+        manualMigrations
+        autoMigrations
+        runNewStyleMigrations
+        $ \ctx -> action $ DBOpen{atomically = runQuery ctx}
 
     either throwIO pure res
 
@@ -401,13 +490,13 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
 newDBOpenInMemory
     :: forall s
      . Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> IO (IO (), DBOpen (SqlPersistT IO) IO s)
 newDBOpenInMemory tr = do
     let tr' = contramap MsgDB tr
     (destroy, sqliteContext) <-
         newInMemorySqliteContext tr' noManualMigration migrateAll ForeignKeysEnabled
-    pure (destroy, DBOpen { atomically = runQuery sqliteContext})
+    pure (destroy, DBOpen{atomically = runQuery sqliteContext})
 
 -- | Retrieve the wallet id from the database if it's initialized.
 retrieveWalletId :: DBOpen (SqlPersistT IO) IO s -> IO (Maybe W.WalletId)
@@ -422,7 +511,7 @@ retrieveWalletId DBOpen{atomically} =
 
 withDBFreshFromDBOpen
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO
@@ -444,32 +533,32 @@ withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 -- library.
 withDBFresh
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- Use 'Nothing' to skip manual migrations.
+    -- ^ Default database field values, used during manual migration.
+    -- Use 'Nothing' to skip manual migrations.
     -> FilePath
-       -- ^ Path to database file
+    -- ^ Path to database file
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
+    -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
-         -- ^ Wallet ID of the database.
+    -- ^ Wallet ID of the database.
     -> (DBFresh IO s -> IO a)
-       -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
 withDBFresh wf tr defaultFieldValues dbFile ti wid action =
     withDBOpenFromFile wf tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen wf ti wid
+        $ action . newDBFreshFromDBOpen wf ti wid
 
 -- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
 -- database.
 withDBFreshInMemory
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -481,8 +570,11 @@ withDBFreshInMemory
     -> (DBFresh IO s -> IO a)
     -- ^ Action to run.
     -> IO a
-withDBFreshInMemory wf tr ti wid action = bracket
-    (newDBFreshInMemory wf tr ti wid) fst (action . snd)
+withDBFreshInMemory wf tr ti wid action =
+    bracket
+        (newDBFreshInMemory wf tr ti wid)
+        fst
+        (action . snd)
 
 -- | Creates a 'DBFresh' backed by a sqlite in-memory database.
 --
@@ -490,7 +582,7 @@ withDBFreshInMemory wf tr ti wid action = bracket
 -- finished with the 'DBFresh'.
 newDBFreshInMemory
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -507,7 +599,7 @@ newDBFreshInMemory wf tr ti wid = do
 -- of one wallet with a specific 'WalletId'.
 newDBFreshFromDBOpen
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s)
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO
@@ -517,10 +609,14 @@ newDBFreshFromDBOpen
     -> DBOpen (SqlPersistT IO) IO s
     -- ^ A (thread-)safe wrapper for query execution.
     -> DBFresh IO s
-newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
-    mkDBFreshFromParts ti wid_
-        getWalletId_ (mkStoreWallet wF wid_)
-            dbLayerCollection atomically_
+newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically = atomically_} =
+    mkDBFreshFromParts
+        ti
+        wid_
+        getWalletId_
+        (mkStoreWallet wF wid_)
+        dbLayerCollection
+        atomically_
   where
     transactionsQS = newQueryStoreTxWalletsHistory
 
@@ -535,79 +631,82 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         transactionsStore_ = transactionsQS
 
         readCheckpoint
-            ::  SqlPersistT IO (W.Wallet s)
+            :: SqlPersistT IO (W.Wallet s)
         readCheckpoint = getLatest <$> readDBVar walletState
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
-        dbCheckpoints = DBCheckpoints
-            { walletsDB_ = walletState
-
-            , readCheckpoint_ = readCheckpoint
-
-            , listCheckpoints_ = do
-                let toChainPoint = W.chainPointFromBlockHeader
-                map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
-                    [ CheckpointWalletId ==. wid_ ]
-                    [ Asc CheckpointSlot ]
-            , readGenesisParameters_ = selectGenesisParameters wid_
-            }
+        dbCheckpoints =
+            DBCheckpoints
+                { walletsDB_ = walletState
+                , readCheckpoint_ = readCheckpoint
+                , listCheckpoints_ = do
+                    let toChainPoint = W.chainPointFromBlockHeader
+                    map (toChainPoint . blockHeaderFromEntity . entityVal)
+                        <$> selectList
+                            [CheckpointWalletId ==. wid_]
+                            [Asc CheckpointSlot]
+                , readGenesisParameters_ = selectGenesisParameters wid_
+                }
 
         rollbackTo_ requestedPoint = do
-            nearestCheckpoint
-                <- Delta.onDBVar walletState
-                $ Delta.updateWithResult
-                $ \wal ->
-                case findNearestPoint wal requestedPoint of
-                    Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
-                    Just nearestPoint ->
-                        let nearestSlotNo = case nearestPoint of
-                                        { At s -> s; Origin -> 0 }
-                        in
-                        (  [ UpdateCheckpoints
-                                [ RollbackTo nearestPoint ]
-                            , UpdateSubmissions
-                                $ rollBackSubmissions nearestSlotNo
-                            , UpdateDelegations
-                                [Dlgs.Rollback nearestSlotNo]
-                            ]
-                        ,   case Map.lookup nearestPoint
-                                    (wal ^. #checkpoints . #checkpoints) of
-                                Nothing -> error "rollbackTo_: \
-                                    \nearest point not found, impossible!"
-                                Just p -> p
-                        )
+            nearestCheckpoint <-
+                Delta.onDBVar walletState
+                    $ Delta.updateWithResult
+                    $ \wal ->
+                        case findNearestPoint wal requestedPoint of
+                            Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
+                            Just nearestPoint ->
+                                let nearestSlotNo = case nearestPoint of
+                                        At s -> s
+                                        Origin -> 0
+                                in  (
+                                        [ UpdateCheckpoints
+                                            [RollbackTo nearestPoint]
+                                        , UpdateSubmissions
+                                            $ rollBackSubmissions nearestSlotNo
+                                        , UpdateDelegations
+                                            [Dlgs.Rollback nearestSlotNo]
+                                        ]
+                                    , case Map.lookup
+                                        nearestPoint
+                                        (wal ^. #checkpoints . #checkpoints) of
+                                        Nothing ->
+                                            error
+                                                "rollbackTo_: \
+                                                \nearest point not found, impossible!"
+                                        Just p -> p
+                                    )
             let currentTip = nearestCheckpoint ^. #currentTip
                 nearestPoint = currentTip ^. #slotNo
-            updateS transactionsQS Nothing $
-                RollbackTxWalletsHistory nearestPoint
+            updateS transactionsQS Nothing
+                $ RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
 
-        {-----------------------------------------------------------------------
-                                     Tx History
-        -----------------------------------------------------------------------}
+    {-----------------------------------------------------------------------
+                                 Tx History
+    -----------------------------------------------------------------------}
     lookupTx = queryS transactionsQS . GetByTxId
     lookupTxOut = queryS transactionsQS . GetTxOut
 
-    dbTxHistory = DBTxHistory
-        { putTxHistory_ = updateS transactionsQS Nothing
-                . ExpandTxWalletsHistory wid_
-        , readTxHistory_ = \range tip mlimit order -> do
-            txs <- queryS transactionsQS $ SomeMetas range mlimit order
-            forM txs $
-                selectTransactionInfo ti tip lookupTx lookupTxOut
-
-        , getTx_ = \txid tip -> do
-            txm <- queryS transactionsQS $ OneMeta $ TxId txid
-            forM txm $
-                selectTransactionInfo ti tip lookupTx lookupTxOut
-
-        , mkDecorator_ = mkDecorator transactionsQS
-        }
+    dbTxHistory =
+        DBTxHistory
+            { putTxHistory_ =
+                updateS transactionsQS Nothing
+                    . ExpandTxWalletsHistory wid_
+            , readTxHistory_ = \range tip mlimit order -> do
+                txs <- queryS transactionsQS $ SomeMetas range mlimit order
+                forM txs
+                    $ selectTransactionInfo ti tip lookupTx lookupTxOut
+            , getTx_ = \txid tip -> do
+                txm <- queryS transactionsQS $ OneMeta $ TxId txid
+                forM txm
+                    $ selectTransactionInfo ti tip lookupTx lookupTxOut
+            , mkDecorator_ = mkDecorator transactionsQS
+            }
 
     dbDelegation = mkDBDelegation wid_
-
 
 mkDBFreshFromParts
     :: forall stm m s
@@ -645,9 +744,10 @@ mkDBFreshFromParts
                         present <- lift . atomically_ $ getWalletId_
                         when present $ throwE ErrWalletAlreadyInitialized
                         lift $ do
-                            r@DBLayer{transactionsStore, atomically}
-                                <- atomically_ $ db <$> initDBVar store wallet
-                            atomically $ updateS transactionsStore Nothing
+                            r@DBLayer{transactionsStore, atomically} <-
+                                atomically_ $ db <$> initDBVar store wallet
+                            atomically
+                                $ updateS transactionsStore Nothing
                                 $ ExpandTxWalletsHistory wid_
                                 $ dBLayerParamsHistory params
                             pure r
@@ -681,7 +781,6 @@ mkDBDelegation wid =
         , readDelegationRewardBalance_
         }
   where
-
     putDelegationRewardBalance_ :: Coin.Coin -> SqlPersistT IO ()
     putDelegationRewardBalance_ amount =
         repsert
@@ -690,16 +789,14 @@ mkDBDelegation wid =
 
     readDelegationRewardBalance_ :: SqlPersistT IO Coin.Coin
     readDelegationRewardBalance_ =
-        Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
-            selectFirst [RewardWalletId ==. wid] []
-
+        Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal)
+            <$> selectFirst [RewardWalletId ==. wid] []
 
 {-------------------------------------------------------------------------------
     Conversion between types
         from the `persistent` database (Cardano.Wallet.DB.Sqlite.Schema)
         and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
 -------------------------------------------------------------------------------}
-
 
 genesisParametersFromEntity
     :: Wallet
@@ -709,8 +806,6 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
         { W.getGenesisBlockHash = coerce (getBlockId hash)
         , W.getGenesisBlockDate = W.StartTime startTime
         }
-
-
 
 {-------------------------------------------------------------------------------
     SQLite database operations
@@ -731,9 +826,8 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 -- This approach typically provides enough information
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
 -- This function will simply decode the cbor, when present.
-
 selectTransactionInfo
-    :: MonadIO m
+    :: (MonadIO m)
     => TimeInterpreter IO
     -> W.BlockHeader
     -> (TxId -> m (Maybe (Either TxRelation CBOR)))
@@ -775,7 +869,7 @@ selectTransactionInfo ti tip lookupTx lookupTxOut meta = do
     liftIO . evaluate $ force result
 
 selectGenesisParameters
-    :: MonadIO m
+    :: (MonadIO m)
     => W.WalletId
     -> SqlPersistT m (Maybe W.GenesisParameters)
 selectGenesisParameters wid = do
@@ -801,6 +895,7 @@ instance ToText WalletDBLog where
 {-------------------------------------------------------------------------------
     Internal errors
 -------------------------------------------------------------------------------}
+
 -- | A fatal exception thrown when trying to rollback but, there's no checkpoint
 -- to rollback to. The database maintain the invariant that there's always at
 -- least one checkpoint (the first one made for genesis) present in the
@@ -809,10 +904,12 @@ instance ToText WalletDBLog where
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
 data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
+
 instance Exception ErrRollbackTo
 
 -- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.
 data ErrInitializeGenesisAbsent
-    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader deriving (Eq, Show)
+    = ErrInitializeGenesisAbsent W.WalletId W.BlockHeader
+    deriving (Eq, Show)
 
 instance Exception ErrInitializeGenesisAbsent

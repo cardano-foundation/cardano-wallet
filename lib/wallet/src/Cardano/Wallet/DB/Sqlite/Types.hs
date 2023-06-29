@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -19,13 +18,15 @@
 --
 -- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
 -- on Persistent functions.
-
 module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, Script, ScriptHash (..) )
+    ( Cosigner
+    , Script
+    , ScriptHash (..)
+    )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -33,11 +34,14 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Role (..) )
+    ( Role (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -45,11 +49,16 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType )
+    ( CredentialType
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( Pruned (..), Spent (..) )
+    ( Pruned (..)
+    , Spent (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseScheme (..) )
+    ( Passphrase (..)
+    , PassphraseScheme (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
@@ -62,49 +71,85 @@ import Cardano.Wallet.Primitive.Types
     , unsafeToPMS
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (..), persistSealedTx, unPersistSealedTx )
+    ( SealedTx (..)
+    , persistSealedTx
+    , unPersistSealedTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxMetadata, TxScriptValidity (..) )
+    ( TxMetadata
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Lens
-    ( (&) )
+    ( (&)
+    )
 import Control.Monad
-    ( (<=<), (>=>) )
+    ( (<=<)
+    , (>=>)
+    )
 import Control.Monad.Fail.Extended
-    ( ReportFailure (..) )
+    ( ReportFailure (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.Bifunctor
-    ( bimap, first )
+    ( bimap
+    , first
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage
+    , Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class.Extended
     ( FromText (..)
     , TextDecodingError (TextDecodingError)
@@ -113,37 +158,64 @@ import Data.Text.Class.Extended
     , fromTextMaybe
     )
 import Data.Text.Encoding
-    ( decodeUtf8, encodeUtf8 )
+    ( decodeUtf8
+    , encodeUtf8
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+    ( POSIXTime
+    , posixSecondsToUTCTime
+    , utcTimeToPOSIXSeconds
+    )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
+    ( defaultTimeLocale
+    , formatTime
+    , parseTimeM
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText )
+    ( fromPersistValueFromText
+    )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
+    ( PersistField (..)
+    , PersistFieldSql (..)
+    , PersistValue (..)
+    )
 import Database.Persist.TH
-    ( MkPersistSettings (..), sqlSettings )
+    ( MkPersistSettings (..)
+    , sqlSettings
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Int
-    ( Int64 )
+    ( Int64
+    )
 import Network.URI
-    ( parseAbsoluteURI )
+    ( parseAbsoluteURI
+    )
 import System.Random.Internal
-    ( StdGen (..) )
+    ( StdGen (..)
+    )
 import System.Random.SplitMix
-    ( seedSMGen, unseedSMGen )
+    ( seedSMGen
+    , unseedSMGen
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..)
+    , ToHttpApiData (..)
+    )
 import Web.PathPieces
-    ( PathPiece (..) )
+    ( PathPiece (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson
@@ -156,7 +228,7 @@ import qualified Data.Text.Encoding as T
 
 -- | Settings for generating the Persistent types.
 sqlSettings' :: MkPersistSettings
-sqlSettings' = sqlSettings { mpsPrefixFields = False }
+sqlSettings' = sqlSettings{mpsPrefixFields = False}
 
 ----------------------------------------------------------------------------
 -- Direction
@@ -184,7 +256,8 @@ directionFromBool False = Outgoing
 instance PersistField FeePolicy where
     toPersistValue = toPersistValue . toText
     fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
-        where err = "not a valid value: " <> T.pack (show pv)
+      where
+        err = "not a valid value: " <> T.pack (show pv)
 
 instance PersistFieldSql FeePolicy where
     sqlType _ = sqlType (Proxy @Text)
@@ -195,7 +268,8 @@ instance PersistFieldSql FeePolicy where
 instance PersistField Percentage where
     toPersistValue = toPersistValue . toText
     fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
-        where err = "not a valid percentage: " <> T.pack (show pv)
+      where
+        err = "not a valid percentage: " <> T.pack (show pv)
 
 instance PersistFieldSql Percentage where
     sqlType _ = sqlType (Proxy @Rational)
@@ -234,7 +308,7 @@ instance PathPiece WalletId where
 
 -- | Wraps 'Hash "Tx"' because the persistent entity syntax doesn't seem to
 -- support parameterized types.
-newtype TxId = TxId { getTxId :: Hash "Tx" } deriving (Show, Eq, Ord, Generic)
+newtype TxId = TxId {getTxId :: Hash "Tx"} deriving (Show, Eq, Ord, Generic)
 
 instance PersistField TxId where
     toPersistValue = toPersistValue . toText . getTxId
@@ -295,7 +369,7 @@ instance PersistFieldSql TokenQuantity where
 -- BlockId
 
 -- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
-newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+newtype BlockId = BlockId {getBlockId :: Hash "BlockHeader"}
     deriving (Show, Eq, Ord, Generic)
 
 -- | Magic value that denotes the hash of the parent of the genesis block
@@ -373,7 +447,8 @@ mkEpochNo :: Word32 -> Either Text EpochNo
 mkEpochNo n
     | isValidEpochNo c = Right c
     | otherwise = Left . T.pack $ "not a valid epoch number: " <> show n
-    where c = unsafeEpochNo n
+  where
+    c = unsafeEpochNo n
 
 persistEpochNo :: EpochNo -> PersistValue
 persistEpochNo = toPersistValue . fromIntegral @Word31 @Word32 . unEpochNo
@@ -405,15 +480,15 @@ instance PersistFieldSql TxStatus where
 
 instance PersistField TxMetadata where
     toPersistValue =
-        toPersistValue .
-        decodeUtf8 .
-        BL.toStrict .
-        Aeson.encode .
-        metadataToJson TxMetadataJsonDetailedSchema
+        toPersistValue
+            . decodeUtf8
+            . BL.toStrict
+            . Aeson.encode
+            . metadataToJson TxMetadataJsonDetailedSchema
     fromPersistValue =
-        (left (T.pack . displayError) . metadataFromJsonWithFallback) <=<
-        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
-        fromPersistValue
+        (left (T.pack . displayError) . metadataFromJsonWithFallback)
+            <=< (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8)
+            <=< fromPersistValue
       where
         -- FIXME
         -- Because of time constraints, we have had two consecutives releases
@@ -474,9 +549,10 @@ instance ToText ScriptHash where
         T.decodeUtf8 $ convertToBase Base16 sh
 
 instance FromText ScriptHash where
-    fromText = bimap textDecodingError ScriptHash
-        . convertFromBase Base16
-        . T.encodeUtf8
+    fromText =
+        bimap textDecodingError ScriptHash
+            . convertFromBase Base16
+            . T.encodeUtf8
       where
         textDecodingError = TextDecodingError . show
 
@@ -492,14 +568,14 @@ instance PersistFieldSql ScriptHash where
 
 instance PersistField (Script Cosigner) where
     toPersistValue =
-        toPersistValue .
-        decodeUtf8 .
-        BL.toStrict .
-        Aeson.encode .
-        toJSON
+        toPersistValue
+            . decodeUtf8
+            . BL.toStrict
+            . Aeson.encode
+            . toJSON
     fromPersistValue =
-        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
-        fromPersistValue
+        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8)
+            <=< fromPersistValue
 
 instance PersistFieldSql (Script Cosigner) where
     sqlType _ = sqlType (Proxy @Text)
@@ -604,10 +680,11 @@ newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
 instance PersistField HDPassphrase where
     toPersistValue (HDPassphrase (Passphrase pwd)) =
         toPersistValue (convertToBase @_ @ByteString Base16 pwd)
-    fromPersistValue = fromPersistValue >=>
-        fmap (HDPassphrase . Passphrase)
-        . left T.pack
-        . convertFromBase @ByteString Base16
+    fromPersistValue =
+        fromPersistValue
+            >=> fmap (HDPassphrase . Passphrase)
+                . left T.pack
+                . convertFromBase @ByteString Base16
 
 instance PersistFieldSql HDPassphrase where
     sqlType _ = sqlType (Proxy @ByteString)
@@ -658,18 +735,20 @@ instance PersistFieldSql AddressState where
 ----------------------------------------------------------------------------
 -- PoolMetadataSource
 
-
 instance PersistField PoolMetadataSource where
     toPersistValue = toPersistValue . toText
+
     -- be more permissive than fromText here
-    fromPersistValue = fromPersistValue
-        >=> \case
-            "none" -> Right FetchNone
-            "direct" -> Right FetchDirect
-            uri -> fmap unsafeToPMS
-                . maybe (Left "Not an absolute URI") Right
-                . parseAbsoluteURI
-                $ uri
+    fromPersistValue =
+        fromPersistValue
+            >=> \case
+                "none" -> Right FetchNone
+                "direct" -> Right FetchDirect
+                uri ->
+                    fmap unsafeToPMS
+                        . maybe (Left "Not an absolute URI") Right
+                        . parseAbsoluteURI
+                        $ uri
 
 instance PersistFieldSql PoolMetadataSource where
     sqlType _ = sqlType (Proxy @Text)
@@ -695,12 +774,14 @@ instance PersistField TxScriptValidity where
     fromPersistValue = \case
         PersistBool True -> Right TxScriptValid
         PersistBool False -> Right TxScriptInvalid
-        x -> Left $ T.unwords
-            [ "Failed to parse Haskell type `TxScriptValidity`;"
-            , "expected null or boolean"
-            , "from database, but received:"
-            , T.pack (show x)
-            ]
+        x ->
+            Left
+                $ T.unwords
+                    [ "Failed to parse Haskell type `TxScriptValidity`;"
+                    , "expected null or boolean"
+                    , "from database, but received:"
+                    , T.pack (show x)
+                    ]
 
 instance PersistFieldSql TxScriptValidity where
     sqlType _ = sqlType (Proxy @(Maybe Bool))
@@ -709,16 +790,24 @@ instance PersistFieldSql TxScriptValidity where
 -- Other
 
 instance PersistField POSIXTime where
-    toPersistValue = PersistText
-        . T.pack
-        . formatTime defaultTimeLocale iso8601DateFormatHMS
-        . posixSecondsToUTCTime
+    toPersistValue =
+        PersistText
+            . T.pack
+            . formatTime defaultTimeLocale iso8601DateFormatHMS
+            . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
-        utcTimeToPOSIXSeconds <$>
-            reportFailure (parseTimeM True defaultTimeLocale
-                iso8601DateFormatHMS (T.unpack time)) & left T.pack
-    fromPersistValue _ = Left
-        "Could not parse POSIX time value"
+        utcTimeToPOSIXSeconds
+            <$> reportFailure
+                ( parseTimeM
+                    True
+                    defaultTimeLocale
+                    iso8601DateFormatHMS
+                    (T.unpack time)
+                )
+            & left T.pack
+    fromPersistValue _ =
+        Left
+            "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)
@@ -751,10 +840,11 @@ data DelegationStatusEnum = InactiveE | RegisteredE | ActiveE
     deriving (Eq, Show, Enum, Generic)
 
 instance PersistField DelegationStatusEnum where
-    toPersistValue = toPersistValue . \case
-        InactiveE -> "inactive" :: Text
-        RegisteredE -> "registered"
-        ActiveE -> "active"
+    toPersistValue =
+        toPersistValue . \case
+            InactiveE -> "inactive" :: Text
+            RegisteredE -> "registered"
+            ActiveE -> "active"
     fromPersistValue = fromPersistValue >=> readDelegationStatus
 
 readDelegationStatus :: Text -> Either Text DelegationStatusEnum

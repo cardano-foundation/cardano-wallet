@@ -1,23 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw fee data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Fee
     ( FeeType
     , Fee (..)
     , getEraFee
     )
-    where
+where
 
 import Prelude
 
@@ -31,17 +29,24 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, feeTxBodyL )
+    ( bodyTxL
+    , feeTxBodyL
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 type family FeeType era where
     FeeType ByronEra = ()
@@ -54,8 +59,8 @@ type family FeeType era where
 
 newtype Fee era = Fee (FeeType era)
 
-deriving instance Show (FeeType era) => Show (Fee era)
-deriving instance Eq (FeeType era) => Eq (Fee era)
+deriving instance (Show (FeeType era)) => Show (Fee era)
+deriving instance (Eq (FeeType era)) => Eq (Fee era)
 
 -- | Extract fee from 'Tx' in all available eras.
 getEraFee :: EraFun Tx Fee

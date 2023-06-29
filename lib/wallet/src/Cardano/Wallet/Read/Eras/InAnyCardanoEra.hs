@@ -7,17 +7,18 @@
 -- License: Apache-2.0
 --
 -- An isomorphism between 'InAnyCardanoEra' and 'EraValue'.
---
-
 module Cardano.Wallet.Read.Eras.InAnyCardanoEra
     ( isoInAnyCardanoEra
     )
-  where
+where
 
 import Prelude
 
 import Cardano.Api
-    ( CardanoEra (..), InAnyCardanoEra (InAnyCardanoEra), IsCardanoEra )
+    ( CardanoEra (..)
+    , InAnyCardanoEra (InAnyCardanoEra)
+    , IsCardanoEra
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
     , MkEraValue (..)
@@ -31,16 +32,26 @@ import Cardano.Wallet.Read.Eras.EraValue
     , shelley
     )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras )
+    ( KnownEras
+    )
 import Data.Generics.Internal.VL
-    ( Iso', build, iso )
+    ( Iso'
+    , build
+    , iso
+    )
 import Generics.SOP
-    ( K (..), NP, Proxy (Proxy) )
+    ( K (..)
+    , NP
+    , Proxy (Proxy)
+    )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( NP (..), cmap_NP )
+    ( NP (..)
+    , cmap_NP
+    )
 import Generics.SOP.NS
-    ( ap_NS )
+    ( ap_NS
+    )
 
 toInAnyCardanoEra :: EraValue f -> InAnyCardanoEra f
 toInAnyCardanoEra (EraValue f) =
@@ -58,7 +69,7 @@ toInAnyCardanoEra (EraValue f) =
             :* Nil
 
     mkExistential
-        :: IsCardanoEra era
+        :: (IsCardanoEra era)
         => CardanoEra era
         -> (f -.-> K (InAnyCardanoEra f)) era
     mkExistential e = Fn (K . InAnyCardanoEra e)
@@ -67,13 +78,13 @@ toInAnyCardanoEra (EraValue f) =
 
 fromInAnyCardanoEra :: InAnyCardanoEra f -> EraValue f
 fromInAnyCardanoEra (InAnyCardanoEra era x) = case era of
-  ByronEra -> inject byron x
-  ShelleyEra -> inject shelley x
-  AllegraEra -> inject allegra x
-  MaryEra -> inject mary x
-  AlonzoEra -> inject alonzo x
-  BabbageEra -> inject babbage x
-  ConwayEra -> inject conway x
+    ByronEra -> inject byron x
+    ShelleyEra -> inject shelley x
+    AllegraEra -> inject allegra x
+    MaryEra -> inject mary x
+    AlonzoEra -> inject alonzo x
+    BabbageEra -> inject babbage x
+    ConwayEra -> inject conway x
   where
     inject :: MkEraValue f era -> f era -> EraValue f
     inject (MkEraValue p) = build p

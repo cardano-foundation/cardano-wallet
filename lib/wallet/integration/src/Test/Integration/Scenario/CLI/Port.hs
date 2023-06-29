@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Test.Integration.Scenario.CLI.Port
@@ -13,25 +12,43 @@ module Test.Integration.Scenario.CLI.Port
 import Prelude
 
 import Cardano.CLI
-    ( Port (..), getPort )
+    ( Port (..)
+    , getPort
+    )
 import Control.Monad
-    ( forM_, void )
+    ( forM_
+    , void
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over )
+    ( over
+    )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import System.Command
-    ( Stderr (..), Stdout (..) )
+    ( Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( hClose, hFlush, hPutStr )
+    ( hClose
+    , hFlush
+    , hPutStr
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI
     , commandName
@@ -47,20 +64,23 @@ import Test.Integration.Framework.DSL
     , updateWalletNameViaCLI
     )
 import UnliftIO.Process
-    ( waitForProcess, withCreateProcess )
+    ( waitForProcess
+    , withCreateProcess
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec
-    :: forall s. (HasType (Port "wallet") s)
+    :: forall s
+     . (HasType (Port "wallet") s)
     => SpecWith s
 spec = describe "COMMON_CLI_PORTS" $ do
-    let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s
+    let overPort :: forall sym. (HasType (Port sym) s) => (Int -> Int) -> s -> s
         overPort fn = over (typed @(Port sym)) (\(Port p) -> Port $ fn p)
 
     it "PORT_01 - Can't reach server with wrong port (wallet list)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
             listWalletsViaCLI ctx'
         -- on Windows seems that not whole stderr is available to Stderr
@@ -68,7 +88,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> runResourceT $ do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let name = "Wallet created via CLI"
         Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
@@ -79,7 +99,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (wallet get)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
             getWalletViaCLI ctx' wid
@@ -88,7 +108,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (wallet delete)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
             deleteWalletViaCLI ctx' wid
@@ -97,7 +117,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (wallet update)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
             updateWalletNameViaCLI ctx' [wid, "My Wallet"]
@@ -106,21 +126,24 @@ spec = describe "COMMON_CLI_PORTS" $ do
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (transction create)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let addr =
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         (c :: ExitCode, _, _) <-
-            postTransactionViaCLI ctx' passphrase
+            postTransactionViaCLI
+                ctx'
+                passphrase
                 [ replicate 40 '0'
-                , "--payment", "14@" <> addr
+                , "--payment"
+                , "14@" <> addr
                 ]
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
 
     it "PORT_01 - Can't reach server with wrong port (address list)" $ \ctx -> do
-        let ctx' = overPort @"wallet" (+1) ctx
+        let ctx' = overPort @"wallet" (+ 1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
             listAddressesViaCLI ctx' [wid]
@@ -172,8 +195,11 @@ spec = describe "COMMON_CLI_PORTS" $ do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         let args =
-                [ "transaction", "create"
-                , replicate 40 '0' , "--payment", "14@" <> addr
+                [ "transaction"
+                , "create"
+                , replicate 40 '0'
+                , "--payment"
+                , "14@" <> addr
                 ]
         let process = proc' commandName args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
@@ -195,16 +221,17 @@ spec = describe "COMMON_CLI_PORTS" $ do
                 [ ("serve", "--port", getPort minBound - 14)
                 , ("serve", "--port", getPort maxBound + 42)
                 ]
-        forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
-            it (unwords args) $ \_ -> do
-                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI args
-                exit `shouldBe` ExitFailure 1
-                err `shouldContain`
-                    (  "expected a TCP port number between "
-                    <> show (getPort minBound)
-                    <> " and "
-                    <> show (getPort maxBound)
-                    )
+        forM_ tests $ \(cmd, opt, port) ->
+            let args = [cmd, opt, show port]
+            in  it (unwords args) $ \_ -> do
+                    (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI args
+                    exit `shouldBe` ExitFailure 1
+                    err
+                        `shouldContain` ( "expected a TCP port number between "
+                                            <> show (getPort minBound)
+                                            <> " and "
+                                            <> show (getPort maxBound)
+                                        )
 
 {-------------------------------------------------------------------------------
                                   Helpers

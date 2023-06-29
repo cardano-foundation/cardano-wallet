@@ -9,19 +9,16 @@
 --  - Waiting until a server in another process has started.
 --  - Start servers for testing when there may be multiple
 --    test suites running in parallel.
---
-
 module Cardano.Wallet.Network.Ports
-    (
-    -- * Allocation
+    ( -- * Allocation
       PortNumber
     , getRandomPort
 
-    -- * Status
+      -- * Status
     , isPortOpen
     , simpleSockAddr
 
-    -- * Helpers
+      -- * Helpers
     , portFromURL
     , randomUnusedTCPPorts
     ) where
@@ -29,21 +26,31 @@ module Cardano.Wallet.Network.Ports
 import Prelude
 
 import Control.Monad
-    ( filterM )
+    ( filterM
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.List
-    ( isInfixOf, sort )
+    ( isInfixOf
+    , sort
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Streaming.Network
-    ( bindRandomPortTCP )
+    ( bindRandomPortTCP
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Foreign.C.Error
-    ( Errno (..), eCONNREFUSED )
+    ( Errno (..)
+    , eCONNREFUSED
+    )
 import GHC.IO.Exception
-    ( IOException (..) )
+    ( IOException (..)
+    )
 import Network.Socket
     ( Family (AF_INET)
     , PortNumber
@@ -55,13 +62,20 @@ import Network.Socket
     , tupleToHostAddress
     )
 import Network.URI
-    ( URI (..), URIAuth (..) )
+    ( URI (..)
+    , URIAuth (..)
+    )
 import Safe
-    ( readMay )
+    ( readMay
+    )
 import System.Random.Shuffle
-    ( shuffleM )
+    ( shuffleM
+    )
 import UnliftIO.Exception
-    ( bracket, throwIO, try )
+    ( bracket
+    , throwIO
+    , try
+    )
 
 -- | Find a TCPv4 port which is likely to be free for listening on
 -- @localhost@. This binds a socket, receives an OS-assigned port, then closes
@@ -87,14 +101,14 @@ getRandomPort = do
 -- Code courtesy of nh2: https://stackoverflow.com/a/57022572
 isPortOpen :: SockAddr -> IO Bool
 isPortOpen sockAddr = do
-  bracket (socket AF_INET Stream 6 {- TCP -}) close' $ \sock -> do
-    res <- try $ connect sock sockAddr
-    case res of
-      Right () -> return True
-      Left e
-        | (Errno <$> ioe_errno e) == Just eCONNREFUSED -> pure False
-        | "WSAECONNREFUSED" `isInfixOf` show e -> pure False
-        | otherwise -> throwIO e
+    bracket (socket AF_INET Stream 6 {- TCP -}) close' $ \sock -> do
+        res <- try $ connect sock sockAddr
+        case res of
+            Right () -> return True
+            Left e
+                | (Errno <$> ioe_errno e) == Just eCONNREFUSED -> pure False
+                | "WSAECONNREFUSED" `isInfixOf` show e -> pure False
+                | otherwise -> throwIO e
 
 -- | Creates a `SockAttr` from host IP and port number.
 --
@@ -105,8 +119,10 @@ simpleSockAddr addr port = SockAddrInet port (tupleToHostAddress addr)
 
 -- | Get the port from a URI, which is assumed to be a HTTP or HTTPS URL.
 portFromURL :: URI -> PortNumber
-portFromURL uri = fromMaybe fallback
-    (uriAuthority uri >>= readMay . (dropWhile (== ':')) . uriPort)
+portFromURL uri =
+    fromMaybe
+        fallback
+        (uriAuthority uri >>= readMay . (dropWhile (== ':')) . uriPort)
   where
     fallback = if uriScheme uri == "https:" then 443 else 80
 
@@ -118,7 +134,7 @@ portFromURL uri = fromMaybe fallback
 -- listening socket to the child process.
 randomUnusedTCPPorts :: Int -> IO [Int]
 randomUnusedTCPPorts count = do
-    usablePorts <- shuffleM [1024..49151]
+    usablePorts <- shuffleM [1024 .. 49151]
     sort <$> filterM unused (take count usablePorts)
   where
-    unused = fmap not . isPortOpen . simpleSockAddr (127,0,0,1) . fromIntegral
+    unused = fmap not . isPortOpen . simpleSockAddr (127, 0, 0, 1) . fromIntegral

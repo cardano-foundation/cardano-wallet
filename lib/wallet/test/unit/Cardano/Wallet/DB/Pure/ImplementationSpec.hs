@@ -6,7 +6,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.DB.Pure.ImplementationSpec
@@ -16,40 +15,58 @@ module Cardano.Wallet.DB.Pure.ImplementationSpec
 import Prelude
 
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..) )
+    ( IsOurs (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+    ( SeqState (..)
+    )
 import Cardano.Wallet.DB.Properties
-    ( properties )
+    ( properties
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+    ( dummyTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Test.Hspec
-    ( Spec, before, describe )
+    ( Spec
+    , before
+    , describe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..) )
+    ( Arbitrary (..)
+    )
 import Test.Utils.Platform
-    ( pendingOnMacOS )
+    ( pendingOnMacOS
+    )
 
 import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 
 spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in CI mac builds")
-    $ describe "PureLayer"
-    $ properties $ \wid test -> do
-        run <- liftIO $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
-            dummyTimeInterpreter wid
-        test run
+        $ describe "PureLayer"
+        $ properties
+        $ \wid test -> do
+            run <-
+                liftIO
+                    $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
+                        dummyTimeInterpreter
+                        wid
+            test run
 
 newtype DummyStatePureLayer = DummyStatePureLayer Int
     deriving (Show, Eq)

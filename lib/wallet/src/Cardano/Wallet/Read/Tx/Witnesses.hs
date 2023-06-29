@@ -1,17 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw witnesses data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Witnesses
     ( WitnessesType
     , Witnesses (..)
@@ -30,19 +28,26 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.TxWits
-    ( AlonzoTxWits )
+    ( AlonzoTxWits
+    )
 import Cardano.Ledger.Core
-    ( witsTxL )
+    ( witsTxL
+    )
 import Cardano.Ledger.Shelley.TxWits
-    ( ShelleyTxWits )
+    ( ShelleyTxWits
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
@@ -53,18 +58,18 @@ import Ouroboros.Consensus.Shelley.Eras
     )
 
 type family WitnessesType era where
-  WitnessesType ByronEra = ()
-  WitnessesType ShelleyEra = ShelleyTxWits StandardShelley
-  WitnessesType AllegraEra = ShelleyTxWits StandardAllegra
-  WitnessesType MaryEra = ShelleyTxWits StandardMary
-  WitnessesType AlonzoEra = AlonzoTxWits StandardAlonzo
-  WitnessesType BabbageEra = AlonzoTxWits StandardBabbage
-  WitnessesType ConwayEra = AlonzoTxWits StandardConway
+    WitnessesType ByronEra = ()
+    WitnessesType ShelleyEra = ShelleyTxWits StandardShelley
+    WitnessesType AllegraEra = ShelleyTxWits StandardAllegra
+    WitnessesType MaryEra = ShelleyTxWits StandardMary
+    WitnessesType AlonzoEra = AlonzoTxWits StandardAlonzo
+    WitnessesType BabbageEra = AlonzoTxWits StandardBabbage
+    WitnessesType ConwayEra = AlonzoTxWits StandardConway
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 
-deriving instance Show (WitnessesType era) => Show (Witnesses era)
-deriving instance Eq (WitnessesType era) => Eq (Witnesses era)
+deriving instance (Show (WitnessesType era)) => Show (Witnesses era)
+deriving instance (Eq (WitnessesType era)) => Eq (Witnesses era)
 
 getEraWitnesses :: EraFun Tx Witnesses
 getEraWitnesses =

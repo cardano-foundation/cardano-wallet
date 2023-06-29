@@ -5,7 +5,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.PassphraseSpec
@@ -30,23 +29,42 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     , shrinkUserPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( haveScrypt )
+    ( haveScrypt
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
+    ( Arbitrary (..)
+    , Property
+    , counterexample
+    , property
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, run )
+    ( assert
+    , monadicIO
+    , run
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Data.ByteArray as BA
 
@@ -56,12 +74,12 @@ spec = do
         textRoundtrip $ Proxy @(Passphrase "user")
 
     describe "Passphrases" $ do
-        it "checkPassphrase p h(p) == Right ()" $
-            property prop_passphraseRoundtrip
-        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
-            property prop_passphraseRoundtripFail
-        it "checkPassphrase fails when hash is malformed" $
-            property prop_passphraseHashMalformed
+        it "checkPassphrase p h(p) == Right ()"
+            $ property prop_passphraseRoundtrip
+        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase"
+            $ property prop_passphraseRoundtripFail
+        it "checkPassphrase fails when hash is malformed"
+            $ property prop_passphraseHashMalformed
         describe "EncryptWithPBKDF2 goldens" $ do
             pbkdf2Golden passphraseGolden1
             pbkdf2Golden passphraseGolden2
@@ -84,19 +102,21 @@ prop_passphraseRoundtripFail
     -> Passphrase "user"
     -> Property
 prop_passphraseRoundtripFail scheme p p' =
-    p /= p' ==> monadicIO $ do
-        (_scheme, hp) <- run $ encryptPassphrase p
-        assert $ checkPassphrase scheme p' hp ==
-            whenSupported scheme (Left ErrWrongPassphrase)
+    p /= p' ==>
+        monadicIO $ do
+            (_scheme, hp) <- run $ encryptPassphrase p
+            assert
+                $ checkPassphrase scheme p' hp
+                    == whenSupported scheme (Left ErrWrongPassphrase)
 
 prop_passphraseHashMalformed
     :: PassphraseScheme
     -> Passphrase "user"
     -> Property
 prop_passphraseHashMalformed scheme pwd =
-    counterexample ("haveScrypt = " <> show haveScrypt) $
-    checkPassphrase scheme pwd (PassphraseHash mempty)
-        === whenSupported scheme (Left ErrWrongPassphrase)
+    counterexample ("haveScrypt = " <> show haveScrypt)
+        $ checkPassphrase scheme pwd (PassphraseHash mempty)
+            === whenSupported scheme (Left ErrWrongPassphrase)
 
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
@@ -117,10 +137,10 @@ whenSupported
     -> Either ErrWrongPassphrase ()
 whenSupported EncryptWithPBKDF2 = id
 whenSupported EncryptWithScrypt
-    | not haveScrypt
-        = const . Left $ ErrPassphraseSchemeUnsupported EncryptWithScrypt
-    | otherwise
-        = id
+    | not haveScrypt =
+        const . Left $ ErrPassphraseSchemeUnsupported EncryptWithScrypt
+    | otherwise =
+        id
 
 pbkdf2Golden :: Golden -> Spec
 pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do
@@ -134,8 +154,6 @@ pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do
     it "checkPassphrase" $ do
         checkPassphrase EncryptWithPBKDF2 (passphrase g) (hash g)
             `shouldBe` Right ()
-
-
   where
     -- Generated with 'genSalt'
     salt :: Passphrase "salt"
@@ -143,7 +161,7 @@ pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do
 
     -- To have actual values in counterexamples, rather than just
     -- <scrubbed bytes>:
-    unwrap :: BA.ByteArrayAccess i => i -> ByteString
+    unwrap :: (BA.ByteArrayAccess i) => i -> ByteString
     unwrap = BA.convert @_ @ByteString
 
 data Golden = Golden
@@ -153,21 +171,25 @@ data Golden = Golden
     }
 
 passphraseGolden1 :: Golden
-passphraseGolden1 = Golden
-    { passphrase = Passphrase "passphrase"
-    , prepared = Passphrase "passphrase"
-    , hash = unsafeFromHex
-        "0f85801b23d3e8da1b863ed8d848ebceced3862787fdedf4e28f16ef217df7ac\
-        \a818d4110fffebd7f114b585b1e83dbe9af9170464b095f9d8858dbc50bc739f\
-        \71fa9f5e646a0206244f40d08aec7770"
-    }
+passphraseGolden1 =
+    Golden
+        { passphrase = Passphrase "passphrase"
+        , prepared = Passphrase "passphrase"
+        , hash =
+            unsafeFromHex
+                "0f85801b23d3e8da1b863ed8d848ebceced3862787fdedf4e28f16ef217df7ac\
+                \a818d4110fffebd7f114b585b1e83dbe9af9170464b095f9d8858dbc50bc739f\
+                \71fa9f5e646a0206244f40d08aec7770"
+        }
 
 passphraseGolden2 :: Golden
-passphraseGolden2 = Golden
-    { passphrase = Passphrase ""
-    , prepared = Passphrase ""
-    , hash = unsafeFromHex
-        "0f85801b23d3e8da1b863ed8d848ebce82ad7cfad782e35e9bd8b0009170be50\
-        \18fe9bbe8c10d0c2cf2958ab702a59aac065695af35cde4d72ae077615eeb712\
-        \9ccbc49c2c2cf558a1f2a094d96b19ea"
-    }
+passphraseGolden2 =
+    Golden
+        { passphrase = Passphrase ""
+        , prepared = Passphrase ""
+        , hash =
+            unsafeFromHex
+                "0f85801b23d3e8da1b863ed8d848ebce82ad7cfad782e35e9bd8b0009170be50\
+                \18fe9bbe8c10d0c2cf2958ab702a59aac065695af35cde4d72ae077615eeb712\
+                \9ccbc49c2c2cf558a1f2a094d96b19ea"
+        }

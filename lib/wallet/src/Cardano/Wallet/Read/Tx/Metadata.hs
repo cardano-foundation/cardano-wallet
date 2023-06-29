@@ -1,17 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw mint data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Metadata
     ( MetadataType
     , Metadata (..)
@@ -30,23 +28,32 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Allegra.TxAuxData
-    ( AllegraTxAuxData )
+    ( AllegraTxAuxData
+    )
 import Cardano.Ledger.Alonzo.TxAuxData
-    ( AlonzoTxAuxData )
+    ( AlonzoTxAuxData
+    )
 import Cardano.Ledger.Core
-    ( auxDataTxL )
+    ( auxDataTxL
+    )
 import Cardano.Ledger.Shelley.TxAuxData
-    ( ShelleyTxAuxData )
+    ( ShelleyTxAuxData
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.Maybe.Strict
-    ( StrictMaybe )
+    ( StrictMaybe
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
@@ -57,18 +64,18 @@ import Ouroboros.Consensus.Shelley.Eras
     )
 
 type family MetadataType era where
-  MetadataType ByronEra = ()
-  MetadataType ShelleyEra = StrictMaybe (ShelleyTxAuxData StandardShelley)
-  MetadataType AllegraEra = StrictMaybe (AllegraTxAuxData StandardAllegra)
-  MetadataType MaryEra = StrictMaybe (AllegraTxAuxData StandardMary)
-  MetadataType AlonzoEra = StrictMaybe (AlonzoTxAuxData StandardAlonzo)
-  MetadataType BabbageEra = StrictMaybe (AlonzoTxAuxData StandardBabbage)
-  MetadataType ConwayEra = StrictMaybe (AlonzoTxAuxData StandardConway)
+    MetadataType ByronEra = ()
+    MetadataType ShelleyEra = StrictMaybe (ShelleyTxAuxData StandardShelley)
+    MetadataType AllegraEra = StrictMaybe (AllegraTxAuxData StandardAllegra)
+    MetadataType MaryEra = StrictMaybe (AllegraTxAuxData StandardMary)
+    MetadataType AlonzoEra = StrictMaybe (AlonzoTxAuxData StandardAlonzo)
+    MetadataType BabbageEra = StrictMaybe (AlonzoTxAuxData StandardBabbage)
+    MetadataType ConwayEra = StrictMaybe (AlonzoTxAuxData StandardConway)
 
 newtype Metadata era = Metadata (MetadataType era)
 
-deriving instance Show (MetadataType era) => Show (Metadata era)
-deriving instance Eq (MetadataType era) => Eq (Metadata era)
+deriving instance (Show (MetadataType era)) => Show (Metadata era)
+deriving instance (Eq (MetadataType era)) => Eq (Metadata era)
 
 getEraMetadata :: EraFun Tx Metadata
 getEraMetadata =

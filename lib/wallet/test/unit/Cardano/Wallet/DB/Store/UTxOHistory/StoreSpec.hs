@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.DB.Store.UTxOHistory.StoreSpec (spec) where
@@ -10,31 +10,55 @@ module Cardano.Wallet.DB.Store.UTxOHistory.StoreSpec (spec) where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
+    ( WalletProperty
+    , initializeWalletTable
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( DeltaUTxOHistory (AppendBlock, Prune, Rollback), UTxOHistory, empty )
+    ( DeltaUTxOHistory (AppendBlock, Prune, Rollback)
+    , UTxOHistory
+    , empty
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
-    ( genDelta, genSlot, genSlotNo, genUTxO )
+    ( genDelta
+    , genSlot
+    , genSlotNo
+    , genUTxO
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Store
-    ( mkStoreUTxOHistory )
+    ( mkStoreUTxOHistory
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, frequency, property )
+    ( Gen
+    , frequency
+    , property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = around (withDBInMemory ForeignKeysEnabled) $ do
     describe "UTxOHistory store" $ do
-        it "respects store laws" $
-            property . prop_StoreUTxOHistoryLaws
+        it "respects store laws"
+            $ property . prop_StoreUTxOHistoryLaws
 
 genDeltas :: UTxOHistory -> Gen DeltaUTxOHistory
 genDeltas history =

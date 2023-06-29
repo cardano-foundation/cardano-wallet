@@ -3,16 +3,23 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module System.Random.StdGenSeedSpec
-    where
+where
 
 import Prelude
 
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen
+    )
 import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
+    ( StdGenSeed (..)
+    , stdGenFromSeed
+    , stdGenToSeed
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -29,10 +36,10 @@ import Test.QuickCheck
 spec :: Spec
 spec = do
     describe "Roundtrip conversion between StdGen and StdGenSeed" $ do
-        it "prop_stdGenToSeed_stdGenFromSeed" $
-            property prop_stdGenToSeed_stdGenFromSeed
-        it "prop_stdGenFromSeed_stdGenToSeed" $
-            property prop_stdGenFromSeed_stdGenToSeed
+        it "prop_stdGenToSeed_stdGenFromSeed"
+            $ property prop_stdGenToSeed_stdGenFromSeed
+        it "prop_stdGenFromSeed_stdGenToSeed"
+            $ property prop_stdGenFromSeed_stdGenToSeed
 
 --------------------------------------------------------------------------------
 -- Random number generator seeds
@@ -40,17 +47,17 @@ spec = do
 
 prop_stdGenToSeed_stdGenFromSeed :: StdGenSeed -> Property
 prop_stdGenToSeed_stdGenFromSeed s =
-    checkCoverage $
-    cover 1 (s == minBound) "s == minBound" $
-    cover 1 (s == maxBound) "s == maxBound" $
-    stdGenToSeed (stdGenFromSeed s) === s
+    checkCoverage
+        $ cover 1 (s == minBound) "s == minBound"
+        $ cover 1 (s == maxBound) "s == maxBound"
+        $ stdGenToSeed (stdGenFromSeed s) === s
 
 prop_stdGenFromSeed_stdGenToSeed :: MkStdGenInt -> Property
 prop_stdGenFromSeed_stdGenToSeed (MkStdGenInt i) =
-    checkCoverage $
-    cover 1 (i == minBound) "i == minBound" $
-    cover 1 (i == maxBound) "i == maxBound" $
-    stdGenFromSeed (stdGenToSeed (mkStdGen i)) === mkStdGen i
+    checkCoverage
+        $ cover 1 (i == minBound) "i == minBound"
+        $ cover 1 (i == maxBound) "i == maxBound"
+        $ stdGenFromSeed (stdGenToSeed (mkStdGen i)) === mkStdGen i
 
 instance Arbitrary StdGenSeed where
     arbitrary = genStdGenSeed
@@ -88,13 +95,13 @@ shrinkMkStdGenInt (MkStdGenInt i) = MkStdGenInt <$> shrinkIntegral i
 --    uniform, where boundary values are deprioritized.
 --  - Lower values of this parameter produce distributions that are less
 --    uniform, where boundary values are prioritized.
---
 genBoundedIntegralWithUniformPriority
-    :: Bounded a => Integral a => Int -> Gen a
-genBoundedIntegralWithUniformPriority uniformPriority = frequency
-    [ (1, pure minBound)
-    , (1, pure maxBound)
-    , (1, pure (minBound + 1))
-    , (1, pure (maxBound - 1))
-    , (uniformPriority, arbitraryBoundedIntegral)
-    ]
+    :: (Bounded a) => (Integral a) => Int -> Gen a
+genBoundedIntegralWithUniformPriority uniformPriority =
+    frequency
+        [ (1, pure minBound)
+        , (1, pure maxBound)
+        , (1, pure (minBound + 1))
+        , (1, pure (maxBound - 1))
+        , (uniformPriority, arbitraryBoundedIntegral)
+        ]

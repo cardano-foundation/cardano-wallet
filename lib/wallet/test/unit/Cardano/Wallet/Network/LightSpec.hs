@@ -13,7 +13,8 @@ module Cardano.Wallet.Network.LightSpec where
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ChainFollower (..) )
+    ( ChainFollower (..)
+    )
 import Cardano.Wallet.Network.Light
     ( Consensual (Consensual, NotConsensual)
     , LightBlocks
@@ -22,7 +23,8 @@ import Cardano.Wallet.Network.Light
     , lightSync
     )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..) )
+    ( BlockSummary (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint (..)
@@ -30,31 +32,51 @@ import Cardano.Wallet.Primitive.Types
     , isGenesisBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.Monad
-    ( ap, forever, void )
+    ( ap
+    , forever
+    , void
+    )
 import Control.Monad.Class.MonadTimer
-    ( MonadDelay (..) )
+    ( MonadDelay (..)
+    )
 import Control.Monad.Trans.State.Strict
-    ( State, get, modify, runState )
+    ( State
+    , get
+    , modify
+    , runState
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Foldable
-    ( find )
+    ( find
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Encoding
-    ( decodeUtf8 )
+    ( decodeUtf8
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -74,9 +96,9 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec =
-    describe "lightSync" $
-        it "lightSync === full sync  for chain following" $
-            property prop_followLightSync
+    describe "lightSync"
+        $ it "lightSync === full sync  for chain following"
+        $ property prop_followLightSync
 
 {-------------------------------------------------------------------------------
     Properties
@@ -105,34 +127,37 @@ type Block = BlockHeader
 
 -- | 'LightSyncSource' that reads from a 'MockChain'.
 mkLightSyncSourceMock :: LightSyncSource ((->) MockChain) Block addr ()
-mkLightSyncSourceMock = LightSyncSource
-    { getHeader = id
-    , getTip = NE.head
-    , getBlockHeaderAtHeight = \height ->
-        maybe NotConsensual Consensual . find ((height ==) . toHeight)
-    , getBlockHeaderAt = \pt mockChain ->
+mkLightSyncSourceMock =
+    LightSyncSource
+        { getHeader = id
+        , getTip = NE.head
+        , getBlockHeaderAtHeight = \height ->
+            maybe NotConsensual Consensual . find ((height ==) . toHeight)
+        , getBlockHeaderAt = \pt mockChain ->
             maybe NotConsensual Consensual $ find ((pt ==) . toPoint) mockChain
-    , getNextBlocks = \pt chain ->
-        case NE.span ((pt /=) . toPoint) chain of
-            (_, []) -> NotConsensual
-            (xs, _) -> Consensual (reverse xs)
-    , getNextBlockHeader = \bh chain ->
-        case NE.span (bh /=) chain of
-            (_, []) -> NotConsensual
-            (xs, _) -> Consensual $ listToMaybe $ reverse xs
-    , getAddressTxs = \_ _ _ -> pure ()
-    }
+        , getNextBlocks = \pt chain ->
+            case NE.span ((pt /=) . toPoint) chain of
+                (_, []) -> NotConsensual
+                (xs, _) -> Consensual (reverse xs)
+        , getNextBlockHeader = \bh chain ->
+            case NE.span (bh /=) chain of
+                (_, []) -> NotConsensual
+                (xs, _) -> Consensual $ listToMaybe $ reverse xs
+        , getAddressTxs = \_ _ _ -> pure ()
+        }
   where
     toPoint = chainPointFromBlockHeader
     toHeight = fromIntegral . fromEnum . blockHeight
 
 data ChainHistory = ChainHistory !MockChain ![(DeltaChain, MockChain)]
-    deriving Eq
+    deriving (Eq)
 
 instance Show ChainHistory where
-    show (ChainHistory c0 deltas) = unwords $ L.intersperse "->" $
-        showBlockChain c0 :
-            (showTup . (bimap showDeltaChain showBlockChain) <$> deltas)
+    show (ChainHistory c0 deltas) =
+        unwords
+            $ L.intersperse "->"
+            $ showBlockChain c0
+                : (showTup . (bimap showDeltaChain showBlockChain) <$> deltas)
 
 instance Arbitrary ChainHistory where
     arbitrary = sized genChainHistory
@@ -146,7 +171,7 @@ genChainHistory n = go 1 chain0 (ChainHistory chain0 [])
         | otherwise = do
             (delta, c2) <- genDeltaChain j c1
             ds <- splitForward delta
-            go (j+1) c2 $ ChainHistory c0 $ [ (d,c2) | d <- reverse ds ] ++ deltas
+            go (j + 1) c2 $ ChainHistory c0 $ [(d, c2) | d <- reverse ds] ++ deltas
 
     splitForward (Forward blocks tip) = do
         blockss <- subsequences $ NE.toList blocks
@@ -157,14 +182,14 @@ genChainHistory n = go 1 chain0 (ChainHistory chain0 [])
 subsequences :: [a] -> Gen [NonEmpty a]
 subsequences [] = pure []
 subsequences xs = do
-    n <- choose (1,length xs)
+    n <- choose (1, length xs)
     (NE.fromList (take n xs) :) <$> subsequences (drop n xs)
 
 data DeltaChain
     = Forward (NonEmpty Block) BlockHeader
     | Backward BlockHeader
     | Idle
-    deriving (Eq,Show)
+    deriving (Eq, Show)
 
 showDeltaChain :: DeltaChain -> String
 showDeltaChain = \case
@@ -173,12 +198,13 @@ showDeltaChain = \case
     Idle -> "Idle"
 
 genesisBlock :: Block
-genesisBlock = BlockHeader
-    { slotNo = 0
-    , blockHeight = Quantity 0
-    , headerHash = mockHash 0
-    , parentHeaderHash = Nothing
-    }
+genesisBlock =
+    BlockHeader
+        { slotNo = 0
+        , blockHeight = Quantity 0
+        , headerHash = mockHash 0
+        , parentHeaderHash = Nothing
+        }
 
 mockHash :: Int -> Hash "BlockHeader"
 mockHash = Hash . B8.pack . show
@@ -187,16 +213,17 @@ mockStabilityWindow :: Int
 mockStabilityWindow = 5
 
 genDeltaChain :: Int -> MockChain -> Gen (DeltaChain, MockChain)
-genDeltaChain n chain1 = frequency [(2,forward), (1,backward)]
+genDeltaChain n chain1 = frequency [(2, forward), (1, backward)]
   where
     tip1 = NE.head chain1
     forward = do
-        let newblock = BlockHeader
-                { slotNo = succ (slotNo tip1)
-                , blockHeight = succ (blockHeight tip1)
-                , headerHash = mockHash n
-                , parentHeaderHash = Just $ headerHash tip1
-                }
+        let newblock =
+                BlockHeader
+                    { slotNo = succ (slotNo tip1)
+                    , blockHeight = succ (blockHeight tip1)
+                    , headerHash = mockHash n
+                    , parentHeaderHash = Just $ headerHash tip1
+                    }
             chain2 = newblock NE.<| chain1
         pure (Forward (newblock :| []) (NE.head chain2), chain2)
     backward = do
@@ -212,15 +239,15 @@ data Free f a
     = Free (f (Free f a))
     | Pure a
 
-instance Functor f => Functor (Free f) where
-    fmap g (Pure a)  = Pure (g a)
+instance (Functor f) => Functor (Free f) where
+    fmap g (Pure a) = Pure (g a)
     fmap g (Free f) = Free (fmap g <$> f)
 
-instance Functor f => Applicative (Free f) where
-    pure  = Pure
+instance (Functor f) => Applicative (Free f) where
+    pure = Pure
     (<*>) = ap
 
-instance Functor f => Monad (Free f) where
+instance (Functor f) => Monad (Free f) where
     (Pure x) >>= k = k x
     (Free f) >>= k = Free ((>>= k) <$> f)
 
@@ -230,13 +257,17 @@ data MockAction s k where
     Wait
         :: (() -> k) -> MockAction s k
     Tick
-        :: (DeltaChain -> k) -> MockAction s k
+        :: (DeltaChain -> k)
+        -> MockAction s k
         -- ^ Time step where the 'MockChain' evolves.
     GetChain
-        :: (MockChain -> k) -> MockAction s k
+        :: (MockChain -> k)
+        -> MockAction s k
         -- ^ Get current state of the 'MockChain'.
     UpdateFollower
-        :: State s a -> (a -> k) -> MockAction s k
+        :: State s a
+        -> (a -> k)
+        -> MockAction s k
         -- ^ Embedded state of a chain follower.
 
 instance Functor (MockAction s) where
@@ -262,31 +293,35 @@ instance MonadDelay (MockMonad s) where
 
 -- | Evaluate a 'MockMonad' action on a given 'ChainHistory'.
 evalMockMonad :: MockMonad s a -> ChainHistory -> s -> s
-evalMockMonad action0 (ChainHistory chain0 deltas0) s0
-    = go (500 :: Integer) False action0 s0 chain0 deltas0
+evalMockMonad action0 (ChainHistory chain0 deltas0) s0 =
+    go (500 :: Integer) False action0 s0 chain0 deltas0
   where
-    go depth _lastWait _action _s _chain _deltas | depth < 1 =
-        error $ "Recursion depth exceeded (" <> show depth <> ")"
+    go depth _lastWait _action _s _chain _deltas
+        | depth < 1 =
+            error $ "Recursion depth exceeded (" <> show depth <> ")"
     go _depth _waitCounter (Pure _) s _chain _deltas = s -- monad has finished
     go prevDepth lastWait (Free action) s chain deltas =
         let depth = pred prevDepth
-        in case action of
-            Wait k -> case deltas of
-                [] | lastWait -> s -- chain will not change anymore
-                [] -> go depth True (k ()) s chain deltas
-                _ -> go depth lastWait (k ()) s chain deltas
-            Tick k -> case deltas of
-                [] -> go depth lastWait (k Idle) s chain deltas
-                (d, chain2) : ds -> go depth lastWait (k d) s chain2 ds
-            GetChain k ->
-                go depth lastWait (k chain) s chain deltas
-            UpdateFollower act k ->
-                let (a, s2) = runState act s
-                in  go depth lastWait (k a) s2 chain deltas
+        in  case action of
+                Wait k -> case deltas of
+                    [] | lastWait -> s -- chain will not change anymore
+                    [] -> go depth True (k ()) s chain deltas
+                    _ -> go depth lastWait (k ()) s chain deltas
+                Tick k -> case deltas of
+                    [] -> go depth lastWait (k Idle) s chain deltas
+                    (d, chain2) : ds -> go depth lastWait (k d) s chain2 ds
+                GetChain k ->
+                    go depth lastWait (k chain) s chain deltas
+                UpdateFollower act k ->
+                    let (a, s2) = runState act s
+                    in  go depth lastWait (k a) s2 chain deltas
 
 -- | Run a 'ChainFollower' based on the full synchronization.
 fullSync
-    :: ChainFollower (MockMonad s) ChainPoint BlockHeader
+    :: ChainFollower
+        (MockMonad s)
+        ChainPoint
+        BlockHeader
         (LightBlocks (MockMonad s) Block addr txs)
     -> MockMonad s Void
 fullSync follower = forever $ do
@@ -294,12 +329,15 @@ fullSync follower = forever $ do
     case delta of
         Idle -> wait
         Forward bs tip -> rollForward follower (Left bs) tip
-        Backward target -> void $
-            rollBackward follower $ chainPointFromBlockHeader target
+        Backward target ->
+            void
+                $ rollBackward follower
+                $ chainPointFromBlockHeader target
 
 {-------------------------------------------------------------------------------
     Implementation of a ChainFollower
 -------------------------------------------------------------------------------}
+
 -- | List of checkpoints, ordered from latest to oldest.
 type FollowerState = NonEmpty BlockHeader
 
@@ -312,28 +350,33 @@ latest = NE.head
 -- | Make a 'ChainFollower' for 'FollowerState'.
 mkFollower
     :: (forall a. State FollowerState a -> m a)
-    -> ChainFollower m ChainPoint BlockHeader
+    -> ChainFollower
+        m
+        ChainPoint
+        BlockHeader
         (LightBlocks m Block addr txs)
-mkFollower lift = ChainFollower
-    { checkpointPolicy = \epochStability ->
-        CP.atTip <> CP.atGenesis
-        <> CP.trailingArithmetic 2 (min 1 $ epochStability `div` 3)
-    , readChainPoints =
-        lift $ map chainPointFromBlockHeader . NE.toList <$> get
-    , rollForward = \blocks _tip ->
-        lift $ modify $ \s -> case blocks of
-            Left bs ->
-                if latest s `isParentOf` NE.head bs
-                    then NE.reverse bs <> s
-                    else error "lightSync: Nonempty Block out of order"
-            Right BlockSummary{from,to} ->
-                if latest s `isParentOf` from
-                    then to NE.<| s
-                    else error "lightSync: BlockSummary out of order"
-    , rollBackward = \target -> lift $ do
-        modify $ NE.fromList . NE.dropWhile (`after` target)
-        chainPointFromBlockHeader . NE.head <$> get
-    }
+mkFollower lift =
+    ChainFollower
+        { checkpointPolicy = \epochStability ->
+            CP.atTip
+                <> CP.atGenesis
+                <> CP.trailingArithmetic 2 (min 1 $ epochStability `div` 3)
+        , readChainPoints =
+            lift $ map chainPointFromBlockHeader . NE.toList <$> get
+        , rollForward = \blocks _tip ->
+            lift $ modify $ \s -> case blocks of
+                Left bs ->
+                    if latest s `isParentOf` NE.head bs
+                        then NE.reverse bs <> s
+                        else error "lightSync: Nonempty Block out of order"
+                Right BlockSummary{from, to} ->
+                    if latest s `isParentOf` from
+                        then to NE.<| s
+                        else error "lightSync: BlockSummary out of order"
+        , rollBackward = \target -> lift $ do
+            modify $ NE.fromList . NE.dropWhile (`after` target)
+            chainPointFromBlockHeader . NE.head <$> get
+        }
   where
     bh `after` ChainPointAtGenesis = not (isGenesisBlockHeader bh)
     bh `after` (ChainPoint slot _) = slotNo bh > slot

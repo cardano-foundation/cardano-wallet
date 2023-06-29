@@ -15,9 +15,11 @@ module Cardano.Wallet.TypeLevel
 import Prelude
 
 import Data.Kind
-    ( Constraint )
+    ( Constraint
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 
 type family Excluding xs x :: Constraint where
     Excluding '[] _ = ()

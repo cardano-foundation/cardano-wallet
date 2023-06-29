@@ -11,10 +11,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 module Cardano.CoinSelectionSpec
-    where
+where
 
 import Prelude
 
@@ -38,7 +39,8 @@ import Cardano.CoinSelection
     , verifySelectionError
     )
 import Cardano.CoinSelection.Balance
-    ( SelectionSkeleton )
+    ( SelectionSkeleton
+    )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionSkeleton
     , genSelectionStrategy
@@ -63,49 +65,82 @@ import Cardano.CoinSelection.BalanceSpec
     , unMockComputeMinimumCost
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, genTokenMap, shrinkTokenMap )
+    ( genAssetId
+    , genTokenMap
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity )
+    ( txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
+    ( UTxOSelection
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
+    ( genUTxOSelection
+    , shrinkUTxOSelection
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Word
-    ( Word64 )
-import Generics.SOP
-    ( NP (..) )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
+import Generics.SOP
+    ( NP (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -140,7 +175,9 @@ import Test.QuickCheck.Extra
     , (<@>)
     )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -150,30 +187,25 @@ import qualified Data.Foldable as F
 
 spec :: Spec
 spec = describe "Cardano.CoinSelectionSpec" $ do
-
     describe "Performing selections" $ do
-
-        it "prop_performSelection" $
-            property prop_performSelection
+        it "prop_performSelection"
+            $ property prop_performSelection
 
     describe "Constructing balance constraints and parameters" $ do
-
-        it "prop_toBalanceConstraintsParams_computeMinimumCost" $
-            property prop_toBalanceConstraintsParams_computeMinimumCost
+        it "prop_toBalanceConstraintsParams_computeMinimumCost"
+            $ property prop_toBalanceConstraintsParams_computeMinimumCost
 
     describe "Preparing outputs" $ do
-
-        it "prop_prepareOutputsWith_twice" $
-            property prop_prepareOutputsWith_twice
-        it "prop_prepareOutputsWith_length" $
-            property prop_prepareOutputsWith_length
-        it "prop_prepareOutputsWith_assetsUnchanged" $
-            property prop_prepareOutputsWith_assetsUnchanged
-        it "prop_prepareOutputsWith_preparedOrExistedBefore" $
-            property prop_prepareOutputsWith_preparedOrExistedBefore
+        it "prop_prepareOutputsWith_twice"
+            $ property prop_prepareOutputsWith_twice
+        it "prop_prepareOutputsWith_length"
+            $ property prop_prepareOutputsWith_length
+        it "prop_prepareOutputsWith_assetsUnchanged"
+            $ property prop_prepareOutputsWith_assetsUnchanged
+        it "prop_prepareOutputsWith_preparedOrExistedBefore"
+            $ property prop_prepareOutputsWith_preparedOrExistedBefore
 
     describe "Computing minimum collateral amounts" $ do
-
         unitTests_computeMinimumCollateral
 
 --------------------------------------------------------------------------------
@@ -185,9 +217,9 @@ prop_performSelection
     -> Pretty (SelectionParams TestSelectionContext)
     -> Property
 prop_performSelection (Pretty mockConstraints) (Pretty params) =
-    monadicIO $
-    prop_performSelection_inner constraints params <$>
-    run (runExceptT $ performSelection constraints params)
+    monadicIO
+        $ prop_performSelection_inner constraints params
+            <$> run (runExceptT $ performSelection constraints params)
   where
     constraints = unMockSelectionConstraints mockConstraints
 
@@ -199,20 +231,20 @@ prop_performSelection_inner
         (Selection TestSelectionContext)
     -> Property
 prop_performSelection_inner constraints params result =
-    checkCoverage $
-    prop_performSelection_coverage params result $
-    case result of
-        Right selection ->
-            report selection "selection" $
-            Pretty (verifySelection constraints params selection) ===
-            Pretty VerificationSuccess
-        Left e ->
-            report e "selection error" $
-            Pretty (verifySelectionError constraints params e) ===
-            Pretty VerificationSuccess
+    checkCoverage
+        $ prop_performSelection_coverage params result
+        $ case result of
+            Right selection ->
+                report selection "selection"
+                    $ Pretty (verifySelection constraints params selection)
+                        === Pretty VerificationSuccess
+            Left e ->
+                report e "selection error"
+                    $ Pretty (verifySelectionError constraints params e)
+                        === Pretty VerificationSuccess
 
 prop_performSelection_coverage
-    :: Testable property
+    :: (Testable property)
     => SelectionParams TestSelectionContext
     -> Either
         (SelectionError TestSelectionContext)
@@ -220,75 +252,95 @@ prop_performSelection_coverage
     -> property
     -> Property
 prop_performSelection_coverage params r innerProperty =
-    cover 20
+    cover
+        20
         (selectionCollateralRequired params)
-        "selectionCollateralRequired params" $
-    cover 20
-        (not $ selectionCollateralRequired params)
-        "not $ selectionCollateralRequired params" $
-    cover 20
-        (isSelection r)
-        "isSelection r" $
-    cover 0.1
-        (isSelectionBalanceError_BalanceInsufficient r)
-        "isSelectionBalanceError_BalanceInsufficient" $
-    cover 0.1
-        (isSelectionBalanceError_UnableToConstructChange r)
-        "isSelectionBalanceError_UnableToConstructChange" $
-    cover 0.1
-        (isSelectionBalanceError_EmptyUTxO r)
-        "isSelectionBalanceError_EmptyUTxO" $
-    cover 0.1
-        (isSelectionCollateralError r)
-        "isSelectionCollateralError" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputCoinInsufficient r)
-        "isSelectionOutputError_SelectionOutputCoinInsufficient" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
-        "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
-        "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit" $
-    property innerProperty
+        "selectionCollateralRequired params"
+        $ cover
+            20
+            (not $ selectionCollateralRequired params)
+            "not $ selectionCollateralRequired params"
+        $ cover
+            20
+            (isSelection r)
+            "isSelection r"
+        $ cover
+            0.1
+            (isSelectionBalanceError_BalanceInsufficient r)
+            "isSelectionBalanceError_BalanceInsufficient"
+        $ cover
+            0.1
+            (isSelectionBalanceError_UnableToConstructChange r)
+            "isSelectionBalanceError_UnableToConstructChange"
+        $ cover
+            0.1
+            (isSelectionBalanceError_EmptyUTxO r)
+            "isSelectionBalanceError_EmptyUTxO"
+        $ cover
+            0.1
+            (isSelectionCollateralError r)
+            "isSelectionCollateralError"
+        $ cover
+            0.1
+            (isSelectionOutputError_SelectionOutputCoinInsufficient r)
+            "isSelectionOutputError_SelectionOutputCoinInsufficient"
+        $ cover
+            0.1
+            (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
+            "isSelectionOutputError_SelectionOutputSizeExceedsLimit"
+        $ cover
+            0.1
+            (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
+            "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit"
+        $ property innerProperty
   where
     isSelection = isRight
     isSelectionBalanceError_BalanceInsufficient = \case
-        Left (SelectionBalanceErrorOf Balance.BalanceInsufficient {})
-            -> True; _ -> False
+        Left (SelectionBalanceErrorOf Balance.BalanceInsufficient{}) ->
+            True
+        _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
-        Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
-            -> True; _ -> False
+        Left (SelectionBalanceErrorOf Balance.UnableToConstructChange{}) ->
+            True
+        _ -> False
     isSelectionBalanceError_EmptyUTxO = \case
-        Left (SelectionBalanceErrorOf Balance.EmptyUTxO {})
-            -> True; _ -> False
+        Left (SelectionBalanceErrorOf Balance.EmptyUTxO{}) ->
+            True
+        _ -> False
     isSelectionCollateralError = \case
-        Left (SelectionCollateralErrorOf _)
-            -> True; _ -> False
+        Left (SelectionCollateralErrorOf _) ->
+            True
+        _ -> False
     isSelectionOutputError_SelectionOutputCoinInsufficient = \case
         Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputCoinInsufficient {}
-                )
-            )
-            -> True; _ -> False
+            ( SelectionOutputErrorOf
+                    ( SelectionOutputError
+                            _index
+                            SelectionOutputCoinInsufficient{}
+                        )
+                ) ->
+                True
+        _ -> False
     isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
         Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputSizeExceedsLimit {}
-                )
-            )
-            -> True; _ -> False
+            ( SelectionOutputErrorOf
+                    ( SelectionOutputError
+                            _index
+                            SelectionOutputSizeExceedsLimit{}
+                        )
+                ) ->
+                True
+        _ -> False
     isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit = \case
         Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputTokenQuantityExceedsLimit {}
-                )
-            )
-            -> True; _ -> False
+            ( SelectionOutputErrorOf
+                    ( SelectionOutputError
+                            _index
+                            SelectionOutputTokenQuantityExceedsLimit{}
+                        )
+                ) ->
+                True
+        _ -> False
 
     -- Provides an exhaustiveness check for all possible constructors of
     -- the 'SelectionError' type.
@@ -300,15 +352,15 @@ prop_performSelection_coverage params r innerProperty =
     _checkExhaustivenessForSelectionError :: ()
     _checkExhaustivenessForSelectionError = case undefined of
         SelectionBalanceErrorOf e -> case e of
-            Balance.BalanceInsufficient {} -> ()
-            Balance.UnableToConstructChange {} -> ()
-            Balance.EmptyUTxO {} -> ()
+            Balance.BalanceInsufficient{} -> ()
+            Balance.UnableToConstructChange{} -> ()
+            Balance.EmptyUTxO{} -> ()
         SelectionCollateralErrorOf e -> case e of
-            SelectionCollateralError {} -> ()
+            SelectionCollateralError{} -> ()
         SelectionOutputErrorOf (SelectionOutputError _index e) -> case e of
-            SelectionOutputCoinInsufficient {} -> ()
-            SelectionOutputSizeExceedsLimit {} -> ()
-            SelectionOutputTokenQuantityExceedsLimit {} -> ()
+            SelectionOutputCoinInsufficient{} -> ()
+            SelectionOutputSizeExceedsLimit{} -> ()
+            SelectionOutputTokenQuantityExceedsLimit{} -> ()
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
@@ -323,55 +375,66 @@ prop_toBalanceConstraintsParams_computeMinimumCost
     -> SelectionSkeleton TestSelectionContext
     -> Property
 prop_toBalanceConstraintsParams_computeMinimumCost
-    mockConstraints params skeleton =
-        checkCoverage $
-        cover 10 (selectionCollateralRequired params)
-            "collateral required: yes" $
-        cover 10 (not (selectionCollateralRequired params))
-            "collateral required: no" $
-        cover 10 (costOriginal < costAdjusted)
-            "cost (original) < cost (adjusted)" $
-        report costOriginal
-            "cost (original)" $
-        report costAdjusted
-            "cost (adjusted)" $
-        if selectionCollateralRequired params
-        then
-            conjoin
-                [ costOriginal <= costAdjusted
-                -- Here we apply a transformation that is the *inverse* of
-                -- the transformation within 'toBalanceConstraintsParams':
-                , costOriginal ==
-                    ( computeMinimumCostAdjusted
-                    . over #skeletonInputCount
-                        (subtract maximumCollateralInputCount)
-                    $ skeleton
-                    )
-                ]
-        else
-            costOriginal === costAdjusted
-  where
-    constraints :: SelectionConstraints TestSelectionContext
-    constraints = unMockSelectionConstraints mockConstraints
+    mockConstraints
+    params
+    skeleton =
+        checkCoverage
+            $ cover
+                10
+                (selectionCollateralRequired params)
+                "collateral required: yes"
+            $ cover
+                10
+                (not (selectionCollateralRequired params))
+                "collateral required: no"
+            $ cover
+                10
+                (costOriginal < costAdjusted)
+                "cost (original) < cost (adjusted)"
+            $ report
+                costOriginal
+                "cost (original)"
+            $ report
+                costAdjusted
+                "cost (adjusted)"
+            $ if selectionCollateralRequired params
+                then
+                    conjoin
+                        [ costOriginal <= costAdjusted
+                        , -- Here we apply a transformation that is the *inverse* of
+                          -- the transformation within 'toBalanceConstraintsParams':
+                          costOriginal
+                            == ( computeMinimumCostAdjusted
+                                    . over
+                                        #skeletonInputCount
+                                        (subtract maximumCollateralInputCount)
+                                    $ skeleton
+                               )
+                        ]
+                else costOriginal === costAdjusted
+      where
+        constraints :: SelectionConstraints TestSelectionContext
+        constraints = unMockSelectionConstraints mockConstraints
 
-    maximumCollateralInputCount :: Int
-    maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
+        maximumCollateralInputCount :: Int
+        maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
 
-    computeMinimumCostOriginal
-        :: SelectionSkeleton TestSelectionContext -> Coin
-    computeMinimumCostOriginal = constraints ^. #computeMinimumCost
+        computeMinimumCostOriginal
+            :: SelectionSkeleton TestSelectionContext -> Coin
+        computeMinimumCostOriginal = constraints ^. #computeMinimumCost
 
-    computeMinimumCostAdjusted
-        :: SelectionSkeleton TestSelectionContext -> Coin
-    computeMinimumCostAdjusted =
-        toBalanceConstraintsParams (constraints, params)
-            & fst & view #computeMinimumCost
+        computeMinimumCostAdjusted
+            :: SelectionSkeleton TestSelectionContext -> Coin
+        computeMinimumCostAdjusted =
+            toBalanceConstraintsParams (constraints, params)
+                & fst
+                & view #computeMinimumCost
 
-    costOriginal :: Coin
-    costOriginal = computeMinimumCostOriginal skeleton
+        costOriginal :: Coin
+        costOriginal = computeMinimumCostOriginal skeleton
 
-    costAdjusted :: Coin
-    costAdjusted = computeMinimumCostAdjusted skeleton
+        costAdjusted :: Coin
+        costAdjusted = computeMinimumCostAdjusted skeleton
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
@@ -387,7 +450,7 @@ prop_prepareOutputsWith_twice minCoinValueDef outs =
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     (once, twice) =
         case iterate (prepareOutputsWith minCoinValueFor) outs of
-            (_:a:b:_) -> (a, b)
+            (_ : a : b : _) -> (a, b)
             _else -> error "prop_prepareOutputsWith_twice"
 
 prop_prepareOutputsWith_length
@@ -405,8 +468,7 @@ prop_prepareOutputsWith_assetsUnchanged
     -> Property
 prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
     (outputAssets <$> (prepareOutputsWith minCoinValueFor outs))
-    ===
-    (outputAssets <$> outs)
+        === (outputAssets <$> outs)
   where
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     outputAssets = TokenBundle.getAssets . snd
@@ -427,8 +489,8 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
         | outputCoin before /= Coin 0 =
             outputCoin after == outputCoin before
         | otherwise =
-            outputCoin after ==
-                uncurry minCoinValueFor (view #tokens <$> before)
+            outputCoin after
+                == uncurry minCoinValueFor (view #tokens <$> before)
       where
         outputCoin = view #coin . snd
 
@@ -437,17 +499,19 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 --------------------------------------------------------------------------------
 
 unitTests_computeMinimumCollateral :: Spec
-unitTests_computeMinimumCollateral = unitTests
-    "unitTests_computeMinimumCollateral"
-    (computeMinimumCollateral)
-    (mkTest <$> tests)
+unitTests_computeMinimumCollateral =
+    unitTests
+        "unitTests_computeMinimumCollateral"
+        (computeMinimumCollateral)
+        (mkTest <$> tests)
   where
     mkTest (minimumCollateralPercentage, transactionFee, minimumCollateral) =
         UnitTestData
-            { params = ComputeMinimumCollateralParams
-                { minimumCollateralPercentage
-                , transactionFee
-                }
+            { params =
+                ComputeMinimumCollateralParams
+                    { minimumCollateralPercentage
+                    , transactionFee
+                    }
             , result = minimumCollateral
             }
     -- We compute the minimum collateral amount by multiplying the minimum
@@ -457,18 +521,18 @@ unitTests_computeMinimumCollateral = unitTests
     -- However, the result of this multiplication may be non-integral.
     -- In the event that the result is non-integral, we always round up.
     tests =
-        --(  Min, Tx     , Min     )
-        --(    %, Fee    , Required)
-        --(-----, -------, --------)
-        [ (    0, Coin  0, Coin   0)
-        , (    0, Coin 10, Coin   0)
-        , (   90, Coin 10, Coin   9)
-        , (   91, Coin 10, Coin  10) -- result is non-integral so we round up
-        , (   99, Coin 10, Coin  10) -- result is non-integral so we round up
-        , (  100, Coin 10, Coin  10)
-        , (  990, Coin 10, Coin  99)
-        , (  991, Coin 10, Coin 100) -- result is non-integral so we round up
-        , (  999, Coin 10, Coin 100) -- result is non-integral so we round up
+        -- (  Min, Tx     , Min     )
+        -- (    %, Fee    , Required)
+        -- (-----, -------, --------)
+        [ (0, Coin 0, Coin 0)
+        , (0, Coin 10, Coin 0)
+        , (90, Coin 10, Coin 9)
+        , (91, Coin 10, Coin 10) -- result is non-integral so we round up
+        , (99, Coin 10, Coin 10) -- result is non-integral so we round up
+        , (100, Coin 10, Coin 10)
+        , (990, Coin 10, Coin 99)
+        , (991, Coin 10, Coin 100) -- result is non-integral so we round up
+        , (999, Coin 10, Coin 100) -- result is non-integral so we round up
         , (1_000, Coin 10, Coin 100)
         ]
 
@@ -495,51 +559,54 @@ data MockSelectionConstraints = MockSelectionConstraints
     deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
-genMockSelectionConstraints = MockSelectionConstraints
-    <$> genMockAssessTokenBundleSize
-    <*> genMockComputeMinimumAdaQuantity
-    <*> genMockComputeMinimumCost
-    <*> genMaximumCollateralInputCount
-    <*> genMinimumCollateralPercentage
-    <*> genMaximumOutputAdaQuantity
-    <*> genMaximumOutputTokenQuantity
+genMockSelectionConstraints =
+    MockSelectionConstraints
+        <$> genMockAssessTokenBundleSize
+        <*> genMockComputeMinimumAdaQuantity
+        <*> genMockComputeMinimumCost
+        <*> genMaximumCollateralInputCount
+        <*> genMinimumCollateralPercentage
+        <*> genMaximumOutputAdaQuantity
+        <*> genMaximumOutputTokenQuantity
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
-shrinkMockSelectionConstraints = genericRoundRobinShrink
-    <@> shrinkMockAssessTokenBundleSize
-    <:> shrinkMockComputeMinimumAdaQuantity
-    <:> shrinkMockComputeMinimumCost
-    <:> shrinkMaximumCollateralInputCount
-    <:> shrinkMinimumCollateralPercentage
-    <:> shrinkMaximumOutputAdaQuantity
-    <:> shrinkMaximumOutputTokenQuantity
-    <:> Nil
+shrinkMockSelectionConstraints =
+    genericRoundRobinShrink
+        <@> shrinkMockAssessTokenBundleSize
+        <:> shrinkMockComputeMinimumAdaQuantity
+        <:> shrinkMockComputeMinimumCost
+        <:> shrinkMaximumCollateralInputCount
+        <:> shrinkMinimumCollateralPercentage
+        <:> shrinkMaximumOutputAdaQuantity
+        <:> shrinkMaximumOutputTokenQuantity
+        <:> Nil
 
 unMockSelectionConstraints
     :: MockSelectionConstraints -> SelectionConstraints TestSelectionContext
-unMockSelectionConstraints m = SelectionConstraints
-    { assessTokenBundleSize =
-        unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
-    , computeMinimumAdaQuantity =
-        unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
-    , isBelowMinimumAdaQuantity =
-        unMockIsBelowMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
-    , computeMinimumCost =
-        unMockComputeMinimumCost $ view #computeMinimumCost m
-    , maximumCollateralInputCount =
-        view #maximumCollateralInputCount m
-    , minimumCollateralPercentage =
-        view #minimumCollateralPercentage m
-    , maximumOutputAdaQuantity =
-        view #maximumOutputAdaQuantity m
-    , maximumOutputTokenQuantity =
-        view #maximumOutputTokenQuantity m
-    , maximumLengthChangeAddress =
-        TestAddress 0x0
-    , nullAddress =
-        TestAddress 0x0
-    }
+unMockSelectionConstraints m =
+    SelectionConstraints
+        { assessTokenBundleSize =
+            unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
+        , computeMinimumAdaQuantity =
+            unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+        , isBelowMinimumAdaQuantity =
+            unMockIsBelowMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+        , computeMinimumCost =
+            unMockComputeMinimumCost $ view #computeMinimumCost m
+        , maximumCollateralInputCount =
+            view #maximumCollateralInputCount m
+        , minimumCollateralPercentage =
+            view #minimumCollateralPercentage m
+        , maximumOutputAdaQuantity =
+            view #maximumOutputAdaQuantity m
+        , maximumOutputTokenQuantity =
+            view #maximumOutputTokenQuantity m
+        , maximumLengthChangeAddress =
+            TestAddress 0x0
+        , nullAddress =
+            TestAddress 0x0
+        }
 
 --------------------------------------------------------------------------------
 -- Minimum ada quantities
@@ -591,7 +658,6 @@ shrinkMaximumOutputTokenQuantity = const []
 --
 -- For the moment, we use the same constant that is used in the wallet. In
 -- future, we can improve our test coverage by allowing this value to vary.
---
 testMaximumOutputAdaQuantity :: Coin
 testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 
@@ -600,7 +666,6 @@ testMaximumOutputAdaQuantity = Coin 45_000_000_000_000_000
 --
 -- For the moment, we use the same constant that is used in the wallet. In
 -- future, we can improve our test coverage by allowing this value to vary.
---
 testMaximumOutputTokenQuantity :: TokenQuantity
 testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 
@@ -609,31 +674,33 @@ testMaximumOutputTokenQuantity = TokenQuantity $ intCast $ maxBound @Word64
 --------------------------------------------------------------------------------
 
 genSelectionParams :: Gen (SelectionParams TestSelectionContext)
-genSelectionParams = SelectionParams
-    <$> genAssetsToBurn
-    <*> genAssetsToMint
-    <*> genExtraCoinIn
-    <*> genExtraCoinOut
-    <*> genOutputsToCover
-    <*> genCollateralRequirement
-    <*> genUTxOAvailableForCollateral
-    <*> genUTxOAvailableForInputs
-    <*> genSelectionStrategy
+genSelectionParams =
+    SelectionParams
+        <$> genAssetsToBurn
+        <*> genAssetsToMint
+        <*> genExtraCoinIn
+        <*> genExtraCoinOut
+        <*> genOutputsToCover
+        <*> genCollateralRequirement
+        <*> genUTxOAvailableForCollateral
+        <*> genUTxOAvailableForInputs
+        <*> genSelectionStrategy
 
 shrinkSelectionParams
     :: SelectionParams TestSelectionContext
     -> [SelectionParams TestSelectionContext]
-shrinkSelectionParams = genericRoundRobinShrink
-    <@> shrinkAssetsToBurn
-    <:> shrinkAssetsToMint
-    <:> shrinkExtraCoinIn
-    <:> shrinkExtraCoinOut
-    <:> shrinkOutputsToCover
-    <:> shrinkCollateralRequirement
-    <:> shrinkUTxOAvailableForCollateral
-    <:> shrinkUTxOAvailableForInputs
-    <:> shrinkSelectionStrategy
-    <:> Nil
+shrinkSelectionParams =
+    genericRoundRobinShrink
+        <@> shrinkAssetsToBurn
+        <:> shrinkAssetsToMint
+        <:> shrinkExtraCoinIn
+        <:> shrinkExtraCoinOut
+        <:> shrinkOutputsToCover
+        <:> shrinkCollateralRequirement
+        <:> shrinkUTxOAvailableForCollateral
+        <:> shrinkUTxOAvailableForInputs
+        <:> shrinkSelectionStrategy
+        <:> Nil
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn
@@ -656,10 +723,11 @@ shrinkAssetsToBurn = shrinkTokenMap
 --------------------------------------------------------------------------------
 
 genCoinMostly0 :: Gen Coin
-genCoinMostly0 = frequency
-    [ (70, pure $ Coin 0)
-    , (30, genCoin)
-    ]
+genCoinMostly0 =
+    frequency
+        [ (70, pure $ Coin 0)
+        , (30, genCoin)
+        ]
 
 genExtraCoinIn :: Gen Coin
 genExtraCoinIn = genCoinMostly0
@@ -683,24 +751,28 @@ genOutputsToCover = do
     vectorOf count genOutputToCover
   where
     genOutputToCover :: Gen (TestAddress, TokenBundle)
-    genOutputToCover = frequency
-        [ (49, scale (`mod` 8) genOutput)
-        , (01, genOutputWith genTokenQuantityThatMayExceedLimit)
-        ]
+    genOutputToCover =
+        frequency
+            [ (49, scale (`mod` 8) genOutput)
+            , (01, genOutputWith genTokenQuantityThatMayExceedLimit)
+            ]
       where
-        genOutput = (,)
-            <$> arbitrary @TestAddress
-            <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
+        genOutput =
+            (,)
+                <$> arbitrary @TestAddress
+                <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
     genOutputWith :: Gen TokenQuantity -> Gen (TestAddress, TokenBundle)
-    genOutputWith genTokenQuantityFn = (,)
-        <$> arbitrary @TestAddress
-        <*> genTokenBundleWith genTokenQuantityFn
+    genOutputWith genTokenQuantityFn =
+        (,)
+            <$> arbitrary @TestAddress
+            <*> genTokenBundleWith genTokenQuantityFn
 
     genTokenBundleWith :: Gen TokenQuantity -> Gen TokenBundle
-    genTokenBundleWith genTokenQuantityFn = TokenBundle
-        <$> genCoinPositive
-        <*> genTokenMapWith genTokenQuantityFn
+    genTokenBundleWith genTokenQuantityFn =
+        TokenBundle
+            <$> genCoinPositive
+            <*> genTokenMapWith genTokenQuantityFn
 
     genTokenMapWith :: Gen TokenQuantity -> Gen TokenMap
     genTokenMapWith genTokenQuantityFn = do
@@ -709,17 +781,18 @@ genOutputsToCover = do
         pure $ TokenMap.fromFlatList (assetIds `zip` quantities)
 
     genTokenQuantityThatMayExceedLimit :: Gen TokenQuantity
-    genTokenQuantityThatMayExceedLimit = TokenQuantity <$>
-        elements
-            [ 1
-            , limit `div` 4
-            , limit `div` 2
-            , limit - 2
-            , limit - 1
-            , limit
-            , limit + 1
-            , limit + 2
-            ]
+    genTokenQuantityThatMayExceedLimit =
+        TokenQuantity
+            <$> elements
+                [ 1
+                , limit `div` 4
+                , limit `div` 2
+                , limit - 2
+                , limit - 1
+                , limit
+                , limit + 1
+                , limit + 2
+                ]
       where
         limit :: Natural
         limit = unTokenQuantity txOutMaxTokenQuantity
@@ -728,10 +801,11 @@ shrinkOutputsToCover
     :: [(TestAddress, TokenBundle)] -> [[(TestAddress, TokenBundle)]]
 shrinkOutputsToCover = shrinkList shrinkOutput
   where
-    shrinkOutput = genericRoundRobinShrink
-        <@> shrink @TestAddress
-        <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
-        <:> Nil
+    shrinkOutput =
+        genericRoundRobinShrink
+            <@> shrink @TestAddress
+            <:> (filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+            <:> Nil
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
@@ -755,10 +829,11 @@ genUTxOAvailableForCollateral :: Gen (Map TestUTxO Coin)
 genUTxOAvailableForCollateral = genMapWith (arbitrary @TestUTxO) genCoinPositive
 
 genUTxOAvailableForInputs :: Gen (UTxOSelection TestUTxO)
-genUTxOAvailableForInputs = frequency
-    [ (49, genUTxOSelection (arbitrary @TestUTxO))
-    , (01, pure UTxOSelection.empty)
-    ]
+genUTxOAvailableForInputs =
+    frequency
+        [ (49, genUTxOSelection (arbitrary @TestUTxO))
+        , (01, pure UTxOSelection.empty)
+        ]
 
 shrinkUTxOAvailableForCollateral
     :: Map TestUTxO Coin -> [Map TestUTxO Coin]
@@ -786,14 +861,14 @@ unitTests
     -> [UnitTestData params result]
     -> Spec
 unitTests title f unitTestData =
-    describe title $
-    forM_ (zip testNumbers unitTestData) $
-        \(testNumber :: Int, test) -> do
+    describe title
+        $ forM_ (zip testNumbers unitTestData)
+        $ \(testNumber :: Int, test) -> do
             let subtitle = "Unit test #" <> show testNumber
-            it subtitle $
-                let resultExpected = view #result test in
-                let resultActual = f (view #params test) in
-                property $ Pretty resultExpected === Pretty resultActual
+            it subtitle
+                $ let resultExpected = view #result test
+                  in  let resultActual = f (view #params test)
+                      in  property $ Pretty resultExpected === Pretty resultActual
   where
     testNumbers :: [Int]
     testNumbers = [1 ..]

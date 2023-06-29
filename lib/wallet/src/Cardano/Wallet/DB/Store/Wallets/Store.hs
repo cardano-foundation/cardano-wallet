@@ -1,41 +1,48 @@
-
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: © 2022 IOHK
-License: Apache-2.0
-
-Implementation of a store for 'TxWalletsHistory'
-
--}
+-- |
+-- Copyright: © 2022 IOHK
+-- License: Apache-2.0
+--
+-- Implementation of a store for 'TxWalletsHistory'
 module Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory
-    , DeltaTxWalletsHistory(..)
+    , DeltaTxWalletsHistory (..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.DB.Store.Meta.Layer
-    ( QueryTxMeta (..) )
+    ( QueryTxMeta (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory, mkTxMetaHistory )
+    ( DeltaTxMetaHistory
+    , mkTxMetaHistory
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (..), mkTxSet )
+    ( DeltaTxSet (..)
+    , mkTxSet
+    )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
+    ( DeltaTxWalletsHistory (..)
+    )
 import Control.Applicative
-    ( liftA2 )
+    ( liftA2
+    )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore )
+    ( Store (..)
+    , UpdateStore
+    , mkUpdateStore
+    )
 import Database.Persist.Sql
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
-
 
 mkStoreTxWalletsHistory
     :: Store (SqlPersistT IO) q DeltaTxSet

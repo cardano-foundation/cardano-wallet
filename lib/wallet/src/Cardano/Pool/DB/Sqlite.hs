@@ -21,7 +21,6 @@
 -- License: Apache-2.0
 --
 -- An implementation of the DBLayer which uses Persistent and SQLite.
-
 module Cardano.Pool.DB.Sqlite
     ( newDBLayer
     , withDBLayer
@@ -50,21 +49,39 @@ import Cardano.DB.Sqlite
     , withSqliteContextFile
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolLifeCycleStatus
+    )
 import Cardano.Pool.DB.Log
-    ( ParseFailure (..), PoolDbLog (..) )
+    ( ParseFailure (..)
+    , PoolDbLog (..)
+    )
 import Cardano.Pool.DB.Sqlite.TH hiding
-    ( BlockHeader, blockHeight )
+    ( BlockHeader
+    , blockHeight
+    )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata (..), StakePoolMetadataHash )
+    ( StakePoolMetadata (..)
+    , StakePoolMetadataHash
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), fromMaybeHash, toMaybeHash )
+    ( BlockId (..)
+    , fromMaybeHash
+    , toMaybeHash
+    )
 import Cardano.Wallet.Logging
-    ( bracketTracer )
+    ( bracketTracer
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter
+    , epochOf
+    , firstSlotInEpoch
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -75,39 +92,67 @@ import Cardano.Wallet.Primitive.Types
     , defaultSettings
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM
+    , forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..)
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, natTracer, traceWith )
+    ( Tracer (..)
+    , contramap
+    , natTracer
+    , traceWith
+    )
 import Data.Either
-    ( partitionEithers, rights )
+    ( partitionEithers
+    , rights
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.List
-    ( foldl' )
+    ( foldl'
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Ratio
-    ( denominator, numerator, (%) )
+    ( denominator
+    , numerator
+    , (%)
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime, getCurrentTime )
+    ( UTCTime
+    , addUTCTime
+    , getCurrentTime
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -132,15 +177,22 @@ import Database.Persist.Sql
     , (>=.)
     )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import System.Directory
-    ( removeFile )
+    ( removeFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.Random
-    ( newStdGen )
+    ( newStdGen
+    )
 import UnliftIO.Exception
-    ( bracket, catch, throwIO )
+    ( bracket
+    , catch
+    , throwIO
+    )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -177,13 +229,11 @@ withDBLayer = withDecoratedDBLayer undecoratedDB
 
 -- | A decorator for the database layer, useful for instrumenting or monitoring
 --   calls to database operations.
-newtype DBDecorator a =
-    DBDecorator { decorateDBLayer :: DBLayer a -> DBLayer a }
+newtype DBDecorator a = DBDecorator {decorateDBLayer :: DBLayer a -> DBLayer a}
 
 -- | The identity decorator.
 --
 -- Equivalent to an undecorated database.
---
 undecoratedDB :: DBDecorator a
 undecoratedDB = DBDecorator id
 
@@ -192,31 +242,39 @@ undecoratedDB = DBDecorator id
 -- This function has the same behaviour as 'withDBLayer', but provides a way
 -- to decorate the created 'DBLayer' object with a 'DBDecorator', useful for
 -- instrumenting or monitoring calls to database operations.
---
 withDecoratedDBLayer
     :: DBDecorator IO
-       -- ^ The database decorator.
+    -- ^ The database decorator.
     -> Tracer IO PoolDbLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+    -- ^ Database file location, or Nothing for in-memory database
     -> TimeInterpreter IO
-       -- ^ The time interpreter object.
+    -- ^ The time interpreter object.
     -> (DBLayer IO -> IO a)
-       -- ^ Action to run.
+    -- ^ Action to run.
     -> IO a
 withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
     case mDatabaseDir of
-        Nothing -> bracket
-            (newInMemorySqliteContext tr'
-                createViews migrateAll ForeignKeysEnabled)
-            fst
-            (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
-
+        Nothing ->
+            bracket
+                ( newInMemorySqliteContext
+                    tr'
+                    createViews
+                    migrateAll
+                    ForeignKeysEnabled
+                )
+                fst
+                (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
         Just fp -> handlingPersistError tr fp $ do
-            res <- withSqliteContextFile tr' fp
-                    createViews migrateAll newMigrations
-                $ action . decorateDBLayer dbDecorator . newDBLayer tr ti
+            res <-
+                withSqliteContextFile
+                    tr'
+                    fp
+                    createViews
+                    migrateAll
+                    newMigrations
+                    $ action . decorateDBLayer dbDecorator . newDBLayer tr ti
             either throwIO pure res
   where
     tr' = contramap MsgGeneric tr
@@ -234,212 +292,271 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
 -- these things will be handled for you.
 newDBLayer
     :: Tracer IO PoolDbLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+    -- ^ Time interpreter for slot to time conversions
     -> SqliteContext
-        -- ^ A (thread-) safe wrapper for running db queries.
+    -- ^ A (thread-) safe wrapper for running db queries.
     -> DBLayer IO
 newDBLayer tr ti SqliteContext{runQuery} =
-    DBLayer {..}
-      where
-        putPoolProduction point pool = ExceptT $
-            handleConstraint (ErrPointAlreadyExists point) $
-                insert_ (mkPoolProduction pool point)
+    DBLayer{..}
+  where
+    putPoolProduction point pool =
+        ExceptT
+            $ handleConstraint (ErrPointAlreadyExists point)
+            $ insert_ (mkPoolProduction pool point)
 
-        readPoolProduction epoch = do
-            production <- fmap fromPoolProduction
+    readPoolProduction epoch = do
+        production <-
+            fmap fromPoolProduction
                 <$> selectPoolProduction ti epoch
 
-            let toMap :: Ord a => Map a [b] -> (a,b) -> Map a [b]
-                toMap m (k, v) = Map.alter (alter v) k m
-                  where
-                    alter x = \case
-                      Nothing -> Just [x]
-                      Just xs -> Just (x:xs)
+        let toMap :: (Ord a) => Map a [b] -> (a, b) -> Map a [b]
+            toMap m (k, v) = Map.alter (alter v) k m
+              where
+                alter x = \case
+                    Nothing -> Just [x]
+                    Just xs -> Just (x : xs)
 
-            pure (foldl' toMap Map.empty production)
+        pure (foldl' toMap Map.empty production)
 
-        readTotalProduction = Map.fromList <$> runRawQuery tr
-            (RawQuery "readTotalProduction" query [] parseRow)
-          where
-            query = T.unwords
+    readTotalProduction =
+        Map.fromList
+            <$> runRawQuery
+                tr
+                (RawQuery "readTotalProduction" query [] parseRow)
+      where
+        query =
+            T.unwords
                 [ "SELECT pool_id, count(pool_id) as block_count"
                 , "FROM pool_production"
                 , "GROUP BY pool_id;"
                 ]
-            parseRow
-                ( Single fieldPoolId
+        parseRow
+            ( Single fieldPoolId
                 , Single fieldBlockCount
-                ) = (,)
+                ) =
+                (,)
                     <$> fromPersistValue fieldPoolId
                     <*> (Quantity <$> fromPersistValue fieldBlockCount)
 
-        putStakeDistribution epoch@(EpochNo ep) distribution = do
-            deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
-            insertMany_ (mkStakeDistribution epoch distribution)
+    putStakeDistribution epoch@(EpochNo ep) distribution = do
+        deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
+        insertMany_ (mkStakeDistribution epoch distribution)
 
-        readStakeDistribution (EpochNo epoch) = do
-            fmap (fromStakeDistribution . entityVal) <$> selectList
-                [ StakeDistributionEpoch ==. fromIntegral epoch ]
+    readStakeDistribution (EpochNo epoch) = do
+        fmap (fromStakeDistribution . entityVal)
+            <$> selectList
+                [StakeDistributionEpoch ==. fromIntegral epoch]
                 []
 
-        readPoolLifeCycleStatus poolId =
-            determinePoolLifeCycleStatus
-                <$> readPoolRegistration poolId
-                <*> readPoolRetirement poolId
+    readPoolLifeCycleStatus poolId =
+        determinePoolLifeCycleStatus
+            <$> readPoolRegistration poolId
+            <*> readPoolRetirement poolId
 
-        putPoolRegistration cpt cert = do
-            let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
-            let poolId = view #poolId cert
-            deleteWhere
-                [ PoolOwnerPoolId ==. poolId
-                , PoolOwnerSlot ==. slotNo
-                , PoolOwnerSlotInternalIndex ==. slotInternalIndex
-                ]
-            let poolRegistrationKey = PoolRegistrationKey
-                    poolId slotNo slotInternalIndex
-            let poolRegistrationRow = PoolRegistration
+    putPoolRegistration cpt cert = do
+        let CertificatePublicationTime{slotNo, slotInternalIndex} = cpt
+        let poolId = view #poolId cert
+        deleteWhere
+            [ PoolOwnerPoolId ==. poolId
+            , PoolOwnerSlot ==. slotNo
+            , PoolOwnerSlotInternalIndex ==. slotInternalIndex
+            ]
+        let poolRegistrationKey =
+                PoolRegistrationKey
+                    poolId
+                    slotNo
+                    slotInternalIndex
+        let poolRegistrationRow =
+                PoolRegistration
                     (poolId)
                     (slotNo)
                     (slotInternalIndex)
-                    (fromIntegral $ numerator
-                        $ getPercentage $ poolMargin cert)
-                    (fromIntegral $ denominator
-                        $ getPercentage $ poolMargin cert)
+                    ( fromIntegral
+                        $ numerator
+                        $ getPercentage
+                        $ poolMargin cert
+                    )
+                    ( fromIntegral
+                        $ denominator
+                        $ getPercentage
+                        $ poolMargin cert
+                    )
                     (Coin.unsafeToWord64 $ poolCost cert)
                     (Coin.unsafeToWord64 $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
-            _ <- repsert poolRegistrationKey poolRegistrationRow
-            insertMany_ $
-                zipWith
-                    (PoolOwner poolId slotNo slotInternalIndex)
-                    (poolOwners cert)
-                    [0..]
+        _ <- repsert poolRegistrationKey poolRegistrationRow
+        insertMany_
+            $ zipWith
+                (PoolOwner poolId slotNo slotInternalIndex)
+                (poolOwners cert)
+                [0 ..]
 
-        putPoolRetirement cpt cert = do
-            let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
-            let PoolRetirementCertificate
-                    poolId (EpochNo retirementEpoch) = cert
-            repsert (PoolRetirementKey poolId slotNo slotInternalIndex) $
-                PoolRetirement
-                    poolId
-                    slotNo
-                    slotInternalIndex
-                    (fromIntegral retirementEpoch)
+    putPoolRetirement cpt cert = do
+        let CertificatePublicationTime{slotNo, slotInternalIndex} = cpt
+        let PoolRetirementCertificate
+                poolId
+                (EpochNo retirementEpoch) = cert
+        repsert (PoolRetirementKey poolId slotNo slotInternalIndex)
+            $ PoolRetirement
+                poolId
+                slotNo
+                slotInternalIndex
+                (fromIntegral retirementEpoch)
 
-        unfetchedPoolMetadataRefs limit = do
-            let nLimit = T.pack (show limit)
-            let poolId        = fieldName (DBField PoolRegistrationPoolId)
-            let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
-            let metadataUrl   = fieldName (DBField PoolRegistrationMetadataUrl)
-            let retryAfter    = fieldName (DBField PoolFetchAttemptsRetryAfter)
-            let registrations = tableName (DBField PoolRegistrationMetadataHash)
-            let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
-            let metadata      = tableName (DBField PoolMetadataHash)
-            let query = T.unwords
+    unfetchedPoolMetadataRefs limit = do
+        let nLimit = T.pack (show limit)
+        let poolId = fieldName (DBField PoolRegistrationPoolId)
+        let metadataHash = fieldName (DBField PoolRegistrationMetadataHash)
+        let metadataUrl = fieldName (DBField PoolRegistrationMetadataUrl)
+        let retryAfter = fieldName (DBField PoolFetchAttemptsRetryAfter)
+        let registrations = tableName (DBField PoolRegistrationMetadataHash)
+        let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
+        let metadata = tableName (DBField PoolMetadataHash)
+        let query =
+                T.unwords
                     [ "SELECT"
-                        , "a." <> poolId, ","
-                        , "a." <> metadataUrl, ","
-                        , "a." <> metadataHash
-                    , "FROM", registrations, "AS a"
-                    , "LEFT JOIN", fetchAttempts, "AS b"
+                    , "a." <> poolId
+                    , ","
+                    , "a." <> metadataUrl
+                    , ","
+                    , "a." <> metadataHash
+                    , "FROM"
+                    , registrations
+                    , "AS a"
+                    , "LEFT JOIN"
+                    , fetchAttempts
+                    , "AS b"
                     , "ON"
-                        , "a." <> metadataUrl,  "=", "b." <> metadataUrl, "AND"
-                        , "a." <> metadataHash, "=", "b." <> metadataHash
-                    , "WHERE"
-                        -- Successfully fetched metadata
-                        , "a." <> metadataHash, "NOT", "IN"
-                        , "("
-                        , "SELECT", metadataHash
-                        , "FROM", metadata
-                        , ")"
+                    , "a." <> metadataUrl
+                    , "="
+                    , "b." <> metadataUrl
                     , "AND"
-                        -- Discard recent failed attempts
-                        , "("
-                        , retryAfter, "<", "datetime('now')"
-                        , "OR"
-                        , retryAfter, "IS NULL"
-                        , ")"
-                    -- Important, since we have a limit, we order all results by
-                    -- earliest "retry_after", so that we are sure that all
-                    -- metadata gets _eventually_ processed.
-                    --
-                    -- Note that `NULL` is smaller than everything.
-                    , "ORDER BY", retryAfter, "ASC"
-                    , "LIMIT", nLimit
+                    , "a." <> metadataHash
+                    , "="
+                    , "b." <> metadataHash
+                    , "WHERE"
+                    , -- Successfully fetched metadata
+                      "a." <> metadataHash
+                    , "NOT"
+                    , "IN"
+                    , "("
+                    , "SELECT"
+                    , metadataHash
+                    , "FROM"
+                    , metadata
+                    , ")"
+                    , "AND"
+                    , -- Discard recent failed attempts
+                      "("
+                    , retryAfter
+                    , "<"
+                    , "datetime('now')"
+                    , "OR"
+                    , retryAfter
+                    , "IS NULL"
+                    , ")"
+                    , -- Important, since we have a limit, we order all results by
+                      -- earliest "retry_after", so that we are sure that all
+                      -- metadata gets _eventually_ processed.
+                      --
+                      -- Note that `NULL` is smaller than everything.
+                      "ORDER BY"
+                    , retryAfter
+                    , "ASC"
+                    , "LIMIT"
+                    , nLimit
                     , ";"
                     ]
 
-            let safeCast (Single a, Single b, Single c) = (,,)
+        let safeCast (Single a, Single b, Single c) =
+                (,,)
                     <$> fromPersistValue a
                     <*> fromPersistValue b
                     <*> fromPersistValue c
 
-            rights . fmap safeCast <$> rawSql query []
+        rights . fmap safeCast <$> rawSql query []
 
-        putFetchAttempt (url, hash) = do
-            -- NOTE
-            -- assuming SQLite has the same notion of "now" that the host system.
-            now <- liftIO getCurrentTime
-            retryCount <- maybe 0 (poolFetchAttemptsRetryCount . entityVal) <$> selectFirst
-                [ PoolFetchAttemptsMetadataHash ==. hash
-                , PoolFetchAttemptsMetadataUrl  ==. url
-                ] []
-            let retryAfter = backoff now retryCount
-            repsert
-                (PoolMetadataFetchAttemptsKey hash url)
-                (PoolMetadataFetchAttempts hash url retryAfter (retryCount + 1))
+    putFetchAttempt (url, hash) = do
+        -- NOTE
+        -- assuming SQLite has the same notion of "now" that the host system.
+        now <- liftIO getCurrentTime
+        retryCount <-
+            maybe 0 (poolFetchAttemptsRetryCount . entityVal)
+                <$> selectFirst
+                    [ PoolFetchAttemptsMetadataHash ==. hash
+                    , PoolFetchAttemptsMetadataUrl ==. url
+                    ]
+                    []
+        let retryAfter = backoff now retryCount
+        repsert
+            (PoolMetadataFetchAttemptsKey hash url)
+            (PoolMetadataFetchAttempts hash url retryAfter (retryCount + 1))
 
-        putPoolMetadata hash metadata = do
-            let StakePoolMetadata
-                    {ticker, name, description, homepage} = metadata
-            repsert
-                (PoolMetadataKey hash)
-                (PoolMetadata hash name ticker description homepage)
-            deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
+    putPoolMetadata hash metadata = do
+        let StakePoolMetadata
+                { ticker
+                , name
+                , description
+                , homepage
+                } = metadata
+        repsert
+            (PoolMetadataKey hash)
+            (PoolMetadata hash name ticker description homepage)
+        deleteWhere [PoolFetchAttemptsMetadataHash ==. hash]
 
-        removePoolMetadata = do
-            deleteWhere ([] :: [Filter PoolMetadata])
-            deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
-            deleteWhere ([] :: [Filter PoolDelistment])
+    removePoolMetadata = do
+        deleteWhere ([] :: [Filter PoolMetadata])
+        deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
+        deleteWhere ([] :: [Filter PoolDelistment])
 
-        readPoolMetadata = do
-            Map.fromList . map (fromPoolMeta . entityVal)
-                <$> selectList [] []
+    readPoolMetadata = do
+        Map.fromList . map (fromPoolMeta . entityVal)
+            <$> selectList [] []
 
-        listRegisteredPools = do
-            fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
+    listRegisteredPools = do
+        fmap (poolRegistrationPoolId . entityVal)
+            <$> selectList
+                []
                 [ Desc PoolRegistrationSlot
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        listRetiredPools epochNo = runRawQuery tr $
-            RawQuery "listRetiredPools" query parameters parseRow
-          where
-            query = T.unwords
+    listRetiredPools epochNo =
+        runRawQuery tr
+            $ RawQuery "listRetiredPools" query parameters parseRow
+      where
+        query =
+            T.unwords
                 [ "SELECT *"
                 , "FROM active_pool_retirements"
                 , "WHERE retirement_epoch <= ?;"
                 ]
-            parameters = [ toPersistValue epochNo ]
-            parseRow (Single poolId, Single retirementEpoch) =
-                PoolRetirementCertificate
-                    <$> fromPersistValue poolId
-                    <*> fromPersistValue retirementEpoch
+        parameters = [toPersistValue epochNo]
+        parseRow (Single poolId, Single retirementEpoch) =
+            PoolRetirementCertificate
+                <$> fromPersistValue poolId
+                <*> fromPersistValue retirementEpoch
 
-        listPoolLifeCycleData epochNo = runRawQuery tr $ RawQuery
-            "listPoolLifeCycleData" query parameters parseRow
-          where
-            query = T.unwords
+    listPoolLifeCycleData epochNo =
+        runRawQuery tr
+            $ RawQuery
+                "listPoolLifeCycleData"
+                query
+                parameters
+                parseRow
+      where
+        query =
+            T.unwords
                 [ "SELECT *"
                 , "FROM active_pool_lifecycle_data"
                 , "WHERE retirement_epoch IS NULL OR retirement_epoch > ?;"
                 ]
-            parameters = [ toPersistValue epochNo ]
-            parseRow
-                ( Single fieldPoolId
+        parameters = [toPersistValue epochNo]
+        parseRow
+            ( Single fieldPoolId
                 , Single fieldRetirementEpoch
                 , Single fieldOwners
                 , Single fieldCost
@@ -450,26 +567,29 @@ newDBLayer tr ti SqliteContext{runQuery} =
                 , Single fieldMetadataUrl
                 ) = do
                 regCert <- parseRegistrationCertificate
-                parseRetirementCertificate <&> maybe
-                    (PoolRegistered regCert)
-                    (PoolRegisteredAndRetired regCert)
+                parseRetirementCertificate
+                    <&> maybe
+                        (PoolRegistered regCert)
+                        (PoolRegisteredAndRetired regCert)
               where
-                parseRegistrationCertificate = PoolRegistrationCertificate
-                    <$> fromPersistValue fieldPoolId
-                    <*> fromPersistValue fieldOwners
-                    <*> parseMargin
-                    <*> (Coin.fromWord64 <$> fromPersistValue fieldCost)
-                    <*> (Coin.fromWord64 <$> fromPersistValue fieldPledge)
-                    <*> parseMetadata
+                parseRegistrationCertificate =
+                    PoolRegistrationCertificate
+                        <$> fromPersistValue fieldPoolId
+                        <*> fromPersistValue fieldOwners
+                        <*> parseMargin
+                        <*> (Coin.fromWord64 <$> fromPersistValue fieldCost)
+                        <*> (Coin.fromWord64 <$> fromPersistValue fieldPledge)
+                        <*> parseMetadata
 
                 parseRetirementCertificate = do
                     poolId <- fromPersistValue fieldPoolId
                     mRetirementEpoch <- fromPersistValue fieldRetirementEpoch
                     pure $ PoolRetirementCertificate poolId <$> mRetirementEpoch
 
-                parseMargin = mkMargin
-                    <$> fromPersistValue @Word64 fieldMarginNumerator
-                    <*> fromPersistValue @Word64 fieldMarginDenominator
+                parseMargin =
+                    mkMargin
+                        <$> fromPersistValue @Word64 fieldMarginNumerator
+                        <*> fromPersistValue @Word64 fieldMarginDenominator
                   where
                     mkMargin n d = unsafeMkPercentage $ toRational $ n % d
 
@@ -478,133 +598,144 @@ newDBLayer tr ti SqliteContext{runQuery} =
                     h <- fromPersistValue fieldMetadataHash
                     pure $ (,) <$> u <*> h
 
-        rollbackTo point = do
-            -- TODO(ADP-356): What if the conversion blocks or fails?
-            --
-            -- Missing a rollback would be bad.
-            EpochNo epoch <- liftIO $ interpretQuery ti (epochOf point)
-            deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
+    rollbackTo point = do
+        -- TODO(ADP-356): What if the conversion blocks or fails?
+        --
+        -- Missing a rollback would be bad.
+        EpochNo epoch <- liftIO $ interpretQuery ti (epochOf point)
+        deleteWhere [StakeDistributionEpoch >. fromIntegral epoch]
 
-            deleteWhere [ PoolProductionSlot >. point ]
-            deleteWhere [ PoolRegistrationSlot >. point ]
-            deleteWhere [ PoolRetirementSlot >. point ]
-            deleteWhere [ BlockSlot >. point ]
-            -- TODO: remove dangling metadata no longer attached to a pool
+        deleteWhere [PoolProductionSlot >. point]
+        deleteWhere [PoolRegistrationSlot >. point]
+        deleteWhere [PoolRetirementSlot >. point]
+        deleteWhere [BlockSlot >. point]
+    -- TODO: remove dangling metadata no longer attached to a pool
 
-        putDelistedPools pools = do
-            deleteWhere ([] :: [Filter PoolDelistment])
-            insertMany_ $ fmap PoolDelistment pools
+    putDelistedPools pools = do
+        deleteWhere ([] :: [Filter PoolDelistment])
+        insertMany_ $ fmap PoolDelistment pools
 
-        readDelistedPools =
-            fmap (delistedPoolId . entityVal) <$> selectList [] []
+    readDelistedPools =
+        fmap (delistedPoolId . entityVal) <$> selectList [] []
 
-        removePools = mapM_ $ \pool -> do
-            liftIO $ traceWith tr $ MsgRemovingPool pool
-            deleteWhere [ PoolProductionPoolId ==. pool ]
-            deleteWhere [ PoolOwnerPoolId ==. pool ]
-            deleteWhere [ PoolRegistrationPoolId ==. pool ]
-            deleteWhere [ PoolRetirementPoolId ==. pool ]
-            deleteWhere [ StakeDistributionPoolId ==. pool ]
+    removePools = mapM_ $ \pool -> do
+        liftIO $ traceWith tr $ MsgRemovingPool pool
+        deleteWhere [PoolProductionPoolId ==. pool]
+        deleteWhere [PoolOwnerPoolId ==. pool]
+        deleteWhere [PoolRegistrationPoolId ==. pool]
+        deleteWhere [PoolRetirementPoolId ==. pool]
+        deleteWhere [StakeDistributionPoolId ==. pool]
 
-        removeRetiredPools epoch =
-            bracketTracer traceOuter action
-          where
-            action = listRetiredPools epoch >>= \retirementCerts -> do
+    removeRetiredPools epoch =
+        bracketTracer traceOuter action
+      where
+        action =
+            listRetiredPools epoch >>= \retirementCerts -> do
                 traceInner retirementCerts
                 removePools (view #poolId <$> retirementCerts)
                 pure retirementCerts
-            traceOuter = tr
+        traceOuter =
+            tr
                 & natTracer liftIO
                 & contramap (MsgRemovingRetiredPoolsForEpoch epoch)
-            traceInner = liftIO
+        traceInner =
+            liftIO
                 . traceWith tr
                 . MsgRemovingRetiredPools
 
-        readPoolProductionCursor k = do
-            reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
+    readPoolProductionCursor k = do
+        reverse . map (snd . fromPoolProduction . entityVal)
+            <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]
 
-        readSystemSeed = do
-            mseed <- selectFirst [] []
-            case mseed of
-                Nothing -> do
-                    seed <- liftIO newStdGen
-                    insert_ (ArbitrarySeed seed)
-                    return seed
-                Just seed ->
-                    return $ seedSeed $ entityVal seed
+    readSystemSeed = do
+        mseed <- selectFirst [] []
+        case mseed of
+            Nothing -> do
+                seed <- liftIO newStdGen
+                insert_ (ArbitrarySeed seed)
+                return seed
+            Just seed ->
+                return $ seedSeed $ entityVal seed
 
-        readSettings = do
-            l <- selectList
+    readSettings = do
+        l <-
+            selectList
                 []
                 -- only ever read the first row
                 [Asc SettingsId, LimitTo 1]
-            case l of
-                [] -> pure defaultSettings
-                (x:_) -> pure . fromSettings . entityVal $ x
+        case l of
+            [] -> pure defaultSettings
+            (x : _) -> pure . fromSettings . entityVal $ x
 
-        putSettings =
-            repsert
-                -- only ever write the first row
-                (SettingsKey 1)
+    putSettings =
+        repsert
+            -- only ever write the first row
+            (SettingsKey 1)
             . toSettings
 
-        readLastMetadataGC = do
-            -- only ever read the first row
-            result <- selectFirst
+    readLastMetadataGC = do
+        -- only ever read the first row
+        result <-
+            selectFirst
                 []
                 [Asc InternalStateId, LimitTo 1]
-            pure $ (W.lastMetadataGC . fromInternalState . entityVal) =<< result
+        pure $ (W.lastMetadataGC . fromInternalState . entityVal) =<< result
 
-        putLastMetadataGC utc = do
-            result <- selectFirst
-                [ InternalStateId ==. (InternalStateKey 1) ]
-                [ ]
-            case result of
-                Just _ -> update (InternalStateKey 1) [ LastGCMetadata =. Just utc ]
-                Nothing -> insert_ (InternalState $ Just utc)
+    putLastMetadataGC utc = do
+        result <-
+            selectFirst
+                [InternalStateId ==. (InternalStateKey 1)]
+                []
+        case result of
+            Just _ -> update (InternalStateKey 1) [LastGCMetadata =. Just utc]
+            Nothing -> insert_ (InternalState $ Just utc)
 
-        cleanDB = do
-            deleteWhere ([] :: [Filter PoolProduction])
-            deleteWhere ([] :: [Filter PoolOwner])
-            deleteWhere ([] :: [Filter PoolRegistration])
-            deleteWhere ([] :: [Filter PoolRetirement])
-            deleteWhere ([] :: [Filter PoolDelistment])
-            deleteWhere ([] :: [Filter StakeDistribution])
-            deleteWhere ([] :: [Filter PoolMetadata])
-            deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
-            deleteWhere ([] :: [Filter TH.BlockHeader])
-            deleteWhere ([] :: [Filter Settings])
-            deleteWhere ([] :: [Filter InternalState])
+    cleanDB = do
+        deleteWhere ([] :: [Filter PoolProduction])
+        deleteWhere ([] :: [Filter PoolOwner])
+        deleteWhere ([] :: [Filter PoolRegistration])
+        deleteWhere ([] :: [Filter PoolRetirement])
+        deleteWhere ([] :: [Filter PoolDelistment])
+        deleteWhere ([] :: [Filter StakeDistribution])
+        deleteWhere ([] :: [Filter PoolMetadata])
+        deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
+        deleteWhere ([] :: [Filter TH.BlockHeader])
+        deleteWhere ([] :: [Filter Settings])
+        deleteWhere ([] :: [Filter InternalState])
 
-        atomically :: forall a. (SqlPersistT IO a -> IO a)
-        atomically = runQuery
+    atomically :: forall a. (SqlPersistT IO a -> IO a)
+    atomically = runQuery
 
-        readPoolRegistration poolId = do
-            result <- selectFirst
-                [ PoolRegistrationPoolId ==. poolId ]
+    readPoolRegistration poolId = do
+        result <-
+            selectFirst
+                [PoolRegistrationPoolId ==. poolId]
                 [ Desc PoolRegistrationSlot
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
-            forM result $ \meta -> do
-                let PoolRegistration
-                        _poolId
-                        slotNo
-                        slotInternalIndex
-                        marginNum
-                        marginDen
-                        poolCost_
-                        poolPledge_
-                        poolMetadataUrl
-                        poolMetadataHash = entityVal meta
-                let poolMargin = unsafeMkPercentage $
-                        toRational $ marginNum % marginDen
-                let poolCost = Coin.fromWord64 poolCost_
-                let poolPledge = Coin.fromWord64 poolPledge_
-                let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
-                poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
-                    selectList
+        forM result $ \meta -> do
+            let PoolRegistration
+                    _poolId
+                    slotNo
+                    slotInternalIndex
+                    marginNum
+                    marginDen
+                    poolCost_
+                    poolPledge_
+                    poolMetadataUrl
+                    poolMetadataHash = entityVal meta
+            let poolMargin =
+                    unsafeMkPercentage
+                        $ toRational
+                        $ marginNum % marginDen
+            let poolCost = Coin.fromWord64 poolCost_
+            let poolPledge = Coin.fromWord64 poolPledge_
+            let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
+            poolOwners <-
+                fmap (poolOwnerOwner . entityVal)
+                    <$> selectList
                         [ PoolOwnerPoolId
                             ==. poolId
                         , PoolOwnerSlot
@@ -612,8 +743,9 @@ newDBLayer tr ti SqliteContext{runQuery} =
                         , PoolOwnerSlotInternalIndex
                             ==. slotInternalIndex
                         ]
-                        [ Asc PoolOwnerIndex ]
-                let cert = PoolRegistrationCertificate
+                        [Asc PoolOwnerIndex]
+            let cert =
+                    PoolRegistrationCertificate
                         { poolId
                         , poolOwners
                         , poolMargin
@@ -621,87 +753,90 @@ newDBLayer tr ti SqliteContext{runQuery} =
                         , poolPledge
                         , poolMetadata
                         }
-                let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
-                pure (cpt, cert)
+            let cpt = CertificatePublicationTime{slotNo, slotInternalIndex}
+            pure (cpt, cert)
 
-        readPoolRetirement poolId = do
-            result <- selectFirst
-                [ PoolRetirementPoolId ==. poolId ]
+    readPoolRetirement poolId = do
+        result <-
+            selectFirst
+                [PoolRetirementPoolId ==. poolId]
                 [ Desc PoolRetirementSlot
                 , Desc PoolRetirementSlotInternalIndex
                 ]
-            forM result $ \meta -> do
-                let PoolRetirement
-                        _poolId
-                        slotNo
-                        slotInternalIndex
-                        retirementEpochNo = entityVal meta
-                let retirementEpoch = EpochNo (fromIntegral retirementEpochNo)
-                let cert = PoolRetirementCertificate {poolId, retirementEpoch}
-                let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
-                pure (cpt, cert)
+        forM result $ \meta -> do
+            let PoolRetirement
+                    _poolId
+                    slotNo
+                    slotInternalIndex
+                    retirementEpochNo = entityVal meta
+            let retirementEpoch = EpochNo (fromIntegral retirementEpochNo)
+            let cert = PoolRetirementCertificate{poolId, retirementEpoch}
+            let cpt = CertificatePublicationTime{slotNo, slotInternalIndex}
+            pure (cpt, cert)
 
-        putHeader point =
-            let record = mkBlockHeader point
-                key = TH.blockHeight record
-            in repsert (BlockHeaderKey key) record
+    putHeader point =
+        let record = mkBlockHeader point
+            key = TH.blockHeight record
+        in  repsert (BlockHeaderKey key) record
 
-        listHeaders k = do
-            reverse . fmap (fromBlockHeaders . entityVal) <$> selectList [ ]
+    listHeaders k = do
+        reverse . fmap (fromBlockHeaders . entityVal)
+            <$> selectList
+                []
                 [ Desc BlockHeight
                 , LimitTo k
                 ]
 
 -- | Defines a raw SQL query, runnable with 'runRawQuery'.
---
 data RawQuery a b = RawQuery
     { queryName :: Text
-      -- ^ The name of the query.
+    -- ^ The name of the query.
     , queryDefinition :: Text
-      -- ^ The SQL definition of the query.
+    -- ^ The SQL definition of the query.
     , queryParameters :: [PersistValue]
-      -- ^ Parameters of the query.
+    -- ^ Parameters of the query.
     , queryParser :: a -> Either Text b
-      -- ^ A parser for a row of the result.
+    -- ^ A parser for a row of the result.
     }
 
 -- | Runs a raw SQL query, logging any parse failures that occur.
---
 runRawQuery
-    :: forall a b. RawSql a
+    :: forall a b
+     . (RawSql a)
     => Tracer IO PoolDbLog
     -> RawQuery a b
     -> SqlPersistT IO [b]
 runRawQuery tr q = do
-    (failures, results) <- partitionEithers . fmap (queryParser q) <$> rawSql
-        (queryDefinition q)
-        (queryParameters q)
+    (failures, results) <-
+        partitionEithers . fmap (queryParser q)
+            <$> rawSql
+                (queryDefinition q)
+                (queryParameters q)
     forM_ failures
         $ liftIO
-        . traceWith tr
-        . MsgParseFailure
-        . ParseFailure (queryName q)
+            . traceWith tr
+            . MsgParseFailure
+            . ParseFailure (queryName q)
     pure results
 
 createViews :: ManualMigration
-createViews = foldMigrations
-    [ createView activePoolLifeCycleData
-    , createView activePoolOwners
-    , createView activePoolRegistrations
-    , createView activePoolRetirements
-    ]
+createViews =
+    foldMigrations
+        [ createView activePoolLifeCycleData
+        , createView activePoolOwners
+        , createView activePoolRegistrations
+        , createView activePoolRetirements
+        ]
 
 -- | Represents a database view.
---
 data DatabaseView = DatabaseView
     { databaseViewName :: Text
-      -- ^ A name for the view.
+    -- ^ A name for the view.
     , databaseViewDefinition :: Text
-      -- ^ A select query to generate the view.
+    -- ^ A select query to generate the view.
     }
 
 -- | Creates the specified database view, if it does not already exist.
---
 createView :: DatabaseView -> Sqlite.Connection -> IO ()
 createView (DatabaseView name definition) conn = do
     deleteQuery <- Sqlite.prepare conn deleteQueryString
@@ -709,17 +844,19 @@ createView (DatabaseView name definition) conn = do
     createQuery <- Sqlite.prepare conn createQueryString
     Sqlite.step createQuery *> Sqlite.finalize createQuery
   where
-    deleteQueryString = T.unlines
-        [ "DROP VIEW IF EXISTS"
-        , name
-        , ";"
-        ]
-    createQueryString = T.unlines
-        [ "CREATE VIEW"
-        , name
-        , "AS"
-        , definition
-        ]
+    deleteQueryString =
+        T.unlines
+            [ "DROP VIEW IF EXISTS"
+            , name
+            , ";"
+            ]
+    createQueryString =
+        T.unlines
+            [ "CREATE VIEW"
+            , name
+            , "AS"
+            , definition
+            ]
 
 -- | Views active lifecycle data for every pool in the set of known pools.
 --
@@ -728,9 +865,11 @@ createView (DatabaseView name definition) conn = do
 -- retirement certificate, and set of owners for that pool.
 --
 -- This view does NOT exclude pools that have retired.
---
 activePoolLifeCycleData :: DatabaseView
-activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
+activePoolLifeCycleData =
+    DatabaseView
+        "active_pool_lifecycle_data"
+        [i|
     SELECT
         active_pool_registrations.pool_id as pool_id,
         active_pool_retirements.retirement_epoch as retirement_epoch,
@@ -757,9 +896,11 @@ activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
 -- corresponds to the most-recently-seen set of owners for that pool.
 --
 -- This view does NOT exclude pools that have retired.
---
 activePoolOwners :: DatabaseView
-activePoolOwners = DatabaseView "active_pool_owners" [i|
+activePoolOwners =
+    DatabaseView
+        "active_pool_owners"
+        [i|
     SELECT pool_id, pool_owners FROM (
         SELECT row_number() OVER w AS r, *
         FROM (
@@ -785,9 +926,11 @@ activePoolOwners = DatabaseView "active_pool_owners" [i|
 -- that pool.
 --
 -- This view does NOT exclude pools that have retired.
---
 activePoolRegistrations :: DatabaseView
-activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
+activePoolRegistrations =
+    DatabaseView
+        "active_pool_registrations"
+        [i|
     SELECT
         pool_id,
         cost,
@@ -815,9 +958,11 @@ activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
 --
 --    - pools that have had their most-recently-published retirement
 --      certificates revoked by subsequent re-registration certificates.
---
 activePoolRetirements :: DatabaseView
-activePoolRetirements = DatabaseView "active_pool_retirements" [i|
+activePoolRetirements =
+    DatabaseView
+        "active_pool_retirements"
+        [i|
     SELECT * FROM (
         SELECT
             pool_id,
@@ -852,11 +997,11 @@ activePoolRetirements = DatabaseView "active_pool_retirements" [i|
 -- needed to keep things tidy here.
 handlingPersistError
     :: Tracer IO PoolDbLog
-       -- ^ Logging object
+    -- ^ Logging object
     -> FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+    -- ^ Database file location, or Nothing for in-memory database
     -> IO a
-       -- ^ Action to retry
+    -- ^ Action to retry
     -> IO a
 handlingPersistError tr fp action =
     action `catch` \(_e :: MigrationError) -> do
@@ -896,25 +1041,31 @@ selectPoolProduction
     -> EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction ti epoch = do
-    (e, eplus1) <- liftIO $ interpretQuery ti
-        ((,) <$> firstSlotInEpoch epoch <*> firstSlotInEpoch (epoch + 1))
-    fmap entityVal <$> selectList
-        [ PoolProductionSlot >=. e
-        , PoolProductionSlot <. eplus1 ]
-        [Asc PoolProductionSlot]
+    (e, eplus1) <-
+        liftIO
+            $ interpretQuery
+                ti
+                ((,) <$> firstSlotInEpoch epoch <*> firstSlotInEpoch (epoch + 1))
+    fmap entityVal
+        <$> selectList
+            [ PoolProductionSlot >=. e
+            , PoolProductionSlot <. eplus1
+            ]
+            [Asc PoolProductionSlot]
 
 {-------------------------------------------------------------------------------
                               To / From SQLite
 -------------------------------------------------------------------------------}
 
 mkPoolProduction :: PoolId -> BlockHeader -> PoolProduction
-mkPoolProduction pool block = PoolProduction
-    { poolProductionPoolId = pool
-    , poolProductionSlot = view #slotNo block
-    , poolProductionHeaderHash = BlockId (headerHash block)
-    , poolProductionParentHash = fromMaybeHash (parentHeaderHash block)
-    , poolProductionBlockHeight = getQuantity (blockHeight block)
-    }
+mkPoolProduction pool block =
+    PoolProduction
+        { poolProductionPoolId = pool
+        , poolProductionSlot = view #slotNo block
+        , poolProductionHeaderHash = BlockId (headerHash block)
+        , poolProductionParentHash = fromMaybeHash (parentHeaderHash block)
+        , poolProductionBlockHeight = getQuantity (blockHeight block)
+        }
 
 fromPoolProduction :: PoolProduction -> (PoolId, BlockHeader)
 fromPoolProduction (PoolProduction pool slot headerH parentH height) =
@@ -928,16 +1079,18 @@ fromPoolProduction (PoolProduction pool slot headerH parentH height) =
     )
 
 mkBlockHeader :: BlockHeader -> TH.BlockHeader
-mkBlockHeader block = TH.BlockHeader
-    { blockSlot = view #slotNo block
-    , blockHeaderHash = BlockId (headerHash block)
-    , blockParentHash = fromMaybeHash (parentHeaderHash block)
-    , TH.blockHeight = getQuantity (blockHeight block)
-    }
+mkBlockHeader block =
+    TH.BlockHeader
+        { blockSlot = view #slotNo block
+        , blockHeaderHash = BlockId (headerHash block)
+        , blockParentHash = fromMaybeHash (parentHeaderHash block)
+        , TH.blockHeight = getQuantity (blockHeight block)
+        }
 
 fromBlockHeaders :: TH.BlockHeader -> BlockHeader
 fromBlockHeaders h =
-    BlockHeader blockSlot
+    BlockHeader
+        blockSlot
         (Quantity blockHeight)
         (getBlockId blockHeaderHash)
         (toMaybeHash blockParentHash)
@@ -969,13 +1122,15 @@ fromStakeDistribution distribution =
     )
 
 fromPoolMeta :: PoolMetadata -> (StakePoolMetadataHash, StakePoolMetadata)
-fromPoolMeta meta = (poolMetadataHash meta,
-    StakePoolMetadata
+fromPoolMeta meta =
+    ( poolMetadataHash meta
+    , StakePoolMetadata
         { ticker = poolMetadataTicker meta
         , name = poolMetadataName meta
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
-        })
+        }
+    )
 
 fromSettings :: Settings -> W.Settings
 fromSettings (Settings pms) = W.Settings pms

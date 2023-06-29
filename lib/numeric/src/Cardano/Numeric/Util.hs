@@ -3,8 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Numeric.Util
-    (
-      -- * Coalescing values
+    ( -- * Coalescing values
       padCoalesce
 
       -- * Partitioning natural numbers
@@ -17,32 +16,43 @@ module Cardano.Numeric.Util
 
       -- * Monomorphic functions
     , power
-
     ) where
 
 import Prelude hiding
-    ( round )
+    ( round
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Ord
-    ( Down (..), comparing )
+    ( Down (..)
+    , comparing
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -86,8 +96,9 @@ import qualified Data.List.NonEmpty as NE
 --
 -- >>> padCoalesce [Sum 8, Sum 4, Sum 2, Sum 1] (replicate 1 ())
 -- [Sum 15]
---
-padCoalesce :: forall m a. (Monoid m, Ord m)
+padCoalesce
+    :: forall m a
+     . (Monoid m, Ord m)
     => NonEmpty m
     -- ^ Source list
     -> NonEmpty a
@@ -123,9 +134,8 @@ padCoalesce sourceUnsorted target
 -- into 'n' smaller numbers whose values differ by no more than 1.
 --
 -- The resultant list is sorted in ascending order.
---
 equipartitionNatural
-    :: HasCallStack
+    :: (HasCallStack)
     => Natural
     -- ^ The natural number to be partitioned.
     -> NonEmpty a
@@ -171,34 +181,33 @@ equipartitionNatural n count =
 --
 --  3.  The size of each element in the resulting list is within unity of the
 --      ideal proportion.
---
 partitionNatural
     :: Natural
-        -- ^ Natural number to partition
+    -- ^ Natural number to partition
     -> NonEmpty Natural
-        -- ^ List of weights
+    -- ^ List of weights
     -> Maybe (NonEmpty Natural)
 partitionNatural target weights
     | totalWeight == 0 = Nothing
     | otherwise = Just portionsRounded
   where
     portionsRounded :: NonEmpty Natural
-    portionsRounded
+    portionsRounded =
         -- 1. Start with the list of unrounded portions:
-        = portionsUnrounded
-        -- 2. Attach an index to each portion, so that we can remember the
-        --    original order:
-        & NE.zip indices
-        -- 3. Sort the portions into descending order of their fractional
-        --    parts, and then sort each subsequence with equal fractional
-        --    parts into descending order of their integral parts:
-        & NE.sortBy (comparing (Down . (fractionalPart &&& integralPart) . snd))
-        -- 4. Apply pre-computed roundings to each portion:
-        & NE.zipWith (fmap . round) roundings
-        -- 5. Restore the original order:
-        & NE.sortBy (comparing fst)
-        -- 6. Strip away the indices:
-        & fmap snd
+        portionsUnrounded
+            -- 2. Attach an index to each portion, so that we can remember the
+            --    original order:
+            & NE.zip indices
+            -- 3. Sort the portions into descending order of their fractional
+            --    parts, and then sort each subsequence with equal fractional
+            --    parts into descending order of their integral parts:
+            & NE.sortBy (comparing (Down . (fractionalPart &&& integralPart) . snd))
+            -- 4. Apply pre-computed roundings to each portion:
+            & NE.zipWith (fmap . round) roundings
+            -- 5. Restore the original order:
+            & NE.sortBy (comparing fst)
+            -- 6. Strip away the indices:
+            & fmap snd
       where
         indices :: NonEmpty Int
         indices = 0 :| [1 ..]
@@ -206,19 +215,19 @@ partitionNatural target weights
     portionsUnrounded :: NonEmpty Rational
     portionsUnrounded = computeIdealPortion <$> weights
       where
-        computeIdealPortion c
-            = fromIntegral target
-            * fromIntegral c
-            % fromIntegral totalWeight
+        computeIdealPortion c =
+            fromIntegral target
+                * fromIntegral c
+                % fromIntegral totalWeight
 
     roundings :: NonEmpty RoundingDirection
     roundings =
         applyN shortfall (NE.cons RoundUp) (NE.repeat RoundDown)
       where
-        shortfall
-            = fromIntegral target
-            - fromIntegral @Integer
-                (F.sum $ round RoundDown <$> portionsUnrounded)
+        shortfall =
+            fromIntegral target
+                - fromIntegral @Integer
+                    (F.sum $ round RoundDown <$> portionsUnrounded)
 
     totalWeight :: Natural
     totalWeight = F.sum weights
@@ -232,9 +241,8 @@ partitionNatural target weights
 --   list of weights, and the number of parts is equal to the number of weights.
 --
 -- Throws a run-time error if the sum of weights is equal to zero.
---
 unsafePartitionNatural
-    :: HasCallStack
+    :: (HasCallStack)
     => Natural
     -- ^ Natural number to partition
     -> NonEmpty Natural
@@ -243,10 +251,12 @@ unsafePartitionNatural
 unsafePartitionNatural target =
     fromMaybe zeroWeightSumError . partitionNatural target
   where
-    zeroWeightSumError = error $ unwords
-        [ "unsafePartitionNatural:"
-        , "specified weights must have a non-zero sum."
-        ]
+    zeroWeightSumError =
+        error
+            $ unwords
+                [ "unsafePartitionNatural:"
+                , "specified weights must have a non-zero sum."
+                ]
 
 --------------------------------------------------------------------------------
 -- Partial orders
@@ -289,17 +299,15 @@ integralPart = floor
 --   fractional value to an integral value.
 --
 -- See 'round'.
---
 data RoundingDirection
-    = RoundUp
-      -- ^ Round up to the nearest integral value.
-    | RoundDown
-      -- ^ Round down to the nearest integral value.
+    = -- | Round up to the nearest integral value.
+      RoundUp
+    | -- | Round down to the nearest integral value.
+      RoundDown
     deriving (Eq, Show)
 
 -- | Use the given rounding direction to round the given fractional value,
 --   producing an integral result.
---
 round :: (RealFrac a, Integral b) => RoundingDirection -> a -> b
 round = \case
     RoundUp -> ceiling
@@ -312,6 +320,5 @@ round = \case
 -- | Power function where all arguments are of the same type.
 --
 -- Helps to avoid the use of boilerplate type annotations.
---
-power :: Integral a => a -> a -> a
+power :: (Integral a) => a -> a -> a
 power = (^)

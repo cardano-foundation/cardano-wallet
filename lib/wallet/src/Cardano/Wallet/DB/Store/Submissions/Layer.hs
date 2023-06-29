@@ -1,18 +1,17 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
 --
 -- Access to the submissions store.
-
 module Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission
     , emptyTxSubmissions
@@ -26,15 +25,19 @@ module Cardano.Wallet.DB.Store.Submissions.Layer
     , getInSubmissionTransaction
     , isInSubmission
     )
-    where
+where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchTransaction (..), ErrRemoveTx (..) )
+    ( ErrNoSuchTransaction (..)
+    , ErrRemoveTx (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
@@ -43,27 +46,51 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     , submissionMetaFromTxMeta
     )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (SlotNo) )
+    ( SlotNo (SlotNo)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
+    ( LocalTxSubmissionStatus (LocalTxSubmissionStatus)
+    , SealedTx
+    )
 import Cardano.Wallet.Submissions.Operations
-    ( Operation (..) )
+    ( Operation (..)
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), mkEmpty, transactions, transactionsL, txStatus )
+    ( TxStatusMeta (..)
+    , mkEmpty
+    , transactions
+    , transactionsL
+    , txStatus
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( TxStatus (..), expirySlot, getTx, status, _InSubmission )
+    ( TxStatus (..)
+    , expirySlot
+    , getTx
+    , status
+    , _InSubmission
+    )
 import Cardano.Wallet.Transaction.Built
-    ( BuiltTx (..) )
+    ( BuiltTx (..)
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Lens
-    ( has, ix, (^.), (^..), (^?) )
+    ( has
+    , ix
+    , (^.)
+    , (^..)
+    , (^?)
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 
 import qualified Data.Map.Strict as Map
 
@@ -82,7 +109,7 @@ addTxSubmission BuiltTx{..} resubmitted =
             Nothing -> SlotNo maxBound
             Just slot -> slot
     in  [ AddSubmission expiry (txId, builtSealedTx)
-          $ submissionMetaFromTxMeta builtTxMeta resubmitted
+            $ submissionMetaFromTxMeta builtTxMeta resubmitted
         ]
 
 resubmitTx
@@ -90,8 +117,8 @@ resubmitTx
     -> SlotNo
     -> TxSubmissions
     -> DeltaTxSubmissions
-resubmitTx (TxId -> txId) resubmitted walletSubmissions
-    = fromMaybe [] $ do
+resubmitTx (TxId -> txId) resubmitted walletSubmissions =
+    fromMaybe [] $ do
         (TxStatusMeta datas meta) <-
             Map.lookup txId $ walletSubmissions ^. transactionsL
         (_, sealed) <- getTx datas
@@ -107,16 +134,16 @@ isInSubmission :: TxSubmissionsStatus -> Bool
 isInSubmission = has (txStatus . _InSubmission)
 
 getInSubmissionTransactions :: TxSubmissions -> [TxSubmissionsStatus]
-getInSubmissionTransactions submissions
-    = submissions ^.. transactionsL . traverse
+getInSubmissionTransactions submissions =
+    submissions ^.. transactionsL . traverse
 
 getInSubmissionTransaction :: Hash "Tx" -> TxSubmissions -> Maybe TxSubmissionsStatus
-getInSubmissionTransaction txId submissions
-    = submissions ^? transactionsL . ix (TxId txId)
+getInSubmissionTransaction txId submissions =
+    submissions ^? transactionsL . ix (TxId txId)
 
 rollForwardTxSubmissions
     :: SlotNo -> [(SlotNo, Hash "Tx")] -> DeltaTxSubmissions
-rollForwardTxSubmissions tip txs = [ RollForward tip (second TxId <$> txs) ]
+rollForwardTxSubmissions tip txs = [RollForward tip (second TxId <$> txs)]
 
 removePendingOrExpiredTx
     :: Hash "Tx"
@@ -132,21 +159,22 @@ removePendingOrExpiredTx txId walletSubmissions = do
         _ -> Right [Forget (TxId txId)]
 
 rollBackSubmissions :: SlotNo -> DeltaTxSubmissions
-rollBackSubmissions slot = [ RollBack slot ]
+rollBackSubmissions slot = [RollBack slot]
 
 pruneByFinality
     :: SlotNo
-        -- ^ Finality slot = most recent stable slot.
+    -- ^ Finality slot = most recent stable slot.
     -> DeltaTxSubmissions
-pruneByFinality finality = [ Prune finality ]
+pruneByFinality finality = [Prune finality]
 
 mkLocalTxSubmission
     :: TxSubmissionsStatus
     -> [LocalTxSubmissionStatus SealedTx]
-mkLocalTxSubmission (TxStatusMeta status' SubmissionMeta{..})
-    = maybe
+mkLocalTxSubmission (TxStatusMeta status' SubmissionMeta{..}) =
+    maybe
         []
-        (\(TxId txId, sealed) -> pure $
-            LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
+        ( \(TxId txId, sealed) ->
+            pure
+                $ LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
         )
         $ getTx status'

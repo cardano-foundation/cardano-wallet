@@ -17,7 +17,10 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiEra (..)
@@ -30,39 +33,63 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxStatus (..) )
+    ( TxStatus (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Control.Monad
-    ( forM_, replicateM_, void, when )
+    ( forM_
+    , replicateM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldSatisfy )
+    ( shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Faucet
-    ( bigDustWallet, onlyDustWallet )
+    ( bigDustWallet
+    , onlyDustWallet
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -112,86 +139,115 @@ import qualified Test.Hspec as Hspec
 
 spec
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
-
-    it "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
+    it
+        "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
         \Can create a migration plan."
         $ \ctx -> runResourceT $ do
             sourceWallet <- fixtureWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify response
+            response <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                response
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
-                    (`shouldBe`
+                , expectField
+                    (#totalFee . #getQuantity)
+                    ( `shouldBe`
                         if _mainEra ctx >= ApiBabbage
-                        then 255_100
-                        else 254_900)
-                , expectField (#selections)
+                            then 255_100
+                            else 254_900
+                    )
+                , expectField
+                    (#selections)
                     ((`shouldBe` 1) . length)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                , expectField
+                    (#balanceSelected . #ada . #getQuantity)
                     (`shouldBe` 1_000_000_000_000)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField
+                    (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
                 ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_02 - \
+    it
+        "SHELLEY_CREATE_MIGRATION_PLAN_02 - \
         \Cannot create plan for empty wallet."
         $ \ctx -> runResourceT $ do
             sourceWallet <- emptyWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify response
+            response <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    describe "SHELLEY_CREATE_MIGRATION_PLAN_03 - \
-        \Cannot create plan for Byron wallet using Shelley endpoint." $ do
-        let sourceWallets =
-              [ ("Random", emptyRandomWallet)
-              , ("Icarus", emptyIcarusWallet)
-              ]
-        forM_ sourceWallets $ \(walletType, byronWallet) -> do
-            let title = mconcat
-                    [ "Cannot calculate Shelley migration using wallet: "
-                    , walletType
+    describe
+        "SHELLEY_CREATE_MIGRATION_PLAN_03 - \
+        \Cannot create plan for Byron wallet using Shelley endpoint."
+        $ do
+            let sourceWallets =
+                    [ ("Random", emptyRandomWallet)
+                    , ("Icarus", emptyIcarusWallet)
                     ]
-            it title $ \ctx -> runResourceT $ do
-                sourceWallet <- byronWallet ctx
-                targetWallet <- emptyWallet ctx
-                targetAddresses <- listAddresses @n ctx targetWallet
-                let targetAddressIds = targetAddresses <&>
-                        (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-                let ep = Link.createMigrationPlan @'Shelley sourceWallet
-                result <- request
-                    @(ApiWalletMigrationPlan n) ctx ep Default
-                    (Json [json|{addresses: #{targetAddressIds}}|])
-                verify result
-                    [ expectResponseCode HTTP.status404
-                    , expectErrorMessage
-                        (errMsg404NoWallet $ sourceWallet ^. walletId)
-                    ]
+            forM_ sourceWallets $ \(walletType, byronWallet) -> do
+                let title =
+                        mconcat
+                            [ "Cannot calculate Shelley migration using wallet: "
+                            , walletType
+                            ]
+                it title $ \ctx -> runResourceT $ do
+                    sourceWallet <- byronWallet ctx
+                    targetWallet <- emptyWallet ctx
+                    targetAddresses <- listAddresses @n ctx targetWallet
+                    let targetAddressIds =
+                            targetAddresses
+                                <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+                    let ep = Link.createMigrationPlan @'Shelley sourceWallet
+                    result <-
+                        request
+                            @(ApiWalletMigrationPlan n)
+                            ctx
+                            ep
+                            Default
+                            (Json [json|{addresses: #{targetAddressIds}}|])
+                    verify
+                        result
+                        [ expectResponseCode HTTP.status404
+                        , expectErrorMessage
+                            (errMsg404NoWallet $ sourceWallet ^. walletId)
+                        ]
 
-    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
+    Hspec.it
+        "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains freeriders."
         $ \ctx -> runResourceT @IO $ do
             sourceWallet <- emptyWallet ctx
-            srcAddrs <- map (apiAddress . view #id)
-                <$> listAddresses @n ctx sourceWallet
+            srcAddrs <-
+                map (apiAddress . view #id)
+                    <$> listAddresses @n ctx sourceWallet
 
             -- Add a relatively small number of freerider UTxO entries to the
             -- source wallet. (Few enough to not require more than one
@@ -213,56 +269,81 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- entry as a freerider.
 
             let perEntryAdaQuantity = Coin $ case _mainEra ctx of
-                    e | e == ApiAlonzo  -> 3_100_000
-                      | e == ApiBabbage -> 2_500_000
-                      | otherwise       -> 3_300_000
+                    e
+                        | e == ApiAlonzo -> 3_100_000
+                        | e == ApiBabbage -> 2_500_000
+                        | otherwise -> 3_300_000
 
             let perEntryAssetCount = 10
             let batchSize = 20
-            liftIO $ _mintSeaHorseAssets ctx
-                perEntryAssetCount
-                batchSize
-                perEntryAdaQuantity
-                srcAddrs
+            liftIO
+                $ _mintSeaHorseAssets
+                    ctx
+                    perEntryAssetCount
+                    batchSize
+                    perEntryAdaQuantity
+                    srcAddrs
             waitForTxImmutability ctx
 
             -- Check that the minting indeed worked, and that the wallet isn't
             -- empty:
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
-                    (.> 0)
-                , expectField (#assets . #available . #getApiT)
-                    ((.> 0) . TokenMap.size)
-                ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (.> 0)
+                    , expectField
+                        (#assets . #available . #getApiT)
+                        ((.> 0) . TokenMap.size)
+                    ]
 
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify response
+            response <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_05 - \
+    it
+        "SHELLEY_CREATE_MIGRATION_PLAN_05 - \
         \Creating a plan is deterministic."
         $ \ctx -> runResourceT $ do
             sourceWallet <- fixtureWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            response1 <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            response2 <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
+            response1 <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            response2 <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
             expectResponseCode HTTP.status202 response1
             expectResponseCode HTTP.status202 response2
             expectField (#selections) ((.> 0) . length) response1
@@ -273,88 +354,124 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 _ ->
                     error "Unable to compare plans."
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_06 - \
+    it
+        "SHELLEY_CREATE_MIGRATION_PLAN_06 - \
         \Can create a migration plan for a wallet that has rewards."
         $ \ctx -> runResourceT $ do
             (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
             -- Check that the source wallet has the expected balance.
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
-                    (`shouldBe` 1_000_000_000_000)
-                , expectField (#balance . #available . #getQuantity)
-                    (`shouldBe`   100_000_000_000)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` 1_100_000_000_000)
-                ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` 1_000_000_000_000)
+                    , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 100_000_000_000)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` 1_100_000_000_000)
+                    ]
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify response
+            response <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    ep
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                response
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
-                    (`shouldBe`
+                , expectField
+                    (#totalFee . #getQuantity)
+                    ( `shouldBe`
                         if _mainEra ctx >= ApiBabbage
-                        then 139_200
-                        else 139_000)
-                , expectField (#selections)
+                            then 139_200
+                            else 139_000
+                    )
+                , expectField
+                    (#selections)
                     ((`shouldBe` 1) . length)
-                , expectField (#selections)
+                , expectField
+                    (#selections)
                     ((`shouldBe` 1) . length . view #withdrawals . NE.head)
-                , expectField (#selections)
-                    ((`shouldBe` 1_000_000_000_000)
+                , expectField
+                    (#selections)
+                    ( (`shouldBe` 1_000_000_000_000)
                         . view #getQuantity
                         . view #amount
                         . head
                         . view #withdrawals
-                        . NE.head)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                        . NE.head
+                    )
+                , expectField
+                    (#balanceSelected . #ada . #getQuantity)
                     (`shouldBe` 1_100_000_000_000)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField
+                    (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
                 ]
 
-    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_07 - \
+    Hspec.it
+        "SHELLEY_CREATE_MIGRATION_PLAN_07 - \
         \Can create a complete migration plan for a wallet with a large number \
         \of freerider UTxO entries, but with just enough non-freerider entries \
         \to enable the entire UTxO set to be migrated."
         $ \ctx -> runResourceT @IO $ do
-
             -- Create a source wallet with some pure ada entries, where each
             -- ada entry is large enough to create a singleton transaction:
-            sourceWallet <- fixtureWalletWith @n ctx
-                [ 100_000_000
-                , 100_000_000
-                ]
+            sourceWallet <-
+                fixtureWalletWith @n
+                    ctx
+                    [ 100_000_000
+                    , 100_000_000
+                    ]
 
             -- Check that the source wallet has the expected balance and UTxO
             -- distribution:
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
-                    (`shouldBe` 0)
-                , expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` 200_000_000)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` 200_000_000)
-                ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` 0)
+                    , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 200_000_000)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` 200_000_000)
+                    ]
             let expectedSourceDistribution =
                     [(100_000_000, 2)]
-            request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField #distribution
-                    ((`shouldBe` expectedSourceDistribution)
-                    . Map.toList
-                    . Map.filter (> 0)
-                    )
-                ]
+            request @ApiUtxoStatistics
+                ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        #distribution
+                        ( (`shouldBe` expectedSourceDistribution)
+                            . Map.toList
+                            . Map.filter (> 0)
+                        )
+                    ]
 
             -- Add a relatively large number of freerider UTxO entries to the
             -- source wallet.
@@ -377,104 +494,144 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            sourceAddresses <- take 20 . map (apiAddress . view #id)
-                <$> listAddresses @n ctx sourceWallet
-            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
-                perEntryAssetCount
-                batchSize
-                perEntryAdaQuantity
-                sourceAddresses
+            sourceAddresses <-
+                take 20 . map (apiAddress . view #id)
+                    <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6
+                $ liftIO
+                $ _mintSeaHorseAssets
+                    ctx
+                    perEntryAssetCount
+                    batchSize
+                    perEntryAdaQuantity
+                    sourceAddresses
             waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
             -- distribution have both changed accordingly:
             let expectedBalanceAda = 387_500_000
             let expectedAssetCount = 20
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` expectedBalanceAda)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` expectedBalanceAda)
-                , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
-                ]
-            let expectedSourceDistributionAfterMinting =
-                    [ ( 10_000_000, 120)
-                    , (100_000_000,   2)
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` expectedBalanceAda)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` expectedBalanceAda)
+                    , expectField
+                        (#assets . #available . #getApiT)
+                        ((`shouldBe` expectedAssetCount) . TokenMap.size)
                     ]
-            request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField #distribution
-                    ((`shouldBe` expectedSourceDistributionAfterMinting)
-                        . Map.toList
-                        . Map.filter (> 0)
-                    )
-                ]
+            let expectedSourceDistributionAfterMinting =
+                    [ (10_000_000, 120)
+                    , (100_000_000, 2)
+                    ]
+            request @ApiUtxoStatistics
+                ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        #distribution
+                        ( (`shouldBe` expectedSourceDistributionAfterMinting)
+                            . Map.toList
+                            . Map.filter (> 0)
+                        )
+                    ]
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan, and check that the plan is complete:
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            request @(ApiWalletMigrationPlan n) ctx ep Default
+            request @(ApiWalletMigrationPlan n)
+                ctx
+                ep
+                Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
-                >>= flip verify
-                [ expectResponseCode HTTP.status202
-                , expectField (#selections)
-                    ((`shouldBe` 2) . length)
-                , expectField id
-                    ((`shouldBe` 122) . apiPlanTotalInputCount)
-                , expectField id
-                    ((`shouldBe` 2) . apiPlanTotalOutputCount)
-                , expectField (#balanceSelected . #ada . #getQuantity)
-                    (`shouldBe` expectedBalanceAda)
-                , expectField (#balanceSelected . #assets . #getApiT)
-                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
-                    (`shouldBe` 0)
-                , expectField (#balanceLeftover . #assets . #getApiT)
-                    ((`shouldBe` 0) . TokenMap.size)
-                ]
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status202
+                    , expectField
+                        (#selections)
+                        ((`shouldBe` 2) . length)
+                    , expectField
+                        id
+                        ((`shouldBe` 122) . apiPlanTotalInputCount)
+                    , expectField
+                        id
+                        ((`shouldBe` 2) . apiPlanTotalOutputCount)
+                    , expectField
+                        (#balanceSelected . #ada . #getQuantity)
+                        (`shouldBe` expectedBalanceAda)
+                    , expectField
+                        (#balanceSelected . #assets . #getApiT)
+                        ((`shouldBe` expectedAssetCount) . TokenMap.size)
+                    , expectField
+                        (#balanceLeftover . #ada . #getQuantity)
+                        (`shouldBe` 0)
+                    , expectField
+                        (#balanceLeftover . #assets . #getApiT)
+                        ((`shouldBe` 0) . TokenMap.size)
+                    ]
 
-    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
+    Hspec.it
+        "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
         \Can create a partial migration plan for a wallet with a large number \
         \of freerider UTxO entries, but with not quite enough non-freerider \
         \entries to enable the entire UTxO set to be migrated."
         $ \ctx -> runResourceT @IO $ do
-
             -- Create a source wallet with just one pure ada entry that is
             -- large enough to create a singleton transaction:
-            sourceWallet <- fixtureWalletWith @n ctx [ 100_000_000 ]
+            sourceWallet <- fixtureWalletWith @n ctx [100_000_000]
 
             -- Check that the source wallet has the expected balance and UTxO
             -- distribution:
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
-                    (`shouldBe` 0)
-                , expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` 100_000_000)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` 100_000_000)
-                ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` 0)
+                    , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 100_000_000)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` 100_000_000)
+                    ]
             let expectedSourceDistribution =
                     [(100_000_000, 1)]
-            request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField #distribution
-                    ((`shouldBe` expectedSourceDistribution)
-                    . Map.toList
-                    . Map.filter (> 0)
-                    )
-                ]
+            request @ApiUtxoStatistics
+                ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        #distribution
+                        ( (`shouldBe` expectedSourceDistribution)
+                            . Map.toList
+                            . Map.filter (> 0)
+                        )
+                    ]
 
             -- Add a relatively large number of freerider UTxO entries to the
             -- source wallet.
@@ -497,504 +654,245 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_462_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            sourceAddresses <- take 20 . map (apiAddress . view #id)
-                <$> listAddresses @n ctx sourceWallet
-            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
-                perEntryAssetCount
-                batchSize
-                perEntryAdaQuantity
-                sourceAddresses
+            sourceAddresses <-
+                take 20 . map (apiAddress . view #id)
+                    <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6
+                $ liftIO
+                $ _mintSeaHorseAssets
+                    ctx
+                    perEntryAssetCount
+                    batchSize
+                    perEntryAdaQuantity
+                    sourceAddresses
             waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
             -- distribution have both changed accordingly:
             let expectedBalanceAda = 275_500_000
             let expectedAssetCount = 20
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` expectedBalanceAda)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` expectedBalanceAda)
-                , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
-                ]
-            let expectedSourceDistributionAfterMinting =
-                    [ ( 10_000_000, 120)
-                    , (100_000_000,   1)
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` expectedBalanceAda)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` expectedBalanceAda)
+                    , expectField
+                        (#assets . #available . #getApiT)
+                        ((`shouldBe` expectedAssetCount) . TokenMap.size)
                     ]
-            request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField #distribution
-                    ((`shouldBe` expectedSourceDistributionAfterMinting)
-                    . Map.toList
-                    . Map.filter (> 0)
-                    )
-                ]
+            let expectedSourceDistributionAfterMinting =
+                    [ (10_000_000, 120)
+                    , (100_000_000, 1)
+                    ]
+            request @ApiUtxoStatistics
+                ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        #distribution
+                        ( (`shouldBe` expectedSourceDistributionAfterMinting)
+                            . Map.toList
+                            . Map.filter (> 0)
+                        )
+                    ]
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan, and check that the plan is only
             -- partially complete:
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
-            request @(ApiWalletMigrationPlan n) ctx ep Default
+            request @(ApiWalletMigrationPlan n)
+                ctx
+                ep
+                Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
-                >>= flip verify
-                [ expectResponseCode HTTP.status202
-                , expectField (#selections)
-                    ((`shouldBe` 1) . length)
-                , expectField id
-                    ((`shouldBe` 102) . apiPlanTotalInputCount)
-                , expectField id
-                    ((`shouldBe` 1) . apiPlanTotalOutputCount)
-                , expectField (#balanceSelected . #ada . #getQuantity)
-                    (`shouldBe` 247_712_500)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
-                    (`shouldBe` 27_787_500)
-                , expectField (#balanceSelected . #assets . #getApiT)
-                    ((.> 0) . TokenMap.size)
-                , expectField (#balanceLeftover . #assets . #getApiT)
-                    ((.> 0) . TokenMap.size)
-                ]
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status202
+                    , expectField
+                        (#selections)
+                        ((`shouldBe` 1) . length)
+                    , expectField
+                        id
+                        ((`shouldBe` 102) . apiPlanTotalInputCount)
+                    , expectField
+                        id
+                        ((`shouldBe` 1) . apiPlanTotalOutputCount)
+                    , expectField
+                        (#balanceSelected . #ada . #getQuantity)
+                        (`shouldBe` 247_712_500)
+                    , expectField
+                        (#balanceLeftover . #ada . #getQuantity)
+                        (`shouldBe` 27_787_500)
+                    , expectField
+                        (#balanceSelected . #assets . #getApiT)
+                        ((.> 0) . TokenMap.size)
+                    , expectField
+                        (#balanceLeftover . #assets . #getApiT)
+                        ((.> 0) . TokenMap.size)
+                    ]
 
-    describe "SHELLEY_MIGRATE_01 - \
+    describe
+        "SHELLEY_MIGRATE_01 - \
         \After a migration operation successfully completes, the correct \
         \amounts eventually become available in the target wallet for an \
         \arbitrary number of specified addresses, and the balance of the \
         \source wallet is completely depleted."
         $ do
-            testAddressCycling  1
-            testAddressCycling  3
+            testAddressCycling 1
+            testAddressCycling 3
             testAddressCycling 10
 
-    Hspec.it "SHELLEY_MIGRATE_02 - \
+    Hspec.it
+        "SHELLEY_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
-
-        -- Create a large source wallet from which funds will be migrated:
-        sourceWallet <- unsafeResponse <$> postWallet ctx
-            (Json [json|{
+            -- Create a large source wallet from which funds will be migrated:
+            sourceWallet <-
+                unsafeResponse
+                    <$> postWallet
+                        ctx
+                        ( Json
+                            [json|{
                 "name": "Big Shelley Wallet",
                 "mnemonic_sentence": #{mnemonicToText bigDustWallet},
                 "passphrase": #{fixturePassphrase}
-            }|])
-        sourceBalance <- eventually "Source wallet balance is correct." $ do
-            response <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-            verify response
-                [ expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` 10_000_100_000_000)
-                ]
-            return $ getFromResponse
-                (#balance . #available . #getQuantity) response
-
-
-        -- Create an empty target wallet:
-        targetWallet <- emptyWallet ctx
-        targetAddresses <- listAddresses @n ctx targetWallet
-        let targetAddressIds = targetAddresses <&>
-                (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-
-        -- Compute the expected migration plan:
-        responsePlan <- request @(ApiWalletMigrationPlan n) ctx
-            (Link.createMigrationPlan @'Shelley sourceWallet) Default
-            (Json [json|{addresses: #{targetAddressIds}}|])
-        verify responsePlan
-            [ expectResponseCode HTTP.status202
-            , expectField
-                (#totalFee . #getQuantity)
-                (`shouldBe`
-                    if _mainEra ctx >= ApiBabbage
-                    then 3_120_200
-                    else 3_119_800)
-            , expectField
-                (#selections)
-                ((`shouldBe` 2) . length)
-            , expectField
-                (#balanceLeftover . #ada . #getQuantity)
-                (`shouldBe` 0)
-            , expectField
-                (#balanceSelected . #ada . #getQuantity)
-                (`shouldBe` 10_000_100_000_000)
-            ]
-        let expectedFee = getFromResponse
-                (#totalFee . #getQuantity) responsePlan
-        let balanceLeftover = getFromResponse
-                (#balanceLeftover . #ada . #getQuantity) responsePlan
-
-        -- Perform a migration from the source wallet to the target wallet.
-        --
-        -- This migration will involve more than one transaction, where each
-        -- transaction is sent one by one. It may happen that one of these
-        -- transactions is rolled back or simply discarded entirely. The wallet
-        -- doesn't currently have any retry mechanism, which means that
-        -- transactions must be manually retried by clients.
-        --
-        -- The 'migrateWallet' function tries do exactly that: to make sure
-        -- that rolled-back transactions are cancelled and retried until the
-        -- migration is complete.
-        --
-        liftIO $ migrateWallet ctx sourceWallet targetAddressIds
-        waitForTxImmutability ctx
-
-        -- Check that funds become available in the target wallet:
-        let expectedTargetBalance =
-                sourceBalance - balanceLeftover - expectedFee
-        response <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley targetWallet) Default Empty
-        verify response
-            [ expectField
-                (#balance . #available . #getQuantity)
-                (`shouldBe` expectedTargetBalance)
-            , expectField
-                (#balance . #total . #getQuantity)
-                (`shouldBe` expectedTargetBalance)
-            ]
-
-        -- Analyse the target wallet's UTxO distribution:
-        responseStats <- request @ApiUtxoStatistics ctx
-            (Link.getUTxOsStatistics @'Shelley targetWallet) Default Empty
-        verify responseStats
-            [ expectField
-                (#distribution)
-                ((`shouldBe` (Just 2)) . Map.lookup 10_000_000_000_000)
-            ]
-
-        -- Check that the source wallet has the expected leftover balance:
-        responseFinalSourceBalance <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley sourceWallet) Default Empty
-        verify responseFinalSourceBalance
-            [ expectResponseCode HTTP.status200
-            , expectField (#balance . #available)
-                (`shouldBe` Quantity 0)
-            , expectField (#balance . #total)
-                (`shouldBe` Quantity 0)
-            ]
-
-    it "SHELLEY_MIGRATE_03 - \
-        \Migrating an empty wallet should fail."
-        $ \ctx -> runResourceT $ do
-            sourceWallet <- emptyWallet ctx
-            let sourceWalletId = sourceWallet ^. walletId
-            targetWallet <- emptyWallet ctx
-            targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-            let ep = Link.migrateWallet @'Shelley sourceWallet
-            response <- request @[ApiTransaction n] ctx ep Default $
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: #{targetAddressIds}
-                        }|]
-            verify response
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
-                ]
-
-    Hspec.it "SHELLEY_MIGRATE_04 - \
-        \Actual fee for migration is identical to predicted fee."
-        $ \ctx -> runResourceT @IO $ do
-
-            let feeExpected =
-                    if _mainEra ctx >= ApiBabbage
-                    then 255_100
-                    else 254_900
-
-
-            -- Restore a source wallet with funds:
-            sourceWallet <- fixtureWallet ctx
-
-            -- Create an empty target wallet:
-            targetWallet <- emptyWallet ctx
-            targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-
-            -- Create a migration plan:
-            let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
-            responsePlan <- request @(ApiWalletMigrationPlan n)
-                ctx endpointPlan Default $
-                Json [json|{addresses: #{targetAddressIds}}|]
-            -- Verify the fee is as expected:
-            verify responsePlan
-                [ expectResponseCode HTTP.status202
-                , expectField #totalFee (`shouldBe` Quantity feeExpected)
-                , expectField #selections ((`shouldBe` 1) . length)
-                ]
-
-            -- Perform a migration:
-            let endpointMigrate = Link.migrateWallet @'Shelley sourceWallet
-            responseMigrate <-
-                request @[ApiTransaction n] ctx endpointMigrate Default $
-                Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: #{targetAddressIds}
-                    }|]
-            -- Verify the fee is as expected:
-            verify responseMigrate
-                [ expectResponseCode HTTP.status202
-                , expectField id ((`shouldBe` 1) . length)
-                , expectField id
-                    $ (`shouldBe` feeExpected)
-                    . fromIntegral
-                    . sum
-                    . fmap apiTransactionFee
-                ]
-
-    it "SHELLEY_MIGRATE_05 - \
-        \Migration fails if the wrong passphrase is supplied."
-        $ \ctx -> runResourceT $ do
-
-            -- Restore a Shelley wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureWallet ctx
-
-            -- Create an empty target wallet:
-            targetWallet <- emptyWallet ctx
-            targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-
-            -- Attempt to perform a migration:
-            response <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet @'Shelley sourceWallet)
-                Default
-                (Json [json|
-                    { passphrase: "not-the-right-passphrase"
-                    , addresses: #{targetAddressIds}
-                    }|])
-            verify response
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403WrongPass
-                ]
-
-    it "SHELLEY_MIGRATE_06 - \
-        \It's possible to migrate to any valid address."
-        $ \ctx -> runResourceT $ do
-
-            -- Create a Shelley address:
-            wShelley <- emptyWallet ctx
-            addrs <- listAddresses @n ctx wShelley
-            let addrShelley = (addrs !! 1) ^. #id
-
-            -- Create an Icarus address:
-            addrIcarus <- liftIO $ encodeAddress (sNetworkId @n) . head . icarusAddresses @n
-                . entropyToMnemonic @15 <$> genEntropy
-
-            -- Create a Byron address:
-            addrByron <- liftIO $ encodeAddress (sNetworkId @n) . head . randomAddresses @n
-                . entropyToMnemonic @12 <$> genEntropy
-
-            -- Create a source wallet:
-            sourceWallet <- emptyWallet ctx
-
-            -- Initiate a migration to all address types:
-            response <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet @'Shelley sourceWallet) Default
-                (Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
-                    }|])
-            verify response
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage
-                    (errMsg403NothingToMigrate (sourceWallet ^. walletId))
-                ]
-
-    it "SHELLEY_MIGRATE_07 - \
-        \Including an invalidly-formatted passphrase results in a parser error."
-        $ \ctx -> runResourceT $ do
-            sourceWallet <- emptyWallet ctx
-            response <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet @'Shelley sourceWallet) Default
-                (NonJson "{passphrase:,}")
-            verify response
-                [ expectResponseCode HTTP.status400
-                , expectErrorMessage errMsg400ParseError
-                ]
-
-    Hspec.it "SHELLEY_MIGRATE_08 - \
-        \It's possible to migrate a wallet with many small ada quantities, \
-        \provided that the total balance is significantly greater than the \
-        \minimum ada quantity for an output."
-        $ \ctx -> runResourceT @IO $ do
-
-            -- Create a source wallet with many small ada quantities:
-            sourceWallet <- unsafeResponse <$> postWallet ctx
-                (Json [json|{
-                    "name": "Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
-                    "passphrase": #{fixturePassphrase}
-                }|])
+            }|]
+                        )
             sourceBalance <- eventually "Source wallet balance is correct." $ do
-                response <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley sourceWallet) Default Empty
-                verify response
-                    [ expectField (#balance . #available . #getQuantity)
-                        (`shouldBe` 43_000_000)
-                    , expectField (#balance . #total . #getQuantity)
-                        (`shouldBe` 43_000_000)
-                    ]
-                pure $ getFromResponse (#balance. #available . #getQuantity)
+                response <-
+                    request @ApiWallet
+                        ctx
+                        (Link.getWallet @'Shelley sourceWallet)
+                        Default
+                        Empty
+                verify
                     response
-
-            -- Analyse the source wallet's UTxO distribution:
-            let expectedSourceDistribution =
-                    [ (  1_000_000, 3)
-                    , ( 10_000_000, 6)
-                    , (100_000_000, 1)
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 10_000_100_000_000)
                     ]
-            responseSourceDistribution <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
-            verify responseSourceDistribution
-                [ expectField #distribution
-                    ((`shouldBe` expectedSourceDistribution)
-                    . Map.toList
-                    . Map.filter (> 0)
-                    )
-                ]
+                return
+                    $ getFromResponse
+                        (#balance . #available . #getQuantity)
+                        response
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Compute the expected migration plan:
-            let feeExpected =
-                    if _mainEra ctx >= ApiBabbage
-                    then 254_700
-                    else 254_500
-            responsePlan <- request @(ApiWalletMigrationPlan n) ctx
-                (Link.createMigrationPlan @'Shelley sourceWallet) Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify responsePlan
+            responsePlan <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    (Link.createMigrationPlan @'Shelley sourceWallet)
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (`shouldBe` Quantity feeExpected)
-                , expectField #selections ((`shouldBe` 1) . length)
+                , expectField
+                    (#totalFee . #getQuantity)
+                    ( `shouldBe`
+                        if _mainEra ctx >= ApiBabbage
+                            then 3_120_200
+                            else 3_119_800
+                    )
+                , expectField
+                    (#selections)
+                    ((`shouldBe` 2) . length)
+                , expectField
+                    (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` 0)
+                , expectField
+                    (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` 10_000_100_000_000)
                 ]
+            let expectedFee =
+                    getFromResponse
+                        (#totalFee . #getQuantity)
+                        responsePlan
+            let balanceLeftover =
+                    getFromResponse
+                        (#balanceLeftover . #ada . #getQuantity)
+                        responsePlan
 
-            -- Perform the migration:
-            let ep = Link.migrateWallet @'Shelley sourceWallet
-            responseMigrate <- request @[ApiTransaction n] ctx ep Default $
-                Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: #{targetAddressIds}
-                    }|]
-
-            -- Verify the fee is as expected:
-            verify responseMigrate
-                [ expectResponseCode HTTP.status202
-                , expectField id ((`shouldBe` 1) . length)
-                , expectField id
-                    $ (`shouldBe` feeExpected)
-                    . fromIntegral
-                    . sum
-                    . fmap apiTransactionFee
-                ]
-
+            -- Perform a migration from the source wallet to the target wallet.
+            --
+            -- This migration will involve more than one transaction, where each
+            -- transaction is sent one by one. It may happen that one of these
+            -- transactions is rolled back or simply discarded entirely. The wallet
+            -- doesn't currently have any retry mechanism, which means that
+            -- transactions must be manually retried by clients.
+            --
+            -- The 'migrateWallet' function tries do exactly that: to make sure
+            -- that rolled-back transactions are cancelled and retried until the
+            -- migration is complete.
+            --
+            liftIO $ migrateWallet ctx sourceWallet targetAddressIds
             waitForTxImmutability ctx
 
             -- Check that funds become available in the target wallet:
-            let expectedBalance = sourceBalance - feeExpected
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet)
-                Default
-                Empty >>= flip verify
+            let expectedTargetBalance =
+                    sourceBalance - balanceLeftover - expectedFee
+            response <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley targetWallet)
+                    Default
+                    Empty
+            verify
+                response
                 [ expectField
-                    (#balance . #available)
-                    ( `shouldBe` Quantity expectedBalance)
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` expectedTargetBalance)
                 , expectField
-                    (#balance . #total)
-                    ( `shouldBe` Quantity expectedBalance)
+                    (#balance . #total . #getQuantity)
+                    (`shouldBe` expectedTargetBalance)
                 ]
 
             -- Analyse the target wallet's UTxO distribution:
-            let expectedTargetDistribution = [(100_000_000, 1)]
-            responseTargetDistribution <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley targetWallet) Default Empty
-            verify responseTargetDistribution
-                [ expectField #distribution
-                    ((`shouldBe` expectedTargetDistribution)
-                    . Map.toList
-                    . Map.filter (> 0)
-                    )
-                ]
-
-    Hspec.it "SHELLEY_MIGRATE_09 - \
-        \Can migrate a wallet that has rewards."
-        $ \ctx -> runResourceT @IO $ do
-
-            -- Create a source wallet with rewards:
-            (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
-
-            -- Check that the source wallet has the expected balance:
-            let expectedAdaBalanceAvailable =   100_000_000_000
-            let expectedAdaBalanceReward    = 1_000_000_000_000
-            let expectedAdaBalanceTotal     = 1_100_000_000_000
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
-                    (`shouldBe` expectedAdaBalanceAvailable)
-                , expectField (#balance . #reward . #getQuantity)
-                    (`shouldBe` expectedAdaBalanceReward)
-                , expectField (#balance . #total . #getQuantity)
-                    (`shouldBe` expectedAdaBalanceTotal)
-                ]
-
-            -- Create an empty target wallet:
-            targetWallet <- emptyWallet ctx
-            targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
-
-            -- Perform a migration:
-            let ep = Link.migrateWallet @'Shelley sourceWallet
-            responseMigrate <- request @[ApiTransaction n] ctx ep Default $
-                Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: #{targetAddressIds}
-                    }|]
-
-            -- Verify the fee is as expected:
-            let expectedFee =
-                    if _mainEra ctx >= ApiBabbage
-                    then 139_200
-                    else 139_000
-            verify responseMigrate
-                [ expectResponseCode HTTP.status202
-                , expectField id ((`shouldBe` 1) . length)
-                , expectField id
-                    $ (`shouldBe` expectedFee)
-                    . sum
-                    . fmap apiTransactionFee
-                ]
-
-            waitForTxImmutability ctx
-
-            -- Check that funds become available in the target wallet:
-            let expectedTargetBalance = expectedAdaBalanceTotal - expectedFee
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet) Default Empty
-                >>= flip verify
+            responseStats <-
+                request @ApiUtxoStatistics
+                    ctx
+                    (Link.getUTxOsStatistics @'Shelley targetWallet)
+                    Default
+                    Empty
+            verify
+                responseStats
                 [ expectField
-                    (#balance . #available)
-                    (`shouldBe` Quantity expectedTargetBalance)
-                , expectField
-                    (#balance . #total)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (#distribution)
+                    ((`shouldBe` (Just 2)) . Map.lookup 10_000_000_000_000)
                 ]
 
-            -- Check that the source wallet has been depleted:
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-                >>= flip verify
+            -- Check that the source wallet has the expected leftover balance:
+            responseFinalSourceBalance <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley sourceWallet)
+                    Default
+                    Empty
+            verify
+                responseFinalSourceBalance
                 [ expectResponseCode HTTP.status200
                 , expectField
                     (#balance . #available)
@@ -1004,118 +902,574 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` Quantity 0)
                 ]
 
-    Hspec.it "SHELLEY_MIGRATE_MULTI_ASSET_01 - \
+    it
+        "SHELLEY_MIGRATE_03 - \
+        \Migrating an empty wallet should fail."
+        $ \ctx -> runResourceT $ do
+            sourceWallet <- emptyWallet ctx
+            let sourceWalletId = sourceWallet ^. walletId
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let ep = Link.migrateWallet @'Shelley sourceWallet
+            response <-
+                request @[ApiTransaction n] ctx ep Default
+                    $ Json
+                        [json|
+                        { passphrase: #{fixturePassphrase}
+                        , addresses: #{targetAddressIds}
+                        }|]
+            verify
+                response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
+                ]
+
+    Hspec.it
+        "SHELLEY_MIGRATE_04 - \
+        \Actual fee for migration is identical to predicted fee."
+        $ \ctx -> runResourceT @IO $ do
+            let feeExpected =
+                    if _mainEra ctx >= ApiBabbage
+                        then 255_100
+                        else 254_900
+
+            -- Restore a source wallet with funds:
+            sourceWallet <- fixtureWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+
+            -- Create a migration plan:
+            let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
+            responsePlan <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    endpointPlan
+                    Default
+                    $ Json [json|{addresses: #{targetAddressIds}}|]
+            -- Verify the fee is as expected:
+            verify
+                responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #selections ((`shouldBe` 1) . length)
+                ]
+
+            -- Perform a migration:
+            let endpointMigrate = Link.migrateWallet @'Shelley sourceWallet
+            responseMigrate <-
+                request @[ApiTransaction n] ctx endpointMigrate Default
+                    $ Json
+                        [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+            -- Verify the fee is as expected:
+            verify
+                responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` feeExpected)
+                        . fromIntegral
+                        . sum
+                        . fmap apiTransactionFee
+                ]
+
+    it
+        "SHELLEY_MIGRATE_05 - \
+        \Migration fails if the wrong passphrase is supplied."
+        $ \ctx -> runResourceT $ do
+            -- Restore a Shelley wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+
+            -- Attempt to perform a migration:
+            response <-
+                request @[ApiTransaction n]
+                    ctx
+                    (Link.migrateWallet @'Shelley sourceWallet)
+                    Default
+                    ( Json
+                        [json|
+                    { passphrase: "not-the-right-passphrase"
+                    , addresses: #{targetAddressIds}
+                    }|]
+                    )
+            verify
+                response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage errMsg403WrongPass
+                ]
+
+    it
+        "SHELLEY_MIGRATE_06 - \
+        \It's possible to migrate to any valid address."
+        $ \ctx -> runResourceT $ do
+            -- Create a Shelley address:
+            wShelley <- emptyWallet ctx
+            addrs <- listAddresses @n ctx wShelley
+            let addrShelley = (addrs !! 1) ^. #id
+
+            -- Create an Icarus address:
+            addrIcarus <-
+                liftIO
+                    $ encodeAddress (sNetworkId @n)
+                        . head
+                        . icarusAddresses @n
+                        . entropyToMnemonic @15
+                        <$> genEntropy
+
+            -- Create a Byron address:
+            addrByron <-
+                liftIO
+                    $ encodeAddress (sNetworkId @n)
+                        . head
+                        . randomAddresses @n
+                        . entropyToMnemonic @12
+                        <$> genEntropy
+
+            -- Create a source wallet:
+            sourceWallet <- emptyWallet ctx
+
+            -- Initiate a migration to all address types:
+            response <-
+                request @[ApiTransaction n]
+                    ctx
+                    (Link.migrateWallet @'Shelley sourceWallet)
+                    Default
+                    ( Json
+                        [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
+                    }|]
+                    )
+            verify
+                response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate (sourceWallet ^. walletId))
+                ]
+
+    it
+        "SHELLEY_MIGRATE_07 - \
+        \Including an invalidly-formatted passphrase results in a parser error."
+        $ \ctx -> runResourceT $ do
+            sourceWallet <- emptyWallet ctx
+            response <-
+                request @[ApiTransaction n]
+                    ctx
+                    (Link.migrateWallet @'Shelley sourceWallet)
+                    Default
+                    (NonJson "{passphrase:,}")
+            verify
+                response
+                [ expectResponseCode HTTP.status400
+                , expectErrorMessage errMsg400ParseError
+                ]
+
+    Hspec.it
+        "SHELLEY_MIGRATE_08 - \
+        \It's possible to migrate a wallet with many small ada quantities, \
+        \provided that the total balance is significantly greater than the \
+        \minimum ada quantity for an output."
+        $ \ctx -> runResourceT @IO $ do
+            -- Create a source wallet with many small ada quantities:
+            sourceWallet <-
+                unsafeResponse
+                    <$> postWallet
+                        ctx
+                        ( Json
+                            [json|{
+                    "name": "Shelley Wallet",
+                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
+                    "passphrase": #{fixturePassphrase}
+                }|]
+                        )
+            sourceBalance <- eventually "Source wallet balance is correct." $ do
+                response <-
+                    request @ApiWallet
+                        ctx
+                        (Link.getWallet @'Shelley sourceWallet)
+                        Default
+                        Empty
+                verify
+                    response
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 43_000_000)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` 43_000_000)
+                    ]
+                pure
+                    $ getFromResponse
+                        (#balance . #available . #getQuantity)
+                        response
+
+            -- Analyse the source wallet's UTxO distribution:
+            let expectedSourceDistribution =
+                    [ (1_000_000, 3)
+                    , (10_000_000, 6)
+                    , (100_000_000, 1)
+                    ]
+            responseSourceDistribution <-
+                request @ApiUtxoStatistics
+                    ctx
+                    (Link.getUTxOsStatistics @'Shelley sourceWallet)
+                    Default
+                    Empty
+            verify
+                responseSourceDistribution
+                [ expectField
+                    #distribution
+                    ( (`shouldBe` expectedSourceDistribution)
+                        . Map.toList
+                        . Map.filter (> 0)
+                    )
+                ]
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+
+            -- Compute the expected migration plan:
+            let feeExpected =
+                    if _mainEra ctx >= ApiBabbage
+                        then 254_700
+                        else 254_500
+            responsePlan <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    (Link.createMigrationPlan @'Shelley sourceWallet)
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #selections ((`shouldBe` 1) . length)
+                ]
+
+            -- Perform the migration:
+            let ep = Link.migrateWallet @'Shelley sourceWallet
+            responseMigrate <-
+                request @[ApiTransaction n] ctx ep Default
+                    $ Json
+                        [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+
+            -- Verify the fee is as expected:
+            verify
+                responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` feeExpected)
+                        . fromIntegral
+                        . sum
+                        . fmap apiTransactionFee
+                ]
+
+            waitForTxImmutability ctx
+
+            -- Check that funds become available in the target wallet:
+            let expectedBalance = sourceBalance - feeExpected
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley targetWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity expectedBalance)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity expectedBalance)
+                    ]
+
+            -- Analyse the target wallet's UTxO distribution:
+            let expectedTargetDistribution = [(100_000_000, 1)]
+            responseTargetDistribution <-
+                request @ApiUtxoStatistics
+                    ctx
+                    (Link.getUTxOsStatistics @'Shelley targetWallet)
+                    Default
+                    Empty
+            verify
+                responseTargetDistribution
+                [ expectField
+                    #distribution
+                    ( (`shouldBe` expectedTargetDistribution)
+                        . Map.toList
+                        . Map.filter (> 0)
+                    )
+                ]
+
+    Hspec.it
+        "SHELLEY_MIGRATE_09 - \
+        \Can migrate a wallet that has rewards."
+        $ \ctx -> runResourceT @IO $ do
+            -- Create a source wallet with rewards:
+            (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
+
+            -- Check that the source wallet has the expected balance:
+            let expectedAdaBalanceAvailable = 100_000_000_000
+            let expectedAdaBalanceReward = 1_000_000_000_000
+            let expectedAdaBalanceTotal = 1_100_000_000_000
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` expectedAdaBalanceAvailable)
+                    , expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` expectedAdaBalanceReward)
+                    , expectField
+                        (#balance . #total . #getQuantity)
+                        (`shouldBe` expectedAdaBalanceTotal)
+                    ]
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+
+            -- Perform a migration:
+            let ep = Link.migrateWallet @'Shelley sourceWallet
+            responseMigrate <-
+                request @[ApiTransaction n] ctx ep Default
+                    $ Json
+                        [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+
+            -- Verify the fee is as expected:
+            let expectedFee =
+                    if _mainEra ctx >= ApiBabbage
+                        then 139_200
+                        else 139_000
+            verify
+                responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` expectedFee)
+                        . sum
+                        . fmap apiTransactionFee
+                ]
+
+            waitForTxImmutability ctx
+
+            -- Check that funds become available in the target wallet:
+            let expectedTargetBalance = expectedAdaBalanceTotal - expectedFee
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley targetWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    ]
+
+            -- Check that the source wallet has been depleted:
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley sourceWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity 0)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity 0)
+                    ]
+
+    Hspec.it
+        "SHELLEY_MIGRATE_MULTI_ASSET_01 - \
         \Can migrate a multi-asset wallet."
         $ \ctx -> runResourceT @IO $ do
-
             -- Restore a source wallet with funds:
             sourceWallet <- fixtureMultiAssetWallet ctx
 
             -- Wait for the source wallet balance to be correct:
             let expectedAdaBalance = 40_000_000
             sourceBalance <- eventually "Source wallet balance is correct." $ do
-                response <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley sourceWallet) Default Empty
-                verify response
-                    [ expectField (#balance . #available . #getQuantity)
+                response <-
+                    request @ApiWallet
+                        ctx
+                        (Link.getWallet @'Shelley sourceWallet)
+                        Default
+                        Empty
+                verify
+                    response
+                    [ expectField
+                        (#balance . #available . #getQuantity)
                         (`shouldBe` expectedAdaBalance)
-                    , expectField (#balance . #total . #getQuantity)
+                    , expectField
+                        (#balance . #total . #getQuantity)
                         (`shouldBe` expectedAdaBalance)
-                    , expectField (#assets . #available . #getApiT)
+                    , expectField
+                        (#assets . #available . #getApiT)
                         ((`shouldBe` 8) . TokenMap.size)
-                    , expectField (#assets . #total . #getApiT)
+                    , expectField
+                        (#assets . #total . #getApiT)
                         ((`shouldBe` 8) . TokenMap.size)
                     ]
-                let balanceAda = response
-                        & getFromResponse (#balance . #available . #getQuantity)
-                        & fromIntegral
-                        & Coin
-                let balanceAssets = response
-                        & getFromResponse (#assets . #available . #getApiT)
+                let balanceAda =
+                        response
+                            & getFromResponse (#balance . #available . #getQuantity)
+                            & fromIntegral
+                            & Coin
+                let balanceAssets =
+                        response
+                            & getFromResponse (#assets . #available . #getApiT)
                 pure $ TokenBundle balanceAda balanceAssets
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
-            responsePlan <- request @(ApiWalletMigrationPlan n)
-                ctx endpointPlan Default $
-                Json [json|{addresses: #{targetAddressIds}}|]
+            responsePlan <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    endpointPlan
+                    Default
+                    $ Json [json|{addresses: #{targetAddressIds}}|]
 
             -- Verify the plan is as expected:
             let expectedFee =
                     if _mainEra ctx >= ApiBabbage
-                    then 191_000
-                    else 190_800
-            verify responsePlan
+                        then 191_000
+                        else 190_800
+            verify
+                responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
+                , expectField
+                    (#totalFee . #getQuantity)
                     (`shouldBe` expectedFee)
-                , expectField (#selections)
+                , expectField
+                    (#selections)
                     ((`shouldBe` 1) . length)
-                , expectField id
+                , expectField
+                    id
                     ((`shouldBe` 3) . apiPlanTotalInputCount)
-                , expectField id
+                , expectField
+                    id
                     ((`shouldBe` 1) . apiPlanTotalOutputCount)
-                , expectField (#balanceSelected . #ada)
+                , expectField
+                    (#balanceSelected . #ada)
                     (`shouldBe` Coin.toQuantity (view #coin sourceBalance))
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField
+                    (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
-                , expectField (#balanceSelected . #assets . #getApiT)
+                , expectField
+                    (#balanceSelected . #assets . #getApiT)
                     (`shouldBe` view #tokens sourceBalance)
-                , expectField (#balanceLeftover . #assets . #getApiT)
+                , expectField
+                    (#balanceLeftover . #assets . #getApiT)
                     (`shouldSatisfy` TokenMap.isEmpty)
                 ]
 
             -- Perform a migration:
             let endpointMigrate = Link.migrateWallet @'Shelley sourceWallet
             responseMigrate <-
-                request @[ApiTransaction n] ctx endpointMigrate Default $
-                Json [json|
+                request @[ApiTransaction n] ctx endpointMigrate Default
+                    $ Json
+                        [json|
                     { passphrase: #{fixturePassphrase}
                     , addresses: #{targetAddressIds}
                     }|]
 
             -- Verify the fee is as expected:
-            verify responseMigrate
+            verify
+                responseMigrate
                 [ expectResponseCode HTTP.status202
                 , expectField id ((`shouldBe` 1) . length)
                 , expectField id
                     $ (`shouldBe` expectedFee)
-                    . fromIntegral
-                    . sum
-                    . fmap apiTransactionFee
+                        . fromIntegral
+                        . sum
+                        . fmap apiTransactionFee
                 ]
 
             waitForTxImmutability ctx
 
             -- Check that funds become available in the target wallet:
             let expectedTargetBalance = expectedAdaBalance - expectedFee
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet) Default Empty
-                >>= flip verify
-                [ expectField
-                    (#balance . #available)
-                    (`shouldBe` Quantity expectedTargetBalance)
-                , expectField
-                    (#balance . #total)
-                    (`shouldBe` Quantity expectedTargetBalance)
-                , expectField
-                    (#assets . #available . #getApiT)
-                    (`shouldBe` view #tokens sourceBalance)
-                , expectField
-                    (#assets . #total . #getApiT)
-                    (`shouldBe` view #tokens sourceBalance)
-                ]
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley targetWallet)
+                Default
+                Empty
+                >>= flip
+                    verify
+                    [ expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    , expectField
+                        (#assets . #available . #getApiT)
+                        (`shouldBe` view #tokens sourceBalance)
+                    , expectField
+                        (#assets . #total . #getApiT)
+                        (`shouldBe` view #tokens sourceBalance)
+                    ]
 
             -- Check that the source wallet has been depleted:
-            responseFinalSourceBalance <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-            verify responseFinalSourceBalance
+            responseFinalSourceBalance <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley sourceWallet)
+                    Default
+                    Empty
+            verify
+                responseFinalSourceBalance
                 [ expectResponseCode HTTP.status200
                 , expectField
                     (#balance . #available)
@@ -1141,19 +1495,31 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -> [ApiAddress n]
         -> IO ()
     migrateWallet ctx src targets = do
-        (status, _) <- request @(ApiWalletMigrationPlan n) ctx
-            endpointCreateMigrationPlan Default payloadCreateMigrationPlan
+        (status, _) <-
+            request @(ApiWalletMigrationPlan n)
+                ctx
+                endpointCreateMigrationPlan
+                Default
+                payloadCreateMigrationPlan
         when (status == HTTP.status202) $ do
             -- The above request returns '403 Nothing to Migrate' when done.
 
             -- 1. Forget all pending transactions to unlock any locked UTxO:
-            (_, txs) <- unsafeRequest
-                @[ApiTransaction n] ctx endpointListTxs Empty
+            (_, txs) <-
+                unsafeRequest
+                    @[ApiTransaction n]
+                    ctx
+                    endpointListTxs
+                    Empty
             forM_ txs $ forgetTxIf ((== ApiT Pending) . view #status)
 
             -- 2. Attempt to migrate:
-            _ <- request @[ApiTransaction n] ctx endpointMigrateWallet Default
-                payloadMigrateWallet
+            _ <-
+                request @[ApiTransaction n]
+                    ctx
+                    endpointMigrateWallet
+                    Default
+                    payloadMigrateWallet
 
             -- 3. Wait long enough for transactions to have been inserted:
             waitForTxImmutability ctx
@@ -1172,7 +1538,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             Link.deleteTransaction @'Shelley src
 
         payloadCreateMigrationPlan = Json [json|{"addresses": #{targets}}|]
-        payloadMigrateWallet = Json [json|
+        payloadMigrateWallet =
+            Json
+                [json|
             { "passphrase": #{fixturePassphrase}
             , "addresses": #{targets}
             }|]
@@ -1184,29 +1552,34 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 pure ()
 
     testAddressCycling targetAddressCount = do
-        let title = mconcat
-                [ "Migration from Shelley wallet to target address count: "
-                , show targetAddressCount
-                , "."
-                ]
+        let title =
+                mconcat
+                    [ "Migration from Shelley wallet to target address count: "
+                    , show targetAddressCount
+                    , "."
+                    ]
         it title $ \ctx -> runResourceT $ do
-
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let sourceBalance =
-                    view (#balance. #available . #getQuantity) sourceWallet
+                    view (#balance . #available . #getQuantity) sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
-            let targetAddressIds = take targetAddressCount targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+            let targetAddressIds =
+                    take targetAddressCount targetAddresses
+                        <&> (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
-            response0 <- request @(ApiWalletMigrationPlan n) ctx
-                (Link.createMigrationPlan @'Shelley sourceWallet) Default
-                (Json [json|{addresses: #{targetAddressIds}}|])
-            verify response0
+            response0 <-
+                request @(ApiWalletMigrationPlan n)
+                    ctx
+                    (Link.createMigrationPlan @'Shelley sourceWallet)
+                    Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+            verify
+                response0
                 [ expectResponseCode HTTP.status202
                 , expectField #totalFee (.> Quantity 0)
                 ]
@@ -1214,14 +1587,19 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     getFromResponse (#totalFee . #getQuantity) response0
 
             -- Perform a migration from the source wallet to the target wallet:
-            response1 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet @'Shelley sourceWallet)
-                Default
-                (Json [json|
+            response1 <-
+                request @[ApiTransaction n]
+                    ctx
+                    (Link.migrateWallet @'Shelley sourceWallet)
+                    Default
+                    ( Json
+                        [json|
                     { passphrase: #{fixturePassphrase}
                     , addresses: #{targetAddressIds}
-                    }|])
-            verify response1
+                    }|]
+                    )
+            verify
+                response1
                 [ expectResponseCode HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
                 ]
@@ -1230,9 +1608,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Check that funds have become available in the target wallet:
             let expectedTargetBalance = sourceBalance - expectedFee
-            response2 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet) Default Empty
-            verify response2
+            response2 <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley targetWallet)
+                    Default
+                    Empty
+            verify
+                response2
                 [ expectField
                     (#balance . #available)
                     (`shouldBe` Quantity expectedTargetBalance)
@@ -1242,9 +1625,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ]
 
             -- Check that the source wallet has a balance of zero:
-            responseFinalSourceBalance <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley sourceWallet) Default Empty
-            verify responseFinalSourceBalance
+            responseFinalSourceBalance <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley sourceWallet)
+                    Default
+                    Empty
+            verify
+                responseFinalSourceBalance
                 [ expectField
                     (#balance . #available)
                     (`shouldBe` Quantity 0)

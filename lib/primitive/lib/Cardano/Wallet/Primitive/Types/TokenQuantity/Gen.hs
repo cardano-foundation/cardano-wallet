@@ -14,19 +14,30 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrink, sized )
+    ( Gen
+    , choose
+    , frequency
+    , shrink
+    , sized
+    )
 import Test.QuickCheck.Extra
-    ( chooseNatural )
+    ( chooseNatural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.List.NonEmpty as NE
@@ -57,11 +68,11 @@ genTokenQuantityPositive :: Gen TokenQuantity
 genTokenQuantityPositive = sized $ \n -> quantityFromInt <$> choose (1, max 1 n)
 
 shrinkTokenQuantityPositive :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantityPositive
-    = fmap quantityFromInteger
-    . filter (> 0)
-    . shrink
-    . quantityToInteger
+shrinkTokenQuantityPositive =
+    fmap quantityFromInteger
+        . filter (> 0)
+        . shrink
+        . quantityToInteger
 
 --------------------------------------------------------------------------------
 -- Token quantities chosen from the full range available.
@@ -75,16 +86,17 @@ shrinkTokenQuantityPositive
 --
 -- This can be useful when testing roundtrip conversions between different
 -- types.
---
 genTokenQuantityFullRange :: Gen TokenQuantity
-genTokenQuantityFullRange = frequency
-    [ ( 1, pure minTokenQuantity )
-    , ( 1, pure maxTokenQuantity )
-    , ( 8
-      , quantityFromInteger <$>
-        choose (1, quantityToInteger maxTokenQuantity - 1)
-      )
-    ]
+genTokenQuantityFullRange =
+    frequency
+        [ (1, pure minTokenQuantity)
+        , (1, pure maxTokenQuantity)
+        ,
+            ( 8
+            , quantityFromInteger
+                <$> choose (1, quantityToInteger maxTokenQuantity - 1)
+            )
+        ]
   where
     minTokenQuantity :: TokenQuantity
     minTokenQuantity = TokenQuantity 0
@@ -107,15 +119,17 @@ shrinkTokenQuantityFullRange =
 --
 -- prop> forAll (genTokenQuantityPartition q i) $ (==       q) . fold
 -- prop> forAll (genTokenQuantityPartition q i) $ (== max 1 i) . length
---
 genTokenQuantityPartition
     :: TokenQuantity -> Int -> Gen (NonEmpty TokenQuantity)
 genTokenQuantityPartition c i =
     TokenQuantity.partitionDefault c <$> genWeights
   where
     genWeights :: Gen (NonEmpty TokenQuantity)
-    genWeights = NE.fromList <$> replicateM (max 1 i)
-        (chooseTokenQuantity (TokenQuantity 1, max (TokenQuantity 1) c))
+    genWeights =
+        NE.fromList
+            <$> replicateM
+                (max 1 i)
+                (chooseTokenQuantity (TokenQuantity 1, max (TokenQuantity 1) c))
 
 --------------------------------------------------------------------------------
 -- Internal functions

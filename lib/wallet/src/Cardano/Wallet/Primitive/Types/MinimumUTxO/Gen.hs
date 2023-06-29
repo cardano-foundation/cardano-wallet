@@ -1,4 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 -- |
@@ -6,28 +7,27 @@
 -- License: Apache-2.0
 --
 -- Defines generators and shrinkers for the 'MinimumUTxO' data type.
---
 module Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    (
-    -- * Generators and shrinkers
+    ( -- * Generators and shrinkers
       genMinimumUTxO
     , genMinimumUTxOForShelleyBasedEra
     , shrinkMinimumUTxO
     , shrinkMinimumUTxOForShelleyBasedEra
 
-    -- * Test protocol parameter values
+      -- * Test protocol parameter values
     , testParameter_minUTxOValue_Shelley
     , testParameter_minUTxOValue_Allegra
     , testParameter_minUTxOValue_Mary
     , testParameter_coinsPerUTxOWord_Alonzo
     , testParameter_coinsPerUTxOByte_Babbage
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Api
-    ( ShelleyBasedEra (..) )
+    ( ShelleyBasedEra (..)
+    )
 import Cardano.Ledger.Api
     ( CoinPerByte (..)
     , CoinPerWord (..)
@@ -37,17 +37,28 @@ import Cardano.Ledger.Api
     , ppMinUTxOValueL
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( chooseCoin )
+    ( chooseCoin
+    )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
+    ( MinimumUTxO (..)
+    , MinimumUTxOForShelleyBasedEra (..)
+    )
 import Control.Lens
-    ( (&), (.~) )
+    ( (&)
+    , (.~)
+    )
 import Data.Semigroup
-    ( stimes )
+    ( stimes
+    )
 import Test.QuickCheck
-    ( Gen, chooseInteger, frequency, oneof )
+    ( Gen
+    , chooseInteger
+    , frequency
+    , oneof
+    )
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
@@ -57,11 +68,12 @@ import qualified Cardano.Ledger.Coin as Ledger
 --------------------------------------------------------------------------------
 
 genMinimumUTxO :: Gen MinimumUTxO
-genMinimumUTxO = frequency
-    [ (1, genMinimumUTxONone)
-    , (1, genMinimumUTxOConstant)
-    , (8, MinimumUTxOForShelleyBasedEraOf <$> genMinimumUTxOForShelleyBasedEra)
-    ]
+genMinimumUTxO =
+    frequency
+        [ (1, genMinimumUTxONone)
+        , (1, genMinimumUTxOConstant)
+        , (8, MinimumUTxOForShelleyBasedEraOf <$> genMinimumUTxOForShelleyBasedEra)
+        ]
   where
     genMinimumUTxONone :: Gen MinimumUTxO
     genMinimumUTxONone = pure MinimumUTxONone
@@ -150,51 +162,44 @@ shrinkMinimumUTxOForShelleyBasedEra = const []
 -- | A test value of the Shelley-era 'minUTxOValue' parameter.
 --
 -- Value derived from 'mainnet-shelley-genesis.json'.
---
 testParameter_minUTxOValue_Shelley :: Ledger.Coin
 testParameter_minUTxOValue_Shelley = Ledger.Coin 1_000_000
 
 -- | A test value of the Allegra-era 'minUTxOValue' parameter.
 --
 -- Value derived from 'mainnet-shelley-genesis.json'.
---
 testParameter_minUTxOValue_Allegra :: Ledger.Coin
 testParameter_minUTxOValue_Allegra = Ledger.Coin 1_000_000
 
 -- | A test value of the Mary-era 'minUTxOValue' parameter.
 --
 -- Value derived from 'mainnet-shelley-genesis.json'.
---
 testParameter_minUTxOValue_Mary :: Ledger.Coin
 testParameter_minUTxOValue_Mary = Ledger.Coin 1_000_000
 
 -- | A test value of the Alonzo-era 'coinsPerUTxOWord' parameter.
 --
 -- Value derived from 'mainnet-alonzo-genesis.json'.
---
 testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
-testParameter_coinsPerUTxOWord_Alonzo
-    = Ledger.CoinPerWord $ Ledger.Coin 34_482
+testParameter_coinsPerUTxOWord_Alonzo =
+    Ledger.CoinPerWord $ Ledger.Coin 34_482
 
 -- | A test value of the Babbage-era 'coinsPerUTxOByte' parameter.
 --
 -- Value derived from 'mainnet-alonzo-genesis.json':
 -- >>> 34_482 `div` 8 == 4_310
---
 testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
-testParameter_coinsPerUTxOByte_Babbage
-    = Ledger.CoinPerByte $ Ledger.Coin 4_310
+testParameter_coinsPerUTxOByte_Babbage =
+    Ledger.CoinPerByte $ Ledger.Coin 4_310
 
 --------------------------------------------------------------------------------
 -- Internal functions
 --------------------------------------------------------------------------------
 
-
 -- | Chooses a 'Coin' value from within the given range.
 chooseLedgerCoin :: (Ledger.Coin, Ledger.Coin) -> Gen Ledger.Coin
 chooseLedgerCoin (Ledger.Coin lo, Ledger.Coin hi) =
     Ledger.Coin <$> chooseInteger (lo, hi)
-
 
 -- | Generates a wallet 'Coin' value that has a similar magnitude to the given
 --   value.

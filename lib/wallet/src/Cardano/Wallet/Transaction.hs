@@ -19,10 +19,8 @@
 -- An extra interface for operation on transactions (e.g. creating witnesses,
 -- estimating size...). This makes it possible to decouple those operations from
 -- our wallet layer, keeping the implementation flexible to various backends.
---
 module Cardano.Wallet.Transaction
-    (
-    -- * Interface
+    ( -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
     , TxValidityInterval
@@ -47,32 +45,44 @@ module Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , toKeyRole
 
-    -- * Errors
+      -- * Errors
     , ErrSignTx (..)
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrUpdateSealedTx (..)
-    , ErrAssignRedeemers(..)
+    , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script, ScriptHash, ScriptTemplate )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script
+    , ScriptHash
+    , ScriptTemplate
+    )
 import Cardano.Api
-    ( AnyCardanoEra )
+    ( AnyCardanoEra
+    )
 import Cardano.Api.Extra
-    ()
+    (
+    )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
+    ( TranslationError (..)
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionOf (..)
@@ -80,55 +90,91 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , WalletSelectionContext
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationIndex )
+    ( Depth (..)
+    , DerivationIndex
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
+    ( Certificate
+    , ProtocolParameters
+    , SlotNo (..)
+    , TokenBundleMaxSize (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer )
+    ( Redeemer
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor, TxConstraints )
+    ( TokenBundleSizeAssessor
+    , TxConstraints
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxMetadata )
+    ( Tx (..)
+    , TxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag )
+    ( TxWitnessTag
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Fmt
-    ( Buildable (..), genericF )
+    ( Buildable (..)
+    , genericF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -139,90 +185,86 @@ import qualified Data.Map.Strict as Map
 data TransactionLayer k ktype tx = TransactionLayer
     { mkTransaction
         :: AnyCardanoEra
-            -- Era for which the transaction should be created.
+        -- Era for which the transaction should be created.
         -> (XPrv, Passphrase "encryption")
-            -- Reward account
+        -- Reward account
         -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
-            -- Key store
+        -- Key store
         -> ProtocolParameters
-            -- Current protocol parameters
+        -- Current protocol parameters
         -> TransactionCtx
-            -- An additional context about the transaction
+        -- An additional context about the transaction
         -> SelectionOf TxOut
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
+        -- A balanced coin selection where all change addresses have been
+        -- assigned.
         -> Either ErrMkTransaction (Tx, tx)
-        -- ^ Construct a standard transaction
-        --
-        -- " Standard " here refers to the fact that we do not deal with redemption,
-        -- multisignature transactions, etc.
-        --
-        -- This expects as a first argument a mean to compute or lookup private
-        -- key corresponding to a particular address.
-
+    -- ^ Construct a standard transaction
+    --
+    -- " Standard " here refers to the fact that we do not deal with redemption,
+    -- multisignature transactions, etc.
+    --
+    -- This expects as a first argument a mean to compute or lookup private
+    -- key corresponding to a particular address.
     , addVkWitnesses
         :: AnyCardanoEra
-            -- Preferred latest era
+        -- Preferred latest era
         -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
-            -- Reward accounts
+        -- Reward accounts
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- policy key hash and private key
+        -- policy key hash and private key
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- optional staking key hash and private key
+        -- optional staking key hash and private key
         -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
-            -- Key store / address resolution
+        -- Key store / address resolution
         -> (TxIn -> Maybe Address)
-            -- Input resolution
+        -- Input resolution
         -> tx
-            -- The transaction to sign
+        -- The transaction to sign
         -> tx
-        -- ^ Add Vk witnesses to a transaction for known inputs.
-        --
-        -- If inputs can't be resolved, they are simply skipped, hence why this
-        -- function cannot fail.
-
+    -- ^ Add Vk witnesses to a transaction for known inputs.
+    --
+    -- If inputs can't be resolved, they are simply skipped, hence why this
+    -- function cannot fail.
     , mkUnsignedTransaction
         :: forall era
-         . Write.IsRecentEra era
+         . (Write.IsRecentEra era)
         => Either XPub (Maybe (Script KeyHash))
-            -- Reward account public key or optional script hash
+        -- Reward account public key or optional script hash
         -> TransactionCtx
-            -- An additional context about the transaction
+        -- An additional context about the transaction
         -> Either PreSelection (SelectionOf TxOut)
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
+        -- A balanced coin selection where all change addresses have been
+        -- assigned.
         -> Either ErrMkTransaction (Cardano.TxBody era)
-        -- ^ Construct a standard unsigned transaction
-        --
-        -- " Standard " here refers to the fact that we do not deal with redemption,
-        -- multisignature transactions, etc.
-        --
-        -- The function returns CBOR-ed transaction body to be signed in another step.
-
+    -- ^ Construct a standard unsigned transaction
+    --
+    -- " Standard " here refers to the fact that we do not deal with redemption,
+    -- multisignature transactions, etc.
+    --
+    -- The function returns CBOR-ed transaction body to be signed in another step.
     , tokenBundleSizeAssessor
-        :: TokenBundleMaxSize -> TokenBundleSizeAssessor
-        -- ^ A function to assess the size of a token bundle.
-
+        :: TokenBundleMaxSize
+        -> TokenBundleSizeAssessor
+    -- ^ A function to assess the size of a token bundle.
     , constraints
         :: ProtocolParameters
         -- Current protocol parameters.
         -> TxConstraints
-        -- The set of constraints that apply to all transactions.
+    , -- The set of constraints that apply to all transactions.
 
-    , decodeTx
+      decodeTx
         :: AnyCardanoEra
         -> WitnessCountCtx
-        -> tx ->
-            ( Tx
-            , TokenMapWithScripts
-            , TokenMapWithScripts
-            , [Certificate]
-            , Maybe ValidityIntervalExplicit
-            , WitnessCount
-            )
+        -> tx
+        -> ( Tx
+           , TokenMapWithScripts
+           , TokenMapWithScripts
+           , [Certificate]
+           , Maybe ValidityIntervalExplicit
+           , WitnessCount
+           )
     -- ^ Decode an externally-created transaction.
-
     , transactionWitnessTag :: TxWitnessTag
     }
 
@@ -253,21 +295,22 @@ data TransactionCtx = TransactionCtx
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
-    } deriving Generic
+    }
+    deriving (Generic)
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
-newtype PreSelection = PreSelection { outputs :: [TxOut] }
+newtype PreSelection = PreSelection {outputs :: [TxOut]}
     deriving stock (Generic, Show)
     deriving newtype (Eq)
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
-    | WithdrawalExternal
+    | -- | The 'XPrv' to be used for signing. Must be unencrypted.
+      WithdrawalExternal
         RewardAccount
         (NonEmpty DerivationIndex)
         Coin
         XPrv
-        -- ^ The 'XPrv' to be used for signing. Must be unencrypted.
     | NoWithdrawal
 
 withdrawalToCoin :: Withdrawal -> Coin
@@ -279,28 +322,29 @@ withdrawalToCoin = \case
 -- | A default context with sensible placeholder. Can be used to reduce
 -- repetition for changing only sub-part of the default context.
 defaultTransactionCtx :: TransactionCtx
-defaultTransactionCtx = TransactionCtx
-    { txWithdrawal = NoWithdrawal
-    , txMetadata = Nothing
-    , txValidityInterval = (Nothing, maxBound)
-    , txDelegationAction = Nothing
-    , txAssetsToMint = (TokenMap.empty, Map.empty)
-    , txAssetsToBurn = (TokenMap.empty, Map.empty)
-    , txPaymentCredentialScriptTemplate = Nothing
-    , txStakingCredentialScriptTemplate = Nothing
-    , txNativeScriptInputs = Map.empty
-    , txCollateralRequirement = SelectionCollateralNotRequired
-    }
+defaultTransactionCtx =
+    TransactionCtx
+        { txWithdrawal = NoWithdrawal
+        , txMetadata = Nothing
+        , txValidityInterval = (Nothing, maxBound)
+        , txDelegationAction = Nothing
+        , txAssetsToMint = (TokenMap.empty, Map.empty)
+        , txAssetsToBurn = (TokenMap.empty, Map.empty)
+        , txPaymentCredentialScriptTemplate = Nothing
+        , txStakingCredentialScriptTemplate = Nothing
+        , txNativeScriptInputs = Map.empty
+        , txCollateralRequirement = SelectionCollateralNotRequired
+        }
 
 -- | User-requested action related to a delegation
 -- that is taken into account when constructing a transaction.
 data DelegationAction
-    = JoinRegisteringKey PoolId
-    -- ^ Join stake pool, registering stake key.
-    | Join PoolId
-    -- ^ Join stake pool, assuming that stake key has been registered before.
-    | Quit
-    -- ^ Quit all stake pools
+    = -- | Join stake pool, registering stake key.
+      JoinRegisteringKey PoolId
+    | -- | Join stake pool, assuming that stake key has been registered before.
+      Join PoolId
+    | -- | Quit all stake pools
+      Quit
     deriving (Show, Eq, Generic)
 
 instance Buildable DelegationAction where
@@ -308,7 +352,7 @@ instance Buildable DelegationAction where
 
 data PlutusVersion = PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToText PlutusVersion where
     toText PlutusVersionV1 = "v1"
@@ -320,55 +364,61 @@ instance FromText PlutusVersion where
         "v1" -> Right PlutusVersionV1
         "v2" -> Right PlutusVersionV2
         "v3" -> Right PlutusVersionV3
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given plutus version."
-            , "I am expecting one of the words 'v1' or"
-            , "'v2'."]
+        _ ->
+            Left
+                $ TextDecodingError
+                $ unwords
+                    [ "I couldn't parse the given plutus version."
+                    , "I am expecting one of the words 'v1' or"
+                    , "'v2'."
+                    ]
 
 data PlutusScriptInfo = PlutusScriptInfo
     { languageVersion :: PlutusVersion
     , scriptHash :: ScriptHash
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 newtype ReferenceInput = ReferenceInput TxIn
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 -- | ScriptReference depicts whether the script is referenced via spending
 -- and is bound to be used in the same transaction or is referenced via
 -- reference inputs and is to be used in other transactions. The the latter
 -- case the script is referenced in other trasactions
-data ScriptReference =
-      ViaSpending
+data ScriptReference
+    = ViaSpending
     | ViaReferenceInput ReferenceInput
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
-data AnyScript =
-      NativeScript !(Script KeyHash) !ScriptReference
+data AnyScript
+    = NativeScript !(Script KeyHash) !ScriptReference
     | PlutusScript !PlutusScriptInfo !ScriptReference
     | AnyScriptReference !ScriptHash ![ReferenceInput]
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data TokenMapWithScripts = TokenMapWithScripts
     { txTokenMap :: !TokenMap
     , txScripts :: !(Map TokenPolicyId AnyScript)
-    } deriving (Show, Generic, Eq)
+    }
+    deriving (Show, Generic, Eq)
 
 emptyTokenMapWithScripts :: TokenMapWithScripts
-emptyTokenMapWithScripts = TokenMapWithScripts
-    { txTokenMap = mempty
-    , txScripts = Map.empty
-    }
+emptyTokenMapWithScripts =
+    TokenMapWithScripts
+        { txTokenMap = mempty
+        , txScripts = Map.empty
+        }
 
-data AnyExplicitScript =
-      NativeExplicitScript !(Script KeyHash) !ScriptReference
+data AnyExplicitScript
+    = NativeExplicitScript !(Script KeyHash) !ScriptReference
     | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
@@ -376,14 +426,15 @@ data WitnessCount = WitnessCount
     , bootstrap :: Word8
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 emptyWitnessCount :: WitnessCount
-emptyWitnessCount = WitnessCount
-    { verificationKey = 0
-    , scripts = []
-    , bootstrap = 0
-    }
+emptyWitnessCount =
+    WitnessCount
+        { verificationKey = 0
+        , scripts = []
+        , bootstrap = 0
+        }
 
 -- WitnessCount context is needed to differentiate verification keys present
 -- in native scripts.
@@ -392,37 +443,35 @@ emptyWitnessCount = WitnessCount
 -- and as minting/burning and delegation support comes will be extended in additional
 -- data attached in SharedWalletCtx to differentiate that.
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
-data WitnessCountCtx =
-      ShelleyWalletCtx KeyHash -- Policy
+data WitnessCountCtx
+    = ShelleyWalletCtx KeyHash -- Policy
     | SharedWalletCtx [KeyHash] -- Delegation key hashes of all cosigners
     | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 toKeyRole :: WitnessCountCtx -> Hash "VerificationKey" -> KeyRole
 toKeyRole witCtx (Hash key) = case witCtx of
     ShelleyWalletCtx (KeyHash _ mypolicykey) ->
-        if key == mypolicykey then
-            Policy
-        else
-            Unknown
+        if key == mypolicykey
+            then Policy
+            else Unknown
     SharedWalletCtx stakingKeyHashes ->
         let toStakeKey (KeyHash _ k) = k
             isStakeKey = L.elem key (map toStakeKey stakingKeyHashes)
-        in if isStakeKey then
-               Delegation
-           else
-               Payment
+        in  if isStakeKey
+                then Delegation
+                else Payment
     AnyWitnessCountCtx -> Unknown
 
 data ErrMkTransaction
-    =  ErrMkTransactionTxBodyError Text
-    -- ^ We failed to construct a transaction for some reasons.
+    = -- | We failed to construct a transaction for some reasons.
+      ErrMkTransactionTxBodyError Text
     | ErrMkTransactionTokenQuantityExceedsLimit
         (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
-    | ErrMkTransactionInvalidEra AnyCardanoEra
-    -- ^ Should never happen, means that that we have programmatically provided
-    -- an invalid era.
+    | -- | Should never happen, means that that we have programmatically provided
+      -- an invalid era.
+      ErrMkTransactionInvalidEra AnyCardanoEra
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
@@ -430,19 +479,19 @@ data ErrMkTransaction
 
 data ErrAssignRedeemers
     = ErrAssignRedeemersScriptFailure Redeemer String
-    | ErrAssignRedeemersTargetNotFound Redeemer
-    -- ^ The given redeemer target couldn't be located in the transaction.
-    | ErrAssignRedeemersInvalidData Redeemer String
-    -- ^ Redeemer's data isn't a valid Plutus' data.
+    | -- | The given redeemer target couldn't be located in the transaction.
+      ErrAssignRedeemersTargetNotFound Redeemer
+    | -- | Redeemer's data isn't a valid Plutus' data.
+      ErrAssignRedeemersInvalidData Redeemer String
     | ErrAssignRedeemersTranslationError (TranslationError StandardCrypto)
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error
 data ErrSignTx
-    = ErrSignTxAddressUnknown TxIn
-    -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrSignTxUnimplemented
-    -- ^ TODO: [ADP-919] Remove ErrSignTxUnimplemented
+    = -- | We tried to sign a transaction with inputs that are unknown to us?
+      ErrSignTxAddressUnknown TxIn
+    | -- | TODO: [ADP-919] Remove ErrSignTxUnimplemented
+      ErrSignTxUnimplemented
     deriving (Generic, Eq, Show)
 
 data ErrCannotJoin
@@ -456,9 +505,9 @@ data ErrCannotQuit
     deriving (Eq, Show)
 
 newtype ErrUpdateSealedTx
-    = ErrExistingKeyWitnesses Int
-    -- ^ The `SealedTx` couldn't not be updated because the *n* existing
-    -- key-witnesses would have been rendered invalid.
+    = -- | The `SealedTx` couldn't not be updated because the *n* existing
+      -- key-witnesses would have been rendered invalid.
+      ErrExistingKeyWitnesses Int
     deriving (Generic, Eq, Show)
 
 -- | Error for when its impossible for 'distributeSurplus' to distribute the
@@ -476,7 +525,6 @@ data TxFeeAndChange change = TxFeeAndChange
     deriving (Eq, Show)
 
 -- | Manipulates a 'TxFeeAndChange' value.
---
 mapTxFeeAndChange
     :: (Coin -> Coin)
     -- ^ A function to transform the fee
@@ -486,7 +534,7 @@ mapTxFeeAndChange
     -- ^ The original fee and change
     -> TxFeeAndChange change2
     -- ^ The transformed fee and change
-mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
+mapTxFeeAndChange mapFee mapChange TxFeeAndChange{fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
 
 data ValidityIntervalExplicit = ValidityIntervalExplicit
@@ -494,4 +542,4 @@ data ValidityIntervalExplicit = ValidityIntervalExplicit
     , invalidHereafter :: !(Quantity "slot" Word64)
     }
     deriving (Generic, Eq, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)

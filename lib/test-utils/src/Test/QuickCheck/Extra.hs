@@ -14,18 +14,15 @@
 -- License: Apache-2.0
 --
 -- Extra helper functions for QuickCheck
---
-
 module Test.QuickCheck.Extra
-    (
-      -- * Generation
+    ( -- * Generation
       genFunction
     , genMapWith
     , genSized2
     , genSized2With
     , reasonablySized
 
-    -- * Generating values purely
+      -- * Generating values purely
     , GenSeed (..)
     , GenSize (..)
     , genSizeDefault
@@ -84,30 +81,46 @@ module Test.QuickCheck.Extra
 
       -- * Utilities
     , interleaveRoundRobin
-
     ) where
 
 import Prelude
 
 import Control.Monad
-    ( foldM, liftM2 )
+    ( foldM
+    , liftM2
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( listToMaybe, mapMaybe )
+    ( listToMaybe
+    , mapMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( indentF, (+|), (|+) )
-import Generics.SOP
+    ( indentF
+    , (+|)
+    , (|+)
+    )
 import GHC.TypeNats
-    ( type (<=), KnownNat, Nat, natVal )
+    ( KnownNat
+    , Nat
+    , natVal
+    , type (<=)
+    )
+import Generics.SOP
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -131,23 +144,28 @@ import Test.QuickCheck
     , (.&&.)
     )
 import Test.QuickCheck.Gen
-    ( Gen (MkGen) )
+    ( Gen (MkGen)
+    )
 import Test.QuickCheck.Gen.Unsafe
-    ( promote )
+    ( promote
+    )
 import Test.QuickCheck.Random
-    ( mkQCGen )
+    ( mkQCGen
+    )
 import Test.Utils.Pretty
-    ( pShowBuilder )
+    ( pShowBuilder
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy as TL
-import qualified Generics.SOP.GGP as GGP
 import qualified GHC.Generics as GHC
+import qualified Generics.SOP.GGP as GGP
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -166,7 +184,6 @@ import qualified GHC.Generics as GHC
 --     | 100         | 10               |
 --     | 1000        | 31               |
 --     +-------------+------------------+
---
 reasonablySized :: Gen a -> Gen a
 reasonablySized = scale (ceiling . sqrt @Double . fromIntegral)
 
@@ -189,22 +206,21 @@ reasonablySized = scale (ceiling . sqrt @Double . fromIntegral)
 -- >>>     <$> scaleToRoot 3 genA
 -- >>>     <*> scaleToRoot 3 genB
 -- >>>     <*> scaleToRoot 3 genC
---
 scaleToRoot :: Int -> Gen a -> Gen a
-scaleToRoot n = scale
-    $ floor @Double @Int
-    . (** (1.0 / fromIntegral @Int @Double n))
-    . fromIntegral @Int @Double
+scaleToRoot n =
+    scale
+        $ floor @Double @Int
+            . (** (1.0 / fromIntegral @Int @Double n))
+            . fromIntegral @Int @Double
 
 -- | Generates a 2-tuple whose range depends linearly on the size parameter.
---
 genSized2 :: Gen a -> Gen b -> Gen (a, b)
-genSized2 genA genB = (,)
-    <$> scaleToRoot 2 genA
-    <*> scaleToRoot 2 genB
+genSized2 genA genB =
+    (,)
+        <$> scaleToRoot 2 genA
+        <*> scaleToRoot 2 genB
 
 -- | Similar to 'genSized2', but with a custom constructor.
---
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 
@@ -240,7 +256,6 @@ interleaveRoundRobin = concat . L.transpose
 -- []
 --
 -- See 'arbitraryBoundedEnum'.
---
 shrinkBoundedEnum :: forall a. (Eq a, Enum a, Bounded a) => a -> [a]
 shrinkBoundedEnum a
     | a == minBound =
@@ -255,11 +270,11 @@ shrinkBoundedEnum a
 --
 -- Successive shrinks of the left and right hand sides are interleaved in the
 -- resulting sequence, to avoid biasing either side.
---
 shrinkInterleaved :: (a, a -> [a]) -> (b, b -> [b]) -> [(a, b)]
-shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
-    [ (a', b ) | a' <- shrinkA a ]
-    [ (a , b') | b' <- shrinkB b ]
+shrinkInterleaved (a, shrinkA) (b, shrinkB) =
+    interleave
+        [(a', b) | a' <- shrinkA a]
+        [(a, b') | b' <- shrinkB b]
   where
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
@@ -270,18 +285,15 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
 --------------------------------------------------------------------------------
 
 -- | Specifies a PRNG seed to use when generating a value.
---
 newtype GenSeed = GenSeed Int
 
 -- | Specifies a size of value to generate.
 --
 -- (The QuickCheck size parameter.)
---
 newtype GenSize = GenSize Int
 
 -- | A value of 'GenSize' that's identical to the default QuickCheck size
 --   parameter.
---
 genSizeDefault :: GenSize
 genSizeDefault = GenSize 30
 
@@ -289,7 +301,6 @@ genSizeDefault = GenSize 30
 --
 -- This function is an alternative to the standard QuickCheck 'generate'
 -- function.
---
 generateWith :: GenSeed -> GenSize -> Gen a -> a
 generateWith (GenSeed seed) (GenSize size) (MkGen runGen) =
     runGen (mkQCGen seed) size
@@ -325,7 +336,6 @@ generateWith (GenSeed seed) (GenSize size) (MkGen runGen) =
 --
 -- >>> shrink . last <$> generate (genShrinkSequence shrink (100 :: Int))
 -- []
---
 genShrinkSequence :: forall a. (a -> [a]) -> a -> Gen [a]
 genShrinkSequence shrinkFn = loop
   where
@@ -373,8 +383,7 @@ genShrinkSequence shrinkFn = loop
 --   where
 --     twoSeconds = 2_000_000
 -- @
---
-shrinkSpace :: forall a. Ord a => (a -> [a]) -> a -> Set a
+shrinkSpace :: forall a. (Ord a) => (a -> [a]) -> a -> Set a
 shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
   where
     -- Loop invariant: "processed" and "remaining" are always disjoint sets:
@@ -420,7 +429,6 @@ shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
 -- The final result is evaluated eagerly. If you suspect that a given shrinking
 -- sequence does not terminate, then you may wish to consider evaluating a
 -- finite prefix of 'shrinkWhileSteps' instead.
---
 shrinkWhile :: (a -> Bool) -> (a -> [a]) -> a -> Maybe a
 shrinkWhile condition shrinkFn =
     listToMaybe . reverse . shrinkWhileSteps condition shrinkFn
@@ -449,7 +457,6 @@ shrinkWhile condition shrinkFn =
 -- This function returns the empty list if the given starting value does not
 -- satisfy the condition, or if none of the shrunken values satisfy the
 -- condition.
---
 shrinkWhileSteps :: forall a. (a -> Bool) -> (a -> [a]) -> a -> [a]
 shrinkWhileSteps condition shrinkFn a
     | condition a = steps a
@@ -489,7 +496,6 @@ shrinkWhileSteps condition shrinkFn a
 -- prop> forAll (partitionList (x, y) as) $ (== as) . mconcat
 -- prop> forAll (partitionList (x, y) as) $ all ((>= x') . length) . dropEnd 1
 -- prop> forAll (partitionList (x, y) as) $ all ((<= y') . length)
---
 partitionList
     :: (Int, Int)
     -- ^ The minimum and maximum length parameters.
@@ -523,9 +529,8 @@ partitionList (x, y) =
 -- Returns the selected entry and the remaining map with the entry removed.
 --
 -- Returns 'Nothing' if (and only if) the given map is empty.
---
 selectMapEntry
-    :: forall k v. Ord k => Map k v -> Gen (Maybe ((k, v), Map k v))
+    :: forall k v. (Ord k) => Map k v -> Gen (Maybe ((k, v), Map k v))
 selectMapEntry m
     | Map.null m =
         pure Nothing
@@ -539,16 +544,16 @@ selectMapEntry m
 -- | Selects up to a given number of entries at random from the given map.
 --
 -- Returns the selected entries and the remaining map with the entries removed.
---
 selectMapEntries
-    :: forall k v. Ord k => Map k v -> Int -> Gen ([(k, v)], Map k v)
+    :: forall k v. (Ord k) => Map k v -> Int -> Gen ([(k, v)], Map k v)
 selectMapEntries m0 i =
     foldM (const . selectOne) ([], m0) (replicate i ())
   where
     selectOne :: ([(k, v)], Map k v) -> Gen ([(k, v)], Map k v)
-    selectOne (es, m) = selectMapEntry m >>= \case
-        Nothing -> pure (es, m)
-        Just (e, m') -> pure (e : es, m')
+    selectOne (es, m) =
+        selectMapEntry m >>= \case
+            Nothing -> pure (es, m)
+            Just (e, m') -> pure (e : es, m')
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking natural numbers
@@ -557,14 +562,13 @@ selectMapEntries m0 i =
 chooseNatural :: (Natural, Natural) -> Gen Natural
 chooseNatural (lo, hi) =
     chooseInteger (intCast lo, intCast hi)
-    `suchThatMap`
-    intCastMaybe @Integer @Natural
+        `suchThatMap` intCastMaybe @Integer @Natural
 
 shrinkNatural :: Natural -> [Natural]
-shrinkNatural n
-    = mapMaybe (intCastMaybe @Integer @Natural)
-    $ shrinkIntegral
-    $ intCast n
+shrinkNatural n =
+    mapMaybe (intCastMaybe @Integer @Natural)
+        $ shrinkIntegral
+        $ intCast n
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking non-empty lists
@@ -583,7 +587,6 @@ shrinkNonEmpty shrinkA = mapMaybe NE.nonEmpty . shrinkList shrinkA . NE.toList
 -- | Generates a function.
 --
 -- This is based on the implementation of 'Arbitrary' for 'a -> b'.
---
 genFunction :: (a -> Gen b -> Gen b) -> Gen b -> Gen (a -> b)
 genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
 
@@ -592,23 +595,21 @@ genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
 --------------------------------------------------------------------------------
 
 -- | Generates a 'Map' with the given key and value generation functions.
---
-genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
+genMapWith :: (Ord k) => Gen k -> Gen v -> Gen (Map k v)
 genMapWith genKey genValue =
     Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
 
 -- | Shrinks a 'Map' with the given key and value shrinking functions.
---
 shrinkMapWith
-    :: Ord k
+    :: (Ord k)
     => (k -> [k])
     -> (v -> [v])
     -> Map k v
     -> [Map k v]
-shrinkMapWith shrinkKey shrinkValue
-    = shrinkMapBy Map.fromList Map.toList
-    $ shrinkList
-    $ liftShrink2 shrinkKey shrinkValue
+shrinkMapWith shrinkKey shrinkValue =
+    shrinkMapBy Map.fromList Map.toList
+        $ shrinkList
+        $ liftShrink2 shrinkKey shrinkValue
 
 --------------------------------------------------------------------------------
 -- Labelling
@@ -634,7 +635,6 @@ shrinkMapWith shrinkKey shrinkValue
 --  5% "foo" within [50, 59]
 --  4% "foo" within [80, 89]
 --  2% "foo" within [70, 79]
---
 labelInterval
     :: (Integral i, Show i, Testable t)
     => i
@@ -650,14 +650,15 @@ labelInterval intervalSize variableName valueToCategorise
     | intervalSize <= 0 =
         error "labelInterval: interval size must be greater than zero"
     | otherwise =
-        label $ mconcat
-            [ show variableName
-            , " within ["
-            , show lo
-            , ", "
-            , show hi
-            , "]"
-            ]
+        label
+            $ mconcat
+                [ show variableName
+                , " within ["
+                , show lo
+                , ", "
+                , show hi
+                , "]"
+                ]
   where
     lo = (valueToCategorise `div` intervalSize) * intervalSize
     hi = lo + (pred intervalSize)
@@ -669,16 +670,19 @@ labelInterval intervalSize variableName valueToCategorise
 -- | Adds a named variable to the counterexample output of a property.
 --
 -- On failure, uses pretty-printing to show the contents of the variable.
---
 report :: (Show a, Testable prop) => a -> String -> prop -> Property
-report a name = counterexample $
-    "" +|name|+ ":\n" +|indentF 4 (pShowBuilder a) |+ ""
+report a name =
+    counterexample
+        $ ""
+        +| name
+        |+ ":\n"
+        +| indentF 4 (pShowBuilder a)
+        |+ ""
 
 -- | Adds a named condition to a property.
 --
 -- On failure, reports the name of the condition that failed.
---
-verify :: Testable t => Bool -> String -> t -> Property
+verify :: (Testable t) => Bool -> String -> t -> Property
 verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
@@ -689,22 +693,23 @@ verify condition conditionTitle =
 --------------------------------------------------------------------------------
 
 (.>=.) :: (Show a, Ord a) => a -> a -> Property
-a .>=. b = counterexample (show a <> " < " <> show b)
-    $ property $ a >= b
+a .>=. b =
+    counterexample (show a <> " < " <> show b)
+        $ property
+        $ a >= b
 
 --------------------------------------------------------------------------------
 -- Pretty-printing
 --------------------------------------------------------------------------------
 
 -- | A combinator that causes the output of `show` to be pretty-printed.
---
-newtype Pretty a = Pretty { unPretty :: a }
-    deriving Eq
+newtype Pretty a = Pretty {unPretty :: a}
+    deriving (Eq)
 
-instance Show a => Show (Pretty a) where
+instance (Show a) => Show (Pretty a) where
     show (Pretty a) = TL.unpack ("\n" <> pShow a <> "\n")
 
-instance Arbitrary a => Arbitrary (Pretty a) where
+instance (Arbitrary a) => Arbitrary (Pretty a) where
     arbitrary = Pretty <$> arbitrary
     shrink (Pretty a) = Pretty <$> shrink a
 
@@ -712,7 +717,7 @@ instance Arbitrary a => Arbitrary (Pretty a) where
 -- Non-null values
 --------------------------------------------------------------------------------
 
-newtype NotNull a = NotNull { unNotNull :: a }
+newtype NotNull a = NotNull {unNotNull :: a}
     deriving (Eq, Show)
 
 instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
@@ -737,8 +742,7 @@ instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
 -- prop_foo :: Integer -> ScaleDiv 2 Integer -> Property
 -- prop_foo x (ScaleDiv y) = ...
 -- @
---
-newtype ScaleDiv (n :: Nat) a = ScaleDiv { unScaleDiv :: a }
+newtype ScaleDiv (n :: Nat) a = ScaleDiv {unScaleDiv :: a}
     deriving stock (Eq, Ord)
     deriving (Read, Show) via a
 
@@ -762,8 +766,7 @@ instance (Arbitrary a, KnownNat n, 1 <= n) => Arbitrary (ScaleDiv n a) where
 -- prop_foo :: Integer -> ScaleMod 8 Integer -> Property
 -- prop_foo x (ScaleMod y) = ...
 -- @
---
-newtype ScaleMod (n :: Nat) a = ScaleMod { unScaleMod :: a }
+newtype ScaleMod (n :: Nat) a = ScaleMod {unScaleMod :: a}
     deriving stock (Eq, Ord)
     deriving (Read, Show) via a
 
@@ -857,8 +860,8 @@ groundRobinShrinkP fns = interleaveRoundRobin . groundRobinShrinkP' fns
         --     4. [ BoolChar b c1, BoolChar b c2, BoolChar b c3 ]
         --     -- create a list of values with only second value shrunk
         --     -- append and return the lists in 2. and 4.
-        [ [ ( I x1' :* xs ) | x1' <- apFn s x1 ] ]
-        <> (fmap (x1 :*) <$> groundRobinShrinkP' ss xs)
+        [[(I x1' :* xs) | x1' <- apFn s x1]]
+            <> (fmap (x1 :*) <$> groundRobinShrinkP' ss xs)
 
 -- | Using a round-robin algorithm, apply a list of shrinkers to their
 -- corresponding types in a Generics.SOP type. Only defined for types with a
@@ -884,7 +887,7 @@ groundRobinShrinkS
     -- ^ Return a shrunk list of that product type, using the round-robin
     -- algorithm.
 groundRobinShrinkS fs (SOP (Z xs)) = (SOP . Z) <$> groundRobinShrinkP fs xs
-groundRobinShrinkS _ (SOP (S _))   = error "only defined for product types."
+groundRobinShrinkS _ (SOP (S _)) = error "only defined for product types."
 
 -- | Given a list of shrinkers for each element of a product type (NOTE: this
 -- function is not defined for sum types), and a value of that product type,
@@ -902,10 +905,10 @@ groundRobinShrinkS _ (SOP (S _))   = error "only defined for product types."
 -- @
 groundRobinShrink
     :: ( Generic a
-       -- Given a generic type
-       , Code a ~ '[xs]
-       -- whose generic representation matches the structure of the list of
-       -- functions
+       , -- Given a generic type
+         Code a ~ '[xs]
+         -- whose generic representation matches the structure of the list of
+         -- functions
        )
     => NP (I -.-> []) xs
     -- ^ and a list of shrinking functions, one for each argument of the product
@@ -926,8 +929,8 @@ groundRobinShrink f x = to <$> groundRobinShrinkS f (from x)
 -- @
 groundRobinShrink'
     :: ( Generic a
-       -- The type is an instance of SOP.Generic
-       , Code a ~ '[xs]
+       , -- The type is an instance of SOP.Generic
+         Code a ~ '[xs]
        , All Arbitrary xs
        -- and each element of the constructor has an instance of arbitrary
        )
@@ -938,8 +941,8 @@ groundRobinShrink'
     -- algorithm.
 groundRobinShrink' x =
     fmap to
-    $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
-    $ from x
+        $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
+        $ from x
 
 -- | This function exists to provide a GHC.Generics version of
 -- @groundRobinShrink@, so that users of this code don't have to derive an
@@ -970,8 +973,8 @@ genericRoundRobinShrink'
     -> [a]
 genericRoundRobinShrink' x =
     fmap GGP.gto
-    $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
-    $ GGP.gfrom x
+        $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
+        $ GGP.gfrom x
 
 --------------------------------------------------------------------------------
 -- Generic shrinking operators

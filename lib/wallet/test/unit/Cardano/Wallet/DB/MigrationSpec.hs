@@ -9,7 +9,8 @@
 module Cardano.Wallet.DB.MigrationSpec where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (ErrWrongVersion)
@@ -20,23 +21,42 @@ import Cardano.Wallet.DB.Migration
     , runMigrations
     )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow (..), SomeException, toException )
+    ( MonadThrow (..)
+    , SomeException
+    , toException
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Monad.Trans.Reader
-    ( ReaderT )
+    ( ReaderT
+    )
 import Control.Monad.Trans.State
-    ( State, get, modify, runState )
+    ( State
+    , get
+    , modify
+    , runState
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.TypeNats
-    ( KnownNat )
+    ( KnownNat
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn, shouldThrow )
+    ( Spec
+    , describe
+    , it
+    , shouldReturn
+    , shouldThrow
+    )
 
 data Database = Database
     { version :: Version
@@ -95,7 +115,7 @@ m12 = m2 . m1
     Test harness
 ------------------------------------------------------------------------------}
 newtype MonadDatabase a = MonadDatabase
-    { unMonadDatabase :: ExceptT SomeException (State Database) a }
+    {unMonadDatabase :: ExceptT SomeException (State Database) a}
     deriving (Functor, Applicative, Monad)
 
 instance MonadThrow MonadDatabase where
@@ -114,19 +134,20 @@ runMonadDatabase db0 (MonadDatabase action) = do
 type Handle = ()
 
 mkMigrationInterface :: MigrationInterface MonadDatabase Handle
-mkMigrationInterface = MigrationInterface
-    { backupDatabaseFile = \_ v ->
-        liftState . modify $ \db -> db{ backups = backups db <> [v] }
-    , withDatabaseFile =
-        \_ action -> action ()
-    , getVersion = \_ ->
-        version <$> liftState get
-    , setVersion = \_ v ->
-        liftState . modify $ \db -> db{ version = v }
-    }
+mkMigrationInterface =
+    MigrationInterface
+        { backupDatabaseFile = \_ v ->
+            liftState . modify $ \db -> db{backups = backups db <> [v]}
+        , withDatabaseFile =
+            \_ action -> action ()
+        , getVersion = \_ ->
+            version <$> liftState get
+        , setVersion = \_ v ->
+            liftState . modify $ \db -> db{version = v}
+        }
 
 migrate :: [Int] -> ReaderT Handle MonadDatabase ()
-migrate xs = lift . liftState . modify $ \db -> db{ state = state db <> xs }
+migrate xs = lift . liftState . modify $ \db -> db{state = state db <> xs}
 
 runTestMigrations
     :: (KnownNat from, KnownNat to)
@@ -135,6 +156,6 @@ runTestMigrations
     -> IO Database
 runTestMigrations v0 =
     runMonadDatabase initialDatabase
-    . runMigrations mkMigrationInterface "filepath"
+        . runMigrations mkMigrationInterface "filepath"
   where
     initialDatabase = Database (Version v0) [] []

@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
-
 -- The following is justified by the usage of the 'requestBody' field
 -- accessor on the 'Request' object from the Network.Wai.Internal module.
 --
@@ -28,43 +27,80 @@ module Network.Wai.Middleware.Logging
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
+    ( PrivacyAnnotation (..)
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Tracing
-    ( ToObject )
+    ( ToObject
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Builder
-    ( Builder )
+    ( Builder
+    )
 import Data.IORef
-    ( IORef, atomicModifyIORef, modifyIORef, newIORef, readIORef )
+    ( IORef
+    , atomicModifyIORef
+    , modifyIORef
+    , newIORef
+    , readIORef
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( NominalDiffTime, diffUTCTime, getCurrentTime )
+    ( NominalDiffTime
+    , diffUTCTime
+    , getCurrentTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Types.Status
-    ( Status (..) )
+    ( Status (..)
+    )
 import Network.Wai
-    ( Middleware, Request (..), rawPathInfo, rawQueryString, requestMethod )
+    ( Middleware
+    , Request (..)
+    , rawPathInfo
+    , rawQueryString
+    , requestMethod
+    )
 import Network.Wai.Internal
-    ( Response (..), getRequestBodyChunk )
+    ( Response (..)
+    , getRequestBodyChunk
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar )
+    ( MVar
+    , modifyMVar
+    , newMVar
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -93,9 +129,9 @@ withApiLogger t0 settings app req0 sendResponse = do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
         time <- flip diffUTCTime start <$> getCurrentTime
-        readIORef builderIO >>=
-            let fromBuilder = second (BL.toStrict . B.toLazyByteString)
-            in uncurry (logResponse t time req) . fromBuilder
+        readIORef builderIO
+            >>= let fromBuilder = second (BL.toStrict . B.toLazyByteString)
+                in  uncurry (logResponse t time req) . fromBuilder
         traceWith t LogRequestFinish
         return rcvd
   where
@@ -113,11 +149,10 @@ withApiLogger t0 settings app req0 sendResponse = do
 -- | API logger settings
 data ApiLoggerSettings = ApiLoggerSettings
     { _obfuscateKeys :: Request -> [Text]
-        -- ^ For a given 'Request', obfuscate the values associated with the
-        -- given keys from a JSON object payload.
-
+    -- ^ For a given 'Request', obfuscate the values associated with the
+    -- given keys from a JSON object payload.
     , _requestCounter :: MVar Integer
-        -- ^ A function to get a unique identifier from a 'Request'
+    -- ^ A function to get a unique identifier from a 'Request'
     }
 
 -- | Just a wrapper for readability
@@ -129,21 +164,22 @@ newtype RequestId = RequestId Integer
 newApiLoggerSettings :: IO ApiLoggerSettings
 newApiLoggerSettings = do
     counter <- newMVar 0
-    return ApiLoggerSettings
-        { _obfuscateKeys = const []
-        , _requestCounter = counter
-        }
+    return
+        ApiLoggerSettings
+            { _obfuscateKeys = const []
+            , _requestCounter = counter
+            }
 
 -- | Define a set of top-level object keys that should be obfuscated for a given
 -- request in a JSON format.
 obfuscateKeys :: (Request -> [Text]) -> ApiLoggerSettings -> ApiLoggerSettings
 obfuscateKeys getKeys x =
-    x { _obfuscateKeys = getKeys }
+    x{_obfuscateKeys = getKeys}
 
 -- | Get the next request id, incrementing the request counter.
 nextRequestId :: ApiLoggerSettings -> IO RequestId
 nextRequestId settings =
-    modifyMVar (_requestCounter settings) (\n -> pure (n+1, RequestId n))
+    modifyMVar (_requestCounter settings) (\n -> pure (n + 1, RequestId n))
 
 {-------------------------------------------------------------------------------
                                   Internals
@@ -191,24 +227,25 @@ getRequestBody req = do
     body <- loop id
     ichunks <- newIORef body
     let rbody = atomicModifyIORef ichunks $ \case
-           [] -> ([], mempty)
-           x:y -> (y, x)
-    return (req { requestBody = rbody }, mconcat body)
+            [] -> ([], mempty)
+            x : y -> (y, x)
+    return (req{requestBody = rbody}, mconcat body)
   where
     loop front = do
         bs <- getRequestBodyChunk req
         if BS.null bs
             then return $ front []
-            else loop $ front . (bs:)
+            else loop $ front . (bs :)
 
 recordChunks :: IORef (Maybe Status, Builder) -> Response -> IO Response
 recordChunks i = \case
-    ResponseStream s h sb -> return . ResponseStream s h $
-        let capture b (ms, b') = (ms <|> Just s, b' <> b)
-        in (\send flush -> sb (\b -> modifyIORef i (capture b) >> send b) flush)
+    ResponseStream s h sb ->
+        return . ResponseStream s h
+            $ let capture b (ms, b') = (ms <|> Just s, b' <> b)
+              in  (\send flush -> sb (\b -> modifyIORef i (capture b) >> send b) flush)
     ResponseBuilder s h b ->
         let capture (ms, b') = (ms <|> Just s, b' <> b)
-        in modifyIORef i capture >> return (ResponseBuilder s h b)
+        in  modifyIORef i capture >> return (ResponseBuilder s h b)
     r ->
         return r
 
@@ -222,7 +259,8 @@ data ApiLog = ApiLog
     -- ^ Unique integer associated with the request, for the purpose of tracing.
     , logMsg :: HandlerLog
     -- ^ Event trace for the handler.
-    } deriving (Generic, Show, ToJSON)
+    }
+    deriving (Generic, Show, ToJSON)
 
 instance HasPrivacyAnnotation ApiLog where
     getPrivacyAnnotation (ApiLog _ msg) = getPrivacyAnnotation msg
@@ -232,8 +270,10 @@ instance HasSeverityAnnotation ApiLog where
 
 instance ToText ApiLog where
     toText (ApiLog rid msg) =
-        "[" <> T.pack (show rid) <> "] "
-        <> toText msg
+        "["
+            <> T.pack (show rid)
+            <> "] "
+            <> toText msg
 
 -- These instance are required by iohk-monitoring
 instance ToObject ApiLog
@@ -244,8 +284,8 @@ instance FromJSON ApiLog where
 data HandlerLog
     = LogRequestStart
     | LogRequest Request
-    | LogRequestBody [Text] ByteString
-    -- ^ Request content, with list of sensitive json keys.
+    | -- | Request content, with list of sensitive json keys.
+      LogRequestBody [Text] ByteString
     | LogResponse NominalDiffTime Request (Maybe Status)
     | LogResponseBody ByteString
     | LogRequestFinish
@@ -254,14 +294,14 @@ data HandlerLog
 instance ToText HandlerLog where
     toText msg = case msg of
         LogRequestStart -> "Received API request"
-        LogRequest req -> mconcat [ "[", method, "] ", path, query ]
+        LogRequest req -> mconcat ["[", method, "] ", path, query]
           where
             method = T.decodeUtf8 $ requestMethod req
             path = T.decodeUtf8 $ rawPathInfo req
             query = T.decodeUtf8 $ rawQueryString req
         LogRequestBody ks body -> sanitize ks body
         LogResponse time req status ->
-            mconcat [ method, " ", path, " ", code, " ", text, " in ", tsec ]
+            mconcat [method, " ", path, " ", code, " ", text, " in ", tsec]
           where
             method = T.decodeUtf8 $ requestMethod req
             path = T.decodeUtf8 $ rawPathInfo req
@@ -308,8 +348,8 @@ instance HasSeverityAnnotation HandlerLog where
         LogRequestStart -> Debug
         LogRequest _ -> Info
         LogRequestBody _ _ -> Debug
-        LogResponse t _ status -> max (severityFromRequestTime t) $
-            case statusCode <$> status of
+        LogResponse t _ status -> max (severityFromRequestTime t)
+            $ case statusCode <$> status of
                 Just s | s == 503 -> Warning
                 Just s | s >= 500 -> Error
                 _ -> Info
@@ -318,7 +358,7 @@ instance HasSeverityAnnotation HandlerLog where
 
 severityFromRequestTime :: NominalDiffTime -> Severity
 severityFromRequestTime t
-    | t > 5     = Error
-    | t > 1     = Warning
-    | t > 0.5   = Notice
+    | t > 5 = Error
+    | t > 1 = Warning
+    | t > 0.5 = Notice
     | otherwise = Info

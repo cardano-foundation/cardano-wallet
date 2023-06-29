@@ -7,9 +7,11 @@ module Cardano.Wallet.TxWitnessTag where
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth )
+    ( Depth
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 
 data TxWitnessTag
     = TxWitnessByronUTxO

@@ -14,101 +14,125 @@
 -- This module is meant to be imported qualified. For example:
 --
 -- >>> import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
---
 module Cardano.Wallet.Primitive.Types.TokenBundle
-    (
-    -- * Types
+    ( -- * Types
       TokenBundle (..)
     , AssetId (..)
 
-    -- * Construction
+      -- * Construction
     , empty
     , fromFlatList
     , fromNestedList
     , fromNestedMap
     , fromTokenMap
 
-    -- * Deconstruction
+      -- * Deconstruction
     , toFlatList
 
-    -- * Coins
+      -- * Coins
     , fromCoin
     , toCoin
     , isCoin
     , getCoin
     , setCoin
 
-    -- * Arithmetic
+      -- * Arithmetic
     , add
     , subtract
     , difference
 
-    -- * Quantities
+      -- * Quantities
     , getQuantity
     , hasQuantity
     , setQuantity
 
-    -- * Partitioning
+      -- * Partitioning
     , equipartitionAssets
     , equipartitionQuantitiesWithUpperBound
 
-    -- * Ordering
+      -- * Ordering
     , Lexicographic (..)
 
-    -- * Serialization
+      -- * Serialization
     , Flat (..)
     , Nested (..)
 
-    -- * Queries
+      -- * Queries
     , getAssets
 
-    -- * Transformations
+      -- * Transformations
     , mapAssetIds
 
-    -- * Unsafe operations
+      -- * Unsafe operations
     , unsafeSubtract
-
     ) where
 
 import Prelude hiding
-    ( subtract )
+    ( subtract
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap )
+    ( AssetId (..)
+    , Flat (..)
+    , Lexicographic (..)
+    , Nested (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( guard )
+    ( guard
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Map.Strict.NonEmptyMap
-    ( NonEmptyMap )
+    ( NonEmptyMap
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (..), Builder, blockMapF )
+    ( Buildable (..)
+    , Builder
+    , blockMapF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( ErrorMessage (..), TypeError )
+    ( ErrorMessage (..)
+    , TypeError
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -120,7 +144,6 @@ import qualified Data.List.NonEmpty as NE
 
 -- | Combines a 'Coin' (lovelace) value with a map of named token quantities,
 --   grouped by token policy.
---
 data TokenBundle = TokenBundle
     { coin
         :: !Coin
@@ -149,15 +172,17 @@ instance Monoid TokenBundle where
 -- If some arbitrary ordering is needed (for example, so that token bundles can
 -- be included in an ordered set), the recommended course of action is to
 -- define a newtype with its own dedicated 'Ord' instance.
---
-instance TypeError ('Text "Ord not supported for token bundles")
-        => Ord TokenBundle where
+instance
+    (TypeError ('Text "Ord not supported for token bundles"))
+    => Ord TokenBundle
+    where
     compare = error "Ord not supported for token bundles"
 
 instance PartialOrd TokenBundle where
-    b1 `leq` b2 = (&&)
-        (coin b1 <= coin b2)
-        (tokens b1 `leq` tokens b2)
+    b1 `leq` b2 =
+        (&&)
+            (coin b1 <= coin b2)
+            (tokens b1 `leq` tokens b2)
 
 instance Ord (Lexicographic TokenBundle) where
     compare = comparing projection
@@ -175,16 +200,21 @@ instance Buildable (Nested TokenBundle) where
     build = buildBundle Nested . getNested
 
 buildBundle
-    :: Buildable (style TokenMap)
+    :: (Buildable (style TokenMap))
     => (TokenMap -> style TokenMap)
     -> TokenBundle
     -> Builder
-buildBundle style TokenBundle {coin, tokens} = buildMap
-    [ ("coin"
-      , build coin)
-    , ("tokens"
-      , build $ style tokens)
-    ]
+buildBundle style TokenBundle{coin, tokens} =
+    buildMap
+        [
+            ( "coin"
+            , build coin
+            )
+        ,
+            ( "tokens"
+            , build $ style tokens
+            )
+        ]
 
 buildMap :: [(String, Builder)] -> Builder
 buildMap = blockMapF . fmap (first $ id @String)
@@ -194,7 +224,6 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 
 -- | The empty token bundle.
---
 empty :: TokenBundle
 empty = TokenBundle (Coin 0) mempty
 
@@ -202,7 +231,6 @@ empty = TokenBundle (Coin 0) mempty
 --
 -- If a token name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
---
 fromFlatList
     :: Coin
     -> [(AssetId, TokenQuantity)]
@@ -213,7 +241,6 @@ fromFlatList c = TokenBundle c . TokenMap.fromFlatList
 --
 -- If a token name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
---
 fromNestedList
     :: Coin
     -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
@@ -233,7 +260,6 @@ fromTokenMap = TokenBundle (Coin 0)
 --------------------------------------------------------------------------------
 
 -- | Converts a token bundle to a coin and a flat list of token quantities.
---
 toFlatList :: TokenBundle -> (Coin, [(AssetId, TokenQuantity)])
 toFlatList (TokenBundle c m) = (c, TokenMap.toFlatList m)
 
@@ -242,14 +268,12 @@ toFlatList (TokenBundle c m) = (c, TokenMap.toFlatList m)
 --------------------------------------------------------------------------------
 
 -- | Creates a singleton token bundle from an ada 'Coin' value.
---
 fromCoin :: Coin -> TokenBundle
 fromCoin c = TokenBundle c mempty
 
 -- | Coerces a token bundle to an ada 'Coin' value.
 --
 -- Returns a coin if (and only if) the token bundle has no other tokens.
---
 toCoin :: TokenBundle -> Maybe Coin
 toCoin (TokenBundle c ts)
     | TokenMap.isEmpty ts = Just c
@@ -257,7 +281,6 @@ toCoin (TokenBundle c ts)
 
 -- | Indicates 'True' if (and only if) a token bundle has no tokens other than
 --   an ada 'Coin' value.
---
 isCoin :: TokenBundle -> Bool
 isCoin (TokenBundle _ m) = TokenMap.isEmpty m
 
@@ -265,21 +288,18 @@ isCoin (TokenBundle _ m) = TokenMap.isEmpty m
 --
 -- If you need to assert that a bundle has no other tokens, consider using the
 -- 'toCoin' function instead.
---
 getCoin :: TokenBundle -> Coin
 getCoin (TokenBundle c _) = c
 
 -- | Sets the current ada 'Coin' value for a token bundle.
---
 setCoin :: TokenBundle -> Coin -> TokenBundle
-setCoin b c = b { coin = c }
+setCoin b c = b{coin = c}
 
 --------------------------------------------------------------------------------
 -- Arithmetic
 --------------------------------------------------------------------------------
 
 -- | Adds one token bundle to another.
---
 add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
     TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
@@ -288,7 +308,6 @@ add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
 --
 -- Returns 'Nothing' if the second bundle is not less than or equal to the first
 -- bundle when compared with the `leq` function.
---
 subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
 subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 
@@ -309,7 +328,6 @@ subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 -- >>> let oneToken = fromFlatList coin [(aid, TokenQuantity 1)]
 -- >>> (mempty `difference` oneToken) `add` oneToken
 -- oneToken
---
 difference :: TokenBundle -> TokenBundle -> TokenBundle
 difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
     TokenBundle
@@ -324,13 +342,11 @@ difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
 --
 -- If the given bundle does not have an entry for the specified asset, this
 -- function returns a value of zero.
---
 getQuantity :: TokenBundle -> AssetId -> TokenQuantity
 getQuantity = TokenMap.getQuantity . tokens
 
 -- | Returns true if and only if the given bundle has a non-zero quantity
 --   for the given asset.
---
 hasQuantity :: TokenBundle -> AssetId -> Bool
 hasQuantity = TokenMap.hasQuantity . tokens
 
@@ -338,7 +354,6 @@ hasQuantity = TokenMap.hasQuantity . tokens
 --
 -- If the given quantity is zero, the resultant bundle will not have an entry
 -- for the given asset.
---
 setQuantity :: TokenBundle -> AssetId -> TokenQuantity -> TokenBundle
 setQuantity (TokenBundle c m) a q = TokenBundle c (TokenMap.setQuantity m a q)
 
@@ -355,7 +370,6 @@ setQuantity (TokenBundle c m) a q = TokenBundle c (TokenMap.setQuantity m a q)
 -- The ada 'Coin' quantity is equipartitioned across the resulting bundles.
 --
 -- The quantities of each non-ada asset are unchanged.
---
 equipartitionAssets
     :: TokenBundle
     -- ^ The token bundle to be partitioned.
@@ -377,7 +391,6 @@ equipartitionAssets (TokenBundle c m) count =
 -- The value 'n' is computed automatically, and is the minimum value required
 -- to achieve the goal that no token quantity in any of the resulting bundles
 -- exceeds the maximum allowable token quantity.
---
 equipartitionQuantitiesWithUpperBound
     :: TokenBundle
     -> TokenQuantity
@@ -414,7 +427,6 @@ mapAssetIds f (TokenBundle c m) = TokenBundle c (TokenMap.mapAssetIds f m)
 -- when compared with the `leq` function.
 --
 -- Throws a run-time exception if the pre-condition is violated.
---
 unsafeSubtract :: TokenBundle -> TokenBundle -> TokenBundle
 unsafeSubtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
     TokenBundle (Coin $ c1 - c2) (TokenMap.unsafeSubtract m1 m2)

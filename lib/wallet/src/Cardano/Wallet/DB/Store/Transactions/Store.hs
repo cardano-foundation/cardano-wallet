@@ -1,24 +1,21 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
-{- |
-Copyright: 2022 IOHK
-License: Apache-2.0
-
-Implementation of a 'Store' for 'TxSet'.
-
--}
+-- |
+-- Copyright: 2022 IOHK
+-- License: Apache-2.0
+--
+-- Implementation of a 'Store' for 'TxSet'.
 module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
     , updateTxSet
     , mkStoreTransactions
-
     , selectTx
     , selectTxOut
     , selectTxCollateralOut
@@ -38,7 +35,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxWithdrawal (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId )
+    ( TxId
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
     , TxRelation (..)
@@ -47,27 +45,43 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , tokenOutOrd
     )
 import Control.Arrow
-    ( Arrow ((&&&)) )
+    ( Arrow ((&&&))
+    )
 import Control.Monad.Reader
-    ( MonadIO, ReaderT )
+    ( MonadIO
+    , ReaderT
+    )
 import Data.Foldable
-    ( fold, toList )
+    ( fold
+    , toList
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.List.Split
-    ( chunksOf )
+    ( chunksOf
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( listToMaybe, maybeToList )
+    ( listToMaybe
+    , maybeToList
+    )
 import Data.Monoid
-    ( First (..), getFirst )
+    ( First (..)
+    , getFirst
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore )
+    ( UpdateStore
+    , mkUpdateStore
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Sql
     ( BaseBackend
     , Entity
@@ -101,14 +115,14 @@ updateTxSet change = case change of
     Append txs -> putTxSet txs
     DeleteTxs tidSet -> do
         let tids = Set.toList tidSet
-        deleteWhere [TxInputTxId <-. tids ]
-        deleteWhere [TxCollateralTxId <-. tids ]
-        deleteWhere [TxOutTokenTxId <-. tids ]
-        deleteWhere [TxOutputTxId <-. tids ]
-        deleteWhere [TxCollateralOutTokenTxId <-. tids ]
-        deleteWhere [TxCollateralOutTxId <-. tids ]
-        deleteWhere [TxWithdrawalTxId <-. tids ]
-        deleteWhere [CborTxId <-. tids ]
+        deleteWhere [TxInputTxId <-. tids]
+        deleteWhere [TxCollateralTxId <-. tids]
+        deleteWhere [TxOutTokenTxId <-. tids]
+        deleteWhere [TxOutputTxId <-. tids]
+        deleteWhere [TxCollateralOutTokenTxId <-. tids]
+        deleteWhere [TxCollateralOutTxId <-. tids]
+        deleteWhere [TxWithdrawalTxId <-. tids]
+        deleteWhere [CborTxId <-. tids]
 
 write :: TxSet -> SqlPersistT IO ()
 write txs = do
@@ -123,7 +137,7 @@ write txs = do
     putTxSet txs
 
 -- | Insert multiple transactions.
-putTxSet:: TxSet -> SqlPersistT IO ()
+putTxSet :: TxSet -> SqlPersistT IO ()
 putTxSet (TxSet tx_map) = do
     repsertMany' $ tx_list >>= ins
     repsertMany' $ tx_list >>= collateralIns
@@ -133,7 +147,6 @@ putTxSet (TxSet tx_map) = do
     repsertMany' $ (tx_list >>= maybeToList . collateralOuts) >>= snd
     repsertMany' $ tx_list >>= withdrawals
     repsertMany' $ tx_list >>= maybeToList . cbor
-
   where
     tx_list = toList tx_map
     repsertMany' xs =
@@ -155,26 +168,27 @@ selectTxSet = TxSet <$> select
         inputs <- mkMap txInputTxId selectListAll
         collaterals <- mkMap txCollateralTxId selectListAll
         outputs <- mkMap txOutputTxId selectListAll
-        collateralOutputs
-            <- fmap getFirst <$> mkMap txCollateralOutTxId selectListAll
+        collateralOutputs <-
+            fmap getFirst <$> mkMap txCollateralOutTxId selectListAll
         withs <- mkMap txWithdrawalTxId selectListAll
         outTokens <- mkMap txOutTokenTxId selectListAll
         collateralTokens <- mkMap txCollateralOutTokenTxId selectListAll
         cbors <- mkMap cborTxId selectListAll
         let ids =
                 fold
-                    [Map.keysSet inputs
-                   , Map.keysSet collaterals
-                   , Map.keysSet outputs
-                   , Map.keysSet collateralOutputs
-                   , Map.keysSet withs
-                   , Map.keysSet outTokens
-                   , Map.keysSet collateralTokens
+                    [ Map.keysSet inputs
+                    , Map.keysSet collaterals
+                    , Map.keysSet outputs
+                    , Map.keysSet collateralOutputs
+                    , Map.keysSet withs
+                    , Map.keysSet outTokens
+                    , Map.keysSet collateralTokens
                     ]
             selectOutTokens :: TxId -> TxOut -> [TxOutToken]
-            selectOutTokens txId txOut = filter
-                (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
-                $ orEmpty txId outTokens
+            selectOutTokens txId txOut =
+                filter
+                    (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
+                    $ orEmpty txId outTokens
             selectCollateralTokens
                 :: TxId -> TxCollateralOut -> [TxCollateralOutToken]
             selectCollateralTokens txId _ = orEmpty txId collateralTokens
@@ -183,36 +197,43 @@ selectTxSet = TxSet <$> select
             pure
                 $ Map.singleton k
                 $ TxRelation
-                { ins = sortOn txInputOrder $ orEmpty k inputs
-                , collateralIns = sortOn txCollateralOrder
-                    $ orEmpty k collaterals
-                , outs = fmap (fmap $ sortOn tokenOutOrd)
-                      $ sortOn (txOutputIndex . fst)
-                      $ (id &&& selectOutTokens k)
-                      <$> orEmpty k outputs
-                , collateralOuts = fmap (fmap $ sortOn tokenCollateralOrd)
-                      $ (id &&& selectCollateralTokens k)
-                      <$> Map.findWithDefault Nothing k collateralOutputs
-                , withdrawals = sortOn txWithdrawalAccount $ orEmpty k withs
-                , cbor = getFirst $ Map.findWithDefault (First Nothing) k cbors
-                }
+                    { ins = sortOn txInputOrder $ orEmpty k inputs
+                    , collateralIns =
+                        sortOn txCollateralOrder
+                            $ orEmpty k collaterals
+                    , outs =
+                        fmap (fmap $ sortOn tokenOutOrd)
+                            $ sortOn (txOutputIndex . fst)
+                            $ (id &&& selectOutTokens k)
+                                <$> orEmpty k outputs
+                    , collateralOuts =
+                        fmap (fmap $ sortOn tokenCollateralOrd)
+                            $ (id &&& selectCollateralTokens k)
+                                <$> Map.findWithDefault Nothing k collateralOutputs
+                    , withdrawals = sortOn txWithdrawalAccount $ orEmpty k withs
+                    , cbor = getFirst $ Map.findWithDefault (First Nothing) k cbors
+                    }
 
-mkMap :: (Ord k, Functor f, Applicative g, Semigroup (g b))
+mkMap
+    :: (Ord k, Functor f, Applicative g, Semigroup (g b))
     => (b -> k)
     -> f [Entity b]
     -> f (Map k (g b))
 mkMap k v =
     Map.fromListWith (<>)
-    . fmap ((k &&& pure) . entityVal)
-    <$> v
+        . fmap ((k &&& pure) . entityVal)
+        <$> v
 
 -- | Select one transaction from the database.
 selectTx :: TxId -> SqlPersistT IO (Maybe (Either TxRelation CBOR))
 selectTx k = select
   where
     selectK
-        :: (MonadIO m, PersistEntityBackend record ~ BaseBackend backend
-            , PersistQueryRead backend, PersistEntity record)
+        :: ( MonadIO m
+           , PersistEntityBackend record ~ BaseBackend backend
+           , PersistQueryRead backend
+           , PersistEntity record
+           )
         => EntityField record TxId
         -> ReaderT backend m [record]
     selectK f = fmap entityVal <$> selectList [f ==. k] []
@@ -224,24 +245,29 @@ selectTx k = select
                 inputs <- selectK TxInputTxId
                 collaterals <- selectK TxCollateralTxId
                 outputs <- selectK TxOutputTxId
-                collateralOutputs <-  selectK TxCollateralOutTxId
+                collateralOutputs <- selectK TxCollateralOutTxId
                 withds <- selectK TxWithdrawalTxId
                 outTokens <- selectK TxOutTokenTxId
                 collateralTokens <- selectK TxCollateralOutTokenTxId
                 let
                     selectOutTokens :: TxOut -> [TxOutToken]
-                    selectOutTokens txOut = filter
-                        (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
-                        outTokens
-                pure $ Just $ TxRelation
+                    selectOutTokens txOut =
+                        filter
+                            (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
+                            outTokens
+                pure
+                    $ Just
+                    $ TxRelation
                         { ins = sortOn txInputOrder inputs
                         , collateralIns = sortOn txCollateralOrder collaterals
-                        , outs = fmap (fmap $ sortOn tokenOutOrd)
-                            $ sortOn (txOutputIndex . fst)
-                            $ (id &&& selectOutTokens)
-                            <$> outputs
-                        , collateralOuts = listToMaybe collateralOutputs
-                            <&> (, sortOn tokenCollateralOrd collateralTokens)
+                        , outs =
+                            fmap (fmap $ sortOn tokenOutOrd)
+                                $ sortOn (txOutputIndex . fst)
+                                $ (id &&& selectOutTokens)
+                                    <$> outputs
+                        , collateralOuts =
+                            listToMaybe collateralOutputs
+                                <&> (,sortOn tokenCollateralOrd collateralTokens)
                         , withdrawals = sortOn txWithdrawalAccount withds
                         , cbor = listToMaybe mcbor
                         }
@@ -250,13 +276,19 @@ selectTx k = select
 -- | Select one regular output from the database.
 selectTxOut :: (TxId, Word32) -> SqlPersistT IO (Maybe (TxOut, [TxOutToken]))
 selectTxOut (txid, index) = do
-    moutput <- fmap entityVal <$> selectFirst
-        [TxOutputTxId ==. txid, TxOutputIndex ==. index] []
+    moutput <-
+        fmap entityVal
+            <$> selectFirst
+                [TxOutputTxId ==. txid, TxOutputIndex ==. index]
+                []
     case moutput of
         Nothing -> pure Nothing
         Just output -> do
-            outTokens <- map entityVal <$> selectList
-                [TxOutTokenTxId ==. txid, TxOutTokenTxIndex ==. index] []
+            outTokens <-
+                map entityVal
+                    <$> selectList
+                        [TxOutTokenTxId ==. txid, TxOutTokenTxIndex ==. index]
+                        []
             pure $ Just (output, outTokens)
 
 -- | Select the collateral output of a transaction from the database,
@@ -268,13 +300,19 @@ selectTxCollateralOut (txid, index) = do
     noutputs <- count [TxOutputTxId ==. txid]
     let collateralOutputIndex = toEnum noutputs
     if index /= collateralOutputIndex -- Babbage ledger spec
-    then pure Nothing
-    else do
-        mcollateralOutput <- fmap entityVal <$> selectFirst
-            [TxCollateralOutTxId ==. txid] []
-        case mcollateralOutput of
-            Nothing -> pure Nothing
-            Just collateralOutput -> do
-                collateralTokens <- fmap entityVal <$> selectList
-                    [TxCollateralOutTokenTxId ==. txid] []
-                pure $ Just (collateralOutput,collateralTokens)
+        then pure Nothing
+        else do
+            mcollateralOutput <-
+                fmap entityVal
+                    <$> selectFirst
+                        [TxCollateralOutTxId ==. txid]
+                        []
+            case mcollateralOutput of
+                Nothing -> pure Nothing
+                Just collateralOutput -> do
+                    collateralTokens <-
+                        fmap entityVal
+                            <$> selectList
+                                [TxCollateralOutTokenTxId ==. txid]
+                                []
+                    pure $ Just (collateralOutput, collateralTokens)

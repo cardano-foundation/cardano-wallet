@@ -12,64 +12,83 @@
 -- License: Apache-2.0
 --
 -- API error types.
---
 module Cardano.Wallet.Api.Types.Error
-    (
-    -- * General API error types
+    ( -- * General API error types
       ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
 
-    -- * Specific API error types
+      -- * Specific API error types
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (..), defaultSumTypeOptions )
+    ( DefaultRecord (..)
+    , defaultSumTypeOptions
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..), ApiCredentialType (..), ApiEra )
+    ( ApiCosignerIndex (..)
+    , ApiCredentialType (..)
+    , ApiEra
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( genericParseJSON, genericToJSON )
+    ( genericParseJSON
+    , genericToJSON
+    )
 import Data.Aeson.Extra
-    ( objectUnion )
+    ( objectUnion
+    )
 import Data.Aeson.Types
-    ( FromJSON (..), Options (..), SumEncoding (..), ToJSON (..) )
+    ( FromJSON (..)
+    , Options (..)
+    , SumEncoding (..)
+    , ToJSON (..)
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 data ApiError = ApiError
     { info :: !ApiErrorInfo
     , message :: !ApiErrorMessage
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance ToJSON ApiError where
-    toJSON ApiError {info, message}
-        = fromMaybe (error "ToJSON ApiError: Unexpected encoding")
-        $ toJSON info `objectUnion` toJSON message
+    toJSON ApiError{info, message} =
+        fromMaybe (error "ToJSON ApiError: Unexpected encoding")
+            $ toJSON info `objectUnion` toJSON message
 
 instance FromJSON ApiError where
     parseJSON o = ApiError <$> parseJSON o <*> parseJSON o
@@ -77,7 +96,7 @@ instance FromJSON ApiError where
 newtype ApiErrorMessage = ApiErrorMessage {message :: Text}
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorMessage
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorInfo
     = AddressAlreadyExists
@@ -174,7 +193,7 @@ data ApiErrorInfo
     | WrongEncryptionPassphrase
     | WrongMnemonic
     deriving (Eq, Generic, Show, Data, Typeable)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 instance FromJSON ApiErrorInfo where
     parseJSON = genericParseJSON apiErrorInfoOptions
@@ -183,12 +202,14 @@ instance ToJSON ApiErrorInfo where
     toJSON = genericToJSON apiErrorInfoOptions
 
 apiErrorInfoOptions :: Options
-apiErrorInfoOptions = defaultSumTypeOptions
-    { sumEncoding = TaggedObject
-        { tagFieldName = "code"
-        , contentsFieldName = "info"
+apiErrorInfoOptions =
+    defaultSumTypeOptions
+        { sumEncoding =
+            TaggedObject
+                { tagFieldName = "code"
+                , contentsFieldName = "info"
+                }
         }
-    }
 
 data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
     { cosignerIndex
@@ -197,9 +218,10 @@ data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
         :: !ApiCredentialType
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorSharedWalletNoSuchCosigner
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
@@ -210,9 +232,10 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
         :: !(Quantity "lovelace" Natural)
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     { underestimation :: !(Quantity "lovelace" Natural)
@@ -222,15 +245,17 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     , candidateTxReadable :: Text
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorBalanceTxUnderestimatedFee
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     { nodeEra :: ApiEra
     , supportedRecentEras :: [ApiEra]
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
-    deriving anyclass NFData
+    deriving anyclass (NFData)

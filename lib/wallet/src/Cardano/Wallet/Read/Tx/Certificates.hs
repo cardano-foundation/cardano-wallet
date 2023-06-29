@@ -1,24 +1,22 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw certificate data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.Certificates
     ( CertificatesType
     , Certificates (..)
     , getEraCertificates
     )
-    where
+where
 
 import Prelude
 
@@ -32,25 +30,36 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Conway.Core
-    ( conwayCertsTxBodyL )
+    ( conwayCertsTxBodyL
+    )
 import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert )
+    ( ConwayDCert
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert, certsTxBodyL )
+    ( DCert
+    , certsTxBodyL
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 
 type family CertificatesType era where
     CertificatesType ByronEra = ()
@@ -63,8 +72,8 @@ type family CertificatesType era where
 
 newtype Certificates era = Certificates (CertificatesType era)
 
-deriving instance Show (CertificatesType era) => Show (Certificates era)
-deriving instance Eq (CertificatesType era) => Eq (Certificates era)
+deriving instance (Show (CertificatesType era)) => Show (Certificates era)
+deriving instance (Eq (CertificatesType era)) => Eq (Certificates era)
 
 -- | Extract certificates from a 'Tx' in any era.
 getEraCertificates :: EraFun Tx Certificates

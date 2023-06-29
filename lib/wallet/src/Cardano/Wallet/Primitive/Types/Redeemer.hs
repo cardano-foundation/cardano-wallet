@@ -6,8 +6,6 @@
 -- License: Apache-2.0
 --
 -- Types and functions relating to Plutus script redeemers
---
-
 module Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer (..)
     , redeemerData
@@ -16,17 +14,24 @@ module Cardano.Wallet.Primitive.Types.Redeemer
 import Prelude
 
 import Cardano.Api
-    ( StakeAddress, serialiseToBech32 )
+    ( StakeAddress
+    , serialiseToBech32
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 data Redeemer
     = RedeemerSpending ByteString TxIn
@@ -45,6 +50,6 @@ instance Buildable Redeemer where
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case
-    RedeemerSpending  bytes _ -> bytes
-    RedeemerMinting   bytes _ -> bytes
+    RedeemerSpending bytes _ -> bytes
+    RedeemerMinting bytes _ -> bytes
     RedeemerRewarding bytes _ -> bytes

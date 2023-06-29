@@ -10,82 +10,96 @@ module Test.Integration.Framework.Context
 import Prelude
 
 import Cardano.CLI
-    ( Port (..) )
+    ( Port (..)
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiEra )
+    ( ApiEra
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, NetworkParameters, PoolRetirementCertificate )
+    ( EpochNo
+    , NetworkParameters
+    , PoolRetirementCertificate
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Transaction
-    ( DelegationAction )
+    ( DelegationAction
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.IORef
-    ( IORef )
+    ( IORef
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
-    ( Manager )
+    ( Manager
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import Test.Integration.Faucet
-    ( Faucet )
+    ( Faucet
+    )
 
 -- | Context for integration tests.
---
 data Context = Context
     { _cleanup
         :: IO ()
-        -- ^ A cleanup action.
+    -- ^ A cleanup action.
     , _manager
-        :: (URI, Manager)
-        -- ^ The underlying base URL and manager used by the wallet client.
+        :: ( URI
+           , Manager
+           )
+    -- ^ The underlying base URL and manager used by the wallet client.
     , _walletPort
         :: Port "wallet"
-        -- ^ Server TCP port.
+    -- ^ Server TCP port.
     , _faucet
         :: Faucet
-        -- ^ Provides access to funded wallets.
+    -- ^ Provides access to funded wallets.
     , _moveRewardsToScript
         :: (ByteString, Coin)
         -> IO ()
-        -- ^ A function to inject rewards into some stake address.
+    -- ^ A function to inject rewards into some stake address.
     , _networkParameters :: NetworkParameters
-        -- ^ Blockchain parameters for the underlying chain.
+    -- ^ Blockchain parameters for the underlying chain.
     , _poolGarbageCollectionEvents
         :: IORef [PoolGarbageCollectionEvent]
-        -- ^ The complete list of pool garbage collection events.
-        -- Most recent events are stored at the head of the list.
+    -- ^ The complete list of pool garbage collection events.
+    -- Most recent events are stored at the head of the list.
     , _mainEra
         :: ApiEra
-        -- ^ The main era the tests are expected to run on. Allows tests to make
-        -- era-specific assertions.
+    -- ^ The main era the tests are expected to run on. Allows tests to make
+    -- era-specific assertions.
     , _smashUrl :: Text
-        -- ^ Base URL of the mock smash server.
-
+    -- ^ Base URL of the mock smash server.
     , _mintSeaHorseAssets :: Int -> Int -> Coin -> [Address] -> IO ()
-        -- ^ TODO: Remove once we can unify cardano-wallet-integration and
-        -- cardano-wallet:integration, or when the wallet supports minting.
-        --
-        -- Cannot be used by several tests at a time. (!)
+    -- ^ TODO: Remove once we can unify cardano-wallet-integration and
+    -- cardano-wallet:integration, or when the wallet supports minting.
+    --
+    -- Cannot be used by several tests at a time. (!)
     }
-    deriving Generic
+    deriving (Generic)
 
 -- | Records the parameters and return value of a single call to the
 --   'removeRetiredPools' operation of 'Pool.DB.DBLayer'.
---
 data PoolGarbageCollectionEvent = PoolGarbageCollectionEvent
     { poolGarbageCollectionEpochNo
         :: EpochNo
-        -- ^ The epoch number parameter.
+    -- ^ The epoch number parameter.
     , poolGarbageCollectionCertificates
         :: [PoolRetirementCertificate]
-        -- ^ The pools that were removed from the database.
+    -- ^ The pools that were removed from the database.
     }
     deriving (Eq, Show)
 
@@ -100,4 +114,4 @@ data TxDescription
         , nChanges
             :: Int
         }
-    deriving Show
+    deriving (Show)

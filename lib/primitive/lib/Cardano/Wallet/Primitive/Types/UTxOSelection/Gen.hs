@@ -7,20 +7,32 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     , shrinkUTxOSelection
     , shrinkUTxOSelectionNonEmpty
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , shrinkUTxOIndex
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection, UTxOSelectionNonEmpty )
+    ( UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Test.QuickCheck
-    ( Gen, arbitrary, coarbitrary, liftShrink2, shrinkMapBy, suchThatMap )
+    ( Gen
+    , arbitrary
+    , coarbitrary
+    , liftShrink2
+    , shrinkMapBy
+    , suchThatMap
+    )
 import Test.QuickCheck.Extra
-    ( genFunction )
+    ( genFunction
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -28,25 +40,26 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
-coarbitraryUTxO :: Show u => u -> Gen a -> Gen a
+coarbitraryUTxO :: (Show u) => u -> Gen a -> Gen a
 coarbitraryUTxO = coarbitrary . show
 
-genUTxOFunction :: Show u => Gen a -> Gen (u -> a)
+genUTxOFunction :: (Show u) => Gen a -> Gen (u -> a)
 genUTxOFunction = genFunction coarbitraryUTxO
 
 genUTxOSelection :: forall u. (Ord u, Show u) => Gen u -> Gen (UTxOSelection u)
-genUTxOSelection genUTxO = UTxOSelection.fromIndexFiltered
-    <$> genUTxOFilter
-    <*> genUTxOIndex genUTxO
+genUTxOSelection genUTxO =
+    UTxOSelection.fromIndexFiltered
+        <$> genUTxOFilter
+        <*> genUTxOIndex genUTxO
   where
     genUTxOFilter :: Gen (u -> Bool)
     genUTxOFilter = genUTxOFunction (arbitrary @Bool)
 
 shrinkUTxOSelection
-    :: Ord u => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])
+    :: (Ord u) => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])
 shrinkUTxOSelection shrinkUTxO =
-    shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair $
-        liftShrink2
+    shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair
+        $ liftShrink2
             (shrinkUTxOIndex shrinkUTxO)
             (shrinkUTxOIndex shrinkUTxO)
 
@@ -60,8 +73,8 @@ genUTxOSelectionNonEmpty genUTxO =
     genUTxOSelection genUTxO `suchThatMap` UTxOSelection.toNonEmpty
 
 shrinkUTxOSelectionNonEmpty
-    :: Ord u => (u -> [u]) -> (UTxOSelectionNonEmpty u -> [UTxOSelectionNonEmpty u])
-shrinkUTxOSelectionNonEmpty shrinkUTxO
-    = mapMaybe UTxOSelection.toNonEmpty
-    . shrinkUTxOSelection shrinkUTxO
-    . UTxOSelection.fromNonEmpty
+    :: (Ord u) => (u -> [u]) -> (UTxOSelectionNonEmpty u -> [UTxOSelectionNonEmpty u])
+shrinkUTxOSelectionNonEmpty shrinkUTxO =
+    mapMaybe UTxOSelection.toNonEmpty
+        . shrinkUTxOSelection shrinkUTxO
+        . UTxOSelection.fromNonEmpty

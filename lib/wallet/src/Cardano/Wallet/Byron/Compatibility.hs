@@ -14,7 +14,6 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Byron.
-
 module Cardano.Wallet.Byron.Compatibility
     ( -- * Chain Parameters
       mainnetNetworkParameters
@@ -42,7 +41,9 @@ module Cardano.Wallet.Byron.Compatibility
 import Prelude
 
 import Cardano.Chain.Block
-    ( ABlockOrBoundary (..), blockTxPayload )
+    ( ABlockOrBoundary (..)
+    , blockTxPayload
+    )
 import Cardano.Chain.Common
     ( BlockCount (..)
     , Lovelace
@@ -51,47 +52,76 @@ import Cardano.Chain.Common
     , unsafeGetLovelace
     )
 import Cardano.Chain.Genesis
-    ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
+    ( GenesisData (..)
+    , GenesisHash (..)
+    , GenesisNonAvvmBalances (..)
+    )
 import Cardano.Chain.Slotting
-    ( EpochSlots (..) )
-import Cardano.Chain.Update
-    ( ProtocolParameters (..) )
+    ( EpochSlots (..)
+    )
 import Cardano.Chain.UTxO
-    ( TxOut (..), unTxPayload )
+    ( TxOut (..)
+    , unTxPayload
+    )
+import Cardano.Chain.Update
+    ( ProtocolParameters (..)
+    )
 import Cardano.Crypto.ProtocolMagic
-    ( ProtocolMagicId, unProtocolMagicId )
+    ( ProtocolMagicId
+    , unProtocolMagicId
+    )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( minimumUTxONone )
+    ( minimumUTxONone
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux )
+    ( fromTxAux
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromByronTxIn )
+    ( fromByronTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromByronTxOut )
+    ( fromByronTxOut
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Block.Abstract
-    ( headerPrevHash )
+    ( headerPrevHash
+    )
 import Ouroboros.Consensus.Byron.Ledger
-    ( ByronBlock (..), ByronHash (..) )
+    ( ByronBlock (..)
+    , ByronHash (..)
+    )
 import Ouroboros.Consensus.Byron.Ledger.Config
-    ( CodecConfig (..) )
+    ( CodecConfig (..)
+    )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( Bound (..) )
+    ( Bound (..)
+    )
 import Ouroboros.Network.Block
-    ( BlockNo (..), ChainHash, SlotNo (..) )
+    ( BlockNo (..)
+    , ChainHash
+    , SlotNo (..)
+    )
 
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
@@ -104,7 +134,8 @@ import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
@@ -114,46 +145,53 @@ import qualified Ouroboros.Consensus.Block as O
 -- Chain Parameters
 
 mainnetNetworkParameters :: W.NetworkParameters
-mainnetNetworkParameters = W.NetworkParameters
-    { genesisParameters = W.GenesisParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1_506_203_091
+mainnetNetworkParameters =
+    W.NetworkParameters
+        { genesisParameters =
+            W.GenesisParameters
+                { getGenesisBlockHash =
+                    W.Hash
+                        $ unsafeFromHex
+                            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+                , getGenesisBlockDate =
+                    W.StartTime $ posixSecondsToUTCTime 1_506_203_091
+                }
+        , slottingParameters =
+            W.SlottingParameters
+                { getSlotLength =
+                    W.SlotLength 20
+                , getEpochLength =
+                    W.EpochLength 21_600
+                , getActiveSlotCoefficient =
+                    W.ActiveSlotCoefficient 1.0
+                , getSecurityParameter =
+                    Quantity 2_160
+                }
+        , protocolParameters =
+            W.ProtocolParameters
+                { decentralizationLevel =
+                    minBound
+                , txParameters =
+                    W.TxParameters
+                        { getFeePolicy =
+                            W.LinearFee
+                                $ W.LinearFunction{intercept = 155_381, slope = 43.946}
+                        , getTxMaxSize =
+                            Quantity 4_096
+                        , getTokenBundleMaxSize = maryTokenBundleMaxSize
+                        , getMaxExecutionUnits = W.ExecutionUnits 0 0
+                        }
+                , desiredNumberOfStakePools = 0
+                , minimumUTxO = minimumUTxONone
+                , stakeKeyDeposit = W.Coin 0
+                , eras = W.emptyEraInfo
+                , -- Collateral inputs were not supported or required in Byron:
+                  maximumCollateralInputCount = 0
+                , minimumCollateralPercentage = 0
+                , executionUnitPrices = Nothing
+                , currentLedgerProtocolParameters = Write.InNonRecentEraByron
+                }
         }
-    , slottingParameters = W.SlottingParameters
-        { getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21_600
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        , getSecurityParameter =
-            Quantity 2_160
-        }
-    , protocolParameters = W.ProtocolParameters
-        { decentralizationLevel =
-            minBound
-        , txParameters = W.TxParameters
-            { getFeePolicy =
-                W.LinearFee $
-                    W.LinearFunction { intercept = 155_381, slope = 43.946 }
-            , getTxMaxSize =
-                Quantity 4_096
-            , getTokenBundleMaxSize = maryTokenBundleMaxSize
-            , getMaxExecutionUnits = W.ExecutionUnits 0 0
-            }
-        , desiredNumberOfStakePools = 0
-        , minimumUTxO = minimumUTxONone
-        , stakeKeyDeposit = W.Coin 0
-        , eras = W.emptyEraInfo
-        -- Collateral inputs were not supported or required in Byron:
-        , maximumCollateralInputCount = 0
-        , minimumCollateralPercentage = 0
-        , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
-        }
-    }
 
 -- | The max size of token bundles hard-coded in Mary.
 --
@@ -174,58 +212,62 @@ maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4_000
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
 emptyGenesis :: W.GenesisParameters -> W.Block
-emptyGenesis gp = W.Block
-    { transactions = []
-    , delegations  = []
-    , header = W.BlockHeader
-        { slotNo =
-            W.SlotNo 0
-        , blockHeight =
-            Quantity 0
-        , headerHash =
-            coerce $ W.getGenesisBlockHash gp
-        , parentHeaderHash =
-            Nothing
+emptyGenesis gp =
+    W.Block
+        { transactions = []
+        , delegations = []
+        , header =
+            W.BlockHeader
+                { slotNo =
+                    W.SlotNo 0
+                , blockHeight =
+                    Quantity 0
+                , headerHash =
+                    coerce $ W.getGenesisBlockHash gp
+                , parentHeaderHash =
+                    Nothing
+                }
         }
-    }
 
 --------------------------------------------------------------------------------
 --
 -- Genesis
-
 
 -- | Construct a ("fake") genesis block from genesis transaction outputs.
 --
 -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
 -- jormungandr. This function is a method to deal with the discrepancy.
 genesisBlockFromTxOuts :: W.GenesisParameters -> [W.TxOut] -> W.Block
-genesisBlockFromTxOuts gp outs = W.Block
-    { delegations  = []
-    , header = W.BlockHeader
-        { slotNo =
-            SlotNo 0
-        , blockHeight =
-            Quantity 0
-        , headerHash =
-            coerce $ W.getGenesisBlockHash gp
-        , parentHeaderHash =
-            Nothing
+genesisBlockFromTxOuts gp outs =
+    W.Block
+        { delegations = []
+        , header =
+            W.BlockHeader
+                { slotNo =
+                    SlotNo 0
+                , blockHeight =
+                    Quantity 0
+                , headerHash =
+                    coerce $ W.getGenesisBlockHash gp
+                , parentHeaderHash =
+                    Nothing
+                }
+        , transactions = mkTx <$> outs
         }
-    , transactions = mkTx <$> outs
-    }
   where
-    mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
-        { txId = W.Hash $ blake2b256 bytes
-        , txCBOR = Nothing
-        , fee = Nothing
-        , resolvedInputs = []
-        , resolvedCollateralInputs = []
-        , outputs = [out]
-        , collateralOutput = Nothing
-        , withdrawals = mempty
-        , metadata = Nothing
-        , scriptValidity = Nothing
-        }
+    mkTx out@(W.TxOut (W.Address bytes) _) =
+        W.Tx
+            { txId = W.Hash $ blake2b256 bytes
+            , txCBOR = Nothing
+            , fee = Nothing
+            , resolvedInputs = []
+            , resolvedCollateralInputs = []
+            , outputs = [out]
+            , collateralOutput = Nothing
+            , withdrawals = mempty
+            , metadata = Nothing
+            , scriptValidity = Nothing
+            }
 
 --------------------------------------------------------------------------------
 --
@@ -241,33 +283,36 @@ byronCodecConfig W.SlottingParameters{getEpochLength} =
 
 fromByronBlock :: W.GenesisParameters -> ByronBlock -> W.Block
 fromByronBlock gp byronBlk = case byronBlockRaw byronBlk of
-  ABOBBlock blk  ->
-    mkBlock $ fromTxAux <$> unTxPayload (blockTxPayload blk)
-  ABOBBoundary _ ->
-    mkBlock []
+    ABOBBlock blk ->
+        mkBlock $ fromTxAux <$> unTxPayload (blockTxPayload blk)
+    ABOBBoundary _ ->
+        mkBlock []
   where
     mkBlock :: [W.Tx] -> W.Block
-    mkBlock txs = W.Block
-        { header = toByronBlockHeader gp byronBlk
-        , transactions = txs
-        , delegations  = []
-        }
+    mkBlock txs =
+        W.Block
+            { header = toByronBlockHeader gp byronBlk
+            , transactions = txs
+            , delegations = []
+            }
 
 toByronBlockHeader
     :: W.GenesisParameters
     -> ByronBlock
     -> W.BlockHeader
-toByronBlockHeader gp blk = W.BlockHeader
-    { slotNo =
-        O.blockSlot blk
-    , blockHeight =
-        fromBlockNo $ O.blockNo blk
-    , headerHash =
-        fromByronHash $ O.blockHash blk
-    , parentHeaderHash = Just $
-        fromChainHash (W.getGenesisBlockHash gp) $
-        headerPrevHash (O.getHeader blk)
-    }
+toByronBlockHeader gp blk =
+    W.BlockHeader
+        { slotNo =
+            O.blockSlot blk
+        , blockHeight =
+            fromBlockNo $ O.blockNo blk
+        , headerHash =
+            fromByronHash $ O.blockHash blk
+        , parentHeaderHash =
+            Just
+                $ fromChainHash (W.getGenesisBlockHash gp)
+                $ headerPrevHash (O.getHeader blk)
+        }
 
 fromByronHash :: ByronHash -> W.Hash "BlockHeader"
 fromByronHash =
@@ -285,10 +330,11 @@ fromBlockNo (BlockNo h) =
 
 fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
 fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
-    W.LinearFee $ W.LinearFunction
-        { intercept = lovelaceToDouble a
-        , slope = rationalToDouble b
-        }
+    W.LinearFee
+        $ W.LinearFunction
+            { intercept = lovelaceToDouble a
+            , slope = rationalToDouble b
+            }
   where
     lovelaceToDouble :: Lovelace -> Double
     lovelaceToDouble = fromIntegral . unsafeGetLovelace
@@ -298,7 +344,7 @@ fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
 
 fromSlotDuration :: Natural -> W.SlotLength
 fromSlotDuration =
-    W.SlotLength . toEnum . (*1_000_000_000) . fromIntegral
+    W.SlotLength . toEnum . (* 1_000_000_000) . fromIntegral
 
 -- NOTE: Unsafe conversion from Word64 -> Word32 here.
 --
@@ -319,18 +365,19 @@ protocolParametersFromPP
 protocolParametersFromPP eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel = minBound
-        , txParameters = W.TxParameters
-            { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
-            , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
-            , getTokenBundleMaxSize = maryTokenBundleMaxSize
-            , getMaxExecutionUnits = W.ExecutionUnits 0 0
-            }
+        , txParameters =
+            W.TxParameters
+                { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
+                , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
+                , getTokenBundleMaxSize = maryTokenBundleMaxSize
+                , getMaxExecutionUnits = W.ExecutionUnits 0 0
+                }
         , desiredNumberOfStakePools = 0
         , minimumUTxO = minimumUTxONone
         , stakeKeyDeposit = W.Coin 0
         , eras = fromBound <$> eraInfo
-        -- Collateral inputs were not supported or required in Byron:
-        , maximumCollateralInputCount = 0
+        , -- Collateral inputs were not supported or required in Byron:
+          maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
         , currentLedgerProtocolParameters = Write.InNonRecentEraByron
@@ -357,24 +404,28 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
 fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
     ( W.NetworkParameters
-        { genesisParameters = W.GenesisParameters
-            { getGenesisBlockHash =
-                W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
-            , getGenesisBlockDate =
-                W.StartTime . gdStartTime $ genesisData
-            }
-        , slottingParameters = W.SlottingParameters
-            { getSlotLength = fromSlotDuration . ppSlotDuration $
-                gdProtocolParameters genesisData
-            , getEpochLength = fromBlockCount . gdK $ genesisData
-            , getActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
-            , getSecurityParameter = Quantity . fromIntegral . unBlockCount $
-                gdK genesisData
-            }
+        { genesisParameters =
+            W.GenesisParameters
+                { getGenesisBlockHash =
+                    W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
+                , getGenesisBlockDate =
+                    W.StartTime . gdStartTime $ genesisData
+                }
+        , slottingParameters =
+            W.SlottingParameters
+                { getSlotLength =
+                    fromSlotDuration . ppSlotDuration
+                        $ gdProtocolParameters genesisData
+                , getEpochLength = fromBlockCount . gdK $ genesisData
+                , getActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
+                , getSecurityParameter =
+                    Quantity . fromIntegral . unBlockCount
+                        $ gdK genesisData
+                }
         , protocolParameters =
             -- emptyEraInfo contains no info about byron. Should we add it?
-            protocolParametersFromPP W.emptyEraInfo $
-                gdProtocolParameters genesisData
+            protocolParametersFromPP W.emptyEraInfo
+                $ gdProtocolParameters genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

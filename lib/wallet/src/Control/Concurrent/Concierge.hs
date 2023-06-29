@@ -15,7 +15,7 @@ module Control.Concurrent.Concierge
     , atomicallyWith
     , atomicallyWithLifted
     )
-    where
+where
 
 import Prelude
 
@@ -30,19 +30,28 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad.Class.MonadFork
-    ( MonadThread, ThreadId, myThreadId )
+    ( MonadThread
+    , ThreadId
+    , myThreadId
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow, bracket )
+    ( MonadThrow
+    , bracket
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     Concierge
 -------------------------------------------------------------------------------}
+
 -- | At a 'Concierge', you can obtain a lock and
 -- enforce sequential execution of concurrent 'IO' actions.
 --
@@ -54,7 +63,7 @@ data Concierge m lock = Concierge
     }
 
 -- | Create a new 'Concierge' that keeps track of locks.
-newConcierge :: MonadSTM m => m (Concierge m lock)
+newConcierge :: (MonadSTM m) => m (Concierge m lock)
 newConcierge = Concierge <$> newTVarIO Map.empty
 
 -- | Obtain a lock from a 'Concierge' and run an 'IO' action.
@@ -66,14 +75,20 @@ newConcierge = Concierge <$> newTVarIO Map.empty
 -- In both cases, the lock is returned to the concierge.
 atomicallyWith
     :: (Ord lock, MonadIO m, MonadThrow m)
-    => Concierge IO lock -> lock -> m a -> m a
+    => Concierge IO lock
+    -> lock
+    -> m a
+    -> m a
 atomicallyWith = atomicallyWithLifted liftIO
 
 -- | More polymorphic version of 'atomicallyWith'.
 atomicallyWithLifted
     :: (Ord lock, MonadSTM m, MonadThread m, MonadThrow n)
     => (forall b. m b -> n b)
-    -> Concierge m lock -> lock -> n a -> n a
+    -> Concierge m lock
+    -> lock
+    -> n a
+    -> n a
 atomicallyWithLifted lift Concierge{locks} lock action =
     bracket acquire (const release) (const action)
   where
@@ -82,7 +97,10 @@ atomicallyWithLifted lift Concierge{locks} lock action =
         atomically $ do
             ls <- readTVar locks
             case Map.lookup lock ls of
-                Just _  -> retry
+                Just _ -> retry
                 Nothing -> writeTVar locks $ Map.insert lock tid ls
-    release = lift $
-        atomically $ modifyTVar locks $ Map.delete lock
+    release =
+        lift
+            $ atomically
+            $ modifyTVar locks
+            $ Map.delete lock

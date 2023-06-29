@@ -10,13 +10,16 @@ module Cardano.Wallet.Primitive.Types.Credentials
 
 import Prelude
 
-
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+    ( Depth (RootK)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase, PassphraseHash )
+    ( Passphrase
+    , PassphraseHash
+    )
 
 -- | A 'PrivateKey' for a given 'KeyFlavor'.
 data RootCredentials k pw = RootCredentials

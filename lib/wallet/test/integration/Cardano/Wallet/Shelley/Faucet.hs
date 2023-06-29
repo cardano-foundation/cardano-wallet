@@ -1,8 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 
 module Cardano.Wallet.Shelley.Faucet
-    ( Faucet(..)
-
+    ( Faucet (..)
     , initFaucet
     ) where
 
@@ -17,13 +16,15 @@ import Test.Integration.Faucet
     , seqMnemonics
     )
 import UnliftIO.MVar
-    ( newMVar )
+    ( newMVar
+    )
 
 initFaucet :: IO Faucet
-initFaucet = Faucet
-    <$> newMVar seqMnemonics
-    <*> newMVar icaMnemonics
-    <*> newMVar rndMnemonics
-    <*> newMVar mirMnemonics
-    <*> newMVar maMnemonics
-    <*> newMVar [] -- FIXME: txBuilder for external transaction.
+initFaucet =
+    Faucet
+        <$> newMVar seqMnemonics
+        <*> newMVar icaMnemonics
+        <*> newMVar rndMnemonics
+        <*> newMVar mirMnemonics
+        <*> newMVar maMnemonics
+        <*> newMVar [] -- FIXME: txBuilder for external transaction.

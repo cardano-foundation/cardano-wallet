@@ -4,21 +4,31 @@
 module Cardano.Wallet.Address.States.Families where
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
+    ( ByronKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndAnyState, RndState )
+    ( RndAnyState
+    , RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAnyState, SeqState )
+    ( SeqAnyState
+    , SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState )
+    ( SharedState
+    )
 import Cardano.Wallet.Address.States.Test.State
-    ( TestState )
+    ( TestState
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 
 type family CredFromOf s where
     CredFromOf (SharedState n key) = 'CredFromScriptK

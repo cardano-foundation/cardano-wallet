@@ -9,13 +9,22 @@ module Cardano.Wallet.DB.Store.Delegations.Migration
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBField (..), ReadDBHandle, dbBackend, dbConn )
+    ( DBField (..)
+    , ReadDBHandle
+    , dbBackend
+    , dbConn
+    )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.DB.Migration
-    ( Migration, mkMigration )
+    ( Migration
+    , mkMigration
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( SqlColumnStatus (..), isFieldPresent )
+    ( SqlColumnStatus (..)
+    , isFieldPresent
+    )
 import Cardano.Wallet.DB.Store.Delegations.Migration.Schema
     ( DelegationCertificate (..)
     , EntityField (..)
@@ -23,23 +32,39 @@ import Cardano.Wallet.DB.Store.Delegations.Migration.Schema
     , WStakeKeyCertificate (..)
     )
 import Cardano.Wallet.DB.Store.Delegations.Store
-    ( mkStoreDelegations )
+    ( mkStoreDelegations
+    )
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (Delegate, Deregister, Register) )
+    ( History
+    , Operation (Delegate, Deregister, Register)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo )
+    ( SlotNo
+    )
 import Control.Monad.Reader
-    ( asks, liftIO, withReaderT )
+    ( asks
+    , liftIO
+    , withReaderT
+    )
 import Data.Delta
-    ( Delta (Base, apply) )
+    ( Delta (Base, apply)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Store
-    ( Store (..), UpdateStore )
+    ( Store (..)
+    , UpdateStore
+    )
 import Data.These
-    ( These (..) )
+    ( These (..)
+    )
 import Database.Persist.Sql
-    ( Entity (Entity), SqlPersistT, rawExecute, selectList )
+    ( Entity (Entity)
+    , SqlPersistT
+    , rawExecute
+    , selectList
+    )
 
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -84,7 +109,7 @@ readOldEncoding = do
                 ]
             )
 
-    mapMergeThese :: Ord k => Map k a -> Map k b -> Map k (These a b)
+    mapMergeThese :: (Ord k) => Map k a -> Map k b -> Map k (These a b)
     mapMergeThese =
         Map.merge
             (Map.mapMaybeMissing $ \_ -> Just . This)
@@ -103,8 +128,8 @@ migration store = do
         ColumnPresent -> withReaderT dbBackend $ do
             old <- readOldEncoding
             writeS store old
-            rawExecute "DROP TABLE stake_key_certificate"  []
-            rawExecute "DROP TABLE delegation_certificate"  []
+            rawExecute "DROP TABLE stake_key_certificate" []
+            rawExecute "DROP TABLE delegation_certificate" []
 
 migrateDelegations :: Migration (ReadDBHandle IO) 2 3
 migrateDelegations = mkMigration $ migration mkStoreDelegations

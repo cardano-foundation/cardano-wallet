@@ -12,33 +12,59 @@ module Cardano.Wallet.Address.Keys.MintBurn
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptHash (unScriptHash), toScriptHash )
+    ( Cosigner
+    , KeyHash
+    , Script (..)
+    , ScriptHash (unScriptHash)
+    , toScriptHash
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index
+    )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
+    ( derivePolicyPrivateKey
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron, getRawKey, hashVerificationKey, liftRawKey, publicKey )
+    ( AfterByron
+    , getRawKey
+    , hashVerificationKey
+    , liftRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+    ( KeyFlavorS
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId (..) )
+    ( TokenName
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map
@@ -51,11 +77,11 @@ toTokenPolicyId
     -> Map Cosigner XPub
     -> TokenPolicyId
 toTokenPolicyId kf scriptTempl cosignerMap =
-      UnsafeTokenPolicyId
-    . Hash
-    . unScriptHash
-    . toScriptHash
-    $ replaceCosigner kf cosignerMap scriptTempl
+    UnsafeTokenPolicyId
+        . Hash
+        . unScriptHash
+        . toScriptHash
+        $ replaceCosigner kf cosignerMap scriptTempl
 
 toTokenMapAndScript
     :: forall key
@@ -93,25 +119,24 @@ replaceCosigner kf cosignerMap = \case
     ActiveUntilSlot s ->
         ActiveUntilSlot s
   where
-    toKeyHash :: HasCallStack => Cosigner -> KeyHash
+    toKeyHash :: (HasCallStack) => Cosigner -> KeyHash
     toKeyHash c = case Map.lookup c cosignerMap of
         Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
         Nothing -> error "Impossible: cosigner without xpub."
 
-
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.
 derivePolicyKeyAndHash
-  :: AfterByron key
-  => KeyFlavorS key
-  -> Passphrase "encryption"
-  -- ^ Passphrase for wallet
-  -> key 'RootK XPrv
-  -- ^ Root private key to derive policy private key from
-  -> Index 'Hardened 'PolicyK
-  -- ^ Index of policy script
-  -> (key 'PolicyK XPrv, KeyHash)
-  -- ^ Policy private key
+    :: (AfterByron key)
+    => KeyFlavorS key
+    -> Passphrase "encryption"
+    -- ^ Passphrase for wallet
+    -> key 'RootK XPrv
+    -- ^ Root private key to derive policy private key from
+    -> Index 'Hardened 'PolicyK
+    -- ^ Index of policy script
+    -> (key 'PolicyK XPrv, KeyHash)
+    -- ^ Policy private key
 derivePolicyKeyAndHash kf pwd rootPrv policyIx = (policyK, vkeyHash)
   where
     policyK = liftRawKey kf policyPrv

@@ -9,8 +9,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Wallet.Primitive.Types.TokenPolicy
-    (
-      -- * Token Policies
+    ( -- * Token Policies
       TokenPolicyId (..)
 
       -- * Token Names
@@ -39,43 +38,69 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_160 )
+    ( Blake2b_160
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray
-    ( convert )
+    ( convert
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.URI
-    ( URI, parseAbsoluteURI, uriScheme )
+    ( URI
+    , parseAbsoluteURI
+    , uriScheme
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
@@ -84,12 +109,12 @@ import qualified Data.Text.Encoding as T
 
 -- | Token policy identifiers, represented by the hash of the monetary policy
 -- script.
-newtype TokenPolicyId =
-    -- | Construct a 'TokenPolicyId' without any validation.
-    UnsafeTokenPolicyId { unTokenPolicyId :: Hash "TokenPolicy" }
+newtype TokenPolicyId
+    = -- | Construct a 'TokenPolicyId' without any validation.
+      UnsafeTokenPolicyId {unTokenPolicyId :: Hash "TokenPolicy"}
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenPolicyId)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 instance NFData TokenPolicyId
 
@@ -109,33 +134,34 @@ instance FromText TokenPolicyId where
     fromText = fmap UnsafeTokenPolicyId . fromText
 
 -- | Token names, defined by the monetary policy script.
-newtype TokenName =
-    -- | Construct a 'TokenName' without any validation.
-    UnsafeTokenName { unTokenName :: ByteString }
+newtype TokenName
+    = -- | Construct a 'TokenName' without any validation.
+      UnsafeTokenName {unTokenName :: ByteString}
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenName)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 -- | Construct a 'TokenName', validating that the length does not exceed
 --   'tokenNameMaxLength'.
---
 mkTokenName :: ByteString -> Either String TokenName
 mkTokenName bs
     | BS.length bs <= tokenNameMaxLength = Right $ UnsafeTokenName bs
-    | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
-        ++ " exceeds maximum of " ++ show tokenNameMaxLength
+    | otherwise =
+        Left
+            $ "TokenName length "
+                ++ show (BS.length bs)
+                ++ " exceeds maximum of "
+                ++ show tokenNameMaxLength
 
 -- | The empty asset name.
 --
 -- Asset names may be empty, where a monetary policy script only mints a single
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
---
 nullTokenName :: TokenName
 nullTokenName = UnsafeTokenName ""
 
 -- | The maximum length of a valid token name.
---
 tokenNameMaxLength :: Int
 tokenNameMaxLength = 32
 
@@ -154,16 +180,16 @@ instance ToText TokenName where
     toText = T.decodeLatin1 . convertToBase Base16 . unTokenName
 
 instance FromText TokenName where
-    fromText = first TextDecodingError
-        . either (Left . ("TokenName is not hex-encoded: " ++)) mkTokenName
-        . convertFromBase Base16
-        . T.encodeUtf8
+    fromText =
+        first TextDecodingError
+            . either (Left . ("TokenName is not hex-encoded: " ++)) mkTokenName
+            . convertFromBase Base16
+            . T.encodeUtf8
 
-newtype TokenFingerprint =
-    UnsafeTokenFingerprint { unTokenFingerprint :: Text }
+newtype TokenFingerprint = UnsafeTokenFingerprint {unTokenFingerprint :: Text}
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenFingerprint)
-    deriving anyclass Hashable
+    deriving anyclass (Hashable)
 
 instance NFData TokenFingerprint
 
@@ -171,11 +197,11 @@ instance NFData TokenFingerprint
 -- fingerprint is not necessarily unique, but can be used in user-facing
 -- interfaces as a comparison mechanism.
 mkTokenFingerprint :: TokenPolicyId -> TokenName -> TokenFingerprint
-mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)
-    = (p <> n)
-    & convert . hash @_ @Blake2b_160
-    & Bech32.encodeLenient tokenFingerprintHrp . Bech32.dataPartFromBytes
-    & UnsafeTokenFingerprint
+mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n) =
+    (p <> n)
+        & convert . hash @_ @Blake2b_160
+        & Bech32.encodeLenient tokenFingerprintHrp . Bech32.dataPartFromBytes
+        & UnsafeTokenFingerprint
 
 tokenFingerprintHrp :: Bech32.HumanReadablePart
 tokenFingerprintHrp = [humanReadablePart|asset|]
@@ -192,12 +218,15 @@ instance FromText TokenFingerprint where
                 Just 20 -> Right (UnsafeTokenFingerprint txt)
                 _ -> Left invalidDatapart
       where
-        invalidBech32String = TextDecodingError
-            "A 'TokenFingerprint' must be a valid bech32-encoded string."
-        unrecognizedHrp = TextDecodingError
-            "Expected 'asset' as a human-readable part, but got something else."
-        invalidDatapart = TextDecodingError
-            "Expected a Blake2b-160 digest as data payload, but got something else."
+        invalidBech32String =
+            TextDecodingError
+                "A 'TokenFingerprint' must be a valid bech32-encoded string."
+        unrecognizedHrp =
+            TextDecodingError
+                "Expected 'asset' as a human-readable part, but got something else."
+        invalidDatapart =
+            TextDecodingError
+                "Expected a Blake2b-160 digest as data payload, but got something else."
 
 -- | Information about an asset, from a source external to the chain.
 data AssetMetadata = AssetMetadata
@@ -207,7 +236,8 @@ data AssetMetadata = AssetMetadata
     , url :: Maybe AssetURL
     , logo :: Maybe AssetLogo
     , decimals :: Maybe AssetDecimals
-    } deriving stock (Eq, Ord, Generic)
+    }
+    deriving stock (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetMetadata)
 
 instance NFData AssetMetadata
@@ -215,7 +245,8 @@ instance NFData AssetMetadata
 -- | Specify an asset logo as an image data payload
 newtype AssetLogo = AssetLogo
     { unAssetLogo :: ByteString
-    } deriving (Eq, Ord, Generic)
+    }
+    deriving (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetLogo)
 
 instance NFData AssetLogo
@@ -223,7 +254,8 @@ instance NFData AssetLogo
 -- | The validated URL for the asset.
 newtype AssetURL = AssetURL
     { unAssetURL :: URI
-    } deriving (Eq, Ord, Generic)
+    }
+    deriving (Eq, Ord, Generic)
     deriving (Show) via (Quiet AssetURL)
 
 instance NFData AssetURL
@@ -235,19 +267,20 @@ instance FromText AssetURL where
     fromText = first TextDecodingError . validateMetadataURL
 
 newtype AssetDecimals = AssetDecimals
-  { unAssetDecimals :: Int
-  } deriving (Eq, Ord, Generic)
-  deriving (Show) via (Quiet AssetDecimals)
+    { unAssetDecimals :: Int
+    }
+    deriving (Eq, Ord, Generic)
+    deriving (Show) via (Quiet AssetDecimals)
 
 instance NFData AssetDecimals
 
 instance ToText AssetDecimals where
-  toText = T.pack . show . unAssetDecimals
+    toText = T.pack . show . unAssetDecimals
 
 instance FromText AssetDecimals where
-  fromText t = do
-    unvalidated <- AssetDecimals <$> fromText t
-    first TextDecodingError $ validateMetadataDecimals unvalidated
+    fromText t = do
+        unvalidated <- AssetDecimals <$> fromText t
+        first TextDecodingError $ validateMetadataDecimals unvalidated
 
 validateMinLength :: Int -> Text -> Either String Text
 validateMinLength n text
@@ -273,15 +306,17 @@ validateMetadataDescription :: Text -> Either String Text
 validateMetadataDescription = validateMaxLength 500
 
 validateMetadataURL :: Text -> Either String AssetURL
-validateMetadataURL = fmap AssetURL .
-    (validateMaxLength 250 >=> validateURI >=> validateHttps)
+validateMetadataURL =
+    fmap AssetURL
+        . (validateMaxLength 250 >=> validateURI >=> validateHttps)
   where
-      validateURI = maybe (Left "Not an absolute URI") Right
-          . parseAbsoluteURI
-          . T.unpack
-      validateHttps u@(uriScheme -> scheme)
-          | scheme == "https:" = Right u
-          | otherwise = Left $ "Scheme must be https: but got " ++ scheme
+    validateURI =
+        maybe (Left "Not an absolute URI") Right
+            . parseAbsoluteURI
+            . T.unpack
+    validateHttps u@(uriScheme -> scheme)
+        | scheme == "https:" = Right u
+        | otherwise = Left $ "Scheme must be https: but got " ++ scheme
 
 validateMetadataLogo :: AssetLogo -> Either String AssetLogo
 validateMetadataLogo logo
@@ -293,5 +328,5 @@ validateMetadataLogo logo
 
 validateMetadataDecimals :: AssetDecimals -> Either String AssetDecimals
 validateMetadataDecimals (AssetDecimals n)
-  | n >= 0 && n <= 255 = Right $ AssetDecimals n
-  | otherwise          = Left "Decimal value must be between [0, 255] inclusive."
+    | n >= 0 && n <= 255 = Right $ AssetDecimals n
+    | otherwise = Left "Decimal value must be between [0, 255] inclusive."

@@ -9,36 +9,57 @@
 module Cardano.Wallet.DB.Store.WalletState.Store
     ( mkStoreWallet
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.DB.Errors
-    ( ErrBadFormat (..) )
+    ( ErrBadFormat (..)
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..), mkStoreCheckpoints )
+    ( PersistAddressBook (..)
+    , mkStoreCheckpoints
+    )
 import Cardano.Wallet.DB.Store.Delegations.Store
-    ( mkStoreDelegations )
+    ( mkStoreDelegations
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( mkStoreInfo )
+    ( mkStoreInfo
+    )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( mkStorePrivateKey )
+    ( mkStorePrivateKey
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( mkStoreSubmissions )
+    ( mkStoreSubmissions
+    )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState, DeltaWalletState1 (..), WalletState (..) )
+    ( DeltaWalletState
+    , DeltaWalletState1 (..)
+    , WalletState (..)
+    )
 import Cardano.Wallet.Flavor
-    ( WalletFlavorS, keyOfWallet )
+    ( WalletFlavorS
+    , keyOfWallet
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore, updateLoad, updateSequence )
+    ( Store (..)
+    , UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    , updateSequence
+    )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import UnliftIO.Exception
-    ( toException )
+    ( toException
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
@@ -46,10 +67,9 @@ import qualified Cardano.Wallet.Primitive.Types as W
     WalletState Store
 -------------------------------------------------------------------------------}
 
-
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet
-    :: PersistAddressBook s
+    :: (PersistAddressBook s)
     => WalletFlavorS s
     -> W.WalletId
     -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)

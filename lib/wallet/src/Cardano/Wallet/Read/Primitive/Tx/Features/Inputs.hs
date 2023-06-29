@@ -6,22 +6,32 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     , fromShelleyTxIns
     , fromShelleyTxIn
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId )
+    ( fromShelleyTxId
+    )
 import Cardano.Wallet.Read.Tx.Inputs
-    ( Inputs (..), InputsType )
+    ( Inputs (..)
+    , InputsType
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Crypto.Hashing as CC
@@ -32,29 +42,32 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 
 getInputs :: EraFun Inputs (K [W.TxIn])
-getInputs = EraFun
-    { byronFun = \(Inputs ins) -> K . fmap fromByronTxIn $ toList ins
-    , shelleyFun = mkShelleyTxInputsIns
-    , allegraFun = mkShelleyTxInputsIns
-    , maryFun = mkShelleyTxInputsIns
-    , alonzoFun = mkShelleyTxInputsIns
-    , babbageFun = mkShelleyTxInputsIns
-    , conwayFun = mkShelleyTxInputsIns
-    }
+getInputs =
+    EraFun
+        { byronFun = \(Inputs ins) -> K . fmap fromByronTxIn $ toList ins
+        , shelleyFun = mkShelleyTxInputsIns
+        , allegraFun = mkShelleyTxInputsIns
+        , maryFun = mkShelleyTxInputsIns
+        , alonzoFun = mkShelleyTxInputsIns
+        , babbageFun = mkShelleyTxInputsIns
+        , conwayFun = mkShelleyTxInputsIns
+        }
 
-fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> K [W.TxIn] b
+fromShelleyTxIns :: (Foldable t) => (t (SH.TxIn crypto)) -> K [W.TxIn] b
 fromShelleyTxIns ins = K . fmap fromShelleyTxIn $ toList ins
 
-mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
-    => Inputs era -- ^
-  -> K [W.TxIn] b
+mkShelleyTxInputsIns
+    :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
+    => Inputs era
+    -> K [W.TxIn] b
 mkShelleyTxInputsIns (Inputs ins) = fromShelleyTxIns ins
 
 fromByronTxIn :: BY.TxIn -> W.TxIn
-fromByronTxIn (BY.TxInUtxo id_ ix) = W.TxIn
-    { inputId = W.Hash $ CC.hashToBytes id_
-    , inputIx = fromIntegral ix
-    }
+fromByronTxIn (BY.TxInUtxo id_ ix) =
+    W.TxIn
+        { inputId = W.Hash $ CC.hashToBytes id_
+        , inputIx = fromIntegral ix
+        }
 
 fromShelleyTxIn
     :: SL.TxIn crypto
@@ -71,5 +84,5 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     unsafeCast :: Word64 -> Word32
     unsafeCast txIx =
         if txIx > fromIntegral (maxBound :: Word16)
-        then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
-        else fromIntegral txIx
+            then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
+            else fromIntegral txIx

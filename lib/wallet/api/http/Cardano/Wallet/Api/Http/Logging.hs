@@ -8,29 +8,39 @@
 -- License: Apache-2.0
 --
 -- Logging functionality for the Shelley wallet
---
 module Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog(..)
+    ( ApplicationLog (..)
     ) where
 
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( getSeverityAnnotation )
+    ( getSeverityAnnotation
+    )
 import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation, HasSeverityAnnotation, Severity (..) )
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation
+    , Severity (..)
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+    ( CardanoNodeConn
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( ListenError (..) )
+    ( ListenError (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.URI
-    ( URI, uriToString )
+    ( URI
+    , uriToString
+    )
 
 import qualified Data.Text as T
 
@@ -49,27 +59,32 @@ instance ToText ApplicationLog where
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
         MsgServerStartupError startupErr -> case startupErr of
-            ListenErrorHostDoesNotExist host -> mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". It does not exist."
-            ListenErrorInvalidAddress host -> mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". Invalid address."
-            ListenErrorAddressAlreadyInUse mPort -> mempty
-                <> "The API server listen port "
-                <> maybe "(unknown)" (T.pack . show) mPort
-                <> " is already in use."
-            ListenErrorOperationNotPermitted -> mempty
-                <> "Cannot listen on the given port. "
-                <> "The operation is not permitted."
-        MsgFailedConnectSMASH uri -> T.unwords
-            [ "Failed connect to the given smash server\
-              \ or validate a healthy status."
-            , "SMASH uri was: "
-            , T.pack $ uriToString id uri ""
-            ]
+            ListenErrorHostDoesNotExist host ->
+                mempty
+                    <> "Can't listen on "
+                    <> T.pack (show host)
+                    <> ". It does not exist."
+            ListenErrorInvalidAddress host ->
+                mempty
+                    <> "Can't listen on "
+                    <> T.pack (show host)
+                    <> ". Invalid address."
+            ListenErrorAddressAlreadyInUse mPort ->
+                mempty
+                    <> "The API server listen port "
+                    <> maybe "(unknown)" (T.pack . show) mPort
+                    <> " is already in use."
+            ListenErrorOperationNotPermitted ->
+                mempty
+                    <> "Cannot listen on the given port. "
+                    <> "The operation is not permitted."
+        MsgFailedConnectSMASH uri ->
+            T.unwords
+                [ "Failed connect to the given smash server\
+                  \ or validate a healthy status."
+                , "SMASH uri was: "
+                , T.pack $ uriToString id uri ""
+                ]
 
 instance HasPrivacyAnnotation ApplicationLog
 instance HasSeverityAnnotation ApplicationLog where

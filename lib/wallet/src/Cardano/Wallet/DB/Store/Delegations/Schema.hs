@@ -22,7 +22,6 @@
 -- More than 6K lines end-up being generated from the instructions below! As a
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
-
 module Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
     , EntityField (DelegationSlot)
@@ -34,29 +33,46 @@ where
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..), sqlSettings' )
+    ( DelegationStatusEnum (..)
+    , sqlSettings'
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Database.Persist
-    ( PersistEntity (EntityField, Key, entityDef) )
+    ( PersistEntity (EntityField, Key, entityDef)
+    )
 import Database.Persist.Sql
-    ( Migration, SqlPersistT, rawExecute, runMigrationUnsafeQuiet )
+    ( Migration
+    , SqlPersistT
+    , rawExecute
+    , runMigrationUnsafeQuiet
+    )
 import Database.Persist.TH
-    ( migrateModels, mkPersist, persistLowerCase )
+    ( migrateModels
+    , mkPersist
+    , persistLowerCase
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
-mkPersist sqlSettings'
+mkPersist
+    sqlSettings'
     [persistLowerCase|
         Delegations                                     sql=delegations
             delegationSlot      SlotNo                  sql=slot
@@ -71,13 +87,13 @@ mkPersist sqlSettings'
 delegationMigration :: Migration
 delegationMigration = migrateModels [entityDef (Proxy :: Proxy Delegations)]
 
-migrateDelegations :: MonadIO m => SqlPersistT m ()
+migrateDelegations :: (MonadIO m) => SqlPersistT m ()
 migrateDelegations = void $ runMigrationUnsafeQuiet delegationMigration
 
-dropDelegationTable :: MonadIO m => SqlPersistT m ()
+dropDelegationTable :: (MonadIO m) => SqlPersistT m ()
 dropDelegationTable = rawExecute "DROP TABLE IF EXISTS \"delegations\";" []
 
-resetDelegationTable :: MonadIO m => SqlPersistT m ()
+resetDelegationTable :: (MonadIO m) => SqlPersistT m ()
 resetDelegationTable = do
     dropDelegationTable
     migrateDelegations

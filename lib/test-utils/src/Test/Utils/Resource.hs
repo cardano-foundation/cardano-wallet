@@ -6,8 +6,6 @@
 -- License: Apache-2.0
 --
 -- A helper function for using the bracket pattern in code.
---
-
 module Test.Utils.Resource
     ( unBracket
     ) where
@@ -15,17 +13,31 @@ module Test.Utils.Resource
 import Prelude
 
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import UnliftIO.Async
-    ( async, race, waitCatch )
+    ( async
+    , race
+    , waitCatch
+    )
 import UnliftIO.Exception
-    ( finally, throwIO, throwString )
-import UnliftIO.Memoize
-    ( memoizeMVar, runMemoized )
+    ( finally
+    , throwIO
+    , throwString
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
+import UnliftIO.Memoize
+    ( memoizeMVar
+    , runMemoized
+    )
 
 -- | Decompose a bracket pattern resource acquisition function into two separate
 -- functions: "allocate" and "release".
@@ -68,15 +80,15 @@ import UnliftIO.MVar
 --          |                       Exit
 --          |
 --         Exit
---
 unBracket
-    :: forall m a. (HasCallStack, MonadUnliftIO m)
+    :: forall m a
+     . (HasCallStack, MonadUnliftIO m)
     => ((a -> m ()) -> m ())
     -> m (m a, m ())
 unBracket withResource = do
     allocated <- newEmptyMVar
-    released  <- newEmptyMVar
-    done      <- newEmptyMVar
+    released <- newEmptyMVar
+    done <- newEmptyMVar
 
     let cont a = do
             putMVar allocated a
@@ -94,7 +106,6 @@ unBracket withResource = do
             Right a -> pure a
 
     pure (runMemoized allocate, runMemoized release)
-
   where
     await :: MVar () -> m ()
     await = takeMVar

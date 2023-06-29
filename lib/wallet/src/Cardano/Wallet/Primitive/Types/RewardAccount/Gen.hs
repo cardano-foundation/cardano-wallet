@@ -2,16 +2,22 @@ module Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     ( genRewardAccount
     , shrinkRewardAccount
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHashRewardAccount )
+    ( Hash (..)
+    , mockHashRewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Test.QuickCheck
-    ( Gen, elements, sized )
+    ( Gen
+    , elements
+    , sized
+    )
 
 import qualified Data.ByteString.Char8 as B8
 
@@ -37,6 +43,8 @@ addresses = mkRewardAccount <$> ['0' ..]
 --------------------------------------------------------------------------------
 
 mkRewardAccount :: Char -> RewardAccount
-mkRewardAccount c
-    = FromKeyHash . getHash
-    . mockHashRewardAccount $ "Reward" `B8.snoc` c
+mkRewardAccount c =
+    FromKeyHash
+        . getHash
+        . mockHashRewardAccount
+        $ "Reward" `B8.snoc` c

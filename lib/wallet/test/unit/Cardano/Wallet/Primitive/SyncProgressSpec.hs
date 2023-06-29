@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.Primitive.SyncProgressSpec
     ( spec
     ) where
@@ -17,9 +18,16 @@ import Cardano.Wallet.Gen
     , shrinkSlotNo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, mkSingleEraInterpreter, slotToRelTime )
+    ( TimeInterpreter
+    , interpretQuery
+    , mkSingleEraInterpreter
+    , slotToRelTime
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance (..), syncProgress )
+    ( SyncProgress (..)
+    , SyncTolerance (..)
+    , syncProgress
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -30,39 +38,61 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.DeepSeq
-    ( deepseq )
+    ( deepseq
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..) )
+    ( RelativeTime (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), counterexample, property, withMaxSuccess )
+    ( Arbitrary (..)
+    , counterexample
+    , property
+    , withMaxSuccess
+    )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import UnliftIO.Exception
-    ( SomeException (..), evaluate, try )
+    ( SomeException (..)
+    , evaluate
+    , try
+    )
 
 spec :: Spec
 spec = do
     let t0 = read "2019-11-09 16:43:02 UTC"
-    let sp = SlottingParameters
-            { getEpochLength = EpochLength 21_600
-            , getSlotLength  = SlotLength 10
-            , getActiveSlotCoefficient = 1
-            , getSecurityParameter = Quantity 2_160
-            }
+    let sp =
+            SlottingParameters
+                { getEpochLength = EpochLength 21_600
+                , getSlotLength = SlotLength 10
+                , getActiveSlotCoefficient = 1
+                , getSecurityParameter = Quantity 2_160
+                }
     let st = SyncTolerance 10
-
 
     let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     let runQry = runIdentity . interpretQuery ti
@@ -124,9 +154,10 @@ spec = do
                     ]
             forM_ plots $ \(nodeTip, p) -> do
                 let ntwkTime = runQry $ slotToRelTime $ SlotNo 10
-                let progress = if p == 1
-                        then Ready
-                        else Syncing (Quantity $ unsafeMkPercentage p)
+                let progress =
+                        if p == 1
+                            then Ready
+                            else Syncing (Quantity $ unsafeMkPercentage p)
                 runIdentity
                     (syncProgress tolerance ti nodeTip ntwkTime)
                     `shouldBe` progress
@@ -137,13 +168,14 @@ spec = do
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.000_5)
 
-        it "syncProgress should never crash" $ withMaxSuccess 10_000
-            $ property $ \tip dt -> monadicIO $ do
+        it "syncProgress should never crash"
+            $ withMaxSuccess 10_000
+            $ property
+            $ \tip dt -> monadicIO $ do
                 let x = runIdentity $ syncProgress tolerance ti tip dt
                 res <- run (try @IO @SomeException $ evaluate x)
                 monitor (counterexample $ "Result: " ++ show res)
                 assert (isRight res)
-
 
 instance Arbitrary BlockHeader where
     shrink _ = []

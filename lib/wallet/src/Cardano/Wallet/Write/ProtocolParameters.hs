@@ -10,7 +10,6 @@
 -- License: Apache-2.0
 --
 -- Provides protocol parameters.
---
 module Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..)
     ) where
@@ -18,7 +17,8 @@ module Cardano.Wallet.Write.ProtocolParameters
 import Prelude
 
 import Data.Functor.Identity
-    ( Identity )
+    ( Identity
+    )
 
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
@@ -31,9 +31,9 @@ newtype ProtocolParameters era = ProtocolParameters
     }
 
 deriving newtype instance
-    Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
-    Eq (ProtocolParameters era)
+    (Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)))
+    => Eq (ProtocolParameters era)
 
 deriving newtype instance
-    Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
-    Show (ProtocolParameters era)
+    (Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)))
+    => Show (ProtocolParameters era)

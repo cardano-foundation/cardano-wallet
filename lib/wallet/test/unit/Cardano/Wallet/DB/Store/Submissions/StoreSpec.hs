@@ -2,47 +2,73 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.DB.Store.Submissions.StoreSpec ( spec ) where
+module Cardano.Wallet.DB.Store.Submissions.StoreSpec (spec) where
 
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
+    ( WalletProperty
+    , initializeWalletTable
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..), mkStoreSubmissions )
+    ( SubmissionMeta (..)
+    , mkStoreSubmissions
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (Coin) )
+    ( Coin (Coin)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), mockSealedTx )
+    ( SealedTx (..)
+    , mockSealedTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (Outgoing) )
+    ( Direction (Outgoing)
+    )
 import Cardano.Wallet.Submissions.OperationsSpec
-    ( genOperationsDelta )
+    ( genOperationsDelta
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions (..) )
+    ( Submissions (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import System.Random
-    ( Random )
+    ( Random
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), property )
+    ( Arbitrary (..)
+    , property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 import qualified Data.ByteString as BS
 

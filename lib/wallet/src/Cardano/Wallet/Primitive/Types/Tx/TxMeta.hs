@@ -11,7 +11,6 @@
 -- License: Apache-2.0
 --
 -- This module provides the `TxMeta` data types used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxMeta (..)
     , TxStatus (..)
@@ -20,20 +19,25 @@ module Cardano.Wallet.Primitive.Types.Tx.TxMeta
     , isPending
     , isInLedger
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Orphans
-    ()
+    (
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -42,11 +46,14 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Text.Lazy.Builder as Builder
 
@@ -65,26 +72,32 @@ data TxMeta = TxMeta
     -- spent value for outgoing transaction, or a received value on incoming
     -- transaction.
     , expiry :: !(Maybe SlotNo)
-      -- ^ The slot at which a pending transaction will no longer be accepted
-      -- into mempools.
-    } deriving (Show, Eq, Ord, Generic)
+    -- ^ The slot at which a pending transaction will no longer be accepted
+    -- into mempools.
+    }
+    deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) c mex) = mempty
-        <> build (WithDirection d c)
-        <> " " <> build s
-        <> " since " <> build sl <> "#" <> build bh
-        <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
+    build (TxMeta s d sl (Quantity bh) c mex) =
+        mempty
+            <> build (WithDirection d c)
+            <> " "
+            <> build s
+            <> " since "
+            <> build sl
+            <> "#"
+            <> build bh
+            <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
 
 data TxStatus
-    = Pending
-        -- ^ Created, but not yet in a block.
-    | InLedger
-        -- ^ Has been found in a block.
-    | Expired
-        -- ^ Time to live (TTL) has passed.
+    = -- | Created, but not yet in a block.
+      Pending
+    | -- | Has been found in a block.
+      InLedger
+    | -- | Time to live (TTL) has passed.
+      Expired
     deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData TxStatus
@@ -100,8 +113,10 @@ instance ToText TxStatus where
 
 -- | The effect of a @Transaction@ on the wallet balance.
 data Direction
-    = Outgoing -- ^ The wallet balance decreases.
-    | Incoming -- ^ The wallet balance increases or stays the same.
+    = -- | The wallet balance decreases.
+      Outgoing
+    | -- | The wallet balance increases or stays the same.
+      Incoming
     deriving (Show, Bounded, Enum, Eq, Ord, Generic)
 
 instance NFData Direction
@@ -117,10 +132,11 @@ instance ToText Direction where
 
 data WithDirection a = WithDirection Direction a
 
-instance Buildable a => Buildable (WithDirection a) where
-    build (WithDirection d a) = mempty
-        <> (case d of; Incoming -> "+"; Outgoing -> "-")
-        <> build a
+instance (Buildable a) => Buildable (WithDirection a) where
+    build (WithDirection d a) =
+        mempty
+            <> (case d of Incoming -> "+"; Outgoing -> "-")
+            <> build a
 
 -- | True if the given metadata refers to a pending transaction
 isPending :: TxMeta -> Bool

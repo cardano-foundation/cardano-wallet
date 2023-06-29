@@ -7,12 +7,14 @@ import Data.Text.Class
 import Prelude
 
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 
 import qualified Data.Text as T
 
 -- | 'fromText' but with a simpler error type.
-fromText' :: FromText a => Text -> Either Text a
+fromText' :: (FromText a) => Text -> Either Text a
 fromText' = first (T.pack . getTextDecodingError) . fromText

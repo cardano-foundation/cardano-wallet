@@ -12,7 +12,9 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 import Prelude
 
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+    ( defaultAddressPoolGap
+    , getAddressPoolGap
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiFee
@@ -22,35 +24,56 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..) )
+    ( TxMetadataSchema (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , createWalletFromPublicKeyViaCLI
@@ -84,18 +107,21 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk, errMsg403NoRootKey )
+    ( cmdOk
+    , errMsg403NoRootKey
+    )
 import Test.Integration.Scenario.CLI.Shelley.Wallets
-    ( walletNames, walletNamesInvalid )
+    ( walletNames
+    , walletNamesInvalid
+    )
 
 import qualified Data.Text as T
 
 spec
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
-
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
 
@@ -105,19 +131,23 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
-        verifyMsg "Wallet balance is as expected" wDest
+        verifyMsg
+            "Wallet balance is as expected"
+            wDest
             [ expectCliField (#balance . #available) (`shouldBe` Quantity 0)
             , expectCliField (#balance . #total) (`shouldBe` Quantity 0)
             ]
 
-        --send transaction to the wallet
+        -- send transaction to the wallet
         let amount = Quantity . minUTxOValue . _mainEra $ ctx
-        addrs:_ <- listAddresses @n ctx wDest
+        addrs : _ <- listAddresses @n ctx wDest
         let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", toText amount <> "@" <> addr
-                ]
+        let args =
+                T.unpack
+                    <$> [ wSrc ^. walletId
+                        , "--payment"
+                        , toText amount <> "@" <> addr
+                        ]
 
         (cp, op, ep) <- postTransactionViaCLI ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
@@ -127,7 +157,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         eventually "Wallet balance is as expected" $ do
             Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
-            verify jg
+            verify
+                jg
                 [ expectCliField (#balance . #available) (`shouldBe` amount)
                 , expectCliField (#balance . #total) (`shouldBe` amount)
                 ]
@@ -148,7 +179,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         eventually "Wallet balance is as expected on wallet from pubKey" $ do
             Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
             justRestored <- expectValidJSON (Proxy @ApiWallet) o3
-            verify justRestored
+            verify
+                justRestored
                 [ expectCliField (#balance . #available) (`shouldBe` amount)
                 , expectCliField (#balance . #total) (`shouldBe` amount)
                 ]
@@ -170,21 +202,25 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             eventually "pubKey wallet is restored and has balance" $ do
                 Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
                 justRestored <- expectValidJSON (Proxy @ApiWallet) o3
-                verify justRestored
-                    [ expectCliField (#balance . #available)
+                verify
+                    justRestored
+                    [ expectCliField
+                        (#balance . #available)
                         (.> Quantity 0)
                     ]
 
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
+            addrs : _ <- listAddresses @n ctx wDest
             let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
 
             let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
-            let args = T.unpack <$>
-                    [ wRestored ^. walletId
-                    , "--payment", amt <> "@" <> addr
-                    ]
+            let args =
+                    T.unpack
+                        <$> [ wRestored ^. walletId
+                            , "--payment"
+                            , amt <> "@" <> addr
+                            ]
 
             (c, out, err) <- postTransactionViaCLI ctx (T.unpack fixturePassphrase) args
             (T.unpack err)
@@ -217,7 +253,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
             expectCliField
-                (#name . #getApiT . #getWalletName) (`shouldBe` n) j
+                (#name . #getApiT . #getWalletName)
+                (`shouldBe` n)
+                j
 
         it "Can get tx fee" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
@@ -234,24 +272,30 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
             eventually "Wallet has funds" $ do
                 Stdout og <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
-                expectValidJSON (Proxy @ApiWallet) og >>= flip verify
-                    [ expectCliField (#balance . #available)
-                        (.> Quantity 0)
-                    ]
+                expectValidJSON (Proxy @ApiWallet) og
+                    >>= flip
+                        verify
+                        [ expectCliField
+                            (#balance . #available)
+                            (.> Quantity 0)
+                        ]
 
             -- get fee
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
+            addrs : _ <- listAddresses @n ctx wDest
             let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
             let amt = minUTxOValue (_mainEra ctx)
-            let args = T.unpack <$>
-                    [ wRestored ^. walletId
-                    , "--payment", T.pack (show amt) <> "@" <> addr
-                    ]
+            let args =
+                    T.unpack
+                        <$> [ wRestored ^. walletId
+                            , "--payment"
+                            , T.pack (show amt) <> "@" <> addr
+                            ]
             (Exit code, Stdout out, Stderr err) <- postTransactionFeeViaCLI ctx args
             err `shouldBe` cmdOk
             txJson <- expectValidJSON (Proxy @ApiFee) out
-            verify txJson
+            verify
+                txJson
                 [ expectCliField (#estimatedMin . #getQuantity) (.> 0)
                 , expectCliField (#estimatedMax . #getQuantity) (.> 0)
                 ]
@@ -284,9 +328,12 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             c `shouldBe` ExitSuccess
             json <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
             length json `shouldBe` g
-            forM_ [0..(g-1)] $ \addrNum -> do
+            forM_ [0 .. (g - 1)] $ \addrNum -> do
                 expectCliListField
-                    addrNum (#state . #getApiT) (`shouldBe` Unused) json
+                    addrNum
+                    (#state . #getApiT)
+                    (`shouldBe` Unused)
+                    json
 
         it "Can have address pool gap" $ \ctx -> runResourceT $ do
             Stdout m <- generateMnemonicsViaCLI []
@@ -294,7 +341,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             let addrPoolGap = 55 -- arbitrary but known
             let args =
                     [ restoredWalletName
-                    , "--address-pool-gap", show addrPoolGap
+                    , "--address-pool-gap"
+                    , show addrPoolGap
                     , accXPub
                     ]
             (Exit c, Stdout out, Stderr err) <-
@@ -303,13 +351,16 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
             expectCliField
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap)
-                    (`shouldBe` addrPoolGap) j
+                (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                (`shouldBe` addrPoolGap)
+                j
 
         it "Can list transactions" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
             (Exit code, Stdout out, Stderr err) <-
-                listTransactionsViaCLI ctx TxMetadataDetailedSchema
+                listTransactionsViaCLI
+                    ctx
+                    TxMetadataDetailedSchema
                     [T.unpack $ w ^. walletId]
             err `shouldBe` cmdOk
             out `shouldBe` "[]\n"
@@ -346,7 +397,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             forM_ walletNames $ \(title, n) -> it title $ \ctx -> runResourceT $ do
                 j <- emptyWalletFromPubKeyViaCLI ctx n
                 expectCliField
-                    (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
+                    (#name . #getApiT . #getWalletName)
+                    (`shouldBe` T.pack n)
+                    j
         describe "Wallet names invalid" $ do
             forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> runResourceT $ do
                 Stdout m <- generateMnemonicsViaCLI []
@@ -362,9 +415,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 (Exit c, Stdout o, Stderr e) <-
                     createWalletFromPublicKeyViaCLI ctx [restoredWalletName, key]
                 c `shouldBe` ExitFailure 1
-                e `shouldContain`
-                    "Invalid account public key: expecting a hex-encoded value\
-                    \ that is 64 bytes in length."
+                e
+                    `shouldContain` "Invalid account public key: expecting a hex-encoded value\
+                                    \ that is 64 bytes in length."
                 o `shouldBe` mempty
         describe "Address pool gap invalid" $ do
             let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
@@ -375,14 +428,17 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 Stdout m <- generateMnemonicsViaCLI []
                 let accXPub = pubKeyFromMnemonics' (words m)
                 (Exit c, Stdout o, Stderr e) <-
-                    createWalletFromPublicKeyViaCLI ctx
+                    createWalletFromPublicKeyViaCLI
+                        ctx
                         [ restoredWalletName
-                        , "--address-pool-gap", show pGap
-                        , accXPub]
+                        , "--address-pool-gap"
+                        , show pGap
+                        , accXPub
+                        ]
                 c `shouldBe` ExitFailure 1
-                e `shouldContain`
-                    "option --address-pool-gap: An address pool gap must be a\
-                    \ natural number between 10 and 100000."
+                e
+                    `shouldContain` "option --address-pool-gap: An address pool gap must be a\
+                                    \ natural number between 10 and 100000."
                 o `shouldBe` mempty
 
 emptyWalletFromPubKeyViaCLI

@@ -11,10 +11,8 @@
 --
 -- Exposes a wallet-friendly interface to types and functions exported by the
 -- ledger specification.
---
 module Cardano.Wallet.Shelley.Compatibility.Ledger
-    (
-      -- * Conversions from wallet types to ledger specification types
+    ( -- * Conversions from wallet types to ledger specification types
       toLedgerCoin
     , toLedgerTokenBundle
     , toLedgerTokenPolicyId
@@ -31,7 +29,8 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletScriptFromShelley
 
       -- * Roundtrip conversion between wallet types and ledger specification
-      --   types
+
+    --   types
     , Convert (..)
 
       -- * Conversions for transaction outputs
@@ -48,45 +47,71 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script (..)
+    )
 import Cardano.Crypto.Hash
-    ( hashFromBytes, hashToBytes )
+    ( hashFromBytes
+    , hashToBytes
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Data.ByteString.Short
-    ( fromShort, toShort )
+    ( fromShort
+    , toShort
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
@@ -127,16 +152,16 @@ import qualified Ouroboros.Network.Block as O
 --
 -- >>> toLedger . toWallet == id
 -- >>> toWallet . toLedger == id
---
 class Convert wallet ledger | wallet -> ledger where
     -- | Converts a value from a wallet type to the equivalent ledger
     --   specification type.
     toLedger
-        :: HasCallStack => wallet -> ledger
+        :: (HasCallStack) => wallet -> ledger
+
     -- | Converts a value from a ledger specification type to the equivalent
     --   wallet type.
     toWallet
-        :: HasCallStack => ledger -> wallet
+        :: (HasCallStack) => ledger -> wallet
 
 --------------------------------------------------------------------------------
 -- Conversions for 'Coin'
@@ -149,7 +174,7 @@ instance Convert Coin Ledger.Coin where
 toLedgerCoin :: Coin -> Ledger.Coin
 toLedgerCoin (Coin c) = Ledger.Coin $ intCast @Natural @Integer c
 
-toWalletCoin :: HasCallStack => Ledger.Coin -> Coin
+toWalletCoin :: (HasCallStack) => Ledger.Coin -> Coin
 toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 
 --------------------------------------------------------------------------------
@@ -170,30 +195,34 @@ toLedgerTokenBundle bundle =
   where
     (Ledger.Coin ledgerAda) = toLedgerCoin $ TokenBundle.getCoin bundle
     ledgerTokens :: Ledger.MultiAsset StandardCrypto
-    ledgerTokens = bundle
-        & view #tokens
-        & TokenMap.toNestedMap
-        & Map.mapKeys toLedgerTokenPolicyId
-        & Map.map mapInner
-        & Ledger.MultiAsset
-    mapInner inner = inner
-        & NonEmptyMap.toMap
-        & Map.mapKeys toLedgerTokenName
-        & Map.map toLedgerTokenQuantity
+    ledgerTokens =
+        bundle
+            & view #tokens
+            & TokenMap.toNestedMap
+            & Map.mapKeys toLedgerTokenPolicyId
+            & Map.map mapInner
+            & Ledger.MultiAsset
+    mapInner inner =
+        inner
+            & NonEmptyMap.toMap
+            & Map.mapKeys toLedgerTokenName
+            & Map.map toLedgerTokenQuantity
 
 toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
 toWalletTokenBundle
     (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
         TokenBundle.fromNestedMap (walletAda, walletTokens)
-  where
-    walletAda = toWalletCoin $ Ledger.Coin ledgerAda
-    walletTokens = ledgerTokens
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & Map.mapMaybe NonEmptyMap.fromMap
-    mapInner inner = inner
-        & Map.mapKeys toWalletTokenName
-        & Map.map toWalletTokenQuantity
+      where
+        walletAda = toWalletCoin $ Ledger.Coin ledgerAda
+        walletTokens =
+            ledgerTokens
+                & Map.mapKeys toWalletTokenPolicyId
+                & Map.map mapInner
+                & Map.mapMaybe NonEmptyMap.fromMap
+        mapInner inner =
+            inner
+                & Map.mapKeys toWalletTokenName
+                & Map.map toWalletTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TokenName'
@@ -225,11 +254,12 @@ toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
         Just hash ->
             Ledger.PolicyID (Ledger.ScriptHash hash)
         Nothing ->
-            error $ unwords
-                [ "Ledger.toLedgerTokenPolicyId"
-                , "Unable to construct hash for token policy:"
-                , pretty p
-                ]
+            error
+                $ unwords
+                    [ "Ledger.toLedgerTokenPolicyId"
+                    , "Unable to construct hash for token policy:"
+                    , pretty p
+                    ]
 
 toWalletTokenPolicyId :: Ledger.PolicyID StandardCrypto -> TokenPolicyId
 toWalletTokenPolicyId (Ledger.PolicyID (Ledger.ScriptHash hash)) =
@@ -251,11 +281,12 @@ toWalletTokenQuantity q
     | q >= 0 =
         TokenQuantity $ fromIntegral q
     | otherwise =
-        error $ unwords
-            [ "Ledger.toWalletTokenQuantity:"
-            , "Unexpected negative value:"
-            , pretty q
-            ]
+        error
+            $ unwords
+                [ "Ledger.toWalletTokenQuantity:"
+                , "Unexpected negative value:"
+                , pretty q
+                ]
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TxIn'
@@ -278,23 +309,27 @@ instance Convert TxIn (Ledger.TxIn StandardCrypto) where
 
         convertIx = fromMaybe err . intCastMaybe . fromEnum
           where
-            err = error $ unwords
-                [ "Ledger.toWallet @TxIn:"
-                , "Unexpected out of bounds TxIx"
-                , show ix
-                ]
+            err =
+                error
+                    $ unwords
+                        [ "Ledger.toWallet @TxIn:"
+                        , "Unexpected out of bounds TxIx"
+                        , show ix
+                        ]
 
 --------------------------------------------------------------------------------
 -- Conversions for 'Address'
 --------------------------------------------------------------------------------
 
 instance Convert Address (Ledger.Addr StandardCrypto) where
-    toLedger (Address bytes ) = case Ledger.deserialiseAddr bytes of
+    toLedger (Address bytes) = case Ledger.deserialiseAddr bytes of
         Just addr -> addr
-        Nothing -> error $ unwords
-            [ "toLedger @Address: Invalid address:"
-            , pretty (Address bytes)
-            ]
+        Nothing ->
+            error
+                $ unwords
+                    [ "toLedger @Address: Invalid address:"
+                    , pretty (Address bytes)
+                    ]
     toWallet = Address . Ledger.serialiseAddr
 
 --------------------------------------------------------------------------------
@@ -329,7 +364,7 @@ toAlonzoTxOut (TxOut addr bundle) =
         Ledger.SNothing
 
 toBabbageTxOut
-    :: HasCallStack
+    :: (HasCallStack)
     => TxOut
     -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) =
@@ -353,18 +388,18 @@ toConwayTxOut (TxOut addr bundle) =
 fromConwayTxOut
     :: Babbage.BabbageTxOut StandardConway
     -> TxOut
-fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromConwayTxOut (Babbage.BabbageTxOut addr val _ _) =
+    TxOut (toWallet addr) (toWallet val)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
     -> TxOut
-fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _) =
+    TxOut (toWallet addr) (toWallet val)
 
 toWalletScript
-    :: LCore.Era crypto
+    :: (LCore.Era crypto)
     => (Hash "VerificationKey" -> KeyRole)
     -> Scripts.Timelock crypto
     -> Script KeyHash
@@ -372,7 +407,7 @@ toWalletScript tokeyrole = fromLedgerScript
   where
     fromLedgerScript (Scripts.RequireSignature (Ledger.KeyHash h)) =
         let payload = hashToBytes h
-        in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
+        in  RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
     fromLedgerScript (Scripts.RequireAllOf contents) =
         RequireAllOf $ map fromLedgerScript $ toList contents
     fromLedgerScript (Scripts.RequireAnyOf contents) =
@@ -385,7 +420,7 @@ toWalletScript tokeyrole = fromLedgerScript
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
-    :: LCore.Era crypto
+    :: (LCore.Era crypto)
     => KeyRole
     -> Ledger.MultiSig crypto
     -> Script KeyHash

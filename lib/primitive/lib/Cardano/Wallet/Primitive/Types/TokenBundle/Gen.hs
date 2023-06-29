@@ -19,7 +19,8 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     , shrinkCoinPositive
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap
     , genTokenMapPartition
@@ -27,11 +28,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Test.QuickCheck
-    ( Gen )
+    ( Gen
+    )
 import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( shrinkInterleaved
+    )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -44,38 +48,43 @@ import qualified Data.List.NonEmpty as NE
 --------------------------------------------------------------------------------
 
 genTokenBundle :: Gen TokenBundle
-genTokenBundle = TokenBundle
-    <$> genCoin
-    <*> genTokenMap
+genTokenBundle =
+    TokenBundle
+        <$> genCoin
+        <*> genTokenMap
 
 shrinkTokenBundle :: TokenBundle -> [TokenBundle]
-shrinkTokenBundle (TokenBundle c m)=
-    uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoin)
-        (m, shrinkTokenMap)
+shrinkTokenBundle (TokenBundle c m) =
+    uncurry TokenBundle
+        <$> shrinkInterleaved
+            (c, shrinkCoin)
+            (m, shrinkTokenMap)
 
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges
 --------------------------------------------------------------------------------
 
 genTokenBundleSmallRange :: Gen TokenBundle
-genTokenBundleSmallRange = TokenBundle
-    <$> genCoin
-    <*> genTokenMapSmallRange
+genTokenBundleSmallRange =
+    TokenBundle
+        <$> genCoin
+        <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRange :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRange = shrinkTokenBundle
 
 genTokenBundleSmallRangePositive :: Gen TokenBundle
-genTokenBundleSmallRangePositive = TokenBundle
-    <$> genCoinPositive
-    <*> genTokenMapSmallRange
+genTokenBundleSmallRangePositive =
+    TokenBundle
+        <$> genCoinPositive
+        <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRangePositive :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRangePositive (TokenBundle c m) =
-    uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoinPositive)
-        (m, shrinkTokenMap)
+    uncurry TokenBundle
+        <$> shrinkInterleaved
+            (c, shrinkCoinPositive)
+            (m, shrinkTokenMap)
 
 --------------------------------------------------------------------------------
 -- Partitioning token bundles
@@ -87,16 +96,14 @@ shrinkTokenBundleSmallRangePositive (TokenBundle c m) =
 --
 -- prop> forAll (genTokenBundlePartition b i) $ (==       b) . fold
 -- prop> forAll (genTokenBundlePartition b i) $ (== max 1 i) . length
---
 genTokenBundlePartition :: TokenBundle -> Int -> Gen (NonEmpty TokenBundle)
 genTokenBundlePartition (TokenBundle c m) i =
     NE.zipWith TokenBundle
-        <$> genCoinPartition     c i
+        <$> genCoinPartition c i
         <*> genTokenMapPartition m i
 
 -- | Like 'genTokenBundlePartition', but with empty values removed from the
 --   result.
---
 genTokenBundlePartitionNonNull :: TokenBundle -> Int -> Gen [TokenBundle]
 genTokenBundlePartitionNonNull m i =
     filter (/= mempty) . F.toList <$> genTokenBundlePartition m i

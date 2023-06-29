@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -15,7 +13,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
-
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -26,16 +24,16 @@
 -- These functions and types model the behaviour of the SQLite database backend,
 -- and are used for QuickCheck state machine testing, and the MVar database
 -- backend.
-
 module Cardano.Pool.DB.Model
-    (
-    -- * Model Types
+    ( -- * Model Types
       PoolDatabase (..)
     , emptyPoolDatabase
-    -- * Model Operation Types
+
+      -- * Model Operation Types
     , ModelOp
     , PoolErr (..)
-    -- * Model pool database functions
+
+      -- * Model pool database functions
     , mCleanDatabase
     , mCleanPoolMetadata
     , mPutPoolProduction
@@ -73,11 +71,17 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Pool.DB
-    ( determinePoolLifeCycleStatus )
+    ( determinePoolLifeCycleStatus
+    )
 import Cardano.Pool.Types
-    ( PoolId, PoolOwner )
+    ( PoolId
+    , PoolOwner
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, interpretQuery )
+    ( TimeInterpreter
+    , epochOf
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
@@ -92,40 +96,61 @@ import Cardano.Wallet.Primitive.Types
     , defaultSettings
     )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.State.Strict
-    ( StateT )
+    ( StateT
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Const
-    ( Const (..) )
+    ( Const (..)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over
+    , view
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Random
-    ( StdGen, newStdGen )
+    ( StdGen
+    , newStdGen
+    )
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata, StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import qualified Control.Monad.Trans.State.Strict as State
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -138,41 +163,31 @@ import qualified Data.Set as Set
 data PoolDatabase = PoolDatabase
     { pools :: !(Map PoolId [BlockHeader])
     -- ^ Information of what blocks were produced by which stake pools
-
     , distributions :: !(Map EpochNo [(PoolId, Quantity "lovelace" Word64)])
     -- ^ Store known stake distributions for epochs
-
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
-
-    , registrations ::
-        !(Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate)
+    , registrations
+        :: !(Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain registrations associated with pools
-
-    , retirements ::
-        !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
+    , retirements
+        :: !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
     -- ^ On-chain retirements associated with pools
-
     , delisted :: !(Set PoolId)
-
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
-
     , fetchAttempts :: !(Map (StakePoolMetadataUrl, StakePoolMetadataHash) Int)
     -- ^ Metadata (failed) fetch attempts
-
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
-
     , blockHeaders :: [BlockHeader]
     -- ^ Store headers during syncing
-
     , settings :: Settings
-
     , internalState :: InternalState
     -- ^ Various internal states that need to persist across
     -- wallet restarts.
-    } deriving (Generic, Show, Eq)
+    }
+    deriving (Generic, Show, Eq)
 
 data SystemSeed
     = SystemSeed StdGen
@@ -187,9 +202,20 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase
-    mempty mempty mempty mempty mempty mempty mempty mempty NotSeededYet
-    mempty defaultSettings defaultInternalState
+emptyPoolDatabase =
+    PoolDatabase
+        mempty
+        mempty
+        mempty
+        mempty
+        mempty
+        mempty
+        mempty
+        mempty
+        NotSeededYet
+        mempty
+        defaultSettings
+        defaultInternalState
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -214,11 +240,13 @@ mCleanPoolMetadata = do
     mPutDelistedPools []
 
 mPutPoolProduction :: BlockHeader -> PoolId -> ModelOp ()
-mPutPoolProduction point poolId = getPoints >>= \points -> if
-    | point `elem` points ->
-        lift $ Left $ PointAlreadyExists point
-    | otherwise ->
-        modify #pools $ Map.alter (alter point) poolId
+mPutPoolProduction point poolId =
+    getPoints >>= \points ->
+        if
+            | point `elem` points ->
+                lift $ Left $ PointAlreadyExists point
+            | otherwise ->
+                modify #pools $ Map.alter (alter point) poolId
   where
     alter slot = \case
         Nothing -> Just [slot]
@@ -263,15 +291,15 @@ mPutPoolRegistration cpt cert = do
     modify #registrations
         $ Map.insert (cpt, poolId) cert
   where
-    PoolRegistrationCertificate {poolId, poolOwners} = cert
+    PoolRegistrationCertificate{poolId, poolOwners} = cert
 
 mReadPoolRegistration
     :: PoolId
     -> ModelOp
         (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
 mReadPoolRegistration poolId =
-    fmap (first fst) . Map.lookupMax . Map.filterWithKey (only poolId) <$>
-        get #registrations
+    fmap (first fst) . Map.lookupMax . Map.filterWithKey (only poolId)
+        <$> get #registrations
   where
     only k (_, k') _ = k == k'
 
@@ -298,9 +326,11 @@ mListPoolLifeCycleData :: EpochNo -> ModelOp [PoolLifeCycleStatus]
 mListPoolLifeCycleData epoch = do
     registeredPools <- mListRegisteredPools
     retiredPools <- fmap (view #poolId) <$> mListRetiredPools epoch
-    let nonRetiredPools = Set.toList $ Set.difference
-            (Set.fromList registeredPools)
-            (Set.fromList retiredPools)
+    let nonRetiredPools =
+            Set.toList
+                $ Set.difference
+                    (Set.fromList registeredPools)
+                    (Set.fromList retiredPools)
     mapM mReadPoolLifeCycleStatus nonRetiredPools
 
 mListRegisteredPools :: ModelOp [PoolId]
@@ -316,13 +346,13 @@ mListRetiredPools epochNo = do
             -- A retirement is represented as a 'Just retirementEpoch' value.
             -- A retirement cancellation is represented as a 'Nothing' value.
             Map.union retirements retirementCancellations
-            -- Keep only the most-recently published retirement epoch for each
-            -- pool (which will be 'Nothing' in the case of a cancellation):
-            & retainOnlyMostRecent
-            -- Remove pools that have had their retirements cancelled:
-            & pruneEmptyValues
-            -- Remove pools that have not yet retired:
-            & Map.filter (<= epochNo)
+                -- Keep only the most-recently published retirement epoch for each
+                -- pool (which will be 'Nothing' in the case of a cancellation):
+                & retainOnlyMostRecent
+                -- Remove pools that have had their retirements cancelled:
+                & pruneEmptyValues
+                -- Remove pools that have not yet retired:
+                & Map.filter (<= epochNo)
     retiredPools
         & Map.toList
         & fmap (uncurry PoolRetirementCertificate)
@@ -331,7 +361,7 @@ mListRetiredPools epochNo = do
     pruneEmptyValues :: Map k (Maybe v) -> Map k v
     pruneEmptyValues = Map.mapMaybe id
 
-    retainOnlyMostRecent :: Ord k => Map (publicationTime, k) v -> Map k v
+    retainOnlyMostRecent :: (Ord k) => Map (publicationTime, k) v -> Map k v
     retainOnlyMostRecent =
         -- If more than one key from the original map is mapped to the same key
         -- in the result map, 'Map.mapKeys' guarantees to retain only the value
@@ -347,18 +377,19 @@ mReadPoolLifeCycleStatus poolId =
     lookupLatestCertificate
         :: Map (publicationTime, PoolId) certificate
         -> Maybe (publicationTime, certificate)
-    lookupLatestCertificate
-        = fmap (first fst)
-        . Map.lookupMax
-        . Map.filterWithKey (\(_, k) _ -> k == poolId)
+    lookupLatestCertificate =
+        fmap (first fst)
+            . Map.lookupMax
+            . Map.filterWithKey (\(_, k) _ -> k == poolId)
 
 mUnfetchedPoolMetadataRefs
     :: Int
     -> ModelOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
-mUnfetchedPoolMetadataRefs n = inner
-    <$> get #registrations
-    <*> get #metadata
-    <*> get #fetchAttempts
+mUnfetchedPoolMetadataRefs n =
+    inner
+        <$> get #registrations
+        <*> get #metadata
+        <*> get #fetchAttempts
   where
     inner registrations metadata fetchAttempts =
         toTuple <$> take n (Map.elems unfetched)
@@ -366,9 +397,10 @@ mUnfetchedPoolMetadataRefs n = inner
         unfetched = flip Map.filter registrations $ \r ->
             case poolMetadata r of
                 Nothing -> False
-                Just fkey@(_, hash) -> (&&)
-                    (hash `notElem` Map.keys metadata)
-                    (fkey `notElem` Map.keys fetchAttempts)
+                Just fkey@(_, hash) ->
+                    (&&)
+                        (hash `notElem` Map.keys metadata)
+                        (fkey `notElem` Map.keys fetchAttempts)
         toTuple = \case
             PoolRegistrationCertificate
                 { poolId
@@ -390,7 +422,8 @@ mPutPoolMetadata hash meta = do
     modify #metadata
         $ Map.insert hash meta
     modify #fetchAttempts
-        $ Map.filterWithKey $ \k _ -> snd k /= hash
+        $ Map.filterWithKey
+        $ \k _ -> snd k /= hash
 
 mReadPoolMetadata
     :: ModelOp (Map StakePoolMetadataHash StakePoolMetadata)
@@ -403,9 +436,9 @@ mReadSystemSeed db@PoolDatabase{seed} =
     case seed of
         NotSeededYet -> do
             seed' <- newStdGen
-            return ( seed', db { seed = SystemSeed seed' })
+            return (seed', db{seed = SystemSeed seed'})
         SystemSeed s ->
-            return ( s, db )
+            return (s, db)
 
 mReadCursor :: Int -> ModelOp [BlockHeader]
 mReadCursor k = do
@@ -418,17 +451,23 @@ mReadCursor k = do
 mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelOp ()
 mRollbackTo ti point = do
     modify #distributions
-        $ Map.mapMaybeWithKey $ discardBy $ runIdentity . interpretQuery ti . epochOf
+        $ Map.mapMaybeWithKey
+        $ discardBy
+        $ runIdentity . interpretQuery ti . epochOf
     modify #pools
         $ Map.filter (not . L.null) . fmap (filter ((<= point) . slotNo))
     modify #registrations
-        $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
+        $ Map.mapMaybeWithKey
+        $ discardBy id . view #slotNo . fst
     modify #retirements
-        $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
+        $ Map.mapMaybeWithKey
+        $ discardBy id . view #slotNo . fst
     modify #owners
-        . flip Map.restrictKeys . Set.fromList =<< mListRegisteredPools
+        . flip Map.restrictKeys
+        . Set.fromList
+        =<< mListRegisteredPools
   where
-    discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
+    discardBy :: (Ord point) => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy getPoint point' v
         | point' <= getPoint point = Just v
         | otherwise = Nothing
@@ -442,15 +481,21 @@ mReadDelistedPools = Set.toList <$> get #delisted
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do
     modify #distributions
-        $ Map.map $ L.filter $ \(p, _) -> retain p
+        $ Map.map
+        $ L.filter
+        $ \(p, _) -> retain p
     modify #pools
-        $ Map.filterWithKey $ \p _ -> retain p
+        $ Map.filterWithKey
+        $ \p _ -> retain p
     modify #owners
-        $ Map.filterWithKey $ \p _ -> retain p
+        $ Map.filterWithKey
+        $ \p _ -> retain p
     modify #registrations
-        $ Map.filterWithKey $ \(_, p) _ -> retain p
+        $ Map.filterWithKey
+        $ \(_, p) _ -> retain p
     modify #retirements
-        $ Map.filterWithKey $ \(_, p) _ -> retain p
+        $ Map.filterWithKey
+        $ \(_, p) _ -> retain p
   where
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove

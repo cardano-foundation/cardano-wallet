@@ -3,21 +3,39 @@ module Cardano.Wallet.DB.Store.Info.StoreSpec (spec) where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+    (
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory )
+    ( WalletProperty
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo (..), WalletInfo (..), mkStoreInfo )
+    ( DeltaWalletInfo (..)
+    , WalletInfo (..)
+    , mkStoreInfo
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+    ( dummyGenesisParameters
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, property )
+    ( Arbitrary (..)
+    , Gen
+    , property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = do

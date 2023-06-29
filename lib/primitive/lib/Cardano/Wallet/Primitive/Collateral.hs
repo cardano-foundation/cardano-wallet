@@ -11,24 +11,22 @@
 --    - Not be locked by a script
 --
 -- UTxOs of this kind are sometimes referred to as "VK" inputs.
-
 module Cardano.Wallet.Primitive.Collateral
-    (
-    -- * Data types
-      AddressType(..)
-    , Credential(..)
+    ( -- * Data types
+      AddressType (..)
+    , Credential (..)
 
-    -- * Classifying address types
+      -- * Classifying address types
     , asCollateral
     , addressSuitableForCollateral
     , addressTypeSuitableForCollateral
 
-    -- * Reading address types
+      -- * Reading address types
     , addressTypeFromHeaderNibble
     , getAddressType
     , addressType
 
-    -- * Writing address types
+      -- * Writing address types
     , addressTypeToHeaderNibble
     , putAddressType
     ) where
@@ -36,15 +34,20 @@ module Cardano.Wallet.Primitive.Collateral
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Data.Word.Odd
-    ( Word4 )
+    ( Word4
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B
@@ -56,6 +59,7 @@ import qualified Data.ByteString.Lazy as BL
 -- addresses:
 --   (see https://hydra.iohk.io/build/6752483/download/1/ledger-spec.pdf):
 --
+
 -- | Address type       | Payment Credential | Stake Credential | Header, first nibble |
 -- |--------------------+--------------------+------------------+----------------------|
 -- | Base address       | keyhash            | keyhash          |                 0000 |
@@ -79,8 +83,8 @@ data AddressType
     | PointerAddress Credential
     | EnterpriseAddress Credential
     | StakeAddress Credential
-    | BootstrapAddress
-    -- ^ A Bootstrap (a.k.a. Byron) address
+    | -- | A Bootstrap (a.k.a. Byron) address
+      BootstrapAddress
     deriving (Eq, Show)
 
 -- | The type of the credential used in an address.
@@ -106,7 +110,7 @@ addressTypeFromHeaderNibble = \case
     0b1000 -> Just (BootstrapAddress)
     0b1110 -> Just (StakeAddress CredentialKeyHash)
     0b1111 -> Just (StakeAddress CredentialScriptHash)
-    _      -> Nothing
+    _ -> Nothing
 
 -- | Get an AddressType from a binary stream.
 getAddressType :: B.Get AddressType
@@ -125,26 +129,25 @@ getAddressType = do
 -- | Return the binary representation of an @AddressType@.
 addressTypeToHeaderNibble :: AddressType -> Word4
 addressTypeToHeaderNibble = \case
-    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
-    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
-    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
+    BaseAddress CredentialKeyHash CredentialKeyHash -> 0b0000
+    BaseAddress CredentialScriptHash CredentialKeyHash -> 0b0001
+    BaseAddress CredentialKeyHash CredentialScriptHash -> 0b0010
     BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
-    PointerAddress CredentialKeyHash                      -> 0b0100
-    PointerAddress CredentialScriptHash                   -> 0b0101
-    EnterpriseAddress CredentialKeyHash                   -> 0b0110
-    EnterpriseAddress CredentialScriptHash                -> 0b0111
-    BootstrapAddress                                      -> 0b1000
-    StakeAddress CredentialKeyHash                        -> 0b1110
-    StakeAddress CredentialScriptHash                     -> 0b1111
+    PointerAddress CredentialKeyHash -> 0b0100
+    PointerAddress CredentialScriptHash -> 0b0101
+    EnterpriseAddress CredentialKeyHash -> 0b0110
+    EnterpriseAddress CredentialScriptHash -> 0b0111
+    BootstrapAddress -> 0b1000
+    StakeAddress CredentialKeyHash -> 0b1110
+    StakeAddress CredentialScriptHash -> 0b1111
 
 -- | Write an AddressType to a binary stream.
 putAddressType :: AddressType -> B.Put
 putAddressType t =
-    B.putWord8 $
-    fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
+    B.putWord8
+        $ fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
 
 -- | Indicates whether or not the given address is suitable for collateral.
---
 addressSuitableForCollateral :: Address -> Bool
 addressSuitableForCollateral =
     maybe False addressTypeSuitableForCollateral . addressType
@@ -169,17 +172,17 @@ addressType (Address bytes) =
 -- considered suitable for use as collateral.
 addressTypeSuitableForCollateral :: AddressType -> Bool
 addressTypeSuitableForCollateral = \case
-    BaseAddress CredentialKeyHash CredentialKeyHash       -> True
-    BaseAddress CredentialKeyHash CredentialScriptHash    -> True
-    BaseAddress CredentialScriptHash CredentialKeyHash    -> False
+    BaseAddress CredentialKeyHash CredentialKeyHash -> True
+    BaseAddress CredentialKeyHash CredentialScriptHash -> True
+    BaseAddress CredentialScriptHash CredentialKeyHash -> False
     BaseAddress CredentialScriptHash CredentialScriptHash -> False
-    PointerAddress CredentialKeyHash                      -> True
-    PointerAddress CredentialScriptHash                   -> False
-    EnterpriseAddress CredentialKeyHash                   -> True
-    EnterpriseAddress CredentialScriptHash                -> False
-    StakeAddress CredentialKeyHash                        -> False
-    StakeAddress CredentialScriptHash                     -> False
-    BootstrapAddress                                      -> True
+    PointerAddress CredentialKeyHash -> True
+    PointerAddress CredentialScriptHash -> False
+    EnterpriseAddress CredentialKeyHash -> True
+    EnterpriseAddress CredentialScriptHash -> False
+    StakeAddress CredentialKeyHash -> False
+    StakeAddress CredentialScriptHash -> False
+    BootstrapAddress -> True
 
 -- | If the given @TxOut@ represents a UTxO that is suitable for use as
 -- a collateral input, returns @Just@ along with the total ADA value of the

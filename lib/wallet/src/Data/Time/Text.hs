@@ -3,10 +3,8 @@
 -- License: Apache-2.0
 --
 -- Utility functions for converting time values to and from text.
-
 module Data.Time.Text
-    (
-      -- * Conversion to and from text
+    ( -- * Conversion to and from text
       utcTimeToText
     , utcTimeFromText
 
@@ -23,43 +21,49 @@ module Data.Time.Text
     , iso8601
     , iso8601Basic
     , iso8601Extended
-
     ) where
 
 import Prelude
 
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Monad
-    ( join )
+    ( join
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
+    ( defaultTimeLocale
+    , formatTime
+    , parseTimeM
+    )
 
 import qualified Data.Text as T
 
 -- | Convert the specified time value to text, using the specified time format.
---
 utcTimeToText :: TimeFormat -> UTCTime -> Text
 utcTimeToText f = T.pack . formatTime defaultTimeLocale (timeFormatPattern f)
 
 -- | Attempt to use each of the specified time formats to parse the given text.
 --   Returns a time value that corresponds to the first matching format, or
 --   'Nothing' if none of the formats matched.
---
 utcTimeFromText :: [TimeFormat] -> Text -> Maybe UTCTime
-utcTimeFromText fs t = foldr (<|>) Nothing $
-    flip (parseTimeM False defaultTimeLocale) (T.unpack t) . timeFormatPattern
-        <$> fs
+utcTimeFromText fs t =
+    foldr (<|>) Nothing
+        $ flip (parseTimeM False defaultTimeLocale) (T.unpack t) . timeFormatPattern
+            <$> fs
 
 -- | Represents a particular way of representing a moment in time in text.
 data TimeFormat = TimeFormat
     { timeFormatName :: String
-    , timeFormatPattern :: String }
-    deriving Eq
+    , timeFormatPattern :: String
+    }
+    deriving (Eq)
 
 -- | Represents the ISO 8601 family of formats.
 iso8601 :: [TimeFormat]

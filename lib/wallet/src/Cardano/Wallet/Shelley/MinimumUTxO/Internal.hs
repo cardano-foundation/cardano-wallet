@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 -- |
@@ -6,7 +7,6 @@
 -- License: Apache-2.0
 --
 -- Computing minimum UTxO values: internal interface.
---
 module Cardano.Wallet.Shelley.MinimumUTxO.Internal
     ( computeMinimumCoinForUTxO_CardanoLedger
     ) where
@@ -14,13 +14,17 @@ module Cardano.Wallet.Shelley.MinimumUTxO.Internal
 import Prelude
 
 import Cardano.Ledger.Api
-    ( getMinCoinTxOut )
+    ( getMinCoinTxOut
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxOForShelleyBasedEra (..) )
+    ( MinimumUTxOForShelleyBasedEra (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAllegraTxOut
     , toAlonzoTxOut

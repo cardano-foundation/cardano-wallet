@@ -9,8 +9,6 @@
 -- License: Apache-2.0
 --
 -- Helper functions for testing.
---
-
 module Test.Hspec.Extra
     ( aroundAll
     , it
@@ -19,12 +17,13 @@ module Test.Hspec.Extra
     , counterexample
     , appendFailureReason
 
-    -- * Custom test suite runner
+      -- * Custom test suite runner
     , HspecWrapper
     , hspecMain
     , hspecMain'
     , getDefaultConfig
-    -- ** Internals
+
+      -- ** Internals
     , configWithExecutionTimes
     , setEnvParser
     ) where
@@ -32,14 +31,78 @@ module Test.Hspec.Extra
 import Prelude
 
 import Control.Monad
-    ( void, (<=<) )
+    ( void
+    , (<=<)
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import Data.List
-    ( elemIndex )
+    ( elemIndex
+    )
+
 -- See ADP-1910
+
+import Say
+    ( sayString
+    )
+import System.Environment
+    ( lookupEnv
+    , withArgs
+    )
+import Test.HUnit.Lang
+    ( FailureReason (..)
+    , HUnitFailure (..)
+    , assertFailure
+    , formatFailureReason
+    )
+import Test.Hspec
+    ( ActionWith
+    , HasCallStack
+    , Spec
+    , SpecWith
+    , afterAll
+    , beforeAll
+    , beforeWith
+    , specify
+    )
+import Test.Hspec.Core.Runner
+    ( Config (..)
+    , Summary
+    , defaultConfig
+    , evaluateSummary
+    , hspecWithResult
+    )
+import Test.Utils.Env
+    ( withAddedEnv
+    )
+import Test.Utils.Platform
+    ( isWindows
+    )
+import Test.Utils.Resource
+    ( unBracket
+    )
+import Test.Utils.Startup
+    ( withLineBuffering
+    )
+import UnliftIO.Async
+    ( race
+    )
+import UnliftIO.Concurrent
+    ( threadDelay
+    )
+import UnliftIO.Exception
+    ( catch
+    , throwIO
+    )
+import UnliftIO.MVar
+    ( newEmptyMVar
+    , tryPutMVar
+    , tryTakeMVar
+    )
 import "optparse-applicative" Options.Applicative
     ( Parser
     , ParserInfo (..)
@@ -57,44 +120,6 @@ import "optparse-applicative" Options.Applicative
     , short
     , strArgument
     )
-import Say
-    ( sayString )
-import System.Environment
-    ( lookupEnv, withArgs )
-import Test.Hspec
-    ( ActionWith
-    , HasCallStack
-    , Spec
-    , SpecWith
-    , afterAll
-    , beforeAll
-    , beforeWith
-    , specify
-    )
-import Test.Hspec.Core.Runner
-    ( Config (..), Summary, defaultConfig, evaluateSummary, hspecWithResult )
-import Test.HUnit.Lang
-    ( FailureReason (..)
-    , HUnitFailure (..)
-    , assertFailure
-    , formatFailureReason
-    )
-import Test.Utils.Env
-    ( withAddedEnv )
-import Test.Utils.Platform
-    ( isWindows )
-import Test.Utils.Resource
-    ( unBracket )
-import Test.Utils.Startup
-    ( withLineBuffering )
-import UnliftIO.Async
-    ( race )
-import UnliftIO.Concurrent
-    ( threadDelay )
-import UnliftIO.Exception
-    ( catch, throwIO )
-import UnliftIO.MVar
-    ( newEmptyMVar, tryPutMVar, tryTakeMVar )
 
 import qualified Test.Hspec as Hspec
 
@@ -104,7 +129,8 @@ import qualified Test.Hspec as Hspec
 --
 -- Each test is given the resource as a function parameter.
 aroundAll
-    :: forall a. HasCallStack
+    :: forall a
+     . (HasCallStack)
     => (ActionWith a -> IO ())
     -> SpecWith a
     -> Spec
@@ -112,56 +138,63 @@ aroundAll acquire =
     beforeAll (unBracket acquire) . afterAll snd . beforeWith fst
 
 -- | Add execution timing information to test output.
---
 configWithExecutionTimes :: Config -> Config
-configWithExecutionTimes config = config
-    { configPrintCpuTime = True
-      -- Prints the total elapsed CPU time for the entire test suite.
-    , configPrintSlowItems = Just 10
-      -- Prints a list of the slowest tests in descending order of
-      -- elapsed CPU time.
-    , configTimes = True
-      -- Appends the elapsed CPU time to the end of each individual test.
-    }
+configWithExecutionTimes config =
+    config
+        { configPrintCpuTime = True
+        , -- Prints the total elapsed CPU time for the entire test suite.
+          configPrintSlowItems = Just 10
+        , -- Prints a list of the slowest tests in descending order of
+          -- elapsed CPU time.
+          configTimes = True
+          -- Appends the elapsed CPU time to the end of each individual test.
+        }
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests, if the environment
 -- variable @TESTS_RETRY_FAILED@ is set.
 --
 -- It also has a timeout of 10 minutes.
-it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it = itWithCustomTimeout (60*minutes)
+it :: (HasCallStack) => String -> ActionWith ctx -> SpecWith ctx
+it = itWithCustomTimeout (60 * minutes)
   where
     minutes = 10
 
 -- | Like @it@ but with a custom timeout, testing of the function possible.
 itWithCustomTimeout
-    :: HasCallStack
-    => Int -- ^ Timeout in seconds.
+    :: (HasCallStack)
+    => Int
+    -- ^ Timeout in seconds.
     -> String
     -> ActionWith ctx
     -> SpecWith ctx
 itWithCustomTimeout sec title action = specify title $ \ctx -> do
     e <- newEmptyMVar
     shouldRetry <- maybe False (not . null) <$> lookupEnv "TESTS_RETRY_FAILED"
-    let action' = if shouldRetry
-        then actionWithRetry (void . tryPutMVar e)
-        else action
+    let action' =
+            if shouldRetry
+                then actionWithRetry (void . tryPutMVar e)
+                else action
     race (timer >> tryTakeMVar e) (action' ctx) >>= \case
-       Left Nothing ->
-           assertFailure $ "timed out in " <> show sec <> " seconds"
-       Left (Just firstException) ->
-           throwIO firstException
-       Right () ->
-           pure ()
+        Left Nothing ->
+            assertFailure $ "timed out in " <> show sec <> " seconds"
+        Left (Just firstException) ->
+            throwIO firstException
+        Right () ->
+            pure ()
   where
     timer = threadDelay (sec * 1000 * 1000)
 
     -- Run the action, if it fails try again. If it fails again, report the
     -- original exception.
-    actionWithRetry save ctx = action ctx
-        `catch` (\e -> save e >> reportFirst e >> action ctx
-        `catch` (\f -> reportSecond e f >> throwIO e))
+    actionWithRetry save ctx =
+        action ctx
+            `catch` ( \e ->
+                        save e
+                            >> reportFirst e
+                            >> action ctx
+                                `catch` (\f -> reportSecond e f >> throwIO e)
+                    )
 
     reportFirst (HUnitFailure _ reason) = do
         report (formatFailureReason reason)
@@ -169,8 +202,8 @@ itWithCustomTimeout sec title action = specify title $ \ctx -> do
     reportSecond (HUnitFailure _ reason1) (HUnitFailure _ reason2)
         | reason1 == reason2 = report "Test failed again in the same way."
         | otherwise = do
-              report (formatFailureReason reason2)
-              report "Test failed again; will report the first error."
+            report (formatFailureReason reason2)
+            report "Test failed again; will report the first error."
 
     report = mapM_ (sayString . ("retry: " ++)) . lines
 
@@ -231,24 +264,30 @@ hspecMain' getConfig spec = withLineBuffering $ do
 getDefaultConfig :: IO (HspecWrapper (), Config)
 getDefaultConfig = do
     (env, args) <- execParser setEnvParser
-    pure ( evaluateSummary <=< withArgs args . withAddedEnv env
-         , configWithExecutionTimes defaultConfig)
+    pure
+        ( evaluateSummary <=< withArgs args . withAddedEnv env
+        , configWithExecutionTimes defaultConfig
+        )
 
 -- | A CLI arguments parser which handles setting environment variables.
 setEnvParser :: ParserInfo ([(String, String)], [String])
-setEnvParser = info ((,) <$> many setEnvOpt <*> restArgs) $
-    forwardOptions <> failureCode 89
+setEnvParser =
+    info ((,) <$> many setEnvOpt <*> restArgs)
+        $ forwardOptions <> failureCode 89
   where
     setEnvOpt :: Parser (String, String)
-    setEnvOpt = option readSetEnv
-            (  long "env"
-            <> short 'e'
-            <> metavar "NAME=VALUE"
-            <> help "Export the given environment variable to the test suite" )
+    setEnvOpt =
+        option
+            readSetEnv
+            ( long "env"
+                <> short 'e'
+                <> metavar "NAME=VALUE"
+                <> help "Export the given environment variable to the test suite"
+            )
 
     readSetEnv :: ReadM (String, String)
     readSetEnv = eitherReader $ \arg -> case elemIndex '=' arg of
-        Just i | i > 0 -> Right (take i arg, drop (i+1) arg)
+        Just i | i > 0 -> Right (take i arg, drop (i + 1) arg)
         _ -> Left "does not match syntax NAME=VALUE"
 
     restArgs :: Parser [String]

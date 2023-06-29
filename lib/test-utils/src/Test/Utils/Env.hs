@@ -1,28 +1,33 @@
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
---
 module Test.Utils.Env
-  ( withEnv
-  , withAddedEnv
-  , clearEnv
-  ) where
+    ( withEnv
+    , withAddedEnv
+    , clearEnv
+    ) where
 
 import Prelude
 
 import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO (..) )
+    ( MonadIO
+    , MonadUnliftIO (..)
+    )
 import UnliftIO.Environment
-    ( getEnvironment, setEnv, unsetEnv )
+    ( getEnvironment
+    , setEnv
+    , unsetEnv
+    )
 import UnliftIO.Exception
-    ( bracket )
+    ( bracket
+    )
 
 -- | Runs an IO action with exactly the given environment variables.
 -- After the action finishes, the original environment variables are restored.
 --
 -- NOTE: The process environment is a global variable -- this function is not
 -- threadsafe.
-withEnv :: MonadUnliftIO m => [(String, String)] -> m a -> m a
+withEnv :: (MonadUnliftIO m) => [(String, String)] -> m a -> m a
 withEnv = withEnv' clearEnvs
 
 -- | Runs an IO action with the given environment variables set, in addition to
@@ -31,12 +36,12 @@ withEnv = withEnv' clearEnvs
 --
 -- NOTE: The process environment is a global variable -- this function is not
 -- threadsafe.
-withAddedEnv :: MonadUnliftIO m => [(String, String)] -> m a -> m a
+withAddedEnv :: (MonadUnliftIO m) => [(String, String)] -> m a -> m a
 withAddedEnv = withEnv' (const $ pure ())
 
 -- | Runs an action with the given environment variables set.
 withEnv'
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => ([(String, String)] -> m ())
     -- ^ Prepare environment function - given the current environment.
     -> [(String, String)]
@@ -51,8 +56,8 @@ withEnv' prepare env = bracket getEnvironment resetEnvironment . run
     run action pre = prepare pre >> setEnvs env >> action
 
 -- | Unsets all environment variables for this process.
-clearEnv :: MonadIO m => m ()
+clearEnv :: (MonadIO m) => m ()
 clearEnv = getEnvironment >>= clearEnvs
 
-clearEnvs :: MonadIO m => [(String, a)] -> m ()
+clearEnvs :: (MonadIO m) => [(String, a)] -> m ()
 clearEnvs = mapM_ (unsetEnv . fst)

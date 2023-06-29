@@ -10,27 +10,42 @@ module Cardano.Wallet.DB.Sqlite.Migration.NewSpec
     ) where
 
 import Cardano.DB.Sqlite
-    ( DBHandle (dbBackend) )
+    ( DBHandle (dbBackend)
+    )
 import Cardano.Wallet.DB.Migration
-    ( MigrationInterface (..), Version (..) )
+    ( MigrationInterface (..)
+    , Version (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( newMigrationInterface )
+    ( newMigrationInterface
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.List
-    ( sort )
+    ( sort
+    )
 import Data.Text
-    ( Text )
-import Prelude hiding
-    ( (.) )
+    ( Text
+    )
 import System.Directory
-    ( listDirectory )
+    ( listDirectory
+    )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+    ( Spec
+    , describe
+    , it
+    , shouldReturn
+    )
 import UnliftIO
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
+import Prelude hiding
+    ( (.)
+    )
 
 import qualified Database.Persist.Sqlite as Sqlite
 
@@ -48,11 +63,11 @@ spec = do
                 backupDatabaseFile interface dbf $ Version 1
                 execute interface dbf populateTable
                 backupDatabaseFile interface dbf $ Version 2
-                sort <$> listDirectory dir `shouldReturn`
-                    sort ["db", "db.v1.bak", "db.v2.bak"]
+                sort <$> listDirectory dir
+                    `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
 
 execute
-    :: MonadUnliftIO m
+    :: (MonadUnliftIO m)
     => MigrationInterface m DBHandle
     -> FilePath
     -> Text

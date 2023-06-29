@@ -1,10 +1,10 @@
 {-# LANGUAGE TupleSections #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Provides a function to launch @cardano-node@.
-
 module Cardano.Launcher.Node
     ( -- * Startup
       withCardanoNode
@@ -21,25 +21,42 @@ module Cardano.Launcher.Node
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
+    ( LauncherLog
+    , ProcessHasExited
+    , withBackendCreateProcess
+    )
 import Control.Tracer
-    ( Tracer (..) )
+    ( Tracer (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.List
-    ( isPrefixOf )
+    ( isPrefixOf
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import System.Environment
-    ( getEnvironment )
+    ( getEnvironment
+    )
 import System.FilePath
-    ( isValid, takeFileName, (</>) )
+    ( isValid
+    , takeFileName
+    , (</>)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import UnliftIO.Process
-    ( CreateProcess (..), proc )
+    ( CreateProcess (..)
+    , proc
+    )
 
 import qualified Data.Text as T
 
@@ -56,19 +73,22 @@ nodeSocketFile (CardanoNodeConn name) = name
 -- 'isWindows') is valid.
 cardanoNodeConn :: FilePath -> Either String CardanoNodeConn
 cardanoNodeConn name
-    | isWindows = if isValidWindowsPipeName name
-        then Right $ CardanoNodeConn name
-        else Left "Invalid pipe name."
-    | otherwise = if isValid name
-        then Right $ CardanoNodeConn name
-        else Left "Invalid file path."
+    | isWindows =
+        if isValidWindowsPipeName name
+            then Right $ CardanoNodeConn name
+            else Left "Invalid pipe name."
+    | otherwise =
+        if isValid name
+            then Right $ CardanoNodeConn name
+            else Left "Invalid file path."
 
 isWindows :: Bool
 isWindows = os == "mingw32"
 
 isValidWindowsPipeName :: FilePath -> Bool
-isValidWindowsPipeName name = slashPipe `isPrefixOf` name
-    && isValid (drop (length slashPipe) name)
+isValidWindowsPipeName name =
+    slashPipe `isPrefixOf` name
+        && isValid (drop (length slashPipe) name)
   where
     slashPipe = "\\\\.\\pipe\\"
 
@@ -78,24 +98,25 @@ instance ToText CardanoNodeConn where
 instance FromText CardanoNodeConn where
     fromText = first TextDecodingError . cardanoNodeConn . T.unpack
 
-newtype NodePort = NodePort { unNodePort :: Int }
+newtype NodePort = NodePort {unNodePort :: Int}
     deriving (Show, Eq)
 
 -- | A subset of the @cardano-node@ CLI parameters, used for starting the
 -- backend.
 data CardanoNodeConfig = CardanoNodeConfig
-    { nodeDir             :: FilePath
-    , nodeConfigFile      :: FilePath
-    , nodeTopologyFile    :: FilePath
-    , nodeDatabaseDir     :: FilePath
-    , nodeDlgCertFile     :: Maybe FilePath
-    , nodeSignKeyFile     :: Maybe FilePath
-    , nodeOpCertFile      :: Maybe FilePath
-    , nodeKesKeyFile      :: Maybe FilePath
-    , nodeVrfKeyFile      :: Maybe FilePath
-    , nodePort            :: Maybe NodePort
+    { nodeDir :: FilePath
+    , nodeConfigFile :: FilePath
+    , nodeTopologyFile :: FilePath
+    , nodeDatabaseDir :: FilePath
+    , nodeDlgCertFile :: Maybe FilePath
+    , nodeSignKeyFile :: Maybe FilePath
+    , nodeOpCertFile :: Maybe FilePath
+    , nodeKesKeyFile :: Maybe FilePath
+    , nodeVrfKeyFile :: Maybe FilePath
+    , nodePort :: Maybe NodePort
     , nodeLoggingHostname :: Maybe String
-    } deriving (Show, Eq)
+    }
+    deriving (Show, Eq)
 
 -- | Spawns a @cardano-node@ process.
 --
@@ -122,33 +143,40 @@ cardanoNodeProcess cfg socketPath = do
     myEnv <- getEnvironment
     let env' = ("CARDANO_NODE_LOGGING_HOSTNAME",) <$> nodeLoggingHostname cfg
 
-    pure $ (proc "cardano-node" args)
-        { env = Just $ maybeToList env' ++ myEnv
-        , cwd = Just $ nodeDir cfg
-        }
+    pure
+        $ (proc "cardano-node" args)
+            { env = Just $ maybeToList env' ++ myEnv
+            , cwd = Just $ nodeDir cfg
+            }
   where
     args =
         [ "run"
-        , "--config", nodeConfigFile cfg
-        , "--topology", nodeTopologyFile cfg
-        , "--database-path", nodeDatabaseDir cfg
-        , "--socket-path", socketPath
+        , "--config"
+        , nodeConfigFile cfg
+        , "--topology"
+        , nodeTopologyFile cfg
+        , "--database-path"
+        , nodeDatabaseDir cfg
+        , "--socket-path"
+        , socketPath
         ]
-        ++ opt "--port" (show . unNodePort <$> nodePort cfg)
-        ++ opt "--byron-signing-key" (nodeSignKeyFile cfg)
-        ++ opt "--byron-delegation-certificate" (nodeDlgCertFile cfg)
-        ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
-        ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
-        ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
-        ++ ["+RTS", "-N4", "-RTS"]
+            ++ opt "--port" (show . unNodePort <$> nodePort cfg)
+            ++ opt "--byron-signing-key" (nodeSignKeyFile cfg)
+            ++ opt "--byron-delegation-certificate" (nodeDlgCertFile cfg)
+            ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
+            ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
+            ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
+            ++ ["+RTS", "-N4", "-RTS"]
 
     opt _ Nothing = []
     opt arg (Just val) = [arg, val]
 
 -- | Generate a 'FilePath' for the @cardano-node@ domain socket/named pipe.
 nodeSocketPath
-    :: FilePath -- ^ @cardano-node@ state directory
-    -> FilePath -- ^ UNIX socket file path or Windows named pipe name
+    :: FilePath
+    -- ^ @cardano-node@ state directory
+    -> FilePath
+    -- ^ UNIX socket file path or Windows named pipe name
 nodeSocketPath dir
     | os == "mingw32" = "\\\\.\\pipe\\" ++ takeFileName dir
     | otherwise = dir </> "node.socket"

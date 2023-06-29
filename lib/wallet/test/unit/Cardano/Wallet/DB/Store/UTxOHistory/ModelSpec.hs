@@ -12,7 +12,9 @@ module Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..), WithOrigin (..) )
+    ( SlotNo (..)
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
@@ -24,21 +26,36 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     , getUTxO
     )
 import Cardano.Wallet.Primitive.Types
-    ( Slot )
+    ( Slot
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO (..), dom, excludingD, receiveD, size )
+    ( DeltaUTxO (..)
+    , UTxO (..)
+    , dom
+    , excludingD
+    , receiveD
+    , size
+    )
 import Data.Delta
-    ( Delta (apply) )
+    ( Delta (apply)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -68,14 +85,14 @@ spec = do
         describe "apply Prune" $ do
             it "move forward the finality" $ property prop_prune_finality
             it "do not prune utxo" $ property prop_dont_prune_utxo
-            it "remove spent utxo before finality" $
-                property prop_prune_spent_utxo
+            it "remove spent utxo before finality"
+                $ property prop_prune_spent_utxo
         describe "apply Rollback" $ do
             it "move back the tip" $ property prop_rollback_tip
-            it "revert an update of utxo" $
-                property prop_rollback_revert_append_block
-            it "reset the history when rollback before finality" $
-                property prop_rollback_reset_history
+            it "revert an update of utxo"
+                $ property prop_rollback_revert_append_block
+            it "reset the history when rollback before finality"
+                $ property prop_rollback_reset_history
 
 -- | Observe nothing has changed.
 noop :: UTxOHistory -> UTxOHistory -> Property
@@ -88,7 +105,7 @@ noop history history' =
         ]
 
 setupHistory
-    :: Testable prop
+    :: (Testable prop)
     => (UTxOHistory -> DeltaUTxO -> prop)
     -> Property
 setupHistory f = historyProp $ \_delta history ->
@@ -103,11 +120,11 @@ setupHistory f = historyProp $ \_delta history ->
 -- 92% non-trivial excluded
 -- 65% non-trivial tip
 prop_new_tip :: Property
-prop_new_tip = setupHistory $ \history delta -> slotNoProp history (1, 1, 4) $
-    \slot ->
-        cover 50 (At slot > getTip history) "non-trivial tip" $
-            let history' = AppendBlock slot delta `apply` history
-             in if At slot > getTip history
+prop_new_tip = setupHistory $ \history delta -> slotNoProp history (1, 1, 4)
+    $ \slot ->
+        cover 50 (At slot > getTip history) "non-trivial tip"
+            $ let history' = AppendBlock slot delta `apply` history
+              in  if At slot > getTip history
                     then getTip history' === At slot
                     else noop history' history
 
@@ -117,37 +134,39 @@ prop_new_tip = setupHistory $ \history delta -> slotNoProp history (1, 1, 4) $
 -- 90% non-trivial received
 -- 73% non-trivial tip
 prop_new_utxo :: Property
-prop_new_utxo = setupHistory $ \history delta -> slotNoProp history (1, 1, 4) $
-    \slot ->
-        cover 50 (At slot > getTip history) "non-trivial tip" $
-            let history' = AppendBlock slot delta `apply` history
-             in if At slot > getTip history
+prop_new_utxo = setupHistory $ \history delta -> slotNoProp history (1, 1, 4)
+    $ \slot ->
+        cover 50 (At slot > getTip history) "non-trivial tip"
+            $ let history' = AppendBlock slot delta `apply` history
+              in  if At slot > getTip history
                     then
-                        counterexample (show (history, history', delta)) $
-                            getUTxO history'
+                        counterexample (show (history, history', delta))
+                            $ getUTxO history'
                                 === apply delta (getUTxO history)
                     else counterexample "noop" $ noop history' history
 
 -- prop> prop_rollback_tip
 prop_rollback_tip :: Property
 prop_rollback_tip =
-    setupPrune $ \_ history _ -> slotProp history (3, 4, 1) $
-        \slot ->
+    setupPrune $ \_ history _ -> slotProp history (3, 4, 1)
+        $ \slot ->
             -- label (show $ (slot, getFinality history)) $
-            cover 50 (slot < getTip history) "non-trivial tip" $
-            cover 20 (not $ tipIsAfterFinality slot (getFinality history))
-                    "catastrophic rollback, back to Origin" $
-                let history' = Rollback slot `apply` history
-                 in if slot < getTip history
+            cover 50 (slot < getTip history) "non-trivial tip"
+                $ cover
+                    20
+                    (not $ tipIsAfterFinality slot (getFinality history))
+                    "catastrophic rollback, back to Origin"
+                $ let history' = Rollback slot `apply` history
+                  in  if slot < getTip history
                         then
-                            if tipIsAfterFinality slot (getFinality history) then
-                                getTip history'
-                                    === case getFinality history of
-                                        NotPruned -> slot
-                                        PrunedUpTo finality ->
-                                            max (At finality) slot
-                            else
-                                getTip history' === Origin
+                            if tipIsAfterFinality slot (getFinality history)
+                                then
+                                    getTip history'
+                                        === case getFinality history of
+                                            NotPruned -> slot
+                                            PrunedUpTo finality ->
+                                                max (At finality) slot
+                                else getTip history' === Origin
                         else noop history' history
 
 tipIsAfterFinality :: Slot -> Pruned -> Bool
@@ -158,22 +177,22 @@ tipIsAfterFinality Origin _ = False
 -- prop> prop_rollback_revert_append_block
 prop_rollback_revert_append_block :: Property
 prop_rollback_revert_append_block =
-    setupPrune $ \_ history _ -> slotNoProp history (3, 4, 1) $
-        \slot ->
+    setupPrune $ \_ history _ -> slotNoProp history (3, 4, 1)
+        $ \slot ->
             deltaProp history $ \delta ->
-                cover 50 (At slot < getTip history) "non-trivial tip" $
-                    let
+                cover 50 (At slot < getTip history) "non-trivial tip"
+                    $ let
                         history' =
                             Rollback (getTip history)
                                 `apply` (AppendBlock slot delta `apply` history)
-                    in
-                        counterexample ("rb " <> show (history, history', delta)) $
-                            noop history' history
+                      in
+                        counterexample ("rb " <> show (history, history', delta))
+                            $ noop history' history
 
 prop_rollback_reset_history :: Property
 prop_rollback_reset_history =
-    setupPrune $ \_ history _ -> slotProp history (3, 1, 1) $
-        \slot ->
+    setupPrune $ \_ history _ -> slotProp history (3, 1, 1)
+        $ \slot ->
             let
                 history' =
                     Rollback slot `apply` history
@@ -186,7 +205,6 @@ prop_rollback_reset_history =
                     $ if (not $ tipIsAfterFinality slot $ getFinality history')
                         then history' === empty mempty
                         else property True
-
 
 slotIsAfterFinality :: SlotNo -> Pruned -> Bool
 slotIsAfterFinality _slot NotPruned = True
@@ -201,7 +219,7 @@ prop_prune_finality = setupHistory $ \history _delta ->
             (slotIsAfterFinality slot $ getFinality history)
             "non-trivial finality"
             $ let history' = Prune slot `apply` history
-               in if slotIsAfterFinality slot (getFinality history)
+              in  if slotIsAfterFinality slot (getFinality history)
                     && At slot <= getTip history
                     then getFinality history' === PrunedUpTo slot
                     else
@@ -213,20 +231,20 @@ prop_prune_finality = setupHistory $ \history _delta ->
 
 -- Setup a property that requires a last two history states and the new finality.
 setupPrune
-    :: Testable prop
+    :: (Testable prop)
     => (UTxOHistory -> UTxOHistory -> SlotNo -> prop)
     -> Property
-setupPrune f = setupHistory $ \history delta -> slotNoProp history (1, 1, 4) $
-    \newTip ->
-        cover 50 (At newTip > getTip history) "non-trivial finality" $
-            let history' = AppendBlock newTip delta `apply` history
-             in slotNoProp history' (1, 4, 1) $ \newFinality ->
+setupPrune f = setupHistory $ \history delta -> slotNoProp history (1, 1, 4)
+    $ \newTip ->
+        cover 50 (At newTip > getTip history) "non-trivial finality"
+            $ let history' = AppendBlock newTip delta `apply` history
+              in  slotNoProp history' (1, 4, 1) $ \newFinality ->
                     cover
                         50
                         (slotIsAfterFinality newFinality $ getFinality history')
                         "non-trivial finality"
                         $ let history'' = Prune newFinality `apply` history'
-                           in counterexample
+                          in  counterexample
                                 (show (newFinality, history', history''))
                                 $ f history' history'' newFinality
 
@@ -238,11 +256,11 @@ prop_dont_prune_utxo = setupPrune $ \history' history _newFinality ->
 -- prop> prop_prune_spent_utxo
 prop_prune_spent_utxo :: Property
 prop_prune_spent_utxo = setupPrune $ \history history' newFinality ->
-    cover 50 (not $ null $ getSpent history) "non-trivial spent" $
-        counterexample (show $ getSpent history') $
-            not $
-                any (<= newFinality) $
-                    getSpent history'
+    cover 50 (not $ null $ getSpent history) "non-trivial spent"
+        $ counterexample (show $ getSpent history')
+        $ not
+        $ any (<= newFinality)
+        $ getSpent history'
 
 {-----------------------------------------------------------------------------
     Generators
@@ -281,9 +299,9 @@ genTime h (l, m, r) z p =
             NotPruned -> f m z (slotInt (getTip h))
             PrunedUpTo s -> f m (slotInt $ At s) (slotInt (getTip h))
         right = f r (slotInt (getTip h)) (slotInt (getTip h) + 10)
-     in frequency $ case left ++ middle ++ right of
+    in  frequency $ case left ++ middle ++ right of
             [] -> error "genTime: no cases"
-            xs -> filter ((>=0) . fst) xs
+            xs -> filter ((>= 0) . fst) xs
   where
     f g x y = case p <$> dropWhile (< z) [x .. y] of
         [] -> []
@@ -292,7 +310,7 @@ genTime h (l, m, r) z p =
 -- Generate a property that holds for any Slot depending on the given
 -- UTxOHistory.
 slotNoProp
-    :: Testable prop
+    :: (Testable prop)
     => UTxOHistory
     -> (Int, Int, Int)
     -> (SlotNo -> prop)
@@ -301,7 +319,7 @@ slotNoProp history how =
     forAll (genSlotNo history how)
 
 slotProp
-    :: Testable prop
+    :: (Testable prop)
     => UTxOHistory
     -> (Int, Int, Int)
     -> (Slot -> prop)
@@ -312,20 +330,22 @@ slotProp history how = forAll $ genSlot history how
 -- >>> import Cardano.Wallet.Primitive.Types.UTxO (size)
 -- prop> historyProp $ \history -> size (getUTxO history) > 0
 historyProp
-    :: Testable prop
+    :: (Testable prop)
     => ((SlotNo, DeltaUTxO) -> UTxOHistory -> prop)
     -> Property
 historyProp prop = forAll (genUTxO $ empty mempty) $ \utxo ->
     let base = empty utxo
-     in deltaProp base $ \delta ->
-            forAll (genSlotNo base (1, 1, 4)) $
-                \slot -> prop (slot, delta) $
-                    AppendBlock slot delta `apply` base
+    in  deltaProp base $ \delta ->
+            forAll (genSlotNo base (1, 1, 4))
+                $ \slot ->
+                    prop (slot, delta)
+                        $ AppendBlock slot delta `apply` base
 
 genDelta :: UTxOHistory -> Gen DeltaUTxO
 genDelta h = do
     utxo <- genUTxO h
-    pure $  fst (receiveD (getUTxO h) utxo)
+    pure
+        $ fst (receiveD (getUTxO h) utxo)
             <> fst (excludingD (getUTxO h) $ dom utxo)
 
 -- Generate a property that holds for any DeltaUTxO that is valid for
@@ -333,17 +353,17 @@ genDelta h = do
 -- >>> import Cardano.Wallet.Primitive.Types.UTxO (size)
 -- prop> deltaProp empty $ \delta -> size (received delta)  > 0
 deltaProp
-    :: Testable prop
+    :: (Testable prop)
     => UTxOHistory
     -> (DeltaUTxO -> prop)
     -> Property
 deltaProp h = forAll (genDelta h)
 
 -- Generate a property that holds for any DeltaUTxO that is not trivial.
-nonTrivialDelta :: Testable prop => DeltaUTxO -> prop -> Property
+nonTrivialDelta :: (Testable prop) => DeltaUTxO -> prop -> Property
 nonTrivialDelta delta prop =
-    cover 50 (size (received delta) > 1) "non-trivial received" $
-        cover 50 (length (excluded delta) > 1) "non-trivial excluded" prop
+    cover 50 (size (received delta) > 1) "non-trivial received"
+        $ cover 50 (length (excluded delta) > 1) "non-trivial excluded" prop
 
 -- Generate a random UTxO, with readable hashes.
 -- >>> import Test.QuickCheck

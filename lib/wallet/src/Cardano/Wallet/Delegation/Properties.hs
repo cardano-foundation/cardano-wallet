@@ -17,9 +17,19 @@ where
 import Prelude
 
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..), Status (..), slotOf, status )
+    ( History
+    , Operation (..)
+    , Status (..)
+    , slotOf
+    , status
+    )
 import Test.QuickCheck
-    ( Gen, Property, counterexample, forAll, (===) )
+    ( Gen
+    , Property
+    , counterexample
+    , forAll
+    , (===)
+    )
 
 -- | A step of the history, with both states and the change to compute
 -- new from old.
@@ -45,8 +55,8 @@ property' genSlot Step{old_ = xs, new_ = xs', delta_ = diff} change =
     in  forAll (genSlot xs') $ \y ->
             let new = status y xs'
             in  case compare y x of
-                LT -> new === status y xs
-                _ -> change old new
+                    LT -> new === status y xs
+                    _ -> change old new
 
 precond :: (Eq a, Show a) => (a -> Bool) -> a -> a -> a -> Property
 precond check target old new
@@ -67,29 +77,29 @@ properties c s =
                 $ property' c s
                 $ precond cond target
     in  case delta_ s of
-        Register _ ->
-            that "register invariant is respected"
-                $ prop
-                    (== Inactive)
-                    Registered
-        Deregister _ ->
-            that "deregister invariant is respected"
-                $ prop
-                    ( \case
-                        Registered -> True
-                        Active _ -> True
-                        _ -> False
-                    )
-                    Inactive
-        Delegate p _ ->
-            that "delegate invariant is respected"
-                $ prop
-                    ( \case
-                        Registered -> True
-                        Active _ -> True
-                        _ -> False
-                    )
-                    (Active p)
-        Rollback _ ->
-            that "rollback invariant is respected"
-                $ property' c s (===)
+            Register _ ->
+                that "register invariant is respected"
+                    $ prop
+                        (== Inactive)
+                        Registered
+            Deregister _ ->
+                that "deregister invariant is respected"
+                    $ prop
+                        ( \case
+                            Registered -> True
+                            Active _ -> True
+                            _ -> False
+                        )
+                        Inactive
+            Delegate p _ ->
+                that "delegate invariant is respected"
+                    $ prop
+                        ( \case
+                            Registered -> True
+                            Active _ -> True
+                            _ -> False
+                        )
+                        (Active p)
+            Rollback _ ->
+                that "rollback invariant is respected"
+                    $ property' c s (===)

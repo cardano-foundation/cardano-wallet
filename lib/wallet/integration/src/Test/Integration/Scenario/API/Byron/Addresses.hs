@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Test.Integration.Scenario.API.Byron.Addresses
@@ -18,9 +17,11 @@ module Test.Integration.Scenario.API.Byron.Addresses
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic )
+    ( Mnemonic
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeBIP44 )
+    ( purposeBIP44
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressWithPath
@@ -30,21 +31,33 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -79,14 +92,15 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => SpecWith Context
 spec = do
     describe "BYRON_ADDRESSES" $ do
@@ -115,63 +129,79 @@ spec = do
 
 scenario_ADDRESS_LIST_01
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO ApiByronWallet)
     -> Int
     -> SpecWith Context
 scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
-    verify r [ expectResponseCode HTTP.status200 ]
+    verify r [expectResponseCode HTTP.status200]
     let n = length $ getFromResponse id r
-    forM_ [0..n-1] $ \addrIx -> do
+    forM_ [0 .. n - 1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Unused) r
-        expectListField addrIx #derivationPath
-            (`shouldSatisfy` (\d -> do
-                                  if derPathSize == 5
-                                    then isValidDerivationPath purposeBIP44 d
-                                    else isValidRandomDerivationPath d)) r
+        expectListField
+            addrIx
+            #derivationPath
+            ( `shouldSatisfy`
+                ( \d -> do
+                    if derPathSize == 5
+                        then isValidDerivationPath purposeBIP44 d
+                        else isValidRandomDerivationPath d
+                )
+            )
+            r
   where
     title = "ADDRESS_LIST_01 - Can list known addresses on a default wallet"
 
 scenario_ADDRESS_LIST_02
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
 scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- filtering ?state=used
-    rUsed <- request @[ApiAddressWithPath n] ctx
-        (Link.listAddresses' @'Byron w (Just Used)) Default Empty
-    verify rUsed
+    rUsed <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses' @'Byron w (Just Used))
+            Default
+            Empty
+    verify
+        rUsed
         [ expectResponseCode HTTP.status200
         , expectListSize 10 -- NOTE fixture wallets have 10 faucet UTxOs
         ]
     let nUsed = length $ getFromResponse id rUsed
-    forM_ [0..nUsed-1] $ \addrIx -> do
+    forM_ [0 .. nUsed - 1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Used) rUsed
 
     -- filtering ?state=unused
-    rUnused <- request @[ApiAddressWithPath n] ctx
-        (Link.listAddresses' @'Byron w (Just Unused)) Default Empty
+    rUnused <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses' @'Byron w (Just Unused))
+            Default
+            Empty
     let nUnused = length $ getFromResponse id rUnused
-    forM_ [0..nUnused-1] $ \addrIx -> do
+    forM_ [0 .. nUnused - 1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Unused) rUnused
   where
     title = "ADDRESS_LIST_02 - Can filter used and unused addresses"
 
 scenario_ADDRESS_LIST_04
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
 scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     _ <- request @() ctx (Link.deleteWallet @'Byron w) Default Empty
     r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
-    verify r
+    verify
+        r
         [ expectResponseCode HTTP.status404
         , expectErrorMessage $ errMsg404NoWallet $ w ^. walletId
         ]
@@ -179,12 +209,13 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_LIST_04 - Delete wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r
+    verify
+        r
         [ expectResponseCode HTTP.status201
         , expectField #state (`shouldBe` ApiT Unused)
         ]
@@ -192,12 +223,13 @@ scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_01 - Can create a random address without index"
 
 scenario_ADDRESS_CREATE_02
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
     w <- emptyIcarusWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r
+    verify
+        r
         [ expectResponseCode HTTP.status403
         , expectErrorMessage errMsg403NotAByronWallet
         ]
@@ -205,12 +237,13 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_02 - Creation is forbidden on Icarus wallets"
 
 scenario_ADDRESS_CREATE_03
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": "Give me all your money." }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r
+    verify
+        r
         [ expectResponseCode HTTP.status403
         , expectErrorMessage errMsg403WrongPass
         ]
@@ -218,17 +251,18 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
 
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify rA [ expectResponseCode HTTP.status201 ]
+    verify rA [expectResponseCode HTTP.status201]
     let addr = getFromResponse id rA
 
     rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
-    verify rL
+    verify
+        rL
         [ expectResponseCode HTTP.status200
         , expectListField 0 id (`shouldBe` addr)
         ]
@@ -236,15 +270,18 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
-    let payload = Json [json|
+    let payload =
+            Json
+                [json|
             { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r
+    verify
+        r
         [ expectResponseCode HTTP.status201
         , expectField #state (`shouldBe` ApiT Unused)
         ]
@@ -252,17 +289,20 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_05 - Can create an address and specify the index"
 
 scenario_ADDRESS_CREATE_06
-    :: forall n. HasSNetworkId n => SpecWith Context
+    :: forall n. (HasSNetworkId n) => SpecWith Context
 scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
-    let payload = Json [json|
+    let payload =
+            Json
+                [json|
             { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
     r0 <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r0 [ expectResponseCode HTTP.status201 ]
+    verify r0 [expectResponseCode HTTP.status201]
     r1 <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
-    verify r1
+    verify
+        r1
         [ expectResponseCode HTTP.status409
         , expectErrorMessage "I already know of such address."
         ]
@@ -271,7 +311,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_01
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
@@ -282,13 +322,15 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     let (_, base) = Link.postRandomAddress w
     let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
-    verify r0
+    verify
+        r0
         [ expectResponseCode HTTP.status204
         ]
 
     -- Import it
     r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
-    verify r1
+    verify
+        r1
         [ expectListField 0 #state (`shouldBe` ApiT Unused)
         , expectListField 0 #id (`shouldBe` ApiAddress addr)
         ]
@@ -297,7 +339,7 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_02
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 15))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
@@ -307,7 +349,8 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
     let (_, base) = Link.postRandomAddress w
     let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
-    verify r0
+    verify
+        r0
         [ expectResponseCode HTTP.status403
         , expectErrorMessage errMsg403NotAByronWallet
         ]
@@ -316,7 +359,7 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_03
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
@@ -329,41 +372,49 @@ scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
 
     -- Insert it twice
     r0 <- request @() ctx ("PUT", link) Default Empty
-    verify r0 [ expectResponseCode HTTP.status204 ]
+    verify r0 [expectResponseCode HTTP.status204]
     r1 <- request @() ctx ("PUT", link) Default Empty
-    verify r1 [ expectResponseCode HTTP.status204 ]
+    verify r1 [expectResponseCode HTTP.status204]
   where
     title = "ADDRESS_IMPORT_03 - I can import an unused address multiple times"
 
 scenario_ADDRESS_IMPORT_04
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- Get a used address
-    r0 <- request @[ApiAddressWithPath n] ctx
-        (Link.listAddresses' @'Byron w (Just Used)) Default Empty
-    let (addr:_) = getFromResponse id r0
+    r0 <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses' @'Byron w (Just Used))
+            Default
+            Empty
+    let (addr : _) = getFromResponse id r0
 
     -- Re-insert it
     let (_, base) = Link.postRandomAddress w
     let link = base <> "/" <> toUrlPiece (addr ^. #id)
     r1 <- request @() ctx ("PUT", link) Default Empty
-    verify r1 [ expectResponseCode HTTP.status204 ]
+    verify r1 [expectResponseCode HTTP.status204]
 
     -- Verify that the address is unchanged
-    r2 <- request @[ApiAddressWithPath n] ctx
-        (Link.listAddresses' @'Byron w (Just Used)) Default Empty
-    verify r2 [ expectListField 0 id (`shouldBe` addr) ]
+    r2 <-
+        request @[ApiAddressWithPath n]
+            ctx
+            (Link.listAddresses' @'Byron w (Just Used))
+            Default
+            Empty
+    verify r2 [expectListField 0 id (`shouldBe` addr)]
   where
     title = "ADDRESS_IMPORT_04 - I can import a used address (idempotence)"
 
 scenario_ADDRESS_IMPORT_05
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => Int
     -> (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
@@ -371,34 +422,39 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
     (w, mw) <- fixture ctx
 
     -- Get unused addrNum addresses
-    let addrs = map (\num -> encodeAddress (sNetworkId @n) $ randomAddresses @n mw !! num)
+    let addrs =
+            map
+                (\num -> encodeAddress (sNetworkId @n) $ randomAddresses @n mw !! num)
                 [1 .. addrNum]
     let ep = Link.putRandomAddresses w
     let payload =
-            Json [json|
+            Json
+                [json|
                 { addresses: #{addrs}
                 }|]
 
     r0 <- request @(ApiPutAddressesData n) ctx ep Default payload
-    verify r0
+    verify
+        r0
         [ expectResponseCode HTTP.status204
         ]
 
     eventually "Addresses are imported" $ do
-      r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
-      verify r1
-          [ expectListSize addrNum
-          ]
+        r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
+        verify
+            r1
+            [ expectListSize addrNum
+            ]
   where
-    title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <>" of addresses"
+    title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <> " of addresses"
 
 scenario_ADDRESS_IMPORT_06
     :: forall n
-     . HasSNetworkId n
+     . (HasSNetworkId n)
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
-    (w, _)   <- fixture ctx
+    (w, _) <- fixture ctx
     (_, mw2) <- fixture ctx
 
     -- Get an unused address from other wallet
@@ -406,7 +462,8 @@ scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
     let (_, base) = Link.postRandomAddress w
     let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
-    verify r0
+    verify
+        r0
         [ expectResponseCode HTTP.status403
         , expectErrorMessage errMsg403CouldntIdentifyAddrAsMine
         ]

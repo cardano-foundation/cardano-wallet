@@ -13,23 +13,35 @@ module Data.Vector.Shuffle
 import Prelude
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.State.Strict
-    ( evalStateT, state )
+    ( evalStateT
+    , state
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( MD5 )
+    ( MD5
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Vector.Mutable
-    ( IOVector )
+    ( IOVector
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import System.Random
-    ( RandomGen, newStdGen, randomR )
+    ( RandomGen
+    , newStdGen
+    , randomR
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -37,16 +49,15 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
 
-
 -- | Generate a random generator seed from a text string
 mkSeed :: Text -> Int
 mkSeed = toInt . quickHash . T.encodeUtf16LE
   where
     quickHash = BA.convert . hash @_ @MD5
-    toInt = snd . BS.foldl' exponentiation (0,0)
+    toInt = snd . BS.foldl' exponentiation (0, 0)
       where
         exponentiation :: (Int, Int) -> Word8 -> (Int, Int)
-        exponentiation (e, n) i = (e+1, n + fromIntegral i*2^e)
+        exponentiation (e, n) i = (e + 1, n + fromIntegral i * 2 ^ e)
 
 -- | Shuffles a list of elements.
 --
@@ -62,12 +73,12 @@ shuffle xs = newStdGen >>= flip shuffleWith xs
 --
 -- - @shuffleWith g es == shuffleWith g es@
 -- - @∃Δ> 1. g ≠g', length es > Δ⇒ shuffleWith g es ≠shuffleWith g' es@
-shuffleWith :: RandomGen g => g -> [a] -> IO [a]
+shuffleWith :: (RandomGen g) => g -> [a] -> IO [a]
 shuffleWith seed = modifyInPlace $ \v -> flip evalStateT seed $ do
     let (lo, hi) = (0, MV.length v - 1)
     forM_ [lo .. hi] $ \i -> do
-      j <- fromInteger <$> state (randomR (fromIntegral lo, fromIntegral hi))
-      lift $ swapElems v i j
+        j <- fromInteger <$> state (randomR (fromIntegral lo, fromIntegral hi))
+        lift $ swapElems v i j
   where
     swapElems :: IOVector a -> Int -> Int -> IO ()
     swapElems v i j = do

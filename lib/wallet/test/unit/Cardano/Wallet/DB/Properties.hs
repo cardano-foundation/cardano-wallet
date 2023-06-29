@@ -32,11 +32,16 @@ import Cardano.Wallet.DB
     , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
+    ( GenState
+    , GenTxHistory (..)
+    , InitialCheckpoint (..)
+    )
 import Cardano.Wallet.DB.Pure.Implementation
-    ( filterTxHistory )
+    ( filterTxHistory
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+    ( dummyGenesisParameters
+    )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -48,39 +53,66 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo (..), Tx (..), TxMeta (..), toTxHistory )
+    ( TransactionInfo (..)
+    , Tx (..)
+    , TxMeta (..)
+    , toTxHistory
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeRunExceptT
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.Monad
-    ( forM_, void )
+    ( forM_
+    , void
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT
+    , runExceptT
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Maybe
-    ( isNothing, mapMaybe )
+    ( isNothing
+    , mapMaybe
+    )
 import Fmt
-    ( Buildable, pretty )
+    ( Buildable
+    , pretty
+    )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldReturn )
+    ( SpecWith
+    , describe
+    , it
+    , shouldReturn
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -92,30 +124,36 @@ import Test.QuickCheck
     , property
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, pick, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , pick
+    , run
+    )
 
 import qualified Data.List as L
 
 -- | How to boot a fresh database.
-type WithDBFresh s
-    = WalletId
+type WithDBFresh s =
+    WalletId
     -> (DBFresh IO s -> PropertyM IO ())
     -> PropertyM IO ()
 
-
 withFreshWallet
-    :: GenState s
+    :: (GenState s)
     => WalletId
     -> WithDBFresh s
     -> (DBLayer IO s -> WalletId -> PropertyM IO ())
     -> PropertyM IO ()
 withFreshWallet wid withFreshDB f = do
-    withFreshDB wid $ \DBFresh {bootDBLayer} -> do
+    withFreshDB wid $ \DBFresh{bootDBLayer} -> do
         (InitialCheckpoint cp0, meta) <- pick arbitrary
-        db <- run
-            $ unsafeRunExceptT
-            $ bootDBLayer
-            $ DBLayerParams cp0 meta mempty gp
+        db <-
+            run
+                $ unsafeRunExceptT
+                $ bootDBLayer
+                $ DBLayerParams cp0 meta mempty gp
         f db wid
 
 type TestOnLayer s =
@@ -130,11 +168,10 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 -- | Wallet properties.
 properties
-    :: GenState s
+    :: (GenState s)
     => WithDBFresh s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
-
     let testOnLayer = monadicIO . withFreshWallet testWid withFreshDB
 
     describe "Extra Properties about DB initialization" $ do
@@ -179,10 +216,10 @@ properties withFreshDB = describe "DB.Properties" $ do
 
 -- | Wrap the result of 'readTransactions' in an arbitrary identity Applicative
 readTxHistory_
-    :: Functor m
+    :: (Functor m)
     => DBLayer m s
-    ->  m (Identity GenTxHistory)
-readTxHistory_ DBLayer {..} =
+    -> m (Identity GenTxHistory)
+readTxHistory_ DBLayer{..} =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
             (readTransactions Nothing Descending wholeRange Nothing Nothing)
@@ -191,7 +228,7 @@ putTxHistory_
     :: DBLayer m s
     -> GenTxHistory
     -> m ()
-putTxHistory_ DBLayer {..} = atomically . putTxHistory . unGenTxHistory
+putTxHistory_ DBLayer{..} = atomically . putTxHistory . unGenTxHistory
 
 {-------------------------------------------------------------------------------
                                        Utils
@@ -218,7 +255,7 @@ filterTxs predicate = mapMaybe fn
 -- Wallet Metadata:
 -- squirtle (still restoring (94%)), created at 1963-10-09 06:50:11 UTC, not delegating
 -- @
-namedPick :: Show a => String -> Gen a -> PropertyM IO a
+namedPick :: (Show a) => String -> Gen a -> PropertyM IO a
 namedPick lbl gen =
     monitor (counterexample ("\n" <> lbl <> ":")) *> pick gen
 
@@ -243,7 +280,7 @@ prop_createWalletTwice
     -> Property
 prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
     $ test wid
-    $ \DBFresh {..} -> do
+    $ \DBFresh{..} -> do
         liftIO $ do
             let err = ErrWalletAlreadyInitialized
                 bootData = DBLayerParams cp0 meta mempty gp
@@ -282,11 +319,11 @@ prop_getTxAfterPutValidTxId
     :: TestOnLayer s
     -> GenTxHistory
     -> Property
-prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} _ -> do
+prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer{..} _ -> do
     let txs = unGenTxHistory txGen
     run $ atomically $ putTxHistory txs
-    forM_ txs $ \(Tx {txId}, txMeta) -> do
-        (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
+    forM_ txs $ \(Tx{txId}, txMeta) -> do
+        (Just (TransactionInfo{txInfoId, txInfoMeta})) <-
             run $ atomically $ getTx txId
         monitor
             $ counterexample
@@ -309,7 +346,7 @@ prop_getTxAfterPutInvalidTxId
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
-prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
+prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer{..} _ -> do
     let txs = unGenTxHistory txGen
     run $ atomically $ putTxHistory txs
     res <- run $ atomically $ getTx txId'

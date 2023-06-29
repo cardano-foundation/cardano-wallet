@@ -1,29 +1,43 @@
 {-# LANGUAGE PackageImports #-}
+
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Shelley.LaunchSpec (spec) where
 
 import Prelude
 
 import Cardano.Wallet.Launch
-    ( nodeSocketOption )
+    ( nodeSocketOption
+    )
+
 -- See ADP-1910
-import "optparse-applicative" Options.Applicative
-    ( ParserResult (..), defaultPrefs, execParserPure, info )
+
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldSatisfy
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
+import "optparse-applicative" Options.Applicative
+    ( ParserResult (..)
+    , defaultPrefs
+    , execParserPure
+    , info
+    )
 
 spec :: Spec
-spec = describe "Shelley CLI" $
-    describe "Node socket/pipe option" $ do
-        let parse arg = execParserPure defaultPrefs
-                (info nodeSocketOption mempty)
-                ["--node-socket", arg]
+spec = describe "Shelley CLI"
+    $ describe "Node socket/pipe option"
+    $ do
+        let parse arg =
+                execParserPure
+                    defaultPrefs
+                    (info nodeSocketOption mempty)
+                    ["--node-socket", arg]
         let ok (Success _) = True
             ok _ = False
         let err (Failure _) = True
@@ -31,11 +45,12 @@ spec = describe "Shelley CLI" $
         let runTest (desc, arg, posix, windows) = it desc $ do
                 let tst = if isWindows then windows else posix
                 parse arg `shouldSatisfy` tst
-        mapM_ runTest
-            [ ( "valid rel path",   "hello.sock",     ok,  err )
-            , ( "valid abs path",   "/run/cw.sock",   ok,  err )
-            , ( "invalid",          "",               err, err )
-            , ( "valid pipename",   "\\\\.\\pipe\\a", ok,  ok  )
-            , ( "invalid pipename", "\\\\.\\pipe\\",  ok,  err )
-            , ( "windows path",     "c:\\windows",    ok,  err )
+        mapM_
+            runTest
+            [ ("valid rel path", "hello.sock", ok, err)
+            , ("valid abs path", "/run/cw.sock", ok, err)
+            , ("invalid", "", err, err)
+            , ("valid pipename", "\\\\.\\pipe\\a", ok, ok)
+            , ("invalid pipename", "\\\\.\\pipe\\", ok, err)
+            , ("windows path", "c:\\windows", ok, err)
             ]
