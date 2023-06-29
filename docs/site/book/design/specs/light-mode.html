@@ -1,0 +1,399 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Light Mode - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/light-mode.html" class="active"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="specification-light-mode-for-cardano-wallet"><a class="header" href="#specification-light-mode-for-cardano-wallet">Specification: Light mode for cardano-wallet</a></h1>
+<p>11th Feb 2022</p>
+<p>Status: DRAFT</p>
+<h1 id="synopsis"><a class="header" href="#synopsis">Synopsis</a></h1>
+<p>This document specifies a light-mode for <code>cardano-wallet</code>.
+This mode aims to make synchronisation to the blockchain faster by trusting an off-chain source of aggregated blockchain data.</p>
+<p>Light wallets often employ this strategy of using a less trusted data source; for example the <a href="https://namiwallet.io">Nami</a> wallet uses <a href="http://blockfrost.io">Blockfrost</a> as data source. The purpose of the light-mode of <code>cardano-wallet</code> is to make this &quot;trust vs speed&quot; trade-off readily available to downstream software such as <a href="https://daedaluswallet.io">Daedalus</a> with <em>minimal</em> changes to its downstream API.</p>
+<p>In addition, the &quot;trust versus speed&quot; trade-off will be partially obsoleted by <a href="https://iohk.io/en/research/library/papers/mithrilstake-based-threshold-multisignatures/">Mithril</a> technology, which aims to give us &quot;trust <em>and</em> speed&quot; by providing verified ledger state data as opposed to block data. The act of implementing light-mode in <code>cardano-wallet</code> does not only offer immediate benefits, but will, in fact, partially prepare the codebase for Mithril technology.</p>
+<h1 id="motivation"><a class="header" href="#motivation">Motivation</a></h1>
+<h2 id="background"><a class="header" href="#background">Background</a></h2>
+<p>As the Cardano blockchain grows in size, retrieving and verifying blocks from the consensus network becomes increasingly time consuming. By making a &quot;trust versus speed&quot; trade-off, we can significantly decrease synchronization times.</p>
+<h2 id="user-visible-benefits"><a class="header" href="#user-visible-benefits">User-visible benefits</a></h2>
+<ul>
+<li>Allow users to operate their wallet without needing to wait for the node to download and validate the entire blockchain.</li>
+<li>Allow users to run cardano-wallet and Daedalus on systems with significantly less than 8GB of memory and less than 10GB of disk space.</li>
+<li>Allow users to control where they sit on the trust vs convenience spectrum, depending upon their current circumstances.</li>
+</ul>
+<h2 id="technical-benefits"><a class="header" href="#technical-benefits">Technical benefits</a></h2>
+<ul>
+<li><em>Speed</em>. With light-mode, we expect synchronisation times of &lt; 1 minute for a wallet with 1'000 transactions. In contrast, synchronisation of an empty wallet currently takes ~ 50 minutes by connecting to a node — assuming that the node has already synced to the chain tip and built its ledger state, which itself takes hours.</li>
+<li><em>Compatibility</em>. Light-mode is intended to preserve the API presented to downstream software such as <a href="https://daedaluswallet.io">Daedalus</a>, only <em>minimal</em> changes are expected.</li>
+<li><em>Optionality</em>. A wallet that was started in light-mode can be restarted in full mode without resynchronization, and vice versa. (MVP: no support yet for changing the mode dynamically while the wallet is running.)</li>
+</ul>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<ul>
+<li><em>Trust</em>. The external data source does <em>not</em> provide the same level of protection against <em>omission</em> of transactions as the Proof-of-Stake consensus protocol.</li>
+<li><em>Privacy</em>. In addition to the reduction of trust in the blockchain data, we now also reveal private information about addresses belonging to a single wallet.</li>
+<li><em>Address schemes</em>. Only <em>Shelley</em> wallets with <em>sequential address discovery</em> can be supported.</li>
+</ul>
+<p>However, these limitations are shared by all existing light wallets. In fact, some light wallets only provide <em>single-address</em> wallets, which is an additional reduction of privacy.</p>
+<h1 id="specification"><a class="header" href="#specification">Specification</a></h1>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The implementation of light-mode is based on an efficient query <code>Address -&gt; Transactions</code> which the blockchain data source provides. This query is useful to wallets that use <em>sequential address discovery</em> (Shelley wallets). These wallets work with a sequence of potential addresses <code>addr_0</code>, <code>addr_1</code>, <code>addr_2</code>, …. For each integer <code>n</code>, there is a deterministic procedure for generating the corresponding address <code>addr_n</code>. The wallet generates the first few addresses in this sequence and uses the above query to retrieve the corresponding transactions. When no transactions are found for <code>g</code> (&quot;address gap&quot;) many consecutive addresses, the procedure stops — as the wallet never puts addresses with higher indices on the chain. In other words, this iterative loop yields all transactions that belong to the wallet.</p>
+<p>This procedure can be visualized in a flow chart:</p>
+<pre class="mermaid">flowchart TB
+  start([begin]) --&gt; init[j := 0\ng := 0\ngap := 20]
+  init --&gt; query[query addr_j]
+  query --&gt; tx{transactions?}
+  tx -- no --&gt; gapAdd[g := g+1]
+  gapAdd --&gt; g{g &gt; gap?}
+  tx -- yes --&gt; gapReset[g := 0]
+  gapReset --&gt; add[j := j+1]
+  g -- yes ----&gt; e([end])
+  g -- no --&gt; add
+  add --&gt; query
+</pre>
+<p>This procedure is implemented and demonstrated in the <code>light-mode-test</code> prototype.</p>
+<h2 id="functionality"><a class="header" href="#functionality">Functionality</a></h2>
+<h3 id="network-topology"><a class="header" href="#network-topology">Network topology</a></h3>
+<p>In full-node mode, <code>cardano-wallet</code> connects to a local <code>cardano-node</code>:</p>
+<pre class="mermaid">flowchart TB
+  subgraph local system
+    cardano-launcher -. spawns .-&gt; cardano-wallet
+    cardano-launcher -. spawns .-&gt; cardano-node
+    cardano-wallet -- ChainSync --&gt; cardano-node
+    cardano-wallet -- LocalTxSubmission --&gt; cardano-node
+    cardano-wallet -- LocalStateQuery --&gt; cardano-node
+  end
+  cardano-node -- syncs --&gt; blockchain
+  subgraph internet
+    blockchain
+  end
+</pre>
+<p>In light-mode, <code>cardano-wallet</code> instead connects to the data source (e.g. <code>cardano-graphql</code> or <a href="http://blockfrost.io">Blockfrost</a>) and a transaction submission service through the internet</p>
+<pre class="mermaid">flowchart TB
+  cardano-launcher -. spawns .-&gt; cardano-wallet
+  cardano-wallet -- query\nAddressTransactions --&gt; cardano-graphql
+  cardano-wallet -- TxSubmission --&gt; cardano-submit-api
+
+  subgraph local system
+    cardano-launcher
+    cardano-wallet
+  end
+
+  subgraph internet
+    cardano-graphql --&gt; n1[cardano-node]
+    cardano-submit-api --&gt; n2[cardano-node]
+    n1 -- syncs --&gt; blockchain
+    n2 -- syncs --&gt; blockchain
+  end
+</pre>
+<h3 id="command-line"><a class="header" href="#command-line">Command line</a></h3>
+<p>The <code>cardano-wallet</code> executable will feature a new flag <code>--light</code> which indicates that the executable is to be started in light-mode:</p>
+<pre><code>$ cardano-wallet serve --light CRED
+</code></pre>
+<ul>
+<li><code>CRED</code> specifies how to connect to the less trusted blockchain data source. (MVP: Use <a href="http://blockfrost.io">Blockfrost</a>; <code>CRED</code> is a filepath to the secret token.)</li>
+<li>The <code>--light</code> argument and the <code>--node-socket</code> arguments are mutually exclusive with each other.</li>
+</ul>
+<h3 id="rest-api"><a class="header" href="#rest-api">REST API</a></h3>
+<p>When the executable was started in light-mode:</p>
+<ul>
+<li>The endpoints in the hierarchy <code>/v2/byron-wallets/*</code> MUST return an error. Because byron wallets use random derivation indices to generate addresses, they are significantly more challenging to make a light wallet for.</li>
+<li>(MVP: The endpoints in the hierarchy <code>/v2/shared-wallets/*</code> MAY return an error.)</li>
+<li>The <code>GET /v2/network/information</code> endpoint MAY not return <code>sync_progress</code> as a percentage quantity from [0..100].</li>
+</ul>
+<h2 id="internal"><a class="header" href="#internal">Internal</a></h2>
+<p>See also the <code>light-mode-test</code> prototype!</p>
+<ul>
+<li>
+<p>Collect required queries on data source in a data type <code>LightLayer</code>. In this way, we can replace the data source with a mock data source and run property tests on the chain following logic. (MVP: Use <a href="http://blockfrost.io">Blockfrost</a> for demonstration purposes.)</p>
+</li>
+<li>
+<p>Provide second implementation of <code>NetworkLayer</code> using a <code>LightLayer</code>.</p>
+<ul>
+<li>See prototype for details! Important changes:</li>
+<li><code>watchTip</code> requires polling (2 seconds interval)</li>
+<li><code>currentNodeEra</code> may require hard-coding known eras.</li>
+<li><code>performanceEstimate</code> requires copying from ledger code.</li>
+<li><code>syncProgress</code> should be ignored for MVP.</li>
+<li>The node-mode <code>NetworkLayer</code> does a lot of caching, we should avoid that for now and instead add a more uniform caching system later  through a function <code>addCaches :: NetworkLayer -&gt; IO NetworkLayer</code>.</li>
+<li><code>postTx</code> submits a transaction to a web service instead of using the <code>LocalTxSubmission</code> protocol with cardano-node. This web service can be different from the blockchain data source. An example of such a service is <code>cardano-submit-api</code>.</li>
+</ul>
+</li>
+<li>
+<p>New data type</p>
+<pre><code class="language-haskell">data BlockSummary m = BlockSummary
+    { from  :: ChainPoint
+    , to    :: ChainPoint
+    , query :: Address -&gt; m [Transaction]
+    }
+</code></pre>
+<ul>
+<li>
+<p>consumed by <code>applyBlocks</code>. Adapt <code>discoverTransactions</code> from the prototype.</p>
+</li>
+<li>
+<p>produced by <code>NetworkLayer</code>. Adapt <code>lightSync</code> from the prototype.</p>
+</li>
+<li>
+<p>Idea: Use an additional GADT wrapper to specialize <code>applyBlocks</code> to sequential address states:</p>
+<pre><code class="language-haskell">    data BlockData m s where
+        List
+            :: NonEmpty Block
+            -&gt; BlockData m s
+        Summary
+            :: BlockSummary m
+            -&gt; BlockData m (SeqState n k)
+</code></pre>
+<p>By using this type as argument to <code>applyBlocks</code>, we are guaranteed that <code>BlockSummary</code> is only used in conjunction with sequential state. Caveat: It would be better if we could avoid parametrizing the <code>NetworkLayer</code> type with the address discovery state <code>s</code>.</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="quality-assurance"><a class="header" href="#quality-assurance">Quality assurance</a></h2>
+<h3 id="benchmarks"><a class="header" href="#benchmarks">Benchmarks</a></h3>
+<ul>
+<li>Compare restoration times for an empty wallet in node-mode and in light-mode. The existing nightly wallet restoration benchmark can be updated for this purpose.</li>
+<li>Number of requests that we make to the data source needs to be monitored / kept in check. The number of requests should scale linearly with the number of transactions and the number of addresses belonging to the wallet. If the data source supports aggregated queries, we can make a single request with a larger body.</li>
+</ul>
+<h3 id="testing"><a class="header" href="#testing">Testing</a></h3>
+<ul>
+<li>Mock implementation of <code>LightLayer</code>.
+<ul>
+<li>We probably won't get good value / work out of implementing a <code>LightLayer</code> that interacts with the local cluster. One could look into implementing the light-mode <code>NetworkLayer</code> in terms of the node-mode <code>NetworkLayer</code>, though.</li>
+</ul>
+</li>
+<li>Property tests for <code>applyBlocks</code> using <code>BlockSummary</code>
+<ul>
+<li>Implement a conversion function <code>summarize :: NonEmpty Block -&gt; BlockSummary Identity</code></li>
+<li>Create a list of blocks, apply <code>applyBlocks</code> to both the list directly, and to the result of <code>summarize</code> — the results should be equal.</li>
+</ul>
+</li>
+</ul>
+<h2 id="external"><a class="header" href="#external">External</a></h2>
+<ul>
+<li>
+<p><a href="https://github.com/input-output-hk/cardano-launcher">Cardano-launcher</a> will have to be modified to not launch the <code>cardano-node</code> process when the cardano-wallet is launched in light-mode.</p>
+</li>
+<li>
+<p>Provision of the data source and of the transaction submission service is outside the scope of light-mode; we assume these services will be operated and paid for by someone. (Any light wallet assumes this.) In the MVP, we use <a href="http://blockfrost.io">Blockfrost</a> for demonstration purposes.</p>
+</li>
+</ul>
+<h1 id="design-alternatives"><a class="header" href="#design-alternatives">Design alternatives</a></h1>
+<h2 id="byron-wallets"><a class="header" href="#byron-wallets">Byron wallets</a></h2>
+<p>Byron wallets cannot be supported by the light-mode as described above, as it is based on an efficient query <code>Address -&gt; Transactions</code> which Byron wallets cannot take advantage of. For these wallets, alternative designs would have to be explored. Possibilities include:</p>
+<ul>
+<li>A third-party byron <em>address discovery service</em> which takes a byron root XPub and sends back a list of addresses belonging to that wallet. However, that involve an additional reduction in trust.</li>
+<li>Existing Byron wallets can be <em>partially supported</em> in light-mode as long as the database of addresses generated/discovered so far is intact, as we can still retrieve the balance and all transactions. However, in light-mode, these wallets cannot be restored and cannot receive funds from newly generated addresses. Conversion to Shelly wallets is recommended.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../design/specs.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../design/records.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../design/specs.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../design/records.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

@@ -77,6 +77,6 @@ jobs:
           enable_jekyll: false
           publish_dir: ${{ env.PUBLISH_DIR }}
           keep_files: true
-          user_name: "William King Noel Bot"
-          user_email: "adrestia@iohk.io"
+          user_name: "Cardano Wallet Documentation Bot"
+          user_email: "adrestia@cardano-foundation.io"
           full_commit_message: ${{ steps.versions.outputs.commit_message }}
