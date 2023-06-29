@@ -196,12 +196,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         :: TokenBundleMaxSize -> TokenBundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
 
-    , constraints
-        :: ProtocolParameters
-        -- Current protocol parameters.
-        -> TxConstraints
-        -- The set of constraints that apply to all transactions.
-
     , decodeTx
         :: AnyCardanoEra
         -> WitnessCountCtx
