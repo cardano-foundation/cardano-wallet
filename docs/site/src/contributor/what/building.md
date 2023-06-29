@@ -167,7 +167,7 @@ for `cardano-wallet`. This will contain:
 - `cabal-install` and a GHC configured with a package database containing all Haskell package dependencies;
 - system library dependencies;
 - a Hoogle index and `hoogle` command for searching documentation;
-- development tools such as `haskell-language-server`, `hlint`, `stylish-haskell`, and `weeder`;
+- development tools such as `haskell-language-server`, `hlint`, `fourmolu`, and `weeder`;
 - the `sqlite3` command;
 - the Shelley node backend `cardano-node` and `cardano-cli`; and
 - other Adrestia utility programs such as `cardano-address` and `bech32`

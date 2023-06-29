@@ -143,7 +143,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           nixWrapped
           mdbook
           (haskell-nix.tool "ghc8107" "hp2pretty" "latest")
-          (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
           (haskell-nix.tool "ghc8107" "hlint" "3.3")
           (haskell-nix.tool "ghc928" "fourmolu" "0.13.1.0")
           (haskell-nix.tool "ghc8107" "haskell-language-server" ({pkgs, ...}: rec {
