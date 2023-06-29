@@ -30,6 +30,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
+    , ErrAssignRedeemers (..)
 
     -- * Change addresses
     , ChangeAddressGen (..)
@@ -110,14 +111,13 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxSkeleton (..)
-    , assignScriptRedeemers
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , estimateTxCost
     )
 import Cardano.Wallet.Transaction
-    ( ErrAssignRedeemers, ErrMoreSurplusNeeded (..), TxFeeAndChange (..) )
+    ( ErrMoreSurplusNeeded (..), TxFeeAndChange (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -143,6 +143,8 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
+import Cardano.Wallet.Write.Tx.Redeemers
+    ( ErrAssignRedeemers (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Cardano.Wallet.Write.UTxOAssumptions
