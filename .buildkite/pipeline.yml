@@ -52,9 +52,9 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check Stylish Haskell'
+  - label: 'Check Fourmolu Haskell'
     depends_on: linux-nix
-    command: 'nix develop --command .buildkite/check-stylish.sh'
+    command: 'nix develop --command .buildkite/check-fourmolu.sh'
     agents:
       system: ${linux}
       queue: adrestia
@@ -229,4 +229,3 @@ steps:
       queue: adrestia
     env:
       TMPDIR: "/cache"
-

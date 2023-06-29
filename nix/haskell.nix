@@ -144,7 +144,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           jq
           yq
           nixWrapped
-          (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
         ]);
       };
 
