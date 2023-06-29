@@ -533,7 +533,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , constructUTxOIndex
     )
 import Cardano.Wallet.Write.Tx.SizeEstimation
-    ( getFeePerByteFromWalletPParams, _txRewardWithdrawalCost )
+    ( _txRewardWithdrawalCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
@@ -1279,7 +1279,7 @@ mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    pp <- currentProtocolParameters netLayer
+    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
     pure $ checkRewardIsWorthTxCost txWitnessTag pp balance Nothing $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
@@ -1292,7 +1292,7 @@ mkSelfWithdrawal
 mkSelfWithdrawal netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    pp <- currentProtocolParameters netLayer
+    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance Nothing of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
@@ -1325,14 +1325,15 @@ mkSelfWithdrawalShared netLayer txWitnessTag delegationTemplateM db = do
     (rewardAccount, _, derivationPath) <-
         readRewardAccount @(SharedState n SharedKey) db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    pp <- currentProtocolParameters netLayer
+    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     return $ case checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
 checkRewardIsWorthTxCost
-    :: TxWitnessTag
-    -> ProtocolParameters
+    :: forall era. Write.IsRecentEra era
+    => TxWitnessTag
+    -> Write.ProtocolParameters era
     -> Coin
     -> Maybe CA.ScriptTemplate
     -> Either ErrWithdrawalNotBeneficial ()
@@ -1343,7 +1344,7 @@ checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM = do
     when (Coin.toInteger balance < 2 * Coin.toInteger costOfWithdrawal)
         $ Left ErrWithdrawalNotBeneficial
   where
-    feePerByte = getFeePerByteFromWalletPParams pp
+    feePerByte = Write.getFeePerByte (recentEra @era) $ Write.pparamsLedger pp
     witType = case delegationTemplateM of
         Just t -> Left t
         Nothing -> Right txWitnessTag
@@ -1849,7 +1850,8 @@ readWalletUTxO ctx = do
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
 calcMinimumCoinValues
-    :: ProtocolParameters
+    :: Write.IsRecentEra era
+    => Write.ProtocolParameters era
     -> TransactionLayer k ktype tx
     -> TxOut
     -> Coin
@@ -1960,7 +1962,7 @@ data ErrWriteTxEra
     deriving (Show, Eq)
 
 readNodeTipStateForTxWrite
-    :: NetworkLayer IO Read.Block
+    :: NetworkLayer IO block
     -> IO (Write.InAnyRecentEra Write.ProtocolParameters, TimeTranslation)
 readNodeTipStateForTxWrite netLayer = do
     timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
@@ -2701,7 +2703,7 @@ createMigrationPlan
     -> IO MigrationPlan
 createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet ctx
-    pp <- currentProtocolParameters nl
+    (Write.InAnyRecentEra _era pp, _) <- readNodeTipStateForTxWrite nl
     let txConstraints = Write.txConstraints pp (transactionWitnessTag tl)
         utxo = availableUTxO pending wallet
     pure
