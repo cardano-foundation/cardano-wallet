@@ -292,11 +292,11 @@ data Spent = Spent SlotNo | Unspent
 
 -- | Insert a 'Set' into a 'Map' of 'Set' — but only if the 'Set' is nonempty.
 insertNonEmpty
-    :: (Ord key) => key -> Set v -> Map key (Set v) -> Map key (Set v)
+    :: Ord key => key -> Set v -> Map key (Set v) -> Map key (Set v)
 insertNonEmpty key x = if null x then id else Map.insert key x
 
 -- | Reverse the roles of key and values for a 'Map' of 'Set's.
-reverseMapOfSets :: (Ord v) => Map k (Set v) -> Map v k
+reverseMapOfSets :: Ord v => Map k (Set v) -> Map v k
 reverseMapOfSets m = Map.fromList $ do
     (k, vs) <- Map.toList m
     v <- Set.toList vs
@@ -305,7 +305,7 @@ reverseMapOfSets m = Map.fromList $ do
 -- | Insert a 'Set' of items into a 'Map' that is
 -- the result of 'reverseMapOfSets'.
 insertNonEmptyReversedMap
-    :: (Ord v) => key -> Set v -> Map v key -> Map v key
+    :: Ord v => key -> Set v -> Map v key -> Map v key
 insertNonEmptyReversedMap key vs m0 =
     foldl' (\m v -> Map.insert v key m) m0 vs
 

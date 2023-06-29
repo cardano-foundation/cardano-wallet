@@ -10847,7 +10847,7 @@ genByronFaucets = genFaucet encodeAddress byronAddresses
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
 
-byronAddresses :: (KnownNat mw) => Mnemonic mw -> [Address]
+byronAddresses :: KnownNat mw => Mnemonic mw -> [Address]
 byronAddresses mw =
     let
         (seed, pwd) =

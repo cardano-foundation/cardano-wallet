@@ -90,14 +90,14 @@ prop_StorePrivateKeyLaws kF db wid = do
         (logScale . genDelta)
 
 genPrivateKey
-    :: (Arbitrary (k 'RootK XPrv)) => Gen (Maybe (HashedCredentials k))
+    :: Arbitrary (k 'RootK XPrv) => Gen (Maybe (HashedCredentials k))
 genPrivateKey = fmap Just $ RootCredentials <$> arbitrary <*> arbitrary
 
 instance Buildable (DeltaPrivateKey k) where
     build _ = "DeltaPrivateKey"
 
 genDelta
-    :: (Arbitrary (k 'RootK XPrv))
+    :: Arbitrary (k 'RootK XPrv)
     => (Maybe (HashedCredentials k))
     -> Gen (DeltaPrivateKey k)
 genDelta _ = Replace <$> genPrivateKey

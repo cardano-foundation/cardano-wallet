@@ -184,7 +184,7 @@ hasBeenRolledBack (At _ hash) = do
 type Pool addr ix = Map addr ix
 
 -- | Update an address within a pool.
-update :: (Ord addr) => addr -> Pool addr ix -> Pool addr ix
+update :: Ord addr => addr -> Pool addr ix -> Pool addr ix
 update addr = id -- Map.adjust (\(ix,_) -> (ix,Used)) addr
 
 -- | List the next address still in the pool
@@ -218,5 +218,5 @@ genAddress addr = do
         [] -> pure Nothing
         _ -> liftIO $ Just <$> choose choices
 
-choose :: (MonadIO m) => [a] -> m a
+choose :: MonadIO m => [a] -> m a
 choose xs = (xs !!) <$> randomRIO (0, length xs - 1)

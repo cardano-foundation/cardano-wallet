@@ -144,7 +144,7 @@ data TestCase a = TestCase
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_CREATE_01 - Multi-asset transaction with ADA"

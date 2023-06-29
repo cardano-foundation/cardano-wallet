@@ -105,7 +105,7 @@ serializeTx =
         , conwayFun = f (eraProtVerLow @StandardConway)
         }
   where
-    f :: (EncCBOR (TxT era)) => Ledger.Version -> Tx era -> K BL.ByteString era
+    f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> K BL.ByteString era
     f protVer = K . Ledger.serialize protVer . unTx
 
 -- | Parse CBOR into a transaction in any eras

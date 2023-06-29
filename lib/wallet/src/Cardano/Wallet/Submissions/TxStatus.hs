@@ -85,7 +85,7 @@ type TxStatuses slot tx = Map (TxId tx) (TxStatus slot tx)
 
 -- | Extract a transaction status based on its identifier.
 status
-    :: (Ord (TxId tx))
+    :: Ord (TxId tx)
     => TxId tx
     -> TxStatuses slot tx
     -> TxStatus slot tx

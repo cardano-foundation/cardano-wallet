@@ -452,11 +452,11 @@ instance PaymentAddress SharedKey 'CredFromScriptK where
         error
             "does not make sense for SharedKey but want to use stateMachineSpec"
 
-showState :: forall (s :: Type). (Typeable s) => String
+showState :: forall (s :: Type). Typeable s => String
 showState = show (typeOf @s undefined)
 
 withFreshDB
-    :: (MonadIO m)
+    :: MonadIO m
     => WalletId
     -> (DBFresh IO TestState -> m ())
     -> m ()
@@ -1146,7 +1146,7 @@ withShelleyFileLoadedDBLayer filepath action =
         action db
 
 getWalletId'
-    :: (Applicative m)
+    :: Applicative m
     => DBLayer m s
     -> m WalletId
 getWalletId' DBLayer{..} = pure walletId_
@@ -1173,7 +1173,7 @@ readPrivateKey' DBLayer{..} = atomically $ readPrivateKey walletState
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
-    :: (KeyOf s ~ ShelleyKey)
+    :: KeyOf s ~ ShelleyKey
     => DBLayer IO s
     -> IO (KeyOf s 'RootK XPrv, PassphraseHash)
 attachPrivateKey DBLayer{..} = do

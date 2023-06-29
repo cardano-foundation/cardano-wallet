@@ -125,12 +125,12 @@ newtype Quantity (unit :: Symbol) a = Quantity {getQuantity :: a}
     deriving newtype (Bounded, Enum, Hashable)
     deriving (Show) via (Quiet (Quantity unit a))
 
-instance (NoThunks a) => NoThunks (Quantity unit a)
+instance NoThunks a => NoThunks (Quantity unit a)
 
 instance Functor (Quantity any) where
     fmap f (Quantity a) = Quantity (f a)
 
-instance (NFData a) => NFData (Quantity unit a)
+instance NFData a => NFData (Quantity unit a)
 
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
     toJSON (Quantity a) =
@@ -158,10 +158,10 @@ instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
           where
             u = symbolVal proxy
 
-instance (FromText b) => FromText (Quantity sym b) where
+instance FromText b => FromText (Quantity sym b) where
     fromText = fmap Quantity . fromText
 
-instance (ToText b) => ToText (Quantity sym b) where
+instance ToText b => ToText (Quantity sym b) where
     toText (Quantity b) = toText b
 
 -- Builds (Quantity "lovelace" Word64) as "42 lovelace"

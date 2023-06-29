@@ -24,11 +24,11 @@ import UnliftIO.IO
     , stdout
     )
 
-withLineBuffering, withNoBuffering :: (MonadUnliftIO m) => m a -> m a
+withLineBuffering, withNoBuffering :: MonadUnliftIO m => m a -> m a
 withLineBuffering = withBuffering LineBuffering
 withNoBuffering = withBuffering NoBuffering
 
-withBuffering :: (MonadUnliftIO m) => BufferMode -> m a -> m a
+withBuffering :: MonadUnliftIO m => BufferMode -> m a -> m a
 withBuffering mode = bracket before after . const
   where
     before = do

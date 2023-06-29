@@ -188,7 +188,7 @@ defaultManagerSettings =
     tenSeconds = 10_000_000 -- in μs
 
 -- | Create a connection manager that supports TLS connections.
-newManager :: (MonadIO m) => ManagerSettings -> m Manager
+newManager :: MonadIO m => ManagerSettings -> m Manager
 newManager = HTTPS.newTlsManagerWith
 
 -- | Simply return a pool metadata url, unchanged
@@ -232,7 +232,7 @@ smashRequest tr uri manager = getPayload
                     , show s
                     ]
 
-    fromHttpException :: (Monad m) => HttpException -> m (Either String a)
+    fromHttpException :: Monad m => HttpException -> m (Either String a)
     fromHttpException = return . Left . ("HTTP exception: " <>) . show
 
 -- | Gets the health status from the SMASH server. Returns
@@ -389,7 +389,7 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
         traceWith tr $ MsgFetchPoolMetadataHttpException exception
         pure $ Right Nothing
 
-fromIOException :: (Monad m) => IOException -> m (Either String a)
+fromIOException :: Monad m => IOException -> m (Either String a)
 fromIOException = pure . Left . ("IO exception: " <>) . show
 
 --------------------------------------------------------------------------------

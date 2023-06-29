@@ -27,7 +27,7 @@ import qualified Cardano.Ledger.Core as Ledger
 
 -- | Helper function for more easily creating an existential
 -- @InAnyCardanoEra Tx@.
-inAnyCardanoEra :: (IsCardanoEra era) => Tx era -> InAnyCardanoEra Tx
+inAnyCardanoEra :: IsCardanoEra era => Tx era -> InAnyCardanoEra Tx
 inAnyCardanoEra = InAnyCardanoEra cardanoEra
 
 -- Not exposed by cardano-api

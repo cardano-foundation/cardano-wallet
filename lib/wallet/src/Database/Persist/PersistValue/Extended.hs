@@ -30,13 +30,13 @@ import Text.Read
 import qualified Data.Text as T
 
 -- | 'fromPersistValue' defined in terms of 'fromText'
-fromPersistValueFromText :: (FromText a) => PersistValue -> Either Text a
+fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
 fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
   where
     fromTextWithErr = first ("not a valid value: " <>) . fromText'
 
 -- | 'fromPersistValue' defined in terms of the 'Read' class
-fromPersistValueRead :: (Read a) => PersistValue -> Either Text a
+fromPersistValueRead :: Read a => PersistValue -> Either Text a
 fromPersistValueRead pv = fromPersistValue pv >>= readWithErr
   where
     readWithErr = toEither . readMaybe . T.unpack

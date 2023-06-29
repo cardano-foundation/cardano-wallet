@@ -655,7 +655,7 @@ deriving anyclass instance Function TestDeltaFn
 -- Utilities
 --------------------------------------------------------------------------------
 
-consecutivePairs :: (Foldable f) => f a -> [(a, a)]
+consecutivePairs :: Foldable f => f a -> [(a, a)]
 consecutivePairs (F.toList -> xs) = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys

@@ -122,7 +122,7 @@ publicKey = \case
 
 -- | Hash a public key to some other representation.
 digest
-    :: (HashAlgorithm a)
+    :: HashAlgorithm a
     => KeyFlavorS key
     -- ^ The type of key to serialize.
     -> key depth XPub
@@ -159,7 +159,7 @@ type AfterByron k = Excluding '[ByronKey] k
 
 -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
 liftRawKey
-    :: (AfterByron key)
+    :: AfterByron key
     => KeyFlavorS key
     -- ^ The type of key to serialize.
     -> raw
@@ -172,7 +172,7 @@ liftRawKey = \case
 
 afterByron
     :: KeyFlavorS k
-    -> ((AfterByron k) => KeyFlavorS k -> x)
+    -> (AfterByron k => KeyFlavorS k -> x)
     -> Maybe x
 afterByron x h = case x of
     ByronKeyS -> Nothing

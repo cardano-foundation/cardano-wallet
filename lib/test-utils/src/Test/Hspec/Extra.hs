@@ -130,7 +130,7 @@ import qualified Test.Hspec as Hspec
 -- Each test is given the resource as a function parameter.
 aroundAll
     :: forall a
-     . (HasCallStack)
+     . HasCallStack
     => (ActionWith a -> IO ())
     -> SpecWith a
     -> Spec
@@ -155,14 +155,14 @@ configWithExecutionTimes config =
 -- variable @TESTS_RETRY_FAILED@ is set.
 --
 -- It also has a timeout of 10 minutes.
-it :: (HasCallStack) => String -> ActionWith ctx -> SpecWith ctx
+it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
 it = itWithCustomTimeout (60 * minutes)
   where
     minutes = 10
 
 -- | Like @it@ but with a custom timeout, testing of the function possible.
 itWithCustomTimeout
-    :: (HasCallStack)
+    :: HasCallStack
     => Int
     -- ^ Timeout in seconds.
     -> String

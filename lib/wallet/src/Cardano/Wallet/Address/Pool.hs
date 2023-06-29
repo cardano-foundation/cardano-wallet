@@ -116,7 +116,7 @@ prop_sequence Pool{addresses} =
 -- then there are always /less than/ 'gap' many 'Unused'
 -- addresses between two consecutive 'Used' addresses,
 -- or before the first 'Used' address.
-prop_gap :: (Ord ix) => Pool addr ix -> Bool
+prop_gap :: Ord ix => Pool addr ix -> Bool
 prop_gap Pool{gap, addresses} =
     all (< gap) . consecutiveUnused . L.group $ statuses
   where
@@ -131,7 +131,7 @@ prop_gap Pool{gap, addresses} =
 -- If we order the 'addresses' by their indices,
 -- there are exactly 'gap' many 'Unused' addresses after the last
 -- 'Used' address.
-prop_fresh :: (Ord ix) => Pool addr ix -> Bool
+prop_fresh :: Ord ix => Pool addr ix -> Bool
 prop_fresh Pool{gap, addresses} =
     takeWhile (== Unused) end == replicate gap Unused
   where
@@ -140,7 +140,7 @@ prop_fresh Pool{gap, addresses} =
 -- | Internal invariant:
 -- All 'addresses' in the pool have been generated from their index
 -- via the pool 'addressFromIx'.
-prop_fromIx :: (Eq addr) => Pool addr ix -> Bool
+prop_fromIx :: Eq addr => Pool addr ix -> Bool
 prop_fromIx Pool{addressFromIx, addresses} =
     and $ Map.mapWithKey isGenerated addresses
   where
@@ -212,7 +212,7 @@ clear :: (Ord addr, Enum ix) => Pool addr ix -> Pool addr ix
 clear Pool{addressFromIx, gap} = new addressFromIx gap
 
 -- | Look up an address in the pool.
-lookup :: (Ord addr) => addr -> Pool addr ix -> Maybe ix
+lookup :: Ord addr => addr -> Pool addr ix -> Maybe ix
 lookup addr Pool{addresses} = fst <$> Map.lookup addr addresses
 
 -- | Sorted list of all addresses that are marked 'Used' in the pool.
@@ -221,7 +221,7 @@ usedAddresses pool =
     [addr | (addr, (_, Used)) <- Map.toList $ addresses pool]
 
 -- | The first index that is 'Unused' and that comes after any 'Used' index.
-nextIndex :: (Enum ix) => Pool addr ix -> ix
+nextIndex :: Enum ix => Pool addr ix -> ix
 nextIndex Pool{addresses, gap} = toEnum (Map.size addresses - gap)
 
 -- | Number of addresses cached in the pool.
@@ -241,7 +241,7 @@ size = Map.size . addresses
 --
 -- This function is not useful for generating change addresses,
 -- as it does not take 'Used' or 'Unused' status into account.
-successor :: (Enum ix) => Pool addr ix -> ix -> Maybe ix
+successor :: Enum ix => Pool addr ix -> ix -> Maybe ix
 successor Pool{addresses} ix =
     let jx = succ ix
     in  if fromEnum jx >= Map.size addresses then Nothing else Just jx

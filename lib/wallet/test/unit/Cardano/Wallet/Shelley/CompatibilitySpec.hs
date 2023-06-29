@@ -659,7 +659,7 @@ checkScriptHashes title adrestiaScript nodeScript =
         `shouldBe` Cardano.serialiseToRawBytes (Cardano.hashScript nodeScript)
 
 checkScriptPreimage
-    :: (Cardano.SerialiseAsCBOR (Cardano.Script lang))
+    :: Cardano.SerialiseAsCBOR (Cardano.Script lang)
     => String
     -> Script KeyHash
     -> Cardano.Script lang

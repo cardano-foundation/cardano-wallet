@@ -255,7 +255,7 @@ observerSpec = sequential $ describe "Observer" $ do
         actual <- atomically ((readTVar trVar) <* (writeTVar trVar []))
         (reverse actual) `shouldBe` expected
 
-    fromKeysWith :: (Ord k) => (k -> v) -> Set k -> Map k v
+    fromKeysWith :: Ord k => (k -> v) -> Set k -> Map k v
     fromKeysWith f =
         Map.fromList
             . map (\k -> (k, f k))

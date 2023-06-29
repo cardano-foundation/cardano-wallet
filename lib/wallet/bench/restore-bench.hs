@@ -494,7 +494,7 @@ cardanoRestoreBench tr c socketFile = do
 
     mkSeqAnyState'
         :: forall (p :: Nat) n
-         . (HasSNetworkId n)
+         . HasSNetworkId n
         => Proxy p
         -> SNetworkId n
         -> ClearCredentials ShelleyKey
@@ -520,7 +520,7 @@ cardanoRestoreBench tr c socketFile = do
 data SomeBenchmarkResults where
     SomeBenchmarkResults
         :: forall result
-         . (Buildable result)
+         . Buildable result
         => result
         -> SomeBenchmarkResults
 
@@ -793,7 +793,7 @@ instance ToJSON BenchBaselineResults where
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> SNetworkId n
     -> Tracer IO (BenchmarkLog n)
@@ -990,11 +990,11 @@ walletWorkerLogToBlockHeight = \case
     _ ->
         Nothing
 
-saveBenchmarkPoints :: (ToJSON a) => Text -> a -> IO ()
+saveBenchmarkPoints :: ToJSON a => Text -> a -> IO ()
 saveBenchmarkPoints benchname = Aeson.encodeFile (T.unpack benchname <> ".json")
 
 withWalletLayerTracer
-    :: (Show a)
+    :: Show a
     => Text
     -> a
     -> Bool
@@ -1084,7 +1084,7 @@ withBenchDBLayer ti tr wid action =
 
 prepareNode
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Tracer IO (BenchmarkLog n)
     -> SNetworkId n
     -> CardanoNodeConn
@@ -1196,7 +1196,7 @@ instance HasSeverityAnnotation (BenchmarkLog n) where
         MsgSyncCompleted{} -> Info
         MsgRetryShortly{} -> Info
 
-instance (HasSNetworkId n) => ToText (BenchmarkLog n) where
+instance HasSNetworkId n => ToText (BenchmarkLog n) where
     toText = \case
         MsgNodeTipTick tip progress ->
             "Initial node synchronization: "
@@ -1239,7 +1239,7 @@ instance (HasSNetworkId n) => ToText (BenchmarkLog n) where
 -- "0.10"
 --
 -- rather than "0.1", but we'll have to live with it.
-showPercentFromPermyriad :: forall (p :: Nat). (KnownNat p) => Proxy p -> Text
+showPercentFromPermyriad :: forall (p :: Nat). KnownNat p => Proxy p -> Text
 showPercentFromPermyriad =
     T.pack . display . (/ 100) . toRational . natVal
   where

@@ -348,7 +348,7 @@ delete ctx path = do
     req <- baseRequest ctx path
     void $ httpLbs (req{method = "DELETE"}) (manager ctx)
 
-post :: (ToJSON a) => Context -> String -> a -> IO ()
+post :: ToJSON a => Context -> String -> a -> IO ()
 post ctx path json = do
     let body = RequestBodyLBS $ Aeson.encode json
     req <- baseRequest ctx path

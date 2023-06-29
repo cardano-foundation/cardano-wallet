@@ -160,7 +160,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> runResourceT $ do
@@ -1162,7 +1162,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 c `shouldBe` ExitFailure 1
   where
     postTxViaCLI
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> ApiWallet
@@ -1180,7 +1180,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         expectValidJSON (Proxy @(ApiTransaction n)) out
 
     postTxArgs
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> ApiWallet

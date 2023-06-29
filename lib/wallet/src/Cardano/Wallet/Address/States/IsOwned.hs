@@ -60,7 +60,7 @@ import qualified Cardano.Wallet.Address.Discovery.Shared as Sha
 -- operation; This is merely a lookup from known addresses.
 isOwned
     :: forall s
-     . (HasSNetworkId (NetworkOf s))
+     . HasSNetworkId (NetworkOf s)
     => WalletFlavorS s
     -> s
     -> (KeyOf s 'RootK XPrv, Passphrase "encryption")

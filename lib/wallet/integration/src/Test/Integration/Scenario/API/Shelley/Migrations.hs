@@ -139,7 +139,7 @@ import qualified Test.Hspec as Hspec
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
     it

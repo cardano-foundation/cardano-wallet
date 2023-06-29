@@ -165,7 +165,7 @@ import qualified Data.Aeson.Types as Aeson
 newtype ApiAddress (n :: NetworkDiscriminant) = ApiAddress {apiAddress :: Address}
     deriving (Eq, Generic, Show, NFData, Ord, Hashable)
 
-instance (HasSNetworkId n) => FromJSON (ApiAddress n) where
+instance HasSNetworkId n => FromJSON (ApiAddress n) where
     parseJSON x = do
         addr <-
             parseJSON x
@@ -173,7 +173,7 @@ instance (HasSNetworkId n) => FromJSON (ApiAddress n) where
                     . first (\e -> ShowFmt $ show (x, e))
                     . decodeAddress (sNetworkId @n)
         return $ ApiAddress addr
-instance (HasSNetworkId n) => ToJSON (ApiAddress n) where
+instance HasSNetworkId n => ToJSON (ApiAddress n) where
     toJSON (ApiAddress addr) = toJSON . encodeAddress (sNetworkId @n) $ addr
 
 newtype ApiTxMetadata = ApiTxMetadata
@@ -256,7 +256,7 @@ data ApiTxInputGeneral (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => FromJSON (ApiTxInputGeneral n) where
+instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n) where
     parseJSON obj = do
         derPathM <-
             ( withObject "ApiTxInputGeneral"
@@ -273,7 +273,7 @@ instance (HasSNetworkId n) => FromJSON (ApiTxInputGeneral n) where
                 xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
                 pure $ WalletInput xs
 
-instance (HasSNetworkId n) => ToJSON (ApiTxInputGeneral n) where
+instance HasSNetworkId n => ToJSON (ApiTxInputGeneral n) where
     toJSON (ExternalInput content) = toJSON content
     toJSON (WalletInput content) = toJSON content
 
@@ -308,7 +308,7 @@ data AddressAmount addr = AddressAmount
     deriving (ToJSON) via DefaultRecord (AddressAmount addr)
     deriving anyclass (NFData)
 
-instance (FromJSON a) => FromJSON (AddressAmount a) where
+instance FromJSON a => FromJSON (AddressAmount a) where
     parseJSON = withObject "AddressAmount " $ \v ->
         prependFailure "parsing AddressAmount failed, "
             $ AddressAmount
@@ -333,7 +333,7 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => FromJSON (ApiTxOutputGeneral n) where
+instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n) where
     parseJSON obj = do
         derPathM <-
             ( withObject "ApiTxOutputGeneral"
@@ -354,7 +354,7 @@ instance (HasSNetworkId n) => FromJSON (ApiTxOutputGeneral n) where
                         :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
 
-instance (HasSNetworkId n) => ToJSON (ApiTxOutputGeneral n) where
+instance HasSNetworkId n => ToJSON (ApiTxOutputGeneral n) where
     toJSON (ExternalOutput content) = toJSON content
     toJSON (WalletOutput content) = toJSON content
 
@@ -373,7 +373,7 @@ data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => FromJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => FromJSON (ApiWithdrawalGeneral n) where
     parseJSON obj = do
         myResource <-
             ( withObject "ApiWithdrawalGeneral"
@@ -388,7 +388,7 @@ instance (HasSNetworkId n) => FromJSON (ApiWithdrawalGeneral n) where
                 (ApiWithdrawal addr amt) <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
                 pure $ ApiWithdrawalGeneral addr amt Our
 
-instance (HasSNetworkId n) => ToJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => ToJSON (ApiWithdrawalGeneral n) where
     toJSON (ApiWithdrawalGeneral addr amt ctx) = do
         let obj =
                 [ "stake_address" .= toJSON addr

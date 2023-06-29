@@ -322,7 +322,7 @@ import qualified Test.Integration.Plutus as PlutusScenario
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -5324,7 +5324,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural
@@ -5345,7 +5345,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
 
     mkTxPayloadHex
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural
@@ -5691,7 +5691,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         in  toCborHexTx txBody
 
     mintAssetsCheckWithoutBalanceCheck
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> TokenName
@@ -5816,7 +5816,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             pure (initialBalance, expectedFee, tokens')
 
     mintAssetsCheck
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> TokenName
@@ -5856,7 +5856,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
 
     burnAssetsCheck
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> TokenName

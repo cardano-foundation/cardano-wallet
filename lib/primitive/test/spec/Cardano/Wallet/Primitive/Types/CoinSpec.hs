@@ -171,7 +171,7 @@ prop_genCoin_coverage :: Coin -> Coin -> Property
 prop_genCoin_coverage a b =
     checkCoverageCoin a b True
 
-checkCoverageCoin :: (Testable prop) => Coin -> Coin -> (prop -> Property)
+checkCoverageCoin :: Testable prop => Coin -> Coin -> (prop -> Property)
 checkCoverageCoin a b =
     checkCoverage
         . cover 1 (a == Coin 0 && b == Coin 0) "a == 0 && b == 0"
@@ -233,6 +233,6 @@ instance Arbitrary Coin where
     arbitrary = genCoin
     shrink = shrinkCoin
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genNonEmpty arbitrary
     shrink = shrinkNonEmpty shrink

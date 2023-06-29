@@ -80,9 +80,9 @@ type family CollateralOutputsType era where
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
 
 deriving instance
-    (Show (CollateralOutputsType era))
+    Show (CollateralOutputsType era)
     => Show (CollateralOutputs era)
-deriving instance (Eq (CollateralOutputsType era)) => Eq (CollateralOutputs era)
+deriving instance Eq (CollateralOutputsType era) => Eq (CollateralOutputs era)
 
 -- | Get the 'CollateralOutputs' for a given 'Tx' in any era.
 getEraCollateralOutputs :: EraFun Tx CollateralOutputs

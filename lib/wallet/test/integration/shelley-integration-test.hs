@@ -236,7 +236,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
-main :: forall n. (n ~ 'Mainnet) => IO ()
+main :: forall n. n ~ 'Mainnet => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspecMain $ do

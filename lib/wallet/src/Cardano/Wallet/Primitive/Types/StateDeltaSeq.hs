@@ -234,14 +234,14 @@ countTransitionsWhere f s = length $ findTransitionsWhere f s
 -- | Counts the number of empty transitions in a 'StateDeltaSeq'.
 --
 -- A transition is empty if its initial state is equal to its final state.
-countEmptyTransitions :: (Eq s) => StateDeltaSeq s d -> Int
+countEmptyTransitions :: Eq s => StateDeltaSeq s d -> Int
 countEmptyTransitions = countEmptyTransitionsWhere (const True)
 
 -- | Counts the number of empty transitions in a 'StateDeltaSeq' for which the
 --   given indicator function returns 'True'.
 --
 -- A transition is empty if its initial state is equal to its final state.
-countEmptyTransitionsWhere :: (Eq s) => (d -> Bool) -> StateDeltaSeq s d -> Int
+countEmptyTransitionsWhere :: Eq s => (d -> Bool) -> StateDeltaSeq s d -> Int
 countEmptyTransitionsWhere f s = length $ emptyTransitionsWhere f s
 
 --------------------------------------------------------------------------------
@@ -264,7 +264,7 @@ isSuffixOf = L.isSuffixOf `on` toTransitionList
 
 -- | Returns 'True' if (and only if) the given sequence is valid according to
 --   the given state transition function.
-isValid :: (Eq s) => (s -> d -> s) -> StateDeltaSeq s d -> Bool
+isValid :: Eq s => (s -> d -> s) -> StateDeltaSeq s d -> Bool
 isValid next = runIdentity . isValidM (coerce next)
 
 -- | Returns 'True' if (and only if) the given sequence is valid according to
@@ -380,7 +380,7 @@ applyDelta next delta = runIdentity . applyDeltaM (coerce next) delta
 --
 -- To verify whether the resulting sequence is valid, use 'isValid'.
 applyDeltaM
-    :: (Functor m)
+    :: Functor m
     => (s -> d -> m s)
     -> d
     -> StateDeltaSeq s d
@@ -394,7 +394,7 @@ applyDeltaM next delta seq@StateDeltaSeq{head, tail} =
 --
 -- See 'applyDelta'.
 applyDeltas
-    :: (Foldable f)
+    :: Foldable f
     => (s -> d -> s)
     -> f d
     -> StateDeltaSeq s d
@@ -468,26 +468,26 @@ suffixes = iterateMaybe dropHead
 -- | For a given sequence 's', generates all proper subsequences of 's' where
 --   exactly one empty transition has been removed.
 dropEmptyTransition
-    :: (Eq s) => StateDeltaSeq s d -> [StateDeltaSeq s d]
+    :: Eq s => StateDeltaSeq s d -> [StateDeltaSeq s d]
 dropEmptyTransition = dropEmptyTransitionWhere (const True)
 
 -- | For a given sequence 's', generates all proper subsequences of 's' where
 --   exactly one empty transition matching the given indicator function has
 --   been removed.
 dropEmptyTransitionWhere
-    :: (Eq s) => (d -> Bool) -> StateDeltaSeq s d -> [StateDeltaSeq s d]
+    :: Eq s => (d -> Bool) -> StateDeltaSeq s d -> [StateDeltaSeq s d]
 dropEmptyTransitionWhere f s@StateDeltaSeq{head, tail} =
     StateDeltaSeq head . flip Seq.deleteAt tail <$> emptyTransitionsWhere f s
 
 -- | Removes all empty transitions from a 'StateDeltaSeq'.
 dropEmptyTransitions
-    :: (Eq s) => StateDeltaSeq s d -> StateDeltaSeq s d
+    :: Eq s => StateDeltaSeq s d -> StateDeltaSeq s d
 dropEmptyTransitions = dropEmptyTransitionsWhere (const True)
 
 -- | Removes all empty transitions that match the given indicator function
 --   from a 'StateDeltaSeq'.
 dropEmptyTransitionsWhere
-    :: (Eq s) => (d -> Bool) -> StateDeltaSeq s d -> StateDeltaSeq s d
+    :: Eq s => (d -> Bool) -> StateDeltaSeq s d -> StateDeltaSeq s d
 dropEmptyTransitionsWhere f s@StateDeltaSeq{head, tail} =
     StateDeltaSeq head
         $ F.foldl' (flip Seq.deleteAt) tail (reverse $ emptyTransitionsWhere f s)
@@ -498,7 +498,7 @@ dropEmptyTransitionsWhere f s@StateDeltaSeq{head, tail} =
 
 -- | Finds the indices of empty transitions that match the given indicator
 --   function.
-emptyTransitionsWhere :: (Eq s) => (d -> Bool) -> StateDeltaSeq s d -> [Int]
+emptyTransitionsWhere :: Eq s => (d -> Bool) -> StateDeltaSeq s d -> [Int]
 emptyTransitionsWhere f =
     findTransitionsWhere $ \(si, d, sj) -> si == sj && f d
 

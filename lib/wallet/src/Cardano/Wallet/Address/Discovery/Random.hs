@@ -326,7 +326,7 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
-instance (HasSNetworkId n) => GenChange (RndState n) where
+instance HasSNetworkId n => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
@@ -383,7 +383,7 @@ deriveCredFromKeyKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
@@ -485,7 +485,7 @@ instance RndStateLike (RndAnyState n p) where
     withRNG (RndAnyState inner) action =
         second RndAnyState $ withRNG inner action
 
-instance (KnownNat p) => IsOurs (RndAnyState n p) Address where
+instance KnownNat p => IsOurs (RndAnyState n p) Address where
     isOurs addr@(Address bytes) st@(RndAnyState inner) =
         case isOurs addr inner of
             (Just path, inner') ->
@@ -512,7 +512,7 @@ instance (KnownNat p) => IsOurs (RndAnyState n p) Address where
       where
         p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
 
-        double :: (Integral a) => a -> Double
+        double :: Integral a => a -> Double
         double = fromIntegral
 
         correctAddressType =
@@ -523,7 +523,7 @@ instance (KnownNat p) => IsOurs (RndAnyState n p) Address where
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance (HasSNetworkId n) => GenChange (RndAnyState n p) where
+instance HasSNetworkId n => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
     genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 

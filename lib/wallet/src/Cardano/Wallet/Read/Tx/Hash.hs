@@ -71,7 +71,7 @@ getEraTxHash =
   where
     mkShelleyHash = onTx $ \tx -> K $ shelleyTxHash tx
 
-shelleyTxHash :: (SL.Core.EraTx era) => SL.Core.Tx era -> Crypto.ByteString
+shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
 shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
 
 byronTxHash :: ATxAux a -> Crypto.ByteString

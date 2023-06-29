@@ -114,7 +114,7 @@ instance FromText (Hash "ScriptIntegrity") where fromText = hashFromText 32
 
 hashFromText
     :: forall t
-     . (KnownSymbol t)
+     . KnownSymbol t
     => Int
     -- ^ Expected decoded hash length
     -> Text
@@ -137,14 +137,14 @@ hashFromText len text = case decoded of
     decoded = convertFromBase Base16 $ T.encodeUtf8 text
 
 -- | Constructs a hash that is good enough for testing.
-mockHash :: (Show a) => a -> Hash whatever
+mockHash :: Show a => a -> Hash whatever
 mockHash = Hash . blake2b256 . B8.pack . show
 
 blake2b256 :: ByteString -> ByteString
 blake2b256 = BA.convert . hash @_ @Blake2b_256
 
 -- | Construct a hash that is good enough for testing (28 byte length).
-mockHashRewardAccount :: (Show a) => a -> Hash "RewardAccount"
+mockHashRewardAccount :: Show a => a -> Hash "RewardAccount"
 mockHashRewardAccount = Hash . blake2b224 . B8.pack . show
 
 blake2b224 :: ByteString -> ByteString

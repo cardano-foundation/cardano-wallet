@@ -196,13 +196,13 @@ data RefCount ix = RefCount
     }
 
 -- | Construct a 'RefCount' with zero references.
-newRefCount :: (Ord ix) => IO (RefCount ix)
+newRefCount :: Ord ix => IO (RefCount ix)
 newRefCount = RefCount <$> newMVar mempty <*> newMVar ()
 
 -- | Acquire a reference to the given identifier, perform the given action, then
 -- release the reference. Multiple 'withRef' calls can take references at the
 -- same time.
-withRef :: (Ord ix) => RefCount ix -> ix -> IO a -> IO a
+withRef :: Ord ix => RefCount ix -> ix -> IO a -> IO a
 withRef (RefCount mvar lock) ix =
     bracket_ (modifyMVar_ lock $ const $ modify inc) (modify dec)
   where
@@ -218,7 +218,7 @@ withRef (RefCount mvar lock) ix =
 --
 -- No new references can be taken using 'withRef' while the action is running.
 waitForFree
-    :: (Ord ix)
+    :: Ord ix
     => Tracer IO (Maybe Int)
     -- ^ Logging of current number of references
     -> RefCount ix
@@ -232,7 +232,7 @@ waitForFree tr = waitForFree' tr waitForFreeRetryPolicy
 
 -- | A variant of 'waitForFree' where the caller can specify the 'RetryPolicy'.
 waitForFree'
-    :: (Ord ix)
+    :: Ord ix
     => Tracer IO (Maybe Int)
     -- ^ Logging of current number of references
     -> RetryPolicy

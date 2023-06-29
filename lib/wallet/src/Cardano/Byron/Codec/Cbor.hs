@@ -544,7 +544,7 @@ decodeListIndef decodeOne = do
 -- | Byron CBOR encodings often have CBOR nested in CBOR. This helps decoding
 -- a particular 'ByteString' that represents a CBOR object.
 decodeNestedBytes
-    :: (MonadFail m)
+    :: MonadFail m
     => (forall s. CBOR.Decoder s r)
     -> ByteString
     -> m r

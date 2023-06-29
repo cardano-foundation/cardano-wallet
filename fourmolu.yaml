@@ -20,3 +20,5 @@ newlines-between-decls: 1
 record-brace-space: false
 respectful: true
 column-limit: 80
+# do not set this to never, as https://github.com/fourmolu/fourmolu/issues/340
+single-constraint-parens: auto

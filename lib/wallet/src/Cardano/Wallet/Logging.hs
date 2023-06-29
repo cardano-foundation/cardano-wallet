@@ -148,7 +148,7 @@ import qualified Data.Text.Encoding as T
 
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
 -- instance.
-transformTextTrace :: (ToText a) => Trace IO Text -> Trace IO a
+transformTextTrace :: ToText a => Trace IO Text -> Trace IO a
 transformTextTrace = contramap (fmap . fmap $ toText) . filterNonEmpty
 
 -- | Tracer transformer which transforms traced items to their 'ToText'
@@ -206,7 +206,7 @@ stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
 -- | Run an 'ExceptT' action, then trace its result, all in one step.
 -- This is a more basic version of 'resultTracer'.
 traceWithExceptT
-    :: (Monad m) => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
+    :: Monad m => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
 traceWithExceptT tr (ExceptT action) = ExceptT $ do
     res <- action
     traceWith tr res
@@ -216,7 +216,7 @@ traceWithExceptT tr (ExceptT action) = ExceptT $ do
 -- 'Either' in the log message. Other unexpected exceptions are captured in the
 -- 'BracketLog''.
 traceResult
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Tracer m (BracketLog' (Either e r))
     -> ExceptT e m r
     -> ExceptT e m r
@@ -273,20 +273,20 @@ resultSeverity base = \case
 newtype LoggedException e = LoggedException e
     deriving (Generic, Show, Ord)
 
-instance (NFData e) => NFData (LoggedException e)
+instance NFData e => NFData (LoggedException e)
 
 instance NFData (LoggedException SomeException) where
     rnf (LoggedException e) = rnf (show e)
 
-instance (Exception e) => ToText (LoggedException e)
+instance Exception e => ToText (LoggedException e)
 
-instance (Exception e) => Buildable (LoggedException e) where
+instance Exception e => Buildable (LoggedException e) where
     build (LoggedException e) = build $ displayException e
 
-instance (Show e) => Eq (LoggedException e) where
+instance Show e => Eq (LoggedException e) where
     a == b = show a == show b
 
-instance (Exception e) => ToJSON (LoggedException e) where
+instance Exception e => ToJSON (LoggedException e) where
     toJSON e = object ["exception" .= toText e]
 
 exceptionMsg :: SomeException -> (BracketLog' r)
@@ -311,9 +311,9 @@ data BracketLog' r
       BracketAsyncException (LoggedException SomeException)
     deriving (Generic, Show, Eq, ToJSON, Functor)
 
-instance (Buildable r) => ToText (BracketLog' r)
+instance Buildable r => ToText (BracketLog' r)
 
-instance (Buildable r) => Buildable (BracketLog' r) where
+instance Buildable r => Buildable (BracketLog' r) where
     build = buildBracketLog build
 
 buildBracketLog :: (t -> Builder) -> BracketLog' t -> Builder
@@ -349,12 +349,12 @@ instance ToJSON SomeResult where
 type BracketLog = BracketLog' SomeResult
 
 -- | Run a monadic action with 'BracketLog' traced around it.
-bracketTracer :: (MonadUnliftIO m) => Tracer m BracketLog -> m a -> m a
+bracketTracer :: MonadUnliftIO m => Tracer m BracketLog -> m a -> m a
 bracketTracer = bracketTracer'' id (const SomeResult)
 
 -- | Run a monadic action with 'BracketLog' traced around it.
 bracketTracer'
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => (r -> a)
     -- ^ Transform value into log message.
     -> Tracer m (BracketLog' a)
@@ -366,7 +366,7 @@ bracketTracer' = bracketTracer'' id
 
 -- | Run a monadic action with 'BracketLog' traced around it.
 bracketTracer''
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => (b -> r)
     -- ^ Transform value into result.
     -> (b -> a)
@@ -382,7 +382,7 @@ bracketTracer'' res msg tr action = do
         (action >>= \val -> traceWith tr (BracketFinish (msg val)) $> res val)
         (traceWith tr . exceptionMsg)
 
-instance (MonadIO m) => Outcome m (BracketLog' r) where
+instance MonadIO m => Outcome m (BracketLog' r) where
     type IntermediateValue (BracketLog' r) = AbsoluteTime
     type OutcomeMetric (BracketLog' r) = DiffTime
 
@@ -400,7 +400,7 @@ instance (MonadIO m) => Outcome m (BracketLog' r) where
     computeOutcomeMetric _ x y = pure $ diffAbsoluteTime y x
 
 -- Pair up bracketlogs with some context information
-instance (MonadIO m) => Outcome m (ctx, BracketLog) where
+instance MonadIO m => Outcome m (ctx, BracketLog) where
     type IntermediateValue (ctx, BracketLog) = (ctx, IntermediateValue BracketLog)
     type OutcomeMetric (ctx, BracketLog) = (ctx, OutcomeMetric BracketLog)
     classifyObservable (_ctx, b) = classifyObservable b
@@ -411,7 +411,7 @@ instance (MonadIO m) => Outcome m (ctx, BracketLog) where
 
 -- | Get metric results from 'mkOutcomeExtractor' and throw away the rest.
 fiddleOutcome
-    :: (Monad m)
+    :: Monad m
     => Tracer m (ctx, DiffTime)
     -> Tracer m (Either (ctx, BracketLog) (OutcomeFidelity (ctx, DiffTime)))
 fiddleOutcome tr = Tracer $ \case
@@ -446,12 +446,12 @@ produceTimings f trDiffTime = do
 -------------------------------------------------------------------------------}
 
 -- | Convert an IO tracer to a 'm' tracer.
-unliftIOTracer :: (MonadIO m) => Tracer IO a -> Tracer m a
+unliftIOTracer :: MonadIO m => Tracer IO a -> Tracer m a
 unliftIOTracer = natTracer liftIO
 
 -- | Conditional mapping of a 'Tracer'.
 flatContramapTracer
-    :: (Monad m)
+    :: Monad m
     => (a -> Maybe b)
     -> Tracer m b
     -> Tracer m a

@@ -227,7 +227,7 @@ data Wallet s = Wallet
     }
     deriving (Generic, Eq, Show)
 
-instance (NFData s) => NFData (Wallet s) where
+instance NFData s => NFData (Wallet s) where
     rnf (Wallet u sl s) =
         deepseq (rnf u)
             $ deepseq (rnf sl)
@@ -235,7 +235,7 @@ instance (NFData s) => NFData (Wallet s) where
                 (rnf s)
                 ()
 
-instance (Buildable s) => Buildable (Wallet s) where
+instance Buildable s => Buildable (Wallet s) where
     build (Wallet u tip s) =
         "Wallet s\n"
             <> indentF 4 ("Tip: " <> build tip)
@@ -495,7 +495,7 @@ availableUTxO pending (Wallet u _ _) = u `excluding` used
 -- >>>     − inputs pendingTxs
 -- >>>     ∪ change pendingTxs
 totalUTxO
-    :: (IsOurs s Address)
+    :: IsOurs s Address
     => Set Tx
     -> Wallet s
     -> UTxO
@@ -529,7 +529,7 @@ totalUTxO pending (Wallet u _ s) =
 --   very effective.
 --   TODO: Add slot to 'Tx' and sort the pending set by slot.
 changeUTxO
-    :: (IsOurs s Address)
+    :: IsOurs s Address
     => Set Tx
     -> s
     -> UTxO
@@ -689,16 +689,16 @@ discoverFromBlockData (Summary dis summary) !s0 =
 
 -- | Indicates whether an address is known to be ours, without updating the
 -- address discovery state.
-ours :: (IsOurs s addr) => s -> addr -> Bool
+ours :: IsOurs s addr => s -> addr -> Bool
 ours s x = isJust . fst $ isOurs x s
 
 -- | Add an address to the address discovery state, iff it belongs to us.
-updateOurs :: (IsOurs s addr) => s -> addr -> s
+updateOurs :: IsOurs s addr => s -> addr -> s
 updateOurs s x = snd $ isOurs x s
 
 -- | Perform stateful address discovery, and return whether the given address
 -- belongs to us.
-isOursState :: (IsOurs s addr) => addr -> State s Bool
+isOursState :: IsOurs s addr => addr -> State s Bool
 isOursState x = isJust <$> state (isOurs x)
 
 {-------------------------------------------------------------------------------
@@ -851,7 +851,7 @@ applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
         totalIn = TB.getCoin spent
 
 ourWithdrawalSumFromTx
-    :: (IsOurs s RewardAccount)
+    :: IsOurs s RewardAccount
     => s
     -> Tx
     -> Coin

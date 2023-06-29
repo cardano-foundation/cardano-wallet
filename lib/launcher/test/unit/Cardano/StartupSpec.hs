@@ -206,7 +206,7 @@ wrapIO = id
 #endif
 
 -- | Detect environment where 'stdin' is set to =/dev/null= and skip test.
-skipWhenNullStdin :: (HasCallStack) => Expectation
+skipWhenNullStdin :: HasCallStack => Expectation
 skipWhenNullStdin = do
     let onError :: IOException -> IO Bool
         onError _ = pure False

@@ -63,8 +63,8 @@ type family ExtraSigsType era where
 
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 
-deriving instance (Show (ExtraSigsType era)) => Show (ExtraSigs era)
-deriving instance (Eq (ExtraSigsType era)) => Eq (ExtraSigs era)
+deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
+deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
 -- | Get extra signatures required for a transaction in any era.
 getEraExtraSigs :: EraFun Tx ExtraSigs

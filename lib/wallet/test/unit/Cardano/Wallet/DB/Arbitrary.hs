@@ -435,7 +435,7 @@ instance Arbitrary MockChain where
                 <$> (choose (1, 10) >>= vector)
                 <*> pure []
 
-instance (GenState s) => Arbitrary (InitialCheckpoint s) where
+instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
         cp <- arbitrary @(Wallet s)
@@ -450,7 +450,7 @@ instance (GenState s) => Arbitrary (InitialCheckpoint s) where
                                    Wallets
 -------------------------------------------------------------------------------}
 
-instance (GenState s) => Arbitrary (Wallet s) where
+instance GenState s => Arbitrary (Wallet s) where
     shrink w =
         [ unsafeInitWallet u (currentTip w) s
         | (u, s) <- shrink (utxo w, getState w)
@@ -681,7 +681,7 @@ instance Arbitrary (PendingIxs 'CredFromKeyK) where
     arbitrary = pure emptyPendingIxs
 
 instance
-    (Typeable (c :: Role))
+    Typeable (c :: Role)
     => Arbitrary (Seq.SeqAddressPool c ShelleyKey)
     where
     arbitrary =
@@ -913,7 +913,7 @@ instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
                                  Miscellaneous
 -------------------------------------------------------------------------------}
 
-deriving instance (Arbitrary a) => Arbitrary (ShowFmt a)
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
@@ -971,7 +971,7 @@ instance Arbitrary TxScriptValidity where
                                    Buildable
 -------------------------------------------------------------------------------}
 
-deriving instance (Buildable a) => Buildable (Identity a)
+deriving instance Buildable a => Buildable (Identity a)
 
 instance Buildable GenTxHistory where
     build (GenTxHistory txs) = blockListF' "-" tupleF txs

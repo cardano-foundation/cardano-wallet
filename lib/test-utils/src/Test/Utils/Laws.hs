@@ -43,7 +43,7 @@ import Test.QuickCheck.Classes
 -- >>> testLaws @(Map Int) functorLaws
 testLaws
     :: forall a
-     . (Typeable a)
+     . Typeable a
     => (Proxy a -> Laws)
     -> Spec
 testLaws getLaws =
@@ -69,7 +69,7 @@ testLaws getLaws =
 -- >>> testLawsMany @(Map Int) [foldableLaws, functorLaws]
 testLawsMany
     :: forall a
-     . (Typeable a)
+     . Typeable a
     => [Proxy a -> Laws]
     -> Spec
 testLawsMany getLawsMany =

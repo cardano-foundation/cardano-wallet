@@ -201,7 +201,7 @@ prop_partitionNatural_fair target weights =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance (Arbitrary a) => Arbitrary (NE.NonEmpty a) where
+instance Arbitrary a => Arbitrary (NE.NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink xs = mapMaybe NE.nonEmpty (shrink (NE.toList xs))
 

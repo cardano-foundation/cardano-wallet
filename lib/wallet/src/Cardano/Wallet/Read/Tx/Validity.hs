@@ -67,8 +67,8 @@ type family ValidityType era where
 
 newtype Validity era = Validity (ValidityType era)
 
-deriving instance (Show (ValidityType era)) => Show (Validity era)
-deriving instance (Eq (ValidityType era)) => Eq (Validity era)
+deriving instance Show (ValidityType era) => Show (Validity era)
+deriving instance Eq (ValidityType era) => Eq (Validity era)
 
 -- | Extract validity data from tx for any available era.
 getEraValidity :: EraFun Tx Validity

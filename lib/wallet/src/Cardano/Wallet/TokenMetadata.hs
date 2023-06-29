@@ -291,11 +291,11 @@ data Property name = Property
     }
     deriving (Generic)
 
-propertyName :: forall name. (KnownSymbol name) => Property name -> PropertyName
+propertyName :: forall name. KnownSymbol name => Property name -> PropertyName
 propertyName _ = PropertyName $ T.pack $ symbolVal $ Proxy @name
 
-deriving instance (Show (PropertyValue name)) => Show (Property name)
-deriving instance (Eq (PropertyValue name)) => Eq (Property name)
+deriving instance Show (PropertyValue name) => Show (Property name)
+deriving instance Eq (PropertyValue name) => Eq (Property name)
 
 -- | A metadata server subject, which can be any string.
 newtype Subject = Subject {unSubject :: Text}
@@ -518,7 +518,7 @@ newtype TokenMetadataClient m = TokenMetadataClient
     }
 
 -- | Not a client for the metadata server.
-nullTokenMetadataClient :: (Applicative m) => TokenMetadataClient m
+nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
 nullTokenMetadataClient =
     TokenMetadataClient . const . pure . Right $ BatchResponse []
 

@@ -123,7 +123,7 @@ getSalt (PassphraseHash stored) = case B8.split '|' (BA.convert stored) of
 
 -- | This is for use by test cases only.
 encryptPassphraseTestingOnly
-    :: (MonadRandom m)
+    :: MonadRandom m
     => Passphrase "encryption"
     -> m PassphraseHash
 encryptPassphraseTestingOnly pwd = mkPassphraseHash <$> genSalt
@@ -150,5 +150,5 @@ encryptPassphraseTestingOnly pwd = mkPassphraseHash <$> genSalt
 
     showBS = B8.pack . show
 
-genSalt :: (MonadRandom m) => m (Passphrase "salt")
+genSalt :: MonadRandom m => m (Passphrase "salt")
 genSalt = Passphrase <$> getRandomBytes 32

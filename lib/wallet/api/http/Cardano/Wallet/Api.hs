@@ -1360,7 +1360,7 @@ type HasWorkerRegistry s ctx =
 
 workerRegistry
     :: forall s ctx
-     . (HasWorkerRegistry s ctx)
+     . HasWorkerRegistry s ctx
     => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s))
 workerRegistry =
     typed @(WorkerRegistry WalletId (DBLayer IO s))
@@ -1370,21 +1370,21 @@ type HasTokenMetadataClient = HasType (TokenMetadataClient IO)
 
 dbFactory
     :: forall s ctx
-     . (HasDBFactory s ctx)
+     . HasDBFactory s ctx
     => Lens' ctx (DBFactory IO s)
 dbFactory =
     typed @(DBFactory IO s)
 
 tokenMetadataClient
     :: forall ctx
-     . (HasTokenMetadataClient ctx)
+     . HasTokenMetadataClient ctx
     => Lens' ctx (TokenMetadataClient IO)
 tokenMetadataClient =
     typed @(TokenMetadataClient IO)
 
 walletLocks
     :: forall ctx
-     . (HasType (Concierge IO WalletLock) ctx)
+     . HasType (Concierge IO WalletLock) ctx
     => Lens' ctx (Concierge IO WalletLock)
 walletLocks =
     typed @(Concierge IO WalletLock)

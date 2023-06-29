@@ -290,7 +290,7 @@ import qualified Data.Text as T
 -- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -> Tracer IO DBFactoryLog
     -- ^ Logging object
@@ -511,7 +511,7 @@ retrieveWalletId DBOpen{atomically} =
 
 withDBFreshFromDBOpen
     :: forall s a
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO
@@ -533,7 +533,7 @@ withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 -- library.
 withDBFresh
     :: forall s a
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -558,7 +558,7 @@ withDBFresh wf tr defaultFieldValues dbFile ti wid action =
 -- database.
 withDBFreshInMemory
     :: forall s a
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -582,7 +582,7 @@ withDBFreshInMemory wf tr ti wid action =
 -- finished with the 'DBFresh'.
 newDBFreshInMemory
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -599,7 +599,7 @@ newDBFreshInMemory wf tr ti wid = do
 -- of one wallet with a specific 'WalletId'.
 newDBFreshFromDBOpen
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO
@@ -827,7 +827,7 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
 -- This function will simply decode the cbor, when present.
 selectTransactionInfo
-    :: (MonadIO m)
+    :: MonadIO m
     => TimeInterpreter IO
     -> W.BlockHeader
     -> (TxId -> m (Maybe (Either TxRelation CBOR)))
@@ -869,7 +869,7 @@ selectTransactionInfo ti tip lookupTx lookupTxOut meta = do
     liftIO . evaluate $ force result
 
 selectGenesisParameters
-    :: (MonadIO m)
+    :: MonadIO m
     => W.WalletId
     -> SqlPersistT m (Maybe W.GenesisParameters)
 selectGenesisParameters wid = do

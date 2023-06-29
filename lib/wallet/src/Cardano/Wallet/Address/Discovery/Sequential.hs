@@ -340,14 +340,14 @@ getGap = AddressPoolGap . fromIntegral . AddressPool.gap . getPool
 -------------------------------------------------------------------------------}
 
 instance
-    (PersistPublicKey (key 'AccountK))
+    PersistPublicKey (key 'AccountK)
     => Buildable (key 'AccountK XPub)
     where
     build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
       where
         xpubF = hexF $ serializeXPub key
 
-instance (PersistPublicKey (key 'PolicyK)) => Buildable (key 'PolicyK XPub) where
+instance PersistPublicKey (key 'PolicyK) => Buildable (key 'PolicyK XPub) where
     build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
       where
         xpubF = hexF $ serializeXPub key
@@ -536,7 +536,7 @@ decoratePath st r ix =
 -- BIP-44 account discovery algorithm is only specified for the external
 -- chain so in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance (SupportsDiscovery n k) => IsOurs (SeqState n k) Address where
+instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
     isOurs addrRaw st =
         if networkDiscriminantCheck @k (sNetworkId @n) networkTag
             then case paymentKeyFingerprint addrRaw of
@@ -623,7 +623,7 @@ isOwned st (rootPrv, pwd) addrRaw =
     accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
     lookupAndDeriveXPrv
         :: forall c
-         . (Typeable c)
+         . Typeable c
         => KeyFingerprint "payment" k
         -> SeqAddressPool c k
         -> Maybe (k 'CredFromKeyK XPrv)
@@ -631,7 +631,7 @@ isOwned st (rootPrv, pwd) addrRaw =
         deriveAddressPrivateKey pwd accountPrv (roleVal @c)
             <$> AddressPool.lookup addr pool
 
-instance (SupportsDiscovery n k) => CompareDiscovery (SeqState n k) where
+instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
@@ -654,7 +654,7 @@ instance
         -- \| List addresses in order of increasing indices.
         listAddresses
             :: forall c
-             . (Typeable c)
+             . Typeable c
             => SeqAddressPool c k
             -> [(Address, AddressState, NonEmpty DerivationIndex)]
         listAddresses (SeqAddressPool pool) =
@@ -791,7 +791,7 @@ instance
     )
     => NFData (SeqAnyState n k p)
 
-instance (KnownNat p) => IsOurs (SeqAnyState n k p) Address where
+instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs (Address bytes) st@(SeqAnyState inner)
         | crc32 bytes < p && correctAddressType =
             let
@@ -811,7 +811,7 @@ instance (KnownNat p) => IsOurs (SeqAnyState n k p) Address where
           where
             sup = maxBound :: Word32
 
-        double :: (Integral a) => a -> Double
+        double :: Integral a => a -> Double
         double = fromIntegral
 
         correctAddressType =
@@ -831,7 +831,7 @@ instance
     type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
     genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
 
-instance (SupportsDiscovery n k) => CompareDiscovery (SeqAnyState n k p) where
+instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
 instance

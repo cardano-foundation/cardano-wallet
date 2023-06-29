@@ -168,7 +168,7 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 -- of these clients is necessary, rather than one client per wallet.
 chainSyncFollowTip
     :: forall m block era
-     . (Monad m)
+     . Monad m
     => (block -> era)
     -> (Maybe era -> Tip block -> m ())
     -- ^ Callback for when the tip changes.
@@ -290,7 +290,7 @@ thousandPipeliningStrategy = PipeliningStrategy{..}
     pipeliningStrategyName = "Constant pipelining of 1000 blocks"
 
 tunedForMainnetPipeliningStrategy
-    :: (HasHeader block) => PipeliningStrategy block
+    :: HasHeader block => PipeliningStrategy block
 tunedForMainnetPipeliningStrategy = PipeliningStrategy{..}
   where
     getPipeliningSize (blockNo -> n)
@@ -769,7 +769,7 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
 -- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
 -- However, the type signature of `send` allows us to retrieve this particular
 -- type @a@ for later use again.
-send :: (MonadSTM m) => TQueue m (cmd m) -> ((a -> m ()) -> cmd m) -> m a
+send :: MonadSTM m => TQueue m (cmd m) -> ((a -> m ()) -> cmd m) -> m a
 send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))

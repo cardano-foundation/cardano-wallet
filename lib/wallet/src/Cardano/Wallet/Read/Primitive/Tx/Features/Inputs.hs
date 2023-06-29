@@ -53,7 +53,7 @@ getInputs =
         , conwayFun = mkShelleyTxInputsIns
         }
 
-fromShelleyTxIns :: (Foldable t) => (t (SH.TxIn crypto)) -> K [W.TxIn] b
+fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> K [W.TxIn] b
 fromShelleyTxIns ins = K . fmap fromShelleyTxIn $ toList ins
 
 mkShelleyTxInputsIns

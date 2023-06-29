@@ -44,14 +44,14 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 -- Indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genUTxOIndex :: forall u. (Ord u) => Gen u -> Gen (UTxOIndex u)
+genUTxOIndex :: forall u. Ord u => Gen u -> Gen (UTxOIndex u)
 genUTxOIndex genUTxO = UTxOIndex.fromSequence <$> listOf genEntry
   where
     genEntry :: Gen (u, TokenBundle)
     genEntry = (,) <$> genUTxO <*> genTokenBundleSmallRangePositive
 
 shrinkUTxOIndex
-    :: forall u. (Ord u) => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
+    :: forall u. Ord u => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
 shrinkUTxOIndex shrinkUTxO =
     shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
   where
@@ -66,11 +66,11 @@ shrinkUTxOIndex shrinkUTxO =
 -- Large indices
 --------------------------------------------------------------------------------
 
-genUTxOIndexLarge :: (Ord u) => Gen u -> Gen (UTxOIndex u)
+genUTxOIndexLarge :: Ord u => Gen u -> Gen (UTxOIndex u)
 genUTxOIndexLarge genUTxO =
     genUTxOIndexLargeN genUTxO =<< choose (1024, 4096)
 
-genUTxOIndexLargeN :: forall u. (Ord u) => Gen u -> Int -> Gen (UTxOIndex u)
+genUTxOIndexLargeN :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
 genUTxOIndexLargeN genUTxO n = UTxOIndex.fromSequence <$> replicateM n genEntry
   where
     genEntry :: Gen (u, TokenBundle)

@@ -50,7 +50,7 @@ currentPassphraseScheme = EncryptWithPBKDF2
 -- | Hashes a 'Passphrase' into a format that is suitable for storing on
 -- disk. It will always use the current scheme: pbkdf2-hmac-sha512.
 encryptPassphrase
-    :: (MonadRandom m)
+    :: MonadRandom m
     => Passphrase "user"
     -> m (PassphraseScheme, PassphraseHash)
 encryptPassphrase =
@@ -58,7 +58,7 @@ encryptPassphrase =
         . encryptPassphrase' currentPassphraseScheme
 
 encryptPassphrase'
-    :: (MonadRandom m)
+    :: MonadRandom m
     => PassphraseScheme
     -> Passphrase "user"
     -> m PassphraseHash
@@ -113,7 +113,7 @@ changePassphraseXPrv (oldS, old) (newS, new) = xPrvChangePass oldP newP
 
 -- | Re-encrypts a wallet private key with a new passphrase.
 checkAndChangePassphraseXPrv
-    :: (MonadRandom m)
+    :: MonadRandom m
     => ((PassphraseScheme, PassphraseHash), Passphrase "user")
     -- ^ Old passphrase
     -> Passphrase "user"

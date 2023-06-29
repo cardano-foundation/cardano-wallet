@@ -221,7 +221,7 @@ data NetworkLayer m block = NetworkLayer
 -- or a 'LightSummary' of blocks.
 type LightBlocks m block = Either (NonEmpty block) (LightSummary m)
 
-instance (Functor m) => Functor (NetworkLayer m) where
+instance Functor m => Functor (NetworkLayer m) where
     fmap f nl =
         nl
             { chainSync = \tr follower ->
@@ -286,7 +286,7 @@ data ChainFollower m point tip blocks = ChainFollower
     }
 
 mapChainFollower
-    :: (Functor m)
+    :: Functor m
     => (point1 -> point2)
     -- ^ Covariant
     -> (point2 -> point1)
@@ -468,7 +468,7 @@ data Rearview a = Rearview
     }
     deriving (Eq, Show, Functor, Generic)
 
-instance (NoThunks a) => NoThunks (Rearview a)
+instance NoThunks a => NoThunks (Rearview a)
 
 initRearview :: a -> Rearview a
 initRearview a = Rearview a a

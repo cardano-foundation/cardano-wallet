@@ -306,7 +306,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do
     let testWalletHandler
-            :: (IsServerError e)
+            :: IsServerError e
             => ExceptT e IO a
             -> IO (Either ServerError a)
         testWalletHandler = runHandler . liftHandler

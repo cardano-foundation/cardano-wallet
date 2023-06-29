@@ -125,7 +125,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do

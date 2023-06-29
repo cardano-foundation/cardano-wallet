@@ -88,11 +88,11 @@ type GenDelta da = Base da -> Gen da
 -- The delta that is applied *last* appears in the list *first*.
 data Chain da = Chain [(Base da, da)] (Base da)
 
-instance (Show da) => Show (Chain da) where
+instance Show da => Show (Chain da) where
     show (Chain adas _) = show . map snd $ adas
 
 -- | Randomly generate a chain of deltas.
-genChain :: (Delta da) => Gen (Base da) -> GenDelta da -> Gen (Chain da)
+genChain :: Delta da => Gen (Base da) -> GenDelta da -> Gen (Chain da)
 genChain gen0 more = do
     n <- getSize
     a0 <- gen0
@@ -189,7 +189,7 @@ checkLaw = do
     rightOf _ = undefined
 
 -- | Reset the store state to the initial value.
-reset :: (Monad m) => StoreUnitTest m qa da ()
+reset :: Monad m => StoreUnitTest m qa da ()
 reset = do
     s <- ask
     (q, _, _) <- get
@@ -207,7 +207,7 @@ unitTestStore x s f = conjoin . snd <$> evalRWST (f >> checkLaw) s (x, x, [])
 
 -- | Add a context to test.
 context
-    :: (Monad m)
+    :: Monad m
     => (Property -> Property)
     -> StoreUnitTest m qa da x
     -> StoreUnitTest m qa da x
@@ -217,11 +217,11 @@ context d f = do
     pure x
 
 -- | Observe a property on the current value of the store.
-observe :: (Monad m) => (Base da -> Property) -> StoreUnitTest m qa da ()
+observe :: Monad m => (Base da -> Property) -> StoreUnitTest m qa da ()
 observe f = do
     (_, s, _) <- get
     tell [f s]
 
 -- | Ignore the properties of a sub-test.
-ignore :: (Monad m) => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
+ignore :: Monad m => StoreUnitTest m qa da x -> StoreUnitTest m qa da x
 ignore = censor (const [])

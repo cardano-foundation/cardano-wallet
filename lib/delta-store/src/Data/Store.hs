@@ -611,7 +611,7 @@ embedStore' Embedding'{load, write, update} Store{loadS, writeS, updateS} =
 -- TODO: Handle the case where 'writeS' or 'updateS' throw an exception
 -- and partially break the 'Store'.
 pairStores
-    :: (Monad m)
+    :: Monad m
     => Store m qa da
     -> Store m qb db
     -> Store m (qa :+: qb) (da, db)
@@ -655,7 +655,7 @@ updateLoad load handle update' Nothing da = do
 updateLoad _load _ update' (Just x) da = update' x da
 
 -- | Throw 'Left' as an exception in the monad.
-throwLeft :: (MonadThrow m) => Either SomeException b -> m b
+throwLeft :: MonadThrow m => Either SomeException b -> m b
 throwLeft = \case
     Left (SomeException e) -> throwIO e
     Right a -> pure a

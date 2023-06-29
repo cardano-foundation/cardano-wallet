@@ -55,8 +55,8 @@ type family ScriptValidityType era where
 
 newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
 
-deriving instance (Show (ScriptValidityType era)) => Show (ScriptValidity era)
-deriving instance (Eq (ScriptValidityType era)) => Eq (ScriptValidity era)
+deriving instance Show (ScriptValidityType era) => Show (ScriptValidity era)
+deriving instance Eq (ScriptValidityType era) => Eq (ScriptValidity era)
 
 getEraScriptValidity :: EraFun Tx ScriptValidity
 getEraScriptValidity =

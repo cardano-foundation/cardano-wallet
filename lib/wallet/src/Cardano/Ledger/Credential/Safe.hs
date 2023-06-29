@@ -91,7 +91,7 @@ fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)
 -- Unsafe internal interface
 --------------------------------------------------------------------------------
 
-unsafeToSlotNo32 :: (HasCallStack) => SlotNo -> SlotNo32
+unsafeToSlotNo32 :: HasCallStack => SlotNo -> SlotNo32
 unsafeToSlotNo32 = fromMaybe reportFailure . toSlotNo32
   where
     reportFailure =

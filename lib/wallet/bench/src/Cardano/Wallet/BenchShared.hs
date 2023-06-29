@@ -272,7 +272,7 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket
                 <> help "Reduce unnecessary log output."
             )
   where
-    envDefault :: (HasValue f) => String -> Maybe a -> Mod f a
+    envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env =
         showDefaultWith (const ('$' : name))
             <> maybe mempty value env
@@ -316,7 +316,7 @@ instance Buildable Time where
 instance ToJSON Time where
     toJSON = toJSON . pretty @_ @Text
 
-runBenchmarks :: (Buildable a) => [IO a] -> IO ()
+runBenchmarks :: Buildable a => [IO a] -> IO ()
 runBenchmarks bs = do
     initializeTime
     -- NOTE: Adding an artificial delay between successive runs to get a better
@@ -325,7 +325,7 @@ runBenchmarks bs = do
     sayErr "\n\nAll results:"
     mapM_ (sayErr . pretty) rs
 
-bench :: (NFData a) => Text -> IO a -> IO (a, Time)
+bench :: NFData a => Text -> IO a -> IO (a, Time)
 bench benchName action = do
     sayErr $ "Running " <> benchName
     start <- getTime

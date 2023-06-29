@@ -412,7 +412,7 @@ data UTxOIndex era = UTxOIndex
     , cardanoUTxO :: !(Cardano.UTxO era)
     }
 
-constructUTxOIndex :: (IsRecentEra era) => W.UTxO -> UTxOIndex era
+constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
 constructUTxOIndex walletUTxO =
     UTxOIndex{walletUTxO, walletUTxOIndex, cardanoUTxO}
   where
@@ -1056,7 +1056,7 @@ selectAssets
             valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
         mkLedgerTxOut
-            :: (HasCallStack)
+            :: HasCallStack
             => RecentEra era
             -> W.Address
             -> TokenBundle

@@ -1905,7 +1905,7 @@ genUpdateProposalCoverage era proposal = checkCoverage
                     error "uncovered case"
 
 rationalCoverage
-    :: (Integral b)
+    :: Integral b
     => b
     -> Rational
     -> Property
@@ -2001,12 +2001,12 @@ signedCoverage name x =
     veryLarge = fromIntegral (maxBound @Word32)
     verySmall = -fromIntegral (maxBound @Word32)
 
-forAllEras :: (Applicative f) => (AnyCardanoEra -> f a) -> f ()
+forAllEras :: Applicative f => (AnyCardanoEra -> f a) -> f ()
 forAllEras f =
     f (AnyCardanoEra ByronEra)
         *> forAllShelleyBasedEras f
 
-forAllShelleyBasedEras :: (Applicative f) => (AnyCardanoEra -> f a) -> f ()
+forAllShelleyBasedEras :: Applicative f => (AnyCardanoEra -> f a) -> f ()
 forAllShelleyBasedEras f =
     traverse_
         f

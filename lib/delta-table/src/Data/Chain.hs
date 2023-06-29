@@ -98,7 +98,7 @@ instance Functor (Chain node) where
     fmap f chain = chain{next = fmap (first f) (next chain)}
 
 -- | Test whether a node is contained in the chain.
-member :: (Ord node) => node -> Chain node edge -> Bool
+member :: Ord node => node -> Chain node edge -> Bool
 member node Chain{prev} = node `Map.member` prev
 
 -- | Context (incoming and outgoing edges) for a @node@ in a 'Chain'.
@@ -106,7 +106,7 @@ type ChainContext node edge = Edge (Maybe (edge, node)) node
 
 -- | Look up the 'Context' of a node in a 'Chain'.
 lookup
-    :: (Ord node) => node -> Chain node edge -> Maybe (ChainContext node edge)
+    :: Ord node => node -> Chain node edge -> Maybe (ChainContext node edge)
 lookup node Chain{next, prev} =
     case (Map.lookup node next, Map.lookup node prev) of
         (_, Nothing) ->
@@ -130,7 +130,7 @@ singleton node = Chain
 -}
 
 -- | Construct a chain from a single 'Edge'.
-fromEdge :: (Ord node) => Edge node edge -> Chain node edge
+fromEdge :: Ord node => Edge node edge -> Chain node edge
 fromEdge Edge{from, to, via} =
     Chain
         { next = Map.fromList [(from, (via, to))]
@@ -146,7 +146,7 @@ fromEdge Edge{from, to, via} =
 -- The ordering of edge labels of a single edge in the chain will
 -- be the same as the ordering of the edge labels as they
 -- appear in the list.
-fromEdges :: (Ord node) => [Edge node edge] -> Maybe (Chain node [edge])
+fromEdges :: Ord node => [Edge node edge] -> Maybe (Chain node [edge])
 fromEdges [] = Nothing
 fromEdges (e : es) = ($ fromEdge' e) . foldr (<=<) Just $ map addEdge es
   where
@@ -156,7 +156,7 @@ fromEdges (e : es) = ($ fromEdge' e) . foldr (<=<) Just $ map addEdge es
 --
 -- The edge that points to the tip is listed /first/,
 -- and the edge that starts at the beginning is listed /last/.
-edges :: (Ord node) => Chain node edge -> [edge]
+edges :: Ord node => Chain node edge -> [edge]
 edges Chain{prev, next, tip} = unfoldr backwards tip
   where
     backwards now = do
@@ -166,7 +166,7 @@ edges Chain{prev, next, tip} = unfoldr backwards tip
 
 -- | List all nodes in the 'Chain'.
 -- The tip is listed /first/.
-nodes :: (Ord node) => Chain node edge -> [node]
+nodes :: Ord node => Chain node edge -> [node]
 nodes Chain{prev, next, tip} = tip : unfoldr backwards tip
   where
     backwards now = do
@@ -209,7 +209,7 @@ instance (Ord node, Semigroup edge) => Delta (DeltaChain node edge) where
     apply (RollbackTo n) = rollbackTo n
 
 -- | Append a new tip to the chain.
-appendTip :: (Ord node) => node -> edge -> Chain node edge -> Chain node edge
+appendTip :: Ord node => node -> edge -> Chain node edge -> Chain node edge
 appendTip new edge Chain{next, prev, tip = old} =
     Chain
         { next = Map.insert old (edge, new) next
@@ -243,7 +243,7 @@ collapseNode now chain@Chain{next, prev} =
 -- the given node is the tip.
 --
 -- Do nothing if the node is not in the chain.
-rollbackTo :: (Ord node) => node -> Chain node edge -> Chain node edge
+rollbackTo :: Ord node => node -> Chain node edge -> Chain node edge
 rollbackTo new chain@Chain{next, prev, tip}
     | new `member` chain =
         Chain
@@ -263,7 +263,7 @@ rollbackTo new chain@Chain{next, prev, tip}
 -- | Helper: Add a single edge to a 'Chain' if possible.
 -- The chain may contain gaps while adding edges.
 addEdge
-    :: (Ord node)
+    :: Ord node
     => Edge node edge
     -> Chain node [edge]
     -> Maybe (Chain node [edge])

@@ -48,7 +48,7 @@ import qualified Data.ByteString as BS
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase
-    :: (MonadRandom m)
+    :: MonadRandom m
     => Passphrase "encryption"
     -> m PassphraseHash
 encryptPassphrase (Passphrase bytes) = mkPassphraseHash <$> genSalt
@@ -67,7 +67,7 @@ encryptPassphrase (Passphrase bytes) = mkPassphraseHash <$> genSalt
             , outputLength = 64
             }
 
-genSalt :: (MonadRandom m) => m (Passphrase "salt")
+genSalt :: MonadRandom m => m (Passphrase "salt")
 genSalt = Passphrase <$> getRandomBytes 16
 
 preparePassphrase :: Passphrase "user" -> Passphrase "encryption"

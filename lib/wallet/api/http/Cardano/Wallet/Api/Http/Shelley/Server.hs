@@ -1914,7 +1914,7 @@ withLegacyLayer'
 
 deleteWallet
     :: forall ctx s
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
@@ -1997,7 +1997,7 @@ listWallets ctx mkApiWallet = do
 
 putWallet
     :: forall ctx s apiWallet
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
@@ -2103,7 +2103,7 @@ putByronWalletPassphrase ctx (ApiT wid) body = do
 
 getUTxOsStatistics
     :: forall ctx s
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
@@ -2680,7 +2680,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
 
 deleteTransaction
     :: forall ctx s
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> ApiTxId
@@ -3353,7 +3353,7 @@ parseValidityInterval ti validityInterval = do
 -- TO-DO reference scripts
 constructSharedTransaction
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey)
     -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
@@ -3527,7 +3527,7 @@ constructSharedTransaction
 
 decodeSharedTransaction
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey)
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3686,7 +3686,7 @@ balanceTransaction
                             Base64Encoded
       where
         parsePartialTx
-            :: (Write.IsRecentEra era)
+            :: Write.IsRecentEra era
             => Write.RecentEra era
             -> Handler (Write.PartialTx era)
         parsePartialTx era = do
@@ -4010,7 +4010,7 @@ isForeign apiDecodedTx =
 
 submitSharedTransaction
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey)
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -4269,7 +4269,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
 -- all keys in inputs appear (once) in output
 listStakeKeys'
     :: forall n m
-     . (Monad m)
+     . Monad m
     => UTxO.UTxO
     -- ^ The wallet's UTxO
     -> (Address -> Maybe RewardAccount)
@@ -4336,7 +4336,7 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
 
 listStakeKeys
     :: forall s n
-     . (s ~ SeqState n ShelleyKey)
+     . s ~ SeqState n ShelleyKey
     => (Address -> Maybe RewardAccount)
     -> ApiLayer s
     -> ApiT WalletId
@@ -4404,7 +4404,7 @@ createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
 
 mkApiWalletMigrationPlan
     :: forall n s
-     . (IsOurs s Address)
+     . IsOurs s Address
     => s
     -> NonEmpty (ApiAddress n)
     -> Withdrawal
@@ -4586,7 +4586,7 @@ data ErrCurrentEpoch
 
 getCurrentEpoch
     :: forall ctx s
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -> Handler W.EpochNo
 getCurrentEpoch ctx =
@@ -4598,7 +4598,7 @@ getCurrentEpoch ctx =
     ti = timeInterpreter (ctx ^. networkLayer)
 
 getNetworkInformation
-    :: (HasCallStack)
+    :: HasCallStack
     => NetworkId
     -> NetworkLayer IO block
     -> ApiWalletMode
@@ -4927,7 +4927,7 @@ mkWithdrawal netLayer txWitnessTag db = \case
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
     :: forall s block
-     . (WalletFlavor s)
+     . WalletFlavor s
     => NetworkLayer IO block
     -> TxWitnessTag
     -> DBLayer IO s
@@ -5300,7 +5300,7 @@ apiSlotId slotId =
         (ApiT $ slotId ^. #slotNumber)
 
 makeApiBlockReference
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> SlotNo
     -> Quantity "block" Natural
@@ -5317,7 +5317,7 @@ makeApiBlockReference ti sl height = do
             }
 
 makeApiBlockReferenceFromHeader
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> BlockHeader
     -> m ApiBlockReference
@@ -5325,7 +5325,7 @@ makeApiBlockReferenceFromHeader ti tip =
     makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
 
 makeApiSlotReference
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> SlotNo
     -> m ApiSlotReference
@@ -5335,7 +5335,7 @@ makeApiSlotReference ti sl =
         <*> interpretQuery ti (slotToUTCTime sl)
 
 getWalletTip
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> Wallet s
     -> m ApiBlockReference
@@ -5465,7 +5465,7 @@ createWalletWorker ctx wid createWallet coworker =
 
 createNonRestoringWalletWorker
     :: forall ctx s
-     . (ctx ~ ApiLayer s)
+     . ctx ~ ApiLayer s
     => ctx
     -- ^ Surrounding API context
     -> WalletId
@@ -5571,7 +5571,7 @@ withWorkerCtx ctx wid onMissing onNotResponding action =
     Atomic handler operations
 -------------------------------------------------------------------------------}
 atomicallyWithHandler
-    :: (Ord lock)
+    :: Ord lock
     => Concierge.Concierge IO lock
     -> lock
     -> Handler a

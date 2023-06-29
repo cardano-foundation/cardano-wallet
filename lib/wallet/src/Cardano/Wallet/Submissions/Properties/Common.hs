@@ -43,7 +43,7 @@ import Test.QuickCheck
     )
 
 forAllIn
-    :: (Show a)
+    :: Show a
     => Set a
     -> (a -> Property)
     -> Property
@@ -53,10 +53,10 @@ forAllIn db f = conjoin $ fmap g (toList db)
 
 type Prop t a = Writer [t] a
 
-that :: (Testable t) => String -> t -> Prop Property ()
+that :: Testable t => String -> t -> Prop Property ()
 that s = tell . pure . counterexample s
 
-verify :: (Testable t) => Prop t a -> Property
+verify :: Testable t => Prop t a -> Property
 verify = conjoin . execWriter
 
 -- | Encode a change of the store, for inspection

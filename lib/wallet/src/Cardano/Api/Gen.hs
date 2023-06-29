@@ -433,7 +433,7 @@ genScriptValidity = elements [ScriptInvalid, ScriptValid]
 genSeed :: Int -> Gen Crypto.Seed
 genSeed n = (Crypto.mkSeedFromBytes . BS.pack) <$> vector n
 
-genSigningKey :: (Key keyrole) => AsType keyrole -> Gen (SigningKey keyrole)
+genSigningKey :: Key keyrole => AsType keyrole -> Gen (SigningKey keyrole)
 genSigningKey roletoken = do
     seed <- genSeed (fromIntegral seedSize)
     let sk = deterministicSigningKey roletoken seed
@@ -443,12 +443,12 @@ genSigningKey roletoken = do
     seedSize = deterministicSigningKeySeedSize roletoken
 
 genVerificationKey
-    :: (Key keyrole)
+    :: Key keyrole
     => AsType keyrole
     -> Gen (VerificationKey keyrole)
 genVerificationKey roletoken = getVerificationKey <$> genSigningKey roletoken
 
-genVerificationKeyHash :: (Key keyrole) => AsType keyrole -> Gen (Hash keyrole)
+genVerificationKeyHash :: Key keyrole => AsType keyrole -> Gen (Hash keyrole)
 genVerificationKeyHash roletoken =
     verificationKeyHash <$> genVerificationKey roletoken
 
@@ -1068,7 +1068,7 @@ genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
             , ReferenceScript supported <$> genScriptInAnyLang (Just era)
             ]
 
-mkDummyHash :: forall h a. (Crypto.HashAlgorithm h) => Int -> Crypto.Hash h a
+mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
 mkDummyHash = coerce . Crypto.hashWithSerialiser @h CBOR.toCBOR
 
 genHashScriptData :: Gen (Cardano.Api.Hash ScriptData)
@@ -1621,7 +1621,7 @@ genTxBodyContent era = do
             | (_, AnyScriptWitness (PlutusScriptWitness _ v _ _ _ _)) <- witnesses
             ]
 
-genTxBody :: (IsCardanoEra era) => CardanoEra era -> Gen (TxBody era)
+genTxBody :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
 genTxBody era = do
     res <- createAndValidateTransactionBody <$> genTxBodyContent era
     case res of
@@ -1631,7 +1631,7 @@ genTxBody era = do
 -- | Similar to 'genTxBody', but with a distribution better suitable for testing
 -- balancing.
 genTxBodyForBalancing
-    :: (IsCardanoEra era) => CardanoEra era -> Gen (TxBody era)
+    :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = do
     res <- createAndValidateTransactionBody <$> genStrippedContent
     case res of
@@ -1700,7 +1700,7 @@ genWitness era body =
                 , makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
                 ]
 
-genTxInEra :: forall era. (IsCardanoEra era) => CardanoEra era -> Gen (Tx era)
+genTxInEra :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
 genTxInEra era = do
     body <- genTxBody era
     makeSignedTransaction
@@ -1722,7 +1722,7 @@ genTx =
 -- TODO: Generate txs with existing key witnesses
 -- TODO: Generate txs with no outputs
 genTxForBalancing
-    :: forall era. (IsCardanoEra era) => CardanoEra era -> Gen (Tx era)
+    :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
 
 --------------------------------------------------------------------------------

@@ -257,8 +257,8 @@ data SelectionParams ctx = SelectionParams
     }
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionParams ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionParams ctx)
+deriving instance SelectionContext ctx => Eq (SelectionParams ctx)
+deriving instance SelectionContext ctx => Show (SelectionParams ctx)
 
 -- | Indicates that an error occurred while performing a coin selection.
 data SelectionError ctx
@@ -269,8 +269,8 @@ data SelectionError ctx
     | SelectionOutputErrorOf
         (SelectionOutputError ctx)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionError ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionError ctx)
+deriving instance SelectionContext ctx => Eq (SelectionError ctx)
+deriving instance SelectionContext ctx => Show (SelectionError ctx)
 
 -- | Represents an unsuccessful attempt to select collateral.
 data SelectionCollateralError ctx = SelectionCollateralError
@@ -281,8 +281,8 @@ data SelectionCollateralError ctx = SelectionCollateralError
     }
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionCollateralError ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionCollateralError ctx)
+deriving instance SelectionContext ctx => Eq (SelectionCollateralError ctx)
+deriving instance SelectionContext ctx => Show (SelectionCollateralError ctx)
 
 -- | Represents a balanced selection.
 data Selection ctx = Selection
@@ -313,8 +313,8 @@ data Selection ctx = Selection
     }
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (Selection ctx)
-deriving instance (SelectionContext ctx) => Show (Selection ctx)
+deriving instance SelectionContext ctx => Eq (Selection ctx)
+deriving instance SelectionContext ctx => Show (Selection ctx)
 
 -- | Provides a context for functions related to 'performSelection'.
 type PerformSelection m ctx a =
@@ -361,7 +361,7 @@ performSelectionInner cs ps = do
     pure $ mkSelection ps balanceResult collateralResult
 
 prepareOutputs
-    :: (Applicative m) => PerformSelection m ctx (SelectionParams ctx)
+    :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
 prepareOutputs cs ps =
     withExceptT SelectionOutputErrorOf
         $ ExceptT
@@ -570,7 +570,7 @@ data VerificationResult
 -- | Represents a reason for verification failure.
 data VerificationFailureReason
     = forall failureReason.
-        (Show failureReason) =>
+        Show failureReason =>
       VerificationFailureReason failureReason
 
 deriving instance Show VerificationFailureReason
@@ -591,7 +591,7 @@ instance Semigroup VerificationResult where
 -- | Constructs a singleton verification failure.
 verificationFailure
     :: forall failureReason
-     . (Show failureReason)
+     . Show failureReason
     => failureReason
     -> VerificationResult
 verificationFailure a = VerificationFailure (VerificationFailureReason a :| [])
@@ -616,7 +616,7 @@ verificationResultToFailureReasons = \case
 -- Otherwise, returns 'VerificationFailure' with the given reason.
 verify
     :: forall failureReason
-     . (Show failureReason)
+     . Show failureReason
     => Bool
     -> failureReason
     -> VerificationResult
@@ -646,7 +646,7 @@ verifyAll conditions = verify (getAll $ F.foldMap All conditions)
 -- applied to the non-empty list.
 verifyEmpty
     :: forall failureReason a
-     . (Show failureReason)
+     . Show failureReason
     => [a]
     -> (NonEmpty a -> failureReason)
     -> VerificationResult
@@ -672,7 +672,7 @@ type VerifySelection ctx =
 -- This function is provided primarily as a convenience for testing. As such,
 -- it's not usually necessary to call this function from ordinary application
 -- code, unless you suspect that a 'Selection' is incorrect in some way.
-verifySelection :: (SelectionContext ctx) => VerifySelection ctx
+verifySelection :: SelectionContext ctx => VerifySelection ctx
 verifySelection =
     mconcat
         [ verifySelectionCollateralSufficient
@@ -715,7 +715,7 @@ data FailureToVerifySelectionCollateralSuitable u = FailureToVerifySelectionColl
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitable
-    :: forall ctx. (SelectionContext ctx) => VerifySelection ctx
+    :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionCollateralSuitable _cs ps selection =
     verify
         (null collateralSelectedButUnsuitable)
@@ -775,14 +775,14 @@ data SelectionOutputCoinInsufficientError ctx = SelectionOutputCoinInsufficientE
     deriving (Generic)
 
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Eq (SelectionOutputCoinInsufficientError ctx)
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Show (SelectionOutputCoinInsufficientError ctx)
 
 verifySelectionOutputCoinsSufficient
-    :: forall ctx. (SelectionContext ctx) => VerifySelection ctx
+    :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionOutputCoinsSufficient cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
@@ -818,7 +818,7 @@ newtype FailureToVerifySelectionOutputSizesWithinLimit address
     deriving (Eq, Show)
 
 verifySelectionOutputSizesWithinLimit
-    :: forall ctx. (SelectionContext ctx) => VerifySelection ctx
+    :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionOutputSizesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
@@ -835,7 +835,7 @@ newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit address
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantitiesWithinLimit
-    :: forall ctx. (SelectionContext ctx) => VerifySelection ctx
+    :: forall ctx. SelectionContext ctx => VerifySelection ctx
 verifySelectionOutputTokenQuantitiesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
@@ -856,7 +856,7 @@ type VerifySelectionError e ctx =
 -- it's not usually necessary to call this function from ordinary application
 -- code, unless you suspect that a 'SelectionError' is incorrect in some way.
 verifySelectionError
-    :: (SelectionContext ctx) => VerifySelectionError (SelectionError ctx) ctx
+    :: SelectionContext ctx => VerifySelectionError (SelectionError ctx) ctx
 verifySelectionError cs ps = \case
     SelectionBalanceErrorOf e ->
         verifySelectionBalanceError cs ps e
@@ -870,7 +870,7 @@ verifySelectionError cs ps = \case
 --------------------------------------------------------------------------------
 
 verifySelectionBalanceError
-    :: (SelectionContext ctx)
+    :: SelectionContext ctx
     => VerifySelectionError (SelectionBalanceError ctx) ctx
 verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient e ->
@@ -911,7 +911,7 @@ newtype FailureToVerifyEmptyUTxOError u = FailureToVerifyEmptyUTxOError
     {utxoAvailableForInputs :: UTxOSelection u}
     deriving (Eq, Show)
 
-verifyEmptyUTxOError :: (SelectionContext ctx) => VerifySelectionError () ctx
+verifyEmptyUTxOError :: SelectionContext ctx => VerifySelectionError () ctx
 verifyEmptyUTxOError _cs SelectionParams{utxoAvailableForInputs} _e =
     verify
         (utxoAvailableForInputs == UTxOSelection.empty)
@@ -929,7 +929,7 @@ data FailureToVerifySelectionOutputCoinInsufficientError address = FailureToVeri
     deriving (Eq, Show)
 
 verifySelectionOutputCoinInsufficientError
-    :: (SelectionContext ctx)
+    :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
 verifySelectionOutputCoinInsufficientError cs _ps e =
     verifyAll
@@ -964,10 +964,10 @@ data FailureToVerifyUnableToConstructChangeError ctx = FailureToVerifyUnableToCo
     }
 
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Eq (FailureToVerifyUnableToConstructChangeError ctx)
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Show (FailureToVerifyUnableToConstructChangeError ctx)
 
 -- | Verifies a 'Balance.UnableToConstructChangeError'.
@@ -994,7 +994,7 @@ deriving instance
 -- balance is insufficient by returning a 'BalanceInsufficientError' instead.
 verifyUnableToConstructChangeError
     :: forall ctx
-     . (SelectionContext ctx)
+     . SelectionContext ctx
     => VerifySelectionError Balance.UnableToConstructChangeError ctx
 verifyUnableToConstructChangeError cs ps errorOriginal =
     case resultWithMinimalConstraints of
@@ -1078,7 +1078,7 @@ data FailureToVerifySelectionCollateralError u = FailureToVerifySelectionCollate
 
 verifySelectionCollateralError
     :: forall ctx
-     . (SelectionContext ctx)
+     . SelectionContext ctx
     => VerifySelectionError (SelectionCollateralError ctx) ctx
 verifySelectionCollateralError cs ps e =
     verifyAll
@@ -1111,7 +1111,7 @@ verifySelectionCollateralError cs ps e =
 --------------------------------------------------------------------------------
 
 verifySelectionOutputError
-    :: (SelectionContext ctx)
+    :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputError ctx) ctx
 verifySelectionOutputError cs ps (SelectionOutputError _index info) =
     case info of
@@ -1131,7 +1131,7 @@ newtype FailureToVerifySelectionOutputSizeExceedsLimitError address = FailureToV
     deriving (Eq, Show)
 
 verifySelectionOutputSizeExceedsLimitError
-    :: (SelectionContext ctx)
+    :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputSizeExceedsLimitError ctx) ctx
 verifySelectionOutputSizeExceedsLimitError cs _ps e =
     verify
@@ -1157,7 +1157,7 @@ newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError ctx = Failu
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantityExceedsLimitError
-    :: (SelectionContext ctx)
+    :: SelectionContext ctx
     => VerifySelectionError
         (SelectionOutputTokenQuantityExceedsLimitError ctx)
         ctx
@@ -1336,7 +1336,7 @@ prepareOutputsInternal constraints outputsUnprepared =
 -- Outputs that have non-zero ada quantities will not be modified.
 prepareOutputsWith
     :: forall f address
-     . (Functor f)
+     . Functor f
     => (address -> TokenMap -> Coin)
     -> f (address, TokenBundle)
     -> f (address, TokenBundle)
@@ -1356,8 +1356,8 @@ data SelectionOutputError ctx = SelectionOutputError
     , outputErrorInfo :: SelectionOutputErrorInfo ctx
     }
 
-deriving instance (SelectionContext ctx) => Eq (SelectionOutputError ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionOutputError ctx)
+deriving instance SelectionContext ctx => Eq (SelectionOutputError ctx)
+deriving instance SelectionContext ctx => Show (SelectionOutputError ctx)
 
 data SelectionOutputErrorInfo ctx
     = SelectionOutputCoinInsufficient
@@ -1368,8 +1368,8 @@ data SelectionOutputErrorInfo ctx
         (SelectionOutputTokenQuantityExceedsLimitError ctx)
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionOutputErrorInfo ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionOutputErrorInfo ctx)
+deriving instance SelectionContext ctx => Eq (SelectionOutputErrorInfo ctx)
+deriving instance SelectionContext ctx => Show (SelectionOutputErrorInfo ctx)
 
 newtype SelectionOutputSizeExceedsLimitError ctx = SelectionOutputSizeExceedsLimitError
     { outputThatExceedsLimit :: (Address ctx, TokenBundle)
@@ -1377,10 +1377,10 @@ newtype SelectionOutputSizeExceedsLimitError ctx = SelectionOutputSizeExceedsLim
     deriving (Generic)
 
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Eq (SelectionOutputSizeExceedsLimitError ctx)
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Show (SelectionOutputSizeExceedsLimitError ctx)
 
 -- | Verifies the size of an output.
@@ -1418,10 +1418,10 @@ data SelectionOutputTokenQuantityExceedsLimitError ctx = SelectionOutputTokenQua
     deriving (Generic)
 
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Eq (SelectionOutputTokenQuantityExceedsLimitError ctx)
 deriving instance
-    (SelectionContext ctx)
+    SelectionContext ctx
     => Show (SelectionOutputTokenQuantityExceedsLimitError ctx)
 
 -- | Verifies the token quantities of an output.

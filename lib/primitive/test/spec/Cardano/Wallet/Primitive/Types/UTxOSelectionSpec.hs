@@ -166,7 +166,7 @@ prop_shrinkUTxOSelectionNonEmpty =
                 <$> shrinkUTxOSelectionNonEmpty shrink s
 
 checkCoverage_UTxOSelection
-    :: (Testable p) => (IsUTxOSelection s u) => s u -> (p -> Property)
+    :: Testable p => IsUTxOSelection s u => s u -> (p -> Property)
 checkCoverage_UTxOSelection s =
     checkCoverage_UTxOSelectionNonEmpty s
         . cover 2 (0 == ssize && ssize == lsize) "0 == lsize && lsize == ssize"
@@ -176,7 +176,7 @@ checkCoverage_UTxOSelection s =
     ssize = UTxOSelection.selectedSize s
 
 checkCoverage_UTxOSelectionNonEmpty
-    :: (Testable p) => (IsUTxOSelection s u) => s u -> (p -> Property)
+    :: Testable p => IsUTxOSelection s u => s u -> (p -> Property)
 checkCoverage_UTxOSelectionNonEmpty s =
     checkCoverage
         . cover 2 (0 == lsize && lsize < ssize) "0 == lsize && lsize <  ssize"
@@ -320,35 +320,35 @@ prop_select_empty u =
     UTxOSelection.select u UTxOSelection.empty === Nothing
 
 prop_select_isValid
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isValid u s =
     property
         $ checkCoverage_select u s
         $ maybe True isValidSelectionNonEmpty (UTxOSelection.select u s)
 
 prop_select_isLeftover
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isLeftover u s =
     checkCoverage_select u s
         $ (UTxOSelection.isLeftover u <$> UTxOSelection.select u s)
             === if UTxOSelection.isLeftover u s then Just False else Nothing
 
 prop_select_isSelected
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isSelected u s =
     checkCoverage_select u s
         $ (UTxOSelection.isSelected u <$> UTxOSelection.select u s)
             === if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_isProperSubSelectionOf
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_isProperSubSelectionOf u s =
     checkCoverage_select u s
         $ (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select u s)
             === if UTxOSelection.isLeftover u s then Just True else Nothing
 
 prop_select_availableBalance
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_availableBalance u s =
     checkCoverage_select u s
         $ (UTxOSelection.availableBalance <$> UTxOSelection.select u s)
@@ -357,7 +357,7 @@ prop_select_availableBalance u s =
                 else Nothing
 
 prop_select_availableMap
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_availableMap u s =
     checkCoverage_select u s
         $ (UTxOSelection.availableMap <$> UTxOSelection.select u s)
@@ -366,7 +366,7 @@ prop_select_availableMap u s =
                 else Nothing
 
 prop_select_leftoverSize
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_leftoverSize u s =
     checkCoverage_select u s
         $ (UTxOSelection.leftoverSize <$> UTxOSelection.select u s)
@@ -375,7 +375,7 @@ prop_select_leftoverSize u s =
                 else Nothing
 
 prop_select_selectedSize
-    :: (u ~ Size 4 TestUTxO) => u -> UTxOSelection u -> Property
+    :: u ~ Size 4 TestUTxO => u -> UTxOSelection u -> Property
 prop_select_selectedSize u s =
     checkCoverage_select u s
         $ (UTxOSelection.selectedSize <$> UTxOSelection.select u s)
@@ -428,13 +428,13 @@ checkCoverage_select u s =
 -- Validity
 --------------------------------------------------------------------------------
 
-isValidSelection :: (Ord u) => (IsUTxOSelection s u) => s u -> Bool
+isValidSelection :: Ord u => IsUTxOSelection s u => s u -> Bool
 isValidSelection s =
     UTxOIndex.disjoint
         (UTxOSelection.selectedIndex s)
         (UTxOSelection.leftoverIndex s)
 
-isValidSelectionNonEmpty :: (Ord u) => UTxOSelectionNonEmpty u -> Bool
+isValidSelectionNonEmpty :: Ord u => UTxOSelectionNonEmpty u -> Bool
 isValidSelectionNonEmpty s =
     isValidSelection s
         && UTxOSelection.isNonEmpty s

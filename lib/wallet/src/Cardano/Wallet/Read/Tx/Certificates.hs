@@ -72,8 +72,8 @@ type family CertificatesType era where
 
 newtype Certificates era = Certificates (CertificatesType era)
 
-deriving instance (Show (CertificatesType era)) => Show (Certificates era)
-deriving instance (Eq (CertificatesType era)) => Eq (Certificates era)
+deriving instance Show (CertificatesType era) => Show (Certificates era)
+deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
 -- | Extract certificates from a 'Tx' in any era.
 getEraCertificates :: EraFun Tx Certificates

@@ -141,7 +141,7 @@ type WithDBFresh s =
     -> PropertyM IO ()
 
 withFreshWallet
-    :: (GenState s)
+    :: GenState s
     => WalletId
     -> WithDBFresh s
     -> (DBLayer IO s -> WalletId -> PropertyM IO ())
@@ -168,7 +168,7 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 -- | Wallet properties.
 properties
-    :: (GenState s)
+    :: GenState s
     => WithDBFresh s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
@@ -216,7 +216,7 @@ properties withFreshDB = describe "DB.Properties" $ do
 
 -- | Wrap the result of 'readTransactions' in an arbitrary identity Applicative
 readTxHistory_
-    :: (Functor m)
+    :: Functor m
     => DBLayer m s
     -> m (Identity GenTxHistory)
 readTxHistory_ DBLayer{..} =
@@ -255,7 +255,7 @@ filterTxs predicate = mapMaybe fn
 -- Wallet Metadata:
 -- squirtle (still restoring (94%)), created at 1963-10-09 06:50:11 UTC, not delegating
 -- @
-namedPick :: (Show a) => String -> Gen a -> PropertyM IO a
+namedPick :: Show a => String -> Gen a -> PropertyM IO a
 namedPick lbl gen =
     monitor (counterexample ("\n" <> lbl <> ":")) *> pick gen
 

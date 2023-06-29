@@ -208,7 +208,7 @@ queryServerStatic golden = do
 
         inSubs sp = (view #subject sp) `Set.member` subs
 
-        inProps :: (KnownSymbol name) => Maybe (Property name) -> Maybe (Property name)
+        inProps :: KnownSymbol name => Maybe (Property name) -> Maybe (Property name)
         inProps (Just p) = if (propertyName p) `Set.member` props then Just p else Nothing
         inProps Nothing = Nothing
 
@@ -249,7 +249,7 @@ instance ToJSON SubjectProperties where
       where
         optionals = filter ((/= Null) . snd)
 
-instance (ToJSON (PropertyValue name)) => ToJSON (Property name) where
+instance ToJSON (PropertyValue name) => ToJSON (Property name) where
     toJSON (Property v s c) =
         object
             [ "value" .= either snd toJSON v

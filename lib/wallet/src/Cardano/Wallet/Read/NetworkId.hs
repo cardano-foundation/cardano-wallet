@@ -84,7 +84,7 @@ data NetworkId
     deriving (Eq, Show)
 
 data SNat (n :: Nat) where
-    SNat :: (KnownNat n) => Proxy n -> SNat n
+    SNat :: KnownNat n => Proxy n -> SNat n
 
 deriving instance Show (SNat n)
 deriving instance Eq (SNat n)
@@ -92,7 +92,7 @@ deriving instance Eq (SNat n)
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
-withSNat :: Natural -> (forall (n :: Nat). (KnownNat n) => SNat n -> a) -> a
+withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
 withSNat nat f = case someNatVal nat of
     SomeNat proxy -> f (SNat proxy)
 
@@ -115,7 +115,7 @@ class HasSNetworkId n where
 instance HasSNetworkId 'Mainnet where
     sNetworkId = SMainnet
 
-instance (KnownNat i) => HasSNetworkId ('Testnet i) where
+instance KnownNat i => HasSNetworkId ('Testnet i) where
     sNetworkId = STestnet $ SNat Proxy
 
 {-----------------------------------------------------------------------------

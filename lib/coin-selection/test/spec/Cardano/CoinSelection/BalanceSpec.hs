@@ -4418,7 +4418,7 @@ data MockRoundRobinState k n = MockRoundRobinState
     deriving (Eq, Show)
 
 genMockRoundRobinState
-    :: forall k n. (Ord k) => Gen k -> Gen n -> Gen (MockRoundRobinState k n)
+    :: forall k n. Ord k => Gen k -> Gen n -> Gen (MockRoundRobinState k n)
 genMockRoundRobinState genKey genLifetime = do
     processorCount <- choose (0, 16)
     MockRoundRobinState
@@ -4436,7 +4436,7 @@ genMockRoundRobinState genKey genLifetime = do
             <*> genLifetime
 
 shrinkMockRoundRobinState
-    :: (Ord k)
+    :: Ord k
     => (n -> [n])
     -> MockRoundRobinState k n
     -> [MockRoundRobinState k n]
@@ -4683,7 +4683,7 @@ prop_reduceTokenQuantities_order reduceQty qtyDiffs =
 -- Utility functions
 --------------------------------------------------------------------------------
 
-assertWith :: (Monad m) => String -> Bool -> PropertyM m ()
+assertWith :: Monad m => String -> Bool -> PropertyM m ()
 assertWith description condition = do
     monitor $ counterexample ("Assertion failed: " <> description)
     assert condition
@@ -4787,11 +4787,11 @@ instance Buildable (TestUTxO, TokenBundle) where
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance (Arbitrary a) => Arbitrary (AssetCount a) where
+instance Arbitrary a => Arbitrary (AssetCount a) where
     arbitrary = AssetCount <$> arbitrary
     shrink = fmap AssetCount . shrink . unAssetCount
 

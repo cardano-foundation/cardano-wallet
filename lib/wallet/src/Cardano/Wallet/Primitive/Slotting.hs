@@ -245,7 +245,7 @@ instance Monad Qry where
     (>>=) = QBind
 
 runQuery
-    :: (HasCallStack)
+    :: HasCallStack
     => StartTime
     -> Interpreter xs
     -> Qry a
@@ -420,13 +420,13 @@ getCurrentTimeRelativeFromStart start =
 --
 -- If the current time is before the system start (this would only happen when
 -- launching testnets), the relative time is reported as 0.
-currentRelativeTime :: (MonadIO m) => TimeInterpreter n -> m RelativeTime
+currentRelativeTime :: MonadIO m => TimeInterpreter n -> m RelativeTime
 currentRelativeTime =
     liftIO . getCurrentTimeRelativeFromStart . blockchainStartTime
 
 -- | Note: This fails when the node is far enough behind that we in the present
 -- are beyond its safe zone.
-currentEpoch :: (MonadIO m) => TimeInterpreter m -> m EpochNo
+currentEpoch :: MonadIO m => TimeInterpreter m -> m EpochNo
 currentEpoch ti = do
     now <- currentRelativeTime ti
     interpretQuery ti (ongoingSlotAt now >>= epochOf)
@@ -447,7 +447,7 @@ data TimeInterpreter m = forall eras.
 
 toEpochInfo
     :: forall m
-     . (Applicative m)
+     . Applicative m
     => TimeInterpreter m
     -> m (EpochInfo (ExceptT PastHorizonException Identity))
 toEpochInfo TimeInterpreter{interpreter} =
@@ -529,8 +529,8 @@ instance ToText TimeInterpreterLog where
 
 -- | Run a query.
 interpretQuery
-    :: (HasCallStack)
-    => (Monad m)
+    :: HasCallStack
+    => Monad m
     => TimeInterpreter m
     -> Qry a
     -> m a
@@ -548,7 +548,7 @@ interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
 --
 -- Queries will never fail with @mkSingleEraInterpreter@.
 mkSingleEraInterpreter
-    :: (HasCallStack)
+    :: HasCallStack
     => StartTime
     -> SlottingParameters
     -> TimeInterpreter Identity
@@ -570,7 +570,7 @@ mkSingleEraInterpreter start sp =
 -- | Set up a 'TimeInterpreter' for a given start time, and an 'Interpreter'
 -- queried from the ledger layer.
 mkTimeInterpreter
-    :: (Monad m)
+    :: Monad m
     => Tracer m TimeInterpreterLog
     -> StartTime
     -> m (Interpreter eras)

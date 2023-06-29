@@ -91,7 +91,7 @@ instance HasTxId Tx where
     txId x = x
 
 genTx
-    :: (Arbitrary tx)
+    :: Arbitrary tx
     => Int
     -- ^ unknown share
     -> Int
@@ -176,7 +176,7 @@ shrinkByInit [] = []
 shrinkByInit xs = [init xs]
 
 prop_submissionHistory
-    :: (Show (delta () Slot Tx))
+    :: Show (delta () Slot Tx)
     => GenSubmissionsHistory delta
     -> Property
 prop_submissionHistory d = mapSize (* 10)

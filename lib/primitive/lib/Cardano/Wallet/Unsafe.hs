@@ -142,19 +142,19 @@ unsafeFromHex = unsafeRight . convertFromBase @ByteString @b Base16
 
 -- | Decode hex-encoded 'Text' into a 'ByteString', or fail. This variant of
 -- 'unsafeFromHex' may be easier to use because it's not polymorphic.
-unsafeFromHexText :: (HasCallStack) => Text -> ByteString
+unsafeFromHexText :: HasCallStack => Text -> ByteString
 unsafeFromHexText = unsafeFromHex . T.encodeUtf8
 
 -- | Decode a base64-encoded 'ByteString' into raw bytes, or fail.
-unsafeFromBase64 :: (HasCallStack) => ByteString -> ByteString
+unsafeFromBase64 :: HasCallStack => ByteString -> ByteString
 unsafeFromBase64 = unsafeRight . convertFromBase @ByteString @ByteString Base64
 
 -- | Load a hex string from file. Any non-hexadecimal characters are ignored.
-unsafeFromHexFile :: (HasCallStack) => FilePath -> IO ByteString
+unsafeFromHexFile :: HasCallStack => FilePath -> IO ByteString
 unsafeFromHexFile = fmap (unsafeFromHex . B8.filter isHexDigit) . B8.readFile
 
 -- | Run a decoder on a hex-encoded 'ByteString', or fail.
-unsafeDecodeHex :: (HasCallStack) => Get a -> ByteString -> a
+unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a
 unsafeDecodeHex get = runGet get . BL.fromStrict . unsafeFromHex
 
 -- | Decode the given data-type from a textual representation, or fail.
@@ -162,14 +162,14 @@ unsafeFromText :: (FromText a, HasCallStack) => Text -> a
 unsafeFromText = unsafeRight . fromText
 
 -- | Build a 'XPrv' from a bytestring
-unsafeXPrv :: (HasCallStack) => ByteString -> XPrv
+unsafeXPrv :: HasCallStack => ByteString -> XPrv
 unsafeXPrv bytes =
     case CC.xprv bytes of
         Left e -> error $ "unsafeXPrv: " <> e
         Right a -> a
 
 -- | Build a 'XPub' from a bytestring
-unsafeXPub :: (HasCallStack) => ByteString -> XPub
+unsafeXPub :: HasCallStack => ByteString -> XPub
 unsafeXPub bytes =
     case CC.xpub bytes of
         Left e -> error $ "unsafeXPub: " <> e
@@ -199,7 +199,7 @@ unsafeRunExceptT =
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseCbor
-    :: (HasCallStack)
+    :: HasCallStack
     => (forall s. CBOR.Decoder s a)
     -> BL.ByteString
     -> a
@@ -260,13 +260,13 @@ someDummyMnemonic proxy =
 
 -- | Load the data part of a bech32-encoded string from file. These files often
 -- come from @jcli@. Only the first line of the file is read.
-unsafeBech32DecodeFile :: (HasCallStack) => FilePath -> IO BL.ByteString
+unsafeBech32DecodeFile :: HasCallStack => FilePath -> IO BL.ByteString
 unsafeBech32DecodeFile = fmap (unsafeBech32Decode . firstLine) . TIO.readFile
   where
     firstLine = T.takeWhile (/= '\n')
 
 -- | Get the data part of a bech32-encoded string, ignoring the human-readable part.
-unsafeBech32Decode :: (HasCallStack) => Text -> BL.ByteString
+unsafeBech32Decode :: HasCallStack => Text -> BL.ByteString
 unsafeBech32Decode txt = case Bech32.decodeLenient txt of
     Right (_hrp, dp) ->
         maybe
@@ -282,7 +282,7 @@ unsafeBech32Decode txt = case Bech32.decodeLenient txt of
                 ++ " because "
                 ++ msg
 
-unsafeMkPercentage :: (HasCallStack) => Rational -> Percentage
+unsafeMkPercentage :: HasCallStack => Rational -> Percentage
 unsafeMkPercentage r = fromRight bomb $ mkPercentage r
   where
     bomb = error $ "unsafeMkPercentage: " ++ show r ++ " is out of bounds."

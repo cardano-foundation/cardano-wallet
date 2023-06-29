@@ -87,13 +87,13 @@ mkPersist
 delegationMigration :: Migration
 delegationMigration = migrateModels [entityDef (Proxy :: Proxy Delegations)]
 
-migrateDelegations :: (MonadIO m) => SqlPersistT m ()
+migrateDelegations :: MonadIO m => SqlPersistT m ()
 migrateDelegations = void $ runMigrationUnsafeQuiet delegationMigration
 
-dropDelegationTable :: (MonadIO m) => SqlPersistT m ()
+dropDelegationTable :: MonadIO m => SqlPersistT m ()
 dropDelegationTable = rawExecute "DROP TABLE IF EXISTS \"delegations\";" []
 
-resetDelegationTable :: (MonadIO m) => SqlPersistT m ()
+resetDelegationTable :: MonadIO m => SqlPersistT m ()
 resetDelegationTable = do
     dropDelegationTable
     migrateDelegations

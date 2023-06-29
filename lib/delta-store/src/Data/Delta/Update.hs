@@ -57,7 +57,7 @@ import Data.Delta
 newtype Update da r = Update {runUpdate_ :: Base da -> (Maybe da, r)}
 
 -- | Run the 'Update' computation.
-runUpdate :: (a ~ Base da) => Update da r -> a -> (Maybe da, r)
+runUpdate :: a ~ Base da => Update da r -> a -> (Maybe da, r)
 runUpdate = runUpdate_
 
 -- | Semantics.
@@ -96,12 +96,12 @@ nop :: Update da ()
 nop = Update $ const (Nothing, ())
 
 -- | Compute a delta.
-update :: (a ~ Base da) => (a -> da) -> Update da ()
+update :: a ~ Base da => (a -> da) -> Update da ()
 update f = Update $ \a -> (Just (f a), ())
 
 -- | Compute a delta with result.
 updateWithResult
-    :: (a ~ Base da)
+    :: a ~ Base da
     => (a -> (da, r)) -- Delta with result.
     -> Update da r
 updateWithResult f = Update $ \a ->
@@ -110,7 +110,7 @@ updateWithResult f = Update $ \a ->
 
 -- | Computer a delta or fail.
 updateWithError
-    :: (a ~ Base da)
+    :: a ~ Base da
     => (a -> Either e da)
     -> Update da (Either e ())
 updateWithError f = Update $ \a ->
@@ -120,7 +120,7 @@ updateWithError f = Update $ \a ->
 
 -- | Compute a delta with result or fail.
 updateWithResultAndError
-    :: (a ~ Base da)
+    :: a ~ Base da
     => (a -> Either e (da, r))
     -> Update da (Either e r)
 updateWithResultAndError f = Update $ \a ->

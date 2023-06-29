@@ -104,10 +104,10 @@ import qualified GHC.Generics as GHC
 newtype EraValue f = EraValue (NS f KnownEras)
     deriving (GHC.Generic)
 
-deriving instance (All (Compose Show f) KnownEras) => Show (EraValue f)
-deriving instance (All (Compose Eq f) KnownEras) => Eq (EraValue f)
-deriving instance (All (Compose Ord f) KnownEras) => Ord (EraValue f)
-deriving instance (All (Compose NFData f) KnownEras) => NFData (EraValue f)
+deriving instance All (Compose Show f) KnownEras => Show (EraValue f)
+deriving instance All (Compose Eq f) KnownEras => Eq (EraValue f)
+deriving instance All (Compose Ord f) KnownEras => Ord (EraValue f)
+deriving instance All (Compose NFData f) KnownEras => NFData (EraValue f)
 
 -- | Internal product of 'CardanoEra'
 cardanoEras :: NP CardanoEra KnownEras
@@ -141,7 +141,7 @@ indexEraValue :: EraValue f -> Int
 indexEraValue (EraValue v) = index_NS v
 
 -- | Sequence one applicative functor level out.
-sequenceEraValue :: (Applicative f) => EraValue (f :.: g) -> f (EraValue g)
+sequenceEraValue :: Applicative f => EraValue (f :.: g) -> f (EraValue g)
 sequenceEraValue (EraValue v) = EraValue <$> sequence'_NS v
 
 -- | A prism for one era that can project `f era` into `EraValue f`

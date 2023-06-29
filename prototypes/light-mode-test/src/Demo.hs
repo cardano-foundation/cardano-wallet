@@ -98,13 +98,13 @@ printAddresses n addr = do
     xs <- nub <$> genAddresses n (Address addr)
     prints $ map unAddress xs
 
-prints :: (MonadIO m) => [Text] -> m ()
+prints :: MonadIO m => [Text] -> m ()
 prints = mapM_ say
 
 {-----------------------------------------------------------------------------
     Utilities
 ------------------------------------------------------------------------------}
-repeatN :: (Monad m) => Int -> (a -> m (Maybe a)) -> a -> m [a]
+repeatN :: Monad m => Int -> (a -> m (Maybe a)) -> a -> m [a]
 repeatN 0 _ a = pure [a]
 repeatN n f a1 = do
     ma2 <- f a1
@@ -113,7 +113,7 @@ repeatN n f a1 = do
         Just a2 -> (a2 :) <$> repeatN (n - 1) f a2
 
 -- | Monadic unfold
-unfoldrM :: (Monad m) => (b -> m (Maybe (a, b))) -> b -> m [a]
+unfoldrM :: Monad m => (b -> m (Maybe (a, b))) -> b -> m [a]
 unfoldrM f = go
   where
     go b = do
@@ -123,7 +123,7 @@ unfoldrM f = go
             Just (a, b') -> (a :) <$> (go b')
 
 -- | Execution time of a monadic action
-timed :: (MonadIO m) => m a -> m (a, NominalDiffTime)
+timed :: MonadIO m => m a -> m (a, NominalDiffTime)
 timed action = do
     start <- liftIO getCurrentTime
     res <- action

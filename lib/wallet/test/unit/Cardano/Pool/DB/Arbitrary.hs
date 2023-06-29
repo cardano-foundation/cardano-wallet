@@ -359,7 +359,7 @@ newtype ManyPoolCertificates cert
     = ManyPoolCertificates [(CertificatePublicationTime, cert)]
     deriving (Eq, Show, Generic)
 
-instance (Arbitrary cert) => Arbitrary (ManyPoolCertificates cert) where
+instance Arbitrary cert => Arbitrary (ManyPoolCertificates cert) where
     shrink = genericShrink
     arbitrary = ManyPoolCertificates <$> reasonablySized arbitrary
 

@@ -69,7 +69,7 @@ toInAnyCardanoEra (EraValue f) =
             :* Nil
 
     mkExistential
-        :: (IsCardanoEra era)
+        :: IsCardanoEra era
         => CardanoEra era
         -> (f -.-> K (InAnyCardanoEra f)) era
     mkExistential e = Fn (K . InAnyCardanoEra e)

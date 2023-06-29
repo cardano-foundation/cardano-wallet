@@ -311,7 +311,7 @@ newDBLayer tr ti SqliteContext{runQuery} =
             fmap fromPoolProduction
                 <$> selectPoolProduction ti epoch
 
-        let toMap :: (Ord a) => Map a [b] -> (a, b) -> Map a [b]
+        let toMap :: Ord a => Map a [b] -> (a, b) -> Map a [b]
             toMap m (k, v) = Map.alter (alter v) k m
               where
                 alter x = \case
@@ -802,7 +802,7 @@ data RawQuery a b = RawQuery
 -- | Runs a raw SQL query, logging any parse failures that occur.
 runRawQuery
     :: forall a b
-     . (RawSql a)
+     . RawSql a
     => Tracer IO PoolDbLog
     -> RawQuery a b
     -> SqlPersistT IO [b]

@@ -135,7 +135,7 @@ type TxInDecorator tx m = tx -> m DecoratedTxIns
 
 decorateTxInsInternalLookupTxRelation
     :: forall m
-     . (Monad m)
+     . Monad m
     => LookupFun m TxId TxRelation
     -> [(TxId, Word32)]
     -> [(TxId, Word32)]
@@ -145,7 +145,7 @@ decorateTxInsInternalLookupTxRelation =
 
 lookupOutputFromLookupRelation
     :: forall m
-     . (Monad m)
+     . Monad m
     => LookupFun m TxId TxRelation
     -> LookupFun m (TxId, Word32) W.TxOut
 lookupOutputFromLookupRelation lookupTx = lookupOutput
@@ -171,7 +171,7 @@ lookupOutputFromLookupRelation lookupTx = lookupOutput
 
 decorateTxInsInternal
     :: forall m
-     . (Monad m)
+     . Monad m
     => LookupFun m (TxId, Word32) W.TxOut
     -> [(TxId, Word32)]
     -> [(TxId, Word32)]
@@ -190,7 +190,7 @@ decorateTxInsInternal lookupOut ins collateralIns = do
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForRelationFromLookupTxOut
-    :: (Monad m)
+    :: Monad m
     => LookupFun m (TxId, Word32) W.TxOut
     -> TxRelation
     -> m DecoratedTxIns
@@ -205,7 +205,7 @@ decorateTxInsForRelationFromLookupTxOut
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForRelation
-    :: (Monad m)
+    :: Monad m
     => LookupFun m TxId TxRelation
     -> TxRelation
     -> m DecoratedTxIns
@@ -218,7 +218,7 @@ decorateTxInsForRelation lookupTx TxRelation{ins, collateralIns} =
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForReadTxFromLookupTxOut
-    :: (Monad m)
+    :: Monad m
     => LookupFun m (TxId, Word32) W.TxOut
     -> EraValue Read.Tx
     -> m DecoratedTxIns

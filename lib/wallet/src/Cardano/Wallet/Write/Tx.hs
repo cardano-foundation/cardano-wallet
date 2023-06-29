@@ -333,7 +333,7 @@ type RecentEraLedgerConstraints era =
 -- https://input-output.atlassian.net/browse/ADP-2353
 withConstraints
     :: RecentEra era
-    -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
+    -> (RecentEraLedgerConstraints (ShelleyLedgerEra era) => a)
     -> a
 withConstraints era a = case era of
     RecentEraBabbage -> a
@@ -373,13 +373,13 @@ shelleyBasedEraFromRecentEra = \case
 
 -- | For convenience working with 'IsRecentEra'. Similar to 'Cardano.cardanoEra,
 -- but with a 'IsRecentEra era' constraint instead of 'Cardano.IsCardanoEra.
-cardanoEra :: forall era. (IsRecentEra era) => Cardano.CardanoEra era
+cardanoEra :: forall era. IsRecentEra era => Cardano.CardanoEra era
 cardanoEra = cardanoEraFromRecentEra $ recentEra @era
 
 -- | For convenience working with 'IsRecentEra'. Similar to
 -- 'Cardano.shelleyBasedEra, but with a 'IsRecentEra era' constraint instead of
 -- 'Cardano.IsShelleyBasedEra'.
-shelleyBasedEra :: forall era. (IsRecentEra era) => Cardano.ShelleyBasedEra era
+shelleyBasedEra :: forall era. IsRecentEra era => Cardano.ShelleyBasedEra era
 shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
 data MaybeInRecentEra (thing :: Type -> Type)
@@ -412,14 +412,14 @@ toRecentEraGADT = \case
 
 data InAnyRecentEra thing where
     InAnyRecentEra
-        :: (IsRecentEra era) -- Provide class constraint
+        :: IsRecentEra era -- Provide class constraint
         => RecentEra era -- and explicit value.
         -> thing era
         -> InAnyRecentEra thing
 
 withInAnyRecentEra
     :: InAnyRecentEra thing
-    -> (forall era. (IsRecentEra era) => thing era -> a)
+    -> (forall era. IsRecentEra era => thing era -> a)
     -> a
 withInAnyRecentEra (InAnyRecentEra _era tx) f = f tx
 
@@ -446,7 +446,7 @@ asAnyRecentEra = \case
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
     AnyRecentEra
-        :: (IsRecentEra era) -- Provide class constraint
+        :: IsRecentEra era -- Provide class constraint
         => RecentEra era -- and explicit value.
         -> AnyRecentEra -- and that's it.
 
@@ -492,7 +492,7 @@ fromAnyCardanoEra = \case
         Just $ AnyRecentEra RecentEraConway
 
 withRecentEra
-    :: AnyRecentEra -> (forall era. (IsRecentEra era) => RecentEra era -> a) -> a
+    :: AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
 withRecentEra (AnyRecentEra era) f = f era
 
 --------------------------------------------------------------------------------
@@ -783,7 +783,7 @@ emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 
 fromCardanoTx
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Cardano.Tx era
     -> Core.Tx (Cardano.ShelleyLedgerEra era)
 fromCardanoTx = \case
@@ -794,14 +794,14 @@ fromCardanoTx = \case
 
 toCardanoTx
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Core.Tx (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
 toCardanoTx = Cardano.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 toCardanoUTxO
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Shelley.UTxO (ShelleyLedgerEra era)
     -> Cardano.UTxO era
 toCardanoUTxO =
@@ -815,7 +815,7 @@ toCardanoUTxO =
 
 fromCardanoUTxO
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Cardano.UTxO era
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
 fromCardanoUTxO =
@@ -827,7 +827,7 @@ fromCardanoUTxO =
 
 toCardanoValue
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Core.Value (ShelleyLedgerEra era)
     -> Cardano.Value
 toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
@@ -844,7 +844,7 @@ newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
 getFeePerByte
-    :: (HasCallStack)
+    :: HasCallStack
     => RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> FeePerByte

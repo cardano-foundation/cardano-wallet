@@ -173,7 +173,7 @@ instance Monoid TokenBundle where
 -- be included in an ordered set), the recommended course of action is to
 -- define a newtype with its own dedicated 'Ord' instance.
 instance
-    (TypeError ('Text "Ord not supported for token bundles"))
+    TypeError ('Text "Ord not supported for token bundles")
     => Ord TokenBundle
     where
     compare = error "Ord not supported for token bundles"
@@ -200,7 +200,7 @@ instance Buildable (Nested TokenBundle) where
     build = buildBundle Nested . getNested
 
 buildBundle
-    :: (Buildable (style TokenMap))
+    :: Buildable (style TokenMap)
     => (TokenMap -> style TokenMap)
     -> TokenBundle
     -> Builder

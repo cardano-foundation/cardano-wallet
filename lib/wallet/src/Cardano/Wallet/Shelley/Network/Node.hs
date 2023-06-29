@@ -412,7 +412,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
 -- | Create an instance of 'NetworkLayer' by connecting to a local node.
 withNetworkLayer
-    :: (HasCallStack)
+    :: HasCallStack
     => Tracer IO Log
     -- ^ Logging of network layer startup
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
@@ -439,7 +439,7 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
         action
 
 withNodeNetworkLayerBase
-    :: (HasCallStack)
+    :: HasCallStack
     => Tracer IO Log
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -> W.NetworkParameters
@@ -533,7 +533,7 @@ withNodeNetworkLayerBase
         cfg = codecConfig sp
 
         connectNodeClient
-            :: (HasCallStack)
+            :: HasCallStack
             => RetryHandlers
             -> IO
                 ( STM IO (Tip (CardanoBlock StandardCrypto))
@@ -570,7 +570,7 @@ withNodeNetworkLayerBase
             pure (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
 
         connectDelegationRewardsClient
-            :: (HasCallStack)
+            :: HasCallStack
             => RetryHandlers
             -> IO (TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
         connectDelegationRewardsClient handlers = do
@@ -683,7 +683,7 @@ withNodeNetworkLayerBase
             fromMaybe (W.Coin 0) <$> query rewardsObserver k
 
         _timeInterpreter
-            :: (HasCallStack)
+            :: HasCallStack
             => Tracer IO TimeInterpreterLog
             -> TMVar IO (CardanoInterpreter sc)
             -> TimeInterpreter (ExceptT PastHorizonException IO)
@@ -720,7 +720,7 @@ withNodeNetworkLayerBase
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
-    :: (MonadTimer m) => RunMiniProtocol 'InitiatorMode ByteString m a Void
+    :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
 doNothingProtocol =
     InitiatorProtocolOnly $ MuxPeerRaw $ const $ forever $ threadDelay 1_000_000
 
@@ -999,7 +999,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
     byronValue = Map.fromList . map (,W.Coin 0) $ Set.toList accounts
 
     shelleyQry
-        :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
+        :: Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra))
         => LSQ
             (Shelley.ShelleyBlock protocol shelleyEra)
             IO
@@ -1122,7 +1122,7 @@ codecConfig sp =
 
 -- | A group of codecs which will deserialise block data.
 codecs
-    :: (MonadST m)
+    :: MonadST m
     => NodeToClientVersion
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> ClientCodecs (CardanoBlock StandardCrypto) m
@@ -1132,7 +1132,7 @@ codecs nodeToClientVersion cfg =
 -- | A group of codecs which won't deserialise block data. Often only the block
 -- headers are needed. It's more efficient and easier not to deserialise.
 serialisedCodecs
-    :: (MonadST m)
+    :: MonadST m
     => NodeToClientVersion
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> DefaultCodecs (CardanoBlock StandardCrypto) m
@@ -1276,7 +1276,7 @@ repsertTMVar var x = do
 -- | Convenience function to trace around a local state query.
 -- See 'addTimings'.
 bracketQuery
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => String
     -> Tracer m Log
     -> m a

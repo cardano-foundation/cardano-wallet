@@ -74,8 +74,8 @@ type family MetadataType era where
 
 newtype Metadata era = Metadata (MetadataType era)
 
-deriving instance (Show (MetadataType era)) => Show (Metadata era)
-deriving instance (Eq (MetadataType era)) => Eq (Metadata era)
+deriving instance Show (MetadataType era) => Show (Metadata era)
+deriving instance Eq (MetadataType era) => Eq (Metadata era)
 
 getEraMetadata :: EraFun Tx Metadata
 getEraMetadata =

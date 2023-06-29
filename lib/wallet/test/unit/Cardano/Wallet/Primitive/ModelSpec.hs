@@ -611,7 +611,7 @@ prop_countRewardsOnce (WithPending wallet pending rewards) =
     hasWithdrawals =
         not $ null $ Set.filter (not . null . withdrawals) pending
 
-    pretty' :: (Buildable a) => a -> String
+    pretty' :: Buildable a => a -> String
     pretty' = T.unpack . pretty
 
 --------------------------------------------------------------------------------
@@ -654,7 +654,7 @@ prop_availableUTxO_availableBalance =
             === F.foldMap (view #tokens) (unUTxO result)
 
 prop_availableUTxO
-    :: (Testable prop)
+    :: Testable prop
     => (Set Tx -> Wallet s -> UTxO -> prop)
     -> Property
 prop_availableUTxO makeProperty =
@@ -945,7 +945,7 @@ prop_totalUTxO_pendingInputsExcluded =
                 & Set.fromList
 
 prop_totalUTxO
-    :: (Testable prop)
+    :: Testable prop
     => (Set Tx -> Wallet TestStateForTotalUTxO -> UTxO -> prop)
     -> Property
 prop_totalUTxO makeProperty =
@@ -1135,7 +1135,7 @@ isOurTx tx u
     txHasRelevantWithdrawal =
         F.or <$> mapM (isOursState . fst) (Map.toList (tx ^. #withdrawals))
 
-    isOursState :: (IsOurs s addr) => addr -> State s Bool
+    isOursState :: IsOurs s addr => addr -> State s Bool
     isOursState = fmap isJust . state . isOurs
 
 prop_discoverFromBlockData
@@ -1175,7 +1175,7 @@ prop_discoverFromBlockData (ApplyBlocks s _ blocks) =
 
 -- Update UTxO as described in the formal specification, Fig 3. The basic model
 updateUTxO
-    :: (IsOurs s Address)
+    :: IsOurs s Address
     => Block
     -> UTxO
     -> State s UTxO
@@ -1198,7 +1198,7 @@ updateUTxO !b utxo = do
 -- @
 txOutsOurs
     :: forall s
-     . (IsOurs s Address)
+     . IsOurs s Address
     => Set Tx
     -> s
     -> (Set (Tx, TxOut), s)
@@ -1215,7 +1215,7 @@ txOutsOurs txs =
         return $ case predicate of
             Just{} -> Just (tx, out)
             Nothing -> Nothing
-    forMaybe :: (Monad m) => [a] -> (a -> m (Maybe b)) -> m [b]
+    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
 {-------------------------------------------------------------------------------
@@ -3094,7 +3094,7 @@ applyBlocksLastUTxO = utxo . snd . snd . NE.last
 
 -- | Filters a UTxO set for entries that are expected to be relevant to a
 --   particular wallet.
-ourUTxO :: forall s. (IsOurs s Address) => s -> UTxO -> UTxO
+ourUTxO :: forall s. IsOurs s Address => s -> UTxO -> UTxO
 ourUTxO s u = evalState (UTxO.filterByAddressM isOurAddressM u) s
   where
     isOurAddressM :: Address -> State s Bool
@@ -3283,13 +3283,13 @@ prop_applyBlocks_lastUTxO_noneOurs (Pretty blockSeq) =
 -- Utilities
 --------------------------------------------------------------------------------
 
-nonNullProperSubsequenceOf :: (Eq a) => [a] -> [a] -> Bool
+nonNullProperSubsequenceOf :: Eq a => [a] -> [a] -> Bool
 nonNullProperSubsequenceOf s1 s2 =
     (&&)
         (s1 `isProperSubsequenceOf` s2)
         (not (null s1))
 
-isProperSubsequenceOf :: (Eq a) => [a] -> [a] -> Bool
+isProperSubsequenceOf :: Eq a => [a] -> [a] -> Bool
 isProperSubsequenceOf s1 s2 =
     (&&)
         (s1 `L.isSubsequenceOf` s2)

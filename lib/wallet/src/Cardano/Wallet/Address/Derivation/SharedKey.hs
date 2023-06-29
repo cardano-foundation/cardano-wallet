@@ -111,14 +111,14 @@ newtype SharedKey (depth :: Depth) key = SharedKey {getKey :: key}
 sharedKey :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
 sharedKey = iso getKey SharedKey
 
-instance (NFData key) => NFData (SharedKey depth key)
+instance NFData key => NFData (SharedKey depth key)
 
 instance TxWitnessTagFor SharedKey where
     txWitnessTagFor = TxWitnessShelleyUTxO
 
 constructAddressFromIx
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Role
     -> ScriptTemplate
     -> Maybe ScriptTemplate
@@ -175,7 +175,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         :: Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
 
-    toKeyHash :: (HasCallStack) => Cosigner -> KeyHash
+    toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c =
         case Map.lookup c xpubs of
             Nothing -> error "Impossible: cosigner without accXPpub."
@@ -194,7 +194,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
-toNetworkTag :: forall n. (HasSNetworkId n) => CA.NetworkTag
+toNetworkTag :: forall n. HasSNetworkId n => CA.NetworkTag
 toNetworkTag = case sNetworkId @n of
     SMainnet -> CA.NetworkTag 1
     STestnet _ -> CA.NetworkTag 0 -- fixme: Not all testnets have NetworkTag=0

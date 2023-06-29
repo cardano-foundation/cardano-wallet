@@ -117,7 +117,7 @@ readDelegation (CurrentEpochSlotting epoch cur (Just prev)) hist =
             ]
 
 nextDelegation
-    :: (Functor f)
+    :: Functor f
     => EpochNo
     -> f WalletDelegationStatus
     -> f WalletDelegationNext
@@ -143,7 +143,7 @@ walletDelegationStatus = \case
 -- .
 mkCurrentEpochSlotting
     :: forall m
-     . (Monad m)
+     . Monad m
     => TimeInterpreter m
     -> EpochNo
     -> m CurrentEpochSlotting

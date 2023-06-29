@@ -55,7 +55,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map
 
 toWitnessCountCtx
-    :: (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s))
+    :: IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
     => WalletFlavorS s
     -> s
     -> WitnessCountCtx

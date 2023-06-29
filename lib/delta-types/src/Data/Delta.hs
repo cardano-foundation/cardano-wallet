@@ -105,7 +105,7 @@ instance Semigroup (Replace a) where
     r <> _ = r
 
 -- | A delta can be optionally applied.
-instance (Delta delta) => Delta (Maybe delta) where
+instance Delta delta => Delta (Maybe delta) where
     type Base (Maybe delta) = Base delta
     apply = maybe id apply
 
@@ -117,13 +117,13 @@ instance (Delta delta) => Delta (Maybe delta) where
 --
 -- > apply []         = id
 -- > apply (d1 <> d2) = apply d1 . apply d2
-instance (Delta delta) => Delta [delta] where
+instance Delta delta => Delta [delta] where
     type Base [delta] = Base delta
     apply ds a = foldr apply a ds
 
 -- | For convenience, a nonempty list of deltas
 -- can be applied like a list of deltas.
-instance (Delta delta) => Delta (NonEmpty delta) where
+instance Delta delta => Delta (NonEmpty delta) where
     type Base (NonEmpty delta) = Base delta
     apply ds a = foldr apply a ds
 
@@ -155,7 +155,7 @@ instance Delta (DeltaList a) where
 data DeltaSet1 a = Insert a | Delete a
     deriving (Eq, Ord, Show)
 
-instance (Ord a) => Delta (DeltaSet1 a) where
+instance Ord a => Delta (DeltaSet1 a) where
     type Base (DeltaSet1 a) = Set a
     apply (Insert a) = Set.insert a
     apply (Delete a) = Set.delete a
@@ -170,12 +170,12 @@ data DeltaSet a = DeltaSet
 
 -- INVARIANT: The two sets are always disjoint.
 
-instance (Ord a) => Delta (DeltaSet a) where
+instance Ord a => Delta (DeltaSet a) where
     type Base (DeltaSet a) = Set a
     apply (DeltaSet i d) x = i `Set.union` (x `Set.difference` d)
 
 -- | Delta to get from the second argument to the first argument.
-mkDeltaSet :: (Ord a) => Set a -> Set a -> DeltaSet a
+mkDeltaSet :: Ord a => Set a -> Set a -> DeltaSet a
 mkDeltaSet new old =
     DeltaSet (new `Set.difference` old) (old `Set.difference` new)
 
@@ -194,7 +194,7 @@ deltaSetToList DeltaSet{inserts, deletes} =
 -- These simplifications always preserve the property
 --
 -- > apply (deltaSetFromList ds) = apply ds
-deltaSetFromList :: (Ord a) => [DeltaSet1 a] -> DeltaSet a
+deltaSetFromList :: Ord a => [DeltaSet1 a] -> DeltaSet a
 deltaSetFromList = foldr step empty
   where
     empty = DeltaSet Set.empty Set.empty
@@ -213,7 +213,7 @@ The following cancellation laws hold:
 -}
 
 -- | 'apply' distributes over '(<>)'.
-instance (Ord a) => Semigroup (DeltaSet a) where
+instance Ord a => Semigroup (DeltaSet a) where
     (DeltaSet i1 d1) <> (DeltaSet i2 d2) =
         DeltaSet
             (i1 `Set.union` (i2 `Set.difference` d1))
@@ -221,7 +221,7 @@ instance (Ord a) => Semigroup (DeltaSet a) where
 
 -- This takes into account [DeltaSet1 Cancellations]
 
-instance (Ord a) => Monoid (DeltaSet a) where
+instance Ord a => Monoid (DeltaSet a) where
     mempty = DeltaSet Set.empty Set.empty
 
 {-------------------------------------------------------------------------------
@@ -350,7 +350,7 @@ pair (Embedding inject1 project1) (Embedding inject2 project2) =
 
 -- | Lift a sequence of updates through an 'Embedding'.
 liftUpdates
-    :: (Delta da)
+    :: Delta da
     => Embedding da db
     -> [da]
     -- ^ List of deltas to apply. The 'head' is applied /last/.
@@ -413,7 +413,7 @@ instance Semigroupoid Machine where
                 (dc, mbc) -> (dc, mbc `o` mab)
 
 -- | Identity machine starting from a base type.
-idle :: (Delta da) => Base da -> Machine da da
+idle :: Delta da => Base da -> Machine da da
 idle a0 = Machine a0 $ \(a1, da) -> let a2 = apply da a1 in (da, idle a2)
 
 -- | Pair two 'Machine'.
@@ -428,7 +428,7 @@ pairMachine (Machine s1 step1) (Machine s2 step2) =
 -- | Create a 'Machine' from a specific state 's',
 -- and the built-in state 'Base'@ db@.
 fromState
-    :: (Delta db)
+    :: Delta db
     => ((Base da, da) -> (Base db, s) -> (db, s))
     -> (Base db, s)
     -> Machine da db

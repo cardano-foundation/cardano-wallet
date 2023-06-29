@@ -318,14 +318,14 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
     }
     deriving (Generic)
 
-instance (NFData (k 'AccountK XPub)) => NFData (SharedState n k)
+instance NFData (k 'AccountK XPub) => NFData (SharedState n k)
 
-deriving instance (Show (k 'AccountK XPub)) => Show (SharedState n k)
+deriving instance Show (k 'AccountK XPub) => Show (SharedState n k)
 
 -- We have to write the equality instance by hands,
 -- because there is no general equality for address pools
 -- (we cannot test the generators for equality).
-instance (Eq (k 'AccountK XPub)) => Eq (SharedState n k) where
+instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
     SharedState a1 a2 a3 a4 a5 a6 ap == SharedState b1 b2 b3 b4 b5 b6 bp =
         and
             [ a1 == b1
@@ -342,7 +342,7 @@ instance (Eq (k 'AccountK XPub)) => Eq (SharedState n k) where
             sharedAddressPools1 == sharedAddressPools2
         match _ _ = False
 
-instance (PersistPublicKey (k 'AccountK)) => Buildable (SharedState n k) where
+instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where
     build st =
         "SharedState:\n"
             <> indentF 4 ("Derivation prefix: " <> build (toText $ derivationPrefix st))
@@ -365,7 +365,7 @@ data Readiness a
     | Active !a
     deriving (Generic, Show, Eq)
 
-instance (NFData a) => NFData (Readiness a)
+instance NFData a => NFData (Readiness a)
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
@@ -406,7 +406,7 @@ instance ToText ErrValidateScriptTemplate where
 
 isShared
     :: forall n k
-     . (SupportsDiscovery n k)
+     . SupportsDiscovery n k
     => Address
     -> SharedState n k
     -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
@@ -451,7 +451,7 @@ isShared addrRaw st = case ready st of
     nop = (Nothing, st)
     AddressParts _ networkTag _ = toAddressParts addrRaw
 
-instance (SupportsDiscovery n k) => IsOurs (SharedState n k) Address where
+instance SupportsDiscovery n k => IsOurs (SharedState n k) Address where
     isOurs addr st =
         first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
 
@@ -494,7 +494,7 @@ instance IsOurs (SharedState n k) RewardAccount where
 instance GetAccount (SharedState n k) k where
     getAccount = accountXPub
 
-instance (SupportsDiscovery n k) => CompareDiscovery (SharedState n k) where
+instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
     compareDiscovery st a1 a2 = case ready st of
         Pending ->
             error "comparing addresses in pending shared state does not make sense"
@@ -513,7 +513,7 @@ instance (SupportsDiscovery n k) => CompareDiscovery (SharedState n k) where
                     AddressPool.lookup addr (getPool extPool)
                         <|> AddressPool.lookup addr (getPool intPool)
 
-instance (HasSNetworkId n) => KnownAddresses (SharedState n k) where
+instance HasSNetworkId n => KnownAddresses (SharedState n k) where
     knownAddresses st = case ready st of
         Pending -> []
         Active (SharedAddressPools extPool intPool ixs) ->
@@ -598,7 +598,7 @@ instance FromText CredentialType where
 
 liftPaymentAddress
     :: forall n (k :: Depth -> Type -> Type)
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => KeyFingerprint "payment" k
     -> Address
 liftPaymentAddress (KeyFingerprint fingerprint) =
@@ -610,7 +610,7 @@ liftPaymentAddress (KeyFingerprint fingerprint) =
 
 liftDelegationAddress
     :: forall n (k :: Depth -> Type -> Type)
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Index 'Soft 'CredFromScriptK
     -> ScriptTemplate
     -> KeyFingerprint "payment" k
@@ -629,7 +629,7 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
 
 isOwned
-    :: (HasSNetworkId n)
+    :: HasSNetworkId n
     => SharedState n SharedKey
     -> (SharedKey 'RootK XPrv, Passphrase "encryption")
     -> Address

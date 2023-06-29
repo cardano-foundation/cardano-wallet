@@ -100,7 +100,7 @@ import qualified Text.Casing as Casing
 class ToText a where
     -- | Encode the specified value as text.
     toText :: a -> Text
-    default toText :: (Buildable a) => a -> Text
+    default toText :: Buildable a => a -> Text
     toText = sformat builder . build
 
 -- | Defines a textual decoding for a type.
@@ -115,7 +115,7 @@ newtype TextDecodingError = TextDecodingError
     deriving newtype (Buildable)
 
 -- | Decode the specified text with a 'Maybe' result type.
-fromTextMaybe :: (FromText a) => Text -> Maybe a
+fromTextMaybe :: FromText a => Text -> Maybe a
 fromTextMaybe = either (const Nothing) Just . fromText
 
 {-------------------------------------------------------------------------------
@@ -217,10 +217,10 @@ instance FromText NominalDiffTime where
                     , "finish with \"s\". For example: \"3s\", \"3600s\", \"42s\"."
                     ]
 
-realFloatToText :: (RealFloat a) => a -> T.Text
+realFloatToText :: RealFloat a => a -> T.Text
 realFloatToText = TL.toStrict . B.toLazyText . B.realFloat
 
-intToText :: (Integral a) => a -> T.Text
+intToText :: Integral a => a -> T.Text
 intToText = TL.toStrict . B.toLazyText . B.decimal
 
 {-------------------------------------------------------------------------------
@@ -320,5 +320,5 @@ fromCaseStyle = \case
 -------------------------------------------------------------------------------}
 
 -- | Show a data-type through its 'ToText' instance
-showT :: (ToText a) => a -> String
+showT :: ToText a => a -> String
 showT = T.unpack . toText

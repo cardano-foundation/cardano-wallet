@@ -418,7 +418,7 @@ instance Traversable (Resp s) where
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
-runMock :: (HasCallStack) => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
+runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CreateWallet -> \db@(Database wid _ _) -> (Resp $ Right $ NewWallet wid, db)
     ListCheckpoints ->
@@ -454,7 +454,7 @@ runMock = \case
 
 runIO
     :: forall m s
-     . (MonadIO m)
+     . MonadIO m
     => DBLayer m s
     -> Cmd s WalletId
     -> m (Resp s WalletId)
@@ -513,7 +513,7 @@ newtype At f r
     deriving (Generic)
 
 deriving instance
-    (Show (f (Reference WalletId r))) => Show (At f r)
+    Show (f (Reference WalletId r)) => Show (At f r)
 
 type f :@ r = At f r
 
@@ -541,7 +541,7 @@ initModel mwid params = Model (mInitializeWallet mwid params) []
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
 toMock (Model _ wids) (At fr) = fmap (wids !) fr
 
-step :: (Eq1 r) => Model s r -> Cmd s :@ r -> (Resp s MWid, Mock s)
+step :: Eq1 r => Model s r -> Cmd s :@ r -> (Resp s MWid, Mock s)
 step m@(Model mock _) c = runMock (toMock m c) mock
 
 {-------------------------------------------------------------------------------
@@ -559,7 +559,7 @@ deriving instance (Show1 r, Show s) => Show (Event s r)
 
 lockstep
     :: forall s r
-     . (Eq1 r)
+     . Eq1 r
     => Model s r
     -> Cmd s :@ r
     -> Resp s :@ r
@@ -651,7 +651,7 @@ generatorWithWid wids =
             , (1, Just <$> arbitrary)
             ]
 
-isUnordered :: (Ord x) => [x] -> Bool
+isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
 shrinker
@@ -676,7 +676,7 @@ shrinker (At cmd) = case cmd of
   The state machine proper
 -------------------------------------------------------------------------------}
 
-transition :: (Eq1 r) => Model s r -> Cmd s :@ r -> Resp s :@ r -> Model s r
+transition :: Eq1 r => Model s r -> Cmd s :@ r -> Resp s :@ r -> Model s r
 transition m c = after . lockstep m c
 
 precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
@@ -695,7 +695,7 @@ postcondition m c r =
     e = lockstep m c r
 
 semantics
-    :: (MonadIO m)
+    :: MonadIO m
     => DBLayer m s
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
@@ -741,31 +741,31 @@ sm mwid params db =
   Additional type class instances required to run the QSM tests
 -------------------------------------------------------------------------------}
 
-instance (Functor f) => Rank2.Functor (At f) where
+instance Functor f => Rank2.Functor (At f) where
     fmap = \f (At x) -> At $ fmap (lift f) x
       where
         lift :: (r x -> r' x) -> QSM.Reference x r -> QSM.Reference x r'
         lift f (QSM.Reference x) = QSM.Reference (f x)
 
-instance (Foldable f) => Rank2.Foldable (At f) where
+instance Foldable f => Rank2.Foldable (At f) where
     foldMap = \f (At x) -> foldMap (lift f) x
       where
         lift :: (r x -> m) -> QSM.Reference x r -> m
         lift f (QSM.Reference x) = f x
 
-instance (Traversable t) => Rank2.Traversable (At t) where
+instance Traversable t => Rank2.Traversable (At t) where
     traverse = \f (At x) -> At <$> traverse (lift f) x
       where
         lift
-            :: (Functor f)
+            :: Functor f
             => (r x -> f (r' x))
             -> QSM.Reference x r
             -> f (QSM.Reference x r')
         lift f (QSM.Reference x) = QSM.Reference <$> f x
 
-deriving instance (ToExpr s) => ToExpr (Model s Concrete)
+deriving instance ToExpr s => ToExpr (Model s Concrete)
 
-instance (ToExpr s) => ToExpr (Mock s) where
+instance ToExpr s => ToExpr (Mock s) where
     toExpr = genericToExpr
 
 instance (ToExpr k, ToExpr v) => ToExpr (NonEmptyMap k v) where
@@ -774,7 +774,7 @@ instance (ToExpr k, ToExpr v) => ToExpr (NonEmptyMap k v) where
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
 
-instance (ToExpr s) => ToExpr (Wallet s) where
+instance ToExpr s => ToExpr (Wallet s) where
     toExpr = genericToExpr
 
 instance ToExpr BlockHeader where
@@ -783,7 +783,7 @@ instance ToExpr BlockHeader where
 instance ToExpr (Hash purpose) where
     toExpr = genericToExpr
 
-instance (ToExpr b) => ToExpr (Quantity a b) where
+instance ToExpr b => ToExpr (Quantity a b) where
     toExpr = genericToExpr
 
 instance ToExpr GenesisParameters where
@@ -821,7 +821,7 @@ instance ToExpr (SeqState 'Mainnet ShelleyKey) where
 instance ToExpr (RndState 'Mainnet) where
     toExpr = defaultExprViaShow
 
-instance (ToExpr a) => ToExpr (Readiness a) where
+instance ToExpr a => ToExpr (Readiness a) where
     toExpr = genericToExpr
 
 instance ToExpr AddressPoolGap where
@@ -923,7 +923,7 @@ instance ToExpr TxParameters where
 instance ToExpr ExecutionUnits where
     toExpr = genericToExpr
 
-instance (ToExpr a) => ToExpr (LinearFunction a) where
+instance ToExpr a => ToExpr (LinearFunction a) where
     toExpr = genericToExpr
 
 instance ToExpr FeePolicy where
@@ -981,7 +981,7 @@ tag =
 
     countAction
         :: forall k
-         . (Ord k)
+         . Ord k
         => Tag
         -> (Int -> Bool)
         -> (Event s Symbolic -> Maybe k)
@@ -1016,7 +1016,7 @@ tag =
                     False
 
     txUnsorted
-        :: (Ord a)
+        :: Ord a
         => (Tx -> [a])
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
@@ -1085,7 +1085,7 @@ genDBParams =
 
 prop_sequential
     :: forall s
-     . (TestConstraints s)
+     . TestConstraints s
     => (WalletId -> DBLayerParams s -> (IO (IO (), DBLayer IO s)))
     -> Property
 prop_sequential newDB =

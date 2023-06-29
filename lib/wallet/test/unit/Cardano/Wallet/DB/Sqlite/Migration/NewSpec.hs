@@ -67,7 +67,7 @@ spec = do
                     `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
 
 execute
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => MigrationInterface m DBHandle
     -> FilePath
     -> Text

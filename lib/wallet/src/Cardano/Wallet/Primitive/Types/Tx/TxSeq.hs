@@ -274,7 +274,7 @@ isValid = (Just True ==) . Seq.isValidM safeAppendTxM . unTxSeq
 -- >>> safeApplyTxToUTxO tx_i_j utxo_i == pure utxo_j
 --
 -- To check the validity of a 'TxSeq', use the 'isValid' function.
-safeApplyTxToUTxO :: (MonadFail m) => Tx -> UTxO -> m UTxO
+safeApplyTxToUTxO :: MonadFail m => Tx -> UTxO -> m UTxO
 safeApplyTxToUTxO tx u
     | tx `canApplyTxToUTxO` u =
         pure $ tx `applyTxToUTxO` u
@@ -537,15 +537,15 @@ canApplyTxToUTxO tx u =
             Nothing -> False
             Just c' -> TxOut.coin c' == maybe (Coin 0) TxOut.coin c
 
-safeAppendTx :: (MonadFail m) => UTxO -> Tx -> m UTxO
+safeAppendTx :: MonadFail m => UTxO -> Tx -> m UTxO
 safeAppendTx = flip safeApplyTxToUTxO
 
-safeAppendTxM :: (MonadFail m) => UTxO -> Either TxSeqGroupBoundary Tx -> m UTxO
+safeAppendTxM :: MonadFail m => UTxO -> Either TxSeqGroupBoundary Tx -> m UTxO
 safeAppendTxM u = either (const (pure u)) (safeAppendTx u)
 
 --------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
 
-mapToFunction :: (Ord k) => v -> Map k v -> (k -> v)
+mapToFunction :: Ord k => v -> Map k v -> (k -> v)
 mapToFunction = flip . Map.findWithDefault

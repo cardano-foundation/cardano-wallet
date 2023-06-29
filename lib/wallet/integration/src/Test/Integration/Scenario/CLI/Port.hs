@@ -73,10 +73,10 @@ import qualified Data.Text.IO as TIO
 
 spec
     :: forall s
-     . (HasType (Port "wallet") s)
+     . HasType (Port "wallet") s
     => SpecWith s
 spec = describe "COMMON_CLI_PORTS" $ do
-    let overPort :: forall sym. (HasType (Port sym) s) => (Int -> Int) -> s -> s
+    let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s
         overPort fn = over (typed @(Port sym)) (\(Port p) -> Port $ fn p)
 
     it "PORT_01 - Can't reach server with wrong port (wallet list)" $ \ctx -> do

@@ -208,7 +208,7 @@ data UTxOIndex u = UTxOIndex
     }
     deriving (Eq, Generic, Read, Show)
 
-instance (NFData u) => NFData (UTxOIndex u)
+instance NFData u => NFData (UTxOIndex u)
 
 --------------------------------------------------------------------------------
 -- Construction
@@ -226,7 +226,7 @@ empty =
         }
 
 -- | Creates a singleton index from the specified UTxO identifier and value.
-singleton :: (Ord u) => u -> TokenBundle -> UTxOIndex u
+singleton :: Ord u => u -> TokenBundle -> UTxOIndex u
 singleton u b = insertUnsafe u b empty
 
 -- | Constructs an index from a sequence of entries.
@@ -250,7 +250,7 @@ fromSequence = flip insertMany empty
 -- @
 -- 'fromMap' ≡ 'fromSequence' . 'Map.toList'
 -- @
-fromMap :: (Ord u) => Map u TokenBundle -> UTxOIndex u
+fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
 fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 
 --------------------------------------------------------------------------------
@@ -286,7 +286,7 @@ fold f a = Map.foldlWithKey' f a . universe
 -- If the index has an existing value for the specified UTxO identifier, the
 -- value referred to by that identifier will be replaced with the specified
 -- value.
-insert :: (Ord u) => u -> TokenBundle -> UTxOIndex u -> UTxOIndex u
+insert :: Ord u => u -> TokenBundle -> UTxOIndex u -> UTxOIndex u
 insert u b = insertUnsafe u b . delete u
 
 -- | Inserts multiple entries into an index.
@@ -303,7 +303,7 @@ insertMany = flip $ F.foldl' $ \i (u, b) -> insert u b i
 --
 -- If the index has no existing entry for the specified identifier, the result
 -- of applying this function will be equivalent to the identity function.
-delete :: forall u. (Ord u) => u -> UTxOIndex u -> UTxOIndex u
+delete :: forall u. Ord u => u -> UTxOIndex u -> UTxOIndex u
 delete u i =
     maybe i updateIndex $ Map.lookup u $ universe i
   where
@@ -332,7 +332,7 @@ delete u i =
                         . over #indexAll (flip (F.foldl' deleteEntry) as)
 
     deleteEntry
-        :: (Ord asset)
+        :: Ord asset
         => Map asset (NonEmptySet u)
         -> asset
         -> Map asset (NonEmptySet u)
@@ -349,11 +349,11 @@ deleteMany = flip $ F.foldl' $ \i u -> delete u i
 --------------------------------------------------------------------------------
 
 -- | Filters an index.
-filter :: (Ord u) => (u -> Bool) -> UTxOIndex u -> UTxOIndex u
+filter :: Ord u => (u -> Bool) -> UTxOIndex u -> UTxOIndex u
 filter f = fromSequence . L.filter (f . fst) . toList
 
 -- | Partitions an index.
-partition :: (Ord u) => (u -> Bool) -> UTxOIndex u -> (UTxOIndex u, UTxOIndex u)
+partition :: Ord u => (u -> Bool) -> UTxOIndex u -> (UTxOIndex u, UTxOIndex u)
 partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
 --------------------------------------------------------------------------------
@@ -367,12 +367,12 @@ assets = Map.keysSet . indexAll
 -- | Returns the value corresponding to the given UTxO identifier.
 --
 -- If the index has no such identifier, this function returns 'Nothing'.
-lookup :: (Ord u) => u -> UTxOIndex u -> Maybe TokenBundle
+lookup :: Ord u => u -> UTxOIndex u -> Maybe TokenBundle
 lookup u = Map.lookup u . universe
 
 -- | Returns 'True' if (and only if) the index has an entry for the given UTxO
 --   identifier.
-member :: (Ord u) => u -> UTxOIndex u -> Bool
+member :: Ord u => u -> UTxOIndex u -> Bool
 member u = isJust . lookup u
 
 -- | Returns 'True' if (and only if) the index is empty.
@@ -391,7 +391,7 @@ size = Map.size . universe
 --
 -- This operation is fast if the intersection of the first and second indices
 -- is small relative to the size of the first index.
-difference :: (Ord u) => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
+difference :: Ord u => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
 difference a b
     | disjoint a b = a
     | otherwise = deleteMany keysToDelete a
@@ -402,7 +402,7 @@ difference a b
             (Map.keysSet (universe b))
 
 -- | Indicates whether a pair of UTxO indices are disjoint.
-disjoint :: (Ord u) => UTxOIndex u -> UTxOIndex u -> Bool
+disjoint :: Ord u => UTxOIndex u -> UTxOIndex u -> Bool
 disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 
 --------------------------------------------------------------------------------
@@ -569,7 +569,7 @@ categorizeTokenBundle b = case F.toList bundleAssets of
 --
 insertUnsafe
     :: forall u
-     . (Ord u)
+     . Ord u
     => u
     -> TokenBundle
     -> UTxOIndex u
@@ -595,7 +595,7 @@ insertUnsafe u b i =
                     . over #indexAll (flip (F.foldl' insertEntry) as)
   where
     insertEntry
-        :: (Ord asset)
+        :: Ord asset
         => Map asset (NonEmptySet u)
         -> asset
         -> Map asset (NonEmptySet u)
@@ -609,7 +609,7 @@ insertUnsafe u b i =
 --
 -- Returns 'Nothing' if (and only if) the given set is empty.
 selectRandomSetMember
-    :: (MonadRandom m)
+    :: MonadRandom m
     => Set a
     -> m (Maybe a)
 selectRandomSetMember s
@@ -640,7 +640,7 @@ data InvariantStatus
     deriving (Eq, Show)
 
 -- | Checks whether or not the invariant holds.
-checkInvariant :: (Ord u) => UTxOIndex u -> InvariantStatus
+checkInvariant :: Ord u => UTxOIndex u -> InvariantStatus
 checkInvariant i
     | BalanceIncorrect balanceError <- checkBalance i =
         InvariantBalanceError balanceError
@@ -683,7 +683,7 @@ checkBalance i
     balanceStored = balance i
 
 -- | Checks that every entry in the 'universe' map is properly indexed.
-indexIsComplete :: forall u. (Ord u) => UTxOIndex u -> Bool
+indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete i =
     F.all hasEntry $ Map.toList $ universe i
   where
@@ -707,7 +707,7 @@ indexIsComplete i =
             F.all (\a -> hasEntryForAsset a u indexAll) as
 
     hasEntryForAsset
-        :: (Ord asset)
+        :: Ord asset
         => asset
         -> u
         -> (UTxOIndex u -> Map asset (NonEmptySet u))
@@ -717,7 +717,7 @@ indexIsComplete i =
 
 -- | Checks that every indexed entry is required by some entry in the 'universe'
 --   map.
-indexIsMinimal :: forall u. (Ord u) => UTxOIndex u -> Bool
+indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsMinimal i =
     F.and
         [ indexAll i
@@ -752,7 +752,7 @@ indexIsMinimal i =
     entryMatches test u = maybe False test $ Map.lookup u $ universe i
 
 -- | Checks that index set relationships are correct.
-indexIsConsistent :: (Ord u) => UTxOIndex u -> Bool
+indexIsConsistent :: Ord u => UTxOIndex u -> Bool
 indexIsConsistent i =
     F.and
         [ indexSingletons i
@@ -764,7 +764,7 @@ indexIsConsistent i =
         ]
   where
     isDisjointTo
-        :: (Ord u)
+        :: Ord u
         => Map a (NonEmptySet u)
         -> Map a (NonEmptySet u)
         -> Bool

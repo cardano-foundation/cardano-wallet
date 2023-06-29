@@ -305,7 +305,7 @@ prop_toText_noQuotes q = property $ case text of
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genNonEmpty arbitrary
     shrink = shrinkNonEmpty shrink
 

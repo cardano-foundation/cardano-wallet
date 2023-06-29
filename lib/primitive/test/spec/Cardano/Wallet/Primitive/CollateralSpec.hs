@@ -488,7 +488,7 @@ prop_simplifyAddress_validAddress =
                         simplifiedAddress :: Maybe (L.Addr CC.StandardCrypto)
                         simplifiedAddress = L.deserialiseAddr simplifiedBytes
 
-                        commonErrorOutput :: (Testable prop) => prop -> Property
+                        commonErrorOutput :: Testable prop => prop -> Property
                         commonErrorOutput prop =
                             prop
                                 & counterexample

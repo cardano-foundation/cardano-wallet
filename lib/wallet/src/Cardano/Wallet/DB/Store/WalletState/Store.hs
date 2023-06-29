@@ -69,7 +69,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet
-    :: (PersistAddressBook s)
+    :: PersistAddressBook s
     => WalletFlavorS s
     -> W.WalletId
     -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)

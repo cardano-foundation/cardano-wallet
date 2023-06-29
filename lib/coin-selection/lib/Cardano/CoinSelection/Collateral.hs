@@ -211,7 +211,7 @@ data SelectionCollateralError u = SelectionCollateralError
 --    >>> sum  largestCombinationAvailable < minimumSelectionAmount
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
-performSelection :: forall u. (Ord u) => PerformSelection u
+performSelection :: forall u. Ord u => PerformSelection u
 performSelection constraints =
     firstRight
         $ fmap
@@ -235,7 +235,7 @@ performSelection constraints =
 -- required search space is large, and if the 'searchSpaceLimit' parameter is
 -- set to a value that's smaller than the required search space size, then this
 -- function will return without computing a result.
-selectCollateralSmallest :: forall u. (Ord u) => PerformSelection u
+selectCollateralSmallest :: forall u. Ord u => PerformSelection u
 selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
@@ -307,7 +307,7 @@ selectCollateralSmallest constraints params =
 -- available, by looking only at the very largest coins available.
 --
 -- This result can be computed very quickly, without using much search space.
-selectCollateralLargest :: forall u. (Ord u) => PerformSelection u
+selectCollateralLargest :: forall u. Ord u => PerformSelection u
 selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->

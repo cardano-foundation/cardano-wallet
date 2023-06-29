@@ -436,7 +436,7 @@ parser =
             <> cmdStakePool stakePoolClient
             <> cmdNetwork networkClient
 
-usageGolden :: (HasCallStack) => FilePath -> [String] -> Spec
+usageGolden :: HasCallStack => FilePath -> [String] -> Spec
 usageGolden dir args = it (unwords args) $ do
     exe <- T.pack <$> getProgName
     case execParserPure defaultPrefs parser args of

@@ -59,5 +59,5 @@ parseBoundedIntegral typeName =
             ]
 
 -- | Aeson parser defined in terms of 'fromText'
-aesonFromText :: (FromText a) => String -> Value -> Parser a
+aesonFromText :: FromText a => String -> Value -> Parser a
 aesonFromText what = withText what $ either (fail . show) pure . fromText

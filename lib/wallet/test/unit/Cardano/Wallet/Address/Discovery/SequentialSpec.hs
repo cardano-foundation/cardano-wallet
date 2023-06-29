@@ -556,7 +556,7 @@ defaultPrefix = DerivationPrefix (purposeCIP1852, coinTypeAda, minBound)
                                 Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-deriving instance (Arbitrary a) => Arbitrary (ShowFmt a)
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 instance Arbitrary AddressPoolGap where
     shrink _ = []

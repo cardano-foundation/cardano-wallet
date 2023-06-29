@@ -68,8 +68,8 @@ type family WitnessesType era where
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 
-deriving instance (Show (WitnessesType era)) => Show (Witnesses era)
-deriving instance (Eq (WitnessesType era)) => Eq (Witnesses era)
+deriving instance Show (WitnessesType era) => Show (Witnesses era)
+deriving instance Eq (WitnessesType era) => Eq (Witnesses era)
 
 getEraWitnesses :: EraFun Tx Witnesses
 getEraWitnesses =

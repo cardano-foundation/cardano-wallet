@@ -132,7 +132,7 @@ pingPong_1 =
     "inputs": []
 }|]
 
-pingPong_2 :: (MonadFail m) => Aeson.Value -> m Aeson.Value
+pingPong_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 pingPong_2 =
     renderMustacheThrow template
   where
@@ -180,7 +180,7 @@ game_1 =
     "redeemers": []
 }|]
 
-game_2 :: (MonadFail m) => Aeson.Value -> m Aeson.Value
+game_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 game_2 =
     renderMustacheThrow template
   where
@@ -221,7 +221,7 @@ game_2 =
         ]
     }|]
 
-game_3 :: (MonadFail m) => Aeson.Value -> m Aeson.Value
+game_3 :: MonadFail m => Aeson.Value -> m Aeson.Value
 game_3 =
     renderMustacheThrow template
   where
@@ -271,7 +271,7 @@ game_3 =
 -- - policyId: A base16 policyId
 -- - policy: A base16 corresponding policy (see 'mkSignerPolicy')
 -- - vkHash: The verification key hash (base16) which was used to generate the policy.
-mintBurn_1 :: (MonadFail m) => Aeson.Value -> m Aeson.Value
+mintBurn_1 :: MonadFail m => Aeson.Value -> m Aeson.Value
 mintBurn_1 =
     renderMustacheThrow template
   where
@@ -298,7 +298,7 @@ mintBurn_1 =
 --
 -- The template has the same three parameters as 'mintBurn_1'
 --
-mintBurn_2 :: (MonadFail m) => Aeson.Value -> m Aeson.Value
+mintBurn_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 mintBurn_2 =
     renderMustacheThrow template
   where
@@ -330,7 +330,7 @@ mintBurn_2 =
 --
 -- This however requires to pass a `Rewarding` type of redeemer, which is quite
 -- exotic :)
-withdrawScript_1 :: (MonadFail m) => m Aeson.Value
+withdrawScript_1 :: MonadFail m => m Aeson.Value
 withdrawScript_1 =
     renderMustacheThrow template
         $ Aeson.object
@@ -392,7 +392,7 @@ withdrawScript_1 =
 -- are assigned to a change output.
 currencyTx
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiWalletInput n
     -- ^ UTxO that is hard-wired into the smart contract.
     -> Aeson.Value
@@ -497,7 +497,7 @@ mkCurrencyPolicy input = (script, hashScript script)
 
 renderMustacheThrow
     :: forall m
-     . (MonadFail m)
+     . MonadFail m
     => Mustache.Template
     -> Aeson.Value
     -> m Aeson.Value

@@ -29,9 +29,9 @@ import Data.ByteString
 import qualified Data.ByteArray as BA
 
 -- | Hash a byte string using Blake2b with a 256-bit (32-byte) digest.
-blake2b256 :: (ByteArrayAccess a) => a -> ByteString
+blake2b256 :: ByteArrayAccess a => a -> ByteString
 blake2b256 = BA.convert . hash @_ @Blake2b_256
 
 -- | Hash a byte string using Blake2b with a 224-bit (28-byte) digest.
-blake2b224 :: (ByteArrayAccess a) => a -> ByteString
+blake2b224 :: ByteArrayAccess a => a -> ByteString
 blake2b224 = BA.convert . hash @_ @Blake2b_224

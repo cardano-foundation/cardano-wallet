@@ -151,7 +151,7 @@ infixr 9 *.**
 
 -- | Compose 2 EraFunI as a category, jumping the outer functorial layer in the
 -- output of the first one.
-(*.**) :: (Functor w) => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
+(*.**) :: Functor w => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
 f *.** g =
     toEraFun
         $ composeEraFunWith

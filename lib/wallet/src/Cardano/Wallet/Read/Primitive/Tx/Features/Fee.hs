@@ -32,5 +32,5 @@ getFee =
         , conwayFun = mkShelleyTxFee
         }
 
-mkShelleyTxFee :: (FeeType era ~ Coin) => Fee era -> K (Maybe W.Coin) b
+mkShelleyTxFee :: FeeType era ~ Coin => Fee era -> K (Maybe W.Coin) b
 mkShelleyTxFee (Fee c) = K $ Just $ Ledger.toWalletCoin c

@@ -68,8 +68,8 @@ type family InputsType era where
 
 newtype Inputs era = Inputs (InputsType era)
 
-deriving instance (Show (InputsType era)) => Show (Inputs era)
-deriving instance (Eq (InputsType era)) => Eq (Inputs era)
+deriving instance Show (InputsType era) => Show (Inputs era)
+deriving instance Eq (InputsType era) => Eq (Inputs era)
 
 -- | Extract the inputs from a transaction in any era.
 getEraInputs :: EraFun Tx Inputs

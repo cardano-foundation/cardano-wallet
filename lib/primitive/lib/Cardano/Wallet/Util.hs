@@ -103,7 +103,7 @@ import UnliftIO.Exception
 import qualified Data.Text as T
 
 -- | Calls the 'error' function, which will usually crash the program.
-internalError :: (HasCallStack) => Builder -> a
+internalError :: HasCallStack => Builder -> a
 internalError msg = error $ fmt $ "INTERNAL ERROR: " +| msg
 
 isInternalErrorMsg :: String -> Bool
@@ -111,11 +111,11 @@ isInternalErrorMsg msg = "INTERNAL ERROR" `isPrefixOf` msg
 
 -- | Take the first 'Just' from a list of 'Maybe', or die trying.
 -- There is no alternative.
-tina :: (HasCallStack) => Builder -> [Maybe a] -> a
+tina :: HasCallStack => Builder -> [Maybe a] -> a
 tina msg = fromMaybe (internalError msg) . asum
 
 -- | Effectfully modify the state of a state-monad transformer stack.
-modifyM :: forall m s. (Monad m) => (s -> m s) -> StateT s m ()
+modifyM :: forall m s. Monad m => (s -> m s) -> StateT s m ()
 modifyM fn = get >>= lift . fn >>= put
 
 -- | Tests whether an 'Exception' was caused by 'internalError'.
@@ -129,7 +129,7 @@ isInternalError (displayException -> msg)
 --
 -- This is intended for use in testing. Don't use this in application code --
 -- that's what normal IO exceptions are for.
-tryInternalError :: (MonadUnliftIO m) => a -> m (Either String a)
+tryInternalError :: MonadUnliftIO m => a -> m (Either String a)
 tryInternalError = tryJust isInternalError . evaluate
 
 {-------------------------------------------------------------------------------
@@ -141,9 +141,9 @@ tryInternalError = tryJust isInternalError . evaluate
 newtype ShowFmt a = ShowFmt {unShowFmt :: a}
     deriving (Generic, Eq, Ord)
 
-instance (NFData a) => NFData (ShowFmt a)
+instance NFData a => NFData (ShowFmt a)
 
-instance (Buildable a) => Show (ShowFmt a) where
+instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
 
 -- | Map a function to the first element of a list. Does nothing if the list is

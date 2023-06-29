@@ -297,8 +297,7 @@ getWalletUtxoSnapshot w =
 
 listWallets
     :: forall (style :: WalletStyle)
-     . ( Discriminate style
-       )
+     . Discriminate style
     => (Method, Text)
 listWallets =
     discriminate @style
@@ -397,8 +396,7 @@ getWalletKey w role_ index hashed =
 
 signMetadata
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> Role
     -> DerivationIndex
@@ -498,8 +496,7 @@ postPolicyId w =
 
 postRandomAddress
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> (Method, Text)
 postRandomAddress w =
@@ -509,8 +506,7 @@ postRandomAddress w =
 
 putRandomAddresses
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> (Method, Text)
 putRandomAddresses w =
@@ -581,8 +577,7 @@ selectCoins w =
 
 listAssets
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> (Method, Text)
 listAssets w =
@@ -592,8 +587,7 @@ listAssets w =
 
 getAsset
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> TokenPolicyId
     -> TokenName
@@ -608,8 +602,7 @@ getAsset w pid n
 
 listByronAssets
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> (Method, Text)
 listByronAssets w =
@@ -619,8 +612,7 @@ listByronAssets w =
 
 getByronAsset
     :: forall w
-     . ( HasType (ApiT WalletId) w
-       )
+     . HasType (ApiT WalletId) w
     => w
     -> TokenPolicyId
     -> TokenName
@@ -856,7 +848,7 @@ getPoolMaintenance = endpoint @Api.GetPoolMaintenance id
 listStakePools :: Maybe Coin -> (Method, Text)
 listStakePools stake = endpoint @Api.ListStakePools ($ ApiT <$> stake)
 
-listStakeKeys :: forall w. (HasType (ApiT WalletId) w) => w -> (Method, Text)
+listStakeKeys :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
 listStakeKeys w = endpoint @(Api.ListStakeKeys ()) ($ w ^. typed @(ApiT WalletId))
 
 joinStakePool
@@ -872,12 +864,12 @@ joinStakePool s w = endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
     sid = s ^. typed @ApiPoolSpecifier
     wid = w ^. typed @(ApiT WalletId)
 
-quitStakePool :: forall w. (HasType (ApiT WalletId) w) => w -> (Method, Text)
+quitStakePool :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
 quitStakePool w = endpoint @(Api.QuitStakePool Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
-getDelegationFee :: forall w. (HasType (ApiT WalletId) w) => w -> (Method, Text)
+getDelegationFee :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
 getDelegationFee w = endpoint @Api.DelegationFee (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
@@ -933,7 +925,7 @@ getCurrentSMASHHealth' smash =
 --
 patchSharedWallet
     :: forall w
-     . (HasType (ApiT WalletId) w)
+     . HasType (ApiT WalletId) w
     => w
     -> CredentialType
     -> (Method, Text)
@@ -1012,7 +1004,7 @@ instance Discriminate 'Byron where
 instance Discriminate 'Shared where
     discriminate _ _ a = a
 
-notSupported :: (HasCallStack) => String -> a
+notSupported :: HasCallStack => String -> a
 notSupported style = error $ "Endpoint not supported for " <> style <> " style"
 
 -- | Some endpoints are parameterized via a network discriminant in order to
@@ -1027,26 +1019,26 @@ type Net = 'Mainnet
 class HasVerb api where
     method :: Proxy api -> Method
 
-instance (ReflectMethod m) => HasVerb (NoContentVerb m) where
+instance ReflectMethod m => HasVerb (NoContentVerb m) where
     method _ = reflectMethod (Proxy @m)
 
-instance (ReflectMethod m) => HasVerb (Verb m s ct a) where
+instance ReflectMethod m => HasVerb (Verb m s ct a) where
     method _ = reflectMethod (Proxy @m)
 
-instance (HasVerb sub) => HasVerb ((path :: Symbol) :> sub) where
+instance HasVerb sub => HasVerb ((path :: Symbol) :> sub) where
     method _ = method (Proxy @sub)
 
-instance (HasVerb sub) => HasVerb (Capture' mods param t :> sub) where
+instance HasVerb sub => HasVerb (Capture' mods param t :> sub) where
     method _ = method (Proxy @sub)
 
-instance (HasVerb sub) => HasVerb (ReqBody a b :> sub) where
+instance HasVerb sub => HasVerb (ReqBody a b :> sub) where
     method _ = method (Proxy @sub)
 
-instance (HasVerb sub) => HasVerb (QueryParam a b :> sub) where
+instance HasVerb sub => HasVerb (QueryParam a b :> sub) where
     method _ = method (Proxy @sub)
 
-instance (HasVerb sub) => HasVerb (QueryFlag sym :> sub) where
+instance HasVerb sub => HasVerb (QueryFlag sym :> sub) where
     method _ = method (Proxy @sub)
 
-instance (HasVerb sub) => HasVerb (Header' opts name ty :> sub) where
+instance HasVerb sub => HasVerb (Header' opts name ty :> sub) where
     method _ = method (Proxy @sub)

@@ -282,7 +282,7 @@ import qualified Data.Text as T
 
 server
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiLayer (RndState n)
     -> ApiLayer (SeqState n IcarusKey)
     -> ApiLayer (SeqState n ShelleyKey)

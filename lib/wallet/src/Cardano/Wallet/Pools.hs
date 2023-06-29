@@ -439,7 +439,7 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         -- requests. The order simply needs to be different between different
         -- instances of the server.
         sortByReward
-            :: (RandomGen g)
+            :: RandomGen g
             => g
             -> [StakePool]
             -> [StakePool]
@@ -453,7 +453,7 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
             evalState' :: s -> State s a -> a
             evalState' = flip evalState
 
-            withRandomWeight :: (RandomGen g) => a -> State g (Int, a)
+            withRandomWeight :: RandomGen g => a -> State g (Int, a)
             withRandomWeight a = do
                 weight <- state random
                 pure (weight, a)
@@ -539,7 +539,7 @@ combineDbAndLsqData ti nOpt lsqData =
         average [] = 0
         average xs = round $ double (sum xs) / double (length xs)
 
-        double :: (Integral a) => a -> Double
+        double :: Integral a => a -> Double
         double = fromIntegral
 
     mkApiPool :: PoolId -> PoolLsqData -> PoolDbData -> IO StakePool
@@ -805,7 +805,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
         -- \| Like 'forM_', except runs the second action for the last element as
         -- well (in addition to the first action).
         forAllAndLastM
-            :: (Monad m)
+            :: Monad m
             => NonEmpty a
             -> (a -> m b)
             -- \^ action to run for all elements
@@ -967,7 +967,7 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
         limit = fromIntegral (2 * maxInFlight)
         maxInFlight = 10
 
-        endlessly :: (Monad m) => a -> (a -> m a) -> m Void
+        endlessly :: Monad m => a -> (a -> m a) -> m Void
         endlessly zero action = action zero >>= (`endlessly` action)
 
         -- \| Run an action asynchronously only when there's an available seat.

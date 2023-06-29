@@ -96,7 +96,7 @@ shrinkMkStdGenInt (MkStdGenInt i) = MkStdGenInt <$> shrinkIntegral i
 --  - Lower values of this parameter produce distributions that are less
 --    uniform, where boundary values are prioritized.
 genBoundedIntegralWithUniformPriority
-    :: (Bounded a) => (Integral a) => Int -> Gen a
+    :: Bounded a => Integral a => Int -> Gen a
 genBoundedIntegralWithUniformPriority uniformPriority =
     frequency
         [ (1, pure minBound)

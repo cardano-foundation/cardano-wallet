@@ -77,7 +77,7 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n. (HasSNetworkId n) => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHARED_ADDRESSES" $ do
     it "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text

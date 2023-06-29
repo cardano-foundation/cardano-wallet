@@ -482,7 +482,7 @@ instance ToJSON BenchRndResults where
 
 benchmarksRnd
     :: forall n s
-     . (s ~ RndState n)
+     . s ~ RndState n
     => BenchmarkConfig n s
     -> IO BenchRndResults
 benchmarksRnd BenchmarkConfig{benchmarkName, ctx} = do
@@ -602,7 +602,7 @@ benchmarkWallets benchName dir walletTr networkId action = do
                     saveBenchmarkPoints (benchmarkName config) results
                     pure $ SomeBenchmarkResults (build results)
   where
-    saveBenchmarkPoints :: (ToJSON a) => Text -> a -> IO ()
+    saveBenchmarkPoints :: ToJSON a => Text -> a -> IO ()
     saveBenchmarkPoints benchname =
         Aeson.encodeFile (T.unpack benchname <> ".json")
 

@@ -151,7 +151,7 @@ spec = do
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance (Arbitrary a) => Arbitrary (Quantity u a) where
+instance Arbitrary a => Arbitrary (Quantity u a) where
     shrink (Quantity a) = Quantity <$> shrink a
     arbitrary = Quantity <$> arbitrary
 

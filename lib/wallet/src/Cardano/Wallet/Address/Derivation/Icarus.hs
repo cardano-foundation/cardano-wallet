@@ -171,7 +171,7 @@ newtype IcarusKey (depth :: Depth) key = IcarusKey {getKey :: key}
 icarusKey :: Iso (IcarusKey depth key) (IcarusKey depth key') key key'
 icarusKey = iso getKey IcarusKey
 
-instance (NFData key) => NFData (IcarusKey depth key)
+instance NFData key => NFData (IcarusKey depth key)
 
 instance TxWitnessTagFor IcarusKey where
     txWitnessTagFor = TxWitnessByronUTxO
@@ -430,7 +430,7 @@ instance MkKeyFingerprint IcarusKey Address where
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
 instance
-    (HasSNetworkId n)
+    HasSNetworkId n
     => MkKeyFingerprint
         IcarusKey
         (Proxy (n :: NetworkDiscriminant), IcarusKey 'CredFromKeyK XPub)
@@ -446,7 +446,7 @@ instance
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance (HasSNetworkId n) => MaybeLight (SeqState n IcarusKey) where
+instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 
 {-------------------------------------------------------------------------------

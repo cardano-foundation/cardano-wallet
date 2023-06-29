@@ -236,7 +236,7 @@ data TestCase a = TestCase
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHARED_TRANSACTIONS" $ do
     it
@@ -3727,7 +3727,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         return (walA, walB, walC)
 
     mkTxPayload
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural

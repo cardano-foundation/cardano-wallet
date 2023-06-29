@@ -139,13 +139,13 @@ fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     )
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-fromCardanoLovelace :: (HasCallStack) => Cardano.Lovelace -> W.Coin
+fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
 fromCardanoLovelace =
     Coin.unsafeFromIntegral . unQuantity . Cardano.lovelaceToQuantity
   where
     unQuantity (Cardano.Quantity q) = q
 
-fromCardanoValue :: (HasCallStack) => Cardano.Value -> TokenBundle.TokenBundle
+fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =

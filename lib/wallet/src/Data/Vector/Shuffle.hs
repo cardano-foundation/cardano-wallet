@@ -73,7 +73,7 @@ shuffle xs = newStdGen >>= flip shuffleWith xs
 --
 -- - @shuffleWith g es == shuffleWith g es@
 -- - @∃Δ> 1. g ≠g', length es > Δ⇒ shuffleWith g es ≠shuffleWith g' es@
-shuffleWith :: (RandomGen g) => g -> [a] -> IO [a]
+shuffleWith :: RandomGen g => g -> [a] -> IO [a]
 shuffleWith seed = modifyInPlace $ \v -> flip evalStateT seed $ do
     let (lo, hi) = (0, MV.length v - 1)
     forM_ [lo .. hi] $ \i -> do

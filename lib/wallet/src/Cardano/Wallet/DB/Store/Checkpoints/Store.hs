@@ -218,7 +218,7 @@ import qualified Data.Map.Strict as Map
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => W.WalletId
     -> UpdateStore (SqlPersistT IO) (DeltasCheckpoints (WalletCheckpoint s))
 mkStoreCheckpoints wid =
@@ -262,7 +262,7 @@ mkStoreCheckpoints wid =
 -------------------------------------------------------------------------------}
 selectAllCheckpoints
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => W.WalletId
     -> SqlPersistT IO (Either ErrBadFormat [(W.Slot, WalletCheckpoint s)])
 selectAllCheckpoints wid = do
@@ -303,7 +303,7 @@ selectUTxO cp = do
 
 insertCheckpoint
     :: forall s
-     . (PersistAddressBook s)
+     . PersistAddressBook s
     => W.WalletId
     -> WalletCheckpoint s
     -> SqlPersistT IO ()
@@ -409,7 +409,7 @@ checkpointFromEntity cp (coins, tokens) =
 -------------------------------------------------------------------------------}
 
 -- | Functions for saving / loading the wallet's address book to / from SQLite
-class (AddressBookIso s) => PersistAddressBook s where
+class AddressBookIso s => PersistAddressBook s where
     insertPrologue
         :: W.WalletId -> Prologue s -> SqlPersistT IO ()
     insertDiscoveries
@@ -711,7 +711,7 @@ instance
 
 selectCosigners
     :: forall k
-     . (PersistPublicKey (k 'AccountK))
+     . PersistPublicKey (k 'AccountK)
     => W.WalletId
     -> CredentialType
     -> SqlPersistT IO [(Cosigner, k 'AccountK XPub)]

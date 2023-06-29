@@ -181,7 +181,7 @@ import qualified Network.HTTP.Types as HTTP
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
     it

@@ -428,7 +428,7 @@ type EraConstraints era =
 
 constructUnsignedTx
     :: forall era
-     . (IsShelleyBasedEra era)
+     . IsShelleyBasedEra era
     => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> (Maybe SlotNo, SlotNo)
@@ -704,7 +704,7 @@ signTransaction
 
 newTransactionLayer
     :: forall k ktype
-     . (TxWitnessTagFor k)
+     . TxWitnessTagFor k
     => KeyFlavorS k
     -> NetworkId
     -> TransactionLayer k ktype SealedTx
@@ -1011,7 +1011,7 @@ data TxFeeUpdate
 -- be used to *add* tx body content.
 updateTx
     :: forall era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => Cardano.Tx era
     -> TxUpdate
     -> Either ErrUpdateSealedTx (Cardano.Tx era)
@@ -1104,7 +1104,7 @@ modifyShelleyTxBody txUpdate = \case
 -- | Evaluate a minimal fee amount necessary to pay for a given tx
 -- using ledger's functionality.
 evaluateMinimumFee
-    :: (Cardano.IsShelleyBasedEra era)
+    :: Cardano.IsShelleyBasedEra era
     => Cardano.BundledProtocolParameters era
     -> KeyWitnessCount
     -> Cardano.TxBody era
@@ -1130,7 +1130,7 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
     :: forall era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => Write.PParams (Write.ShelleyLedgerEra era)
     -> KeyWitnessCount
     -> Cardano.TxBody era
@@ -1211,7 +1211,7 @@ numberOfShelleyWitnesses n = KeyWitnessCount n 0
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateKeyWitnessCount
     :: forall era
-     . (IsRecentEra era)
+     . IsRecentEra era
     => Cardano.UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
@@ -1345,7 +1345,7 @@ type ConwayTx =
 
 assignScriptRedeemers
     :: forall era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => Write.PParams (Write.ShelleyLedgerEra era)
     -> TimeTranslation
     -> Cardano.UTxO era
@@ -1436,7 +1436,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     -- \| Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnitsBabbage
-        :: (era ~ Cardano.BabbageEra)
+        :: era ~ Cardano.BabbageEra
         => Map Alonzo.RdmrPtr Redeemer
         -> BabbageTx
         -> Either
@@ -1457,7 +1457,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 Right $ hoistScriptFailure indexedRedeemers report
 
     evaluateExecutionUnitsConway
-        :: (era ~ Cardano.ConwayEra)
+        :: era ~ Cardano.ConwayEra
         => Map Alonzo.RdmrPtr Redeemer
         -> ConwayTx
         -> Either
@@ -1478,7 +1478,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 Right $ hoistScriptFailure indexedRedeemers report
 
     hoistScriptFailure
-        :: (Show scriptFailure)
+        :: Show scriptFailure
         => Map Alonzo.RdmrPtr Redeemer
         -> Map Alonzo.RdmrPtr (Either scriptFailure a)
         -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
@@ -1534,7 +1534,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     -- \| Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHashBabbage
-        :: (era ~ Cardano.BabbageEra) => BabbageTx -> BabbageTx
+        :: era ~ Cardano.BabbageEra => BabbageTx -> BabbageTx
     addScriptIntegrityHashBabbage babbageTx =
         babbageTx
             & bodyTxL . scriptIntegrityHashTxBodyL
@@ -1552,7 +1552,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
             ]
 
     addScriptIntegrityHashConway
-        :: (era ~ Cardano.ConwayEra) => ConwayTx -> ConwayTx
+        :: era ~ Cardano.ConwayEra => ConwayTx -> ConwayTx
     addScriptIntegrityHashConway conwayTx =
         conwayTx
             & bodyTxL . scriptIntegrityHashTxBodyL
@@ -2485,7 +2485,7 @@ withShelleyBasedEra
     :: forall a
      . AnyCardanoEra
     -> ( forall era
-          . (EraConstraints era)
+          . EraConstraints era
          => ShelleyBasedEra era
          -> Either ErrMkTransaction a
        )
@@ -2510,7 +2510,7 @@ withShelleyBasedEra era fn = case era of
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
     :: forall era
-     . (Cardano.IsCardanoEra era)
+     . Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
@@ -2785,7 +2785,7 @@ mkUnsignedTx
 dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
-removeDummyInput :: (HasCallStack) => Cardano.TxBody era -> Cardano.TxBody era
+removeDummyInput :: HasCallStack => Cardano.TxBody era -> Cardano.TxBody era
 removeDummyInput = \case
     Byron.ByronTxBody{} -> bailOut
     Cardano.ShelleyTxBody era body scripts scriptData aux val -> case era of
@@ -2836,7 +2836,7 @@ mkWithdrawals networkId wdrl = case wdrl of
     stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
 
 mkShelleyWitness
-    :: (IsShelleyBasedEra era)
+    :: IsShelleyBasedEra era
     => Cardano.TxBody era
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness era
@@ -2850,7 +2850,7 @@ mkShelleyWitness body key =
 
 mkByronWitness
     :: forall era
-     . (EraConstraints era)
+     . EraConstraints era
     => Cardano.TxBody era
     -> Cardano.NetworkId
     -> Address

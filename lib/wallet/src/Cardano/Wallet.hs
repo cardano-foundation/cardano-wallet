@@ -919,30 +919,30 @@ type HasNetworkLayer m = HasType (NetworkLayer m Read.Block)
 
 type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
-dbLayer :: forall m s ctx. (HasDBLayer m s ctx) => Lens' ctx (DBLayer m s)
+dbLayer :: forall m s ctx. HasDBLayer m s ctx => Lens' ctx (DBLayer m s)
 dbLayer = typed @(DBLayer m s)
 
 genesisData
-    :: forall ctx. (HasGenesisData ctx) => Lens' ctx (Block, NetworkParameters)
+    :: forall ctx. HasGenesisData ctx => Lens' ctx (Block, NetworkParameters)
 genesisData = typed @(Block, NetworkParameters)
 
-logger :: forall m msg ctx. (HasLogger m msg ctx) => Lens' ctx (Tracer m msg)
+logger :: forall m msg ctx. HasLogger m msg ctx => Lens' ctx (Tracer m msg)
 logger = typed @(Tracer m msg)
 
 networkLayer
-    :: forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Read.Block)
+    :: forall m ctx. HasNetworkLayer m ctx => Lens' ctx (NetworkLayer m Read.Block)
 networkLayer = typed @(NetworkLayer m Read.Block)
 
 transactionLayer
     :: forall k ktype ctx
-     . (HasTransactionLayer k ktype ctx)
+     . HasTransactionLayer k ktype ctx
     => Lens' ctx (TransactionLayer k ktype SealedTx)
 transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 -- | Convenience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
 onWalletState
     :: forall m s ctx r
-     . (HasDBLayer m s ctx)
+     . HasDBLayer m s ctx
     => ctx
     -> Delta.Update (WalletState.DeltaWalletState s) r
     -> m r
@@ -1046,11 +1046,11 @@ checkWalletIntegrity db gp =
             )
 
 readWalletMeta
-    :: (Functor f) => DBVar f (DeltaWalletState s) -> f WalletMetadata
+    :: Functor f => DBVar f (DeltaWalletState s) -> f WalletMetadata
 readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
 
 readPrivateKey
-    :: (Functor stm)
+    :: Functor stm
     => DBVar stm (DeltaWalletState s)
     -> stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
 readPrivateKey walletState =
@@ -1059,7 +1059,7 @@ readPrivateKey walletState =
         pure (pk, h)
 
 putPrivateKey
-    :: (Monad m)
+    :: Monad m
     => DBVar m (DeltaWalletState s)
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> m ()
@@ -1067,7 +1067,7 @@ putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
     [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
 
 readDelegation
-    :: (Monad stm)
+    :: Monad stm
     => DBVar stm (DeltaWalletState s)
     -> stm (CurrentEpochSlotting -> WalletDelegation)
 readDelegation walletState = do
@@ -1113,7 +1113,7 @@ readWallet ctx = do
 
 walletSyncProgress
     :: forall ctx s
-     . (HasNetworkLayer IO ctx)
+     . HasNetworkLayer IO ctx
     => ctx
     -> Wallet s
     -> IO SyncProgress
@@ -1124,7 +1124,7 @@ walletSyncProgress ctx w = do
     nl = ctx ^. networkLayer
 
 putWalletMeta
-    :: (Monad stm)
+    :: Monad stm
     => DBVar stm (DeltaWalletState s)
     -> WalletMetadata
     -> stm ()
@@ -1134,7 +1134,7 @@ putWalletMeta walletState wm = onDBVar walletState $ update $ \_ ->
 -- | Update a wallet's metadata with the given update function.
 updateWallet
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> (WalletMetadata -> WalletMetadata)
     -> IO ()
@@ -1148,7 +1148,7 @@ updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => WalletFlavorS s
     -> ctx
     -> WalletId
@@ -1174,7 +1174,7 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
 
 updateWalletPassphraseWithMnemonic
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => WalletFlavorS s
     -> ctx
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
@@ -1326,7 +1326,7 @@ and present it as a checked exception.
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> Slot
     -> IO ChainPoint
@@ -1463,7 +1463,7 @@ restoreBlocks ctx tr blocks nodeTip =
         parent = headerHash $ currentTip cp
 
 putDelegationCertificate
-    :: (Monad stm)
+    :: Monad stm
     => DBVar stm (DeltaWalletState s)
     -> DelegationCertificate
     -> SlotNo
@@ -1508,7 +1508,7 @@ mkSelfWithdrawal netLayer txWitnessTag db = do
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
     :: forall s block
-     . (WalletFlavor s)
+     . WalletFlavor s
     => NetworkLayer IO block
     -> TxWitnessTag
     -> DBLayer IO s
@@ -1594,7 +1594,7 @@ readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
 -- WARNING: This function is broken. It is only used in the `db` benchmark.
 -- To be removed.
 putWalletCheckpoints
-    :: (AddressBookIso s)
+    :: AddressBookIso s
     => DBLayer IO s
     -> [Wallet s]
     -> IO ()
@@ -1616,7 +1616,7 @@ putWalletCheckpoints DBLayer{..} = atomically . mapM_ putCheckpoint
 -- or a non-shared wallet state.
 sharedOnlyReadRewardAccount
     :: forall s
-     . (WalletFlavor s)
+     . WalletFlavor s
     => DBLayer IO s
     -> ExceptT
         ErrReadRewardAccount
@@ -1637,7 +1637,7 @@ sharedOnlyReadRewardAccount db = do
 -- or a non-shelley wallet state.
 shelleyOnlyReadRewardAccount
     :: forall s
-     . (WalletFlavor s)
+     . WalletFlavor s
     => DBLayer IO s
     -> ExceptT
         ErrReadRewardAccount
@@ -1691,7 +1691,7 @@ manageRewardBalance tr' netLayer db = do
     tr = contramap MsgWallet tr'
 
 handleRewardAccountQuery
-    :: (Monad m)
+    :: Monad m
     => Tracer m WalletLog
     -> DBLayer m s
     -> Either ErrFetchRewards Coin
@@ -1746,7 +1746,7 @@ lookupTxIns ctx txins =
     db = ctx ^. dbLayer @IO @s
 
 lookupTxIn
-    :: (IsOurs s Address)
+    :: IsOurs s Address
     => Wallet s
     -> TxIn
     -> Maybe (TxOut, NonEmpty DerivationIndex)
@@ -2587,7 +2587,7 @@ buildTransactionPure
 
 unsafeShelleyOnlyGetRewardXPub
     :: forall s
-     . (WalletFlavor s)
+     . WalletFlavor s
     => s
     -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
@@ -2678,7 +2678,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel =
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall n ktype era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
     -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
@@ -2767,7 +2767,7 @@ constructTxMeta DBLayer{..} txCtx inps outs = atomically $ do
     let validity = txValidityInterval txCtx
     pure $ mkTxMeta latestBlockHeader validity amountIn amountOut
 
-ourCoin :: (IsOurs s Address) => TxOut -> s -> Maybe Coin
+ourCoin :: IsOurs s Address => TxOut -> s -> Maybe Coin
 ourCoin (TxOut addr tokens) wState =
     fst (isOurs addr wState) $> TokenBundle.getCoin tokens
 
@@ -2790,7 +2790,7 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Tracer m WalletWorkerLog
     -> DBLayer m s
     -> NetworkLayer m block
@@ -2840,7 +2840,7 @@ submitExternalTx ctx sealedTx = do
 -- be added back to the transaction history.
 forgetTx
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
@@ -2857,8 +2857,7 @@ forgetTx ctx txid =
 -- included.
 readLocalTxSubmissionPending
     :: forall m s ctx
-     . ( HasDBLayer m s ctx
-       )
+     . HasDBLayer m s ctx
     => ctx
     -> m [TxSubmissionsStatus]
 readLocalTxSubmissionPending ctx =
@@ -3051,7 +3050,7 @@ listAssets ctx =
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> Hash "Tx"
     -> ExceptT ErrGetTransaction IO TransactionInfo
@@ -3185,7 +3184,7 @@ instance NFData DelegationFee
 
 getStakeKeyDeposit
     :: forall era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => Write.ProtocolParameters era
     -> Coin
 getStakeKeyDeposit =
@@ -3194,7 +3193,7 @@ getStakeKeyDeposit =
         . Write.pparamsLedger
 
 isStakeKeyRegistered
-    :: (Functor stm)
+    :: Functor stm
     => DBVar stm (DeltaWalletState s)
     -> stm Bool
 isStakeKeyRegistered walletState =
@@ -3338,7 +3337,7 @@ transactionFee
 -- recoded distribution.
 calculateFeePercentiles
     :: forall m
-     . (Monad m)
+     . Monad m
     => ExceptT ErrSelectAssets m Fee
     -> ExceptT ErrSelectAssets m (Percentile 10 Fee, Percentile 90 Fee)
 calculateFeePercentiles =
@@ -3421,7 +3420,7 @@ padFeePercentiles
 -- with the hash algorithm SHA512 which is realized in encryptPassphrase
 attachPrivateKeyFromPwdScheme
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => WalletFlavorS s
     -> ctx
     -> (KeyOf s 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
@@ -3451,7 +3450,7 @@ attachPrivateKeyFromPwdScheme _ ctx (xprv, (scheme, pwd)) =
 
 attachPrivateKeyFromPwd
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => WalletFlavorS s
     -> ctx
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
@@ -3469,7 +3468,7 @@ attachPrivateKeyFromPwd wF ctx (xprv, pwd) =
 -- - bytesNumber = 64
 attachPrivateKeyFromPwdHashByron
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
@@ -3483,7 +3482,7 @@ attachPrivateKeyFromPwdHashByron ctx (xprv, hpwd) =
 
 attachPrivateKeyFromPwdHashShelley
     :: forall ctx s
-     . (HasDBLayer IO s ctx)
+     . HasDBLayer IO s ctx
     => ctx
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
@@ -3711,7 +3710,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM =
     db = ctx ^. dbLayer @IO @s
 
 guardSoftIndex
-    :: (Monad m)
+    :: Monad m
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK) m (Index 'Soft whatever)
 guardSoftIndex ix =
@@ -3721,7 +3720,7 @@ guardSoftIndex ix =
         else pure (Index $ getDerivationIndex ix)
 
 guardHardIndex
-    :: (Monad m)
+    :: Monad m
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Hardened level) m (Index 'Hardened whatever)
 guardHardIndex ix =
@@ -4252,7 +4251,7 @@ defaultChangeAddressGen arg =
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
-dummyChangeAddressGen :: forall s. (WalletFlavor s) => ChangeAddressGen s
+dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
         (maxLengthAddressFor (keyFlavorFromState @s),)
@@ -4260,7 +4259,7 @@ dummyChangeAddressGen =
 
 utxoAssumptionsForWallet
     :: forall s
-     . (Excluding '[SharedKey] (KeyOf s))
+     . Excluding '[SharedKey] (KeyOf s)
     => WalletFlavorS s
     -> UTxOAssumptions
 utxoAssumptionsForWallet =

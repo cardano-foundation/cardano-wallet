@@ -119,7 +119,7 @@ replaceCosigner kf cosignerMap = \case
     ActiveUntilSlot s ->
         ActiveUntilSlot s
   where
-    toKeyHash :: (HasCallStack) => Cosigner -> KeyHash
+    toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c = case Map.lookup c cosignerMap of
         Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
         Nothing -> error "Impossible: cosigner without xpub."
@@ -127,7 +127,7 @@ replaceCosigner kf cosignerMap = \case
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.
 derivePolicyKeyAndHash
-    :: (AfterByron key)
+    :: AfterByron key
     => KeyFlavorS key
     -> Passphrase "encryption"
     -- ^ Passphrase for wallet

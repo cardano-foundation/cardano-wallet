@@ -66,7 +66,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
         NodeNetworkLog l -> getSeverityAnnotation l
 
 withNetworkLayer
-    :: (HasCallStack)
+    :: HasCallStack
     => Tracer IO NetworkLayerLog
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -> BlockchainSource

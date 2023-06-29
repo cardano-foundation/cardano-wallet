@@ -327,7 +327,7 @@ minimalTestRecord :: TestRecord
 minimalTestRecord = TestRecord 0 0 0
 
 prop_genericRoundRobinShrink_coverage
-    :: (Testable p)
+    :: Testable p
     => TestRecord
     -> p
     -> Property
@@ -406,7 +406,7 @@ prop_genericRoundRobinShrink_uniqueness =
 -- Round-robin interleaving of lists
 --------------------------------------------------------------------------------
 
-prop_interleaveRoundRobin_coverage :: (Testable p) => [[Int]] -> p -> Property
+prop_interleaveRoundRobin_coverage :: Testable p => [[Int]] -> p -> Property
 prop_interleaveRoundRobin_coverage xs p =
     checkCoverage
         $ cover
@@ -485,11 +485,11 @@ unit_interleaveRoundRobin =
 data PartitionListData a = PartitionListData (Int, Int) [a]
     deriving (Eq, Generic, Show)
 
-instance (Arbitrary a) => Arbitrary (PartitionListData a) where
+instance Arbitrary a => Arbitrary (PartitionListData a) where
     arbitrary = genPartitionListData
     shrink = shrinkPartitionListData
 
-genPartitionListData :: forall a. (Arbitrary a) => Gen (PartitionListData a)
+genPartitionListData :: forall a. Arbitrary a => Gen (PartitionListData a)
 genPartitionListData =
     PartitionListData <$> genBounds <*> genList
   where
@@ -524,7 +524,7 @@ genPartitionListData =
             ]
 
 shrinkPartitionListData
-    :: (Arbitrary a) => PartitionListData a -> [PartitionListData a]
+    :: Arbitrary a => PartitionListData a -> [PartitionListData a]
 shrinkPartitionListData = genericShrink
 
 prop_partitionList_coverage
@@ -573,7 +573,7 @@ prop_partitionList_mconcat (PartitionListData (x, y) as) =
         ((=== as) . mconcat)
 
 prop_partitionList_GE
-    :: (Show a) => PartitionListData a -> Property
+    :: Show a => PartitionListData a -> Property
 prop_partitionList_GE (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage
@@ -591,7 +591,7 @@ prop_partitionList_GE (PartitionListData (x, y) as) =
     x' = max 0 x
 
 prop_partitionList_LT
-    :: (Show a) => PartitionListData a -> Property
+    :: Show a => PartitionListData a -> Property
 prop_partitionList_LT (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage
@@ -857,7 +857,7 @@ prop_shrinkSpace_singleton a =
 -- Repeatedly shrinking while a condition holds
 --------------------------------------------------------------------------------
 
-prop_shrinkWhile_coverage :: (Arbitrary a) => Fun a Bool -> a -> Property
+prop_shrinkWhile_coverage :: Arbitrary a => Fun a Bool -> a -> Property
 prop_shrinkWhile_coverage (applyFun -> condition) a =
     checkCoverage
         $ cover
@@ -872,17 +872,17 @@ prop_shrinkWhile_coverage (applyFun -> condition) a =
   where
     shrinkWhileResult = shrinkWhile condition shrink a
 
-prop_shrinkWhile_isNothing :: (Arbitrary a) => Fun a Bool -> a -> Property
+prop_shrinkWhile_isNothing :: Arbitrary a => Fun a Bool -> a -> Property
 prop_shrinkWhile_isNothing (applyFun -> condition) a =
     isNothing (shrinkWhile condition shrink a)
         === (not (condition a) || null (L.find condition (shrink a)))
 
-prop_shrinkWhile_satisfy :: (Arbitrary a) => Fun a Bool -> a -> Property
+prop_shrinkWhile_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
 prop_shrinkWhile_satisfy (applyFun -> condition) a =
     all condition (shrinkWhile condition shrink a)
         === True
 
-prop_shrinkWhileSteps_coverage :: (Arbitrary a) => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_coverage :: Arbitrary a => Fun a Bool -> a -> Property
 prop_shrinkWhileSteps_coverage (applyFun -> condition) a =
     checkCoverage
         $ cover
@@ -901,7 +901,7 @@ prop_shrinkWhileSteps_coverage (applyFun -> condition) a =
   where
     shrinkWhileStepsResult = shrinkWhileSteps condition shrink a
 
-prop_shrinkWhileSteps_satisfy :: (Arbitrary a) => Fun a Bool -> a -> Property
+prop_shrinkWhileSteps_satisfy :: Arbitrary a => Fun a Bool -> a -> Property
 prop_shrinkWhileSteps_satisfy (applyFun -> condition) a =
     all condition (shrinkWhileSteps condition shrink a)
         === True
@@ -974,7 +974,7 @@ unitTests title f unitTestData =
 -- Utilities
 --------------------------------------------------------------------------------
 
-consecutivePairs :: (Foldable f) => f a -> [(a, a)]
+consecutivePairs :: Foldable f => f a -> [(a, a)]
 consecutivePairs (F.toList -> xs) = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys

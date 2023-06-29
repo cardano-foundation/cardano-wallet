@@ -77,7 +77,7 @@ spec = do
         scryptPropsSpec
         scryptGoldenSpec
 
-onlyWithScrypt :: (HasCallStack) => Spec -> Spec
+onlyWithScrypt :: HasCallStack => Spec -> Spec
 onlyWithScrypt =
     if haveScrypt
         then id
@@ -123,7 +123,7 @@ scryptoniteSpec = describe "Scrypt tests-only cryptonite version" $ do
         hex <$> (getSalt fixturePassphraseEncrypted)
             `shouldBe` Just "fa3a2db452198d5997a02ecb9530595a5633057e104307ddb85bb10a4307522b"
 
-unwrap :: (ByteArray b) => b -> ByteString
+unwrap :: ByteArray b => b -> ByteString
 unwrap = convertToBase Base16
 
 -- | Default passphrase used for fixture wallets

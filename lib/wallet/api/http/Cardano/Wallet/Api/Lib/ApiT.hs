@@ -55,10 +55,10 @@ newtype ApiT a = ApiT {getApiT :: a}
     deriving anyclass (NFData)
     deriving (Show) via (Quiet (ApiT a))
 
-deriving instance (Ord a) => Ord (ApiT a)
+deriving instance Ord a => Ord (ApiT a)
 
-fromTextApiT :: (FromText a) => String -> Value -> Parser (ApiT a)
+fromTextApiT :: FromText a => String -> Value -> Parser (ApiT a)
 fromTextApiT t = fmap ApiT . fromTextJSON t
 
-toTextApiT :: (ToText a) => ApiT a -> Value
+toTextApiT :: ToText a => ApiT a -> Value
 toTextApiT = toTextJSON . getApiT

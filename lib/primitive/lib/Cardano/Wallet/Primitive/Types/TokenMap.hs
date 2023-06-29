@@ -259,7 +259,7 @@ instance NFData AssetId
 -- be included in an ordered set), the recommended course of action is to
 -- define a newtype with its own dedicated 'Ord' instance.
 instance
-    (TypeError ('Text "Ord not supported for token maps"))
+    TypeError ('Text "Ord not supported for token maps")
     => Ord TokenMap
     where
     compare = error "Ord not supported for token maps"
@@ -376,7 +376,7 @@ instance Buildable (Nested TokenMap) where
                     )
                 ]
 
-buildList :: (Foldable f) => (a -> Builder) -> f a -> Builder
+buildList :: Foldable f => (a -> Builder) -> f a -> Builder
 buildList = blockListF' "-"
 
 buildMap :: [(String, Builder)] -> Builder

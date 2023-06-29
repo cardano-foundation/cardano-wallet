@@ -361,7 +361,7 @@ mListRetiredPools epochNo = do
     pruneEmptyValues :: Map k (Maybe v) -> Map k v
     pruneEmptyValues = Map.mapMaybe id
 
-    retainOnlyMostRecent :: (Ord k) => Map (publicationTime, k) v -> Map k v
+    retainOnlyMostRecent :: Ord k => Map (publicationTime, k) v -> Map k v
     retainOnlyMostRecent =
         -- If more than one key from the original map is mapped to the same key
         -- in the result map, 'Map.mapKeys' guarantees to retain only the value
@@ -467,7 +467,7 @@ mRollbackTo ti point = do
         . Set.fromList
         =<< mListRegisteredPools
   where
-    discardBy :: (Ord point) => (SlotNo -> point) -> point -> a -> Maybe a
+    discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy getPoint point' v
         | point' <= getPoint point = Just v
         | otherwise = Nothing

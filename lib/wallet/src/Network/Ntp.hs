@@ -132,7 +132,7 @@ prettyNtpStatus = \case
 -- Using 'Integral' here because 'NtpOffset' is not exposed :/
 --
 -- TODO: Move this upstream.
-prettyNtpOffset :: (Integral a) => a -> Text
+prettyNtpOffset :: Integral a => a -> Text
 prettyNtpOffset n =
     T.pack (show $ fromIntegral @_ @Integer n) <> "μs"
 

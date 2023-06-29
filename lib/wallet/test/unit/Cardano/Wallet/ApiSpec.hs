@@ -217,7 +217,7 @@ spec = do
                     $ runSession (spec_NotAllowedMethod req msg) application
 
 assertErrorResponse
-    :: (HasCallStack)
+    :: HasCallStack
     => Int
     -- ^ Expected status
     -> Text
@@ -263,7 +263,7 @@ data SomeTest where
         -> [(Request, ExpectedError)]
         -> SomeTest
 
-class (Typeable api) => GenericApiSpec api where
+class Typeable api => GenericApiSpec api where
     gSpec :: api -> (SomeTest -> Spec) -> Spec
     gSpec _ _ = xdescribe (show $ typeRep $ Proxy @api) (pure ())
 
@@ -273,7 +273,7 @@ instance (GenericApiSpec a, GenericApiSpec b) => GenericApiSpec (a :<|> b) where
 instance GenericApiSpec Request where
     gSpec _ _ = pure ()
 
-instance (GenericApiSpec a) => GenericApiSpec [a] where
+instance GenericApiSpec a => GenericApiSpec [a] where
     gSpec xs toSpec = foldr (\x y -> gSpec x toSpec >> y) (pure ()) xs
 
 instance
@@ -344,7 +344,7 @@ instance
       where
         -- e.g. [IO Request, ExpectedError] -> IO [Request, ExpectedError]
         traverseLeft
-            :: (Applicative m)
+            :: Applicative m
             => (l0 -> m l1)
             -> [(l0, r)]
             -> m [(l1, r)]
@@ -426,7 +426,7 @@ server =
         \the way they interact with the outside world. Only valid requests are \
         \delegated to our handlers."
 
-everyPathParam :: (GEveryEndpoints api) => Proxy api -> MkPathRequest api
+everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest
 
 defaultApiRequest :: Request
@@ -438,13 +438,13 @@ defaultApiRequest =
             ]
         }
 
-everyBodyParam :: (GEveryEndpoints api) => Proxy api -> MkBodyRequest api
+everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
 everyBodyParam proxy = gEveryBodyParam proxy defaultApiRequest
 
-everyHeader :: (GEveryEndpoints api) => Proxy api -> MkHeaderRequest api
+everyHeader :: GEveryEndpoints api => Proxy api -> MkHeaderRequest api
 everyHeader proxy = gEveryHeader proxy defaultRequest
 
-everyAllowedMethod :: (GEveryEndpoints api) => Proxy api -> Map [Text] [Method]
+everyAllowedMethod :: GEveryEndpoints api => Proxy api -> Map [Text] [Method]
 everyAllowedMethod proxy =
     Map.fromListWith (++) (toTuple <$> gEveryEndpoint proxy)
   where
@@ -532,8 +532,7 @@ instance
         ]
 
 instance
-    ( ReflectMethod m
-    )
+    ReflectMethod m
     => GEveryEndpoints (NoContentVerb (m :: StdMethod))
     where
     gEveryEndpoint _ =
@@ -627,8 +626,7 @@ instance
 --     library.)
 instance
     {-# OVERLAPPING #-}
-    ( GEveryEndpoints sub
-    )
+    GEveryEndpoints sub
     => GEveryEndpoints (ReqBody '[OctetStream] a :> sub)
     where
     gEveryEndpoint _ =
@@ -663,8 +661,7 @@ instance
                 }
 
 instance
-    ( GEveryEndpoints sub
-    )
+    GEveryEndpoints sub
     => GEveryEndpoints (ReqBody '[ct] a :> sub)
     where
     gEveryEndpoint _ =
@@ -690,8 +687,7 @@ instance
                 }
 
 instance
-    ( GEveryEndpoints sub
-    )
+    GEveryEndpoints sub
     => GEveryEndpoints (Servant.QueryParam a b :> sub)
     where
     gEveryEndpoint _ =
@@ -710,8 +706,7 @@ instance
         gEveryHeader (Proxy @sub)
 
 instance
-    ( GEveryEndpoints sub
-    )
+    GEveryEndpoints sub
     => GEveryEndpoints (Servant.QueryFlag s :> sub)
     where
     gEveryEndpoint _ =
@@ -755,7 +750,7 @@ setRequestBody (BodyParam bytes) req = do
 
 titleize
     :: forall t
-     . (Typeable t)
+     . Typeable t
     => Proxy t
     -> Request
     -> String

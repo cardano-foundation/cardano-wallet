@@ -55,5 +55,5 @@ type family TxT era where
 -- | A tx in any era
 newtype Tx era = Tx {unTx :: TxT era}
 
-deriving instance (Show (TxT era)) => Show (Tx era)
-deriving instance (Eq (TxT era)) => Eq (Tx era)
+deriving instance Show (TxT era) => Show (Tx era)
+deriving instance Eq (TxT era) => Eq (Tx era)

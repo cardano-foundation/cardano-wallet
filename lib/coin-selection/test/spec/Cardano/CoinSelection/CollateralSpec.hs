@@ -1360,12 +1360,12 @@ instance Arbitrary Coin where
     arbitrary = genCoinPositive
     shrink = shrinkCoinPositive
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
 newtype Pretty a = Pretty {unPretty :: a}
     deriving (Eq)
 
-instance (Show a) => Show (Pretty a) where
+instance Show a => Show (Pretty a) where
     show (Pretty a) = TL.unpack ("\n" <> pShow a <> "\n")

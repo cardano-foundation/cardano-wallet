@@ -70,7 +70,7 @@ newtype StdGenSeed = StdGenSeed
 type Word127 = OddWord Integer (Lit 127)
 
 -- | Creates a new 'StdGenSeed' from within a random monadic context.
-stdGenSeed :: (MonadRandom m) => m StdGenSeed
+stdGenSeed :: MonadRandom m => m StdGenSeed
 stdGenSeed = do
     hi <- getRandom
     lo <- getRandom

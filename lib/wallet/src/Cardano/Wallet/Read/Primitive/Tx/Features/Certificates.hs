@@ -128,7 +128,7 @@ mkShelleyCertsK
     -> K [W.Certificate] b
 mkShelleyCertsK (Certificates cs) = K . anyEraCerts $ cs
 
-anyEraCerts :: (Foldable t) => t (DCert crypto) -> [W.Certificate]
+anyEraCerts :: Foldable t => t (DCert crypto) -> [W.Certificate]
 anyEraCerts cs = fromShelleyCert <$> toList cs
 
 mkPoolRegistrationCertificate :: PoolParams c -> W.Certificate
@@ -209,7 +209,7 @@ fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) =
     PoolOwner (hashToBytes h)
 
-fromUnitInterval :: (HasCallStack) => SL.UnitInterval -> Percentage
+fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =
     either bomb id . mkPercentage . toRational . SL.unboundRational $ x
   where
@@ -219,5 +219,5 @@ fromUnitInterval x =
             +|| x
             ||+ ""
 
-toWalletCoin :: (HasCallStack) => SL.Coin -> W.Coin
+toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c

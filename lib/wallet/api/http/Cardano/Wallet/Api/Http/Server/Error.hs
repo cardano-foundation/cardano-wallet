@@ -226,10 +226,10 @@ class IsServerError e where
 
 -- | Lift our wallet layer into servant 'Handler', by mapping each error to a
 -- corresponding servant error.
-liftHandler :: (IsServerError e) => ExceptT e IO a -> Handler a
+liftHandler :: IsServerError e => ExceptT e IO a -> Handler a
 liftHandler action = Handler (withExceptT toServerError action)
 
-liftE :: (IsServerError e) => e -> Handler a
+liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
 
 -- | Lift an IO action into servant 'Handler'
@@ -251,7 +251,7 @@ err425 :: ServerError
 err425 = ServerError 425 "Too early" "" []
 
 -- | Small helper to easy show things to Text
-showT :: (Show a) => a -> Text
+showT :: Show a => a -> Text
 showT = T.pack . show
 
 instance IsServerError WalletException where

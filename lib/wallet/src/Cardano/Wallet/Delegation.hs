@@ -194,7 +194,7 @@ joinStakePoolDelegationAction
                 else Tx.JoinRegisteringKey poolId
       where
         throwInIO
-            :: (MonadIO m) => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
+            :: MonadIO m => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
         throwInIO f =
             runExceptT
                 >=> either (liftIO . throwIO . ExceptionStakePoolDelegation . f) pure

@@ -174,7 +174,7 @@ newtype ShelleyKey (depth :: Depth) key = ShelleyKey {getKey :: key}
 shelleyKey :: Iso (ShelleyKey depth key) (ShelleyKey depth key') key key'
 shelleyKey = iso getKey ShelleyKey
 
-instance (NFData key) => NFData (ShelleyKey depth key)
+instance NFData key => NFData (ShelleyKey depth key)
 
 instance TxWitnessTagFor ShelleyKey where
     txWitnessTagFor = TxWitnessShelleyUTxO
@@ -244,7 +244,7 @@ deriveAccountPrivateKeyShelley purpose (Passphrase pwd) rootXPrv (Index accIx) =
         deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
 
 deriveAddressPrivateKeyShelley
-    :: (Enum a)
+    :: Enum a
     => Passphrase "encryption"
     -> XPrv
     -> a
@@ -262,7 +262,7 @@ deriveAddressPrivateKeyShelley (Passphrase pwd) accXPrv role (Index addrIx) =
         deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
 
 deriveAddressPublicKeyShelley
-    :: (Enum a)
+    :: Enum a
     => XPub
     -> a
     -> Index derivationType level
@@ -441,7 +441,7 @@ instance ToRewardAccount ShelleyKey where
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = FromKeyHash . blake2b224 . xpubPublicKey
 
-instance (HasSNetworkId n) => MaybeLight (SeqState n ShelleyKey) where
+instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey) where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
 instance AccountIxForStaking (SeqState n ShelleyKey) where

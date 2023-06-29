@@ -664,7 +664,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 --
 
 -- | Expect a successful response, without any further assumptions.
-expectSuccess :: (MonadIO m) => (s, Either RequestException a) -> m ()
+expectSuccess :: MonadIO m => (s, Either RequestException a) -> m ()
 expectSuccess = either wantedSuccessButError (const $ pure ()) . snd
 
 -- | Expect an error response, without any further assumptions.
@@ -837,13 +837,13 @@ expectCliListField i getter predicate xs
                 <> show i
                 <> " element from a list but there's none! "
 
-expectCliField :: (MonadIO m) => Lens' s a -> (a -> Expectation) -> s -> m ()
+expectCliField :: MonadIO m => Lens' s a -> (a -> Expectation) -> s -> m ()
 expectCliField getter predicate out = do
     let a = (view getter out)
     liftIO $ predicate a
 
 -- | A file is eventually created on the given location
-expectPathEventuallyExist :: (HasCallStack) => FilePath -> IO ()
+expectPathEventuallyExist :: HasCallStack => FilePath -> IO ()
 expectPathEventuallyExist filepath = do
     handle <- async doesPathExistNow
     winner <- race (threadDelay (60 * oneSecond)) (wait handle)
@@ -864,13 +864,13 @@ expectPathEventuallyExist filepath = do
 -- Lenses
 --
 
-walletId :: (HasType (ApiT WalletId) s) => Lens' s Text
+walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =
     lens _get _set
   where
-    _get :: (HasType (ApiT WalletId) s) => s -> Text
+    _get :: HasType (ApiT WalletId) s => s -> Text
     _get = T.pack . show . getWalletId . getApiT . view typed
-    _set :: (HasType (ApiT WalletId) s) => s -> Text -> s
+    _set :: HasType (ApiT WalletId) s => s -> Text -> s
     _set s v = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
 
 --
@@ -1136,7 +1136,7 @@ postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
     expectResponseCode HTTP.status202 r
     return r
 
-updateMetadataSource :: (MonadUnliftIO m) => Context -> Text -> m ()
+updateMetadataSource :: MonadUnliftIO m => Context -> Text -> m ()
 updateMetadataSource ctx t = do
     r <- request @SettingsPutData ctx Link.putSettings Default payload
     expectResponseCode HTTP.status204 r
@@ -1149,7 +1149,7 @@ updateMetadataSource ctx t = do
             }
        } |]
 
-bracketSettings :: (MonadUnliftIO m) => Context -> m () -> m ()
+bracketSettings :: MonadUnliftIO m => Context -> m () -> m ()
 bracketSettings ctx action = do
     r@(_, response) <- request @(ApiT Settings) ctx Link.getSettings Default Empty
     expectResponseCode HTTP.status200 r
@@ -1166,7 +1166,7 @@ bracketSettings ctx action = do
             expectResponseCode HTTP.status204 r'
 
 verifyMetadataSource
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> PoolMetadataSource
     -> m ()
@@ -1175,7 +1175,7 @@ verifyMetadataSource ctx s = do
     expectResponseCode HTTP.status200 r
     expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
 
-triggerMaintenanceAction :: (MonadUnliftIO m) => Context -> Text -> m ()
+triggerMaintenanceAction :: MonadUnliftIO m => Context -> Text -> m ()
 triggerMaintenanceAction ctx a = do
     r <- request @ApiMaintenanceAction ctx Link.postPoolMaintenance Default payload
     expectResponseCode HTTP.status204 r
@@ -1183,7 +1183,7 @@ triggerMaintenanceAction ctx a = do
     payload = Json [aesonQQ| { "maintenance_action": #{a} } |]
 
 verifyMaintenanceAction
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> PoolMetadataGCStatus
     -> m ()
@@ -1294,7 +1294,7 @@ bech32Text hrp = T.decodeUtf8 . encode (EBech32 hrp)
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
 
-unsafeGetTransactionTime :: (MonadUnliftIO m) => [ApiTransaction n] -> m UTCTime
+unsafeGetTransactionTime :: MonadUnliftIO m => [ApiTransaction n] -> m UTCTime
 unsafeGetTransactionTime txs =
     case fmap time . insertedAt <$> txs of
         (Just t) : _ -> pure t
@@ -1315,7 +1315,7 @@ waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ 
     let txs = getFromResponse id r
     view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
 
-waitForNextEpoch :: (MonadUnliftIO m) => Context -> m ()
+waitForNextEpoch :: MonadUnliftIO m => Context -> m ()
 waitForNextEpoch ctx = do
     epoch <-
         getFromResponse (#nodeTip . #slotId . #epochNumber)
@@ -1347,7 +1347,7 @@ waitForNextEpoch ctx = do
 --    ---> 10 / f * slot_length
 --
 -- (about 4s with the current parameters for the test cluster).
-waitForTxImmutability :: (MonadIO m) => Context -> m ()
+waitForTxImmutability :: MonadIO m => Context -> m ()
 waitForTxImmutability _ctx = liftIO $ do
     -- FIXME: #2226
     --
@@ -1434,7 +1434,7 @@ a .<= b
 
 -- | Like @expectationFailure@, but with a @IO a@ return type instead of @IO
 -- ()@.
-expectationFailure' :: (HasCallStack) => String -> IO a
+expectationFailure' :: HasCallStack => String -> IO a
 expectationFailure' msg = do
     expectationFailure msg
     fail "expectationFailure': impossible"
@@ -1451,7 +1451,7 @@ expectationFailure' msg = do
 -- much longer than that isn't really useful (in particular, this doesn't
 -- depend on the host machine running the test, because the protocol moves
 -- forward at the same speed regardless...)
-eventually :: (MonadIO m) => String -> IO a -> m a
+eventually :: MonadIO m => String -> IO a -> m a
 eventually = eventuallyUsingDelay (500 * ms) 90
   where
     ms = 1_000
@@ -1461,7 +1461,7 @@ eventually = eventuallyUsingDelay (500 * ms) 90
 --
 -- It sleeps for a specified delay between retries and fails after timeout.
 eventuallyUsingDelay
-    :: (MonadIO m)
+    :: MonadIO m
     => Int
     -- ^ Delay in microseconds
     -> Int
@@ -1554,7 +1554,7 @@ restoreWalletFromPubKey ctx pubKey name = snd <$> allocate create destroy
 
 -- | Create an empty wallet
 emptyRandomWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiByronWallet
 emptyRandomWallet ctx = do
@@ -1565,7 +1565,7 @@ emptyRandomWallet ctx = do
         ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletMws
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiByronWallet, Mnemonic 12)
 emptyRandomWalletMws ctx = do
@@ -1577,7 +1577,7 @@ emptyRandomWalletMws ctx = do
             ("Random Wallet", mnemonicToText @12 mnemonic, fixturePassphrase)
 
 emptyIcarusWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiByronWallet
 emptyIcarusWallet ctx = do
@@ -1588,7 +1588,7 @@ emptyIcarusWallet ctx = do
         ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWalletMws
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiByronWallet, Mnemonic 15)
 emptyIcarusWalletMws ctx = do
@@ -1600,7 +1600,7 @@ emptyIcarusWalletMws ctx = do
             ("Icarus Wallet", mnemonicToText @15 mnemonic, fixturePassphrase)
 
 emptyRandomWalletWithPasswd
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> Text
     -> ResourceT m ApiByronWallet
@@ -1620,7 +1620,7 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
 
 postWallet'
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> Headers
     -> Payload
@@ -1640,14 +1640,14 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     free (Left _) = return ()
 
 postWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
 postWallet ctx = postWallet' ctx Default
 
 postByronWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiByronWallet)
@@ -1667,7 +1667,7 @@ postByronWallet ctx payload = snd <$> allocate create (free . snd)
 
 emptyByronWalletWith
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> String
     -> (Text, [Text], Text)
@@ -1687,7 +1687,7 @@ emptyByronWalletWith ctx style (name, mnemonic, pass) = do
 
 emptyByronWalletFromXPrvWith
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> String
     -> (Text, Text, Text)
@@ -1706,7 +1706,7 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
     return (getFromResponse id r)
 
 emptyWalletAndMnemonic
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiWallet, [Text])
 emptyWalletAndMnemonic ctx = do
@@ -1723,7 +1723,7 @@ emptyWalletAndMnemonic ctx = do
     return (getFromResponse id r, mnemonic)
 
 emptyWalletAndMnemonicAndSndFactor
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiWallet, [Text], [Text])
 emptyWalletAndMnemonicAndSndFactor ctx = do
@@ -1745,7 +1745,7 @@ emptyWalletAndMnemonicAndSndFactor ctx = do
 
 -- | Create an empty wallet
 emptyWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiWallet
 emptyWallet ctx = do
@@ -1763,7 +1763,7 @@ emptyWallet ctx = do
 
 -- | Create an empty wallet
 emptyWalletWith
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> (Text, Text, Int)
     -> ResourceT m ApiWallet
@@ -1782,7 +1782,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     return (getFromResponse id r)
 
 emptyWalletAndMnemonicWith
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> (Text, Text, Int)
     -> ResourceT m (ApiWallet, [Text])
@@ -1801,7 +1801,7 @@ emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
     return (getFromResponse id r, mnemonic)
 
 rewardWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiWallet, Mnemonic 24)
 rewardWallet ctx = do
@@ -1828,7 +1828,7 @@ rewardWallet ctx = do
         pure (getFromResponse id rg, mw)
 
 fixtureMultiAssetWallet
-    :: (MonadIO m)
+    :: MonadIO m
     => Context
     -> ResourceT m ApiWallet
 fixtureMultiAssetWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"ma")
@@ -1947,7 +1947,7 @@ fixtureMultiAssetIcarusWallet ctx = do
 
 emptySharedWallet
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ResourceT m ApiSharedWallet
 emptySharedWallet ctx = do
@@ -1988,7 +1988,7 @@ emptySharedWallet ctx = do
 
 emptySharedWalletDelegating
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ResourceT m (ApiSharedWallet, ApiSharedWallet)
 emptySharedWalletDelegating ctx = do
@@ -2178,7 +2178,7 @@ fixtureSharedWalletDelegating ctx = do
     return (walA, walB)
 
 postSharedWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> Headers
     -> Payload
@@ -2206,7 +2206,7 @@ postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
 
 deleteSharedWallet
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException Value)
@@ -2216,14 +2216,14 @@ deleteSharedWallet ctx = \case
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException Value)
     r w = request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
 
 getSharedWallet
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException ApiSharedWallet)
@@ -2233,14 +2233,14 @@ getSharedWallet ctx = \case
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException ApiSharedWallet)
     r w = request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
 
 getSharedWalletKey
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> Role
@@ -2254,7 +2254,7 @@ getSharedWalletKey ctx wal role ix isHashed =
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
     r w =
@@ -2266,7 +2266,7 @@ getSharedWalletKey ctx wal role ix isHashed =
 
 postAccountKeyShared
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> DerivationIndex
@@ -2280,7 +2280,7 @@ postAccountKeyShared ctx wal ix headers payload =
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
     r w =
@@ -2292,7 +2292,7 @@ postAccountKeyShared ctx wal ix headers payload =
 
 getAccountKeyShared
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> Maybe KeyFormat
@@ -2304,7 +2304,7 @@ getAccountKeyShared ctx wal isHashed =
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
     r w =
@@ -2316,7 +2316,7 @@ getAccountKeyShared ctx wal isHashed =
 
 getSomeVerificationKey
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiWallet
     -> m (ApiVerificationKeyShelley, ApiT (Hash "VerificationKey"))
@@ -2333,7 +2333,7 @@ patchEndpointEnding = \case
 
 patchSharedWallet
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> ApiSharedWallet
     -> CredentialType
@@ -2346,7 +2346,7 @@ patchSharedWallet ctx wal cred payload =
   where
     r
         :: forall w
-         . (HasType (ApiT WalletId) w)
+         . HasType (ApiT WalletId) w
         => w
         -> m (HTTP.Status, Either RequestException ApiSharedWallet)
     r w =
@@ -2381,7 +2381,7 @@ fixturePassphraseEncrypted =
 -- wallets through small blocks of @runResourceT@ (e.g. once per test). It
 -- doesn't return @ReleaseKey@ since manual releasing is not needed.
 fixtureWallet
-    :: (MonadIO m)
+    :: MonadIO m
     => Context
     -> ResourceT m ApiWallet
 fixtureWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"shelley")
@@ -2438,7 +2438,7 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
 
 -- | Restore a faucet Random wallet and wait until funds are available.
 fixtureRandomWalletMws
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiByronWallet, Mnemonic 12)
 fixtureRandomWalletMws ctx = do
@@ -2446,7 +2446,7 @@ fixtureRandomWalletMws ctx = do
     (,mnemonics) <$> fixtureLegacyWallet ctx "random" (mnemonicToText mnemonics)
 
 fixtureRandomWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiByronWallet
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
@@ -2500,7 +2500,7 @@ fixtureRandomWalletWith ctx coins0 = do
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWalletMws
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m (ApiByronWallet, Mnemonic 15)
 fixtureIcarusWalletMws ctx = do
@@ -2508,7 +2508,7 @@ fixtureIcarusWalletMws ctx = do
     (,mnemonics) <$> fixtureLegacyWallet ctx "icarus" (mnemonicToText mnemonics)
 
 fixtureIcarusWallet
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiByronWallet
 fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
@@ -2563,7 +2563,7 @@ fixtureIcarusWalletWith ctx coins0 = do
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
     :: forall m
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Context
     -> String
     -> [Text]
@@ -2713,7 +2713,7 @@ fixtureWalletWith ctx coins0 = do
 
 -- | Create a fixture from the same mnemonic every time.
 -- Don't wait for it to restore before returning.
-constFixtureWalletNoWait :: (MonadIO m) => Context -> ResourceT m ApiWallet
+constFixtureWalletNoWait :: MonadIO m => Context -> ResourceT m ApiWallet
 constFixtureWalletNoWait ctx = snd <$> allocate create free
   where
     payload =
@@ -2738,7 +2738,7 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
 -- | Move coins from a wallet to another
 moveByronCoins
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Context
     -- ^ Api context
     -> ApiByronWallet
@@ -2805,7 +2805,7 @@ faucetUtxoAmt = ada 100_000
     ada = (*) (1_000_000)
 
 getFromResponse
-    :: (HasCallStack)
+    :: HasCallStack
     => Lens' s a
     -> (HTTP.Status, Either RequestException s)
     -> a
@@ -2962,7 +2962,7 @@ delegationFee ctx w = do
 -- [addr]
 randomAddresses
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -2988,7 +2988,7 @@ randomAddresses mw =
 -- [addr]
 icarusAddresses
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -3014,7 +3014,7 @@ icarusAddresses mw =
 -- [addr]
 shelleyAddresses
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =
@@ -3045,7 +3045,7 @@ listAddresses ctx w = do
     return (getFromResponse id r)
 
 signTx
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ApiWallet
     -> ApiT SealedTx
@@ -3064,7 +3064,7 @@ signTx ctx w sealedTx expectations = do
     pure $ getFromResponse Prelude.id r
 
 signSharedTx
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ApiActiveSharedWallet
     -> ApiT SealedTx
@@ -3083,7 +3083,7 @@ signSharedTx ctx w sealedTx expectations = do
     pure $ getFromResponse Prelude.id r
 
 submitTx
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ApiSerialisedTransaction
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
@@ -3101,7 +3101,7 @@ submitTx ctx tx expectations = do
     pure $ getFromResponse Prelude.id r
 
 submitTxWithWid
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ApiWallet
     -> ApiSerialisedTransaction
@@ -3112,7 +3112,7 @@ submitTxWithWid ctx w tx = do
     request @ApiTxId ctx submitEndpoint Default payload
 
 submitSharedTxWithWid
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ApiActiveSharedWallet
     -> ApiSerialisedTransaction
@@ -3214,7 +3214,7 @@ deleteAllWallets ctx = do
 -- | Calls 'GET /wallets' and filters the response. This allows tests to be
 -- written for a parallel setting.
 listFilteredWallets
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Set Text
     -- ^ Set of walletIds to include
     -> Context
@@ -3231,7 +3231,7 @@ listFilteredWallets include ctx = do
 -- | Calls 'GET /byron-wallets' and filters the response. This allows tests to
 -- be written for a parallel setting.
 listFilteredByronWallets
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Set Text
     -- ^ Set of walletIds to include
     -> Context
@@ -3246,7 +3246,7 @@ listFilteredByronWallets include ctx = do
     return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
 listFilteredSharedWallets
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Set Text
     -- ^ Set of walletIds to include
     -> Context
@@ -3371,7 +3371,7 @@ toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
     suffix = T.intercalate "&" $ buildQueryParam <$> kvs
     buildQueryParam (k, v) = k <> "=" <> toQueryParam v
 
-addField :: (ToJSON a) => Text -> a -> Payload -> Payload
+addField :: ToJSON a => Text -> a -> Payload -> Payload
 addField fieldName field = \case
     Json (Aeson.Object o) ->
         Json (Aeson.Object (o <> ((Aeson.fromText fieldName) .= field)))
@@ -3379,7 +3379,7 @@ addField fieldName field = \case
         error "addField called on a non-json payload"
 
 infixr 5 </>
-(</>) :: (ToHttpApiData a) => Text -> a -> Text
+(</>) :: ToHttpApiData a => Text -> a -> Text
 base </> thenext = mconcat [base, "/", toQueryParam thenext]
 
 ---
@@ -3849,7 +3849,7 @@ pubKeyFromMnemonics mnemonics =
 -- Helper for delegation statuses
 --
 getSlotParams
-    :: (MonadIO m)
+    :: MonadIO m
     => Context
     -> m (EpochNo, SlottingParameters)
 getSlotParams ctx = do
@@ -3883,7 +3883,7 @@ getSlotParams ctx = do
 -- | Converts a transaction TTL in seconds into a number of slots, using the
 -- slot length.
 getTTLSlots
-    :: (MonadIO m)
+    :: MonadIO m
     => Context
     -> NominalDiffTime
     -> m SlotNo
@@ -3931,7 +3931,7 @@ unsafeResponse = either (error . show) id . snd
 -- anything goes unexpectedly.
 replaceStakeKey
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => ApiAddress n
     -> ApiAddress n
     -> ApiAddress n

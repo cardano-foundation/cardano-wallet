@@ -69,7 +69,7 @@ mainnetMagic :: ProtocolMagic
 mainnetMagic = ProtocolMagic 764824073
 
 -- | Derive testnet magic from a type-level Nat
-testnetMagic :: forall pm. (KnownNat pm) => ProtocolMagic
+testnetMagic :: forall pm. KnownNat pm => ProtocolMagic
 testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 
 magicSNetworkId :: SNetworkId n -> ProtocolMagic

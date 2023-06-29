@@ -144,7 +144,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> runResourceT $ do
@@ -982,16 +982,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         T.unpack err `shouldContain` expErr
 
 emptyRandomWallet'
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> ResourceT m String
 emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
-emptyWallet' :: (MonadUnliftIO m) => Context -> ResourceT m String
+emptyWallet' :: MonadUnliftIO m => Context -> ResourceT m String
 emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
 emptyWalletWith'
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Context
     -> (Text, Text, Int)
     -> ResourceT m String

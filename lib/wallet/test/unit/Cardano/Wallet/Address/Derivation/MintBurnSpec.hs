@@ -468,7 +468,7 @@ prop_keyDerivationRelation pwd masterkey policyIx =
     key2 = getRawKey ShelleyKeyS $ fst keyAndHash
 
 unit_comparePolicyKeys
-    :: (KnownNat n)
+    :: KnownNat n
     => Mnemonic n
     -> Index 'Hardened 'PolicyK
     -> Text
@@ -494,7 +494,7 @@ unit_comparePolicyKeys mnemonic index goldenPolicyKeyBech32 =
         walletPolicyKeyBytes `shouldBe` goldenPolicyKeyBytes
 
 unit_comparePolicyKeyHashes
-    :: (KnownNat n)
+    :: KnownNat n
     => Mnemonic n
     -> Index 'Hardened 'PolicyK
     -> Text

@@ -156,12 +156,12 @@ class Convert wallet ledger | wallet -> ledger where
     -- | Converts a value from a wallet type to the equivalent ledger
     --   specification type.
     toLedger
-        :: (HasCallStack) => wallet -> ledger
+        :: HasCallStack => wallet -> ledger
 
     -- | Converts a value from a ledger specification type to the equivalent
     --   wallet type.
     toWallet
-        :: (HasCallStack) => ledger -> wallet
+        :: HasCallStack => ledger -> wallet
 
 --------------------------------------------------------------------------------
 -- Conversions for 'Coin'
@@ -174,7 +174,7 @@ instance Convert Coin Ledger.Coin where
 toLedgerCoin :: Coin -> Ledger.Coin
 toLedgerCoin (Coin c) = Ledger.Coin $ intCast @Natural @Integer c
 
-toWalletCoin :: (HasCallStack) => Ledger.Coin -> Coin
+toWalletCoin :: HasCallStack => Ledger.Coin -> Coin
 toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 
 --------------------------------------------------------------------------------
@@ -364,7 +364,7 @@ toAlonzoTxOut (TxOut addr bundle) =
         Ledger.SNothing
 
 toBabbageTxOut
-    :: (HasCallStack)
+    :: HasCallStack
     => TxOut
     -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) =
@@ -399,7 +399,7 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _) =
     TxOut (toWallet addr) (toWallet val)
 
 toWalletScript
-    :: (LCore.Era crypto)
+    :: LCore.Era crypto
     => (Hash "VerificationKey" -> KeyRole)
     -> Scripts.Timelock crypto
     -> Script KeyHash
@@ -420,7 +420,7 @@ toWalletScript tokeyrole = fromLedgerScript
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
-    :: (LCore.Era crypto)
+    :: LCore.Era crypto
     => KeyRole
     -> Ledger.MultiSig crypto
     -> Script KeyHash

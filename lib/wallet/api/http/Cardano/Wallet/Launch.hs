@@ -244,14 +244,14 @@ parseGenesisData = \case
 
 -- | Looks up an environment variable, treating variables which are defined but
 -- empty the same as variables which are undefined.
-lookupEnvNonEmpty :: (MonadUnliftIO m) => String -> m (Maybe String)
+lookupEnvNonEmpty :: MonadUnliftIO m => String -> m (Maybe String)
 lookupEnvNonEmpty = liftIO . fmap nonEmpty . lookupEnv
   where
     nonEmpty (Just "") = Nothing
     nonEmpty m = m
 
 -- | Returns true iff an environment variable is defined and non-empty.
-isEnvSet :: (MonadUnliftIO m) => String -> m Bool
+isEnvSet :: MonadUnliftIO m => String -> m Bool
 isEnvSet = fmap isJust . lookupEnvNonEmpty
 
 -- | Parses an environment variable using text-class.
@@ -268,7 +268,7 @@ envFromText = liftIO . fmap (fmap (fromText . T.pack)) . lookupEnv
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Tracer m TempDirLog
     -> FilePath
     -- ^ Parent directory
@@ -286,7 +286,7 @@ withTempDir tr parent name action =
         False -> withTempDirectory parent name action
 
 withSystemTempDir
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Tracer m TempDirLog
     -> String
     -- ^ Directory name template

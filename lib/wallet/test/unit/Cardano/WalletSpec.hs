@@ -689,7 +689,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                         nubBy ((==) `on` \(_, meta) -> meta ^. #slotNo)
                             $ nubBy ((==) `on` \(tx, _) -> tx ^. #txId) history
                       test
-                        :: (Ord (f UTCTime))
+                        :: Ord (f UTCTime)
                         => Maybe UTCTime
                         -> Maybe UTCTime
                         -> SortOrder
@@ -1143,7 +1143,7 @@ newtype ThrottleTestT m a = ThrottleTestT
     deriving (Functor, Applicative, Monad, MonadIO)
 
 runThrottleTest
-    :: (MonadIO m)
+    :: MonadIO m
     => ThrottleTestT m a
     -> ThrottleTestState
     -> m (Maybe a, ThrottleTestState)
@@ -1154,15 +1154,15 @@ runThrottleTest action = fmap r . runStateT (runMaybeT (unThrottleTestT action))
 initState :: ThrottleTest -> ThrottleTestState
 initState (ThrottleTest _ dts) = ThrottleTestState dts (Time 0) []
 
-recordTime :: (Monad m) => (Time, Int) -> ThrottleTestT m ()
+recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
 recordTime x = ThrottleTestT
     $ lift
     $ state
     $ \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x : xs))
 
-instance (MonadMonotonicTime m) => MonadMonotonicTime (ThrottleTestT m)
+instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m)
 
-instance (MonadMonotonicTimeNSec m) => MonadMonotonicTimeNSec (ThrottleTestT m) where
+instance MonadMonotonicTimeNSec m => MonadMonotonicTimeNSec (ThrottleTestT m) where
     getMonotonicTimeNSec = ThrottleTestT $ MaybeT $ state mockTime
       where
         mockTime :: ThrottleTestState -> (Maybe Word64, ThrottleTestState)
@@ -1174,7 +1174,7 @@ instance (MonadMonotonicTimeNSec m) => MonadMonotonicTimeNSec (ThrottleTestT m) 
                     , ThrottleTestState ts now' as
                     )
 
-instance (MonadUnliftIO m) => MonadUnliftIO (StateT ThrottleTestState m) where
+instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
     withRunInIO inner = StateT $ \tts -> do
         -- smuggle the test state in an mvar
         var <- newEmptyMVar
@@ -1186,7 +1186,7 @@ instance (MonadUnliftIO m) => MonadUnliftIO (StateT ThrottleTestState m) where
             tts' <- takeMVar var
             pure (a, tts')
 
-instance (MonadUnliftIO m) => MonadUnliftIO (ThrottleTestT m) where
+instance MonadUnliftIO m => MonadUnliftIO (ThrottleTestT m) where
     withRunInIO inner = ThrottleTestT
         $ MaybeT
         $ fmap Just
@@ -1595,12 +1595,12 @@ dummyTransactionLayer =
     forMaybe :: [a] -> (a -> Maybe b) -> [b]
     forMaybe = flip mapMaybe
 
-fakeSealedTx :: (HasCallStack) => (Hash "Tx", [ByteString]) -> SealedTx
+fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
   where
     repr = show (tx, wit)
 
-mockNetworkLayer :: (Monad m) => NetworkLayer m block
+mockNetworkLayer :: Monad m => NetworkLayer m block
 mockNetworkLayer =
     dummyNetworkLayer
         { currentNodeTip =

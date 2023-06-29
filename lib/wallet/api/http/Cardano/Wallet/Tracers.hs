@@ -217,7 +217,7 @@ tracerDescriptions =
     lbl f = T.unpack . getConst . f $ tracerLabels
 
 -- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
-nullTracers :: (Monad m) => Tracers m
+nullTracers :: Monad m => Tracers m
 nullTracers =
     Tracers
         { applicationTracer = nullTracer

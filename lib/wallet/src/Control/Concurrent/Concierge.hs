@@ -63,7 +63,7 @@ data Concierge m lock = Concierge
     }
 
 -- | Create a new 'Concierge' that keeps track of locks.
-newConcierge :: (MonadSTM m) => m (Concierge m lock)
+newConcierge :: MonadSTM m => m (Concierge m lock)
 newConcierge = Concierge <$> newTVarIO Map.empty
 
 -- | Obtain a lock from a 'Concierge' and run an 'IO' action.

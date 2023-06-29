@@ -246,7 +246,7 @@ data TestCase a = TestCase
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
     it
@@ -3237,7 +3237,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     txDeleteFromDifferentWalletTest
-        :: (HasType (ApiT WalletId) wal)
+        :: HasType (ApiT WalletId) wal
         => (Context -> ResourceT IO wal)
         -> String
         -> SpecWith Context
@@ -3268,7 +3268,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     verifyWalletBalance
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Quantity "lovelace" Natural
@@ -3299,7 +3299,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
-        :: (MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural

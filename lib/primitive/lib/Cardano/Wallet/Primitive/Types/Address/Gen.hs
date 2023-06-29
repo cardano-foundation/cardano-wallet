@@ -71,7 +71,7 @@ addressParity = parity . addressPopCount
     addressPopCount :: Address -> Int
     addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
 
-    parity :: (Integral a) => a -> Parity
+    parity :: Integral a => a -> Parity
     parity a
         | even a = Even
         | otherwise = Odd

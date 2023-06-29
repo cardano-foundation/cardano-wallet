@@ -211,7 +211,7 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
 
 aroundAllSpec :: Spec
 aroundAllSpec = sequential $ do
-    let withMockResource :: (MonadUnliftIO m) => a -> (a -> m r) -> m r
+    let withMockResource :: MonadUnliftIO m => a -> (a -> m r) -> m r
         withMockResource a = bracket (pure a) (const $ pure ())
 
         withMVarResource

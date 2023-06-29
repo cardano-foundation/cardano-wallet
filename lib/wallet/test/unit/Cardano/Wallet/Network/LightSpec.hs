@@ -239,15 +239,15 @@ data Free f a
     = Free (f (Free f a))
     | Pure a
 
-instance (Functor f) => Functor (Free f) where
+instance Functor f => Functor (Free f) where
     fmap g (Pure a) = Pure (g a)
     fmap g (Free f) = Free (fmap g <$> f)
 
-instance (Functor f) => Applicative (Free f) where
+instance Functor f => Applicative (Free f) where
     pure = Pure
     (<*>) = ap
 
-instance (Functor f) => Monad (Free f) where
+instance Functor f => Monad (Free f) where
     (Pure x) >>= k = k x
     (Free f) >>= k = Free ((>>= k) <$> f)
 

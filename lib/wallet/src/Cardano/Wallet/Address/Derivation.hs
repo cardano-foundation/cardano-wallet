@@ -261,7 +261,7 @@ instance FromText Role where
 --
 -- >>> roleVal @chain
 -- ...
-roleVal :: forall (c :: Role). (Typeable c) => Role
+roleVal :: forall (c :: Role). Typeable c => Role
 roleVal =
     fromMaybe
         (error $ "role: unmatched type" <> show (typeRep @c))
@@ -577,7 +577,7 @@ class HardDerivation (key :: Depth -> Type -> Type) where
         -> key (AddressCredential key) XPrv
 
 -- | An interface for doing soft derivations from an account public key
-class (HardDerivation key) => SoftDerivation (key :: Depth -> Type -> Type) where
+class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     -- | Derives address public key from the given account public key, using
     -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
     -- package for more details).
@@ -618,7 +618,7 @@ class AccountIxForStaking s where
 
 -- | Encoding of addresses for certain key types and backend targets.
 class
-    (MkKeyFingerprint key Address) =>
+    MkKeyFingerprint key Address =>
     PaymentAddress key ktype
     where
     -- | Convert a public key to a payment 'Address' valid for the given
@@ -653,7 +653,7 @@ liftPaymentAddressS
 liftPaymentAddressS = liftPaymentAddress @_ @ktype (sNetworkId @n)
 
 class
-    (PaymentAddress key ktype) =>
+    PaymentAddress key ktype =>
     DelegationAddress key ktype
     where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
@@ -733,7 +733,7 @@ instance NFData (KeyFingerprint s key)
 -- 1. For 'ByronKey', it can only be the address itself!
 -- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
 --    within a single or grouped address.
-class (Show from) => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
+class Show from => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
     paymentKeyFingerprint
         :: from
         -> Either
@@ -786,9 +786,9 @@ unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k @from from of
 -------------------------------------------------------------------------------}
 
 -- | Encode a 'ByteString' in base16
-hex :: (ByteArrayAccess bin) => bin -> ByteString
+hex :: ByteArrayAccess bin => bin -> ByteString
 hex = convertToBase Base16
 
 -- | Decode a 'ByteString' from base16
-fromHex :: (ByteArray bout) => ByteString -> Either String bout
+fromHex :: ByteArray bout => ByteString -> Either String bout
 fromHex = convertFromBase Base16

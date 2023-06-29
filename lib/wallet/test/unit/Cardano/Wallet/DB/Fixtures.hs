@@ -182,7 +182,7 @@ frequencySuchThat :: Gen a -> [(Int, a -> Bool)] -> Gen a
 frequencySuchThat g fs = frequency $ second (suchThat g) <$> fs
 
 -- | Pick an element from a list (or a default if the list is empty)
-elementsOrArbitrary :: (Arbitrary a) => (a -> b) -> [b] -> Gen b
+elementsOrArbitrary :: Arbitrary a => (a -> b) -> [b] -> Gen b
 elementsOrArbitrary f [] = f <$> arbitrary
 elementsOrArbitrary _ xs = elements xs
 
@@ -196,7 +196,7 @@ type StoreProperty = SqliteContext -> Property
 
 -- | Initialize a wallet, and pass control to the rest of the property.
 withStoreProp
-    :: (Testable a)
+    :: Testable a
     => (RunQuery -> PropertyM IO a)
     -> StoreProperty
 withStoreProp prop db = monadicIO $ do
@@ -207,7 +207,7 @@ type WalletProperty = SqliteContext -> WalletId -> Property
 
 -- | Initialize a wallet, and pass control to the rest of the property.
 withInitializedWalletProp
-    :: (Testable a)
+    :: Testable a
     => (WalletId -> RunQuery -> PropertyM IO a)
     -> WalletProperty
 withInitializedWalletProp prop db wid = monadicIO $ do
@@ -219,13 +219,13 @@ withInitializedWalletProp prop db wid = monadicIO $ do
 -- store unsafe ops
 
 -- | Bomb on failing 'loadS'.
-unsafeLoadS :: (Functor m) => Store m qa da -> m (Base da)
+unsafeLoadS :: Functor m => Store m qa da -> m (Base da)
 unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 
 -- | A simpler interface for 'updateS' in tests, using 'unsafeLoadS'.
 -- Natural for use with 'foldM'.
 unsafeUpdateS
-    :: (Applicative m) => Store m qa da -> Base da -> da -> m (Base da)
+    :: Applicative m => Store m qa da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.

@@ -132,7 +132,7 @@ instance ToText Direction where
 
 data WithDirection a = WithDirection Direction a
 
-instance (Buildable a) => Buildable (WithDirection a) where
+instance Buildable a => Buildable (WithDirection a) where
     build (WithDirection d a) =
         mempty
             <> (case d of Incoming -> "+"; Outgoing -> "-")

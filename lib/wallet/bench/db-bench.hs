@@ -1014,7 +1014,7 @@ rewardAccount =
     seed = someDummyMnemonic (Proxy @15)
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
-label :: (Show n) => String -> n -> B8.ByteString
+label :: Show n => String -> n -> B8.ByteString
 label prefix n = B8.take 32 $ B8.pack (prefix <> show n) <> B8.replicate 32 '0'
 
 dummyPassphrase :: Passphrase any

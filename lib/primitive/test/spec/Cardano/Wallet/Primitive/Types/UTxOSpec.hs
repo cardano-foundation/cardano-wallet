@@ -248,7 +248,7 @@ prop_partition_mappend f u =
         $ uncurry (<>) (UTxO.partition f u) === u
 
 checkCoverage_filter_partition
-    :: (Testable prop) => (TxIn -> Bool) -> UTxO -> (prop -> Property)
+    :: Testable prop => (TxIn -> Bool) -> UTxO -> (prop -> Property)
 checkCoverage_filter_partition f u =
     checkCoverage
         . cover

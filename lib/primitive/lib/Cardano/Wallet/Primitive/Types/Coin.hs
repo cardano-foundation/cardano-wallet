@@ -224,7 +224,7 @@ toWord64Maybe (Coin c) = intCastMaybe c
 --
 -- Produces a run-time error if the given value is negative.
 unsafeFromIntegral
-    :: (HasCallStack)
+    :: HasCallStack
     => (Bits i, Integral i, Show i)
     => i
     -> Coin
@@ -245,7 +245,7 @@ unsafeFromIntegral i = fromMaybe onError (fromIntegralMaybe i)
 --
 -- Produces a run-time error if the given value is out of bounds.
 unsafeToQuantity
-    :: (HasCallStack)
+    :: HasCallStack
     => (Bits i, Integral i)
     => Coin
     -> Quantity "lovelace" i
@@ -265,7 +265,7 @@ unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
 -- given value will fit within the bounds of a 64-bit word.
 --
 -- Produces a run-time error if the given value is out of bounds.
-unsafeToWord64 :: (HasCallStack) => Coin -> Word64
+unsafeToWord64 :: HasCallStack => Coin -> Word64
 unsafeToWord64 c = fromMaybe onError (toWord64Maybe c)
   where
     onError =
@@ -368,7 +368,7 @@ partitionDefault c ws = fromMaybe (equipartition c ws) (partition c ws)
 --
 -- Throws a run-time error if the sum of weights is equal to zero.
 unsafePartition
-    :: (HasCallStack)
+    :: HasCallStack
     => Coin
     -- ^ The coin to be partitioned.
     -> NonEmpty Coin

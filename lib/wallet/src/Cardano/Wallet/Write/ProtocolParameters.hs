@@ -31,9 +31,9 @@ newtype ProtocolParameters era = ProtocolParameters
     }
 
 deriving newtype instance
-    (Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)))
+    Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era))
     => Eq (ProtocolParameters era)
 
 deriving newtype instance
-    (Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)))
+    Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era))
     => Show (ProtocolParameters era)

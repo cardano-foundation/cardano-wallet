@@ -65,8 +65,8 @@ type family MintType era where
 
 newtype Mint era = Mint (MintType era)
 
-deriving instance (Show (MintType era)) => Show (Mint era)
-deriving instance (Eq (MintType era)) => Eq (Mint era)
+deriving instance Show (MintType era) => Show (Mint era)
+deriving instance Eq (MintType era) => Eq (Mint era)
 
 getEraMint :: EraFun Tx Mint
 getEraMint =

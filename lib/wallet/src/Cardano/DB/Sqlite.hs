@@ -223,7 +223,7 @@ newtype SqliteContext = SqliteContext
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
-handleConstraint :: (MonadUnliftIO m) => e -> m a -> m (Either e a)
+handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
 handleConstraint e = handleJust select handler . fmap Right
   where
     select (SqliteException ErrorConstraint _ _) = Just ()
@@ -375,7 +375,7 @@ destroyDBHandle tr DBHandle{dbFile, dbBackend = sqlBackend} = do
         Persist.StatementAlreadyFinalized{} -> True
         Persist.Couldn'tGetSQLConnection{} -> False
 
-    showT :: (Show a) => a -> Text
+    showT :: Show a => a -> Text
     showT = T.pack . show
 
 -- | Default timeout for `retryOnBusy`
@@ -516,7 +516,7 @@ newtype MigrationError = MigrationError
 
 instance Exception MigrationError
 
-class (Exception e) => MatchMigrationError e where
+class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
     matchMigrationError :: e -> Maybe MigrationError
 
@@ -610,7 +610,7 @@ foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($ conn)
 data DBField where
     DBField
         :: forall record typ
-         . (PersistEntity record)
+         . PersistEntity record
         => EntityField record typ
         -> DBField
 
@@ -792,7 +792,7 @@ queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
 -- multiple variables per row updated.
 dbChunked
     :: forall record b
-     . (PersistEntity record)
+     . PersistEntity record
     => ([record] -> SqlPersistT IO b)
     -> [record]
     -> SqlPersistT IO ()
@@ -802,7 +802,7 @@ dbChunked = dbChunkedFor @record
 -- the same type as the record.
 dbChunkedFor
     :: forall record a b
-     . (PersistEntity record)
+     . PersistEntity record
     => ([a] -> SqlPersistT IO b)
     -> [a]
     -> SqlPersistT IO ()
@@ -812,7 +812,7 @@ dbChunkedFor = chunkedM (chunkSizeFor @record)
 -- used with 'repsertMany'.
 dbChunked'
     :: forall record b
-     . (PersistEntity record)
+     . PersistEntity record
     => ([(Key record, record)] -> SqlPersistT IO b)
     -> [(Key record, record)]
     -> SqlPersistT IO ()
@@ -821,7 +821,7 @@ dbChunked' = chunkedM (chunkSizeFor @record)
 -- | Given an action which takes a list of items, and a list of items, run that
 -- action multiple times with the input list cut into chunks.
 chunkedM
-    :: (Monad m)
+    :: Monad m
     => Int
     -- ^ Chunk size
     -> ([a] -> m b)
@@ -843,7 +843,7 @@ chunkSize = 999
 -- cols` variables.
 --
 -- See also 'dbChunked'.
-chunkSizeFor :: forall record. (PersistEntity record) => Int
+chunkSizeFor :: forall record. PersistEntity record => Int
 chunkSizeFor = chunkSize `div` cols
   where
     cols = length $ getEntityFields $ entityDef (Proxy @record)

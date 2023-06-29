@@ -59,8 +59,8 @@ type family FeeType era where
 
 newtype Fee era = Fee (FeeType era)
 
-deriving instance (Show (FeeType era)) => Show (Fee era)
-deriving instance (Eq (FeeType era)) => Eq (Fee era)
+deriving instance Show (FeeType era) => Show (Fee era)
+deriving instance Eq (FeeType era) => Eq (Fee era)
 
 -- | Extract fee from 'Tx' in all available eras.
 getEraFee :: EraFun Tx Fee

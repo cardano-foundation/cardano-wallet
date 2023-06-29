@@ -180,7 +180,7 @@ type LightDiscoverTxs s =
 newtype DiscoverTxs addr txs s = DiscoverTxs
     { discoverTxs
         :: forall m
-         . (Monad m)
+         . Monad m
         => (addr -> m txs)
         -> s
         -> m (txs, s)

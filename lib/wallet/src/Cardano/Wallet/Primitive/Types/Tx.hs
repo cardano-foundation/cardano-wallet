@@ -218,7 +218,7 @@ data TxChange derivationPath = TxChange
 --   - not greater than 'txOutMaxCoin'
 --
 -- This function throws a run-time error if the pre-condition is violated.
-unsafeCoinToTxOutCoinValue :: (HasCallStack) => Coin -> Word64
+unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
 unsafeCoinToTxOutCoinValue c
     | c < txOutMinCoin =
         error

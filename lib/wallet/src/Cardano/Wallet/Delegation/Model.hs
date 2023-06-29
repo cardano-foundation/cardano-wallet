@@ -71,5 +71,5 @@ cut :: (slot -> Bool) -> Change slot pool
 cut op = fst . Map.spanAntitone op
 
 -- | Status of the delegation at a given slot.
-status :: (Ord slot) => slot -> History slot pool -> Status pool
+status :: Ord slot => slot -> History slot pool -> Status pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)

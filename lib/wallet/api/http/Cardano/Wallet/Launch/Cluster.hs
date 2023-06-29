@@ -1444,7 +1444,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
     --
     -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
-    rotate :: (Ord a) => [a] -> [(a, [a])]
+    rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap f . permutations
       where
         f = \case
@@ -2805,7 +2805,7 @@ oneMillionAda = 1_000_000_000_000
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.
 addMinSeverityStdout
-    :: (MonadFail m)
+    :: MonadFail m
     => Severity
     -> Aeson.Object
     -> m Aeson.Object
@@ -2825,7 +2825,7 @@ addMinSeverityStdout severity ob = case Aeson.lookup "setupScribes" ob of
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
 withObject
-    :: (MonadFail m)
+    :: MonadFail m
     => (Aeson.Object -> m Aeson.Object)
     -> Aeson.Value
     -> m Aeson.Value

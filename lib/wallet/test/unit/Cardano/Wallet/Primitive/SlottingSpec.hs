@@ -370,7 +370,7 @@ instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
         makeRangeValid . uncurry Range <$> shrink (p, q)
 
 -- Ensures that the start of a range is not greater than its end.
-makeRangeValid :: (Ord a) => Range a -> Range a
+makeRangeValid :: Ord a => Range a -> Range a
 makeRangeValid = \case
     Range (Just p) (Just q) -> Range (Just $ min p q) (Just $ max p q)
     r -> r

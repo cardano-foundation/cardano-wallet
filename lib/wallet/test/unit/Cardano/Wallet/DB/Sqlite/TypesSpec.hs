@@ -199,11 +199,11 @@ instance Arbitrary (Simple TxMetadata) where
     arbitrary = Simple <$> genSimpleTxMetadata
     shrink = shrinkMapBy Simple unSimple shrinkTxMetadata
 
-instance (PersistField a) => PersistField (Nested a) where
+instance PersistField a => PersistField (Nested a) where
     toPersistValue = toPersistValue . unNested
     fromPersistValue = fmap Nested . fromPersistValue
 
-instance (PersistField a) => PersistField (Simple a) where
+instance PersistField a => PersistField (Simple a) where
     toPersistValue = toPersistValue . unSimple
     fromPersistValue = fmap Simple . fromPersistValue
 

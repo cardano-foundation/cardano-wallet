@@ -66,9 +66,9 @@ newtype NonEmptySet a = NonEmptySet
 instance Foldable NonEmptySet where
     foldMap f s = foldMap (f . fst) (NonEmptyMap.toList $ elements s)
 
-instance (NFData a) => NFData (NonEmptySet a)
+instance NFData a => NFData (NonEmptySet a)
 
-fromList :: (Ord a) => NonEmpty a -> NonEmptySet a
+fromList :: Ord a => NonEmpty a -> NonEmptySet a
 fromList = NonEmptySet . NonEmptyMap.fromList . fmap (,())
 
 fromSet :: Set a -> Maybe (NonEmptySet a)
@@ -77,22 +77,22 @@ fromSet = fmap NonEmptySet . NonEmptyMap.fromMap . Map.fromSet (const ())
 toList :: NonEmptySet a -> NonEmpty a
 toList = fmap fst . NonEmptyMap.toList . elements
 
-toSet :: (Ord a) => NonEmptySet a -> Set a
+toSet :: Ord a => NonEmptySet a -> Set a
 toSet = Map.keysSet . NonEmptyMap.toMap . elements
 
-insert :: (Ord a) => a -> NonEmptySet a -> NonEmptySet a
+insert :: Ord a => a -> NonEmptySet a -> NonEmptySet a
 insert a (NonEmptySet m) = NonEmptySet $ NonEmptyMap.insert a () m
 
-delete :: (Ord a) => a -> NonEmptySet a -> Maybe (NonEmptySet a)
+delete :: Ord a => a -> NonEmptySet a -> Maybe (NonEmptySet a)
 delete a (NonEmptySet m) = fmap NonEmptySet (NonEmptyMap.delete a m)
 
-member :: (Ord a) => a -> NonEmptySet a -> Bool
+member :: Ord a => a -> NonEmptySet a -> Bool
 member a (NonEmptySet m) = isJust $ NonEmptyMap.lookup a m
 
-singleton :: (Ord a) => a -> NonEmptySet a
+singleton :: Ord a => a -> NonEmptySet a
 singleton a = NonEmptySet $ NonEmptyMap.singleton a ()
 
-union :: (Ord a) => NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+union :: Ord a => NonEmptySet a -> NonEmptySet a -> NonEmptySet a
 union (NonEmptySet x) (NonEmptySet y) =
     NonEmptySet
         $ NonEmptyMap.unionWith const x y

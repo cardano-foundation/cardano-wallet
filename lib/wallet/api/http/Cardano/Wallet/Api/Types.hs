@@ -1368,7 +1368,7 @@ data ApiEraInfo = ApiEraInfo
     deriving (Eq, Generic, Show)
 
 toApiNetworkParameters
-    :: (Monad m)
+    :: Monad m
     => NetworkParameters
     -> (EpochNo -> m EpochInfo)
     -> m ApiNetworkParameters
@@ -1999,14 +1999,14 @@ instance FromText (ApiT PassphraseHash) where
                     , "expecting a hex-encoded value."
                     ]
 
-instance (HasSNetworkId n) => FromHttpApiData (ApiAddress n) where
+instance HasSNetworkId n => FromHttpApiData (ApiAddress n) where
     parseUrlPiece txt = do
         addr <-
             first (T.pack . getTextDecodingError)
                 $ decodeAddress (sNetworkId @n) txt
         return (ApiAddress @n addr)
 
-instance (HasSNetworkId n) => ToHttpApiData (ApiAddress n) where
+instance HasSNetworkId n => ToHttpApiData (ApiAddress n) where
     toUrlPiece = encodeAddress (sNetworkId @n) . apiAddress
 
 {-------------------------------------------------------------------------------
@@ -2150,7 +2150,7 @@ instance FromJSON (ApiT W.AssetDecimals) where
 instance ToJSON (ApiT W.AssetDecimals) where
     toJSON = toJSON . W.unAssetDecimals . getApiT
 
-instance (HasSNetworkId n) => FromJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = withObject "DelegationAction" $ \o -> do
         p <- o .:? "payments"
         a <- o .:? "delegation_action"
@@ -2164,7 +2164,7 @@ instance (HasSNetworkId n) => FromJSON (ApiSelectCoinsData n) where
             _ ->
                 fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
 
-instance (HasSNetworkId n) => ToJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
@@ -2492,7 +2492,7 @@ instance ToJSON (ApiT ValidationLevel) where
 instance FromJSON AnyAddress where
     parseJSON = parseFromText "AnyAddress" "address"
 
-parseFromText :: (FromText a) => String -> Text -> Aeson.Value -> Aeson.Parser a
+parseFromText :: FromText a => String -> Text -> Aeson.Value -> Aeson.Parser a
 parseFromText typeName k = withObject typeName $ \o -> do
     v <- o .: (Aeson.fromText k)
     case fromText v of
@@ -2512,7 +2512,7 @@ instance ToJSON AnyAddress where
         suffix = if net == mainnetId then "" else "_test"
         mainnetId = 1 :: Int
 
-instance (MkSomeMnemonic sizes) => FromJSON (ApiMnemonicT sizes) where
+instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes) where
     parseJSON bytes = do
         xs <- parseJSON bytes
         m <-
@@ -2629,12 +2629,12 @@ instance ToJSON (ApiT SealedTx) where
     toJSON = sealedTxBytesValue @'Base64 . getApiT
 
 parseSealedTxBytes
-    :: forall (base :: Base). (HasBase base) => Value -> Parser SealedTx
+    :: forall (base :: Base). HasBase base => Value -> Parser SealedTx
 parseSealedTxBytes =
     (eitherToParser . first ShowFmt . sealedTxFromBytes)
         <=< (fmap getApiBytesT . parseJSON @(ApiBytesT base ByteString))
 
-sealedTxBytesValue :: forall (base :: Base). (HasBase base) => SealedTx -> Value
+sealedTxBytesValue :: forall (base :: Base). HasBase base => SealedTx -> Value
 sealedTxBytesValue = toJSON . ApiBytesT @base . view #serialisedTx
 
 instance FromJSON ApiSerialisedTransaction where
@@ -2660,15 +2660,15 @@ instance FromJSON ApiSignTransactionPostData where
 instance ToJSON ApiSignTransactionPostData where
     toJSON = genericToJSON strictRecordTypeOptions
 
-instance (HasSNetworkId t) => FromJSON (ApiPaymentDestination t) where
+instance HasSNetworkId t => FromJSON (ApiPaymentDestination t) where
     parseJSON obj = parseAddrs
       where
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
 
-instance (HasSNetworkId n) => ToJSON (ApiPaymentDestination n) where
+instance HasSNetworkId n => ToJSON (ApiPaymentDestination n) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
 
-instance (HasSNetworkId n) => FromJSON (ApiRedeemer n) where
+instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
     parseJSON = withObject "ApiRedeemer" $ \o -> do
         purpose <- o .: "purpose"
         bytes <- o .: "data"
@@ -2684,7 +2684,7 @@ instance (HasSNetworkId n) => FromJSON (ApiRedeemer n) where
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
                 fail "unknown purpose for redeemer."
-instance (HasSNetworkId n) => ToJSON (ApiRedeemer n) where
+instance HasSNetworkId n => ToJSON (ApiRedeemer n) where
     toJSON = \case
         ApiRedeemerSpending bytes input ->
             object
@@ -2725,7 +2725,7 @@ instance FromJSON ApiValidityBound where
                     _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
                 _ -> fail "ApiValidityBound string must have 'unit' field."
 
-instance (HasSNetworkId n) => FromJSON (ApiConstructTransaction n) where
+instance HasSNetworkId n => FromJSON (ApiConstructTransaction n) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
         (tx, enc) <-
@@ -2735,7 +2735,7 @@ instance (HasSNetworkId n) => FromJSON (ApiConstructTransaction n) where
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance (HasSNetworkId n) => ToJSON (ApiConstructTransaction n) where
+instance HasSNetworkId n => ToJSON (ApiConstructTransaction n) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object
             [ "transaction" .= case encoding of
@@ -2796,20 +2796,20 @@ instance ToJSON ApiBlockReference where
             Aeson.Object rest -> Aeson.Object ("height" .= bh <> rest)
             _ -> error "ApiSlotReference isn't an object."
 
-instance (HasSNetworkId n) => FromJSON (ApiTxInput n) where
+instance HasSNetworkId n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
-instance (HasSNetworkId n) => ToJSON (ApiTxInput n) where
+instance HasSNetworkId n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
         fromValue (Object o) = o
         fromValue _ = mempty
 
-instance (HasSNetworkId n) => FromJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => FromJSON (ApiTxCollateral n) where
     parseJSON v = ApiTxCollateral <$> optional (parseJSON v) <*> parseJSON v
 
-instance (HasSNetworkId n) => ToJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => ToJSON (ApiTxCollateral n) where
     toJSON (ApiTxCollateral s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
@@ -3082,8 +3082,7 @@ instance
         eitherToParser . bimap ShowFmt ApiT . fromText . T.pack $ show n
 
 instance
-    ( Enum (Index derivation level)
-    )
+    Enum (Index derivation level)
     => ToJSON (ApiT (Index derivation level))
     where
     toJSON = toJSON . fromEnum . getApiT
@@ -3118,14 +3117,14 @@ instance (HasBase b, ByteArray bs) => FromText (ApiBytesT b bs) where
 instance (HasBase b, ByteArrayAccess bs) => ToText (ApiBytesT b bs) where
     toText = toTextBytes (baseFor @b) . getApiBytesT
 
-class (Typeable a) => HasBase a where
+class Typeable a => HasBase a where
     baseFor :: Base
 instance HasBase 'Base16 where
     baseFor = Base16
 instance HasBase 'Base64 where
     baseFor = Base64
 
-fromTextBytes :: (ByteArray bs) => Base -> Text -> Either TextDecodingError bs
+fromTextBytes :: ByteArray bs => Base -> Text -> Either TextDecodingError bs
 fromTextBytes base = first (const errMsg) . convertFromBase base . T.encodeUtf8
   where
     errMsg =
@@ -3133,7 +3132,7 @@ fromTextBytes base = first (const errMsg) . convertFromBase base . T.encodeUtf8
             $ mconcat
                 ["Parse error. Expecting ", show base, "-encoded format."]
 
-toTextBytes :: (ByteArrayAccess bs) => Base -> bs -> Text
+toTextBytes :: ByteArrayAccess bs => Base -> bs -> Text
 toTextBytes base = T.decodeLatin1 . convertToBase base
 
 instance FromText (AddressAmount Text) where
@@ -3202,9 +3201,9 @@ instance MimeUnrender OctetStream (ApiT SealedTx) where
 instance MimeRender OctetStream (ApiT SealedTx) where
     mimeRender _ = BL.fromStrict . view #serialisedTx . getApiT
 
-instance {-# OVERLAPPABLE #-} (FromText a) => FromHttpApiData (ApiT a) where
+instance {-# OVERLAPPABLE #-} FromText a => FromHttpApiData (ApiT a) where
     parseUrlPiece = bimap pretty ApiT . fromText
-instance (ToText a) => ToHttpApiData (ApiT a) where
+instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
 instance MimeRender OctetStream ApiSerialisedTransaction where
@@ -3420,13 +3419,13 @@ newtype ApiBurnData = ApiBurnData
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBurnData
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => ToJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => ToJSON (ApiMintBurnOperation n) where
     toJSON =
         object . pure . \case
             ApiMint mint -> "mint" .= mint
             ApiBurn burn -> "burn" .= burn
 
-instance (HasSNetworkId n) => FromJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => FromJSON (ApiMintBurnOperation n) where
     parseJSON = Aeson.withObject "ApiMintBurnOperation" $ \o ->
         case Aeson.keys o of
             ["mint"] -> ApiMint <$> o .: "mint"

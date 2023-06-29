@@ -125,7 +125,7 @@ import qualified Network.HTTP.Types as HTTP
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
     it

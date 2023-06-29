@@ -88,7 +88,7 @@ data WalletFlavorS s where
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
     TestStateS
-        :: (KeyFlavor k)
+        :: KeyFlavor k
         => TestFeatures (TestState s1 n k kt)
         -> WalletFlavorS (TestState s1 n k kt)
 
@@ -184,7 +184,7 @@ keyOfWallet (TestStateS _) = keyFlavor
 -- > keyFlavorFromState @s
 keyFlavorFromState
     :: forall s
-     . (WalletFlavor s)
+     . WalletFlavor s
     => KeyFlavorS (KeyOf s)
 keyFlavorFromState = keyOfWallet (walletFlavor @s)
 
@@ -193,7 +193,7 @@ type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
 
 notByronKey
     :: KeyFlavorS k
-    -> ((Excluding '[ByronKey] k) => KeyFlavorS k -> x)
+    -> (Excluding '[ByronKey] k => KeyFlavorS k -> x)
     -> Maybe x
 notByronKey x h = case x of
     ByronKeyS -> Nothing
@@ -205,7 +205,7 @@ notByronKey x h = case x of
 shelleyOrShared
     :: WalletFlavorS s
     -> x
-    -> ( (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s))
+    -> ( IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
          => WalletFlavorS s
          -> x
        )

@@ -81,8 +81,8 @@ type family OutputsType era where
 
 newtype Outputs era = Outputs (OutputsType era)
 
-deriving instance (Show (OutputsType era)) => Show (Outputs era)
-deriving instance (Eq (OutputsType era)) => Eq (Outputs era)
+deriving instance Show (OutputsType era) => Show (Outputs era)
+deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
 getEraOutputs :: EraFun Tx Outputs
 getEraOutputs =

@@ -1241,12 +1241,12 @@ instance Arbitrary (ApiRewardAccount n) where
 fromCardanoAddressAny :: Cardano.AddressAny -> Address
 fromCardanoAddressAny = Address . Cardano.serialiseToRawBytes
 
-instance (HasSNetworkId n) => Arbitrary (ApiAddress n) where
+instance HasSNetworkId n => Arbitrary (ApiAddress n) where
     arbitrary =
         ApiAddress . fromCardanoAddressAny
             <$> genAddressAnyWithNetworkId (pure $ networkIdVal (sNetworkId @n))
 
-instance (HasSNetworkId n) => Arbitrary (ApiAddressWithPath n) where
+instance HasSNetworkId n => Arbitrary (ApiAddressWithPath n) where
     shrink _ = []
     arbitrary =
         ApiAddressWithPath
@@ -1318,7 +1318,7 @@ instance Arbitrary AnyAddress where
         addrType <- arbitraryBoundedEnum
         pure $ AnyAddress payload' addrType network'
 
-instance (HasSNetworkId n) => Arbitrary (ApiSelectCoinsPayments n) where
+instance HasSNetworkId n => Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1387,7 +1387,7 @@ instance Arbitrary ApiSelectCoinsAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiSelectCoinsData n) where
+instance HasSNetworkId n => Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1403,7 +1403,7 @@ instance Arbitrary ApiCertificate where
         arbitraryRewardAccountPath = NE.fromList <$> vectorOf 5 arbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiCoinSelection n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelection n) where
     arbitrary =
         ApiCoinSelection
             <$> reasonablySized arbitrary
@@ -1417,7 +1417,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiCoinSelection n) where
             <*> arbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionChange n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionChange n) where
     arbitrary =
         ApiCoinSelectionChange
             <$> arbitrary
@@ -1426,7 +1426,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionChange n) where
             <*> arbitrary
     shrink _ = []
 
-instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionCollateral n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionCollateral n) where
     arbitrary =
         ApiCoinSelectionCollateral
             <$> arbitrary
@@ -1436,11 +1436,11 @@ instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionCollateral n) where
             <*> arbitrary
     shrink _ = []
 
-instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionOutput n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionOutput n) where
     arbitrary = applyArbitrary3 ApiCoinSelectionOutput
     shrink _ = []
 
-instance (HasSNetworkId n) => Arbitrary (ApiCoinSelectionWithdrawal n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionWithdrawal n) where
     arbitrary =
         ApiCoinSelectionWithdrawal
             <$> arbitrary
@@ -1496,7 +1496,7 @@ instance Arbitrary ApiWalletMigrationBalance where
             <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiWalletMigrationPlan n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlan n) where
     arbitrary =
         ApiWalletMigrationPlan
             <$> reasonablySized arbitrary
@@ -1505,7 +1505,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiWalletMigrationPlan n) where
             <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiWalletMigrationPlanPostData n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlanPostData n) where
     arbitrary = do
         addrCount <- choose (1, 255)
         addrs <-
@@ -1798,7 +1798,7 @@ instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance (Arbitrary a) => Arbitrary (ApiT a) where
+instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
@@ -2079,11 +2079,11 @@ instance Arbitrary TokenMetadataError where
 instance Arbitrary ApiAsset where
     arbitrary = toApiAsset <$> arbitrary <*> genAssetId
 
-instance (Arbitrary a) => Arbitrary (AddressAmount a) where
+instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
     shrink _ = []
 
-instance (Arbitrary a) => Arbitrary (AddressAmountNoAssets a) where
+instance Arbitrary a => Arbitrary (AddressAmountNoAssets a) where
     arbitrary = applyArbitrary2 AddressAmountNoAssets
     shrink _ = []
 
@@ -2094,7 +2094,7 @@ instance Arbitrary ApiSignTransactionPostData where
             <*> arbitrary
             <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance (HasSNetworkId n) => Arbitrary (PostTransactionOldData n) where
+instance HasSNetworkId n => Arbitrary (PostTransactionOldData n) where
     arbitrary =
         PostTransactionOldData
             <$> arbitrary
@@ -2109,7 +2109,7 @@ instance Arbitrary TxMetadataWithSchema where
             <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
             <*> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiConstructTransactionData n) where
+instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary =
         ApiConstructTransactionData
             <$> arbitrary
@@ -2120,7 +2120,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiConstructTransactionData n) where
             <*> pure Nothing
             <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance (HasSNetworkId n) => Arbitrary (ApiExternalInput n) where
+instance HasSNetworkId n => Arbitrary (ApiExternalInput n) where
     arbitrary =
         ApiExternalInput
             <$> arbitrary
@@ -2130,7 +2130,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiExternalInput n) where
             <*> arbitrary
             <*> liftArbitrary (liftArbitrary genDatumHash)
 
-instance (HasSNetworkId n) => Arbitrary (ApiBalanceTransactionPostData n) where
+instance HasSNetworkId n => Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary =
         ApiBalanceTransactionPostData
             <$> arbitrary
@@ -2138,7 +2138,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiBalanceTransactionPostData n) where
             <*> arbitrary
             <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance (HasSNetworkId n) => Arbitrary (ApiRedeemer n) where
+instance HasSNetworkId n => Arbitrary (ApiRedeemer n) where
     arbitrary =
         oneof
             [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
@@ -2146,21 +2146,21 @@ instance (HasSNetworkId n) => Arbitrary (ApiRedeemer n) where
             , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
             ]
 
-instance (HasSNetworkId n) => Arbitrary (ApiTxInputGeneral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxInputGeneral n) where
     arbitrary =
         oneof
             [ ExternalInput <$> arbitrary
             , WalletInput <$> arbitrary
             ]
 
-instance (HasSNetworkId n) => Arbitrary (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral n) where
     arbitrary =
         ApiWithdrawalGeneral
             <$> arbitrary
             <*> arbitrary
             <*> oneof [pure External, pure Our]
 
-instance (HasSNetworkId n) => Arbitrary (ApiWalletInput n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletInput n) where
     arbitrary =
         ApiWalletInput
             <$> arbitrary
@@ -2170,7 +2170,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiWalletInput n) where
             <*> arbitrary
             <*> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiWalletOutput n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletOutput n) where
     arbitrary =
         ApiWalletOutput
             <$> arbitrary
@@ -2178,7 +2178,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiWalletOutput n) where
             <*> arbitrary
             <*> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiTxOutputGeneral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxOutputGeneral n) where
     arbitrary =
         oneof
             [ ExternalOutput <$> arbitrary
@@ -2208,7 +2208,7 @@ instance Arbitrary ApiRegisterPool where
             <*> arbitrary
             <*> pure Nothing
 
-instance (HasSNetworkId n) => Arbitrary (ApiExternalCertificate n) where
+instance HasSNetworkId n => Arbitrary (ApiExternalCertificate n) where
     arbitrary =
         oneof
             [ RegisterRewardAccountExternal <$> arbitrary
@@ -2216,7 +2216,7 @@ instance (HasSNetworkId n) => Arbitrary (ApiExternalCertificate n) where
             , QuitPoolExternal <$> arbitrary
             ]
 
-instance (HasSNetworkId n) => Arbitrary (ApiAnyCertificate n) where
+instance HasSNetworkId n => Arbitrary (ApiAnyCertificate n) where
     arbitrary =
         oneof
             [ WalletDelegationCertificate <$> arbitrary
@@ -2244,7 +2244,7 @@ instance Arbitrary ApiWitnessCount where
                 <*> vectorOf numberOfScripts (flip NativeExplicitScript referenceInp <$> arbitrary)
                 <*> choose (0, 2)
 
-instance (HasSNetworkId n) => Arbitrary (ApiDecodedTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiDecodedTransaction n) where
     arbitrary =
         ApiDecodedTransaction
             <$> arbitrary
@@ -2277,7 +2277,7 @@ instance Arbitrary StakeAddress where
 instance Arbitrary ApiSealedTxEncoding where
     arbitrary = elements [HexEncoded, Base64Encoded]
 
-instance (HasSNetworkId n) => Arbitrary (ApiConstructTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary3 ApiConstructTransaction
 
 instance Arbitrary ApiTokenAmountFingerprint where
@@ -2361,7 +2361,7 @@ instance ToSchema ApiPostPolicyIdData where
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiPostPolicyIdData"
 
-instance (HasSNetworkId n) => Arbitrary (ApiMintBurnData n) where
+instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
     arbitrary =
         ApiMintBurnData
             <$> elements
@@ -2387,16 +2387,16 @@ instance (HasSNetworkId n) => Arbitrary (ApiMintBurnData n) where
 instance Arbitrary ApiStakeKeyIndex where
     arbitrary = ApiStakeKeyIndex <$> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiMintData n) where
+instance HasSNetworkId n => Arbitrary (ApiMintData n) where
     arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiPaymentDestination n) where
+instance HasSNetworkId n => Arbitrary (ApiPaymentDestination n) where
     arbitrary = ApiPaymentAddresses <$> arbitrary
 
 instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary
 
-instance (HasSNetworkId n) => Arbitrary (ApiMintBurnOperation n) where
+instance HasSNetworkId n => Arbitrary (ApiMintBurnOperation n) where
     arbitrary =
         oneof
             [ ApiMint <$> arbitrary
@@ -2434,13 +2434,13 @@ instance Arbitrary ApiWithdrawalPostData where
 
 deriving instance Arbitrary ApiValidityIntervalExplicit
 
-instance (HasSNetworkId n) => Arbitrary (ApiPutAddressesData n) where
+instance HasSNetworkId n => Arbitrary (ApiPutAddressesData n) where
     arbitrary = do
         n <- choose (1, 255)
         addrs <- vector n
         pure $ ApiPutAddressesData addrs
 
-instance (HasSNetworkId n) => Arbitrary (PostTransactionFeeOldData n) where
+instance HasSNetworkId n => Arbitrary (PostTransactionFeeOldData n) where
     arbitrary =
         PostTransactionFeeOldData
             <$> arbitrary
@@ -2494,7 +2494,7 @@ selectFromPreparedBinaries =
         let (Right bs) = fromHex $ T.encodeUtf8 txt
         in  bs
 
-deriving instance (Arbitrary a) => Arbitrary (ApiAsArray s a)
+deriving instance Arbitrary a => Arbitrary (ApiAsArray s a)
 
 instance Arbitrary (ApiBytesT base ByteString) where
     arbitrary = ApiBytesT <$> selectFromPreparedBinaries
@@ -2548,7 +2548,7 @@ instance Arbitrary ApiTxMetadata where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance (HasSNetworkId n) => Arbitrary (ApiTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiTransaction n) where
     shrink = genericShrink
     arbitrary = do
         txStatus <- arbitrary
@@ -2687,11 +2687,11 @@ instance Arbitrary ApiUtxoStatistics where
                 (ApiT bType)
                 boundCountMap
 
-instance (HasSNetworkId n) => Arbitrary (ApiTxInput n) where
+instance HasSNetworkId n => Arbitrary (ApiTxInput n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxInput
 
-instance (HasSNetworkId n) => Arbitrary (ApiTxCollateral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxCollateral n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxCollateral
 
@@ -2862,16 +2862,16 @@ specification =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance (Typeable n) => ToSchema (ApiAddressWithPath n) where
+instance Typeable n => ToSchema (ApiAddressWithPath n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressWithPath"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"
 
-instance (Typeable n) => ToSchema (ApiPutAddressesData n) where
+instance Typeable n => ToSchema (ApiPutAddressesData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
-instance (Typeable n) => ToSchema (ApiSelectCoinsData n) where
+instance Typeable n => ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
@@ -2883,7 +2883,7 @@ instance ToSchema (ApiT SmashServer) where
 instance ToSchema ApiHealthCheck where
     declareNamedSchema _ = declareSchemaForDefinition "ApiHealthCheck"
 
-instance (Typeable n) => ToSchema (ApiCoinSelection n) where
+instance Typeable n => ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
@@ -2896,19 +2896,19 @@ instance ToSchema ApiWalletMigrationBalance where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationBalance"
 
-instance (Typeable n) => ToSchema (ApiWalletMigrationPlan n) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlan n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlan"
 
-instance (Typeable n) => ToSchema (ApiWalletMigrationPlanPostData n) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlanPostData n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlanPostData"
 
-instance (Typeable n) => ToSchema (ApiWalletMigrationPostData n "lenient") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "lenient") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletMigrationPostData"
 
-instance (Typeable n) => ToSchema (ApiWalletMigrationPostData n "user") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "user") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiShelleyWalletMigrationPostData"
 
@@ -2990,25 +2990,25 @@ instance ToSchema ApiSerialisedTransaction where
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"
 
-instance (Typeable n) => ToSchema (PostTransactionOldData n) where
+instance Typeable n => ToSchema (PostTransactionOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionData"
 
-instance (Typeable n) => ToSchema (PostTransactionFeeOldData n) where
+instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
-instance (Typeable n) => ToSchema (ApiExternalInput n) where
+instance Typeable n => ToSchema (ApiExternalInput n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiExternalInput"
 
-instance (Typeable n) => ToSchema (ApiBalanceTransactionPostData n) where
+instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBalanceTransactionPostData"
 
-instance (Typeable n) => ToSchema (ApiTransaction n) where
+instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
@@ -3129,13 +3129,13 @@ instance ToSchema ApiPostPolicyKeyData where
 instance ToSchema ApiAccountKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"
 
-instance (Typeable n) => ToSchema (ApiStakeKeys n) where
+instance Typeable n => ToSchema (ApiStakeKeys n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakeKeys"
 
-instance (Typeable n) => ToSchema (ApiOurStakeKey n) where
+instance Typeable n => ToSchema (ApiOurStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiOurStakeKey"
 
-instance (Typeable n) => ToSchema (ApiForeignStakeKey n) where
+instance Typeable n => ToSchema (ApiForeignStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiForeignStakeKey"
 
 instance ToSchema ApiNullStakeKey where
@@ -3155,14 +3155,14 @@ instance ToSchema ApiAssetMintBurn where
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiAssetMintBurn"
 
-instance (Typeable n) => ToSchema (ApiConstructTransactionData n) where
+instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
-instance (Typeable n) => ToSchema (ApiConstructTransaction n) where
+instance Typeable n => ToSchema (ApiConstructTransaction n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
 
 instance ToSchema ApiMultiDelegationAction where
@@ -3174,16 +3174,16 @@ type ApiTxOutputsGeneral n = [ApiTxOutputGeneral n]
 
 type ApiWithdrawalsGeneral n = [ApiWithdrawalGeneral n]
 
-instance (Typeable n) => ToSchema (ApiTxInputsGeneral n) where
+instance Typeable n => ToSchema (ApiTxInputsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiInputsGeneral"
 
-instance (Typeable n) => ToSchema (ApiTxOutputsGeneral n) where
+instance Typeable n => ToSchema (ApiTxOutputsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiOutputsGeneral"
 
-instance (Typeable n) => ToSchema (ApiWithdrawalsGeneral n) where
+instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWithdrawalsGeneral"
 
-instance (Typeable n) => ToSchema (ApiDecodedTransaction n) where
+instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
@@ -3234,7 +3234,7 @@ data ApiEndpoint = ApiEndpoint
 instance Show ApiEndpoint where
     show (ApiEndpoint verb path) = verb <> " " <> path
 
-everyApiEndpoint :: (ExtractEndpoints api) => Proxy api -> [ApiEndpoint]
+everyApiEndpoint :: ExtractEndpoints api => Proxy api -> [ApiEndpoint]
 everyApiEndpoint p = extractEndpoints p []
 
 -- | Verify that all servant endpoints are present and match the specification
@@ -3259,7 +3259,7 @@ instance
         extractEndpoints (Proxy @left) paths
             <> extractEndpoints (Proxy @right) paths
 
-instance {-# OVERLAPPABLE #-} (GetPath a) => ExtractEndpoints a where
+instance {-# OVERLAPPABLE #-} GetPath a => ExtractEndpoints a where
     extractEndpoints proxy prefixes = do
         let (verb, subPath) = first show (getPath proxy)
             path = "/" <> intercalate "/" (reverse prefixes) <> subPath
@@ -3269,10 +3269,10 @@ instance {-# OVERLAPPABLE #-} (GetPath a) => ExtractEndpoints a where
 class GetPath api where
     getPath :: Proxy api -> (StdMethod, String)
 
-instance (Method m) => GetPath (Verb m s ct a) where
+instance Method m => GetPath (Verb m s ct a) where
     getPath _ = (method (Proxy @m), "")
 
-instance (Method m) => GetPath (NoContentVerb m) where
+instance Method m => GetPath (NoContentVerb m) where
     getPath _ = (method (Proxy @m), "")
 
 instance (KnownSymbol path, GetPath sub) => GetPath (path :> sub) where
@@ -3291,16 +3291,16 @@ instance (KnownSymbol param, GetPath sub) => GetPath (Capture param t :> sub) wh
                 getPath (Proxy @sub) & \(verb, sub) ->
                     (verb, "/{" <> sym <> "}" <> sub)
 
-instance (GetPath sub) => GetPath (ReqBody a b :> sub) where
+instance GetPath sub => GetPath (ReqBody a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance (GetPath sub) => GetPath (QueryParam a b :> sub) where
+instance GetPath sub => GetPath (QueryParam a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance (GetPath sub) => GetPath (QueryFlag sym :> sub) where
+instance GetPath sub => GetPath (QueryFlag sym :> sub) where
     getPath _ = getPath (Proxy @sub)
 
-instance (GetPath sub) => GetPath (Header' opts name ty :> sub) where
+instance GetPath sub => GetPath (Header' opts name ty :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a

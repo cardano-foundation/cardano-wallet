@@ -49,7 +49,7 @@ coerceHandlers = map (coerceHandler .)
 -- | Shortcut for creating a single 'Control.Retry' handler, which doesn't use
 -- the 'Control.Retry.RetryStatus' info.
 mkRetryHandler
-    :: (Exception e)
+    :: Exception e
     => (e -> m Bool)
     -> [a -> Exceptions.Handler m Bool]
 mkRetryHandler shouldRetry = [const $ Exceptions.Handler shouldRetry]

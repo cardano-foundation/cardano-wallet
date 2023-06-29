@@ -127,7 +127,7 @@ secondLatest xs = head . tail $ sortBy (flip compareSlot) xs
 -- | Drive a 'ChainFollower' using a 'LightSyncSource'.
 -- Never returns.
 lightSync
-    :: (MonadDelay m)
+    :: MonadDelay m
     => Tracer m LightLayerLog
     -> LightSyncSource m block addr txs
     -> ChainFollower m ChainPoint BlockHeader (LightBlocks m block addr txs)
@@ -175,13 +175,13 @@ data Consensual a
     | Consensual a
     deriving stock (Eq, Show, Functor, Foldable, Traversable)
 
-instance (Buildable a) => Buildable (Consensual a) where
+instance Buildable a => Buildable (Consensual a) where
     build = \case
         NotConsensual -> "NotConsensual"
         Consensual a -> "Consensual " <> build a
 
 consensually
-    :: (Applicative m)
+    :: Applicative m
     => (a -> m (NextPointMove block))
     -> Consensual a
     -> m (NextPointMove block)
@@ -191,7 +191,7 @@ consensually k ca =
         Consensual a -> k a
 
 proceedToNextPoint
-    :: (Monad m)
+    :: Monad m
     => LightSyncSource m block addr txs
     -> ChainPoint
     -> m (NextPointMove block)

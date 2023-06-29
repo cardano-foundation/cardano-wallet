@@ -1395,7 +1395,7 @@ prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
 
 prop_determinePoolLifeCycleStatus_orderCorrect
     :: forall certificatePublicationTime
-     . (certificatePublicationTime ~ Int)
+     . certificatePublicationTime ~ Int
     => (certificatePublicationTime, PoolRegistrationCertificate)
     -> (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
@@ -1447,7 +1447,7 @@ prop_determinePoolLifeCycleStatus_orderCorrect regData retData =
 --
 prop_determinePoolLifeCycleStatus_neverRegistered
     :: forall certificatePublicationTime
-     . (certificatePublicationTime ~ Int)
+     . certificatePublicationTime ~ Int
     => Maybe (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
 prop_determinePoolLifeCycleStatus_neverRegistered maybeRetData =
@@ -1471,7 +1471,7 @@ prop_determinePoolLifeCycleStatus_neverRegistered maybeRetData =
 --
 prop_determinePoolLifeCycleStatus_differentPools
     :: forall certificatePublicationTime
-     . (certificatePublicationTime ~ Int)
+     . certificatePublicationTime ~ Int
     => (certificatePublicationTime, PoolRegistrationCertificate)
     -> (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
@@ -1627,7 +1627,7 @@ prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
             (strictlyIncreasing . fmap blockHeight $ lHeaders)
         assertWith "read back the headers we expect" (lHeaders == expected)
 
-    strictlyIncreasing :: (Ord a) => [a] -> Bool
+    strictlyIncreasing :: Ord a => [a] -> Bool
     strictlyIncreasing [] = True
     strictlyIncreasing [_] = True
     strictlyIncreasing (x : y : xs) =

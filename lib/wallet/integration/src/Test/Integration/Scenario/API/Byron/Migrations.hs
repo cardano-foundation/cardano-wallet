@@ -123,7 +123,7 @@ import qualified Test.Hspec as Hspec
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
     it

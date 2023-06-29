@@ -154,7 +154,7 @@ data DeltaTable row
     | DeleteWhere (row -> Bool)
     | UpdateWhere (row -> Bool) (row -> row)
 
-instance (Show row) => Show (DeltaTable row) where
+instance Show row => Show (DeltaTable row) where
     showsPrec d delta = showParen (d > app_prec) $ case delta of
         InsertMany rs -> showString "InsertMany " . showsPrec (app_prec + 1) rs
         DeleteWhere _ -> showString "DeleteWhere (..)"
@@ -180,7 +180,7 @@ instance Functor (DeltaDB key) where
     fmap _ (DeleteManyDB ks) = DeleteManyDB ks
     fmap f (UpdateManyDB zs) = UpdateManyDB [(k, f r) | (k, r) <- zs]
 
-instance (key ~ Int) => Delta (DeltaDB key row) where
+instance key ~ Int => Delta (DeltaDB key row) where
     type Base (DeltaDB key row) = Table row
     apply (InsertManyDB zs) table@Table{rows, uids} =
         table
@@ -225,7 +225,7 @@ tableIntoDatabase =
 newtype Pile a = Pile {getPile :: [a]}
     deriving (Show)
 
-instance (Ord a) => Eq (Pile a) where
+instance Ord a => Eq (Pile a) where
     (Pile x) == (Pile y) = sort x == sort y
 
 fromSet :: Set a -> Pile a
@@ -249,7 +249,7 @@ deltaSetToPile = Pile . Delta.deltaSetToList
 -- insertions and deletions.
 --
 -- > deltaSetFromPile . deltaSetToPile = id
-deltaSetFromPile :: (Ord a) => Pile (DeltaSet1 a) -> DeltaSet a
+deltaSetFromPile :: Ord a => Pile (DeltaSet1 a) -> DeltaSet a
 deltaSetFromPile = Delta.deltaSetFromList . getPile
 
 -- | Map a 'DeltaList' to a 'Pile' of indexed single element concatenations.

@@ -729,7 +729,7 @@ data WalletGetArgs = WalletGetArgs
     }
 
 cmdWalletGet
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdWalletGet mkClient =
@@ -772,7 +772,7 @@ data WalletUpdateNameArgs = WalletUpdateNameArgs
     }
 
 cmdWalletUpdateName
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdWalletUpdateName mkClient =
@@ -813,7 +813,7 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
 
 class CmdWalletUpdatePassphrase wallet where
     cmdWalletUpdatePassphrase
-        :: (ToJSON wallet)
+        :: ToJSON wallet
         => WalletClient wallet
         -> Mod CommandFields (IO ())
 
@@ -921,7 +921,7 @@ cmdWalletDelete mkClient =
             $ ApiT wId
 
 cmdWalletGetUtxoSnapshot
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdWalletGetUtxoSnapshot mkClient =
@@ -945,7 +945,7 @@ cmdWalletGetUtxoSnapshot mkClient =
                 handleResponse Aeson.encodePretty res
 
 cmdWalletGetUtxoStatistics
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdWalletGetUtxoStatistics mkClient =
@@ -984,14 +984,14 @@ metadataSchemaOption =
 
 -- | cardano-wallet transaction
 cmdTransaction
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
 cmdTransaction = cmdTransactionBase ShelleyFeatures
 
 cmdTransactionBase
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
@@ -1027,7 +1027,7 @@ whenShelley j s = \case
     ShelleyFeatures -> s
 
 cmdTransactionCreate
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
@@ -1069,7 +1069,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
                 handleResponse Aeson.encodePretty res
 
 cmdTransactionFees
-    :: (ToJSON wallet)
+    :: ToJSON wallet
     => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
@@ -1742,7 +1742,7 @@ walletStyleOption defaultStyle accepted =
         "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
 addressIndexOption
-    :: (FromText (Index derivation level))
+    :: FromText (Index derivation level)
     => Parser (Index derivation level)
 addressIndexOption =
     optionT
@@ -1907,15 +1907,15 @@ addressIdArgument =
             <> metavar "ADDRESS"
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
-optionT :: (FromText a) => Mod OptionFields a -> Parser a
+optionT :: FromText a => Mod OptionFields a -> Parser a
 optionT = option (eitherReader fromTextS)
 
 -- | Helper for writing an argument 'Parser' using a 'FromText' instance.
-argumentT :: (FromText a) => Mod ArgumentFields a -> Parser a
+argumentT :: FromText a => Mod ArgumentFields a -> Parser a
 argumentT = argument (eitherReader fromTextS)
 
 -- | Like 'fromText', but stringly-typed.
-fromTextS :: (FromText a) => String -> Either String a
+fromTextS :: FromText a => String -> Either String a
 fromTextS = left getTextDecodingError . fromText . T.pack
 
 runClient
@@ -2145,7 +2145,7 @@ initTracer loggerName outputs = do
             threadDelay 30_000_000 -- 30 seconds
         pure ()
       where
-        traceCounters :: forall m a. (MonadIO m) => Trace m a -> [Counter] -> m ()
+        traceCounters :: forall m a. MonadIO m => Trace m a -> [Counter] -> m ()
         traceCounters _tr [] = return ()
         traceCounters tr (c@(Counter _ct cn cv) : cs) = do
             mle <- mkLOMeta Notice Confidential
@@ -2311,7 +2311,7 @@ getPassphraseWithConfirm prompt = do
 
 -- | Prompt user and parse the input. Re-prompt on invalid inputs.
 hGetLine
-    :: (Buildable e)
+    :: Buildable e
     => (Handle, Handle)
     -> Text
     -> (Text -> Either e a)
@@ -2336,7 +2336,7 @@ getLine = hGetLine (stdin, stderr)
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 -- placeholder character.
 hGetSensitiveLine
-    :: (Buildable e)
+    :: Buildable e
     => (Handle, Handle)
     -> Text
     -> (Text -> Either e a)
@@ -2380,7 +2380,7 @@ hGetSensitiveLine (hstdin, hstderr) prompt fromT =
 
 -- | Like 'hGetSensitiveLine' but with default handles
 getSensitiveLine
-    :: (Buildable e)
+    :: Buildable e
     => Text
     -- ^ A message to prompt the user
     -> (Text -> Either e a)

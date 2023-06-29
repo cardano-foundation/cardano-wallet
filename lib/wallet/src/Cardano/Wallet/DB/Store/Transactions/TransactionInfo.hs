@@ -153,7 +153,7 @@ import qualified Data.Map.Strict as Map
 -- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
 mkTransactionInfoFromRelation
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> TxRelation
@@ -217,7 +217,7 @@ mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a CBOR and a slimmed down version of TxMeta
 mkTransactionInfoFromReadTx
-    :: (Monad m)
+    :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> EraValue Read.Tx

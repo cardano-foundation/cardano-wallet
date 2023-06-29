@@ -104,7 +104,7 @@ spec = do
 
 prop_derivedKeysAreOurs
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK

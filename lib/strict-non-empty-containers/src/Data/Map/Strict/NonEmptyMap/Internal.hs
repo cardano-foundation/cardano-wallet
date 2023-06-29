@@ -101,7 +101,7 @@ instance (Hashable k, Hashable v) => Hashable (NonEmptyMap k v) where
 --
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
-fromList :: (Ord k) => NonEmpty (k, v) -> NonEmptyMap k v
+fromList :: Ord k => NonEmpty (k, v) -> NonEmptyMap k v
 fromList (x :| xs) =
     F.foldl' (\m (k, v) -> insert k v m) (uncurry singleton x) xs
 
@@ -116,14 +116,14 @@ toList :: NonEmptyMap k v -> NonEmpty (k, v)
 toList m = least m :| Map.toList (rest m)
 
 -- | Converts a non-empty map to an ordinary map.
-toMap :: (Ord k) => NonEmptyMap k v -> Map k v
+toMap :: Ord k => NonEmptyMap k v -> Map k v
 toMap m = uncurry Map.insert (least m) (rest m)
 
 -- | Inserts a new key and value in the map.
 --
 -- If the key is already present in the map, the associated value is replaced
 -- with the supplied value.
-insert :: (Ord k) => k -> v -> NonEmptyMap k v -> NonEmptyMap k v
+insert :: Ord k => k -> v -> NonEmptyMap k v -> NonEmptyMap k v
 insert k v m
     | k < fst (least m) =
         NonEmptyMap (k, v) (uncurry Map.insert (least m) (rest m))
@@ -138,7 +138,7 @@ insert k v m
 --
 -- This function returns 'Nothing' if the delete operation reduces the number
 -- of elements to zero.
-delete :: (Ord k) => k -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
+delete :: Ord k => k -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
 delete k m
     | k == fst (least m) = fromMap $ rest m
     | otherwise = Just m{rest = Map.delete k $ rest m}
@@ -147,18 +147,18 @@ delete k m
 --
 -- This function will return the corresponding value as '(Just value)',
 -- or 'Nothing' if the key isn't in the map.
-lookup :: (Ord k) => k -> NonEmptyMap k v -> Maybe v
+lookup :: Ord k => k -> NonEmptyMap k v -> Maybe v
 lookup k (NonEmptyMap (k1, v1) r)
     | k == k1 = Just v1
     | otherwise = Map.lookup k r
 
 -- | Creates a map with a single element.
-singleton :: (Ord k) => k -> v -> NonEmptyMap k v
+singleton :: Ord k => k -> v -> NonEmptyMap k v
 singleton k v = NonEmptyMap (k, v) mempty
 
 -- | Finds the union of two maps, with the given combining function.
 unionWith
-    :: (Ord k)
+    :: Ord k
     => (v -> v -> v)
     -> NonEmptyMap k v
     -> NonEmptyMap k v
@@ -178,7 +178,7 @@ unionWith combine (NonEmptyMap (k1, v1) r1) (NonEmptyMap (k2, v2) r2)
 --------------------------------------------------------------------------------
 
 -- | Returns true if and only if the invariant holds for the given map.
-invariantHolds :: (Ord k) => NonEmptyMap k v -> Bool
+invariantHolds :: Ord k => NonEmptyMap k v -> Bool
 invariantHolds NonEmptyMap{least, rest} =
     case Map.lookupMin rest of
         Nothing ->

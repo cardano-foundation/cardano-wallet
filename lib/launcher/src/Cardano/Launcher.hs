@@ -191,7 +191,7 @@ instance Exception ProcessHasExited
 --
 -- The action receives the 'ProcessHandle' and stdin 'Handle' as arguments.
 withBackendProcess
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => Tracer m LauncherLog
     -- ^ Logging
     -> Command
@@ -225,7 +225,7 @@ withBackendProcess tr (Command name args before std_in std_out) action =
 -- launcher code should be converted to use @typed-process@.
 withBackendCreateProcess
     :: forall m a
-     . (MonadUnliftIO m)
+     . MonadUnliftIO m
     => Tracer m LauncherLog
     -- ^ Logging
     -> CreateProcess

@@ -111,14 +111,14 @@ newtype ApiRewardAccount (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => FromJSON (ApiRewardAccount n) where
+instance HasSNetworkId n => FromJSON (ApiRewardAccount n) where
     parseJSON x =
         parseJSON x
             >>= eitherToParser
                 . bimap ShowFmt ApiRewardAccount
                 . decodeStakeAddress (sNetworkId @n)
 
-instance (HasSNetworkId n) => ToJSON (ApiRewardAccount n) where
+instance HasSNetworkId n => ToJSON (ApiRewardAccount n) where
     toJSON (ApiRewardAccount acct) =
         toJSON
             . encodeStakeAddress (sNetworkId @n)
@@ -138,10 +138,10 @@ data ApiExternalCertificate (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show)
     deriving anyclass (NFData)
 
-instance (HasSNetworkId n) => FromJSON (ApiExternalCertificate n) where
+instance HasSNetworkId n => FromJSON (ApiExternalCertificate n) where
     parseJSON = genericParseJSON apiCertificateOptions
 
-instance (HasSNetworkId n) => ToJSON (ApiExternalCertificate n) where
+instance HasSNetworkId n => ToJSON (ApiExternalCertificate n) where
     toJSON = genericToJSON apiCertificateOptions
 
 data ApiRegisterPool = ApiRegisterPool
@@ -195,7 +195,7 @@ instance FromJSON ApiDeregisterPool where
 instance ToJSON ApiDeregisterPool where
     toJSON = extendAesonObject ["certificate_type" .= String "deregister_pool"]
 
-instance (HasSNetworkId n) => FromJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => FromJSON (ApiAnyCertificate n) where
     parseJSON = withObject "ApiAnyCertificate" $ \o -> do
         (certType :: String) <- o .: "certificate_type"
         case certType of
@@ -211,7 +211,7 @@ instance (HasSNetworkId n) => FromJSON (ApiAnyCertificate n) where
             "genesis" -> OtherCertificate <$> parseJSON (Object o)
             _ -> fail $ "unknown certificate_type: " <> show certType
 
-instance (HasSNetworkId n) => ToJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
     toJSON (DelegationCertificate cert) = toJSON cert
     toJSON (StakePoolRegister reg) = toJSON reg

@@ -138,7 +138,7 @@ data Selection input = Selection
     }
     deriving (Eq, Generic, Show)
 
-instance (NFData input) => NFData (Selection input)
+instance NFData input => NFData (Selection input)
 
 newtype RewardWithdrawal = RewardWithdrawal
     {unRewardWithdrawal :: Coin}
@@ -966,7 +966,7 @@ newtype NegativeCoin = NegativeCoin
     }
     deriving (Eq, Show)
 
-findFixedPoint :: (Eq a) => (a -> a) -> a -> a
+findFixedPoint :: Eq a => (a -> a) -> a -> a
 findFixedPoint f = findInner
   where
     findInner a = let fa = f a in if a == fa then a else findInner fa

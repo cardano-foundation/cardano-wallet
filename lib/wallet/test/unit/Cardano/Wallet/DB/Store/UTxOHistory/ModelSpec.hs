@@ -105,7 +105,7 @@ noop history history' =
         ]
 
 setupHistory
-    :: (Testable prop)
+    :: Testable prop
     => (UTxOHistory -> DeltaUTxO -> prop)
     -> Property
 setupHistory f = historyProp $ \_delta history ->
@@ -231,7 +231,7 @@ prop_prune_finality = setupHistory $ \history _delta ->
 
 -- Setup a property that requires a last two history states and the new finality.
 setupPrune
-    :: (Testable prop)
+    :: Testable prop
     => (UTxOHistory -> UTxOHistory -> SlotNo -> prop)
     -> Property
 setupPrune f = setupHistory $ \history delta -> slotNoProp history (1, 1, 4)
@@ -310,7 +310,7 @@ genTime h (l, m, r) z p =
 -- Generate a property that holds for any Slot depending on the given
 -- UTxOHistory.
 slotNoProp
-    :: (Testable prop)
+    :: Testable prop
     => UTxOHistory
     -> (Int, Int, Int)
     -> (SlotNo -> prop)
@@ -319,7 +319,7 @@ slotNoProp history how =
     forAll (genSlotNo history how)
 
 slotProp
-    :: (Testable prop)
+    :: Testable prop
     => UTxOHistory
     -> (Int, Int, Int)
     -> (Slot -> prop)
@@ -330,7 +330,7 @@ slotProp history how = forAll $ genSlot history how
 -- >>> import Cardano.Wallet.Primitive.Types.UTxO (size)
 -- prop> historyProp $ \history -> size (getUTxO history) > 0
 historyProp
-    :: (Testable prop)
+    :: Testable prop
     => ((SlotNo, DeltaUTxO) -> UTxOHistory -> prop)
     -> Property
 historyProp prop = forAll (genUTxO $ empty mempty) $ \utxo ->
@@ -353,14 +353,14 @@ genDelta h = do
 -- >>> import Cardano.Wallet.Primitive.Types.UTxO (size)
 -- prop> deltaProp empty $ \delta -> size (received delta)  > 0
 deltaProp
-    :: (Testable prop)
+    :: Testable prop
     => UTxOHistory
     -> (DeltaUTxO -> prop)
     -> Property
 deltaProp h = forAll (genDelta h)
 
 -- Generate a property that holds for any DeltaUTxO that is not trivial.
-nonTrivialDelta :: (Testable prop) => DeltaUTxO -> prop -> Property
+nonTrivialDelta :: Testable prop => DeltaUTxO -> prop -> Property
 nonTrivialDelta delta prop =
     cover 50 (size (received delta) > 1) "non-trivial received"
         $ cover 50 (length (excluded delta) > 1) "non-trivial excluded" prop

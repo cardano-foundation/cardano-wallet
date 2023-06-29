@@ -161,7 +161,7 @@ pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do
 
     -- To have actual values in counterexamples, rather than just
     -- <scrubbed bytes>:
-    unwrap :: (BA.ByteArrayAccess i) => i -> ByteString
+    unwrap :: BA.ByteArrayAccess i => i -> ByteString
     unwrap = BA.convert @_ @ByteString
 
 data Golden = Golden

@@ -66,8 +66,8 @@ type family ReferenceInputsType era where
 
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 
-deriving instance (Show (ReferenceInputsType era)) => Show (ReferenceInputs era)
-deriving instance (Eq (ReferenceInputsType era)) => Eq (ReferenceInputs era)
+deriving instance Show (ReferenceInputsType era) => Show (ReferenceInputs era)
+deriving instance Eq (ReferenceInputsType era) => Eq (ReferenceInputs era)
 
 getEraReferenceInputs :: EraFun Tx ReferenceInputs
 getEraReferenceInputs =

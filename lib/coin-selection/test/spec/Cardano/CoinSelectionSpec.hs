@@ -244,7 +244,7 @@ prop_performSelection_inner constraints params result =
                         === Pretty VerificationSuccess
 
 prop_performSelection_coverage
-    :: (Testable property)
+    :: Testable property
     => SelectionParams TestSelectionContext
     -> Either
         (SelectionError TestSelectionContext)

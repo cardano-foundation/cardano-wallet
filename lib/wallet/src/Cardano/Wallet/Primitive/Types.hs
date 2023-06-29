@@ -544,20 +544,20 @@ wholeRange = Range Nothing Nothing
 
 -- | Returns 'True' if (and only if) the given range has an upper bound and the
 --   specified value is greater than the upper bound.
-isAfterRange :: (Ord a) => a -> Range a -> Bool
+isAfterRange :: Ord a => a -> Range a -> Bool
 isAfterRange x (Range _ high) =
     maybe False (x >) high
 
 -- | Returns 'True' if (and only if) the given range has a lower bound and the
 --   specified value is smaller than the lower bound.
-isBeforeRange :: (Ord a) => a -> Range a -> Bool
+isBeforeRange :: Ord a => a -> Range a -> Bool
 isBeforeRange x (Range low _) =
     maybe False (x <) low
 
 -- | Returns 'True' if (and only if) the given value is not smaller than the
 --   lower bound (if present) of the given range and is not greater than the
 --   upper bound (if present) of the given range.
-isWithinRange :: (Ord a) => a -> Range a -> Bool
+isWithinRange :: Ord a => a -> Range a -> Bool
 isWithinRange x (Range low high) =
     (maybe True (x >=) low)
         && (maybe True (x <=) high)
@@ -576,12 +576,12 @@ rangeIsFinite :: Range a -> Bool
 rangeIsFinite r = rangeHasLowerBound r && rangeHasUpperBound r
 
 -- | Returns 'True' if (and only if) the range covers exactly one value.
-rangeIsSingleton :: (Eq a) => Range a -> Bool
+rangeIsSingleton :: Eq a => Range a -> Bool
 rangeIsSingleton (Range a b) = ((==) <$> a <*> b) == Just True
 
 -- | Returns 'True' if (and only if) the lower bound of a range is not greater
 --   than its upper bound.
-rangeIsValid :: (Ord a) => Range a -> Bool
+rangeIsValid :: Ord a => Range a -> Bool
 rangeIsValid (Range a b) = ((<=) <$> a <*> b) /= Just False
 
 -- | Get the lower bound of a 'Range'.
@@ -594,7 +594,7 @@ rangeUpperBound = maybe PositiveInfinity InclusiveBound . inclusiveUpperBound
 
 -- | Returns 'True' if (and only if) the first given range is a subrange of the
 --   second given range.
-isSubrangeOf :: (Ord a) => Range a -> Range a -> Bool
+isSubrangeOf :: Ord a => Range a -> Range a -> Bool
 isSubrangeOf r1 r2 =
     rangeLowerBound r1 >= rangeLowerBound r2
         && rangeUpperBound r1 <= rangeUpperBound r2
@@ -721,7 +721,7 @@ instance Buildable Slot where
 data LinearFunction a = LinearFunction {intercept :: a, slope :: a}
     deriving (Eq, Show, Generic)
 
-instance (NFData a) => NFData (LinearFunction a)
+instance NFData a => NFData (LinearFunction a)
 
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be either a transaction size in bytes or
@@ -920,7 +920,7 @@ data EraInfo info = EraInfo
 emptyEraInfo :: EraInfo info
 emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing Nothing Nothing
 
-instance (NFData info) => NFData (EraInfo info)
+instance NFData info => NFData (EraInfo info)
 
 instance Buildable (EraInfo EpochNo) where
     build (EraInfo byron shelley allegra mary alonzo babbage) =
@@ -1202,7 +1202,7 @@ instance NFData EpochNo where
 
 -- | Convert the specified value into an 'EpochNo', or fail if the value is
 --   too large.
-unsafeEpochNo :: (HasCallStack) => Word32 -> EpochNo
+unsafeEpochNo :: HasCallStack => Word32 -> EpochNo
 unsafeEpochNo epochNo
     | epochNo > maxEpochNo =
         error

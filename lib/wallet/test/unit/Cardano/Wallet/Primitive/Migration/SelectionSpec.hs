@@ -1184,7 +1184,7 @@ genTxSizeRange minSize maxSize =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
 

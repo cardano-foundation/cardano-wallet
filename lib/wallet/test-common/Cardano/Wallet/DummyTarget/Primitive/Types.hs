@@ -135,7 +135,7 @@ dummySlottingParameters =
         , getSecurityParameter = Quantity 2_160
         }
 
-dummyTimeInterpreter :: (Monad m) => TimeInterpreter m
+dummyTimeInterpreter :: Monad m => TimeInterpreter m
 dummyTimeInterpreter =
     hoistTimeInterpreter (pure . runIdentity)
         $ mkSingleEraInterpreter

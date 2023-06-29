@@ -207,7 +207,7 @@ lookup i (UTxO u) = Map.lookup i u
 --
 -- Returns the subset of UTxO entries that have addresses for which the given
 -- indicator function returns 'True'.
-filterByAddressM :: forall f. (Monad f) => (Address -> f Bool) -> UTxO -> f UTxO
+filterByAddressM :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
 filterByAddressM isOursF (UTxO m) =
     UTxO <$> Map.traverseMaybeWithKey filterFunc m
   where

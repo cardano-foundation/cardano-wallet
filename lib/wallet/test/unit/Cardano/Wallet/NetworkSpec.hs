@@ -66,7 +66,7 @@ spec = do
                     Nothing -> return ()
                     Just x -> expectationFailure $ show x
 
-instance (Arbitrary block) => Arbitrary (ChainSyncLog block ChainPoint) where
+instance Arbitrary block => Arbitrary (ChainSyncLog block ChainPoint) where
     arbitrary =
         oneof
             [ MsgChainRollForward <$> genNonEmpty <*> genChainPoint
@@ -82,5 +82,5 @@ instance (Arbitrary block) => Arbitrary (ChainSyncLog block ChainPoint) where
 instance Arbitrary BlockHeader where
     arbitrary = genBlockHeader =<< genSlotNo
 
-testShow :: (Show a) => a -> Spec
+testShow :: Show a => a -> Spec
 testShow a = it (show a) True

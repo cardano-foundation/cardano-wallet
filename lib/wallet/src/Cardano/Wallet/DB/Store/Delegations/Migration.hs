@@ -109,7 +109,7 @@ readOldEncoding = do
                 ]
             )
 
-    mapMergeThese :: (Ord k) => Map k a -> Map k b -> Map k (These a b)
+    mapMergeThese :: Ord k => Map k a -> Map k b -> Map k (These a b)
     mapMergeThese =
         Map.merge
             (Map.mapMaybeMissing $ \_ -> Just . This)

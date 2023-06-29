@@ -86,10 +86,10 @@ class (Eq (Prologue s), Eq (Discoveries s)) => AddressBookIso s where
     -- and its two components.
     addressIso :: Iso' s (Prologue s, Discoveries s)
 
-getPrologue :: (AddressBookIso s) => s -> Prologue s
+getPrologue :: AddressBookIso s => s -> Prologue s
 getPrologue = withIso addressIso $ \from _ -> fst . from
 
-getDiscoveries :: (AddressBookIso s) => s -> Discoveries s
+getDiscoveries :: AddressBookIso s => s -> Discoveries s
 getDiscoveries = withIso addressIso $ \from _ -> snd . from
 
 {-------------------------------------------------------------------------------
@@ -108,10 +108,10 @@ instance
             to2 (PS a, DS b) = Seq.SeqAnyState $ to (a, b)
         in  iso from2 to2
 
-instance (Eq (Seq.SeqState n k)) => Eq (Prologue (Seq.SeqAnyState n k p)) where
+instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqAnyState n k p)) where
     (PS a) == (PS b) = a == b
 
-instance (Eq (Seq.SeqState n k)) => Eq (Discoveries (Seq.SeqAnyState n k p)) where
+instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqAnyState n k p)) where
     (DS a) == (DS b) = a == b
 
 -- | Isomorphism for sequential address book.
@@ -176,10 +176,10 @@ loadUnsafe (Seq.SeqAddressPool pool0) (SeqAddressMap addrs) =
 instance Buildable (Prologue (Seq.SeqState n k)) where
     build (SeqPrologue st) = "Prologue of " <> build st
 
-instance (Eq (Seq.SeqState n k)) => Eq (Prologue (Seq.SeqState n k)) where
+instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqState n k)) where
     SeqPrologue a == SeqPrologue b = a == b
 
-instance (Eq (Seq.SeqState n k)) => Eq (Discoveries (Seq.SeqState n k)) where
+instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqState n k)) where
     (SeqDiscoveries a x) == (SeqDiscoveries b y) = a == b && x == y
 
 {-------------------------------------------------------------------------------
@@ -195,7 +195,7 @@ newtype SharedAddressMap (c :: Role) (key :: Depth -> Type -> Type)
     deriving (Eq)
 
 -- | Isomorphism for multi-sig address book.
-instance (key ~ SharedKey) => AddressBookIso (Shared.SharedState n key) where
+instance key ~ SharedKey => AddressBookIso (Shared.SharedState n key) where
     data Prologue (Shared.SharedState n key)
         = SharedPrologue (Shared.SharedState n key)
 
@@ -244,15 +244,15 @@ loadUnsafeShared (Shared.SharedAddressPool pool0) (SharedAddressMap addrs) =
     Shared.SharedAddressPool $ AddressPool.loadUnsafe pool0 addrs
 
 instance
-    (key ~ SharedKey)
+    key ~ SharedKey
     => Buildable (Prologue (Shared.SharedState n key))
     where
     build (SharedPrologue st) = "Prologue of " <> build st
 
-instance (key ~ SharedKey) => Eq (Prologue (Shared.SharedState n key)) where
+instance key ~ SharedKey => Eq (Prologue (Shared.SharedState n key)) where
     SharedPrologue a == SharedPrologue b = a == b
 
-instance (key ~ SharedKey) => Eq (Discoveries (Shared.SharedState n key)) where
+instance key ~ SharedKey => Eq (Discoveries (Shared.SharedState n key)) where
     SharedDiscoveries ext1 int1 == SharedDiscoveries ext2 int2 =
         ext1 == ext2 && int1 == int2
 

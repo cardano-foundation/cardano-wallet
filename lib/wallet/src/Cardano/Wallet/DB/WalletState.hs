@@ -128,7 +128,7 @@ data WalletCheckpoint s = WalletCheckpoint
     }
     deriving (Generic)
 
-deriving instance (AddressBookIso s) => Eq (WalletCheckpoint s)
+deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
 
 -- | Helper function: Get the block height of a wallet checkpoint.
 getBlockHeight :: WalletCheckpoint s -> Word32
@@ -141,13 +141,13 @@ getSlot (WalletCheckpoint currentTip _ _) =
     W.toSlot . W.chainPointFromBlockHeader $ currentTip
 
 -- | Convert a stored 'WalletCheckpoint' to the legacy 'W.Wallet' state.
-toWallet :: (AddressBookIso s) => Prologue s -> WalletCheckpoint s -> W.Wallet s
+toWallet :: AddressBookIso s => Prologue s -> WalletCheckpoint s -> W.Wallet s
 toWallet pro (WalletCheckpoint pt utxo dis) =
     W.unsafeInitWallet utxo pt $ withIso addressIso $ \_ from -> from (pro, dis)
 
 -- | Convert a legacy 'W.Wallet' state to a 'Prologue' and a 'WalletCheckpoint'
 fromWallet
-    :: (AddressBookIso s) => W.Wallet s -> (Prologue s, WalletCheckpoint s)
+    :: AddressBookIso s => W.Wallet s -> (Prologue s, WalletCheckpoint s)
 fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
   where
     (pro, dis) = withIso addressIso $ \to _ -> to (w ^. #getState)
@@ -179,7 +179,7 @@ deriving instance
 
 -- | Create a wallet from the genesis block.
 fromGenesis
-    :: (AddressBookIso s)
+    :: AddressBookIso s
     => W.Wallet s
     -> WalletInfo
     -> Maybe (WalletState s)
@@ -200,7 +200,7 @@ fromGenesis cp winfo
     (prologue, checkpoint) = fromWallet cp
 
 -- | Get the wallet checkpoint with the largest slot number
-getLatest :: (AddressBookIso s) => WalletState s -> W.Wallet s
+getLatest :: AddressBookIso s => WalletState s -> W.Wallet s
 getLatest w =
     toWallet (w ^. #prologue) . snd $ CPS.getLatest (w ^. #checkpoints)
 

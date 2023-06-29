@@ -116,7 +116,7 @@ import UnliftIO.MVar
 -------------------------------------------------------------------------------}
 
 -- | A class to link an existing context to a worker context.
-class (HasType resource (WorkerCtx ctx)) => HasWorkerCtx resource ctx where
+class HasType resource (WorkerCtx ctx) => HasWorkerCtx resource ctx where
     type WorkerCtx ctx :: Type
     type WorkerMsg ctx :: Type
     type WorkerKey ctx :: Type
@@ -136,7 +136,7 @@ newtype WorkerRegistry key resource
 
 -- | Construct a new empty registry
 empty
-    :: (Ord key) => IO (WorkerRegistry key resource)
+    :: Ord key => IO (WorkerRegistry key resource)
 empty =
     WorkerRegistry <$> newMVar mempty
 
@@ -151,7 +151,7 @@ lookup (WorkerRegistry mvar) k =
 
 -- | Register a new worker
 insert
-    :: (Ord key)
+    :: Ord key
     => WorkerRegistry key resource
     -> Worker key resource
     -> IO ()
@@ -160,7 +160,7 @@ insert (WorkerRegistry mvar) wrk =
 
 -- | Delete a worker from the registry, but don't cancel the running task.
 delete
-    :: (Ord key)
+    :: Ord key
     => WorkerRegistry key resource
     -> key
     -> IO (Maybe (Worker key resource))
@@ -171,7 +171,7 @@ delete (WorkerRegistry mvar) k = do
 
 -- | Unregister a worker from the registry, terminating the running task.
 unregister
-    :: (Ord key)
+    :: Ord key
     => WorkerRegistry key resource
     -> key
     -> IO ()
@@ -282,7 +282,7 @@ instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
             | otherwise -> T.take 8 (toText key) <> ": " <> toText msg
 
 instance HasPrivacyAnnotation (WorkerLog key msg)
-instance (HasSeverityAnnotation msg) => HasSeverityAnnotation (WorkerLog key msg) where
+instance HasSeverityAnnotation msg => HasSeverityAnnotation (WorkerLog key msg) where
     getSeverityAnnotation = \case
         MsgThreadAfter msg -> getSeverityAnnotation msg
         MsgFromWorker _ msg -> getSeverityAnnotation msg

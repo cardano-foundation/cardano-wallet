@@ -112,28 +112,28 @@ parseDataPart =
     errDataPart =
         "Couldn't decode data-part to valid UTF-8 bytes."
 
-parsePubVer :: (MonadFail f) => ByteString -> f ByteString
+parsePubVer :: MonadFail f => ByteString -> f ByteString
 parsePubVer bytes
     | BS.length bytes == 32 =
         pure bytes
     | otherwise =
         fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
 
-parsePubVerHash :: (MonadFail f) => ByteString -> f ByteString
+parsePubVerHash :: MonadFail f => ByteString -> f ByteString
 parsePubVerHash bytes
     | BS.length bytes == 28 =
         pure bytes
     | otherwise =
         fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
 
-parsePubErr :: (IsString p) => KeyFormat -> p
+parsePubErr :: IsString p => KeyFormat -> p
 parsePubErr = \case
     Extended ->
         "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
     NonExtended ->
         "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
 
-parsePub :: (MonadFail f) => ByteString -> KeyFormat -> f ByteString
+parsePub :: MonadFail f => ByteString -> KeyFormat -> f ByteString
 parsePub bytes extd
     | BS.length bytes == bytesExpectedLength =
         pure bytes

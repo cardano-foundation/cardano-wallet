@@ -94,8 +94,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_ADDRESSES" $ do
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> runResourceT $ do

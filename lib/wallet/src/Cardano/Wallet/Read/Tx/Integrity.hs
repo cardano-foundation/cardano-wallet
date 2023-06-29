@@ -63,8 +63,8 @@ type family IntegrityType era where
 
 newtype Integrity era = Integrity (IntegrityType era)
 
-deriving instance (Show (IntegrityType era)) => Show (Integrity era)
-deriving instance (Eq (IntegrityType era)) => Eq (Integrity era)
+deriving instance Show (IntegrityType era) => Show (Integrity era)
+deriving instance Eq (IntegrityType era) => Eq (Integrity era)
 
 -- | Extract the script integrity data from a transaction in any available era.
 getEraIntegrity :: EraFun Tx Integrity

@@ -208,7 +208,7 @@ instance Buildable StakePoolsSummary where
 {-------------------------------------------------------------------------------
     Reward formulas
 -------------------------------------------------------------------------------}
-fractionOf :: (RealFrac r) => r -> Coin -> Coin
+fractionOf :: RealFrac r => r -> Coin -> Coin
 fractionOf r (Coin x) = Coin . floor $ r * fromIntegral x
 
 proportionTo :: Coin -> Coin -> Rational
@@ -337,7 +337,7 @@ data PoolScore = PoolScore
 -- in order to rank them by desirability,
 -- and we need to know the stake that the user wants to delegate.
 scorePools
-    :: (Ord poolId)
+    :: Ord poolId
     => RewardParams
     -> Map poolId (RewardInfoPool, a)
     -> Coin

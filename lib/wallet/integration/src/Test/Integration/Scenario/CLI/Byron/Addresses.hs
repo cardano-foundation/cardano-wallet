@@ -89,7 +89,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = do
     describe "BYRON_CLI_ADDRESSES" $ do
@@ -137,7 +137,7 @@ spec = do
 
 scenario_ADDRESS_LIST_01
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -163,7 +163,7 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_LIST_02
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -221,7 +221,7 @@ scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     title = "CLI_ADDRESS_LIST_04 - " ++ walType ++ " deleted wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall n. (HasSNetworkId n) => SpecWith Context
+    :: forall n. HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -256,7 +256,7 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall n. (HasSNetworkId n) => SpecWith Context
+    :: forall n. HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -274,7 +274,7 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     title = "CLI_ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall n. (HasSNetworkId n) => SpecWith Context
+    :: forall n. HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -314,7 +314,7 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @
     out `shouldBe` mempty
 
 scenario_ADDRESS_IMPORT_01
-    :: forall n. (HasSNetworkId n) => SpecWith Context
+    :: forall n. HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyRandomWalletMws ctx
     let wid = T.unpack (w ^. walletId)
@@ -326,7 +326,7 @@ scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     title = "CLI_ADDRESS_IMPORT_01 - I can import an address from my wallet"
 
 scenario_ADDRESS_IMPORT_02
-    :: forall n. (HasSNetworkId n) => SpecWith Context
+    :: forall n. HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyIcarusWalletMws ctx
     let wid = T.unpack (w ^. walletId)

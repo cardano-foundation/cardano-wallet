@@ -386,11 +386,11 @@ computeUTxOBalanceAvailable =
 
 -- | Computes the balance of UTxO entries required to be selected.
 computeUTxOBalanceRequired
-    :: (Foldable f) => SelectionParamsOf f ctx -> TokenBundle
+    :: Foldable f => SelectionParamsOf f ctx -> TokenBundle
 computeUTxOBalanceRequired = fst . computeDeficitInOut
 
 computeBalanceInOut
-    :: (Foldable f) => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
+    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeBalanceInOut params =
     (balanceIn, balanceOut)
   where
@@ -403,7 +403,7 @@ computeBalanceInOut params =
             `TokenBundle.add` F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
-    :: (Foldable f) => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
+    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeDeficitInOut params =
     (deficitIn, deficitOut)
   where
@@ -418,14 +418,14 @@ computeDeficitInOut params =
 --
 -- See 'UTxOBalanceSufficiency'.
 computeUTxOBalanceSufficiency
-    :: (Foldable f) => SelectionParamsOf f ctx -> UTxOBalanceSufficiency
+    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
 --
 -- See 'UTxOBalanceSufficiencyInfo'.
 computeUTxOBalanceSufficiencyInfo
-    :: (Foldable f) => SelectionParamsOf f ctx -> UTxOBalanceSufficiencyInfo
+    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo{available, required, difference, sufficiency}
   where
@@ -445,7 +445,7 @@ computeUTxOBalanceSufficiencyInfo params =
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
 isUTxOBalanceSufficient
-    :: (Foldable f) => SelectionParamsOf f ctx -> Bool
+    :: Foldable f => SelectionParamsOf f ctx -> Bool
 isUTxOBalanceSufficient params =
     case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient -> True
@@ -470,8 +470,8 @@ data SelectionSkeleton ctx = SelectionSkeleton
     }
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionSkeleton ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionSkeleton ctx)
+deriving instance SelectionContext ctx => Eq (SelectionSkeleton ctx)
+deriving instance SelectionContext ctx => Show (SelectionSkeleton ctx)
 
 type SelectionResult = SelectionResultOf []
 
@@ -527,7 +527,7 @@ data SelectionDelta a
     | SelectionDeficit a
     deriving (Eq, Functor, Show)
 
-instance (Buildable a) => Buildable (SelectionDelta a) where
+instance Buildable a => Buildable (SelectionDelta a) where
     build d = case d of
         SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
         SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
@@ -539,7 +539,7 @@ instance (Buildable a) => Buildable (SelectionDelta a) where
 --
 -- See 'SelectionDelta'.
 selectionDeltaAllAssets
-    :: (Foldable f) => SelectionResultOf f ctx -> SelectionDelta TokenBundle
+    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
         SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
@@ -569,12 +569,12 @@ selectionDeltaAllAssets result
 --
 -- See 'SelectionDelta'.
 selectionDeltaCoin
-    :: (Foldable f) => SelectionResultOf f ctx -> SelectionDelta Coin
+    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
 selectionHasValidSurplus
-    :: (Foldable f) => SelectionConstraints ctx -> SelectionResultOf f ctx -> Bool
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Bool
 selectionHasValidSurplus constraints selection =
     case selectionDeltaAllAssets selection of
         SelectionSurplus s -> surplusIsValid s
@@ -610,7 +610,7 @@ selectionHasValidSurplus constraints selection =
 --
 -- Use 'selectionDeltaCoin' if you wish to handle the case where there is
 -- a deficit.
-selectionSurplusCoin :: (Foldable f) => SelectionResultOf f ctx -> Coin
+selectionSurplusCoin :: Foldable f => SelectionResultOf f ctx -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
         SelectionSurplus surplus -> surplus
@@ -618,7 +618,7 @@ selectionSurplusCoin result =
 
 -- | Converts a selection into a skeleton.
 selectionSkeleton
-    :: (Foldable f) => SelectionResultOf f ctx -> SelectionSkeleton ctx
+    :: Foldable f => SelectionResultOf f ctx -> SelectionSkeleton ctx
 selectionSkeleton s =
     SelectionSkeleton
         { skeletonInputCount = F.length (view #inputsSelected s)
@@ -628,7 +628,7 @@ selectionSkeleton s =
 
 -- | Computes the minimum required cost of a selection.
 selectionMinimumCost
-    :: (Foldable f) => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
 -- | Computes the maximum acceptable cost of a selection.
@@ -645,7 +645,7 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 --
 -- See 'selectionHasValidSurplus'.
 selectionMaximumCost
-    :: (Foldable f) => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
+    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
 -- | Represents the set of errors that may occur while performing a selection.
@@ -657,8 +657,8 @@ data SelectionBalanceError ctx
     | EmptyUTxO
     deriving (Generic)
 
-deriving instance (SelectionContext ctx) => Eq (SelectionBalanceError ctx)
-deriving instance (SelectionContext ctx) => Show (SelectionBalanceError ctx)
+deriving instance SelectionContext ctx => Eq (SelectionBalanceError ctx)
+deriving instance SelectionContext ctx => Show (SelectionBalanceError ctx)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
 --   cover the balance required.
@@ -749,7 +749,7 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --          selectionHasValidSurplus constraints (transformResult result)
 performSelectionEmpty
     :: forall m ctx
-     . (Functor m)
+     . Functor m
     => PerformSelection m NonEmpty ctx
     -> PerformSelection m [] ctx
 performSelectionEmpty performSelectionFn constraints params =
@@ -1068,7 +1068,7 @@ runSelectionNonEmpty =
         <=< runSelection
 
 runSelectionNonEmptyWith
-    :: (Monad m)
+    :: Monad m
     => (UTxOSelection u -> m (Maybe (UTxOSelectionNonEmpty u)))
     -> UTxOSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
@@ -1143,7 +1143,7 @@ coinSelectionLens strategy minimumCoinQuantity =
 
 selectQuantityOf
     :: (MonadRandom m, Ord u)
-    => (IsUTxOSelection utxoSelection u)
+    => IsUTxOSelection utxoSelection u
     => Asset
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
@@ -1172,7 +1172,7 @@ selectQuantityOf a =
 selectMatchingQuantity
     :: forall m utxoSelection u
      . (MonadRandom m, Ord u)
-    => (IsUTxOSelection utxoSelection u)
+    => IsUTxOSelection utxoSelection u
     => NonEmpty (SelectionFilter Asset)
     -- ^ A list of selection filters to be traversed from left-to-right,
     -- in descending order of priority.
@@ -1233,7 +1233,7 @@ data SelectionLens m state state' = SelectionLens
 --      token quantity, but not further away.
 runSelectionStep
     :: forall m state state'
-     . (Monad m)
+     . Monad m
     => SelectionLens m state state'
     -> state
     -> m (Maybe state')
@@ -1592,7 +1592,7 @@ collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
 --    - fails if (and only if) there was not enough ada available to assign the
 --      minimum ada quantity to all non-empty change maps.
 assignCoinsToChangeMaps
-    :: (HasCallStack)
+    :: HasCallStack
     => Coin
     -- ^ The total quantity of ada available, including any extra source of ada.
     -> (TokenMap -> Coin)
@@ -1760,7 +1760,7 @@ makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
 -- list, and the sum of its quantities is always exactly equal to the 'Coin'
 -- value given as the second argument.
 makeChangeForCoin
-    :: (HasCallStack)
+    :: HasCallStack
     => NonEmpty Coin
     -- ^ A list of weights for the distribution. Conveniently captures both
     -- the weights, and the number of elements amongst which the surplus
@@ -2091,7 +2091,7 @@ splitBundlesWithExcessiveTokenQuantities bs maxQuantity =
 -- Grouping and ungrouping
 --------------------------------------------------------------------------------
 
-groupByKey :: forall k v. (Ord k) => [(k, v)] -> Map k (NonEmpty v)
+groupByKey :: forall k v. Ord k => [(k, v)] -> Map k (NonEmpty v)
 groupByKey = F.foldl' acc mempty
   where
     acc :: Map k (NonEmpty v) -> (k, v) -> Map k (NonEmpty v)
@@ -2108,7 +2108,7 @@ runRoundRobin :: s -> (s' -> s) -> [(s -> Maybe s')] -> s
 runRoundRobin state demote processors =
     runIdentity $ runRoundRobinM state demote $ fmap Identity <$> processors
 
-runRoundRobinM :: (Monad m) => s -> (s' -> s) -> [(s -> m (Maybe s'))] -> m s
+runRoundRobinM :: Monad m => s -> (s' -> s) -> [(s -> m (Maybe s'))] -> m s
 runRoundRobinM state demote processors = go state processors []
   where
     go !s [] [] = pure s
@@ -2123,13 +2123,13 @@ runRoundRobinM state demote processors = go state processors []
 -- Accessor functions
 --------------------------------------------------------------------------------
 
-selectedAssetQuantity :: (IsUTxOSelection s u) => AssetId -> s u -> Natural
+selectedAssetQuantity :: IsUTxOSelection s u => AssetId -> s u -> Natural
 selectedAssetQuantity asset =
     unTokenQuantity
         . flip TokenBundle.getQuantity asset
         . UTxOSelection.selectedBalance
 
-selectedCoinQuantity :: (IsUTxOSelection s u) => s u -> Natural
+selectedCoinQuantity :: IsUTxOSelection s u => s u -> Natural
 selectedCoinQuantity =
     intCast
         . unCoin

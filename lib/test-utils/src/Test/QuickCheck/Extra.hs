@@ -383,7 +383,7 @@ genShrinkSequence shrinkFn = loop
 --   where
 --     twoSeconds = 2_000_000
 -- @
-shrinkSpace :: forall a. (Ord a) => (a -> [a]) -> a -> Set a
+shrinkSpace :: forall a. Ord a => (a -> [a]) -> a -> Set a
 shrinkSpace shrinkFn = loop mempty . Set.fromList . shrinkFn
   where
     -- Loop invariant: "processed" and "remaining" are always disjoint sets:
@@ -530,7 +530,7 @@ partitionList (x, y) =
 --
 -- Returns 'Nothing' if (and only if) the given map is empty.
 selectMapEntry
-    :: forall k v. (Ord k) => Map k v -> Gen (Maybe ((k, v), Map k v))
+    :: forall k v. Ord k => Map k v -> Gen (Maybe ((k, v), Map k v))
 selectMapEntry m
     | Map.null m =
         pure Nothing
@@ -545,7 +545,7 @@ selectMapEntry m
 --
 -- Returns the selected entries and the remaining map with the entries removed.
 selectMapEntries
-    :: forall k v. (Ord k) => Map k v -> Int -> Gen ([(k, v)], Map k v)
+    :: forall k v. Ord k => Map k v -> Int -> Gen ([(k, v)], Map k v)
 selectMapEntries m0 i =
     foldM (const . selectOne) ([], m0) (replicate i ())
   where
@@ -595,13 +595,13 @@ genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
 --------------------------------------------------------------------------------
 
 -- | Generates a 'Map' with the given key and value generation functions.
-genMapWith :: (Ord k) => Gen k -> Gen v -> Gen (Map k v)
+genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
 genMapWith genKey genValue =
     Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
 
 -- | Shrinks a 'Map' with the given key and value shrinking functions.
 shrinkMapWith
-    :: (Ord k)
+    :: Ord k
     => (k -> [k])
     -> (v -> [v])
     -> Map k v
@@ -682,7 +682,7 @@ report a name =
 -- | Adds a named condition to a property.
 --
 -- On failure, reports the name of the condition that failed.
-verify :: (Testable t) => Bool -> String -> t -> Property
+verify :: Testable t => Bool -> String -> t -> Property
 verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
@@ -706,10 +706,10 @@ a .>=. b =
 newtype Pretty a = Pretty {unPretty :: a}
     deriving (Eq)
 
-instance (Show a) => Show (Pretty a) where
+instance Show a => Show (Pretty a) where
     show (Pretty a) = TL.unpack ("\n" <> pShow a <> "\n")
 
-instance (Arbitrary a) => Arbitrary (Pretty a) where
+instance Arbitrary a => Arbitrary (Pretty a) where
     arbitrary = Pretty <$> arbitrary
     shrink (Pretty a) = Pretty <$> shrink a
 

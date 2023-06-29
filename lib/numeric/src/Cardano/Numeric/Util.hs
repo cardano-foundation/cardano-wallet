@@ -135,7 +135,7 @@ padCoalesce sourceUnsorted target
 --
 -- The resultant list is sorted in ascending order.
 equipartitionNatural
-    :: (HasCallStack)
+    :: HasCallStack
     => Natural
     -- ^ The natural number to be partitioned.
     -> NonEmpty a
@@ -242,7 +242,7 @@ partitionNatural target weights
 --
 -- Throws a run-time error if the sum of weights is equal to zero.
 unsafePartitionNatural
-    :: (HasCallStack)
+    :: HasCallStack
     => Natural
     -- ^ Natural number to partition
     -> NonEmpty Natural
@@ -320,5 +320,5 @@ round = \case
 -- | Power function where all arguments are of the same type.
 --
 -- Helps to avoid the use of boilerplate type annotations.
-power :: (Integral a) => a -> a -> a
+power :: Integral a => a -> a -> a
 power = (^)

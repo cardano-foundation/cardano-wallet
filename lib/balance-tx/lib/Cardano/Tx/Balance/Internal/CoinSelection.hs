@@ -416,7 +416,7 @@ data SelectionOf change = Selection
     }
     deriving (Generic, Eq, Show)
 
-instance (NFData change) => NFData (SelectionOf change)
+instance NFData change => NFData (SelectionOf change)
 
 -- | The default type of selection.
 --

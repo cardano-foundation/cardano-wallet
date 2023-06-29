@@ -203,7 +203,7 @@ import qualified Prelude
 
 spec
     :: forall n
-     . (HasSNetworkId n)
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake =
@@ -1824,7 +1824,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 }
             ]
 
-    setOf :: (Ord b) => [a] -> (a -> b) -> Set b
+    setOf :: Ord b => [a] -> (a -> b) -> Set b
     setOf xs f = Set.fromList $ map f xs
 
     depositAmt :: Context -> Natural

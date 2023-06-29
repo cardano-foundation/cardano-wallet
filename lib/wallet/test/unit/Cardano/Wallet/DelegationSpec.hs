@@ -267,7 +267,7 @@ instance Arbitrary WalletDelegationStatus where
     shrink = genericShrink
     arbitrary = genericArbitrary
 
-instance (Arbitrary EpochNo) => Arbitrary WalletDelegationNext where
+instance Arbitrary EpochNo => Arbitrary WalletDelegationNext where
     shrink = genericShrink
     arbitrary = genericArbitrary
 
@@ -312,6 +312,6 @@ instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink

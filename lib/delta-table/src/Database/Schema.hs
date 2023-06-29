@@ -99,7 +99,7 @@ escapeSqlType :: SqlColType -> Text
 escapeSqlType (SqlColType x) = x
 
 -- | Class of columns that can be stored in database tables.
-class (PersistField a) => IsCol a where
+class PersistField a => IsCol a where
     getSqlType :: Proxy a -> SqlColType
 
 instance {-# OVERLAPPABLE #-} (PersistField a, PersistFieldSql a) => IsCol a where
@@ -149,7 +149,7 @@ class IsRow row where
     toSqlValues :: row -> [PersistValue]
     fromSqlValues :: [PersistValue] -> Either Text row
 
-instance (KnownSymbol name) => IsRow (Table name) where
+instance KnownSymbol name => IsRow (Table name) where
     getTableName _ = T.pack $ symbolVal (Proxy :: Proxy name)
     getColNames _ = []
     getSqlTypes _ = []
@@ -200,7 +200,7 @@ testPerson = Table :. Col "Ada Lovelace" :. Col 1815 :. Col (Primary 0)
 -------------------------------------------------------------------------------}
 newtype Wrap a = Wrap {unWrap :: a}
 
-instance (IsRow row) => RawSql (Wrap row) where
+instance IsRow row => RawSql (Wrap row) where
     rawSqlCols _ _ = (length n, [])
       where
         n = getColNames (Proxy :: Proxy row)
@@ -222,7 +222,7 @@ callSql
 callSql Query{stmt, params} = map unWrap <$> Persist.rawSql stmt params
 
 -- | Execute an SQL query, but do not return any results
-runSql :: (MonadIO m) => Query () -> SqlPersistT m ()
+runSql :: MonadIO m => Query () -> SqlPersistT m ()
 runSql Query{stmt, params} = Persist.rawExecute stmt params
 
 {-------------------------------------------------------------------------------
@@ -252,7 +252,7 @@ mkTuple :: [Text] -> Text
 mkTuple xs = "(" <> T.intercalate ", " xs <> ")"
 
 -- | Create a database table that can store the given rows.
-createTable :: (IsRow row) => Proxy row -> Query ()
+createTable :: IsRow row => Proxy row -> Query ()
 createTable proxy =
     Query
         { stmt =
@@ -272,7 +272,7 @@ createTable proxy =
             (getSqlTypes proxy)
 
 -- | Select all rows from the table.
-selectAll :: forall row. (IsRow row) => Query row
+selectAll :: forall row. IsRow row => Query row
 selectAll =
     Query
         { stmt = "SELECT " <> T.intercalate "," cols <> " FROM " <> table <> ";"
@@ -284,7 +284,7 @@ selectAll =
     cols = map escape $ getColNames proxy
 
 -- | Insert a single row into the corresponding table.
-insertOne :: forall row. (IsRow row) => row -> Query ()
+insertOne :: forall row. IsRow row => row -> Query ()
 insertOne row =
     Query
         { stmt =
@@ -308,7 +308,7 @@ insertOne row =
 -- instead of the last column in the table.
 repsertOne
     :: forall row
-     . (IsRow row)
+     . IsRow row
     => (row :. Col "id" Primary)
     -> Query ()
 repsertOne row =
@@ -331,7 +331,7 @@ repsertOne row =
 -- | Update one row with a given \"id\" column in a database table.
 updateOne
     :: forall row
-     . (IsRow row)
+     . IsRow row
     => (row :. Col "id" Primary)
     -> Query ()
 updateOne row =
@@ -347,7 +347,7 @@ updateOne row =
 
 -- | Delete one row with a given \"id\" column in a database table.
 deleteOne
-    :: forall row. (IsRow row) => Proxy row -> Col "id" Primary -> Query ()
+    :: forall row. IsRow row => Proxy row -> Col "id" Primary -> Query ()
 deleteOne proxy (Col key) =
     Query
         { stmt = "DELETE FROM " <> table <> " WHERE \"id\"=?;"
@@ -357,7 +357,7 @@ deleteOne proxy (Col key) =
     table = escape $ getTableName proxy
 
 -- | Delete all rows in a database table
-deleteAll :: forall row. (IsRow row) => Proxy row -> Query ()
+deleteAll :: forall row. IsRow row => Proxy row -> Query ()
 deleteAll proxy =
     Query
         { stmt = "DELETE FROM " <> table

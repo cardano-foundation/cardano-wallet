@@ -209,7 +209,7 @@ cardanoTxIdeallyNoLaterThan era = unsafeCardanoTx . ideallyNoLaterThan era
 -- provided era, and that era only.
 cardanoTxInExactEra
     :: forall era
-     . (Cardano.IsCardanoEra era)
+     . Cardano.IsCardanoEra era
     => CardanoEra era
     -> SealedTx
     -> Maybe (Cardano.Tx era)
@@ -234,12 +234,12 @@ sealedTxFromCardano tx = SealedTx True tx (cardanoTxToBytes tx)
     cardanoTxToBytes (InAnyCardanoEra _era tx') = Cardano.serialiseToCBOR tx'
 
 -- | Construct a 'SealedTx' from a "Cardano.Api" transaction.
-sealedTxFromCardano' :: (Cardano.IsCardanoEra era) => Cardano.Tx era -> SealedTx
+sealedTxFromCardano' :: Cardano.IsCardanoEra era => Cardano.Tx era -> SealedTx
 sealedTxFromCardano' = sealedTxFromCardano . InAnyCardanoEra Cardano.cardanoEra
 
 -- | Construct a 'SealedTx' from a 'Cardano.Api.TxBody'.
 sealedTxFromCardanoBody
-    :: (Cardano.IsCardanoEra era) => Cardano.TxBody era -> SealedTx
+    :: Cardano.IsCardanoEra era => Cardano.TxBody era -> SealedTx
 sealedTxFromCardanoBody = sealedTxFromCardano . InAnyCardanoEra Cardano.cardanoEra . mk
   where
     mk body = Cardano.Tx body []
@@ -269,7 +269,7 @@ cardanoTxFromBytes maxEra bs =
   where
     deserialise
         :: forall era
-         . (Cardano.IsCardanoEra era)
+         . Cardano.IsCardanoEra era
         => CardanoEra era
         -> Cardano.AsType era
         -> (AnyCardanoEra, Either DecoderError (InAnyCardanoEra Cardano.Tx))
@@ -356,7 +356,7 @@ newtype SerialisedTx = SerialisedTx {payload :: ByteString}
 -------------------------------------------------------------------------------}
 
 -- | Only use this for tests.
-unsafeSealedTxFromBytes :: (HasCallStack) => ByteString -> SealedTx
+unsafeSealedTxFromBytes :: HasCallStack => ByteString -> SealedTx
 unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
   where
     errMsg reason = "unsafeSealedTxFromBytes: " +|| reason ||+ ""
@@ -366,7 +366,7 @@ unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
 --
 -- Be careful using the 'SealedTx', because any attempt to evaluate its
 -- 'cardanoTx' field will crash.
-mockSealedTx :: (HasCallStack) => ByteString -> SealedTx
+mockSealedTx :: HasCallStack => ByteString -> SealedTx
 mockSealedTx =
     SealedTx
         False

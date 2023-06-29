@@ -64,5 +64,5 @@ instance (KnownSymbol s, FromJSON a) => FromJSON (ApiAsArray s (Maybe a)) where
                         , "."
                         ]
 
-instance (ToJSON a) => ToJSON (ApiAsArray s (Maybe a)) where
+instance ToJSON a => ToJSON (ApiAsArray s (Maybe a)) where
     toJSON (ApiAsArray m) = toJSON (maybeToList m)

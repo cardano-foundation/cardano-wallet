@@ -74,8 +74,8 @@ type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
 
 newtype Withdrawals era = Withdrawals {withdrawalsAsMap :: WithdrawalsType era}
 
-deriving instance (Show (WithdrawalsType era)) => Show (Withdrawals era)
-deriving instance (Eq (WithdrawalsType era)) => Eq (Withdrawals era)
+deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
+deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
 -- | Extract withdrawals from tx for any available era.
 getEraWithdrawals :: EraFun Tx Withdrawals
@@ -93,7 +93,7 @@ getEraWithdrawals =
     withdrawals = onTx $ Withdrawals . shelleyWithdrawals
 
 shelleyWithdrawals
-    :: (Ledger.EraTx era)
+    :: Ledger.EraTx era
     => Ledger.Tx era
     -> Map (RewardAcnt (Ledger.EraCrypto era)) Coin
 shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)

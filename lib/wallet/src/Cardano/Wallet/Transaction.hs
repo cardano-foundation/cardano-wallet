@@ -228,7 +228,7 @@ data TransactionLayer k ktype tx = TransactionLayer
     -- function cannot fail.
     , mkUnsignedTransaction
         :: forall era
-         . (Write.IsRecentEra era)
+         . Write.IsRecentEra era
         => Either XPub (Maybe (Script KeyHash))
         -- Reward account public key or optional script hash
         -> TransactionCtx

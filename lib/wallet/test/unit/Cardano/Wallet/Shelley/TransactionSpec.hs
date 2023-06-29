@@ -710,7 +710,7 @@ spec = describe "TransactionSpec" $ do
             prop_signTransaction_preservesScriptIntegrity
 
 spec_forAllRecentErasPendingConway
-    :: (Testable prop) => String -> (AnyCardanoEra -> prop) -> Spec
+    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
 spec_forAllRecentErasPendingConway description p =
     describe description
         $ forAllRecentEras'
@@ -727,7 +727,7 @@ instance Arbitrary SealedTx where
 
 showTransactionBody
     :: forall era
-     . (IsCardanoEra era)
+     . IsCardanoEra era
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> String
 showTransactionBody =
@@ -735,7 +735,7 @@ showTransactionBody =
 
 unsafeMakeTransactionBody
     :: forall era
-     . (IsCardanoEra era)
+     . IsCardanoEra era
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> Cardano.TxBody era
 unsafeMakeTransactionBody =
@@ -966,7 +966,7 @@ prop_signTransaction_addsExtraKeyWitnesses
 
                     expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genNonEmpty arbitrary
     shrink = shrinkNonEmpty shrink
 
@@ -1015,7 +1015,7 @@ lookupFnFromKeys keys addr =
         Map.lookup addr addrMap
 
 withBodyContent
-    :: (IsCardanoEra era)
+    :: IsCardanoEra era
     => CardanoEra era
     -> ( Cardano.TxBodyContent Cardano.BuildTx era
          -> Cardano.TxBodyContent Cardano.BuildTx era
@@ -1771,7 +1771,7 @@ binaryCalculationsSpec (AnyRecentEra era) =
 -- extended in this era.
 binaryCalculationsSpec'
     :: forall era
-     . (EraConstraints era)
+     . EraConstraints era
     => RecentEra era
     -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - " +|| era ||+ "") $ do
@@ -2092,7 +2092,7 @@ prop_sealedTxRecentEraRoundtrip
         sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: (IsShelleyBasedEra era)
+    :: IsShelleyBasedEra era
     => ShelleyBasedEra era
     -> DecodeSetup
     -> Cardano.Tx era
@@ -2133,7 +2133,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
 encodingFromTheFuture :: AnyRecentEra -> AnyCardanoEra -> Bool
 encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
 
-compareOnCBOR :: (IsCardanoEra era) => Cardano.Tx era -> SealedTx -> Property
+compareOnCBOR :: IsCardanoEra era => Cardano.Tx era -> SealedTx -> Property
 compareOnCBOR b sealed = case cardanoTx sealed of
     InAnyCardanoEra _ a ->
         Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
@@ -2612,7 +2612,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             coinSelectionEstimatedSize =
                 fromIntegral . sizeOf_BootstrapWitnesses . fromIntegral
 
-        let measuredWitSize :: (IsCardanoEra era) => Cardano.Tx era -> Natural
+        let measuredWitSize :: IsCardanoEra era => Cardano.Tx era -> Natural
             measuredWitSize (Cardano.Tx body wits) =
                 fromIntegral
                     $ serializedSize (Cardano.Tx body wits)
@@ -2620,7 +2620,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         let evaluateMinimumFeeSize
                 :: forall era
-                 . (Write.IsRecentEra era)
+                 . Write.IsRecentEra era
                 => Cardano.Tx era
                 -> Natural
             evaluateMinimumFeeSize (Cardano.Tx body wits) =
@@ -3191,7 +3191,7 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
 -- success.
 --
 prop_distributeSurplus_onSuccess
-    :: (Testable prop)
+    :: Testable prop
     => ( FeePerByte
          -> Coin
          -> TxFeeAndChange [TxOut]
@@ -3536,19 +3536,19 @@ mkTestWallet utxo =
 newtype ShowBuildable a = ShowBuildable a
     deriving newtype (Arbitrary)
 
-instance (Buildable a) => Show (ShowBuildable a) where
+instance Buildable a => Show (ShowBuildable a) where
     show (ShowBuildable x) = pretty x
 
 instance Arbitrary (Hash "Datum") where
     arbitrary = pure $ Hash $ BS.pack $ replicate 28 0
 
-instance (IsCardanoEra era) => Arbitrary (Cardano.AddressInEra era) where
+instance IsCardanoEra era => Arbitrary (Cardano.AddressInEra era) where
     arbitrary = genAddressInEra Cardano.cardanoEra
 
-instance (IsCardanoEra era) => Arbitrary (Cardano.TxOutDatum ctx era) where
+instance IsCardanoEra era => Arbitrary (Cardano.TxOutDatum ctx era) where
     arbitrary = genTxOutDatum Cardano.cardanoEra
 
-instance (IsCardanoEra era) => Arbitrary (Cardano.TxOut ctx era) where
+instance IsCardanoEra era => Arbitrary (Cardano.TxOut ctx era) where
     arbitrary = genTxOut Cardano.cardanoEra
     shrink (Cardano.TxOut addr val dat refScript) =
         tail
@@ -3561,7 +3561,7 @@ instance (IsCardanoEra era) => Arbitrary (Cardano.TxOut ctx era) where
 
 -- NOTE: We should constrain by @IsRecentEra era@ instead, where @RecentEra@ is
 -- the two latest eras.
-instance (IsCardanoEra era) => Arbitrary (Cardano.TxOutValue era) where
+instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
     arbitrary = case Cardano.cardanoEra @era of
         Cardano.AlonzoEra ->
             Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra
@@ -3617,8 +3617,7 @@ instance Arbitrary (PartialTx Cardano.BabbageEra) where
 
 shrinkInputResolution
     :: forall era
-     . ( Arbitrary (Cardano.TxOut Cardano.CtxUTxO era)
-       )
+     . Arbitrary (Cardano.TxOut Cardano.CtxUTxO era)
     => Cardano.UTxO era
     -> [Cardano.UTxO era]
 shrinkInputResolution =
@@ -3629,7 +3628,7 @@ shrinkInputResolution =
 
     -- NOTE: We only want to shrink the outputs, keeping the inputs and length
     -- of the list the same.
-    shrinkUTxOEntries :: (Arbitrary o) => [(i, o)] -> [[(i, o)]]
+    shrinkUTxOEntries :: Arbitrary o => [(i, o)] -> [[(i, o)]]
     shrinkUTxOEntries ((i, o) : rest) =
         mconcat
             -- First shrink the first element
@@ -3749,7 +3748,7 @@ shrinkTxBodyBabbage (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
             ]
 
 shrinkScriptData
-    :: (Era (Cardano.ShelleyLedgerEra era))
+    :: Era (Cardano.ShelleyLedgerEra era)
     => Cardano.TxBodyScriptData era
     -> [Cardano.TxBodyScriptData era]
 shrinkScriptData Cardano.TxBodyNoScriptData = []
@@ -3779,10 +3778,10 @@ prependOriginal shrinker x = x : shrinker x
 shrinkValue :: (Eq a, Monoid a) => a -> [a]
 shrinkValue v = filter (/= v) [mempty]
 
-shrinkSet :: (Ord a) => (a -> [a]) -> Set a -> [Set a]
+shrinkSet :: Ord a => (a -> [a]) -> Set a -> [Set a]
 shrinkSet shrinkElem = map Set.fromList . shrinkList shrinkElem . F.toList
 
-shrinkSeq :: (Foldable t) => (a -> [a]) -> t a -> [StrictSeq.StrictSeq a]
+shrinkSeq :: Foldable t => (a -> [a]) -> t a -> [StrictSeq.StrictSeq a]
 shrinkSeq shrinkElem =
     map StrictSeq.fromList . shrinkList shrinkElem . F.toList
 
@@ -3848,7 +3847,7 @@ dummyChangeAddrGen =
 -- updated 'changeState'. Does /not/ specify mock values for things like
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
-    :: (Write.IsRecentEra era)
+    :: Write.IsRecentEra era
     => Wallet'
     -> Write.ProtocolParameters era
     -> TimeTranslation
@@ -3877,7 +3876,7 @@ balanceTx
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
     :: forall era
-     . (Write.IsRecentEra era)
+     . Write.IsRecentEra era
     => UTxOAssumptions
     -> UTxO
     -> StdGenSeed
@@ -4000,7 +3999,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         test "delegate" delegate
         test "1ada-payment" payment
   where
-    toCBORHex :: (ToCBOR a) => a -> String
+    toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
 
     test :: String -> PartialTx Cardano.BabbageEra -> Spec
@@ -4123,7 +4122,7 @@ txMinFee (Cardano.Tx body _) u =
 --   - Ensure we have coverage for normal plutus contracts
 prop_balanceTransactionValid
     :: forall era
-     . (era ~ Cardano.BabbageEra)
+     . era ~ Cardano.BabbageEra
     => -- TODO [ADP-2997] Test with all RecentEras
     -- https://input-output.atlassian.net/browse/ADP-2997
     Wallet'
@@ -4570,7 +4569,7 @@ prop_bootstrapWitnesses
                             (getRawKey ByronKeyS addrK, pwd)
 
 serializedSize
-    :: forall era. (Cardano.IsCardanoEra era) => Cardano.Tx era -> Int
+    :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Int
 serializedSize =
     BS.length
         . serialisedTx
@@ -4641,7 +4640,7 @@ mockCardanoApiPParamsForBalancing =
         }
 
 mockPParamsForBalancing
-    :: forall era. (Write.IsRecentEra era) => Write.ProtocolParameters era
+    :: forall era. Write.IsRecentEra era => Write.ProtocolParameters era
 mockPParamsForBalancing =
     Write.ProtocolParameters . either (error . show) id
         $ Cardano.toLedgerPParams
@@ -4775,7 +4774,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
   where
     test
         :: forall era
-         . (Write.IsRecentEra era)
+         . Write.IsRecentEra era
         => String
         -> ByteString
         -> Cardano.Tx era
@@ -4810,7 +4809,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     forAllGoldens
         :: [(String, ByteString)]
         -> ( forall era
-              . (Write.IsRecentEra era)
+              . Write.IsRecentEra era
              => String
              -> ByteString
              -> Cardano.Tx era
@@ -4835,8 +4834,8 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     -- outputs with vk payment credentials.
     utxoPromisingInputsHaveVkPaymentCreds
         :: forall era
-         . (HasCallStack)
-        => (Cardano.IsShelleyBasedEra era)
+         . HasCallStack
+        => Cardano.IsShelleyBasedEra era
         => Cardano.TxBody era
         -> Cardano.UTxO era
     utxoPromisingInputsHaveVkPaymentCreds (Cardano.TxBody body) =
@@ -4891,7 +4890,7 @@ sealedOutputs =
         . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 sealedFee
-    :: forall era. (Cardano.IsCardanoEra era) => Cardano.Tx era -> Maybe Coin
+    :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
     view #fee
         . fst6

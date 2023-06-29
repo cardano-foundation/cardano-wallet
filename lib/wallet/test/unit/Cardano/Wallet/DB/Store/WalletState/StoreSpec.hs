@@ -124,7 +124,7 @@ prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
         pure $ fromJust . fromGenesis cp0 $ wi
 
 genDeltaWalletState
-    :: (GenState s)
+    :: GenState s
     => GenDelta (DeltaWalletState s)
 genDeltaWalletState =
     withCheckpoints $ genDeltaCheckpoints genCheckpoint

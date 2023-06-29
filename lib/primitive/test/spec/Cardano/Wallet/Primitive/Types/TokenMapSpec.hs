@@ -819,7 +819,7 @@ prop_size_toFlatList m =
     checkCoverage_size m
         $ TokenMap.size m === length (TokenMap.toFlatList m)
 
-checkCoverage_size :: (Testable prop) => TokenMap -> (prop -> Property)
+checkCoverage_size :: Testable prop => TokenMap -> (prop -> Property)
 checkCoverage_size m =
     checkCoverage
         . cover 2 (TokenMap.size m == 0) "size == 0"
@@ -1234,15 +1234,15 @@ newtype Positive a = Positive
 
 deriving newtype instance Arbitrary (Lexicographic TokenMap)
 
-instance (Arbitrary a) => Arbitrary (Flat a) where
+instance Arbitrary a => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary
     shrink = fmap Flat . shrink . getFlat
 
-instance (Arbitrary a) => Arbitrary (Nested a) where
+instance Arbitrary a => Arbitrary (Nested a) where
     arbitrary = Nested <$> arbitrary
     shrink = fmap Nested . shrink . getNested
 
-instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = mapMaybe NE.nonEmpty . shrink . NE.toList
 

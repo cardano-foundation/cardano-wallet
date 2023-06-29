@@ -40,10 +40,10 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
-coarbitraryUTxO :: (Show u) => u -> Gen a -> Gen a
+coarbitraryUTxO :: Show u => u -> Gen a -> Gen a
 coarbitraryUTxO = coarbitrary . show
 
-genUTxOFunction :: (Show u) => Gen a -> Gen (u -> a)
+genUTxOFunction :: Show u => Gen a -> Gen (u -> a)
 genUTxOFunction = genFunction coarbitraryUTxO
 
 genUTxOSelection :: forall u. (Ord u, Show u) => Gen u -> Gen (UTxOSelection u)
@@ -56,7 +56,7 @@ genUTxOSelection genUTxO =
     genUTxOFilter = genUTxOFunction (arbitrary @Bool)
 
 shrinkUTxOSelection
-    :: (Ord u) => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])
+    :: Ord u => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])
 shrinkUTxOSelection shrinkUTxO =
     shrinkMapBy UTxOSelection.fromIndexPair UTxOSelection.toIndexPair
         $ liftShrink2
@@ -73,7 +73,7 @@ genUTxOSelectionNonEmpty genUTxO =
     genUTxOSelection genUTxO `suchThatMap` UTxOSelection.toNonEmpty
 
 shrinkUTxOSelectionNonEmpty
-    :: (Ord u) => (u -> [u]) -> (UTxOSelectionNonEmpty u -> [UTxOSelectionNonEmpty u])
+    :: Ord u => (u -> [u]) -> (UTxOSelectionNonEmpty u -> [UTxOSelectionNonEmpty u])
 shrinkUTxOSelectionNonEmpty shrinkUTxO =
     mapMaybe UTxOSelection.toNonEmpty
         . shrinkUTxOSelection shrinkUTxO

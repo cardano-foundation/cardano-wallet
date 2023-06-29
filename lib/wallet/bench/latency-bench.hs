@@ -202,7 +202,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-main :: forall n. (n ~ 'Mainnet) => IO ()
+main :: forall n. n ~ 'Mainnet => IO ()
 main = withUtf8Encoding
     $ withLatencyLogging setupTracers
     $ \tracers capture ->
@@ -217,7 +217,7 @@ main = withUtf8Encoding
 
 walletApiBench
     :: forall n
-     . (n ~ 'Mainnet)
+     . n ~ 'Mainnet
     => LogCaptureFunc ApiLog ()
     -> Context
     -> IO ()

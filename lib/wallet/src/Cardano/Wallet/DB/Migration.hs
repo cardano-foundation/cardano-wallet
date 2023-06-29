@@ -157,7 +157,7 @@ instance Buildable ErrWrongVersion where
 --------------------------------------------------------------------------------
 
 runMigrationStep
-    :: (MonadThrow m)
+    :: MonadThrow m
     => MigrationInterface m handle
     -> FilePath
     -> Version

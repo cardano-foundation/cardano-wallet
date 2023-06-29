@@ -193,7 +193,7 @@ newDBFresh timeInterpreter wid = do
 
 -- | Read the database, but return 'Nothing' if the operation fails.
 readDBMaybe
-    :: (MonadUnliftIO f)
+    :: MonadUnliftIO f
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> f (Maybe a)
@@ -203,7 +203,7 @@ readDBMaybe db = fmap (either (const Nothing) Just) . readDB db
 -- Failures are converted to 'Err' using the provided function.
 -- Failures that cannot be converted are rethrown as 'MVarDBError'.
 alterDB
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => (Err -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database WalletId s xprv)
@@ -219,7 +219,7 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
     bubble (Right a, !db') = pure (db', Right a)
 
 noErrorAlterDB
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> m a
@@ -230,7 +230,7 @@ noErrorAlterDB db op = do
         Right a -> pure a
 
 throwErrorReadDB
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv b
     -> m b
@@ -242,7 +242,7 @@ throwErrorReadDB db op = do
 
 -- | Run a query operation on the model database.
 readDB
-    :: (MonadUnliftIO m)
+    :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -- ^ The database variable
     -> ModelOp WalletId s xprv a
