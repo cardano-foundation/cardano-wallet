@@ -244,8 +244,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-import qualified Debug.Trace as TR
-
 spec
     :: forall n
      . HasSNetworkId n
