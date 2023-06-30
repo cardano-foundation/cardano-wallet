@@ -3218,7 +3218,7 @@ txMinFee tx@(Cardano.Tx body _) u =
             RecentEraBabbage
             (Write.pparamsLedger $ mockPParamsForBalancing @Cardano.BabbageEra)
             (Write.fromCardanoTx tx)
-            (estimateKeyWitnessCount u body)
+            (estimateKeyWitnessCount (Write.fromCardanoUTxO u) body)
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3418,7 +3418,7 @@ prop_balanceTransactionValid
     prop_validSize tx@(Cardano.Tx body _) utxo = do
         let (TxSize size) =
                 estimateSignedTxSize ledgerPParams
-                    (estimateKeyWitnessCount utxo body)
+                    (estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body)
                     body
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -3486,7 +3486,7 @@ prop_balanceTransactionValid
     minFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
             (Write.fromCardanoTx tx)
-            (estimateKeyWitnessCount utxo body)
+            (estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body)
 
     txBalance
         :: Cardano.Tx era
@@ -3804,7 +3804,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             utxo = utxoPromisingInputsHaveVkPaymentCreds body
-            witCount = estimateKeyWitnessCount utxo body
+            witCount = estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body
 
             ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
             ledgerTx = Write.fromCardanoTx @era tx

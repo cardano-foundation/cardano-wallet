@@ -737,7 +737,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
+        let witCount = estimateKeyWitnessCount combinedLedgerUTxO (getBody tx)
         let minfee = W.toWalletCoin $ evaluateMinimumFee
                 (recentEra @era) pp (fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)

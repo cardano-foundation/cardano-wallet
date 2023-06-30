@@ -28,7 +28,7 @@ module Cardano.Wallet.Write.Tx.Sign
 import Prelude
 
 import Cardano.Ledger.Api
-    ( ppMinFeeAL )
+    ( Addr (..), addrTxOutL, ppMinFeeAL )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -38,9 +38,16 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletCoin, toWalletScript )
 import Cardano.Wallet.Write.Tx
-    ( IsRecentEra (..), KeyWitnessCount (..), RecentEra (..) )
+    ( IsRecentEra (..)
+    , KeyWitnessCount (..)
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , TxIn
+    , UTxO
+    , withConstraints
+    )
 import Control.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Numeric.Natural
@@ -52,6 +59,10 @@ import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import Cardano.Ledger.Credential
+    ( Credential (..) )
+import Cardano.Ledger.UTxO
+    ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
@@ -135,7 +146,7 @@ numberOfShelleyWitnesses n = KeyWitnessCount n 0
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateKeyWitnessCount
     :: forall era. IsRecentEra era
-    => Cardano.UTxO era
+    => UTxO (ShelleyLedgerEra era)
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> Cardano.TxBody era
@@ -147,6 +158,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 Cardano.TxInsCollateral _ ins -> ins
                 Cardano.TxInsCollateralNone -> []
         vkInsUnique = L.nub $ filter (hasVkPaymentCred utxo) $
+            map Cardano.toShelleyTxIn $
             txIns ++ txInsCollateral
         txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
         txExtraKeyWits' = case txExtraKeyWits of
@@ -226,32 +238,33 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 Alonzo.PlutusScript _ _ -> Nothing
 
     hasVkPaymentCred
-        :: Cardano.UTxO era
-        -> Cardano.TxIn
+        :: UTxO (ShelleyLedgerEra era)
+        -> TxIn
         -> Bool
-    hasVkPaymentCred (Cardano.UTxO u) inp = case Map.lookup inp u of
-        Just (Cardano.TxOut addrInEra _ _ _) -> Cardano.isKeyAddress addrInEra
-        Nothing ->
-            error $ unwords
-                [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
-                , "Caller is expected to ensure this does not happen."
-                ]
+    hasVkPaymentCred u inp = withConstraints (recentEra @era) $
+        case view addrTxOutL <$> txinLookup inp u of
+            Just (Addr _ (KeyHashObj _) _) -> True
+            Just (Addr _ (ScriptHashObj _) _) -> False
+            Just (AddrBootstrap _) -> False
+            Nothing ->
+                error $ unwords
+                    [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
+                    , "Caller is expected to ensure this does not happen."
+                    ]
 
     hasBootstrapAddr
-        :: Cardano.UTxO era
-        -> Cardano.TxIn
+        :: UTxO (ShelleyLedgerEra era)
+        -> TxIn
         -> Bool
-    hasBootstrapAddr (Cardano.UTxO u) inp = case Map.lookup inp u of
-        Just (Cardano.TxOut addrInEra _ _ _) ->
-            case addrInEra of
-                Cardano.AddressInEra Cardano.ByronAddressInAnyEra _ -> True
-                _ -> False
-        Nothing ->
-            error $ unwords
-                [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
-                , "Caller is expected to ensure this does not happen."
-                ]
-
+    hasBootstrapAddr u inp = withConstraints (recentEra @era) $
+        case view addrTxOutL <$> txinLookup inp u of
+            Just Addr{} -> False
+            Just (AddrBootstrap _) -> True
+            Nothing ->
+                error $ unwords
+                    [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
+                    , "Caller is expected to ensure this does not happen."
+                    ]
 --
 -- Helpers
 --
