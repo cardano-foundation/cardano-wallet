@@ -119,7 +119,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript, toCardanoUTxO )
+    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -132,6 +132,7 @@ import Cardano.Wallet.Write.Tx
     , TxBody
     , TxIn
     , TxOut
+    , UTxO (..)
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -360,15 +361,20 @@ instance Buildable (PartialTx era) where
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
-    , cardanoUTxO :: !(Cardano.UTxO era)
+    , ledgerUTxO :: !(UTxO (ShelleyLedgerEra era))
     }
 
-constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
+constructUTxOIndex :: forall era. IsRecentEra era => W.UTxO -> UTxOIndex era
 constructUTxOIndex walletUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex, cardanoUTxO}
+    UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
   where
+    era = recentEra @era
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-    cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+    ledgerUTxO = fromWalletUTxO walletUTxO
+
+    fromWalletUTxO (W.UTxO m) = withConstraints era $ UTxO
+        $ Map.mapKeys W.toLedger
+        $ Map.map (toLedgerTxOut era) m
 
 balanceTransaction
     :: forall era m changeState.
@@ -735,7 +741,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
         = toCardanoValue @era
-        . evaluateTransactionBalance (recentEra @era) pp combinedLedgerUTxO
+        . evaluateTransactionBalance (recentEra @era) pp combinedUTxO
         . txBody (recentEra @era)
         . fromCardanoTx
 
@@ -743,7 +749,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedLedgerUTxO (getBody tx)
+        let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
         let minfee = W.toWalletCoin $ evaluateMinimumFee
                 (recentEra @era) pp (fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
@@ -782,22 +788,17 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
          unUTxO (Cardano.UTxO u) = u
 
-    combinedLedgerUTxO = fromCardanoUTxO combinedUTxO
-
-    combinedUTxO :: Cardano.UTxO era
-    combinedUTxO = Cardano.UTxO $ mconcat
+    combinedUTxO :: UTxO (ShelleyLedgerEra era)
+    combinedUTxO = withConstraints era $ mconcat
          -- The @Cardano.UTxO@ can contain strictly more information than
          -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
          -- precedence. This matters if a user is trying to balance a tx making
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ unUTxO inputUTxO
-         , unUTxO cardanoUTxO
+         [ fromCardanoUTxO inputUTxO
+         , cardanoUTxO
          ]
-
-      where
-         unUTxO (Cardano.UTxO u) = u
 
     extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
     extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
@@ -816,7 +817,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
-                pp timeTranslation combinedLedgerUTxO redeemers tx'
+                pp timeTranslation combinedUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
