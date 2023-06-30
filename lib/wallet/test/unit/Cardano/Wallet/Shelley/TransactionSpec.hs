@@ -263,6 +263,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
+    , fromWalletUTxO
     , maximumCostOfIncreasingCoin
     , noTxUpdate
     , posAndNegFromCardanoValue
@@ -3237,8 +3238,8 @@ prop_balanceTransactionValid
     wallet@(Wallet' _ walletUTxO _) (ShowBuildable partialTx) seed =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
-                view #inputs partialTx
-                <> Compatibility.toCardanoUTxO (shelleyBasedEra @era) walletUTxO
+                Write.fromCardanoUTxO (view #inputs partialTx)
+                <> fromWalletUTxO (recentEra @era) walletUTxO
 
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let originalOuts = txOutputs (view #tx partialTx)
@@ -3375,7 +3376,7 @@ prop_balanceTransactionValid
     prop_expectFeeExcessSmallerThan
         :: Cardano.Lovelace
         -> Cardano.Tx era
-        -> Cardano.UTxO era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
@@ -3394,7 +3395,7 @@ prop_balanceTransactionValid
 
     prop_minfeeIsCovered
         :: Cardano.Tx era
-        -> Cardano.UTxO era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
@@ -3413,12 +3414,12 @@ prop_balanceTransactionValid
 
     prop_validSize
         :: Cardano.Tx era
-        -> Cardano.UTxO era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
         let (TxSize size) =
                 estimateSignedTxSize ledgerPParams
-                    (estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body)
+                    (estimateKeyWitnessCount utxo body)
                     body
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -3481,22 +3482,22 @@ prop_balanceTransactionValid
 
     minFee
         :: Cardano.Tx era
-        -> Cardano.UTxO era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Cardano.Lovelace
     minFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
             (Write.fromCardanoTx tx)
-            (estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body)
+            (estimateKeyWitnessCount utxo body)
 
     txBalance
         :: Cardano.Tx era
-        -> Cardano.UTxO era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Cardano.Value
     txBalance tx u = Write.toCardanoValue @era $
         Write.evaluateTransactionBalance
             era
             ledgerPParams
-            (Write.fromCardanoUTxO u)
+            u
             (Write.txBody era $ Write.fromCardanoTx tx)
       where
         era = recentEra @era

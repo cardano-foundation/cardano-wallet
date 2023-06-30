@@ -49,6 +49,7 @@ module Cardano.Wallet.Write.Tx.Balance
 
     -- * Utilities
     , posAndNegFromCardanoValue
+    , fromWalletUTxO
 
     -- ** updateTx
     , TxUpdate (..)
@@ -370,11 +371,15 @@ constructUTxOIndex walletUTxO =
   where
     era = recentEra @era
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-    ledgerUTxO = fromWalletUTxO walletUTxO
+    ledgerUTxO = fromWalletUTxO era walletUTxO
 
-    fromWalletUTxO (W.UTxO m) = withConstraints era $ UTxO
-        $ Map.mapKeys W.toLedger
-        $ Map.map (toLedgerTxOut era) m
+fromWalletUTxO
+    :: RecentEra era
+    -> W.UTxO
+    -> UTxO (ShelleyLedgerEra era)
+fromWalletUTxO era (W.UTxO m) = withConstraints era $ UTxO
+    $ Map.mapKeys W.toLedger
+    $ Map.map (toLedgerTxOut era) m
 
 balanceTransaction
     :: forall era m changeState.
