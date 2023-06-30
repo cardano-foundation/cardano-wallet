@@ -47,8 +47,6 @@ import Cardano.Address.Script
     ( Script (..) )
 import Cardano.Ledger.Api
     ( ppMaxTxSizeL, ppMaxValSizeL, ppMinFeeBL )
-import Cardano.Wallet.Address.Discovery.Shared
-    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -80,6 +78,8 @@ import Cardano.Wallet.Write.Tx
     , isBelowMinimumCoinForTxOut
     , withConstraints
     )
+import Cardano.Wallet.Write.Tx.Sign
+    ( estimateMaxWitnessRequiredPerInput )
 import Control.Lens
     ( (^.) )
 import Data.Generics.Internal.VL.Lens
