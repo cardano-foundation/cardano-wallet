@@ -19,6 +19,9 @@ module Cardano.Wallet.Write.Tx.Sign
 
     , KeyWitnessCount (..)
     , estimateKeyWitnessCount
+
+    , estimateMaxWitnessRequiredPerInput
+    , estimateMinWitnessRequiredPerInput
     )
     where
 
@@ -26,8 +29,6 @@ import Prelude
 
 import Cardano.Ledger.Api
     ( ppMinFeeAL )
-import Cardano.Wallet.Address.Discovery.Shared
-    ( estimateMaxWitnessRequiredPerInput )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -257,3 +258,54 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
 -- of the values, after the given function has been applied to each value.
 sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
 sumVia f = F.foldl' (\t -> (t +) . f) 0
+
+estimateMinWitnessRequiredPerInput :: CA.Script k -> Natural
+estimateMinWitnessRequiredPerInput = \case
+    CA.RequireSignatureOf _ -> 1
+    CA.RequireAllOf xs      ->
+        sum $ map estimateMinWitnessRequiredPerInput xs
+    CA.RequireAnyOf xs      ->
+        optimumIfNotEmpty minimum $ map estimateMinWitnessRequiredPerInput xs
+    CA.RequireSomeOf m xs   ->
+        let smallestReqFirst =
+                L.sort $ map estimateMinWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) smallestReqFirst
+    CA.ActiveFromSlot _     -> 0
+    CA.ActiveUntilSlot _    -> 0
+
+optimumIfNotEmpty :: (Foldable t, Num p) => (t a -> p) -> t a -> p
+optimumIfNotEmpty f xs =
+    if null xs then
+        0
+    else f xs
+
+estimateMaxWitnessRequiredPerInput :: CA.Script k -> Natural
+estimateMaxWitnessRequiredPerInput = \case
+    CA.RequireSignatureOf _ -> 1
+    CA.RequireAllOf xs      ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    CA.RequireAnyOf xs      ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
+    -- however signTransaction
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
+    CA.RequireSomeOf _m xs   ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- let largestReqFirst =
+    --      reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
+    -- in sum $ take (fromIntegral m) largestReqFirst
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
+    CA.ActiveFromSlot _     -> 0
+    CA.ActiveUntilSlot _    -> 0
