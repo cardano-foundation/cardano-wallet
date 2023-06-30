@@ -120,7 +120,6 @@ import Cardano.Wallet
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (delegationAddress)
     , Depth (..)
-    , DerivationIndex (..)
     , DerivationType (..)
     , Index
     , Role (..)
@@ -184,8 +183,6 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer (..) )
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -205,7 +202,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano
     , sealedTxFromCardano'
     , serialisedTx
-    , txMetadataIsNull
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..) )
@@ -246,7 +242,6 @@ import Cardano.Wallet.Shelley.Transaction
     , TxSkeleton (..)
     , TxUpdate (..)
     , TxWitnessTag (..)
-    , TxWitnessTagFor (txWitnessTagFor)
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
@@ -272,10 +267,8 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
-    , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
-    , Withdrawal (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )

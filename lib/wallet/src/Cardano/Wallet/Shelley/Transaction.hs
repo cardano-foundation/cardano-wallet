@@ -1314,7 +1314,7 @@ getFeePerByteFromWalletPParams pp =
 _txRewardWithdrawalCost
     :: Write.FeePerByte
     -> Either CA.ScriptTemplate TxWitnessTag
-    -> Coin
+    -> Coin -- ^ Withdrawal amount
     -> Coin
 _txRewardWithdrawalCost feePerByte witType =
     toWallet
@@ -1328,23 +1328,23 @@ _txRewardWithdrawalCost feePerByte witType =
 -- We may or may not want to support shared wallets in the full txConstraints.
 _txRewardWithdrawalSize
     :: Either CA.ScriptTemplate TxWitnessTag
-    -> Coin
+    -> Coin -- ^ Withdrawal amount
     -> TxSize
 _txRewardWithdrawalSize _ (Coin 0) = TxSize 0
 _txRewardWithdrawalSize witType _ = TxSize
         $ fromMaybe (error "txRewardWithdrawalSize: negative size")
         $ intCastMaybe
-        $ sizeOf_Withdrawals 1 - sizeOf_Withdrawals 0 + wits
+        $ sizeOf_Withdrawals 1 + witSize
       where
-        wits = case witType of
+        witSize = case witType of
             Right TxWitnessByronUTxO ->
-                sizeOf_BootstrapWitnesses 1 - sizeOf_BootstrapWitnesses 0
+                sizeOf_BootstrapWitnesses 1
             Right TxWitnessShelleyUTxO ->
                 sizeOf_VKeyWitnesses 1
             Left scriptTemplate ->
                 let n = fromIntegral $ estimateMaxWitnessRequiredPerInput
                         $ view #template scriptTemplate
-                in sizeOf_VKeyWitnesses n - sizeOf_VKeyWitnesses 0
+                in sizeOf_VKeyWitnesses n
 
 txConstraints
     :: ProtocolParameters -> TxWitnessTag -> TxConstraints
@@ -1771,7 +1771,7 @@ estimateTxSize skeleton =
         + sizeOf_HistoricalPadding
       where
         -- Preserved out of caution during refactoring. We should be able to
-        -- drop this, but we may as well wait until we wave completely
+        -- drop this, but we may as well wait until we have completely
         -- water-proof testing of the size estimation, e.g:
         -- prop> forall baseTx update.
         --      sizeOf_Update x >=
