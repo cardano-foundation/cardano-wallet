@@ -37,8 +37,8 @@ import Cardano.Wallet.Write.Tx
     , RecentEraLedgerConstraints
     , ShelleyLedgerEra
     , StandardCrypto
+    , UTxO
     , fromCardanoTx
-    , fromCardanoUTxO
     , shelleyBasedEra
     , txBody
     , withConstraints
@@ -95,7 +95,7 @@ assignScriptRedeemers
     :: forall era. IsRecentEra era
     => PParams (ShelleyLedgerEra era)
     -> TimeTranslation
-    -> Cardano.UTxO era
+    -> UTxO (ShelleyLedgerEra era)
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era)
@@ -164,7 +164,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 Ledger.evalTxExUnits
                     pparams
                     ledgerTx
-                    (fromCardanoUTxO utxo)
+                    utxo
                     epochInformation
                     systemStart
         case res of

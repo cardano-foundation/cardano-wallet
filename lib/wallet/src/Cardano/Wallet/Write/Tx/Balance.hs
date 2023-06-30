@@ -776,6 +776,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
          unUTxO (Cardano.UTxO u) = u
 
+    combinedLedgerUTxO = fromCardanoUTxO combinedUTxO
+
     combinedUTxO :: Cardano.UTxO era
     combinedUTxO = Cardano.UTxO $ mconcat
          -- The @Cardano.UTxO@ can contain strictly more information than
@@ -808,7 +810,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
-                pp timeTranslation combinedUTxO redeemers tx'
+                pp timeTranslation combinedLedgerUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
