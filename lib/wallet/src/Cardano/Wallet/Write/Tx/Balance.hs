@@ -120,7 +120,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript )
+    ( toCardanoSimpleScript )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -381,6 +381,14 @@ fromWalletUTxO era (W.UTxO m) = withConstraints era $ UTxO
     $ Map.mapKeys W.toLedger
     $ Map.map (toLedgerTxOut era) m
 
+toWalletUTxO
+    :: RecentEra era
+    -> UTxO (ShelleyLedgerEra era)
+    -> W.UTxO
+toWalletUTxO era (UTxO m) = withConstraints era $ W.UTxO
+    $ Map.mapKeys W.toWallet
+    $ Map.map (toWalletTxOut era) m
+
 balanceTransaction
     :: forall era m changeState.
         ( MonadRandom m
@@ -528,7 +536,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
-    (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
+    (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
@@ -704,12 +712,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
         withConstraints era $ do
             let res = flip map txIns $ \i-> do
-                    case txinLookup i combinedLedgerUTxO of
+                    case txinLookup i combinedUTxO of
                         Nothing ->
                            Left i
                         Just o -> do
                             let i' = W.toWallet i
-                            let W.TxOut addr bundle = toWalletTxOut o
+                            let W.TxOut addr bundle = toWalletTxOut era o
                             pure (WalletUTxO i' addr, bundle)
 
             case partitionEithers res of
@@ -718,7 +726,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (unresolvedInsHead:unresolvedInsTail, _) ->
                     throwE
                     . ErrBalanceTxUnresolvedInputs
-                    . fmap W.toLedger
+                    . fmap W.toWallet
                     $ (unresolvedInsHead :| unresolvedInsTail)
       where
         txIns :: [TxIn]
@@ -779,9 +787,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Cardano.UTxO era
         -> ExceptT ErrBalanceTx m ()
     guardWalletUTxOConsistencyWith u' = do
-        let u = Map.mapKeys fromCardanoTxIn
-                . Map.map fromCardanoTxOut
-                $ (unUTxO u')
+        let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
@@ -790,8 +796,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         case conflicts of
             [] -> return ()
             (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-      where
-         unUTxO (Cardano.UTxO u) = u
 
     combinedUTxO :: UTxO (ShelleyLedgerEra era)
     combinedUTxO = withConstraints era $ mconcat
@@ -802,7 +806,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ fromCardanoUTxO inputUTxO
-         , cardanoUTxO
+         , walletLedgerUTxO
          ]
 
     extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
@@ -1181,17 +1185,13 @@ modifyShelleyTxBody txUpdate era = withConstraints era $
         (<> extraCollateral')
   where
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
-    extraOutputs' = StrictSeq.fromList $ map toLedgerTxOut extraOutputs
+    extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.fromList (W.toLedger . fst <$> extraInputs)
     extraCollateral' = Set.fromList $ W.toLedger <$> extraCollateral
 
     modifyFee old = case feeUpdate of
         UseNewTxFee c -> W.toLedger c
         UseOldTxFee -> old
-    toLedgerTxOut :: W.TxOut -> TxOut (ShelleyLedgerEra era)
-    toLedgerTxOut = case era of
-        RecentEraBabbage -> W.toBabbageTxOut
-        RecentEraConway -> W.toConwayTxOut
 
 --
 -- distributeSurplus
@@ -1410,3 +1410,20 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
     shortfall = costOfBurningSurplus `Coin.difference` surplus
+
+toLedgerTxOut
+    :: HasCallStack
+    => RecentEra era
+    -> W.TxOut
+    -> TxOut (ShelleyLedgerEra era)
+toLedgerTxOut txOutEra txOut =
+    case txOutEra of
+        RecentEraBabbage -> W.toBabbageTxOut txOut
+        RecentEraConway -> W.toConwayTxOut txOut
+
+toWalletTxOut
+    :: RecentEra era
+    -> TxOut (ShelleyLedgerEra era)
+    -> W.TxOut
+toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
+toWalletTxOut RecentEraConway = W.fromConwayTxOut
