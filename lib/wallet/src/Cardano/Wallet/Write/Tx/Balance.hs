@@ -76,7 +76,8 @@ import Cardano.BM.Tracing
 import Cardano.Ledger.Alonzo.Core
     ( ppCollateralPercentageL, ppMaxCollateralInputsL )
 import Cardano.Ledger.Api
-    ( collateralInputsTxBodyL
+    ( bodyTxL
+    , collateralInputsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
@@ -129,6 +130,7 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (..)
     , ShelleyLedgerEra
     , TxBody
+    , TxIn
     , TxOut
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
@@ -217,6 +219,8 @@ import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Core as Core
+import Cardano.Ledger.UTxO
+    ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -662,6 +666,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
+    era = recentEra @era
+
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
@@ -684,28 +690,29 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
-        let res = flip map txIns $ \(i, _) -> do
-                case Map.lookup i utxo of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = fromCardanoTxIn i
-                        let W.TxOut addr bundle = fromCardanoTxOut o
-                        pure (WalletUTxO i' addr, bundle)
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
+        withConstraints era $ do
+            let res = flip map txIns $ \i-> do
+                    case txinLookup i combinedLedgerUTxO of
+                        Nothing ->
+                           Left i
+                        Just o -> do
+                            let i' = W.toWallet i
+                            let W.TxOut addr bundle = toWalletTxOut o
+                            pure (WalletUTxO i' addr, bundle)
 
-        case partitionEithers res of
-            ([], resolved) ->
-                pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead:unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                . fmap fromCardanoTxIn
-                $ (unresolvedInsHead :| unresolvedInsTail)
+            case partitionEithers res of
+                ([], resolved) ->
+                    pure $ UTxOIndex.fromSequence resolved
+                (unresolvedInsHead:unresolvedInsTail, _) ->
+                    throwE
+                    . ErrBalanceTxUnresolvedInputs
+                    . fmap W.toLedger
+                    $ (unresolvedInsHead :| unresolvedInsTail)
       where
-        Cardano.UTxO utxo = combinedUTxO
-        Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
-            = tx
+        txIns :: [TxIn]
+        txIns = withConstraints (recentEra @era) $
+            Set.toList $ (fromCardanoTx tx) ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
@@ -728,8 +735,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
         = toCardanoValue @era
-        . evaluateTransactionBalance (recentEra @era) pp
-            (fromCardanoUTxO combinedUTxO)
+        . evaluateTransactionBalance (recentEra @era) pp combinedLedgerUTxO
         . txBody (recentEra @era)
         . fromCardanoTx
 
