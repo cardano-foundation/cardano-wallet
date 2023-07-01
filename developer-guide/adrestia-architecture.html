@@ -1,0 +1,378 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Adrestia Architecture - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/adrestia-architecture.html" class="active"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="adrestia-architecture"><a class="header" href="#adrestia-architecture">Adrestia Architecture</a></h1>
+<p>Adrestia is a collection of products which makes it easier to integrate with Cardano.</p>
+<p>It comes in different flavours: SDK or high-level APIs. Depending on the use-cases you have and the control that you seek, you may use any of the components below.</p>
+<h2 id="services"><a class="header" href="#services">Services</a></h2>
+<p>Service applications for integrating with Cardano.</p>
+<ul>
+<li><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a>: HTTP REST API for managing UTxOs, and much more.</li>
+<li><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a>: HTTP GraphQL API for exploring the blockchain.</li>
+<li><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a>: <a href="https://www.rosetta-api.org/docs/1.4.4/welcome.html">Rosetta</a> implementation for Cardano.</li>
+<li><a href="https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a>: HTTP API for submitting signed transactions.</li>
+</ul>
+<h2 id="software-libraries"><a class="header" href="#software-libraries">Software Libraries</a></h2>
+<ul>
+<li><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a>: Address generation, derivation &amp;  mnemonic manipulation.</li>
+<li><a href="https://github.com/input-output-hk/cardano-coin-selection">cardano-coin-selection</a>: Algorithms for coin selection and fee balancing.</li>
+<li><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a>: Utilities for constructing and signing transactions.</li>
+<li><a href="https://github.com/input-output-hk/bech32">bech32</a>: Haskell implementation of the Bech32 address format (BIP 0173).</li>
+</ul>
+<h2 id="high-level-dependency-diagram"><a class="header" href="#high-level-dependency-diagram">High-Level Dependency Diagram</a></h2>
+<pre class="mermaid">flowchart TB
+  cardano-submit-api --&gt; cardano-node;
+  cardano-wallet     --&gt; cardano-node;
+  cardano-db-sync    --&gt; cardano-node;
+
+  cardano-db-sync-- writes --&gt; PostgreSQL[(PostgreSQL)];
+  SMASH-- reads --&gt; PostgreSQL;
+  cardano-graphql-- reads --&gt; PostgreSQL;
+  cardano-rosetta-- reads --&gt; PostgreSQL;
+
+  cardano-explorer[cardano-explorer fab:fa-react] --&gt; cardano-graphql;
+
+  cardano-wallet --&gt; SMASH;
+  daedalus[Daedalus fab:fa-react] --&gt; cardano-wallet;
+
+  click cardano-submit-api mermaidClick;
+  click cardano-wallet mermaidClick;
+  click cardano-db-sync mermaidClick;
+  click SMASH mermaidClick;
+  click cardano-graphql mermaidClick;
+  click cardano-rosetta mermaidClick;
+  click cardano-explorer mermaidClick;
+  click PostgreSQL href &quot;https://postgresql.org&quot;;
+  click daedalus href &quot;https://github.com/input-output-hk/daedalus&quot;;
+
+  %% Styles for these classes are in static/adrestia.css.
+  class cardano-wallet,cardano-explorer,cardano-graphql,cardano-rosetta adrestia;
+  class cardano-node,cardano-submit-api,cardano-db-sync,SMASH cardano;
+  class daedalus daedalus;
+  class PostgreSQL other;
+</pre>
+<h2 id="component-synopsis"><a class="header" href="#component-synopsis">Component Synopsis</a></h2>
+<h3 id="cardano-node"><a class="header" href="#cardano-node"><a href="https://github.com/input-output-hk/cardano-node">cardano-node</a></a></h3>
+<p>The core <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.</p>
+<h4 id="cardano-network-protocol"><a class="header" href="#cardano-network-protocol">Cardano Network Protocol</a></h4>
+<p>An implementation of the protocol is <a href="https://github.com/input-output-hk/ouroboros-network">here</a>, deployed as stake pool nodes and relay nodes to form the Cardano network.</p>
+<h3 id="cardano-wallet"><a class="header" href="#cardano-wallet"><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></a></h3>
+<p><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> An HTTP REST API is recommended for 3rd party wallets and small exchanges who do not want to manage UTxOs for transactions themselves. Use it to send and receive payments from hierarchical deterministic wallets on the Cardano blockchain via HTTP REST or a command-line interface.</p>
+<h3 id="cardanolauncher"><a class="header" href="#cardanolauncher"><a href="https://github.com/input-output-hk/cardano-launcher">cardano‑launcher</a></a></h3>
+<p>This is a small Typescript package for NodeJS applications which manages the configuration and lifetime of <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a> processes.</p>
+<h3 id="cardano-db-sync"><a class="header" href="#cardano-db-sync"><a href="https://github.com/input-output-hk/cardano-db-sync">cardano-db-sync</a></a></h3>
+<p>This application stores blockchain data fetched from <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a> in a PostgreSQL database to enable higher-level interfaces for blockchain exploration. It powers <a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a>.</p>
+<h3 id="cardano-graphql"><a class="header" href="#cardano-graphql"><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a></a></h3>
+<p>A GraphQL API for Cardano, which also serves as the backend of
+<a href="https://explorer.cardano.org/">Cardano Explorer</a>.</p>
+<h3 id="cardano-submit-api"><a class="header" href="#cardano-submit-api"><a href="https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a></a></h3>
+<p>A small HTTP API for submitting transactions to a local <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a>.</p>
+<p>The transaction must be fully signed and CBOR-encoded. This could be done by <a href="https://docs.cardano.org/projects/cardano-node/en/latest/reference/cardano-node-cli-reference.html">cardano-cli</a>, for example.</p>
+<h3 id="cardano-rosetta"><a class="header" href="#cardano-rosetta"><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a></a></h3>
+<p><a href="https://github.com/input-output-hk/cardano-rosetta">Cardano-rosetta</a> is an implementation of the <a href="https://www.rosetta-api.org/docs/1.4.4/welcome.html">Rosetta</a> specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.</p>
+<h3 id="smash"><a class="header" href="#smash"><a href="https://github.com/input-output-hk/smash">SMASH</a></a></h3>
+<p>The Stakepool Metadata Aggregation Server [for Hashes] is basically a proxy of the metadata published by stake pool owners. It improves performance of the network by taking load off the various web servers which host the actual metadata.</p>
+<p>Clients such as <code>cardano-wallet</code> must verify the integrity of metadata served by a SMASH server by comparing the metadata's content hash with that in the stake pool registration certificate.</p>
+<h2 id="component-relationships-explorer-scenario"><a class="header" href="#component-relationships-explorer-scenario">Component Relationships: Explorer Scenario</a></h2>
+<pre class="mermaid">erDiagram
+  CARDANO-NODE ||--|{ CARDANO-SUBMIT-API : connects-to
+  CARDANO-NODE ||--|{ CARDANO-DB-SYNC : depends-on
+
+  CARDANO-DB-SYNC ||--|| POSTGRESQL : dumps-into
+  POSTGRESQL ||--|| SMASH : is-queried
+  POSTGRESQL ||--|| CARDANO-GRAPHQL : is-queried
+  POSTGRESQL ||--|| CARDANO-ROSETTA : is-queried
+
+  CARDANO-GRAPHQL ||--|{ EXPLORER : depends-on
+</pre>
+<h2 id="component-relationships-wallet-scenario"><a class="header" href="#component-relationships-wallet-scenario">Component Relationships: Wallet Scenario</a></h2>
+<pre class="mermaid">flowchart TB
+  subgraph local system
+    Daedalus -- calls --&gt; cardano-launcher;
+    cardano-launcher -. spawns .-&gt; cardano-wallet;
+    cardano-launcher -. spawns .-&gt; cardano-node;
+
+    %% by HTTP REST API
+    Daedalus -- queries --&gt; cardano-wallet;
+
+    %% Local socket/named pipe
+    cardano-wallet -- queries --&gt; cardano-node;
+  end
+
+
+  subgraph Internet
+    %% HTTP API
+    cardano-wallet -- queries --&gt; SMASH;
+
+    %% Network protocol
+    cardano-node -- syncs --&gt; blockchain;
+  end
+
+  class cardano-wallet adrestia;
+  class Daedalus,cardano-launcher daedalus;
+  class cardano-node,SMASH cardano;
+  class blockchain other;
+
+  click cardano-wallet mermaidClick;
+  click cardano-launcher mermaidClick;
+  click cardano-node mermaidClick;
+  click SMASH mermaidClick;
+  click Daedalus href &quot;https://github.com/input-output-hk/daedalus&quot;;
+  click blockchain call mermaidClick(&quot;cardano-network-protocol&quot;);
+</pre>
+<h2 id="components"><a class="header" href="#components">Components</a></h2>
+<h3 id="apis"><a class="header" href="#apis">APIs</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></td><td>JSON/REST API for managing UTxOs in HD wallets</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a></td><td>GraphQL/HTTP API for browsing on-chain data</td><td>✔</td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a></td><td>Implementation of <a href="https://www.rosetta-api.org/">Rosetta</a> spec for Cardano</td><td></td><td></td><td>✔</td><td>✔</td><td>🚧</td></tr>
+<tr><td><del><a href="https://github.com/input-output-hk/cardano-rest">cardano-rest</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>✔</td><td>❌</td><td>❌</td></tr>
+</tbody></table>
+</div>
+<h3 id="clis"><a class="header" href="#clis">CLIs</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/input-output-hk/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td>N/A</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></td><td>Command-line for interacting with cardano-wallet API</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><del><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+</tbody></table>
+</div>
+<h3 id="haskell-sdks"><a class="header" href="#haskell-sdks">Haskell SDKs</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/input-output-hk/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td></td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><del><a href="https://github.com/input-output-hk/cardano-coin-selection">cardano-coin-selection</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>✔</td><td>✔</td><td>❌</td><td>❌</td></tr>
+<tr><td><del><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+</tbody></table>
+</div>
+<h3 id="rust-sdks-webassembly-support"><a class="header" href="#rust-sdks-webassembly-support">Rust SDKs (+WebAssembly support)</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörmungandr</th><th>Shelley</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/Emurgo/cardano-serialization-lib">cardano-serialization-lib</a></td><td>Binary serialization of on-chain data types</td><td>N/A</td><td>N/A</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/Emurgo/react-native-haskell-shelley">react-native-haskell-shelley</a></td><td>React Native bindings for <a href="https://github.com/Emurgo/cardano-serialization-lib">cardano-serialization-lib</a></td><td>N/A</td><td>N/A</td><td>🚧</td></tr>
+</tbody></table>
+</div>
+<h3 id="javascript-sdks"><a class="header" href="#javascript-sdks">JavaScript SDKs</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/input-output-hk/cardano-launcher">cardano‑launcher</a></td><td>Typescript library for starting and stopping <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a></td><td></td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Address validation and inspection</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+</tbody></table>
+</div>
+<h3 id="formal-specifications"><a class="header" href="#formal-specifications">Formal Specifications</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/input-output-hk/utxo-wallet-specification">utxo-wallet-specification</a></td><td>Formal specification for a UTxO wallet</td></tr>
+</tbody></table>
+</div>
+<h3 id="internal"><a class="header" href="#internal">Internal</a></h3>
+<div id="admonition-warning" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+</div>
+<div>
+<p>These tools are used internally by other tools and
+does not benefit from the same care in documentation than other tools above.</p>
+</div>
+</div>
+<div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/input-output-hk/persistent">persistent</a></td><td>Fork of the persistent Haskell library maintained for cardano-wallet</td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../developer-guide/architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../developer-guide/building.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../developer-guide/architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../developer-guide/building.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
