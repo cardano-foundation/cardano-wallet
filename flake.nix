@@ -150,12 +150,10 @@
     };
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.1.1";
-    emanote.url = "github:srid/emanote";
-    ema.url = "github:srid/ema";
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
-              haskellNix, iohkNix, CHaP, customConfig, emanote, cardano-node-runtime,
+              haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
               ... }:
     let
       inherit (nixpkgs) lib;
@@ -320,7 +318,7 @@
 
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
-              nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq pkgs.mdbook pkgs.mdbook-mermaid pkgs.mdbook-admonish];
+              nativeBuildInputs = [ pkgs.mdbook pkgs.mdbook-mermaid pkgs.mdbook-admonish];
               # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
