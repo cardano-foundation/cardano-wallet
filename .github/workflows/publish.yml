@@ -55,18 +55,18 @@ jobs:
             Source commit: ${{ github.sha }}
 
       - name: "❄ Install dependencies"
-        run: "nix develop .#docs --command emanote --version"
+        run: "nix develop .#docs --command mdbook --version"
 
       - name: "📸 Build Documentation"
         run: |
           build_dir="$PUBLISH_DIR"
-          if [ -n "$PR_NUMBER" ]; then
-            build_dir="$build_dir/_pr/$PR_NUMBER"
-            nix develop .#docs -c yq --in-place -y '.template.baseUrl|=.+"_pr/\(env.PR_NUMBER)/"' docs/.deploy/github/index.yaml
-          fi
+          # if [ -n "$PR_NUMBER" ]; then
+          #   build_dir="$build_dir/_pr/$PR_NUMBER"
+          #   nix develop .#docs -c yq --in-place -y '.template.baseUrl|=.+"_pr/\(env.PR_NUMBER)/"' docs/.deploy/github/index.yaml
+          # fi
 
           mkdir -p "$build_dir"
-          nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$build_dir"
+          nix develop .#docs -c mdbook build -d "$build_dir" "docs/site"
           ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
 
       - name: "📘 Publish"
@@ -77,6 +77,6 @@ jobs:
           enable_jekyll: false
           publish_dir: ${{ env.PUBLISH_DIR }}
           keep_files: true
-          user_name: "William King Noel Bot"
-          user_email: "adrestia@iohk.io"
+          user_name: "Cardano Wallet Documentation Bot"
+          user_email: "adrestia@cardano-foundation.io"
           full_commit_message: ${{ steps.versions.outputs.commit_message }}

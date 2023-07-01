@@ -1,0 +1,510 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Logging Guidelines - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/logging-guidelines.html" class="active"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="logging-guidelines"><a class="header" href="#logging-guidelines">Logging Guidelines</a></h1>
+<p>Logs are primarily for <em>users</em> of the cardano-wallet, not its
+developers. Such users could be:</p>
+<ul>
+<li>Engineers who will be running the cardano-wallet in production.</li>
+<li>Developers integrating cardano-wallet into their own software.</li>
+<li>Technical support staff who need to help solve end users' problems.</li>
+</ul>
+<p>Users of logging will have a reasonable understanding of how the
+cardano-wallet works, but won't be familiar with the code. They need
+enough information to be able scan the logs and see if the application
+is running normally, or if they need to do some action to fix their
+problem.</p>
+<h2 id="logging-levels"><a class="header" href="#logging-levels">Logging levels</a></h2>
+<p>The <a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> defines a number of <a href="https://github.com/input-output-hk/iohk-monitoring-framework/blob/b0ea8317ba5a887d46969e9b3040862a10e6efb3/iohk-monitoring/src/Cardano/BM/Data/Severity.lhs#L33-L44">severity levels</a>:</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Severity Level</strong></th><th><strong>Meaning</strong></th></tr></thead><tbody>
+<tr><td>Debug</td><td>detailed information about values and decision flow</td></tr>
+<tr><td>Info</td><td>general information of events; progressing properly</td></tr>
+<tr><td>Notice</td><td>needs attention; something not progressing properly</td></tr>
+<tr><td>Warning</td><td>may continue into an error condition if continued</td></tr>
+<tr><td>Error</td><td>unexpected set of event or condition occurred</td></tr>
+<tr><td>Critical</td><td>error condition causing degrade of operation</td></tr>
+<tr><td>Alert</td><td>a subsystem is no longer operating correctly, likely requires manual intervention</td></tr>
+<tr><td>Emergency</td><td>at this point, the system can never progress without additional intervention</td></tr>
+</tbody></table>
+</div>
+<p>This design was influenced by the <a href="https://en.wikipedia.org/wiki/Syslog#Severity_level"><code>syslog</code> severity
+level</a> taxonomy.</p>
+<p>These are probably more than we need. To keep things simple, we
+usually only log with the first 5:</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Severity Level</strong></th><th><strong>Meaning</strong></th></tr></thead><tbody>
+<tr><td>Debug</td><td>Messages that contain information normally of use only when debugging a program.</td></tr>
+<tr><td>Info</td><td>Informational messages.</td></tr>
+<tr><td>Notice</td><td>Normal but significant conditions.</td></tr>
+<tr><td>Warning</td><td>A situation that may become an error.</td></tr>
+<tr><td>Error</td><td>Unexpected problem.</td></tr>
+</tbody></table>
+</div>
+<h3 id="debug"><a class="header" href="#debug">Debug</a></h3>
+<p>Debug logging will not be enabled by default in production. Therefore,
+you should not log information directly relevant to production
+operations at this level.</p>
+<p>However, the technical support desk may request users enable debug
+logging for certain components to get more detail while trying to
+diagnose problems in the field.</p>
+<p>Such logging might contain:</p>
+<ul>
+<li>Information about which program decisions were made and why.</li>
+</ul>
+<p>Don't debug log too much rubbish because somebody will need to read
+it. Don't log so much data that the program will malfunction if debug
+logging has been enabled.</p>
+<p>It is useful to have debug logging of about how the wallet
+interacts with other systems. Examples of such logs:</p>
+<ul>
+<li>Network requests made to node backend.</li>
+<li>SQL query logs -- log the queries but not the values.</li>
+</ul>
+<p>Note from Alexander Diemand:</p>
+<blockquote>
+<p>Another feature that might help reduce logging volume:
+monitoring can watch an observable and compare it to a set
+threshold. Once this is exceeded it can create an action: i.e. an
+alert message or change the severity filter of a named context or
+globally. So one would start up the node with logging filter set to
+&quot;Warning&quot; and only change it to &quot;Info&quot; when some monitored observable
+has exceeded its threshold</p>
+<p>For an exchange that runs the node for ages: another monitor could
+also restore the severity filter to e.g. &quot;Warning&quot; if the observed
+values return into a normal behaviour range of values.</p>
+</blockquote>
+<h3 id="info"><a class="header" href="#info">Info</a></h3>
+<p>Normal activity within the application. We do need to ensure that INFO
+logs are pertinent, and there are not pages and pages of logs per
+slot.</p>
+<p>Examples:</p>
+<ul>
+<li>HTTP requests</li>
+<li>Wallet-related events
+<ul>
+<li>A block was applied</li>
+<li>New wallet was created</li>
+<li>Wallet restoration status</li>
+<li>Payment was sent</li>
+<li>Payment was received</li>
+</ul>
+</li>
+<li>Network-related events
+<ul>
+<li>Sync state</li>
+</ul>
+</li>
+<li>Information about the configuration, such as config file location,
+or how the wallet was started.</li>
+</ul>
+<h3 id="notice"><a class="header" href="#notice">Notice</a></h3>
+<p>These are occasional messages about significant events for the program.</p>
+<p>Examples:</p>
+<ul>
+<li>The start up message, including the application version.</li>
+<li>What TCP port the API server is listening on.</li>
+<li>Normal shut down.</li>
+<li>Creating a new database file or migrating data.</li>
+</ul>
+<h3 id="warning"><a class="header" href="#warning">Warning</a></h3>
+<p>A warning situation could lead to a future error, or other undesirable
+behaviour. The user should be able to do something to make the warning
+go away.</p>
+<p>Examples:</p>
+<ul>
+<li>NTP drift?</li>
+<li>Low disk space?</li>
+</ul>
+<h3 id="error"><a class="header" href="#error">Error</a></h3>
+<p>This is a serious system problem.
+It should not happen under normal circumstances.
+Some action is required to rectify the situation.
+The wallet might well exit after logging an error message.</p>
+<p>Examples:</p>
+<ul>
+<li>Unexpected error communicating with node backend.</li>
+<li>IO error writing database or other state.</li>
+<li>Bad user input which means that the action cannot complete.</li>
+<li>Unhandled exception.</li>
+</ul>
+<h2 id="mapping-of-log-levels-to-appearance"><a class="header" href="#mapping-of-log-levels-to-appearance">Mapping of log levels to appearance</a></h2>
+<h3 id="cli-tools"><a class="header" href="#cli-tools">CLI tools</a></h3>
+<p>Logging from the CLI should not be cluttered with timestamps and other
+metadata. It should just look like a normal print statements in a
+program. Nonetheless, using the logging framework for CLI output helps
+because error messages can be automatically coloured.</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Severity</strong></th><th><strong>Format</strong></th></tr></thead><tbody>
+<tr><td>Debug</td><td>Hidden unless enabled by the user</td></tr>
+<tr><td>Info</td><td>Printed normally on <code>stdout</code></td></tr>
+<tr><td>Notice</td><td>Printed in bold on <code>stdout</code></td></tr>
+<tr><td>Warning</td><td>Printed in bold colour on <code>stderr</code> prefixed by <code>Warning: </code></td></tr>
+<tr><td>Error</td><td>Printed in bold red on <code>stderr</code> prefixed by <code>ERROR: </code></td></tr>
+</tbody></table>
+</div>
+<h3 id="server"><a class="header" href="#server">Server</a></h3>
+<div class="table-wrapper"><table><thead><tr><th><strong>Severity</strong></th><th><strong>Format</strong></th></tr></thead><tbody>
+<tr><td>Debug</td><td>Hidden unless enabled by the user</td></tr>
+<tr><td>The rest</td><td>As per defaults for <a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a></td></tr>
+</tbody></table>
+</div>
+<p>The server will support also support a log config file where the
+output location and format can be fully customised.</p>
+<h3 id="colour"><a class="header" href="#colour">Colour</a></h3>
+<p>If the log output file is not a terminal, do not output ANSI colour
+codes. These escape codes make it difficult to analyse log files.</p>
+<h3 id="json"><a class="header" href="#json">JSON</a></h3>
+<p>JSON (one object per line) is an OK format for log files, but it's
+pretty bad for printing the terminal. For example, consider how
+difficult it would be to read through JSON messages within <code>journalctl -u cardano-wallet.service</code>. Therefore, log messages to
+<code>stdout</code>/<code>stderr</code> should be formatted as text, unless otherwise
+configured by the user.</p>
+<h2 id="context"><a class="header" href="#context">Context</a></h2>
+<p>Some context may be applicable to log events:</p>
+<ul>
+<li>Current slot number.</li>
+<li>Wallet ID.</li>
+<li>A request ID for the API, so that requests, their handlers, and
+responses can be cross-referenced.</li>
+</ul>
+<h3 id="logging-hierarchy"><a class="header" href="#logging-hierarchy">Logging Hierarchy</a></h3>
+<p>Log <em>Traces</em> can have context added such as a new name. Different
+subsystems of the wallet (such as network, database, api) should use
+<code>appendName</code> to create subtraces.</p>
+<h2 id="observables"><a class="header" href="#observables">Observables</a></h2>
+<p>The following are examples of things which should be easy and useful
+to log as micro-benchmarks (<code>bracketObserveIO</code>).</p>
+<ul>
+<li>Time taken for API to respond to request.</li>
+<li>Time taken to execute SQL query.</li>
+<li>Time taken for node backend to respond to request.</li>
+</ul>
+<h2 id="privacy"><a class="header" href="#privacy">Privacy</a></h2>
+<p><a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> provides &quot;sensitive&quot; variants of log
+functions (e.g. <code>logInfoS</code>). These allow sensitive information to be
+logged into separate files. Then users may send their logs to the
+technical support desk with a reasonable assurance of privacy.</p>
+<p><strong>Note</strong>: The privacy guidelines are under discussion. We are
+considering making it simpler and only having two classifications:
+&quot;Log&quot; or &quot;Do Not Log&quot;.</p>
+<h3 id="public-information"><a class="header" href="#public-information">Public information</a></h3>
+<ul>
+<li>Wallet ID.</li>
+<li>Dates and times that events occurred.</li>
+<li>Total number of addresses/transactions/UTxOs/etc.</li>
+<li>IP addresses of other nodes that network nodes are communicating
+with.</li>
+</ul>
+<h3 id="private-information"><a class="header" href="#private-information">Private information</a></h3>
+<ul>
+<li>Transaction ID.</li>
+<li>Address.</li>
+<li>Public key material.</li>
+<li>Quantities of Ada.</li>
+</ul>
+<h3 id="unknown"><a class="header" href="#unknown">Unknown</a></h3>
+<p>Undecided about which category these fall into.</p>
+<ul>
+<li>Wallet name</li>
+</ul>
+<h3 id="never-log"><a class="header" href="#never-log">Never log</a></h3>
+<p>This information should <em>never</em> be included in log messages (including
+DEBUG messages):</p>
+<ul>
+<li>Private key material.</li>
+<li>Mnemonic sentences.</li>
+<li>Passphrases.</li>
+<li>The values used or returned by SQL queries.</li>
+<li>Raw data sent to or received from the network backend.</li>
+<li>Raw, un-filtered API request or response bodies.</li>
+</ul>
+<h2 id="increasing-logging-detail"><a class="header" href="#increasing-logging-detail">Increasing logging detail</a></h2>
+<p><a href="https://github.com/input-output-hk/iohk-monitoring-framework">iohk-monitoring-framework</a> provides a facility for adjusting log
+levels at runtime on a component by component basis.</p>
+<p>However it's probably OK for now to change log levels by restarting
+cardano-wallet with different command-line options.</p>
+<h2 id="structured-logging-tutorial"><a class="header" href="#structured-logging-tutorial">Structured logging tutorial</a></h2>
+<p>Rather than logging unstructured text, define a type for log messages
+of a module.</p>
+<pre><code class="language-haskell">data FooMsg
+    = LogFooInit
+    | LogFooError FooError
+    | LogFooIncomingEvent Int
+    deriving (Show, Eq)
+</code></pre>
+<p>Then for human-readable logs use our <code>ToText</code> class.</p>
+<pre><code class="language-haskell">import Data.Text.Class
+    ( ToText (..) )
+
+instance ToText FooMsg where
+    toText msg = case msg of
+        LogFooInit -&gt; &quot;The foo has started&quot;
+        LogFooError e -&gt; &quot;foo error: &quot; &lt;&gt; T.pack (show e)
+        LogFooIncomingEvent -&gt; &quot;Incoming foo event &quot; &lt;&gt;  T.pack (show e)
+</code></pre>
+<p>Finally, define the metadata which the switchboard needs to route
+these traces.</p>
+<pre><code class="language-haskell">import Cardano.BM.Data.LogItem
+    ( LoggerName, PrivacyAnnotation (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+
+-- Everything is public by default
+instance DefinePrivacyAnnotation FooMsg
+
+instance DefineSeverity FooMsg
+    defineSeverity msg = case msg of
+        LogFooInit -&gt; Debug
+        LogFooError _ -&gt; Error
+        LogFooIncomingEvent -&gt; Info
+</code></pre>
+<p>To use the logging in the <code>doFoo</code> function:</p>
+<pre><code class="language-haskell">import Cardano.BM.Trace
+    ( Trace )
+import Cardano.Wallet.Logging
+    ( logTrace )
+
+doFoo :: Trace IO FooMsg -&gt; IO ()
+doFoo tr = do
+    logTrace tr LogFooInit
+    onFooEvent $ \ev -&gt; case ev of
+       Right n -&gt; logTrace tr $ LogFooIncomingEvent n
+       Left e -&gt; logTrace tr $ LogFooError e
+</code></pre>
+<p>To convert to <code>Trace m FooMsg</code> to <code>Trace m Text</code> (well actually - the
+other way around), use <code>Cardano.Wallet.Logging.transformTextTrace</code>,
+like so:</p>
+<pre><code class="language-haskell">import Control.Tracer
+    ( contramap )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
+import Foo (doFoo)
+
+mainApp :: Trace IO Text -&gt; IO ()
+mainApp tr = doFoo (transformTextTrace tr)
+</code></pre>
+<p>To convert a <code>Trace m FooMsg</code> to anything else, use <code>contramap</code>.</p>
+<pre><code class="language-haskell">data AppMsg
+    = FooMsg FooMsg
+    | BarMsg BarMsg
+    | TextMsg Text
+
+mainApp :: Trace IO AppMsg -&gt; IO ()
+mainApp tr = doFoo (contramap (fmap FooMsg) tr)
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../contributing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../contributing/notes-from-upgrading-ghc-version.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../contributing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../contributing/notes-from-upgrading-ghc-version.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

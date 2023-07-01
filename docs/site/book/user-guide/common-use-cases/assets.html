@@ -1,0 +1,567 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Handle assets - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/assets.html" class="active"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="assets"><a class="header" href="#assets">Assets</a></h1>
+<h2 id="pre-requisites"><a class="header" href="#pre-requisites">Pre-requisites</a></h2>
+<ul>
+<li><a href="start-wallet-server.html">how to start a server</a></li>
+<li><a href="create-a-wallet.html">how to create a wallet</a></li>
+<li>In order to be able to send transactions, our wallet must have funds. In case of <code>preview</code> and <code>preprod</code> <a href="https://testnets.cardano.org/en/testnets/cardano/overview/">testnets</a> we can request tADA from the <a href="https://testnets.cardano.org/en/testnets/cardano/tools/faucet/">faucet</a>.</li>
+</ul>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The Cardano Blockchain features a unique ability to create (mint), interact (send and receive) and destroy (burn) custom tokens (or so-called 'assets') in a native way. Native, in this case, means besides sending and receiving the official currency ada, you can also interact with custom assets out of the box - without the need for smart contracts.</p>
+<div id="admonition-info" class="admonition info">
+<div class="admonition-title">
+<p>Info</p>
+<p><a class="admonition-anchor-link" href="#admonition-info"></a></p>
+</div>
+<div>
+<p><a href="https://developers.cardano.org/docs/native-tokens/">Native tokens</a></p>
+</div>
+</div>
+<div id="admonition-success" class="admonition success">
+<div class="admonition-title">
+<p>Success</p>
+<p><a class="admonition-anchor-link" href="#admonition-success"></a></p>
+</div>
+<div>
+<p>Sending and receiving native assets is supported for all wallet types in <code>cardano-wallet</code></p>
+</div>
+</div>
+<h2 id="assets-on-wallet-balance"><a class="header" href="#assets-on-wallet-balance">Assets on wallet balance</a></h2>
+<p>You can easily check what assets you have on your wallet balance. Just look for <code>assets</code> in the response of <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getWallet">GET /wallets/{walletId}</a>.</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d | jq .assets
+
+{
+  &quot;total&quot;: [
+    {
+      &quot;asset_name&quot;: &quot;45524358&quot;,
+      &quot;quantity&quot;: 1777134804,
+      &quot;policy_id&quot;: &quot;36e93afe19e46227069520040012411e17839f219b549b7f5ac83b68&quot;
+    },
+    {
+      &quot;asset_name&quot;: &quot;4d494c4b5348414b4530&quot;,
+      &quot;quantity&quot;: 1,
+      &quot;policy_id&quot;: &quot;dd043a63daf194065ca8c8f041337d8e75a08d8f6c469ddc1743d2f3&quot;
+    }
+  ],
+  &quot;available&quot;: [
+    {
+      &quot;asset_name&quot;: &quot;45524358&quot;,
+      &quot;quantity&quot;: 1777134804,
+      &quot;policy_id&quot;: &quot;36e93afe19e46227069520040012411e17839f219b549b7f5ac83b68&quot;
+    },
+    {
+      &quot;asset_name&quot;: &quot;4d494c4b5348414b4530&quot;,
+      &quot;quantity&quot;: 1,
+      &quot;policy_id&quot;: &quot;dd043a63daf194065ca8c8f041337d8e75a08d8f6c469ddc1743d2f3&quot;
+    }
+  ]
+}
+
+</code></pre>
+<h2 id="listing-assets"><a class="header" href="#listing-assets">Listing assets</a></h2>
+<p>You can also list assets that were ever associated with the wallet.</p>
+<ul>
+<li>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listAssets">GET /wallets/{walletId}/assets</a> - list all</p>
+</li>
+<li>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAssetDefault">GET /wallets/{walletId}/assets/{policyId}</a> - get particular asset details by its <code>policy_id</code></p>
+</li>
+<li>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAsset">GET /wallets/{walletId}/assets/{policyId}/{assetName}</a> - get particular asset details by <code>policy_id</code> and <code>asset_name</code></p>
+</li>
+</ul>
+<h2 id="assets-off-chain-metadata"><a class="header" href="#assets-off-chain-metadata">Assets off-chain metadata</a></h2>
+<p>Issuers of native assets may submit off-chain metadata relating to those assets to the <strong>Cardano Token Registry</strong>. There are separate instances of the token registry for <code>mainnet</code> and for each test network (e.g. <code>preview</code> or <code>preprod</code> ). Metadata submitted to the registry will be then served via the corresponding server.</p>
+<div class="table-wrapper"><table><thead><tr><th></th><th>Mainnet</th><th>Testnets</th></tr></thead><tbody>
+<tr><td><strong>Repository</strong></td><td>https://github.com/cardano-foundation/cardano-token-registry</td><td>https://github.com/input-output-hk/metadata-registry-testnet</td></tr>
+<tr><td><strong>Server</strong></td><td>https://tokens.cardano.org</td><td>https://metadata.cardano-testnet.iohkdev.io</td></tr>
+</tbody></table>
+</div><div id="admonition-info-1" class="admonition info">
+<div class="admonition-title">
+<p>Info</p>
+<p><a class="admonition-anchor-link" href="#admonition-info-1"></a></p>
+</div>
+<div>
+<p><a href="https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry">Cardano Token Registry</a>, <a href="https://cips.cardano.org/cips/cip26">CIP26</a>.</p>
+</div>
+</div>
+Cardano-wallet is capable of reading that metadata and serving it when listing assets. All you have to do is to start the wallet with the `--token-metadata-server` option, specifying an off-chain metadata server that corresponds to your network.
+<p>For example on <code>preview</code> or <code>preprod</code> that would be:</p>
+<pre><code class="language-bash">&gt; cardano-wallet serve --port 8090 \
+  --node-socket /path/to/node.socket \
+  --testnet byron-genesis.json \
+  --database ./wallet-db \
+  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/
+</code></pre>
+<p>Then, if you list assets associated with your wallet you will get their available metadata.</p>
+<p>For instance:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/1f82e83772b7579fc0854bd13db6a9cce21ccd95/assets/919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149/4861707079436f696e
+
+{
+  &quot;fingerprint&quot;: &quot;asset1v96rhc76ke22mx8sulm4v3qhdcmtym7f4m66z2&quot;,
+  &quot;asset_name&quot;: &quot;4861707079436f696e&quot;,
+  &quot;policy_id&quot;: &quot;919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149&quot;,
+  &quot;metadata&quot;: {
+    &quot;url&quot;: &quot;https://happy.io&quot;,
+    &quot;name&quot;: &quot;HappyCoin&quot;,
+    &quot;decimals&quot;: 6,
+    &quot;ticker&quot;: &quot;HAPP&quot;,
+    &quot;description&quot;: &quot;Coin with asset name - and everyone is happy!!!&quot;
+  }
+}
+</code></pre>
+<h2 id="minting-and-burning-assets"><a class="header" href="#minting-and-burning-assets">Minting and burning assets</a></h2>
+<div id="admonition-info-2" class="admonition info">
+<div class="admonition-title">
+<p>Info</p>
+<p><a class="admonition-anchor-link" href="#admonition-info-2"></a></p>
+</div>
+<div>
+<p>Minting and burning assets is also available using <code>cardano-cli</code> . See more in https://developers.cardano.org/docs/native-tokens/minting.</p>
+</div>
+</div>
+<p>Minting and burning of assets is available in the <code>cardano-wallet</code> in new transaction workflow. One can use wallet's key to mint any tokens that are guarded by native policy script. In practice it is just as simple as constructing a transaction that has a <code>mint_burn</code> field, then signing and submitting it to the network.</p>
+<div id="admonition-info-3" class="admonition info">
+<div class="admonition-title">
+<p>Info</p>
+<p><a class="admonition-anchor-link" href="#admonition-info-3"></a></p>
+</div>
+<div>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructTransaction">API to construct transactions</a></p>
+</div>
+</div>
+<p>As an <strong>example</strong> on how to mint and burn assets we will try to mint (and then burn) an NFT with <a href="https://cips.cardano.org/cips/cip25/">CIP-25</a> metadata using <code>cardano-wallet</code> .</p>
+<p>Please note that you would mint and burn other assets pretty much the same way. In our example we will be additionally adding on-chain metadata to our minting transaction as we want our NFT to be CIP-25 compliant. However this step is not required for minting. For instance, you could mint some assets and add off-chain metadata for them (<a href="https://cips.cardano.org/cips/cip26">CIP26</a>) in the <a href="https://developers.cardano.org/docs/native-tokens/token-registry/cardano-token-registry">Cardano Token Registry</a>.</p>
+<h3 id="minting-an-nft"><a class="header" href="#minting-an-nft">Minting an NFT</a></h3>
+<p>Let's see how can we mint an NFT with <a href="https://cips.cardano.org/cips/cip25/">CIP-25</a> metadata using <code>cardano-wallet</code> .</p>
+<h4 id="policy-key"><a class="header" href="#policy-key">Policy key</a></h4>
+<p>Before we attempt any minting/burning transaction we need to make sure our wallet is set up with a policy key. We can check it using <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getPolicyKey"> <code>GET /wallets/{walletId}/policy-key</code> </a>:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key
+&quot;policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0&quot;
+</code></pre>
+<p>Looks good.
+Otherwise we get <code>missing_policy_public_key</code> error:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key
+{
+  &quot;code&quot;: &quot;missing_policy_public_key&quot;,
+  &quot;message&quot;: &quot;It seems the wallet lacks a policy public key. Therefore it's not possible to create a minting/burning transaction or get a policy id. Please first POST to endpoint /wallets/{walletId}/policy-key to set a policy key.&quot;
+}
+
+</code></pre>
+<p>In such a case we just need to make a <code>POST</code> request to <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postPolicyKey"> <code>POST /wallets/{walletId}/policy-key</code> </a> as suggested in the error message.</p>
+<pre><code>&gt; curl -X POST http://localhost:8091/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-key \
+-d '{&quot;passphrase&quot;:&quot;Secure Passphrase&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+
+&quot;policy_vk12d0gdel9u6px8wf3uv4z6m4h447n9qsad24gztaku8dzzdqfajzqfm3rr0&quot;
+</code></pre>
+<p>Once we have finished, we can proceed to minting NFTs from our wallet!</p>
+<h4 id="cip-25-metadata"><a class="header" href="#cip-25-metadata">CIP-25 metadata</a></h4>
+<p>We will be attaching CIP-25 metadata to our minting transaction, so there are few things that need to be sorted out. Most basic metadata can look as follows:</p>
+<pre><code>{
+      &quot;721&quot;: {
+        &quot;&lt;POLICY_ID&gt;&quot;: {
+          &quot;&lt;ASSET_NAME&gt;&quot;: {
+            &quot;name&quot;: &quot;My amazing NFT&quot;,
+            &quot;image&quot;: &quot;ipfs://&lt;IPFS_ID&gt;&quot;
+          }
+        }
+      }
+}
+</code></pre>
+<p>As we can see we need to figure out <code>&lt;POLICY_ID&gt;</code> , <code>&lt;ASSET_NAME&gt;</code> and <code>&lt;IPFS_ID&gt;</code> .</p>
+<h5 id="policy-id"><a class="header" href="#policy-id">Policy ID</a></h5>
+<p>Policy id is basically a hash of the native script that guards minting operation. In case of Shelley wallets we can only sign with one key, a wallet policy key, but because of the fact that we can embed it into a native script we can practically have unlimited amount of policy ids from one wallet.
+These are examples of native scripts templates and each of them will produce different policy id.</p>
+<pre><code>cosigner#0
+
+{ &quot;all&quot;: [ &quot;cosigner#0&quot; ] }
+
+{ &quot;any&quot;: [ &quot;cosigner#0&quot; ] }
+
+{ &quot;some&quot;: {&quot;at_least&quot;: 1, &quot;from&quot;: [ &quot;cosigner#0&quot; ]} }
+
+{ &quot;all&quot;:
+     [ &quot;cosigner#0&quot;,
+       { &quot;active_from&quot;: 120 }
+     ]
+}
+
+{ &quot;all&quot;:
+     [ &quot;cosigner#0&quot;,
+       { &quot;active_until&quot;: 1200000 }
+     ]
+}
+</code></pre>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p><code>cosigner#0</code> stands for our wallet's policy key. In case of Shelley wallet we have only one. In the future, in the Shared wallets, we'll be able to construct a minting/burning script with many policy keys shared between different users and they will be identified as <code>cosigner#1</code> , <code>cosigner#2</code> ...</p>
+</div>
+</div>
+<p>Let's create most basic policy id using <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postPolicyId"> <code>POST /wallets/{walletId}/policy-id</code> </a> endpoint:</p>
+<pre><code>curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/policy-id \
+-d '{&quot;policy_script_template&quot;:&quot;cosigner#0&quot;}' \
+-H &quot;Content-Type: application/json&quot; | jq
+
+{
+  &quot;policy_id&quot;: &quot;6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390&quot;
+}
+</code></pre>
+<h5 id="asset-name"><a class="header" href="#asset-name">Asset name</a></h5>
+<p>The asset name acts as a sub-identifier within a given policy. Although we call it &quot;asset name&quot;, the value needn't be text, and it could even be empty. In case of CIP-25 however we can use a plain text. Let our asset name be... <code>AmazingNFT</code> .</p>
+<h5 id="ipfs-id"><a class="header" href="#ipfs-id">IPFS id</a></h5>
+<p>Let's assume that our NFT will point to a simple image, which we have already uploaded to IPFS. It is available at: https://ipfs.io/ipfs/QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw. As we can see the IPFS id of the image is <code>QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw</code> .</p>
+<p>Now we can put together complete CIP-25 metadata JSON which we will use in the minting transaction:</p>
+<pre><code>{
+      &quot;721&quot;: {
+        &quot;6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390&quot;: {
+          &quot;AmazingNFT&quot;: {
+            &quot;name&quot;: &quot;My amazing NFT&quot;,
+            &quot;image&quot;: &quot;ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw&quot;
+          }
+        }
+      }
+}
+</code></pre>
+<h4 id="minting-transaction"><a class="header" href="#minting-transaction">Minting transaction</a></h4>
+<p>We have already:</p>
+<ul>
+<li>verified that our wallet is equipped with policy key</li>
+<li>created CIP-25 metadata JSON.</li>
+</ul>
+<p>We are now ready to mint!</p>
+<p>We will <strong>construct</strong>  transaction that mints 1 <code>AmazingNFT</code> with policy id derived from simple native script template = <code>cosigner#0</code> and post the related CIP-25 metadata to blockchain.</p>
+<p>Note that the wallet expects asset name to be hex-encoded string so let's hex encode our <code>AmazingNFT</code> first:</p>
+<pre><code>&gt; echo -n &quot;AmazingNFT&quot; | xxd -p
+416d617a696e674e4654
+</code></pre>
+<p>Let's now <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructTransaction"> <code>POST /wallets/{walletId}/transactions-construct</code> </a>:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/transactions-construct \
+-d '{
+   &quot;metadata&quot;:{
+      &quot;721&quot;:{
+         &quot;6d5052088183db1ef06439a9f501b52721c2645532a50254a69d5390&quot;:{
+            &quot;AmazingNFT&quot;:{
+               &quot;name&quot;:&quot;My amazing NFT&quot;,
+               &quot;image&quot;:&quot;ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw&quot;
+            }
+         }
+      }
+   },
+   &quot;mint_burn&quot;:[
+      {
+         &quot;operation&quot;:{
+            &quot;mint&quot;:{
+               &quot;quantity&quot;:1
+            }
+         },
+         &quot;policy_script_template&quot;:&quot;cosigner#0&quot;,
+         &quot;asset_name&quot;:&quot;416d617a696e674e4654&quot;
+      }
+   ]
+}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>That's it! I should now receive CBOR-encoded <code>transaction</code> , <code>fee</code> and <code>coin_selection</code> details in response.
+I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in
+<a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a>.
+After the transaction has been submitted, your freshly-minted NFT should appear in your wallet balance!</p>
+<h3 id="burning-an-nft"><a class="header" href="#burning-an-nft">Burning an NFT</a></h3>
+<p>Let's now burn our NFT. We have it already in our wallet balance and our wallet's policy key is &quot;guarding&quot; that asset so it shouldn't be any problem.</p>
+<p>We can easily <strong>construct</strong> burning transaction with <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructTransaction"> <code>POST /wallets/{walletId}/transactions-construct</code> </a>:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/transactions-construct \
+-d '{
+   &quot;mint_burn&quot;:[
+      {
+         &quot;operation&quot;:{
+            &quot;burn&quot;:{
+               &quot;quantity&quot;:1
+            }
+         },
+         &quot;policy_script_template&quot;:&quot;cosigner#0&quot;,
+         &quot;asset_name&quot;:&quot;416d617a696e674e4654&quot;
+      }
+   ]
+}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>That's it. I can now <strong>sign</strong> and <strong>submit</strong> such transaction just like in
+<a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a> and as a result my NFT will just disappear.</p>
+<h2 id="sending-assets-in-a-transaction"><a class="header" href="#sending-assets-in-a-transaction">Sending assets in a transaction</a></h2>
+<p>Once you have some assets on your wallet balance you can send it in a transaction.</p>
+<p>For example, I'd like to send 1.5₳ and 15 <code>HappyCoins</code> to three different addresses in a single transaction.</p>
+<p>First I need to <strong>construct</strong> it as follows:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/2269611a3c10b219b0d38d74b004c298b76d16a9/transactions-construct \
+-d '{
+   &quot;payments&quot;:[
+      {
+         &quot;address&quot;:&quot;addr_test1qqd2rhj0956q9xv8cevczvrvwg405agz7fzz0m2n87xhjvhxskq78v86w3zv9zc588rrp43sl2cusftxqkv3hzc0xs2sze9fu4&quot;,
+         &quot;amount&quot;:{
+            &quot;quantity&quot;:1500000,
+            &quot;unit&quot;:&quot;lovelace&quot;
+         },
+         &quot;assets&quot;:[
+            {
+               &quot;policy_id&quot;:&quot;919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149&quot;,
+               &quot;asset_name&quot;:&quot;4861707079436f696e&quot;,
+               &quot;quantity&quot;:15
+            }
+         ]
+      },
+      {
+         &quot;address&quot;:&quot;addr_test1qqf90safefvsafmacrtu899vwg6nde3m8afeadtk8cp7qw8xskq78v86w3zv9zc588rrp43sl2cusftxqkv3hzc0xs2sekar6k&quot;,
+         &quot;amount&quot;:{
+            &quot;quantity&quot;:1500000,
+            &quot;unit&quot;:&quot;lovelace&quot;
+         },
+         &quot;assets&quot;:[
+            {
+               &quot;policy_id&quot;:&quot;919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149&quot;,
+               &quot;asset_name&quot;:&quot;4861707079436f696e&quot;,
+               &quot;quantity&quot;:15
+            }
+         ]
+      },
+      {
+         &quot;address&quot;:&quot;addr_test1qpc038ku3u2js7hykte8xl7wctgl6avy20cp4k0z4ys2cy0xskq78v86w3zv9zc588rrp43sl2cusftxqkv3hzc0xs2sls284n&quot;,
+         &quot;amount&quot;:{
+            &quot;quantity&quot;:1500000,
+            &quot;unit&quot;:&quot;lovelace&quot;
+         },
+         &quot;assets&quot;:[
+            {
+               &quot;policy_id&quot;:&quot;919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149&quot;,
+               &quot;asset_name&quot;:&quot;4861707079436f696e&quot;,
+               &quot;quantity&quot;:15
+            }
+         ]
+      }
+   ]
+}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>I should receive CBOR-encoded <code>transaction</code> , <code>fee</code> and <code>coin_selection</code> details in response.
+I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in <a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../user-guide/common-use-cases/how-to-make-a-transaction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../user-guide/common-use-cases/delegation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../user-guide/common-use-cases/how-to-make-a-transaction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../user-guide/common-use-cases/delegation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

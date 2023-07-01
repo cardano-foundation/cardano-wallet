@@ -1,0 +1,20 @@
+[book]
+authors = ["Adrestia team"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Cardano Wallet"
+
+[output.html]
+mathjax-support = true
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["./mdbook-admonish.css"]
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "2.0.1" # do not edit: managed by `mdbook-admonish install`

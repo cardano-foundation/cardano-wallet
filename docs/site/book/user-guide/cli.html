@@ -1,0 +1,722 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>CLI - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/cli.html" class="active"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="command-line-interface"><a class="header" href="#command-line-interface">Command-Line Interface</a></h1>
+<p>The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run &quot;offline&quot;. (e.g. <code>recovery-phrase generate</code>)</p>
+<p>The wallet command-line interface (abbrev. CLI) is a tool that provides a convenient way of using the cardano-wallet HTTP Application Programming Interface (abbrev. API). The wallet API is an HTTP service used to manage wallets, make payments, and update wallet data such as addresses and keys, for instance. The wallet CLI can start the wallet server, or run a number of commands on a running server, and supports most functions of the API itself.</p>
+<p>The intended audience of the CLI are users who run a wallet API server outside of Daedalus and work with the cardano-wallet API directly - these include application developers, stake pool operators, and exchanges.</p>
+<p>CLI commands allow you to make and track changes while maintaining the wallet API. The wallet CLI converts commands into corresponding API calls, submits them to a running server and display the server's responses in a readable way into the terminal.</p>
+<h2 id="pre-requisites"><a class="header" href="#pre-requisites">Pre-Requisites</a></h2>
+<ul>
+<li><a href="common-use-cases/start-wallet-server.html">how to start a server</a></li>
+</ul>
+<h2 id="how-to-run"><a class="header" href="#how-to-run">How to Run</a></h2>
+<p>You can explore the wallet CLI with:</p>
+<pre><code class="language-console">&gt; cardano-wallet --help
+</code></pre>
+<p>Then, you can use a list of commands for various purposes, such as:</p>
+<ul>
+<li>list, create, update, or delete wallets</li>
+<li>create, submit, forget, or track fees in regards to transactions</li>
+<li>list, create, and import wallet addresses</li>
+<li>view network information and parameters</li>
+<li>manage private and public keys</li>
+</ul>
+<p>Each sub-command will also provide some additional help when passed <code>--help</code>. For example:</p>
+<pre><code class="language-console">&gt; cardano-wallet transaction --help
+</code></pre>
+<h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
+<pre><code class="language-console">&gt; cardano-wallet --help
+</code></pre>
+<div id="admonition-warning" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+</div>
+<div>
+<p>The CLI commands for <code>wallet</code>, <code>transaction</code> and <code>address</code> only output valid JSON on <code>stdout</code>. So you may redirect the output to a file with <code>&gt;</code> or pipe it into utility software like <code>jq</code>!</p>
+</div>
+</div>
+<h3 id="serve"><a class="header" href="#serve">serve</a></h3>
+<p>Serve API that listens for commands/actions. Before launching user should start <a href="https://github.com/input-output-hk/cardano-node"><code>cardano-node</code></a>.</p>
+<pre><code class="language-console">Usage: cardano-wallet serve [--listen-address HOST]
+                            (--node-socket FILE [--sync-tolerance DURATION])
+                            [--random-port | --port INT]
+                            [--tls-ca-cert FILE --tls-sv-cert FILE
+                              --tls-sv-key FILE]
+                            (--mainnet | --testnet FILE )
+                            [--database DIR] [--shutdown-handler]
+                            [--pool-metadata-fetching ( none | direct | SMASH-URL )]
+                            [--token-metadata-server URL]
+                            [--trace-NAME SEVERITY]
+
+  Serve API that listens for commands/actions.
+
+Available options:
+  -h,--help                Show this help text
+  --help-tracing           Show help for tracing options
+  --listen-address HOST    Specification of which host to bind the API server
+                           to. Can be an IPv[46] address, hostname, or '*'.
+                           (default: 127.0.0.1)
+  --node-socket FILE       Path to the node's domain socket file (POSIX) or pipe
+                           name (Windows). Note: Maximum length for POSIX socket
+                           files is approx. 100 bytes. Note: Windows named pipes
+                           are of the form \\.\pipe\cardano-node
+  --sync-tolerance DURATION
+                           time duration within which we consider being synced
+                           with the network. Expressed in seconds with a
+                           trailing 's'. (default: 300s)
+  --random-port            serve wallet API on any available port (conflicts
+                           with --port)
+  --port INT               port used for serving the wallet API. (default: 8090)
+  --tls-ca-cert FILE       A x.509 Certificate Authority (CA) certificate.
+  --tls-sv-cert FILE       A x.509 Server (SV) certificate.
+  --tls-sv-key FILE        The RSA Server key which signed the x.509 server
+                           certificate.
+  --mainnet                Use Cardano mainnet protocol
+  --testnet FILE           Path to the byron genesis data in JSON format.
+  --database DIR           use this directory for storing wallets. Run in-memory
+                           otherwise.
+  --shutdown-handler       Enable the clean shutdown handler (exits when stdin
+                           is closed)
+  --pool-metadata-fetching ( none | direct | SMASH-URL )
+                           Sets the stake pool metadata fetching strategy.
+                           Provide a URL to specify a SMASH metadata proxy
+                           server, use &quot;direct&quot; to fetch directly from the
+                           registered pool URLs, or &quot;none&quot; to completely disable
+                           stake pool metadata. The initial setting is &quot;none&quot;
+                           and changes by either this option or the API will
+                           persist across restarts.
+  --token-metadata-server URL
+                           Sets the URL of the token metadata server. If unset,
+                           metadata will not be fetched. By using this option,
+                           you are fully trusting the operator of the metadata
+                           server to provide authentic token metadata.
+  --log-level SEVERITY     Global minimum severity for a message to be logged.
+                           Individual tracers severities still need to be
+                           configured independently. Defaults to &quot;DEBUG&quot;.
+  --trace-NAME SEVERITY    Individual component severity for 'NAME'. See
+                           --help-tracing for details and available tracers.
+</code></pre>
+<h4 id="minimal-arguments"><a class="header" href="#minimal-arguments">Minimal Arguments</a></h4>
+<div id="admonition-info" class="admonition info">
+<div class="admonition-title">
+<p>Info</p>
+<p><a class="admonition-anchor-link" href="#admonition-info"></a></p>
+</div>
+<div>
+<p>More information on starting the wallet server can be found in <a href="common-use-cases/start-wallet-server.html">Start a server</a>.</p>
+</div>
+</div>
+In order to start the wallet server, you'll need to provide _at least_ the path to cardano-node's socket/pipe and a target network. That socket is automatically created when starting a cardano-node and it exists so long as the node remains running.
+<p>We also recommend to pass a <code>--database</code> option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped.</p>
+<h4 id="runtime-flags"><a class="header" href="#runtime-flags">Runtime flags</a></h4>
+<p>By default, the wallet runs <strong>on a single core</strong> which is sufficient for most 'normal users'. Application running larger wallets like exchanges should configure the server to use multiple cores for some database blocking operations may have a visible negative effect on the overall server behavior. This can be achieved by providing specific runtime flags to the serve command delimited by <code>+RTS &lt;flags&gt; -RTS</code>. To configure the how much cores are available to the server, use the <code>-N</code> flag. For example, to configure 2 cores do:</p>
+<pre><code class="language-console">&gt; cardano-wallet serve ... +RTS -N2 -RTS
+</code></pre>
+<p>Using <code>+RTS -N4 -RTS</code> will tell the server to use 4 cores. Note that there's little performance benefits between 2 and 4 cores for server running a single wallet, but there are visible performance improvements from 1 to 2.</p>
+<h4 id="domain-socketnamed-pipe"><a class="header" href="#domain-socketnamed-pipe">Domain socket/named pipe</a></h4>
+<p>On POSIX systems (i.e. Linux and macOS), a <a href="https://en.wikipedia.org/wiki/Unix_domain_socket">UNIX domain socket</a> is used for communication between the cardano-wallet and cardano-node processes.</p>
+<p>On these systems, the <code>--node-socket</code> argument must be a path to a socket file. Note that there is a limitation on socket path lengths of about 100 characters or so.</p>
+<p>On Windows systems, a <a href="https://en.wikipedia.org/wiki/Named_pipe#In_Windows">Named Pipe</a> is used instead.</p>
+<p><a href="https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes">Windows Named Pipes</a> do not have filenames. So on Windows systems, the <code>--node-socket</code> argument must be a pipe name. Pipe names are a string of the form <code>\\.\pipe\name</code>. For example, <code>\\.\pipe\cardano-wallet</code>.</p>
+<h4 id="examples"><a class="header" href="#examples">Examples</a></h4>
+<h5 id="mainnet"><a class="header" href="#mainnet">Mainnet</a></h5>
+<pre><code class="language-console">&gt; cardano-wallet serve \
+  --mainnet \
+  --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
+  --database ./wallets-mainnet
+</code></pre>
+<h5 id="testnet"><a class="header" href="#testnet">Testnet</a></h5>
+<p>Note that for testnets, a <em>byron</em> genesis file is required (see <a href="#pre-requisites">pre-requisites</a>), even though the network is in the shelley era. This is because the chain is
+synced from the beginning of the first era.</p>
+<pre><code class="language-console">&gt; cardano-wallet serve \
+  --testnet testnet-byron-genesis.json \
+  --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
+  --database ./wallets-testnet
+</code></pre>
+<h4 id="metadata"><a class="header" href="#metadata">Metadata</a></h4>
+<p>For the wallet to show stake pool metadata, you need to set <code>--pool-metadata-fetching ( none | direct | SMASH-URL )</code>. And for the wallet to show token metadata, you need to set <code>--token-metadata-server URL</code>.</p>
+<h4 id="logging-options-for-serve"><a class="header" href="#logging-options-for-serve">Logging options for serve</a></h4>
+<p><code>serve</code> accepts extra command-line arguments for logging (also called &quot;tracing&quot;). Use <code>--help-tracing</code> to show the
+options, the tracer names, and the possible log levels.</p>
+<pre><code class="language-console">&gt; cardano-wallet serve --help-tracing
+
+Additional tracing options:
+
+  --log-level SEVERITY     Global minimum severity for a message to be logged.
+                           Defaults to &quot;DEBUG&quot; unless otherwise configured.
+  --trace-NAME=off         Disable logging on the given tracer.
+  --trace-NAME=SEVERITY    Set the minimum logging severity for the given
+                           tracer. Defaults to &quot;INFO&quot;.
+
+The possible log levels (lowest to highest) are:
+  debug info notice warning error critical alert emergency
+
+The possible tracers are:
+  application    About start-up logic and the server's surroundings.
+  api-server     About the HTTP API requests and responses.
+  wallet-engine  About background wallet workers events and core wallet engine.
+  wallet-db      About database operations of each wallet.
+  pools-engine   About the background worker monitoring stake pools and stake pools engine.
+  pools-db       About database operations on stake pools.
+  ntp-client     About ntp-client.
+  network        About network communication with the node.
+
+</code></pre>
+<h5 id="example"><a class="header" href="#example">example</a></h5>
+<p>Use these options to enable debug-level tracing for certain components
+of the wallet. For example, to log all database queries for the wallet
+databases, use:</p>
+<pre><code class="language-console">&gt; cardano-wallet serve --trace-wallet-db=debug ...
+</code></pre>
+<h3 id="recovery-phrase-generate"><a class="header" href="#recovery-phrase-generate">recovery-phrase generate</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate [--size=INT]
+</code></pre>
+<p>Generates an English recovery phrase.</p>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate
+</code></pre>
+<p>These words will be used to create a wallet later. You may also ask for a specific number of words using the <code>--size</code> option:</p>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate --size 21
+</code></pre>
+<h3 id="wallet-list"><a class="header" href="#wallet-list">wallet list</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet list [--port=INT]
+</code></pre>
+<p>Lists all your wallets:</p>
+<pre><code class="language-console">&gt; cardano-wallet wallet list
+</code></pre>
+<h3 id="wallet-create-from-recovery-phrase"><a class="header" href="#wallet-create-from-recovery-phrase">wallet create from recovery-phrase</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]
+</code></pre>
+<p>Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for recovery-phrase words and password.</p>
+<pre><code class="language-console">&gt; cardano-wallet wallet create &quot;My Wallet&quot;
+Please enter a 15–24 word recovery-phrase sentence: &lt;enter generated recovery-phrase here&gt;
+(Enter a blank line if you do not wish to use a second factor.)
+Please enter a 9–12 word recovery-phrase second factor: &lt;skip or enter new recovery-phrase here&gt;
+Please enter a passphrase: ****************
+Enter the passphrase a second time: ****************
+</code></pre>
+<p>after this your new wallet will be created</p>
+<h3 id="wallet-get"><a class="header" href="#wallet-get">wallet get</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet get [--port=INT] WALLET_ID
+</code></pre>
+<p>Fetches the wallet with specified wallet id:</p>
+<pre><code class="language-console">&gt; cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
+</code></pre>
+<h3 id="wallet-utxo"><a class="header" href="#wallet-utxo">wallet utxo</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet utxo [--port=INT] WALLET_ID
+</code></pre>
+<p>Visualize a wallet's UTxO distribution in the form of an histrogram with a logarithmic scale.
+The distribution's data is returned by the API in a JSON format, e.g.:</p>
+<pre><code class="language-json">{
+  &quot;distribution&quot;: {
+      &quot;10&quot;: 1,
+      &quot;100&quot;: 0,
+      &quot;1000&quot;: 8,
+      &quot;10000&quot;: 14,
+      &quot;100000&quot;: 32,
+      &quot;1000000&quot;: 3,
+      &quot;10000000&quot;: 0,
+      &quot;100000000&quot;: 12,
+      &quot;1000000000&quot;: 0,
+      &quot;10000000000&quot;: 0,
+      &quot;100000000000&quot;: 0,
+      &quot;1000000000000&quot;: 0,
+      &quot;10000000000000&quot;: 0,
+      &quot;100000000000000&quot;: 0,
+      &quot;1000000000000000&quot;: 0,
+      &quot;10000000000000000&quot;: 0,
+      &quot;45000000000000000&quot;: 0
+  }
+}
+</code></pre>
+<p>which could be plotted as:</p>
+<pre><code>    │
+100 ─
+    │
+    │                                 ┌───┐
+ 10 ─                         ┌───┐   │   │                   ┌───┐
+    │                 ┌───┐   │   │   │   │                   │   │
+    │                 │   │   │   │   │   │   ┌───┐           │   │
+  1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+    │ │   │           │   │   │   │   │   │   │   │           │   │
+    │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │      ╷
+    └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └──────│────────────
+          10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳
+</code></pre>
+<h3 id="wallet-utxo-snapshot"><a class="header" href="#wallet-utxo-snapshot">wallet utxo-snapshot</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID
+</code></pre>
+<p>Gets a snapshot of the wallet's entire UTxO set, in JSON format.</p>
+<p>Each entry in the list contains the following fields:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ada</code></td><td>the actual ada quantity of this UTxO entry</td></tr>
+<tr><td><code>ada_minimum</code></td><td>the minimum ada quantity permitted by the protocol</td></tr>
+<tr><td><code>assets</code></td><td>quantities of all other assets included in this UTxO entry</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-json">{
+    &quot;entries&quot;: [
+        {
+            &quot;ada_minimum&quot;: {
+                &quot;quantity&quot;: 1666665,
+                &quot;unit&quot;: &quot;lovelace&quot;
+            },
+            &quot;ada&quot;: {
+                &quot;quantity&quot;: 15582575,
+                &quot;unit&quot;: &quot;lovelace&quot;
+            },
+            &quot;assets&quot;: [
+                {
+                    &quot;asset_name&quot;: &quot;&quot;,
+                    &quot;quantity&quot;: 1503,
+                    &quot;policy_id&quot;: &quot;789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff169f1&quot;
+                },
+                {
+                    &quot;asset_name&quot;: &quot;4861707079436f696e&quot;,
+                    &quot;quantity&quot;: 4958,
+                    &quot;policy_id&quot;: &quot;919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149&quot;
+                }
+            ]
+        },
+        ...
+    ]
+}
+</code></pre>
+<blockquote>
+<p>⚠ This endpoint was intended to be used for debugging purposes. The output format is subject to change at any time.</p>
+</blockquote>
+<h3 id="wallet-update-name"><a class="header" href="#wallet-update-name">wallet update name</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet update name [--port=INT] WALLET_ID STRING
+</code></pre>
+<p>Updates name of a wallet given wallet id:</p>
+<pre><code>&gt; cardano-wallet wallet update name 2512a00e9653fe49a44a5886202e24d77eeb998f NewName
+</code></pre>
+<h3 id="wallet-update-passphrase"><a class="header" href="#wallet-update-passphrase">wallet update passphrase</a></h3>
+<pre><code>&gt; cardano-wallet wallet update passphrase [--port=INT] WALLET_ID
+</code></pre>
+<p>Interactive prompt to update the wallet master's passphrase (old passphrase required).</p>
+<pre><code class="language-console">&gt; cardano-wallet wallet update passphrase 2512a00e9653fe49a44a5886202e24d77eeb998f
+Please enter your current passphrase: **********
+Please enter a new passphrase: **********
+Enter the passphrase a second time: **********
+</code></pre>
+<h3 id="wallet-delete"><a class="header" href="#wallet-delete">wallet delete</a></h3>
+<pre><code>&gt; cardano-wallet wallet delete [--port=INT] WALLET_ID
+</code></pre>
+<p>Deletes wallet with specified wallet id:</p>
+<pre><code class="language-console">&gt; cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
+</code></pre>
+<h3 id="transaction-create"><a class="header" href="#transaction-create">transaction create</a></h3>
+<pre><code>&gt; cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...
+</code></pre>
+<p>Creates and submits a new transaction:</p>
+<pre><code class="language-console">&gt; cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
+    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
+    --metadata '{ &quot;0&quot;:{ &quot;string&quot;:&quot;cardano&quot; } }'
+</code></pre>
+<p>This creates a transaction that sends 22 lovelace to <code>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.</p>
+<p>For more information about the <code>--metadata</code> option, see <a href="common-use-cases/handle-metadata.html">TxMetadata</a>.</p>
+<h3 id="transaction-fees"><a class="header" href="#transaction-fees">transaction fees</a></h3>
+<pre><code>&gt; cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...
+</code></pre>
+<p>Estimates fee for a given transaction:</p>
+<pre><code class="language-console">&gt; cardano-wallet transaction fees 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
+    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
+    --metadata '{ &quot;0&quot;:{ &quot;string&quot;:&quot;cardano&quot; } }'
+</code></pre>
+<p>This estimates fees for a transaction that sends 22 lovelace to <code>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.</p>
+<h3 id="transaction-list"><a class="header" href="#transaction-list">transaction list</a></h3>
+<pre><code>&gt; cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER] [--simple-metadata] [--max_count MAX_COUNT]
+</code></pre>
+<p>List the transactions associated with a wallet.</p>
+<pre><code>&gt; cardano-wallet transaction list 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --start 2018-09-25T10:15:00Z \
+    --end 2019-11-21T10:15:00Z \
+    --order ascending \
+    --max_count 10
+</code></pre>
+<p>This lists max 10 transactions between <code>2018-09-25T10:15:00Z</code> and <code>2019-11-21T10:15:00Z</code> in <code>ascending</code> order.</p>
+<h3 id="transaction-submit"><a class="header" href="#transaction-submit">transaction submit</a></h3>
+<pre><code>&gt; cardano-wallet transaction submit [--port INT] BINARY_BLOB
+</code></pre>
+<p>Submit transaction prepared and signed outside of the wallet:</p>
+<pre><code>&gt; cardano-wallet transaction submit 00bf02010200000...d21942304
+</code></pre>
+<p>Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.</p>
+<h3 id="transaction-forget"><a class="header" href="#transaction-forget">transaction forget</a></h3>
+<pre><code>&gt; cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID
+</code></pre>
+<p>Forget pending transaction for a given wallet:</p>
+<pre><code>&gt; cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
+</code></pre>
+<h3 id="transaction-get"><a class="header" href="#transaction-get">transaction get</a></h3>
+<pre><code>&gt; cardano-wallet transaction get [--port INT] WALLET_ID TRANSACTION_ID
+</code></pre>
+<p>Get a transaction with the specified id:</p>
+<pre><code>&gt; cardano-wallet transaction get 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
+</code></pre>
+<h3 id="address-list"><a class="header" href="#address-list">address list</a></h3>
+<pre><code>&gt; cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]
+</code></pre>
+<p>List all known (used or not) addresses and their corresponding status.</p>
+<pre><code>&gt; cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
+</code></pre>
+<h3 id="address-create"><a class="header" href="#address-create">address create</a></h3>
+<pre><code>&gt; cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID
+</code></pre>
+<p>Create new address for random wallet.</p>
+<pre><code>&gt; cardano-wallet address create 03f4c150aa4626e28d02be95f31d3c79df344877
+Please enter your passphrase: *****************
+Ok.
+{
+    &quot;state&quot;: &quot;unused&quot;,
+    &quot;id&quot;: &quot;2w1sdSJu3GVgr1ic6aP3CEwZo9GAhLzigdBvCGY4JzEDRbWV4HUNpZdHf2n5fV41dGjPpisDX77BztujAJ1Xs38zS8aXvN7Qxoe&quot;
+}
+</code></pre>
+<h3 id="address-import"><a class="header" href="#address-import">address import</a></h3>
+<pre><code>&gt; cardano-wallet address import [--port INT] WALLET_ID ADDRESS
+</code></pre>
+<p>Import address belonging to random wallet.</p>
+<h3 id="network-information"><a class="header" href="#network-information">network information</a></h3>
+<pre><code>&gt; cardano-wallet network information [--port=INT]
+</code></pre>
+<p>View network information and syncing progress between the node and the blockchain.</p>
+<pre><code>&gt; cardano-wallet network information
+</code></pre>
+<h3 id="network-parameters"><a class="header" href="#network-parameters">network parameters</a></h3>
+<pre><code>&gt; cardano-wallet network parameters [--port=INT] EPOCH_NUMBER
+</code></pre>
+<p>View network parameters. EPOCH_NUMBER can be <code>latest</code> or valid epoch number (not later than the current one), ie., <code>0</code>, <code>1</code>, .. .</p>
+<pre><code class="language-console">&gt; cardano-wallet network parameters latest
+</code></pre>
+<h3 id="network-clock"><a class="header" href="#network-clock">network clock</a></h3>
+<pre><code>&gt; cardano-wallet network clock
+</code></pre>
+<p>View <a href="https://en.wikipedia.org/wiki/Network_Time_Protocol">NTP</a> offset for cardano-wallet server in microseconds.</p>
+<pre><code>&gt; cardano-wallet network clock
+Ok.
+{
+    &quot;status&quot;: &quot;available&quot;,
+    &quot;offset&quot;: {
+        &quot;quantity&quot;: -30882,
+        &quot;unit&quot;: &quot;microsecond&quot;
+    }
+}
+</code></pre>
+<div id="admonition-warning-1" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning-1"></a></p>
+</div>
+<div>
+<p>At this stage the command is not supported on Windows platform. Invoked on Windows will return <code>status: unavailable</code> in the response message.</p>
+</div>
+</div>
+<h3 id="key-from-recovery-phrase"><a class="header" href="#key-from-recovery-phrase">key from-recovery-phrase</a></h3>
+<p>Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <a href="#recovery-phrase-generate"><code>recovery-phrase generate</code></a>.</p>
+<pre><code>Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
+  Convert a recovery phrase to an extended private key
+
+Available options:
+  -h,--help                Show this help text
+  STYLE                    Byron | Icarus | Jormungandr | Shelley
+
+The recovery phrase is read from stdin.
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus
+xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76v4jpd69a40un7sszdnw58qv527zlegvapwaee47uu724q4us4eurh52m027kk0602judjjw58gffvcqzkv2hs
+</code></pre>
+<h3 id="key-child"><a class="header" href="#key-child">key child</a></h3>
+<p>Derive child key from root private key. The parent key is read from standard input.</p>
+<pre><code>Usage: cardano-wallet key child ([--base16] | [--base58] | [--bech32]) [--legacy] DERIVATION-PATH
+  Derive child keys from a parent public/private key
+
+Available options:
+  -h,--help                Show this help text
+  DERIVATION-PATH          Slash-separated derivation path.
+                           Hardened indexes are marked with a 'H' (e.g. 1852H/1815H/0H/0).
+
+The parent key is read from stdin.
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus &gt; root.xprv
+cat root.xprv | cardano-wallet key child 44H/1815H/0H/0
+xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya
+</code></pre>
+<h3 id="key-public"><a class="header" href="#key-public">key public</a></h3>
+<p>Extract the public key of an extended private key. Keys can be obtained using <a href="#key-from-recovery-phrase"><code>key from-recovery-phrase</code></a> and <a href="#key-child"><code>key child</code></a>.</p>
+<pre><code>Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
+  Get the public counterpart of a private key
+
+Available options:
+  -h,--help                Show this help text
+
+The private key is read from stdin.
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-console">&gt; cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus &gt; root.xprv
+cat root.xprv | cardano-wallet key public
+xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ynczj338r7f5kzs43xs2fkmktekd4fgnc8q98
+</code></pre>
+<h3 id="key-inspect"><a class="header" href="#key-inspect">key inspect</a></h3>
+<pre><code>Usage: cardano-wallet-jormungandr key inspect
+  Show information about a key
+
+Available options:
+  -h,--help                Show this help text
+
+The parent key is read from stdin.
+</code></pre>
+<h3 id="stake-pool-list"><a class="header" href="#stake-pool-list">stake-pool list</a></h3>
+<pre><code>Usage: cardano-wallet stake-pool list [--port INT] [--stake STAKE]
+  List all known stake pools.
+
+Available options:
+  -h,--help                Show this help text
+  --port INT               port used for serving the wallet API. (default: 8090)
+  --stake STAKE            The stake you intend to delegate, which affects the
+                           rewards and the ranking of pools.
+</code></pre>
+<h3 id="version"><a class="header" href="#version">version</a></h3>
+<pre><code>&gt; cardano-wallet version
+</code></pre>
+<p>Show the software version.</p>
+<h2 id="bash-shell-command-completion"><a class="header" href="#bash-shell-command-completion">Bash Shell Command Completion</a></h2>
+<p>:gift_heart: For bash/zsh auto-completion, put the following script in your <code>/etc/bash_completion.d</code>:</p>
+<pre><code class="language-bash"># /etc/bash_completion.d/cardano-wallet.sh
+
+_cardano-wallet()
+{
+   local CMDLINE
+   local IFS=$'\n'
+   CMDLINE=(--bash-completion-index $COMP_CWORD)
+
+   for arg in ${COMP_WORDS[@]}; do
+       CMDLINE=(${CMDLINE[@]} --bash-completion-word $arg)
+   done
+
+   COMPREPLY=( $(cardano-wallet &quot;${CMDLINE[@]}&quot;) )
+}
+
+complete -o filenames -F _cardano-wallet cardano-wallet
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../user-guide/installation/use-nixos.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../user-guide/http-api.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../user-guide/installation/use-nixos.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../user-guide/http-api.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
