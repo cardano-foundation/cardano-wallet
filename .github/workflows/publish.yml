@@ -60,13 +60,8 @@ jobs:
       - name: "📸 Build Documentation"
         run: |
           build_dir="$PUBLISH_DIR"
-          # if [ -n "$PR_NUMBER" ]; then
-          #   build_dir="$build_dir/_pr/$PR_NUMBER"
-          #   nix develop .#docs -c yq --in-place -y '.template.baseUrl|=.+"_pr/\(env.PR_NUMBER)/"' docs/.deploy/github/index.yaml
-          # fi
-
-          mkdir -p "$build_dir"
-          nix develop .#docs -c mdbook build -d "$build_dir" "docs/site"
+          nix develop .#docs -c mdbook build -d "../../$build_dir" "docs/site"
+          ls -l "$build_dir"
           ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
 
       - name: "📘 Publish"
