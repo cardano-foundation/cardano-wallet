@@ -66,6 +66,7 @@ library
     , memory
     , MonadRandom
     , monoid-subclasses
+    , monoidmap
     , network-uri
     , nothunks
     , OddWord
