@@ -111,12 +111,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
-          # cabal-cache = {};
           cabal = { index-state = indexState; };
           cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
             index-state = indexState;
-            version = "latest";
+            version = "2.0.0.0";
           };
           hlint = { index-state = indexState; };
           hoogle = { index-state = indexState; };
@@ -146,6 +145,15 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           nixWrapped
           mdbook
           (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
+          # (haskell-nix.tool "ghc928" "haskell-language-server" ({pkgs, ...}: rec {
+          #   # Use the github source of HLS that is tested with haskell.nix CI
+          #   src = pkgs.haskell-nix.sources."hls-2.0";
+          #   # `tool` normally ignores the `cabal.project` (if there is one in the hackage source).
+          #   # We need to use the github one (since it has settings to make hls build).
+          #   cabalProject = __readFile (src + "/cabal.project");
+          #   # sha256 for a `source-repository-package` in the `cabal.project` file.
+          #   sha256map."https://github.com/pepeiborra/ekg-json"."7a0af7a8fd38045fd15fb13445bdcc7085325460" = "sha256-fVwKxGgM0S4Kv/4egVAAiAjV7QB5PBqMVMCfsv7otIQ=";
+          #   }))
         ]);
       };
 
