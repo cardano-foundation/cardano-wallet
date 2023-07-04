@@ -706,7 +706,7 @@ indexIsComplete i =
             , hasEntryForAsset a2 indexPairs
             ]
         BundleWithMultipleAssets as ->
-            F.all (\a -> hasEntryForAsset a indexAll) as
+            F.all (`hasEntryForAsset` indexAll) as
       where
         hasEntryForAsset
             :: Ord asset
