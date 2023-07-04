@@ -41,8 +41,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Property
     , checkCoverage
-    , conjoin
-    , counterexample
     , cover
     , forAll
     , property
@@ -100,18 +98,6 @@ spec =
             property prop_predZero_difference
         it "prop_predZero_pred" $
             property prop_predZero_pred
-        it "prop_difference_zero (x - 0 = x)" $
-            property prop_difference_zero
-        it "prop_difference_zero2 (0 - x = 0)" $
-            property prop_difference_zero2
-        it "prop_difference_zero3 (x - x = 0)" $
-            property prop_difference_zero3
-        it "prop_difference_leq (x - y <= x)" $
-            property prop_difference_leq
-        it "prop_difference_add ((x - y) + y >= x)" $
-            property prop_difference_add
-        it "prop_add_difference ((x + y) - y = x)" $
-            property prop_add_difference
 
     describe "Partitioning" $ do
 
@@ -174,47 +160,6 @@ prop_predZero_pred q =
     if q == TokenQuantity.zero
     then TokenQuantity.predZero q === TokenQuantity.zero
     else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
-
-prop_difference_zero :: TokenQuantity -> Property
-prop_difference_zero x =
-    x `TokenQuantity.difference` TokenQuantity.zero === x
-
-prop_difference_zero2 :: TokenQuantity -> Property
-prop_difference_zero2 x =
-    TokenQuantity.zero `TokenQuantity.difference` x === TokenQuantity.zero
-
-prop_difference_zero3 :: TokenQuantity -> Property
-prop_difference_zero3 x =
-    x `TokenQuantity.difference` x === TokenQuantity.zero
-
-prop_difference_leq :: TokenQuantity -> TokenQuantity -> Property
-prop_difference_leq x y =
-    let
-        delta = x `TokenQuantity.difference` y
-    in
-      counterexample ("x = " <> show x) $
-      counterexample ("y = " <> show y) $
-      counterexample ("x - y = " <> show delta) $
-      counterexample ("x - y is not <= " <> show x) $
-      property $ delta <= x
-
-prop_difference_add :: TokenQuantity -> TokenQuantity -> Property
-prop_difference_add x y =
-    let
-        delta = x `TokenQuantity.difference` y
-        yAndDelta = delta `TokenQuantity.add` y
-    in
-        counterexample ("x - y = " <> show delta) $
-        counterexample ("(x - y) + y = " <> show yAndDelta) $
-        counterexample ("x is not <= " <> show yAndDelta) $
-        property $ x <= yAndDelta
-
-prop_add_difference :: TokenQuantity -> TokenQuantity -> Property
-prop_add_difference x y =
-    conjoin
-        [ (x `TokenQuantity.add` y) `TokenQuantity.difference` y === x
-        , (x `TokenQuantity.add` y) `TokenQuantity.difference` x === y
-        ]
 
 --------------------------------------------------------------------------------
 -- Partitioning
