@@ -1768,7 +1768,22 @@ estimateTxSize skeleton =
         + sizeOf_Ttl
         + sizeOf_Update
         + sizeOf_ValidityIntervalStart
+        + sizeOf_HistoricalPadding
       where
+        -- Preserved out of caution during refactoring. We should be able to
+        -- drop this, but we may as well wait until we wave completely
+        -- water-proof testing of the size estimation, e.g:
+        -- prop> forall baseTx update.
+        --      sizeOf_Update x >=
+        --          (serializedSize (update baseTx)
+        --          - serializedSize baseTx)
+        -- where update is something similar to 'TxUpdate' or 'TxSkeleton'.
+        sizeOf_HistoricalPadding = sizeOf_NoMetadata
+          where
+            -- When it's "empty", metadata are represented by a special
+            -- "null byte" in CBOR `F6`.
+            sizeOf_NoMetadata = 1
+
         -- 0 => set<transaction_input>
         sizeOf_Inputs
             = sizeOf_SmallUInt
