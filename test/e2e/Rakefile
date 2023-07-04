@@ -176,11 +176,30 @@ task :start_node_and_wallet, [:env] do |_task, args|
     cmd start_node
     cmd start_wallet
   else
-    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path #{node_db_dir}/node.socket"
-    start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --node-socket #{node_db_dir}/node.socket #{network} --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
-
-    cmd "screen -dmS NODE_#{args[:env]} -L -Logfile #{log_dir}/node.log #{start_node}"
-    cmd "screen -dmS WALLET_#{args[:env]} -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
+    start_node =<<~CMD
+      #{bin_dir}cardano-node run \
+        --config #{config_dir}/config.json \
+        --topology #{config_dir}/topology.json \
+        --database-path #{node_db_dir} \
+        --socket-path #{node_db_dir}/node.socket
+    CMD
+    start_wallet =<<~CMD
+      #{bin_dir}cardano-wallet serve #{network} \
+        --port #{WALLET_PORT} \
+        --node-socket #{node_db_dir}/node.socket \
+        --database #{wallet_db_dir} \
+        --token-metadata-server #{TOKEN_METADATA}
+    CMD
+    cmd <<~CMD
+      screen -dmS NODE_#{args[:env]} -L \
+        -Logfile #{log_dir}/node.log \
+        #{start_node}
+    CMD
+    cmd <<~CMD
+      screen -dmS WALLET_#{args[:env]} -L \
+        -Logfile #{log_dir}/wallet.log \
+        #{start_wallet}
+    CMD
     cmd 'screen -ls', display_result: true
   end
 end
@@ -296,20 +315,14 @@ task :get_latest_configs, [:env] do |_task, args|
     wget("#{base_url}byron-genesis.json", "#{out}/byron-genesis.json")
     wget("#{base_url}shelley-genesis.json", "#{out}/shelley-genesis.json")
     wget("#{base_url}alonzo-genesis.json", "#{out}/alonzo-genesis.json")
+    wget("#{base_url}conway-genesis.json", "#{out}/conway-genesis.json")
     wget("#{base_url}topology.json", "#{out}/topology.json")
-    # remove environment names from genesis files
-    config = File.read(config_file)
-    config_edited = config.gsub(/#{env}-/, '')
-    File.open(config_file, 'w') { |file| file.puts config_edited }
 
-    # Temporary/ad-hoc config changes for cardano-node:
-    #  - disable P2P
-    #  - use conway-genesis.json
     config_dir = File.join(CONFIGS, args[:env])
-    config_json = JSON.parse(File.read("#{config_dir}/config.json"))
-    config_json['EnableP2P'] = false
-    config_json['ConwayGenesisFile'] = 'conway-genesis.json'
-    File.write("#{config_dir}/config.json", JSON.pretty_generate(config_json))
+    # Temporary/ad-hoc config changes for cardano-node:
+    # config_json = JSON.parse(File.read("#{config_dir}/config.json"))
+    # config_json['EnableP2P'] = false
+    # File.write("#{config_dir}/config.json", JSON.pretty_generate(config_json))
 
     topology = %({
           "Producers": [
@@ -321,10 +334,6 @@ task :get_latest_configs, [:env] do |_task, args|
           ]
         })
     File.write("#{config_dir}/topology.json", topology)
-
-    # Add conway-genesis.json
-    File.write("#{config_dir}/conway-genesis.json", ' { "genDelegs": {} }')
-
   end
 end
 
