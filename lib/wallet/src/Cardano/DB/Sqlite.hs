@@ -16,8 +16,6 @@
 
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
--- TODO: https://input-output.atlassian.net/browse/ADP-3075
-{-# OPTIONS_GHC -Wno-deriving-defaults #-}
 
 {- HLINT ignore "Redundant flip" -}
 
