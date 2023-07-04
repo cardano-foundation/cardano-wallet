@@ -120,6 +120,18 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+import Test.QuickCheck.Classes.Monoid.GCD
+    ( gcdMonoidLaws
+    , leftGCDMonoidLaws
+    , overlappingGCDMonoidLaws
+    , rightGCDMonoidLaws
+    )
+import Test.QuickCheck.Classes.Monoid.Monus
+    ( monusLaws )
+import Test.QuickCheck.Classes.Monoid.Null
+    ( monoidNullLaws )
+import Test.QuickCheck.Classes.Semigroup.Cancellative
+    ( commutativeLaws, leftReductiveLaws, reductiveLaws, rightReductiveLaws )
 import Test.QuickCheck.Instances.ByteString
     ()
 import Test.Utils.Laws
@@ -147,9 +159,19 @@ spec =
 
     describe "Class instances obey laws" $ do
         testLawsMany @TokenMap
-            [ eqLaws
+            [ commutativeLaws
+            , eqLaws
+            , gcdMonoidLaws
+            , leftGCDMonoidLaws
+            , leftReductiveLaws
             , monoidLaws
+            , monoidNullLaws
+            , monusLaws
+            , overlappingGCDMonoidLaws
             , partialOrdLaws
+            , reductiveLaws
+            , rightGCDMonoidLaws
+            , rightReductiveLaws
             , semigroupLaws
             , semigroupMonoidLaws
             ]
@@ -157,35 +179,6 @@ spec =
             [ eqLaws
             , ordLaws
             ]
-
-    describe
-        "All operations preserve the invariant: \
-        \all token quantities held within a map are non-zero" $ do
-
-        it "prop_arbitrary_invariant" $
-            property prop_arbitrary_invariant
-        it "prop_shrink_invariant" $
-            property prop_shrink_invariant
-        it "prop_empty_invariant" $
-            property prop_empty_invariant
-        it "prop_singleton_invariant" $
-            property prop_singleton_invariant
-        it "prop_fromFlatList_invariant" $
-            property prop_fromFlatList_invariant
-        it "prop_fromNestedList_invariant" $
-            property prop_fromNestedList_invariant
-        it "prop_add_invariant" $
-            property prop_add_invariant
-        it "prop_subtract_invariant" $
-            property prop_subtract_invariant
-        it "prop_difference_invariant" $
-            property prop_difference_invariant
-        it "prop_intersection_invariant" $
-            property prop_intersection_invariant
-        it "prop_setQuantity_invariant" $
-            property prop_setQuantity_invariant
-        it "prop_adjustQuantity_invariant" $
-            property prop_adjustQuantity_invariant
 
     describe "Construction and deconstruction" $ do
 
@@ -262,6 +255,8 @@ spec =
             property prop_adjustQuantity_hasQuantity
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
+        it "prop_maximumQuantity_mempty" $
+            property prop_maximumQuantity_mempty
 
     describe "Queries" $ do
 
@@ -340,69 +335,6 @@ spec =
             property testPrettyFlat
         it "Nested style" $
             property testPrettyNested
-
---------------------------------------------------------------------------------
--- Invariant properties
---------------------------------------------------------------------------------
-
--- Tests that all quantities within the given map are non-zero.
---
-invariantHolds :: TokenMap -> Bool
-invariantHolds b =
-    all TokenQuantity.isNonZero $ getQuantity <$> TokenMap.toFlatList b
-  where
-    getQuantity (_, q) = q
-
-prop_arbitrary_invariant :: TokenMap -> Property
-prop_arbitrary_invariant = property . invariantHolds
-
-prop_shrink_invariant :: TokenMap -> Property
-prop_shrink_invariant b = property $ all invariantHolds $ shrink b
-
-prop_empty_invariant :: Property
-prop_empty_invariant = property $ invariantHolds TokenMap.empty
-
-prop_singleton_invariant :: (AssetId, TokenQuantity) -> Property
-prop_singleton_invariant (asset, quantity) = property $
-    invariantHolds $ TokenMap.singleton asset quantity
-
-prop_fromFlatList_invariant :: [(AssetId, TokenQuantity)] -> Property
-prop_fromFlatList_invariant entries =
-    property $ invariantHolds $ TokenMap.fromFlatList entries
-
-prop_fromNestedList_invariant
-    :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))] -> Property
-prop_fromNestedList_invariant entries =
-    property $ invariantHolds $ TokenMap.fromNestedList entries
-
-prop_add_invariant :: TokenMap -> TokenMap -> Property
-prop_add_invariant b1 b2 = property $ invariantHolds $ TokenMap.add b1 b2
-
-prop_subtract_invariant :: TokenMap -> TokenMap -> Property
-prop_subtract_invariant m1 m2 = property $
-    m2 `leq` m1 ==> invariantHolds result
-  where
-    result =
-        case TokenMap.subtract m1 m2 of
-            Nothing -> error "prop_subtract_invariant"
-            Just r -> r
-
-prop_difference_invariant :: TokenMap -> TokenMap -> Property
-prop_difference_invariant m1 m2 =
-    property $ invariantHolds $ TokenMap.difference m1 m2
-
-prop_intersection_invariant :: TokenMap -> TokenMap -> Property
-prop_intersection_invariant m1 m2 =
-    property $ invariantHolds $ TokenMap.intersection m1 m2
-
-prop_setQuantity_invariant
-    :: TokenMap -> AssetId -> TokenQuantity -> Property
-prop_setQuantity_invariant b asset quantity = property $
-    invariantHolds $ TokenMap.setQuantity b asset quantity
-
-prop_adjustQuantity_invariant :: TokenMap -> AssetId -> Property
-prop_adjustQuantity_invariant b asset = property $
-    invariantHolds $ TokenMap.adjustQuantity b asset TokenQuantity.predZero
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
@@ -705,6 +637,9 @@ prop_maximumQuantity_all b =
     property $ all (<= maxQ) (snd <$> TokenMap.toFlatList b)
   where
     maxQ = TokenMap.maximumQuantity b
+
+prop_maximumQuantity_mempty :: Property
+prop_maximumQuantity_mempty = TokenMap.maximumQuantity mempty === mempty
 
 --------------------------------------------------------------------------------
 -- Queries

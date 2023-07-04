@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -20,22 +21,6 @@
 module Cardano.Wallet.Primitive.Types.TokenMap
     (
     -- * Types
-
-      -- Important:
-      --
-      -- The default data constructor for 'TokenMap' is not exported, by design,
-      -- as the internal data structure has an invariant that must be preserved
-      -- across all operations.
-      --
-      -- Exporting the default constructor would make it possible for functions
-      -- outside the 'TokenMap' module to break the invariant, opening the door
-      -- to subtle regressions.
-      --
-      -- See the definition of 'TokenMap' for more details of the invariant.
-      --
-      -- To construct a 'TokenMap', use one of the provided constructors, all
-      -- of which are tested to check that they respect the invariant.
-      --
       TokenMap
     , AssetId (..)
 
@@ -112,29 +97,39 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, when, (<=<) )
+    ( when, (<=<) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
 import Data.Aeson.Types
     ( Options (..), Parser )
 import Data.Bifunctor
     ( first )
-import Data.Functor
-    ( ($>) )
+import Data.Function
+    ( on )
 import Data.Hashable
     ( Hashable (..), hashUsing )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Map.Strict.NonEmptyMap
-    ( NonEmptyMap )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( mapMaybe )
+import Data.Monoid.Cancellative
+    ( LeftReductive, Reductive ((</>)), RightReductive )
+import Data.Monoid.GCD
+    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+import Data.Monoid.Monus
+    ( Monus ((<\>)), OverlappingGCDMonoid )
+import Data.Monoid.Null
+    ( MonoidNull )
+import Data.MonoidMap
+    ( MonoidMap )
 import Data.Ord
     ( comparing )
 import Data.Ratio
     ( (%) )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -149,14 +144,17 @@ import Numeric.Natural
     ( Natural )
 import Quiet
     ( Quiet (..) )
+import Safe
+    ( fromJustNote )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.Map.Strict.NonEmptyMap as NEMap
+import qualified Data.Monoid.GCD as GCDMonoid
+import qualified Data.Monoid.Null as MonoidNull
+import qualified Data.MonoidMap as MonoidMap
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
@@ -182,20 +180,18 @@ import qualified Data.Set as Set
 --
 newtype TokenMap = TokenMap
     { unTokenMap
-        :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
+        :: MonoidMap TokenPolicyId (MonoidMap TokenName TokenQuantity)
     }
     deriving stock (Eq, Generic)
     deriving (Read, Show) via (Quiet TokenMap)
+    deriving newtype (Commutative, Semigroup, Monoid, MonoidNull)
+    deriving newtype (LeftReductive, RightReductive, Reductive)
+    deriving newtype (LeftGCDMonoid, RightGCDMonoid, GCDMonoid)
+    deriving newtype (OverlappingGCDMonoid, Monus)
 
 instance NFData TokenMap
 instance Hashable TokenMap where
-    hashWithSalt = hashUsing (Map.toList . unTokenMap)
-
-instance Semigroup TokenMap where
-    (<>) = add
-
-instance Monoid TokenMap where
-    mempty = empty
+    hashWithSalt = hashUsing toNestedList
 
 -- | A combination of a token policy identifier and a token name that can be
 --   used as a compound identifier.
@@ -258,9 +254,7 @@ instance TypeError ('Text "Ord not supported for token maps")
 -- In the above example, map 'x' is strictly less than map 'y'.
 --
 instance PartialOrd TokenMap where
-    m1 `leq` m2 = F.all
-        (\a -> getQuantity m1 a <= getQuantity m2 a)
-        (getAssets m1 `Set.union` getAssets m2)
+    leq = MonoidMap.isSubmapOf `on` unTokenMap
 
 -- | Defines a lexicographic ordering.
 --
@@ -312,12 +306,12 @@ instance Buildable (Nested TokenMap) where
     build = buildTokenMap . unTokenMap . getNested
       where
         buildTokenMap =
-            buildList buildPolicy . Map.toList
+            buildList buildPolicy . MonoidMap.toList
         buildPolicy (policy, assetMap) = buildMap
             [ ("policy",
                 build policy)
             , ("tokens",
-                buildList buildTokenQuantity (NEMap.toList assetMap))
+                buildList buildTokenQuantity (MonoidMap.toList assetMap))
             ]
         buildTokenQuantity (token, quantity) = buildMap
             [ ("token",
@@ -486,10 +480,8 @@ fromNestedList entries = fromFlatList
 
 -- | Creates a token map from a nested map.
 --
-fromNestedMap
-    :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
-    -> TokenMap
-fromNestedMap = fromNestedList . Map.toList . fmap NEMap.toList
+fromNestedMap :: Map TokenPolicyId (Map TokenName TokenQuantity) -> TokenMap
+fromNestedMap = TokenMap . MonoidMap.fromMap . fmap MonoidMap.fromMap
 
 --------------------------------------------------------------------------------
 -- Deconstruction
@@ -508,15 +500,14 @@ toFlatList b =
 --
 toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
-toNestedList =
-    fmap (fmap NEMap.toList) . Map.toList . unTokenMap
+toNestedList (TokenMap m) =
+    mapMaybe (traverse NE.nonEmpty) $
+    fmap MonoidMap.toList <$> MonoidMap.toList m
 
 -- | Converts a token map to a nested map.
 --
-toNestedMap
-    :: TokenMap
-    -> Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
-toNestedMap = unTokenMap
+toNestedMap :: TokenMap -> Map TokenPolicyId (Map TokenName TokenQuantity)
+toNestedMap (TokenMap m) = MonoidMap.toMap <$> MonoidMap.toMap m
 
 --------------------------------------------------------------------------------
 -- Filtering
@@ -532,10 +523,7 @@ filter f = fromFlatList . L.filter (f . fst) . toFlatList
 -- | Adds one token map to another.
 --
 add :: TokenMap -> TokenMap -> TokenMap
-add a b = F.foldl' acc a $ toFlatList b
-  where
-    acc c (asset, quantity) =
-        adjustQuantity c asset (`TokenQuantity.add` quantity)
+add = (<>)
 
 -- | Subtracts the second token map from the first.
 --
@@ -543,7 +531,7 @@ add a b = F.foldl' acc a $ toFlatList b
 -- map when compared with the `leq` function.
 --
 subtract :: TokenMap -> TokenMap -> Maybe TokenMap
-subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+subtract = (</>)
 
 -- | Analogous to @Set.difference@, return the difference between two token
 -- maps.
@@ -562,11 +550,9 @@ subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 -- >>> let oneToken = singleton aid (TokenQuantity 1)
 -- >>> (mempty `difference` oneToken) `add` oneToken
 -- oneToken
+--
 difference :: TokenMap -> TokenMap -> TokenMap
-difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
-  where
-    reduce :: TokenMap -> (AssetId, TokenQuantity) -> TokenMap
-    reduce m (a, q) = adjustQuantity m a (`TokenQuantity.difference` q)
+difference = (<\>)
 
 -- | Computes the intersection of two token maps.
 --
@@ -580,16 +566,7 @@ difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
 --          [          ("b", 2), ("c", 2)          ]
 --
 intersection :: TokenMap -> TokenMap -> TokenMap
-intersection m1 m2 =
-    fromFlatList (getMinimumQuantity <$> F.toList sharedAssets)
-  where
-    getMinimumQuantity :: AssetId -> (AssetId, TokenQuantity)
-    getMinimumQuantity a = (a, ) $ min
-        (getQuantity m1 a)
-        (getQuantity m2 a)
-
-    sharedAssets :: Set AssetId
-    sharedAssets = Set.intersection (getAssets m1) (getAssets m2)
+intersection = GCDMonoid.gcd
 
 --------------------------------------------------------------------------------
 -- Queries
@@ -607,12 +584,12 @@ size = Set.size . getAssets
 -- | Returns true if and only if the given map is empty.
 --
 isEmpty :: TokenMap -> Bool
-isEmpty = (== empty)
+isEmpty = MonoidNull.null
 
 -- | Returns true if and only if the given map is not empty.
 --
 isNotEmpty :: TokenMap -> Bool
-isNotEmpty = (/= empty)
+isNotEmpty = not . MonoidNull.null
 
 --------------------------------------------------------------------------------
 -- Quantities
@@ -625,7 +602,7 @@ isNotEmpty = (/= empty)
 --
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
 getQuantity (TokenMap m) (AssetId policy token) =
-    fromMaybe TokenQuantity.zero $ NEMap.lookup token =<< Map.lookup policy m
+    MonoidMap.get token (MonoidMap.get policy m)
 
 -- | Updates the quantity associated with a given asset.
 --
@@ -633,38 +610,14 @@ getQuantity (TokenMap m) (AssetId policy token) =
 -- the given asset.
 --
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
-setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
-    case getPolicyMap originalMap policy of
-        Nothing | TokenQuantity.isZero quantity ->
-            originalMap
-        Nothing ->
-            createPolicyMap
-        Just policyMap | TokenQuantity.isZero quantity ->
-            removeQuantityFromPolicyMap policyMap
-        Just policyMap ->
-            updateQuantityInPolicyMap policyMap
-  where
-    createPolicyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.singleton token quantity
-
-    removeQuantityFromPolicyMap policyMap =
-        case NEMap.delete token policyMap of
-            Nothing ->
-                TokenMap $ Map.delete policy m
-            Just newPolicyMap ->
-                TokenMap $ Map.insert policy newPolicyMap m
-
-    updateQuantityInPolicyMap policyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.insert token quantity policyMap
+setQuantity (TokenMap m) (AssetId policy token) quantity =
+    TokenMap $ MonoidMap.adjust (MonoidMap.set token quantity) policy m
 
 -- | Returns true if and only if the given map has a non-zero quantity for the
 --   given asset.
 --
 hasQuantity :: TokenMap -> AssetId -> Bool
-hasQuantity (TokenMap m) (AssetId policy token) =
-    isJust $ NEMap.lookup token =<< Map.lookup policy m
+hasQuantity m = not . MonoidNull.null . getQuantity m
 
 -- | Uses the specified function to adjust the quantity associated with a
 --   given asset.
@@ -677,8 +630,8 @@ adjustQuantity
     -> AssetId
     -> (TokenQuantity -> TokenQuantity)
     -> TokenMap
-adjustQuantity m asset adjust =
-    setQuantity m asset $ adjust $ getQuantity m asset
+adjustQuantity (TokenMap m) (AssetId policy token) f =
+    TokenMap $ MonoidMap.adjust (MonoidMap.adjust f token) policy m
 
 -- | Removes the quantity associated with the given asset.
 --
@@ -690,18 +643,7 @@ removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 -- | Get the largest quantity from this map.
 --
 maximumQuantity :: TokenMap -> TokenQuantity
-maximumQuantity =
-    Map.foldl' (\a -> Map.foldr findMaximum a . NEMap.toMap) zero . unTokenMap
-  where
-    zero :: TokenQuantity
-    zero = TokenQuantity 0
-
-    findMaximum :: TokenQuantity -> TokenQuantity -> TokenQuantity
-    findMaximum challenger champion
-        | challenger > champion =
-            challenger
-        | otherwise =
-            champion
+maximumQuantity = F.foldl' (F.foldl' max) mempty . unTokenMap
 
 --------------------------------------------------------------------------------
 -- Partitioning
@@ -827,17 +769,4 @@ mapAssetIds f m = fromFlatList $ first f <$> toFlatList m
 -- Throws a run-time exception if the pre-condition is violated.
 --
 unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
-unsafeSubtract a b = F.foldl' acc a $ toFlatList b
-  where
-    acc c (asset, quantity) =
-        adjustQuantity c asset (`TokenQuantity.unsafeSubtract` quantity)
-
---------------------------------------------------------------------------------
--- Internal functions
---------------------------------------------------------------------------------
-
-getPolicyMap
-    :: TokenMap
-    -> TokenPolicyId
-    -> Maybe (NonEmptyMap TokenName TokenQuantity)
-getPolicyMap b policy = Map.lookup policy (unTokenMap b)
+unsafeSubtract b1 b2 = fromJustNote "TokenMap.unsafeSubtract" $ b1 </> b2
