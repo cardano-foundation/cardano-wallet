@@ -164,7 +164,7 @@ library
     , plutus-ledger-api
     , pretty-simple
     , profunctors
-    , QuickCheck
+    , QuickCheck ^>= 2.14.3
     , quickcheck-instances
     , quiet
     , random

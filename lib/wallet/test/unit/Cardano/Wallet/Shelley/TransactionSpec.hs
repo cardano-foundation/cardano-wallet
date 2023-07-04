@@ -441,6 +441,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
     , suchThat
@@ -457,7 +458,6 @@ import Test.QuickCheck.Extra
     ( chooseNatural
     , genNonEmpty
     , report
-    , shrinkBoundedEnum
     , shrinkNatural
     , shrinkNonEmpty
     , (.>=.)

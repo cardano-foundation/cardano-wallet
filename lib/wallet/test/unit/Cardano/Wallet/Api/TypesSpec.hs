@@ -488,6 +488,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkBoundedEnum
     , shrinkIntegral
     , shrinkMapBy
     , sized
@@ -499,7 +500,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( reasonablySized, shrinkBoundedEnum )
+    ( reasonablySized )
 import Test.QuickCheck.Gen
     ( sublistOf )
 import Test.QuickCheck.Instances
