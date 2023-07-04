@@ -2609,10 +2609,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- one tx on address 1 and three txs on address 2
         sendAmtToAddr ctx wSrc wDest a1 0
         sendAmtToAddr ctx wSrc wDest a2 0
-        --sendAmtToAddr ctx wSrc wDest a3 1
-        --sendAmtToAddr ctx wSrc wDest a1 2
-        --sendAmtToAddr ctx wSrc wDest a4 2
-        --sendAmtToAddr ctx wSrc wDest a5 2
+        sendAmtToAddr ctx wSrc wDest a3 1
+        sendAmtToAddr ctx wSrc wDest a1 2
+        sendAmtToAddr ctx wSrc wDest a4 2
+        sendAmtToAddr ctx wSrc wDest a5 2
 
         eventually "There are exactly 6 transactions for wDest" $ do
             let linkList = Link.listTransactions' @'Shared wDest
@@ -2709,9 +2709,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
              [ expectSuccess
              , expectResponseCode HTTP.status202
              ]
-         eventually "src wallet balance is higher than before" $ do
+         eventually "dest wallet balance is higher than before" $ do
              rGet <- request @ApiWallet ctx
-                 (Link.getWallet @'Shelley dest) Default Empty
+                 (Link.getWallet @'Shared dest) Default Empty
              verify rGet
                  [ expectField (#balance . #total)
                      (.> bal1)
