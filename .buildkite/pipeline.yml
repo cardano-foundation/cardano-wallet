@@ -3,6 +3,7 @@ agents:
 
 env:
   LC_ALL: "en_US.UTF-8"
+  LANG: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
 
   # Per-host variables - shared across containers on host

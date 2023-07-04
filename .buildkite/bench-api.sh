@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils gnugrep gawk buildkite-agent
+#! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
 
 set -euo pipefail
 
@@ -20,6 +20,7 @@ results=api.txt
 total_time=api-time.txt
 
 echo "--- Build"
+nix --version
 
 nix build .#ci.benchmarks.api -o bench-api
 bench="./bench-api/bin/api lib/wallet/test/data/api-bench"
