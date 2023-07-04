@@ -501,8 +501,7 @@ toFlatList b =
 toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
 toNestedList (TokenMap m) =
-    mapMaybe (traverse NE.nonEmpty) $
-    fmap MonoidMap.toList <$> MonoidMap.toList m
+    mapMaybe (traverse NE.nonEmpty . fmap MonoidMap.toList) $ MonoidMap.toList m
 
 -- | Converts a token map to a nested map.
 --
