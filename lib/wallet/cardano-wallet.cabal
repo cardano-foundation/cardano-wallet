@@ -182,7 +182,6 @@ library
     , statistics
     , stm
     , streaming-commons
-    , strict-non-empty-containers
     , strict-stm
     , string-interpolate
     , template-haskell
@@ -873,7 +872,6 @@ test-suite unit
     , si-timers
     , sop-core
     , splitmix
-    , strict-non-empty-containers
     , string-interpolate
     , string-qq
     , temporary

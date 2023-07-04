@@ -75,7 +75,6 @@ library
     , random
     , safe
     , scientific
-    , strict-non-empty-containers
     , text
     , text-class
     , transformers
