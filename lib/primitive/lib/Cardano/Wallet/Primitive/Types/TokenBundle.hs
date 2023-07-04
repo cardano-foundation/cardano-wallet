@@ -71,7 +71,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     ) where
 
 import Prelude hiding
-    ( subtract )
+    ( gcd, null, subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -85,20 +85,31 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData )
-import Control.Monad
-    ( guard )
 import Data.Bifunctor
     ( first )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Monoid.Cancellative
+    ( GCDMonoid (..)
+    , LeftGCDMonoid (..)
+    , LeftReductive (..)
+    , OverlappingGCDMonoid (..)
+    , Reductive ((</>))
+    , RightGCDMonoid (..)
+    , RightReductive (..)
+    )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
+import Data.Monoid.Null
+    ( MonoidNull (..) )
 import Data.Ord
     ( comparing )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Set
     ( Set )
 import Fmt
@@ -107,6 +118,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
+import Safe
+    ( fromJustNote )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -129,10 +142,43 @@ data TokenBundle = TokenBundle
     deriving anyclass (NFData, Hashable)
 
 instance Semigroup TokenBundle where
-    (<>) = add
+    TokenBundle c1 m1 <> TokenBundle c2 m2 =
+        TokenBundle (c1 <> c2) (m1 <> m2)
+
+instance Commutative TokenBundle
 
 instance Monoid TokenBundle where
-    mempty = empty
+    mempty = TokenBundle mempty mempty
+
+instance MonoidNull TokenBundle where
+    null (TokenBundle c m) = null c && null m
+
+instance LeftReductive TokenBundle where
+    stripPrefix = flip (</>)
+
+instance RightReductive TokenBundle where
+    stripSuffix = flip (</>)
+
+instance Reductive TokenBundle where
+    TokenBundle c1 m1 </> TokenBundle c2 m2 =
+        TokenBundle <$> (c1 </> c2) <*> (m1 </> m2)
+
+instance LeftGCDMonoid TokenBundle where
+    commonPrefix = gcd
+
+instance RightGCDMonoid TokenBundle where
+    commonSuffix = gcd
+
+instance GCDMonoid TokenBundle where
+    gcd (TokenBundle c1 m1) (TokenBundle c2 m2) =
+        TokenBundle (gcd c1 c2) (gcd m1 m2)
+
+instance OverlappingGCDMonoid TokenBundle where
+    stripOverlap b1 b2 = let o = gcd b1 b2 in (b1 <\> o, o, b2 <\> o)
+
+instance Monus TokenBundle where
+    TokenBundle c1 m1 <\> TokenBundle c2 m2 =
+        TokenBundle (c1 <\> c2) (m1 <\> m2)
 
 --------------------------------------------------------------------------------
 -- Ordering
@@ -194,7 +240,7 @@ buildMap = blockMapF . fmap (first $ id @String)
 -- | The empty token bundle.
 --
 empty :: TokenBundle
-empty = TokenBundle (Coin 0) mempty
+empty = mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
@@ -279,8 +325,7 @@ setCoin b c = b { coin = c }
 -- | Adds one token bundle to another.
 --
 add :: TokenBundle -> TokenBundle -> TokenBundle
-add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
+add = (<>)
 
 -- | Subtracts the second token bundle from the first.
 --
@@ -288,7 +333,7 @@ add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
 -- bundle when compared with the `leq` function.
 --
 subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
-subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+subtract = (</>)
 
 -- | Analogous to @Set.difference@, return the difference between two token
 -- maps.
@@ -309,10 +354,7 @@ subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 -- oneToken
 --
 difference :: TokenBundle -> TokenBundle -> TokenBundle
-difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
-    TokenBundle
-        (Coin.difference c1 c2)
-        (TokenMap.difference m1 m2)
+difference = (<\>)
 
 --------------------------------------------------------------------------------
 -- Quantities
@@ -414,5 +456,4 @@ mapAssetIds f (TokenBundle c m) = TokenBundle c (TokenMap.mapAssetIds f m)
 -- Throws a run-time exception if the pre-condition is violated.
 --
 unsafeSubtract :: TokenBundle -> TokenBundle -> TokenBundle
-unsafeSubtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 - c2) (TokenMap.unsafeSubtract m1 m2)
+unsafeSubtract b1 b2 = fromJustNote "TokenBundle.unsafeSubtract" $ b1 </> b2
