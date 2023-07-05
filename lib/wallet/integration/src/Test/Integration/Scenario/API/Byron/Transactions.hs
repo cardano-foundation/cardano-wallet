@@ -744,3 +744,27 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    describe "BYRON_TX_LIST_ADDRESS - Transactions can be filtered by address" $
+        forM_ [ (fixtureRandomWallet, emptyRandomWallet, "Byron wallet")
+              , (fixtureIcarusWallet, emptyIcarusWallet, "Icarus wallet")] $
+            \(srcFixture, srcEmpty, name) -> it name $ \ctx -> runResourceT $ do
+                wSrc <- srcFixture ctx
+                wDest <- srcEmpty ctx
+                let link w = Link.listTransactions' @'Byron w
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                r1 <- request @([ApiTransaction n]) ctx (link wSrc) Default Empty
+                verify r1
+                    [ expectResponseCode HTTP.status200
+                    , expectListSize 10
+                    ]
+                r2 <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
+                verify r2
+                    [ expectResponseCode HTTP.status200
+                    , expectListSize 0
+                    ]
