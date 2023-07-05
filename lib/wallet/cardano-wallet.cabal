@@ -1147,5 +1147,6 @@ benchmark api
     , time
     , transformers
     , unliftio
+    , with-utf8
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types

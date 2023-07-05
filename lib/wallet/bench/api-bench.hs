@@ -116,6 +116,8 @@ import Fmt
     ( Buildable, Builder, blockListF', build, genericF, nameF, pretty )
 import GHC.Generics
     ( Generic )
+import Main.Utf8
+    ( withUtf8 )
 import Numeric.Natural
     ( Natural )
 import Say
@@ -139,7 +141,7 @@ import qualified System.Exit as Sys
     Main function
 -------------------------------------------------------------------------------}
 main :: IO ()
-main = do
+main = withUtf8 $ do
     Sys.getArgs >>= \case
         [] -> do
             sayErr "expected 1 argument: directory with wallet database files"
