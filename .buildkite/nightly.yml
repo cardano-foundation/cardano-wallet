@@ -1,14 +1,8 @@
 env:
-  LC_ALL: "en_US.UTF-8"
+  LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
 
-  # Per-container variables
-  SCRATCH_DIR: "/scratch/cardano-wallet"
-  BUILD_DIR: "/build/cardano-wallet"
-  CABAL_DIR: "/build/cardano-wallet.cabal"
-
   # Per-host variables - shared across containers on host
-  CACHE_DIR: "/cache/cardano-wallet"
   macos: "x86_64-darwin"
 
 steps:
@@ -18,14 +12,14 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
-  
-  # ADP-2522 - Fix integration tests on MacOS  
+
+  # ADP-2522 - Fix integration tests on MacOS
   # - label: 'Run integration tests on macos'
   #   depends_on: macos-nix
   #   command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.integration'
   #   agents:
   #     system: ${macos}
-      
+
   - label: 'Restore benchmark - cardano mainnet'
     command: "./.buildkite/bench-restore.sh mainnet"
     env:
@@ -70,4 +64,3 @@ steps:
   #   agents:
   #     system: x86_64-linux
   #   if: 'build.env("step") == null || build.env("step") =~ /migration-tests/'
-

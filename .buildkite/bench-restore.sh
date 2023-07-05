@@ -14,16 +14,12 @@ log=restore.log
 results=restore-$network.txt
 total_time=restore-time.txt
 
-if [ -n "${SCRATCH_DIR:-}" ]; then
-  mkdir -pv "$SCRATCH_DIR"
-  export TMPDIR="$SCRATCH_DIR/tmp"
-  mkdir -pv "$TMPDIR"
-fi
+export TMPDIR="/$TMPDIR/bench/restore"
+mkdir -p $TMPDIR
 
 : "${node_db:=$HOME/node-db-$network}"
 
 echo "--- Build"
-
 nix build .#ci.benchmarks.restore -o bench-restore
 
 bench="./bench-restore/bin/restore $network --node-db $node_db"

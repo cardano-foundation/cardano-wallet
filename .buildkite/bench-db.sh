@@ -1,9 +1,12 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils buildkite-agent
+#! nix-shell -i bash -p coreutils buildkite-agent
 
 set -euo pipefail
 
 bench_name=bench-db
+
+export TMPDIR="/tmp/bench/db"
+mkdir -p $TMPDIR
 
 rm -rf $bench_name
 
@@ -12,10 +15,6 @@ nix build .#ci.benchmarks.db -o $bench_name
 
 echo "+++ Run benchmark"
 
-if [ -n "${SCRATCH_DIR:-}" ]; then
-  mkdir -p "$SCRATCH_DIR"
-  export TMPDIR="$SCRATCH_DIR"
-fi
 
 ./$bench_name/bin/db --json $bench_name.json -o $bench_name.html | tee $bench_name.txt
 
