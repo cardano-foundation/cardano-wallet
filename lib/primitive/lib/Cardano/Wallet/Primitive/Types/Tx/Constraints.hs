@@ -130,6 +130,7 @@ txOutputHasValidTokenQuantities constraints m =
 newtype TxSize = TxSize { unTxSize :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving Show via (Quiet TxSize)
+    deriving Num via Natural
 
 instance NFData TxSize
 

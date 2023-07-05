@@ -1941,8 +1941,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
         let coinSelectionEstimatedSize :: Natural -> Natural
-            coinSelectionEstimatedSize
-                = fromIntegral . sizeOf_BootstrapWitnesses . fromIntegral
+            coinSelectionEstimatedSize = unTxSize . sizeOf_BootstrapWitnesses
 
         let measuredWitSize :: IsCardanoEra era => Cardano.Tx era -> Natural
             measuredWitSize (Cardano.Tx body wits) = fromIntegral
