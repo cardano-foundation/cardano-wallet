@@ -6,7 +6,6 @@ env:
   NIX_PATH: "channel:nixos-21.11"
 
   # Per-host variables - shared across containers on host
-  CACHE_DIR: "/cache/cardano-wallet"
   macos: "x86_64-darwin"
   linux: "x86_64-linux"
 
