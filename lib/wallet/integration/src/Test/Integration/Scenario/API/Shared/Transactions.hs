@@ -33,7 +33,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
-    , ApiAddressWithPath
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiCertificate (..)
     , ApiConstructTransaction (..)
@@ -159,6 +159,7 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
+    , (.<)
     , (.>)
     )
 import Test.Integration.Framework.Request
@@ -2672,16 +2673,141 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let amts2 = fmap (view #amount) txs2
         Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
 
+    it "SHARED_TRANSACTIONS_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = minUTxOValue'
+        let a2 = fromIntegral $ oneAda * 5_000
+        let a3 = fromIntegral $ oneAda * 10_000
+        (wSrc, ApiSharedWallet (Right wDest)) <-
+             (,) <$> fixtureSharedWalletWith ctx (fromIntegral $ oneAda * 50_000)
+                 <*> emptySharedWallet ctx
+
+        -- initially empty wallet wDest should have five txs on address 0 with
+        -- just 5*a1 on it, one tx on address 1 with a2 and three txs on address
+        -- 2 with 3*a3
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+
+        eventually "There are exactly 8 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shared wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 8]
+
+        addrs <- listExternalAddresses ctx wDest
+
+        -- from newly funded wallet we send back funds in such a way that we can
+        -- indetify that address 2 was engaged in a given tx
+        let a4 = fromIntegral $ oneAda * 29_990
+        let addr2 = (addrs !! 2) ^. #id
+        let linkList2a = Link.listTransactions' @'Shared wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr2))
+        rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        verify rl2a [expectListSize 3]
+        let txs2a = getFromResponse Prelude.id rl2a
+        let amts2a = fmap (view #amount) txs2a
+        amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
+
+        sendAmtToAddr ctx wDest wSrc a4 0
+        eventually "There are exactly 9 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shared wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 9]
+
+        rl2b <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        verify rl2b [expectListSize 4]
+
+        -- destination wallet is refunded on address 1
+        let addr1 = (addrs !! 1) ^. #id
+        let linkList1a = Link.listTransactions' @'Shared wDest
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                Nothing
+                (Just (apiAddress addr1))
+        rl1a <- request @([ApiTransaction n]) ctx linkList1a Default Empty
+        verify rl1a [expectListSize 0]
+
+        sendAmtToAddr ctx wSrc wDest a2 1
+
+        eventually "There are exactly 10 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shared wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 10]
+        rl1b <- request @([ApiTransaction n]) ctx linkList1a Default Empty
+        verify rl1b [expectListSize 1]
+
+        -- next the funded wallet sends back funds in such a way that we can
+        -- indetify address 1 was engaged in a given tx
+        let a5 = fromIntegral $ oneAda * 4_990
+
+        sendAmtToAddr ctx wDest wSrc a5 0
+        eventually "There are exactly 11 transactions for wDest" $ do
+            let linkList = Link.listTransactions' @'Shared wDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 11]
+
+        rl1c <- request @([ApiTransaction n]) ctx linkList1a Default Empty
+        verify rl1c [expectListSize 2]
   where
+     oneAda :: Integer
+     oneAda = 1_000_000
+
+     listExternalAddresses ctx w = do
+         let link = Link.listAddresses @'Shared w
+         r <- request @[ApiAddressWithPath n] ctx link Default Empty
+         expectResponseCode HTTP.status200 r
+         let isExternal (ApiAddressWithPath _ _
+                 (_ NE.:| [_, _, (ApiT (DerivationIndex ix)), _] ) ) = ix == 0
+             isExternal _ = False
+         return (filter isExternal $ getFromResponse Prelude.id r)
+
      sendAmtToAddr ctx src dest amt addrIx = do
          (_, Right (ApiSharedWallet (Right wal1))) <-
              getSharedWallet ctx (ApiSharedWallet (Right dest))
          let bal1 = wal1 ^. (#balance . #available)
 
-         rAddr <- request @[ApiAddressWithPath n] ctx
-             (Link.listAddresses @'Shared dest) Default Empty
-         expectResponseCode HTTP.status200 rAddr
-         let addrs = getFromResponse Prelude.id rAddr
+         (_, Right (ApiSharedWallet (Right wal2))) <-
+             getSharedWallet ctx (ApiSharedWallet (Right src))
+         let bal2 = wal2 ^. (#balance . #available)
+
+         addrs <- listExternalAddresses ctx dest
          let destination = (addrs !! addrIx) ^. #id
          let payload = Json [json|{
                  "payments": [{
@@ -2717,6 +2843,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (.> bal1)
                  , expectField (#balance . #available)
                      (.> bal1)
+                 ]
+         eventually "src wallet balance is lower than before" $ do
+             rGet <- request @ApiWallet ctx
+                 (Link.getWallet @'Shared src) Default Empty
+             verify rGet
+                 [ expectField (#balance . #total)
+                     (.< bal2)
+                 , expectField (#balance . #available)
+                     (.< bal2)
                  ]
 
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
