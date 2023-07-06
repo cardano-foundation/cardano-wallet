@@ -96,6 +96,8 @@ import Test.Integration.Framework.DSL
     , toQueryString
     , verify
     , walletId
+    , (.<)
+    , (.>)
     , (.>=)
     )
 import Test.Integration.Framework.Request
@@ -768,3 +770,74 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     [ expectResponseCode HTTP.status200
                     , expectListSize 0
                     ]
+
+                let minUTxOValue' = minUTxOValue (_mainEra ctx)
+                let a1 = minUTxOValue'
+
+                sendAmtToAddr ctx wSrc wDest a1 0
+
+
+  where
+    sendAmtToAddr ctx src dest amt addrIx = do
+        rDest <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron dest) Default Empty
+        let rDest' = getFromResponse Prelude.id rDest
+        let balDest = rDest' ^. (#balance . #available)
+
+        rSrc <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron src) Default Empty
+        let rSrc' = getFromResponse Prelude.id rSrc
+        let balSrc = rSrc' ^. (#balance . #available)
+
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
+        let walType = getFromResponse #discovery ra
+
+        destination <- case walType of
+            DiscoveryRandom -> do
+                let payloadAddr = Json [json|
+                       { "passphrase": #{fixturePassphrase}
+                       , "address_index": #{addrIx}
+                       }|]
+                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress dest) Default payloadAddr
+                pure $ getFromResponse #id rA
+            DiscoverySequential -> do
+                let link = Link.listAddresses @'Byron dest
+                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
+                let addrs = getFromResponse Prelude.id rA2
+                pure $ (addrs !! addrIx) ^. #id
+
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Byron src) Default payloadTx
+        verify rTx
+            [ expectSuccess ]
+
+        eventually "dest wallet balance is higher than before" $ do
+            rGet <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron dest) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (.> balDest)
+                , expectField (#balance . #available)
+                    (.> balDest)
+                ]
+
+        eventually "src wallet balance is lower than before" $ do
+            rGet <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron src) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (.< balSrc)
+                , expectField (#balance . #available)
+                    (.< balSrc)
+                ]
