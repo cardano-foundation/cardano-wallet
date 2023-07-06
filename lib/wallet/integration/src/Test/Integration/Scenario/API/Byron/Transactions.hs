@@ -814,6 +814,18 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
                 verify rl2 [expectListSize 1]
 
+                let a4 = oneAda * 900
+                -- fixture wallet has 10 addresses, hence we use next one
+                _ <- sendAmtToNewAddr ctx wDest wSrc a4 10
+                let linkList3 = Link.listTransactions' @'Byron wDest
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        (Just (apiAddress addr2))
+                rl3 <- request @([ApiTransaction n]) ctx linkList3 Default Empty
+                verify rl3 [expectListSize 2]
   where
     oneAda :: Integer
     oneAda = 1_000_000
