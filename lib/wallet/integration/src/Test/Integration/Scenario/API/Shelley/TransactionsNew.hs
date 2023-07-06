@@ -193,6 +193,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , notDelegating
+    , notRetiringPools
     , pickAnAsset
     , request
     , rewardWallet
@@ -2648,8 +2649,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         dest <- emptyWallet ctx
         let depositAmt = Quantity 1_000_000
 
-        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$> unsafeRequest @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        pool1:pool2:_ <- map (view #id) <$> notRetiringPools ctx
 
         let delegationJoin = Json [json|{
                 "delegations": [{
