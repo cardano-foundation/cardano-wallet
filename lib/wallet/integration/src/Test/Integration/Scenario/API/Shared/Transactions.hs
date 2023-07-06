@@ -2631,7 +2631,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr
 
-        let addr0 = (addrs !! 0) ^. #id
+        let addr0 = (head addrs) ^. #id
         let linkList0 = Link.listTransactions' @'Shared wDest
                 Nothing
                 Nothing

@@ -835,7 +835,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         let walType = getFromResponse #discovery ra
         -- needs to be >= 2^31
-        let addrIx' = 2147483648 + addrIx
+        let addrIx' = 2_147_483_648 + addrIx
 
         case walType of
             DiscoveryRandom -> do

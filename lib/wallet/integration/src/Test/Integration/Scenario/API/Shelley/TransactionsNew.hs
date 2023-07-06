@@ -4193,7 +4193,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrs <- listAddresses @n ctx wDest
 
-        let addr0 = (addrs !! 0) ^. #id
+        let addr0 = (head addrs) ^. #id
         let linkList0 = Link.listTransactions' @'Shelley wDest
                 Nothing
                 Nothing
