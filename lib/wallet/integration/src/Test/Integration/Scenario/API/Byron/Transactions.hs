@@ -771,32 +771,34 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     , expectListSize 0
                     ]
 
-                let minUTxOValue' = minUTxOValue (_mainEra ctx)
-                let a1 = minUTxOValue'
+                let a1 = oneAda * 10
 
                 sendAmtToAddr ctx wSrc wDest a1 0
 
-
   where
+    oneAda :: Integer
+    oneAda = 1_000_000
+
     sendAmtToAddr ctx src dest amt addrIx = do
         rDest <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron dest) Default Empty
-        let rDest' = getFromResponse Prelude.id rDest
-        let balDest = rDest' ^. (#balance . #available)
+        let balDest = getFromResponse (#balance . #available) rDest
 
         rSrc <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron src) Default Empty
-        let rSrc' = getFromResponse Prelude.id rSrc
-        let balSrc = rSrc' ^. (#balance . #available)
+        let balSrc = getFromResponse (#balance . #available) rSrc
 
         ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
         let walType = getFromResponse #discovery ra
+
+        -- needs to be >= 2^31
+        let addrIx' = 2147483648 + addrIx
 
         destination <- case walType of
             DiscoveryRandom -> do
                 let payloadAddr = Json [json|
                        { "passphrase": #{fixturePassphrase}
-                       , "address_index": #{addrIx}
+                       , "address_index": #{addrIx'}
                        }|]
                 rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress dest) Default payloadAddr
                 pure $ getFromResponse #id rA
