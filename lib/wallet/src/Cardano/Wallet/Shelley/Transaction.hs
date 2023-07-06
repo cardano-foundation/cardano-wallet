@@ -971,7 +971,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
         => Write.Tx (Write.ShelleyLedgerEra era)
         -> Either ErrAssignRedeemers
             ( Map Alonzo.RdmrPtr Redeemer
-            , (Write.Tx (Write.ShelleyLedgerEra era))
+            , Write.Tx (Write.ShelleyLedgerEra era)
             )
     assignNullRedeemers ledgerTx = do
         (indexedRedeemers, nullRedeemers) <-
@@ -1032,7 +1032,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     assignExecutionUnits
         :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
         => Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> (Write.Tx (Write.ShelleyLedgerEra era))
+        -> Write.Tx (Write.ShelleyLedgerEra era)
         -> Either ErrAssignRedeemers (Write.Tx (Write.ShelleyLedgerEra era))
     assignExecutionUnits exUnits ledgerTx = do
         let Alonzo.Redeemers rdmrs = view (witsTxL . rdmrsTxWitsL) ledgerTx
@@ -1057,8 +1057,8 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     -- final redeemers, if any.
     addScriptIntegrityHash
         :: Write.RecentEraLedgerConstraints (Write.ShelleyLedgerEra era)
-        => (Write.Tx (Write.ShelleyLedgerEra era))
-        -> (Write.Tx (Write.ShelleyLedgerEra era))
+        => Write.Tx (Write.ShelleyLedgerEra era)
+        -> Write.Tx (Write.ShelleyLedgerEra era)
     addScriptIntegrityHash ledgerTx =
         ledgerTx & (bodyTxL . scriptIntegrityHashTxBodyL) .~
             Alonzo.hashScriptIntegrity
