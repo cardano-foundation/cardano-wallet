@@ -4085,6 +4085,13 @@ x-parametersMaxCount: &parametersMaxCount
     type: integer
     minimum: 1
 
+x-parametersAddress: &parametersAddress
+  in: query
+  name: address
+  description: |
+    An optional address.
+  schema: *addressId
+
 x-parametersAddressState: &parametersAddressState
   in: query
   name: state
@@ -6529,6 +6536,7 @@ paths:
         - *parametersMaxCount
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
+        - *parametersAddress
       responses: *responsesListTransactions
 
   /wallets/{walletId}/transactions/{transactionId}:
@@ -7300,6 +7308,7 @@ paths:
         - *parametersEndDate
         - *parametersSortOrder
         - *parametersMaxCount
+        - *parametersAddress
       responses: *responsesListTransactions
 
   /byron-wallets/{walletId}/transactions/{transactionId}:
@@ -7841,6 +7850,7 @@ paths:
         - *parametersMaxCount
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
+        - *parametersAddress
       responses: *responsesListTransactions
 
   /shared-wallets/{walletId}/transactions/{transactionId}:
