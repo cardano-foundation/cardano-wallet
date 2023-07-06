@@ -772,8 +772,17 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     ]
 
                 let a1 = oneAda * 10
+                let a2 = oneAda * 100
+                let a3 = oneAda * 1_000
 
                 sendAmtToAddr ctx wSrc wDest a1 0
+                sendAmtToAddr ctx wSrc wDest a2 1
+                sendAmtToAddr ctx wSrc wDest a3 2
+
+                eventually "There are exactly 3 transactions for wDest" $ do
+                    rl <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
+                    verify rl [expectListSize 3]
+
 
   where
     oneAda :: Integer
