@@ -103,7 +103,7 @@ steps:
       TMPDIR: "/cache"
 
   - block: 'Run integration tests (linux)'
-    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
     key: trigger-linux
     depends_on:
       - linux-nix
@@ -167,7 +167,7 @@ steps:
 
   - block: "Build package and docker image (linux)"
     depends_on: linux-nix
-    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
     key: trigger-build-linux-package
 
   - label: 'Build package (linux)'
@@ -196,7 +196,7 @@ steps:
 
   - block: "Build windows artifacts"
     depends_on: linux-nix
-    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
     key: trigger-build-windows-artifacts
 
   - label: 'Build package (windows)'
