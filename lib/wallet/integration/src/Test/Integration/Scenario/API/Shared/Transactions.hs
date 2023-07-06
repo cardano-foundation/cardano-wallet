@@ -143,6 +143,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , notDelegating
+    , notRetiringPools
     , patchSharedWallet
     , postSharedWallet
     , postWallet
@@ -1775,9 +1776,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         (party1,party2) <- fixtureSharedWalletDelegating @n ctx
         let depositAmt = Quantity 1_000_000
 
-        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$>
-            unsafeRequest @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        pool1:pool2:_ <- map (view #id) <$> notRetiringPools ctx
 
         let delegationJoin = Json [json|{
                 "delegations": [{
@@ -2446,9 +2445,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         -- child shared wallets delegate to different pools and get rewards
         -- after several epochs
-        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$>
-            unsafeRequest @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        pool1:pool2:_ <- map (view #id) <$> notRetiringPools ctx
 
         let delegationJoin pool = Json [json|{
                 "delegations": [{
@@ -2553,7 +2550,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         rTx5 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared walActive1) Default
-            (payloadWithdrawal $ transfer + rewards1 - expectedFee)
+            (payloadWithdrawal $ transfer + rewards1 - expectedFee - ada 1)
         verify rTx5
             [ expectResponseCode HTTP.status202 ]
         let (ApiSerialisedTransaction apiTx5 _) =
@@ -2568,7 +2565,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         rTx6 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared walActive2) Default
-            (payloadWithdrawal $ transfer + rewards2 - expectedFee)
+            (payloadWithdrawal $ transfer + rewards2 - expectedFee - ada 1)
         verify rTx6
             [ expectResponseCode HTTP.status202 ]
         let (ApiSerialisedTransaction apiTx6 _) =
