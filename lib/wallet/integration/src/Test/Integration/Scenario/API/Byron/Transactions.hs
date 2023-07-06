@@ -16,7 +16,8 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
+    ( ApiAddress (..)
+    , ApiAddressWithPath
     , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
@@ -775,20 +776,70 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 let a2 = oneAda * 100
                 let a3 = oneAda * 1_000
 
-                sendAmtToAddr ctx wSrc wDest a1 0
-                sendAmtToAddr ctx wSrc wDest a2 1
-                sendAmtToAddr ctx wSrc wDest a3 2
+                addr0 <- sendAmtToNewAddr ctx wSrc wDest a1 0
+                addr1 <- sendAmtToNewAddr ctx wSrc wDest a2 1
+                addr2 <- sendAmtToNewAddr ctx wSrc wDest a3 2
 
                 eventually "There are exactly 3 transactions for wDest" $ do
                     rl <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
                     verify rl [expectListSize 3]
 
+                let linkList0 = Link.listTransactions' @'Byron wDest
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        (Just (apiAddress addr0))
+                rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
+                verify rl0 [expectListSize 1]
+
+                let linkList1 = Link.listTransactions' @'Byron wDest
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        (Just (apiAddress addr1))
+                rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
+                verify rl1 [expectListSize 1]
+
+                let linkList2 = Link.listTransactions' @'Byron wDest
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        (Just (apiAddress addr2))
+                rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
+                verify rl2 [expectListSize 1]
 
   where
     oneAda :: Integer
     oneAda = 1_000_000
 
-    sendAmtToAddr ctx src dest amt addrIx = do
+    getAddress ctx wal addrIx = do
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wal) Default Empty
+
+        let walType = getFromResponse #discovery ra
+        -- needs to be >= 2^31
+        let addrIx' = 2147483648 + addrIx
+
+        case walType of
+            DiscoveryRandom -> do
+                let payloadAddr = Json [json|
+                       { "passphrase": #{fixturePassphrase}
+                       , "address_index": #{addrIx'}
+                       }|]
+                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wal) Default payloadAddr
+                pure $ getFromResponse #id rA
+            DiscoverySequential -> do
+                let link = Link.listAddresses @'Byron wal
+                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
+                let addrs = getFromResponse Prelude.id rA2
+                pure $ (addrs !! addrIx) ^. #id
+
+    sendAmtToNewAddr ctx src dest amt addrIx = do
         rDest <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron dest) Default Empty
         let balDest = getFromResponse (#balance . #available) rDest
@@ -797,25 +848,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             (Link.getWallet @'Byron src) Default Empty
         let balSrc = getFromResponse (#balance . #available) rSrc
 
-        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
-        let walType = getFromResponse #discovery ra
-
-        -- needs to be >= 2^31
-        let addrIx' = 2147483648 + addrIx
-
-        destination <- case walType of
-            DiscoveryRandom -> do
-                let payloadAddr = Json [json|
-                       { "passphrase": #{fixturePassphrase}
-                       , "address_index": #{addrIx'}
-                       }|]
-                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress dest) Default payloadAddr
-                pure $ getFromResponse #id rA
-            DiscoverySequential -> do
-                let link = Link.listAddresses @'Byron dest
-                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
-                let addrs = getFromResponse Prelude.id rA2
-                pure $ (addrs !! addrIx) ^. #id
+        destination <- getAddress ctx dest addrIx
 
         let payloadTx = Json [json|{
                 "payments": [{
@@ -852,3 +885,5 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 , expectField (#balance . #available)
                     (.< balSrc)
                 ]
+
+        pure destination
