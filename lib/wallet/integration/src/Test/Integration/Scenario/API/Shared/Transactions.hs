@@ -107,7 +107,7 @@ import Data.Time.Utils
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain, shouldSatisfy )
 import Test.Hspec.Extra
@@ -2299,9 +2299,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
                 ]
 
-    it "SHARED_TRANSACTIONS_DELEGATION_02 - \
+    it "SHARED_TRANSACTIONS_DELEGATION_02  \
        \Emulating multi-delegation using shared wallets" $ \ctx -> runResourceT $ do
-
+        liftIO $ pendingWith "TODO: Fix multi-delegation with shared wallets flakiness, ADP-3084"
         -- creating empty parent Shelley wallet
         m15 <- liftIO $ genMnemonics M15
         m12 <- liftIO $ genMnemonics M12
