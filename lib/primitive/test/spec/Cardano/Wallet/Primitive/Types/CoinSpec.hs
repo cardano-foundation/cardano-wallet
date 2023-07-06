@@ -42,21 +42,6 @@ import qualified Test.QuickCheck as QC
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
 
-    describe "Arithmetic operations" $ do
-
-        it "prop_add_toNatural" $ do
-            property prop_add_toNatural
-        it "prop_add_subtract" $ do
-            property prop_add_subtract
-        it "prop_difference_distance" $ do
-            property prop_difference_distance
-        it "prop_difference_subtract" $ do
-            property prop_difference_subtract
-        it "prop_distance_commutative" $ do
-            property prop_distance_commutative
-        it "prop_subtract_toNatural" $ do
-            property prop_subtract_toNatural
-
     describe "Partitioning" $ do
 
         it "prop_partitionDefault_fold" $
@@ -88,57 +73,6 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
             prop_genCoinPartition_length & property
         it "prop_genCoinPartition_nonPositive" $
             prop_genCoinPartition_nonPositive & property
-
---------------------------------------------------------------------------------
--- Arithmetic operations
---------------------------------------------------------------------------------
-
-prop_add_subtract :: Coin -> Coin -> Property
-prop_add_subtract a b =
-    checkCoverageCoin a b $
-    conjoin
-    [ (a `Coin.add` b) `Coin.subtract` b === Just a
-    , (b `Coin.add` a) `Coin.subtract` a === Just b
-    ]
-
-prop_add_toNatural :: Coin -> Coin -> Property
-prop_add_toNatural a b =
-    checkCoverageCoin a b $
-    (===)
-        (Coin.toNatural (a `Coin.add` b))
-        (Coin.toNatural a + Coin.toNatural b)
-
-prop_difference_distance :: Coin -> Coin -> Property
-prop_difference_distance a b =
-    checkCoverageCoin a b $
-    if (a >= b)
-    then a `Coin.distance` b == a `Coin.difference` b
-    else a `Coin.distance` b == b `Coin.difference` a
-
-prop_difference_subtract :: Coin -> Coin -> Property
-prop_difference_subtract a b =
-    checkCoverageCoin a b $
-    if (a >= b)
-    then a `Coin.subtract` b === Just (a `Coin.difference` b)
-    else a `Coin.subtract` b === Nothing
-
-prop_distance_commutative :: Coin -> Coin -> Property
-prop_distance_commutative a b =
-    checkCoverageCoin a b $
-    a `Coin.distance` b === b `Coin.distance` a
-
-prop_subtract_toNatural :: Coin -> Coin -> Property
-prop_subtract_toNatural a b =
-    checkCoverageCoin a b $
-    if (a >= b)
-    then
-        (Coin.toNatural <$> (a `Coin.subtract` b))
-        ===
-        (Just (Coin.toNatural a - Coin.toNatural b))
-    else
-        (Coin.toNatural <$> (b `Coin.subtract` a))
-        ===
-        (Just (Coin.toNatural b - Coin.toNatural a))
 
 --------------------------------------------------------------------------------
 -- Partitioning

@@ -12,12 +12,10 @@ module Cardano.Wallet.Primitive.Types.TokenBundleSpec
 import Prelude hiding
     ( subtract )
 
-import Algebra.PartialOrd
-    ( leq )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Lexicographic (..), TokenBundle (..), add, difference, isCoin, subtract )
+    ( Lexicographic (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundlePartition
     , genTokenBundleSmallRange
@@ -39,7 +37,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Property
     , checkCoverage
-    , counterexample
     , cover
     , forAll
     , property
@@ -99,22 +96,6 @@ spec =
             , ordLaws
             ]
 
-    describe "Arithmetic" $ do
-        it "prop_difference_zero (x - 0 = x)" $
-            property prop_difference_zero
-        it "prop_difference_zero2 (0 - x = 0)" $
-            property prop_difference_zero2
-        it "prop_difference_zero3 (x - x = 0)" $
-            property prop_difference_zero3
-        it "prop_difference_leq (x - y ⊆ x)" $
-            property prop_difference_leq
-        it "prop_difference_add ((x - y) + y ⊇ x)" $
-            property prop_difference_add
-        it "prop_difference_subtract" $
-            property prop_difference_subtract
-        it "prop_difference_equality" $
-            property prop_difference_equality
-
     describe "Partitioning quantities with an upper bound" $ do
         it "prop_equipartitionQuantitiesWithUpperBound_length" $
             property prop_equipartitionQuantitiesWithUpperBound_length
@@ -135,55 +116,6 @@ spec =
     describe "Behaviour" $
         it "toCoin only returns when token bundle has only ADA" $
             property prop_toCoin_onlyAda
-
---------------------------------------------------------------------------------
--- Arithmetic properties
---------------------------------------------------------------------------------
-
-prop_difference_zero :: TokenBundle -> Property
-prop_difference_zero x =
-    x `difference` mempty === x
-
-prop_difference_zero2 :: TokenBundle -> Property
-prop_difference_zero2 x =
-    mempty `difference` x === mempty
-
-prop_difference_zero3 :: TokenBundle -> Property
-prop_difference_zero3 x =
-    x `difference` x === mempty
-
-prop_difference_leq :: TokenBundle -> TokenBundle -> Property
-prop_difference_leq x y = do
-    let delta = x `difference` y
-    counterexample ("x - y = " <> show delta) $ property $ delta `leq` x
-
--- (x - y) + y ⊇ x
-prop_difference_add :: TokenBundle -> TokenBundle -> Property
-prop_difference_add x y =
-    let
-        delta = x `difference` y
-        yAndDelta = delta `add` y
-    in
-        counterexample ("x - y = " <> show delta) $
-        counterexample ("(x - y) + y = " <> show yAndDelta) $
-        property $ x `leq` yAndDelta
-
-prop_difference_subtract :: TokenBundle -> TokenBundle -> Property
-prop_difference_subtract x y =
-    y `leq` x ==> (===)
-        (x `subtract` y)
-        (Just $ x `difference` y)
-
-prop_difference_equality :: TokenBundle -> TokenBundle -> Property
-prop_difference_equality x y = checkCoverage $
-    cover 5 (not (isCoin xReduced))
-        "reduced bundles are not coins" $
-    xReduced === yReduced
-  where
-    xReduced = x `difference` xExcess
-    yReduced = y `difference` yExcess
-    xExcess = x `difference` y
-    yExcess = y `difference` x
 
 --------------------------------------------------------------------------------
 -- Partitioning quantities according to an upper bound

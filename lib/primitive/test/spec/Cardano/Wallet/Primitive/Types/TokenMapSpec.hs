@@ -19,25 +19,16 @@ module Cardano.Wallet.Primitive.Types.TokenMapSpec
 
 import Prelude
 
-import Algebra.PartialOrd
-    ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , Flat (..)
-    , Lexicographic (..)
-    , Nested (..)
-    , TokenMap
-    , difference
-    )
+    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetId
     , genAssetIdLargeRange
-    , genTokenMap
     , genTokenMapPartition
     , genTokenMapSmallRange
     , shrinkAssetId
@@ -106,17 +97,12 @@ import Test.QuickCheck
     , applyFun
     , checkCoverage
     , choose
-    , conjoin
-    , counterexample
     , cover
     , forAll
-    , forAllBlind
     , frequency
     , property
-    , scale
     , (.||.)
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
@@ -203,43 +189,6 @@ spec =
             property prop_filter_partition
         it "prop_filter_twice" $
             property prop_filter_twice
-
-    describe "Arithmetic" $ do
-
-        it "prop_add_commutative" $
-            property prop_add_commutative
-        it "prop_add_associative" $
-            property prop_add_associative
-        it "prop_add_subtract_associative" $
-            property prop_add_subtract_associative
-        it "prop_subtract_null" $
-            property prop_subtract_null
-        it "prop_difference_zero (x - 0 = x)" $
-            property prop_difference_zero
-        it "prop_difference_zero2 (0 - x = 0)" $
-            property prop_difference_zero2
-        it "prop_difference_zero3 (x - x = 0)" $
-            property prop_difference_zero3
-        it "prop_difference_leq (x - y ⊆ x)" $
-            property prop_difference_leq
-        it "prop_difference_add ((x - y) + y ⊇ x)" $
-            property prop_difference_add
-        it "prop_difference_subtract" $
-            property prop_difference_subtract
-        it "prop_difference_equality" $
-            property prop_difference_equality
-        it "prop_intersection_associativity" $
-            property prop_intersection_associativity
-        it "prop_intersection_commutativity" $
-            property prop_intersection_commutativity
-        it "prop_intersection_empty" $
-            property prop_intersection_empty
-        it "prop_intersection_equality" $
-            property prop_intersection_equality
-        it "prop_intersection_identity" $
-            property prop_intersection_identity
-        it "prop_intersection_subset" $
-            property prop_intersection_subset
 
     describe "Quantities" $ do
 
@@ -427,169 +376,6 @@ prop_filter_twice f b =
         twice = TokenMap.filter (applyFun f . AssetIdF) once
     in
         once === twice
-
---------------------------------------------------------------------------------
--- Arithmetic properties
---------------------------------------------------------------------------------
-
-prop_add_commutative :: TokenMap -> TokenMap -> Property
-prop_add_commutative b1 b2 =
-    b1 `TokenMap.add` b2 === b2 `TokenMap.add` b1
-
-prop_add_associative :: TokenMap -> TokenMap -> TokenMap -> Property
-prop_add_associative b1 b2 b3 = (===)
-    ((b1 `TokenMap.add` b2) `TokenMap.add` b3)
-    (b1 `TokenMap.add` (b2 `TokenMap.add` b3))
-
-prop_add_subtract_associative
-    :: TokenMap -> TokenMap -> TokenMap -> Property
-prop_add_subtract_associative m1 m2 m3 =
-    m3 `leq` m2 ==> (===)
-        ((m1 `TokenMap.add` m2) `TokenMap.subtract` m3)
-        (fmap (m1 `TokenMap.add`) (m2 `TokenMap.subtract` m3))
-
-prop_subtract_null :: TokenMap -> Property
-prop_subtract_null m =
-    m `TokenMap.subtract` m === Just TokenMap.empty
-
-prop_difference_zero :: TokenMap -> Property
-prop_difference_zero x =
-    x `difference` mempty === x
-
-prop_difference_zero2 :: TokenMap-> Property
-prop_difference_zero2 x =
-    mempty `difference` x === mempty
-
-prop_difference_zero3 :: TokenMap -> Property
-prop_difference_zero3 x =
-    x `difference` x === mempty
-
-prop_difference_leq :: TokenMap -> TokenMap -> Property
-prop_difference_leq x y = property $
-    x `difference` y `leq` x
-
--- (x - y) + y ⊇ x
-prop_difference_add :: TokenMap -> TokenMap -> Property
-prop_difference_add x y =
-    let
-        delta = x `difference` y
-        yAndDelta = delta `TokenMap.add` y
-    in
-        counterexample ("x - y = " <> show delta) $
-        counterexample ("(x - y) + y = " <> show yAndDelta) $
-        property $ x `leq` yAndDelta
-
-prop_difference_subtract :: TokenMap -> TokenMap -> Property
-prop_difference_subtract x y =
-    y `leq` x ==> (===)
-        (x `TokenMap.subtract` y)
-        (Just $ x `TokenMap.difference` y)
-
-prop_difference_equality :: TokenMap -> TokenMap -> Property
-prop_difference_equality x y = checkCoverage $
-    cover 5 (TokenMap.isNotEmpty xReduced)
-        "reduced maps are not empty" $
-    xReduced === yReduced
-  where
-    xReduced = x `TokenMap.difference` xExcess
-    yReduced = y `TokenMap.difference` yExcess
-    xExcess = x `TokenMap.difference` y
-    yExcess = y `TokenMap.difference` x
-
-prop_intersection_associativity :: Property
-prop_intersection_associativity =
-    forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    forAllBlind gen $ \z ->
-    prop_inner x y z
-  where
-    gen = scale (* 4) genTokenMap
-    prop_inner x y z =
-        checkCoverage $
-        cover 50 (x /= y && y /= z)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-            "intersection is not empty" $
-        counterexample (pretty (Flat <$> [x, y, z, r1, r2])) $
-        r1 == r2
-      where
-        r1 = (x `TokenMap.intersection` y) `TokenMap.intersection` z
-        r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
-
-prop_intersection_commutativity :: Property
-prop_intersection_commutativity =
-    forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
-  where
-    gen = scale (* 2) genTokenMap
-    prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-            "intersection is not empty" $
-        counterexample (pretty (Flat <$> [x, y, r1, r2])) $
-        r1 == r2
-      where
-        r1 = x `TokenMap.intersection` y
-        r2 = y `TokenMap.intersection` x
-
-prop_intersection_empty :: TokenMap -> Property
-prop_intersection_empty x =
-    checkCoverage $
-    cover 50 (TokenMap.isNotEmpty x)
-        "map is not empty" $
-    x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
-
-prop_intersection_equality :: Property
-prop_intersection_equality =
-    forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
-  where
-    gen = scale (* 2) genTokenMap
-    prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-            "maps are not empty" $
-        counterexample (pretty (Flat <$> [x, y, total])) $
-        conjoin
-            [ total `TokenMap.intersection` x === x
-            , total `TokenMap.intersection` y === y
-            ]
-      where
-        total = x <> y
-
-prop_intersection_identity :: TokenMap -> Property
-prop_intersection_identity x =
-    checkCoverage $
-    cover 50 (TokenMap.isNotEmpty x)
-        "map is not empty" $
-    x `TokenMap.intersection` x === x
-
-prop_intersection_subset :: Property
-prop_intersection_subset =
-    forAllBlind gen $ \x ->
-    forAllBlind gen $ \y ->
-    prop_inner x y
-  where
-    gen = scale (* 2) genTokenMap
-    prop_inner x y =
-        checkCoverage $
-        cover 50 (x /= y)
-            "maps are different" $
-        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-            "maps are not empty" $
-        counterexample (pretty (Flat <$> [x, y, intersection])) $
-        conjoin
-            [ intersection `leq` x
-            , intersection `leq` y
-            ]
-      where
-        intersection = x `TokenMap.intersection` y
 
 --------------------------------------------------------------------------------
 -- Quantity properties
