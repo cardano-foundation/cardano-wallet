@@ -974,21 +974,28 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
             , (Write.Tx (Write.ShelleyLedgerEra era))
             )
     assignNullRedeemers ledgerTx = do
-        (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
-            ptr <-
-                case Alonzo.rdptr (Write.txBody (recentEra @era) ledgerTx) (toScriptPurpose rd) of
-                    SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
-                    SJust ptr -> pure ptr
-            rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
-                Left e -> Left $ ErrAssignRedeemersInvalidData rd (show e)
-                Right d -> pure (Alonzo.Data d)
-            pure ((ptr, rd), (ptr, (rData, mempty)))
+        (indexedRedeemers, nullRedeemers) <-
+            fmap unzip $ forM redeemers parseRedeemer
         pure
             ( Map.fromList indexedRedeemers
             , ledgerTx
                 & witsTxL . rdmrsTxWitsL
                     .~ (Alonzo.Redeemers (Map.fromList nullRedeemers))
             )
+      where
+        parseRedeemer rd = do
+            let mPtr = Alonzo.rdptr
+                    (Write.txBody (recentEra @era) ledgerTx)
+                    (toScriptPurpose rd)
+            ptr <- case mPtr of
+                SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
+                SJust ptr -> pure ptr
+            let mDeserialisedData =
+                    deserialiseOrFail $ BL.fromStrict $ redeemerData rd
+            rData <- case mDeserialisedData of
+                Left e -> Left $ ErrAssignRedeemersInvalidData rd (show e)
+                Right d -> pure (Alonzo.Data d)
+            pure ((ptr, rd), (ptr, (rData, mempty)))
 
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
