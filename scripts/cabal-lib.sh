@@ -74,6 +74,7 @@ ghci_flags() {
 -fwarn-orphans
 -fprint-potential-instances
 -Wno-missing-home-modules
+-Wredundant-constraints
 EOF
 
     # Add all source directories to ghci command-line

@@ -179,7 +179,7 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State.Strict
     ( State, StateT (..), evalState, get, put, state )
 import Control.Tracer
-    ( Tracer (..), natTracer, nullTracer )
+    ( natTracer, nullTracer )
 import Crypto.Hash
     ( hash )
 import Data.Bifunctor
@@ -402,7 +402,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        run $ W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+        run $ W.attachPrivateKeyFromPwd wl (xprv, pwd)
         attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase dummyStateF
                 wl wid (coerce pwd, new)
@@ -417,7 +417,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ do
         WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
         attempt <- run $ do
-            W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+            W.attachPrivateKeyFromPwd wl (xprv, pwd)
             runExceptT
                 $ W.updateWalletPassphraseWithOldPassphrase
                     dummyStateF wl wid (old, new)
@@ -453,7 +453,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
             return info
 
     void $ infoShouldSatisfy isNothing
-    W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+    W.attachPrivateKeyFromPwd wl (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
     unsafeRunExceptT
@@ -481,7 +481,7 @@ walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
         WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
         atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
-            W.listTransactions @_ @_ wl Nothing Nothing Nothing
+            W.listTransactions wl Nothing Nothing Nothing
                 Descending Nothing
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
@@ -525,7 +525,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
             WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
             atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
-                W.listTransactions @_ @_ wl Nothing start stop order
+                W.listTransactions wl Nothing start stop order
                     $ Just limitNatural
             let times = [(txInfoId i, txInfoTime i) | i <- txs]
             shouldBe times $ take limit $ sortOn (dir . snd) $ do
@@ -754,13 +754,7 @@ instance Arbitrary SlottingParameters where
             { getActiveSlotCoefficient = ActiveSlotCoefficient f }
 
 -- | 'WalletLayer' context.
-data TxRetryTestCtx = TxRetryTestCtx
-    { ctxDbLayer :: DBLayer TxRetryTestM DummyState
-    , ctxNetworkLayer :: NetworkLayer TxRetryTestM Read.Block
-    , ctxRetryTracer :: Tracer TxRetryTestM W.WalletWorkerLog
-    , ctxTracer :: Tracer IO W.WalletWorkerLog
-    , ctxWalletId :: WalletId
-    } deriving (Generic)
+type TxRetryTestCtx = WalletLayer TxRetryTestM DummyState
 
 -- | Context of 'TxRetryTestM'.
 data TxRetryTestState = TxRetryTestState
@@ -768,6 +762,7 @@ data TxRetryTestState = TxRetryTestState
     , timeStep :: DiffTime
     , timeVar :: MVar Time
     } deriving (Generic)
+
 -- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletWorkerLog]
@@ -809,16 +804,16 @@ prop_localTxSubmission tc = monadicIO $ do
     st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
     assert $ not $ null $ retryTestPool tc
     res <- run $ runTest st
-        $ \ctx@(TxRetryTestCtx dbl nl tr _ _) -> do
+        $ \ctx@(WalletLayer tr _ nl _ db) -> do
         unsafeRunExceptT
-            $ forM_ (retryTestPool tc) $ submitTx tr dbl nl
-        res0 <- W.readLocalTxSubmissionPending @_ @DummyState  ctx
+            $ forM_ (retryTestPool tc) $ submitTx tr db nl
+        res0 <- W.readLocalTxSubmissionPending ctx
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        W.runLocalTxSubmissionPool @_ @DummyState cfg ctx
+        W.runLocalTxSubmissionPool cfg ctx
 
         -- Gather state
-        res1 <- W.readLocalTxSubmissionPending @_ @DummyState ctx
+        res1 <- W.readLocalTxSubmissionPending ctx
         pure (res0, res1)
 
     let (resStart, resEnd) = resAction res
@@ -860,11 +855,14 @@ prop_localTxSubmission tc = monadicIO $ do
         submittedVar <- newMVar []
         (msgs, res) <- captureLogging' $ \tr -> do
             flip runReaderT st $ unTxRetryTestM $ do
-                WalletLayerFixture _ db _wl wid <-
+                WalletLayerFixture _ db _wl _wid <-
                     setupFixture dummyStateF $ retryTestWallet tc
-                let ctx = TxRetryTestCtx db (mockNetwork submittedVar)
-                        (natTracer liftIO tr) tr wid
-
+                let ctx = WalletLayer
+                        (natTracer liftIO tr)
+                        undefined
+                        (mockNetwork submittedVar)
+                        undefined
+                        db
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
 

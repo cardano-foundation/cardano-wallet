@@ -354,7 +354,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             createMigrationPlan @_ @_ shelley (Just SelfWithdrawal)
+             createMigrationPlan shelley (Just SelfWithdrawal)
         :<|> migrateWallet shelley (Just SelfWithdrawal)
 
     stakePools :: Server (StakePools n)
@@ -522,8 +522,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid postData -> withLegacyLayer wid
-                (byron , createMigrationPlan @_ @_ byron Nothing wid postData)
-                (icarus, createMigrationPlan @_ @_ icarus Nothing wid postData)
+                (byron , createMigrationPlan byron Nothing wid postData)
+                (icarus, createMigrationPlan icarus Nothing wid postData)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron Nothing wid m)
@@ -607,7 +607,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction apilayer
         :<|> decodeSharedTransaction apilayer
-        :<|> submitSharedTransaction @_ apilayer
+        :<|> submitSharedTransaction apilayer
         :<|>
             (\wid txId simpleMetadataFlag ->
                 getTransaction apilayer wid txId

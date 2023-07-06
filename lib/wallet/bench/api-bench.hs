@@ -45,7 +45,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.Wallet
-    ( readWalletMeta )
+    ( WalletLayer (..), readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..), Depth (..), delegationAddressS )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -61,7 +61,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.BenchShared
     ( Time, bench, initBenchmarkLogging, runBenchmarks )
 import Cardano.Wallet.DB
-    ( DBFresh (..), DBLayer )
+    ( DBFresh (..) )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -71,7 +71,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyOf, WalletFlavor (..), keyFlavorFromState )
+    ( KeyFlavor, KeyOf, WalletFlavor (..), keyFlavor )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -84,8 +84,6 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -98,8 +96,6 @@ import Cardano.Wallet.Read.NetworkId
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
-import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
@@ -228,7 +224,7 @@ benchmarksSeq
     -> IO BenchSeqResults
 benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -236,11 +232,11 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
@@ -249,20 +245,20 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending (Just 50)
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
+        $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         W.delegationFee
-            (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
+            (W.dbLayer_ ctx) (W.networkLayer_ ctx) (W.transactionLayer_ ctx)
             (W.defaultChangeAddressGen (delegationAddressS @n))
 
     pure BenchSeqResults
@@ -308,7 +304,7 @@ benchmarksShared
     -> IO BenchSharedResults
 benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -316,11 +312,11 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
@@ -329,12 +325,12 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending (Just 50)
 
     pure BenchSharedResults
@@ -377,7 +373,7 @@ benchmarksRnd
     -> IO BenchRndResults
 benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -385,11 +381,11 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
@@ -398,16 +394,16 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s ctx
+        $ W.listTransactions ctx
             Nothing Nothing Nothing Descending (Just 50)
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
+        $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
     pure BenchRndResults
         { benchName = benchmarkName
@@ -433,7 +429,7 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s =
     BenchmarkConfig
         { benchmarkName :: Text
         , networkId :: SNetworkId n
-        , ctx :: MockWalletLayer IO s
+        , ctx :: WalletLayer IO s
         , wid :: WalletId
         }
 
@@ -442,6 +438,7 @@ benchmarkWallets
     :: forall n s results
      . ( PersistAddressBook s
        , TxWitnessTagFor (KeyOf s)
+       , KeyFlavor (KeyOf s)
        , Buildable results
        , ToJSON results
        , WalletFlavor s
@@ -458,8 +455,7 @@ benchmarkWallets
     -> IO [SomeBenchmarkResults]
 benchmarkWallets benchName dir walletTr networkId action = do
     withWalletsFromDirectory dir walletTr networkId
-        $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically, walletState}})
-            wid
+        $ \ctx@(WalletLayer{dbLayer_=DB.DBLayer{atomically,walletState}}) wid
         -> do
             WalletMetadata{name} <- atomically $ readWalletMeta walletState
             let config = BenchmarkConfig
@@ -477,15 +473,6 @@ benchmarkWallets benchName dir walletTr networkId action = do
     saveBenchmarkPoints benchname =
         Aeson.encodeFile (T.unpack benchname <> ".json")
 
-data MockWalletLayer m s =
-    MockWalletLayer
-        { networkLayer :: NetworkLayer m Read.Block
-        , transactionLayer
-            :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
-        , dbLayer :: DBLayer m s
-        , tracer :: Trace IO Text
-        } deriving (Generic)
-
 mockNetworkLayer :: NetworkLayer IO Read.Block
 mockNetworkLayer = dummyNetworkLayer
     { timeInterpreter = hoistTimeInterpreter liftIO mockTimeInterpreter
@@ -500,15 +487,16 @@ mockTimeInterpreter = dummyTimeInterpreter
 withWalletsFromDirectory
     :: forall n s k a
      . ( PersistAddressBook s
-       , TxWitnessTagFor k
        , WalletFlavor s
-       , KeyOf s ~ k
+       , k ~ KeyOf s
+       , TxWitnessTagFor k
+       , KeyFlavor k
        )
     => FilePath
         -- ^ Directory of database files
     -> Trace IO Text
     -> SNetworkId n
-    -> (MockWalletLayer IO s -> WalletId -> IO a)
+    -> (WalletLayer IO s -> WalletId -> IO a)
     -> IO [a]
 withWalletsFromDirectory dir tr networkId action = do
     DB.DBFactory{listDatabases,withDatabase}
@@ -520,10 +508,12 @@ withWalletsFromDirectory dir tr networkId action = do
             db <- unsafeRunExceptT loadDBLayer
             (flip action wid . mkMockWalletLayer) db
   where
-    mkMockWalletLayer db =
-        MockWalletLayer mockNetworkLayer tl db tr
+    mkMockWalletLayer =
+        WalletLayer (trMessageText tr) genesis mockNetworkLayer tl
+    genesis = error "not implemented: genesis data"
     ti = mockTimeInterpreter
-    tl = newTransactionLayer (keyFlavorFromState @s) (networkIdVal networkId)
+    tl = newTransactionLayer
+            (keyFlavor @k) (networkIdVal networkId)
     tr' = trMessageText tr
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
