@@ -13,7 +13,7 @@ services:
 
   cardano-wallet:
     container_name: cardano-wallet
-    image: inputoutput/cardano-wallet:${WALLET}
+    image: cardanofoundation/cardano-wallet:${WALLET}
     volumes:
       - ${WALLET_DATA}:/wallet-db
       - ${DATA}:/ipc

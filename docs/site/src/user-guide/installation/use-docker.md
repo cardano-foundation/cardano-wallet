@@ -1,11 +1,11 @@
 # Running with Docker
 
-Docker images are continuously built and deployed on [dockerhub](https://hub.docker.com/u/inputoutput) under specific tags. Using docker provides **the fastest** and **easiest** user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
+Docker images are continuously built and deployed on [dockerhub](https://hub.docker.com/u/cardanofoundation) under specific tags. Using docker provides **the fastest** and **easiest** user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
 
 | Repository                                               |                 Tags                  |      Documentation       |
 | :------------------------------------------------------- | :-----------------------------------: | :----------------------: |
 | [inputoutput/cardano-node][inputoutput-cardano-node]     |  `master`, `MAJ.MIN.PATCH`, `latest`  | [link][doc-cardano-node] |
-| [inputoutput/cardano-wallet][inputoutput-cardano-wallet] | `byron`, `YYYY.MM.DD-byron`, `latest` | [Docker](use-docker.md)  |
+| [cardanofoundation/cardano-wallet][cardanofoundation-cardano-wallet] | `byron`, `YYYY.MM.DD-byron`, `latest` | [Docker](use-docker.md)  |
 
 ## Tag Naming Scheme
 
@@ -26,7 +26,7 @@ For example, in order to use `cardano-node@1.10.0`, one can simply run:
 Similarly, one can pull `cardano-wallet@v2021-08-11` with:
 
 ```
-> docker pull inputoutput/cardano-wallet:2021.8.11
+> docker pull cardanofoundation/cardano-wallet:2021.8.11
 ```
 
 ### About version compatibility
@@ -34,20 +34,20 @@ Similarly, one can pull `cardano-wallet@v2021-08-11` with:
 For version compatibility between components, please refer to compatibility matrix on each component main page
 (e.g. [cardano-wallet](https://github.com/cardano-foundation/cardano-wallet#latest-releases)).
 
-[DockerHub]: https://hub.docker.com/repository/docker/inputoutput/cardano-wallet
+[DockerHub]: https://hub.docker.com/repository/docker/cardanofoundation/cardano-wallet
 
 ## Downloading the Docker image
 
 To get the latest release of `cardano-wallet`, run:
 
-    docker pull inputoutput/cardano-wallet:latest
+    docker pull cardanofoundation/cardano-wallet:latest
 
 ## Running the Docker container for cardano-wallet
 
 To run basic CLI commands, use:
 
 ```
-> docker run --rm inputoutput/cardano-wallet:latest --help
+> docker run --rm cardanofoundation/cardano-wallet:latest --help
 ```
 
 See [cli](../cli.md)
@@ -75,7 +75,7 @@ The default entrypoint of the image is
 inside the Docker image, use the bash shell as the entrypoint:
 
 ```
-> docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:latest
+> docker run --rm -it --entrypoint bash cardanofoundation/cardano-wallet:latest
 ```
 
 ## Docker compose
@@ -96,7 +96,7 @@ There is also an example configuration for [cardano-graphql](https://github.com/
 [inputoutput-cardano-node]: https://hub.docker.com/r/inputoutput/cardano-node
 [inputoutput-cardano-db-sync]: https://hub.docker.com/r/inputoutput/cardano-db-sync
 [inputoutput-cardano-graphql]: https://hub.docker.com/r/inputoutput/cardano-graphql
-[inputoutput-cardano-wallet]: https://hub.docker.com/r/inputoutput/cardano-wallet
+[inputoutput-cardano-wallet]: https://hub.docker.com/r/cardanofoundation/cardano-wallet
 [inputoutput-cardano-rosetta]: https://hub.docker.com/r/inputoutput/cardano-rosetta
 
 [doc-cardano-node]: https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25

@@ -184,7 +184,7 @@ steps:
     depends_on: [linux-nix, trigger-build-linux-package]
     key: build-docker
     command:
-      - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
+      - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
       - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
       - "./docker-build-push"
     agents:

@@ -94,7 +94,7 @@ jobs:
 
     - name: 🔍 Display versions
       run: |
-        docker run --rm inputoutput/cardano-wallet:$WALLET version
+        docker run --rm cardanofoundation/cardano-wallet:$WALLET version
         docker run --rm inputoutput/cardano-node:${{steps.cardano-node-tag.outputs.NODE_TAG}} cli version
 
     - name: ⏳ Wait until node is synced

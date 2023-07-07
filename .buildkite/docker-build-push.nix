@@ -7,7 +7,7 @@
 # tag from the nix-build (../nix/docker.nix).
 #
 # 1. So you can test this with your own Dockerhub account, the repo
-#    (default "inputoutput/cardano-wallet") is changed to match the
+#    (default "cardanofoundation/cardano-wallet") is changed to match the
 #    currently logged in Docker user's credentials.
 #
 # 2. The tag (default "VERSION") is changed to reflect the
@@ -21,7 +21,7 @@
 #
 # 3. After pushing the image to the repo, the "latest" tags are updated.
 #
-#    - "inputoutput/cardano-wallet:latest" should point to the most
+#    - "cardanofoundation/cardano-wallet:latest" should point to the most
 #      recent VERSION tag build (shelley backend).
 #
 

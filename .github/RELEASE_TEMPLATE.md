@@ -53,8 +53,8 @@ the moment of releasing. -->
 Pull from DockerHub and verify the version matches {{CABAL_VERSION}}.
 
 ```
-$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}
-$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}} version
+$ docker pull cardanofoundation/cardano-wallet:{{CABAL_VERSION}}
+$ docker run --rm cardanofoundation/cardano-wallet:{{CABAL_VERSION}} version
 ```
 
 ## Signatures
