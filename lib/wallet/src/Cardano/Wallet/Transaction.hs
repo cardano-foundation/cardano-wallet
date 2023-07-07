@@ -52,7 +52,6 @@ module Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers(..)
     , ErrMoreSurplusNeeded (..)
     ) where
@@ -454,12 +453,6 @@ data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
-
-newtype ErrUpdateSealedTx
-    = ErrExistingKeyWitnesses Int
-    -- ^ The `SealedTx` couldn't not be updated because the *n* existing
-    -- key-witnesses would have been rendered invalid.
-    deriving (Generic, Eq, Show)
 
 -- | Error for when its impossible for 'distributeSurplus' to distribute the
 -- surplus. As long as the surplus is larger than 'costOfIncreasingCoin', this

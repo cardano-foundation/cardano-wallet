@@ -210,7 +210,7 @@ import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -280,6 +280,7 @@ type RecentEraLedgerConstraints era =
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
     , Alonzo.AlonzoEraPParams era
+    , Alonzo.AlonzoEraTxBody era
     , Babbage.ShelleyEraTxBody era
     , Shelley.EraUTxO era
     )

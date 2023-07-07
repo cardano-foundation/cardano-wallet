@@ -33,12 +33,6 @@
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
-    -- * Updating SealedTx
-    , TxUpdate (..)
-    , noTxUpdate
-    , updateTx
-    , TxFeeUpdate (..)
-
     -- * For balancing (To be moved)
     , estimateKeyWitnessCount
     , evaluateMinimumFee
@@ -103,14 +97,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL, ppMinFeeAL )
 import Cardano.Ledger.Api
-    ( bodyTxL
-    , collateralInputsTxBodyL
-    , feeTxBodyL
-    , outputsTxBodyL
-    , scriptIntegrityHashTxBodyL
-    )
-import Cardano.Ledger.Babbage.TxBody
-    ( outputsBabbageTxBodyL )
+    ( bodyTxL, scriptIntegrityHashTxBodyL )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Shelley.API
@@ -194,13 +181,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut
-    , toConwayTxOut
-    , toLedger
-    , toWallet
-    , toWalletCoin
-    , toWalletScript
-    )
+    ( toLedger, toWallet, toWalletCoin, toWalletScript )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -210,7 +191,6 @@ import Cardano.Wallet.Transaction
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
-    , ErrUpdateSealedTx (..)
     , PreSelection (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
@@ -298,7 +278,6 @@ import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -315,7 +294,6 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
-import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
@@ -744,125 +722,6 @@ mkDelegationCertificates da cred =
             , toStakePoolDlgCert cred poolId
             ]
        Quit -> [toStakeKeyDeregCert cred]
-
-
--- | Describes modifications that can be made to a `Tx` using `updateTx`.
-data TxUpdate = TxUpdate
-    { extraInputs :: [(TxIn, TxOut)]
-    , extraCollateral :: [TxIn]
-       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
-       -- previous eras.
-    , extraOutputs :: [TxOut]
-    , extraInputScripts :: [Script KeyHash]
-    , feeUpdate :: TxFeeUpdate
-        -- ^ Set a new fee or use the old one.
-    }
-
--- | For testing that
--- @
---   forall tx. updateTx noTxUpdate tx
---      == Right tx or Left
--- @
-noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
-
--- | Method to use when updating the fee of a transaction.
-data TxFeeUpdate
-    = UseOldTxFee
-        -- ^ Instead of updating the fee, just use the old fee of the
-        -- Tx (no-op for fee update).
-    | UseNewTxFee Coin
-        -- ^ Specify a new fee to use instead.
-    deriving (Eq, Show)
--- Used to add inputs and outputs when balancing a transaction.
---
--- If the transaction contains existing key witnesses, it will return `Left`,
--- *even if `noTxUpdate` is used*. This last detail could be changed.
---
--- == Notes on implementation choices
---
--- We cannot rely on cardano-api here because `Cardano.TxBodyContent BuildTx`
--- cannot be extracted from an existing `TxBody`.
---
--- To avoid the need for `ledger -> wallet` conversions, this function can only
--- be used to *add* tx body content.
-updateTx
-    :: forall era. Write.IsRecentEra era
-    => Cardano.Tx era
-    -> TxUpdate
-    -> Either ErrUpdateSealedTx (Cardano.Tx era)
-updateTx (Cardano.Tx body existingKeyWits) extraContent = do
-    -- NOTE: The script witnesses are carried along with the cardano-api
-    -- `anyEraBody`.
-    body' <- modifyTxBody extraContent body
-
-    if null existingKeyWits
-       then Right $ Cardano.Tx body' mempty
-       else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
-  where
-    era = recentEra @era
-
-    modifyTxBody
-        :: TxUpdate
-        -> Cardano.TxBody era
-        -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyTxBody ebc = \case
-        Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val ->
-            Right $ Cardano.ShelleyTxBody shelleyEra
-                (modifyShelleyTxBody ebc era bod)
-                (scripts ++ (flip toLedgerScript era
-                    <$> extraInputScripts))
-                scriptData
-                aux
-                val
-        Byron.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
-
-    TxUpdate _ _ _ extraInputScripts _ = extraContent
-
-    toLedgerScript
-        :: Script KeyHash
-        -> RecentEra era
-        -> Ledger.Script (Cardano.ShelleyLedgerEra era)
-    toLedgerScript walletScript = \case
-        RecentEraBabbage ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInBabbage
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        RecentEraConway ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInConway
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-
-modifyShelleyTxBody
-    :: TxUpdate
-    -> RecentEra era
-    -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-    -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-modifyShelleyTxBody txUpdate = \case
-    RecentEraBabbage ->
-        over feeTxBodyL modifyFee
-        . over outputsBabbageTxBodyL
-            (<> StrictSeq.fromList (toBabbageTxOut <$> extraOutputs))
-        . over inputsTxBodyL
-            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-        . over collateralInputsTxBodyL
-            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral'))
-    RecentEraConway ->
-        over feeTxBodyL modifyFee
-        . over outputsTxBodyL
-            (<> StrictSeq.fromList (toConwayTxOut <$> extraOutputs))
-        . over inputsTxBodyL
-            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-        . over collateralInputsTxBodyL
-            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral'))
-  where
-    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
-    extraInputs' = toCardanoTxIn . fst <$> extraInputs
-    extraCollateral' = toCardanoTxIn <$> extraCollateral
-    modifyFee old =
-        case feeUpdate of
-            UseNewTxFee (Coin c) -> Ledger.Coin (intCast c)
-            UseOldTxFee -> old
 
 -- | Evaluate a minimal fee amount necessary to pay for a given tx
 -- using ledger's functionality.
