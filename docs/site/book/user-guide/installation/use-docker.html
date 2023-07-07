@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
@@ -151,7 +151,7 @@
 <p>Docker images are continuously built and deployed on <a href="https://hub.docker.com/u/inputoutput">dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:</p>
 <div class="table-wrapper"><table><thead><tr><th style="text-align: left">Repository</th><th style="text-align: center">Tags</th><th style="text-align: center">Documentation</th></tr></thead><tbody>
 <tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-node">inputoutput/cardano-node</a></td><td style="text-align: center"><code>master</code>, <code>MAJ.MIN.PATCH</code>, <code>latest</code></td><td style="text-align: center"><a href="https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25">link</a></td></tr>
-<tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-wallet">inputoutput/cardano-wallet</a></td><td style="text-align: center"><code>byron</code>, <code>YYYY.MM.DD-byron</code>, <code>latest</code></td><td style="text-align: center"><a href="use-docker.html">Docker</a></td></tr>
+<tr><td style="text-align: left"><a href="https://hub.docker.com/r/cardanofoundation/cardano-wallet">cardanofoundation/cardano-wallet</a></td><td style="text-align: center"><code>byron</code>, <code>YYYY.MM.DD-byron</code>, <code>latest</code></td><td style="text-align: center"><a href="use-docker.html">Docker</a></td></tr>
 </tbody></table>
 </div>
 <h2 id="tag-naming-scheme"><a class="header" href="#tag-naming-scheme">Tag Naming Scheme</a></h2>
@@ -166,18 +166,18 @@
 <pre><code>&gt; docker pull inputoutput/cardano-node:1.10.0
 </code></pre>
 <p>Similarly, one can pull <code>cardano-wallet@v2021-08-11</code> with:</p>
-<pre><code>&gt; docker pull inputoutput/cardano-wallet:2021.8.11
+<pre><code>&gt; docker pull cardanofoundation/cardano-wallet:2021.8.11
 </code></pre>
 <h3 id="about-version-compatibility"><a class="header" href="#about-version-compatibility">About version compatibility</a></h3>
 <p>For version compatibility between components, please refer to compatibility matrix on each component main page
 (e.g. <a href="https://github.com/cardano-foundation/cardano-wallet#latest-releases">cardano-wallet</a>).</p>
 <h2 id="downloading-the-docker-image"><a class="header" href="#downloading-the-docker-image">Downloading the Docker image</a></h2>
 <p>To get the latest release of <code>cardano-wallet</code>, run:</p>
-<pre><code>docker pull inputoutput/cardano-wallet:latest
+<pre><code>docker pull cardanofoundation/cardano-wallet:latest
 </code></pre>
 <h2 id="running-the-docker-container-for-cardano-wallet"><a class="header" href="#running-the-docker-container-for-cardano-wallet">Running the Docker container for cardano-wallet</a></h2>
 <p>To run basic CLI commands, use:</p>
-<pre><code>&gt; docker run --rm inputoutput/cardano-wallet:latest --help
+<pre><code>&gt; docker run --rm cardanofoundation/cardano-wallet:latest --help
 </code></pre>
 <p>See <a href="../cli.html">cli</a>
 for full documentation of the CLI.</p>
@@ -194,7 +194,7 @@ then loaded into your local Docker image storage.</p>
 <p>The default entrypoint of the image is
 <code>/bin/start-cardano-wallet-shelley</code>. If you need to run a shell
 inside the Docker image, use the bash shell as the entrypoint:</p>
-<pre><code>&gt; docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:latest
+<pre><code>&gt; docker run --rm -it --entrypoint bash cardanofoundation/cardano-wallet:latest
 </code></pre>
 <h2 id="docker-compose"><a class="header" href="#docker-compose">Docker compose</a></h2>
 <p>One can also use <a href="https://docs.docker.com/compose/">docker-compose</a> to quickly spin up <code>cardano-wallet</code> together with supported block producer. Those are useful for a quick start or as a baseline for development.</p>

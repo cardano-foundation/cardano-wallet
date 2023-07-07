@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://github.com/input-output-hk/cardano-wallet/releases"><img src="https://img.shields.io/github/release-pre/input-output-hk/cardano-wallet.svg?style=for-the-badge"  /></a>
-  <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>  
-  <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  /></a>   
+  <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>
+  <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  /></a>
   <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly"><img src="https://img.shields.io/buildkite/59ea9363b8526e867005ca8839db47715bc5f661f36e490143/master?label=BENCHMARKS&style=for-the-badge"  /></a> <a href="https://github.com/input-output-hk/cardano-wallet/actions?query=workflow%3Awindows"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  /></a>
 </p>
 <p align="center">
@@ -55,7 +55,7 @@ curl http://localhost:8090/v2/network/information
 or to be accessed via CLI, e.g.:
 
 ```
-docker run --network host --rm inputoutput/cardano-wallet network information
+docker run --network host --rm cardanofoundation/cardano-wallet network information
 ```
 
 See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
