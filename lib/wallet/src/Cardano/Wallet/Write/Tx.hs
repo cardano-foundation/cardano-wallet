@@ -40,6 +40,7 @@ module Cardano.Wallet.Write.Tx
     , LatestLedgerEra
     , LatestEra
     , withConstraints
+    , RecentEraLedgerConstraints
 
     -- ** Key witness counts
     , KeyWitnessCount (..)
@@ -154,6 +155,14 @@ import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..) )
 import Cardano.Ledger.Alonzo.Scripts.Data
     ( BinaryData, Datum (..) )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( ExtendedUTxO )
+import Cardano.Ledger.Alonzo.TxWits
+    ( AlonzoTxWits )
+import Cardano.Ledger.Alonzo.UTxO
+    ( AlonzoScriptsNeeded )
+import Cardano.Ledger.Api.UTxO
+    ( EraUTxO (ScriptsNeeded) )
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..) )
 import Cardano.Ledger.BaseTypes
@@ -279,9 +288,13 @@ type RecentEraLedgerConstraints era =
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
+    , Core.TxWits era ~ AlonzoTxWits era
+    , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
+    , Ledger.AlonzoEraTx era
     , Alonzo.AlonzoEraTxBody era
     , Babbage.ShelleyEraTxBody era
+    , ScriptsNeeded era ~ AlonzoScriptsNeeded era
     , Shelley.EraUTxO era
     )
 
