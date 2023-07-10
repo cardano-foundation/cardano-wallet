@@ -1,0 +1,256 @@
+name: Haskell CI
+
+on:
+  push:
+  merge_group:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    env:
+      # Modify this value to "invalidate" the cabal cache.
+      CABAL_CACHE_VERSION: "2023-01-02"
+
+      # Modify this value to "invalidate" the secp cache.
+      SECP_CACHE_VERSION: "2022-12-30"
+
+      # current ref from: 27.02.2022
+      SECP256K1_REF: ac83be33d0956faf6b7f61a60ab524ef7d6a473a
+
+    concurrency:
+      group: >
+        a+${{ github.event_name }}
+        b+${{ github.workflow_ref }}
+        c+${{ github.job }}
+        d+${{ matrix.ghc }}
+        e+${{ matrix.cabal }}
+        f+${{ matrix.os }}
+        g+${{ (startsWith(github.ref, 'refs/heads/gh-readonly-queue/') && github.run_id) || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        cabal: ["3.10.1.0"]
+        ghc: ["8.10.7", "9.2.4"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+        - cabal: "3.10.1.0"
+          ghc: "8.10.7"
+          os: "ubuntu-latest"
+
+    steps:
+    - name: Concurrency group
+      run: >
+        echo
+        a+${{ github.event_name }}
+        b+${{ github.workflow_ref }}
+        c+${{ github.job }}
+        d+${{ matrix.ghc }}
+        e+${{ matrix.cabal }}
+        f+${{ matrix.os }}
+        g+${{ (startsWith(github.ref, 'refs/heads/gh-readonly-queue/') && github.run_id) || github.event.pull_request.number || github.ref }}
+
+    - name: Configure Swap
+      if: runner.os == 'Linux'
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 8
+
+    # - name: Configure Pagefile
+    #   if: runner.os == 'Windows'
+    #   uses: al-cheb/configure-pagefile-action@v1.2
+    #   with:
+    #     minimum-size: 10GB
+    #     maximum-size: 16GB
+
+    - name: Configure git to allow long filenames
+      run: git config --global core.longpaths true
+
+    - name: Install Haskell
+      uses: input-output-hk/setup-haskell@v1
+      id: setup-haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+        pacman-packages: >
+          mingw-w64-x86_64-pkg-config
+          mingw-w64-x86_64-libsodium
+          mingw-w64-x86_64-openssl
+          base-devel
+          autoconf-wrapper
+          autoconf
+          automake
+          libtool
+          make
+
+    - uses: actions/checkout@v3
+
+    - name: "[Bash] Add build script path"
+      shell: bash
+      run: mkdir -p "$(pwd)/.github/bin"
+
+    - name: "[PowerShell] Add build script path"
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: Add-Content $env:GITHUB_PATH "$(pwd)/.github/bin"
+
+    - name: "[Bash] Add build script path"
+      if: runner.os != 'Windows'
+      run: echo "$(pwd)/.github/bin" >> $GITHUB_PATH
+
+    - name: Look in bin directory
+      shell: bash
+      run: |
+        ls "$(pwd)/.github/bin"
+
+    - name: "LINUX: Install build environment (apt-get)"
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libsodium23 libsodium-dev
+        sudo apt-get -y install libsystemd0 libsystemd-dev
+        sudo apt-get -y remove --purge software-properties-common
+        sudo apt-get -y autoremove
+
+    # - name: "LINUX: Install build environment (for secp256k1)"
+    #   if: runner.os == 'Linux'
+    #   run: sudo apt-get -y install autoconf automake libtool
+
+    - name: "MAC: Install build environment (brew)"
+      if: runner.os == 'macOS'
+      run: |
+        brew install libsodium
+
+    - name: "MAC: Install build environment (for secp256k1)"
+      if: runner.os == 'macOS'
+      run: brew install autoconf automake libtool
+
+    - name: Install secp256k1
+      uses: input-output-hk/setup-secp256k1@v1
+      with:
+        git-ref: ${{ env.SECP256K1_REF }}
+        cache-version: ${{ env.SECP_CACHE_VERSION }}
+
+    - name: Cabal update
+      run: cabal update
+
+    - name: Configure build
+      shell: bash
+      run: |
+        cat > cabal.project.local <<EOF
+        package cardano-crypto-praos
+          flags: -external-libsodium-vrf
+
+        package HsOpenSSL
+          flags: +use-pkg-config
+        tests: True
+        benchmarks: True
+        EOF
+
+        echo "# cabal.project.local"
+        cat cabal.project.local
+
+    - name: Build dry run
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal build all --dry-run --minimize-conflict-set
+
+    - name: Cabal cache over S3
+      uses: action-works/cabal-cache-s3@v1
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.CACHE_AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.CACHE_AWS_SECRET_ACCESS_KEY }}
+      with:
+        region: ${{ vars.CACHE_AWS_REGION }}
+        dist-dir: dist-newstyle
+        store-path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        threads: ${{ vars.CACHE_THREADS }}
+        archive-uri: ${{ vars.CACHE_URI }}/cardano-wallet/${{ env.CABAL_CACHE_VERSION }}/${{ runner.os }}/${{ matrix.cabal }}/${{ matrix.ghc }}
+        skip: "${{ vars.CACHE_URI == '' }}"
+
+    - name: Cabal cache over HTTPS
+      uses: action-works/cabal-cache-s3@v1
+      with:
+        dist-dir: dist-newstyle
+        store-path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        threads: ${{ vars.CACHE_THREADS }}
+        archive-uri: https://iohk.cache.haskellworks.io/cardano-wallet/${{ env.CABAL_CACHE_VERSION }}/${{ runner.os }}/${{ matrix.cabal }}/${{ matrix.ghc }}
+        skip: "${{ vars.CACHE_URI != '' }}"
+        enable-save: false
+
+    - name: Build dependencies
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal build all --dependencies-only
+
+    - name: Build
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal build all
+
+    - name: Build test dependencies
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal build cardano-node cardano-cli
+
+    - name: Install test dependencies
+      shell: bash
+      run: |
+        ls "$(pwd)/.github/bin"
+        echo "=================="
+        for bin in cardano-cli cardano-node; do
+          scripts/bin-path.sh $bin
+          cp "$(scripts/bin-path.sh $bin)" "$(pwd)/.github/bin/$(basename $bin)"
+        done
+
+    - name: Test cardano-wallet-primitive:test delta-table:unit dbvar:unit
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 cardano-wallet-primitive:test delta-table:unit dbvar:unit
+
+    - name: Test wai-middleware-logging:unit strict-non-empty-containers:unit
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 wai-middleware-logging:unit strict-non-empty-containers:unit
+
+    - name: Test cardano-wallet-test-utils:unit cardano-numeric:unit cardano-coin-selection:test
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 cardano-wallet-test-utils:unit cardano-numeric:unit cardano-coin-selection:test
+
+    - name: Test text-class:unit cardano-balance-tx:test cardano-wallet-launcher:unit
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 text-class:unit cardano-balance-tx:test cardano-wallet-launcher:unit
+
+    - name: Test cardano-wallet:test:unit
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 cardano-wallet:test:unit
+
+    - name: Test cardano-wallet:test:integration
+      run: |
+        # The tests call out to msys2 commands. We generally do not want to mix toolchains, so
+        # we are very deliberate about only adding msys64 to the path where absolutely necessary.
+        ${{ (runner.os == 'Windows' && '$env:PATH=("C:\msys64\mingw64\bin;{0}" -f $env:PATH)') || '' }}
+        cabal test --enable-tests -j1 cardano-wallet:test:integration
