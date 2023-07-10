@@ -1256,9 +1256,16 @@ putDelegationCertificate walletState cert slot
     = onDBVar walletState $ update $ \_ ->
         [UpdateDelegations $ Dlgs.putDelegationCertificate cert slot]
 
+readDelegationRewardBalance
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm Coin
+readDelegationRewardBalance _walletState = error "TODO"
+
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s . DBLayer IO s -> IO Coin
-fetchRewardBalance DBLayer{..} = atomically readDelegationRewardBalance
+fetchRewardBalance DBLayer{..} = atomically
+    $ readDelegationRewardBalance walletState
 
 mkExternalWithdrawal
     :: NetworkLayer IO block
@@ -1453,6 +1460,7 @@ manageRewardBalance tr' netLayer db = do
   where
     tr = contramap MsgWallet tr'
 
+
 handleRewardAccountQuery
     :: Monad m
     => Tracer m WalletLog
@@ -1462,7 +1470,7 @@ handleRewardAccountQuery
 handleRewardAccountQuery tr DBLayer{..} query = do
     traceWith tr $ MsgRewardBalanceResult query
     case query of
-       Right amt -> atomically $ putDelegationRewardBalance amt
+       Right amt -> atomically $ putDelegationRewardBalance walletState amt
            -- It can happen that the wallet doesn't exist _yet_, whereas we
            -- already have a reward balance. If that's the case, we log and
            -- move on.
@@ -1470,6 +1478,9 @@ handleRewardAccountQuery tr DBLayer{..} query = do
            -- Occasionally failing to query is generally not fatal. It will
            -- just update the balance next time the tip changes.
            pure ()
+
+putDelegationRewardBalance :: DBVar stm (DeltaWalletState s) -> Coin -> stm ()
+putDelegationRewardBalance = error "TODO"
 
 manageSharedRewardBalance
     :: forall n block

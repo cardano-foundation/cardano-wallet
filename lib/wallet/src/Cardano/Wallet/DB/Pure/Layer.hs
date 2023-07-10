@@ -29,10 +29,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     , ModelOp
     , mInitializeWallet
     , mListCheckpoints
-    , mPutDelegationRewardBalance
     , mPutTxHistory
     , mReadCheckpoint
-    , mReadDelegationRewardBalance
     , mReadGenesisParameters
     , mReadTxHistory
     , mRollbackTo
@@ -41,8 +39,6 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
@@ -162,15 +158,6 @@ newDBFresh timeInterpreter wid = do
 
         , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
 
-        {-----------------------------------------------------------------------
-                                 Delegation Rewards
-        -----------------------------------------------------------------------}
-
-        , putDelegationRewardBalance = noErrorAlterDB db
-            . mPutDelegationRewardBalance
-
-        , readDelegationRewardBalance = fromMaybe (Coin 0)
-            <$> readDBMaybe db mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution

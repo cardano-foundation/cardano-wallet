@@ -26,7 +26,6 @@ module Cardano.Wallet.DB
     -- * DBLayer building blocks
     , DBLayerCollection (..)
     , DBCheckpoints (..)
-    , DBDelegation (..)
     , DBTxHistory (..)
     , mkDBLayerFromParts
 
@@ -216,20 +215,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , putDelegationRewardBalance :: Coin -> stm ()
-        -- ^ Store the latest known reward account balance.
-        --
-        -- This is separate from checkpoints because the data corresponds to the
-        -- node tip.
-        -- This is separate from putWalletMeta because it's not meta data
-
-    , readDelegationRewardBalance
-        :: stm Coin
-        -- ^ Get the reward account balance.
-        --
-        -- Returns zero if the wallet isn't found or if wallet hasn't delegated
-        -- stake.
-
     , putTxHistory :: [(Tx, TxMeta)] -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
@@ -348,7 +333,6 @@ to delete them wholesale rather than maintaining them.
 -}
 data DBLayerCollection stm m s = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
-    , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
 
     -- The following two functions will need to be split up
@@ -376,8 +360,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , transactionsStore = transactionsStore_
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
-    , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = putTxHistory_ dbTxHistory
     , readTransactions = \minWithdrawal order range status limit ->
         readCurrentTip >>= \tip -> do
@@ -466,26 +448,6 @@ data DBCheckpoints stm s = DBCheckpoints
     , readGenesisParameters_
         :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
-    }
-
--- | A database layer for storing delegation certificates
--- and the reward balance.
-data DBDelegation stm = DBDelegation
-    { putDelegationRewardBalance_
-        :: Coin
-        -> stm ()
-        -- ^ Store the latest known reward account balance.
-        --
-        -- This is separate from checkpoints because the data corresponds to the
-        -- node tip.
-        -- This is separate from putWalletMeta because it's not meta data
-
-    , readDelegationRewardBalance_
-        :: stm Coin
-        -- ^ Get the reward account balance.
-        --
-        -- Returns zero if the wallet hasn't delegated stake.
-
     }
 
 -- | A database layer that stores the transaction history.
