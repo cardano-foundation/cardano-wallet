@@ -54,6 +54,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , TxUpdate (..)
     , noTxUpdate
     , updateTx
+    , Selection (..)
     , TxFeeUpdate (..)
 
     -- ** distributeSurplus
@@ -82,8 +83,7 @@ import Cardano.Ledger.Api
     , ppMaxValSizeL
     )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
+    ( SelectionBalanceError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
@@ -502,38 +502,21 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral', extraOutputs, s') <- do
+    -- NOTE: It is not possible to know the script execution cost in
+    -- advance because it actually depends on the final transaction. Inputs
+    -- selected as part of the fee balancing might have an influence on the
+    -- execution cost.
+    -- However, they are bounded so it is possible to balance the
+    -- transaction considering only the maximum cost, and only after, try to
+    -- adjust the change and ExUnits of each redeemer to something more
+    -- sensible than the max execution cost.
+    randomSeed <- stdGenSeed
+    externalSelectedUtxo <- extractExternallySelectedUTxO ptx
 
-        -- NOTE: It is not possible to know the script execution cost in
-        -- advance because it actually depends on the final transaction. Inputs
-        -- selected as part of the fee balancing might have an influence on the
-        -- execution cost.
-        -- However, they are bounded so it is possible to balance the
-        -- transaction considering only the maximum cost, and only after, try to
-        -- adjust the change and ExUnits of each redeemer to something more
-        -- sensible than the max execution cost.
-
-        randomSeed <- stdGenSeed
-        let
-            transform
-                :: Selection
-                -> ( [(W.TxIn, W.TxOut)]
-                   , [(W.TxIn, W.TxOut)]
-                   , [W.TxOut]
-                   , changeState
-                   )
-            transform sel =
-                let (sel', s') = assignChangeAddresses genChange sel s
-                    inputs = F.toList (sel' ^. #inputs)
-                in  ( inputs
-                    , sel' ^. #collateral
-                    , sel' ^. #change
-                    , s'
-                    )
-
-        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
-
-        let mSel = selectAssets
+    (selection, s')
+        <- withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
+            . except
+            $ selectAssets
                 (recentEra @era)
                 protocolParameters
                 utxoAssumptions
@@ -545,11 +528,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (fromCardanoLovelace minfee0)
                 randomSeed
                 genChange
+                s
                 selectionStrategy
 
-        withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
-            . except
-            $ transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -571,21 +552,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    let extraInputScripts =
-            case utxoAssumptions of
-                AllKeyPaymentCredentials -> []
-                AllByronKeyPaymentCredentials -> []
-                AllScriptPaymentCredentialsFrom _template toInpScripts ->
-                    toInpScripts . view #address . snd <$>
-                        extraInputs <> extraCollateral'
-
-    let extraCollateral = fst <$> extraCollateral'
     let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
-        { extraInputs
-        , extraCollateral
-        , extraOutputs
-        , extraInputScripts
+        { selection
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
 
@@ -603,7 +572,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     let feeAndChange = TxFeeAndChange
             (unsafeFromLovelace candidateMinFee)
-            (extraOutputs)
+            (selChange selection)
 
     let feePerByte = getFeePerByte (recentEra @era) pp
 
@@ -618,10 +587,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
         TxUpdate
-            { extraInputs
-            , extraCollateral
-            , extraOutputs = updatedChange
-            , extraInputScripts
+            { selection = selection { selChange = updatedChange }
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
@@ -705,7 +671,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
         let minfee = W.toWalletCoin $ evaluateMinimumFee
                 (recentEra @era) pp (fromCardanoTx tx) witCount
-        let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
+        let update = TxUpdate (Selection [] [] [] []) (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
@@ -815,6 +781,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
 
+data Selection = Selection
+    { selInputs :: [W.TxIn]
+    , selCollateral :: [W.TxIn]
+    , selChange :: [W.TxOut]
+    , selScripts :: [CA.Script CA.KeyHash]
+    }
+
 -- | Select assets to cover the specified balance and fee.
 --
 -- If the transaction contains redeemers, the function will also ensure the
@@ -835,10 +808,65 @@ selectAssets
     -> W.Coin -- Current minfee (before selecting assets)
     -> StdGenSeed
     -> ChangeAddressGen changeState
+    -> changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either (SelectionError WalletSelectionContext) Selection
-selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
+    -> Either (SelectionError WalletSelectionContext) (Selection, changeState)
+selectAssets era pp utxoAssumptions outs redeemers sel balance0 fee0 seed changeGen s
+    selectionStrategy = do
+    sel' <- selectAssetsWithoutAssigningChange
+            era
+            pp
+            utxoAssumptions
+            outs
+            redeemers
+            sel
+            balance0
+            fee0
+            seed
+            changeGen
+            selectionStrategy
+
+    let (sel'', s') = assignChangeAddresses changeGen sel' s
+    let extraInputs = F.toList (sel'' ^. #inputs)
+    let extraCollateral = sel'' ^. #collateral
+    let extraChange = sel'' ^. #change
+
+    let extraInputScripts =
+            case utxoAssumptions of
+                AllKeyPaymentCredentials -> []
+                AllByronKeyPaymentCredentials -> []
+                AllScriptPaymentCredentialsFrom _template toInpScripts ->
+                    toInpScripts . view #address . snd <$>
+                        extraInputs <> extraCollateral
+    return
+        ( Selection
+            (map fst extraInputs)
+            (map fst extraCollateral)
+            extraChange
+            extraInputScripts
+        , s'
+        )
+
+selectAssetsWithoutAssigningChange
+    :: forall era changeState
+     . RecentEra era
+    -> ProtocolParameters era
+    -> UTxOAssumptions
+    -> [W.TxOut]
+    -> [Redeemer]
+    -> UTxOSelection WalletUTxO
+    -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
+    -- inputs or collateral.
+    -> Cardano.Value -- Balance to cover
+    -> W.Coin -- Current minfee (before selecting assets)
+    -> StdGenSeed
+    -> ChangeAddressGen changeState
+    -> SelectionStrategy
+    -- ^ A function to assess the size of a token bundle.
+    -> Either (SelectionError WalletSelectionContext) (SelectionOf TokenBundle)
+selectAssetsWithoutAssigningChange
+    era (ProtocolParameters pp) utxoAssumptions outs redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
@@ -1018,15 +1046,10 @@ unsafeIntCast x = fromMaybe err $ intCastMaybe x
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [(W.TxIn, W.TxOut)]
-    , extraCollateral :: [W.TxIn]
-       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
-       -- previous eras.
-    , extraOutputs :: [W.TxOut]
-    , extraInputScripts :: [CA.Script CA.KeyHash]
+    { selection :: Selection
     , feeUpdate :: TxFeeUpdate
         -- ^ Set a new fee or use the old one.
-    }
+    } deriving Generic
 
 -- | For testing that
 -- @
@@ -1034,7 +1057,7 @@ data TxUpdate = TxUpdate
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
+noTxUpdate = TxUpdate (Selection [] [] [] []) UseOldTxFee
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate
@@ -1094,7 +1117,7 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
                 val
         Byron.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
 
-    TxUpdate _ _ _ extraInputScripts _ = extraContent
+    TxUpdate (Selection _ _ _ extraInputScripts) _ = extraContent
 
     toLedgerScript
         :: CA.Script CA.KeyHash
@@ -1124,9 +1147,9 @@ modifyShelleyTxBody txUpdate era = withConstraints era $
     . over collateralInputsTxBodyL
         (<> extraCollateral')
   where
-    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
+    TxUpdate (Selection extraInputs extraCollateral extraOutputs _) feeUpdate = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
-    extraInputs' = Set.fromList (W.toLedger . fst <$> extraInputs)
+    extraInputs' = Set.fromList (W.toLedger <$> extraInputs)
     extraCollateral' = Set.fromList $ W.toLedger <$> extraCollateral
 
     modifyFee old = case feeUpdate of

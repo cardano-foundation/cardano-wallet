@@ -100,7 +100,6 @@ import Cardano.Pool.Types
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionError (..)
-    , SelectionOf (..)
     , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , UnableToConstructChangeError (..)
@@ -252,6 +251,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
+    , Selection (..)
     , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
@@ -459,6 +459,7 @@ import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1410,7 +1411,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
-          cs = Selection
+          cs = CS.Selection
             { inputs = NE.fromList inps
             , collateral = []
             , extraCoinSource = Coin 0
@@ -1468,7 +1469,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     addrWits = map (mkShelleyWitness unsigned) pairs
-    cs = Selection
+    cs = CS.Selection
         { inputs = NE.fromList inps
         , collateral = []
         , extraCoinSource = Coin 0
@@ -3762,7 +3763,7 @@ unsafeSealedTxFromHex =
 
 prop_updateTx
     :: Write.InAnyRecentEra Cardano.Tx
-    -> [(TxIn, TxOut)]
+    -> [TxIn]
     -> [TxIn]
     -> [TxOut]
     -> Coin
@@ -3771,11 +3772,13 @@ prop_updateTx
     (Write.InAnyRecentEra _era tx)
     extraIns extraCol extraOuts newFee =
     do
-        let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
+        let extra = TxUpdate
+                (Selection extraIns extraCol extraOuts [])
+                (UseNewTxFee newFee)
         let tx' = either (error . show) id
                 $ updateTx tx extra
         conjoin
-            [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
+            [ inputs tx' === inputs tx <> Set.fromList extraIns
             , outputs tx' === outputs tx <> Set.fromList extraOuts
             , sealedFee tx' === Just newFee
             , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
