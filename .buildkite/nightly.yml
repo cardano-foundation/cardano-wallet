@@ -42,7 +42,7 @@ steps:
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
-    timeout_in_minutes: 210
+    timeout_in_minutes: 240
     agents:
       system: x86_64-linux
       queue: adrestia-bench
