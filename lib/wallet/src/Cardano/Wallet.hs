@@ -247,7 +247,7 @@ import Cardano.Api.Extra
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), nullTracer )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Crypto.Wallet
     ( toXPub )
 import Cardano.Mnemonic
@@ -522,8 +522,7 @@ import Cardano.Wallet.TxWitnessTag
 import Cardano.Wallet.Write.Tx
     ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance
-    ( BalanceTxLog (..)
-    , ChangeAddressGen (..)
+    ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
@@ -2269,7 +2268,6 @@ buildTransactionPure
 
     withExceptT Left $
         balanceTransaction @_ @_ @s
-            nullTracer
             (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
             timeTranslation
@@ -2913,7 +2911,6 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
         wrapErrSelectAssets $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
-                        nullTracer
                         (utxoAssumptionsForWallet (walletFlavor @s))
                         protocolParams
                         timeTranslation
@@ -3638,8 +3635,7 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgBalanceTx BalanceTxLog
-    | MsgMigrationUTxOBefore UTxOStatistics
+    = MsgMigrationUTxOBefore UTxOStatistics
     | MsgMigrationUTxOAfter UTxOStatistics
     | MsgRewardBalanceQuery BlockHeader
     | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
@@ -3678,7 +3674,6 @@ instance ToText WalletFollowLog where
 
 instance ToText WalletLog where
     toText = \case
-        MsgBalanceTx msg -> toText msg
         MsgMigrationUTxOBefore summary ->
             "About to migrate the following distribution: \n" <> pretty summary
         MsgMigrationUTxOAfter summary ->
@@ -3712,7 +3707,6 @@ instance HasSeverityAnnotation WalletFollowLog where
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
     getSeverityAnnotation = \case
-        MsgBalanceTx msg -> getSeverityAnnotation msg
         MsgMigrationUTxOBefore _ -> Info
         MsgMigrationUTxOAfter _ -> Info
         MsgRewardBalanceQuery _ -> Debug

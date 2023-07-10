@@ -26,7 +26,6 @@ module Cardano.Wallet.Write.Tx.Balance
     (
     -- * Balancing transactions
       balanceTransaction
-    , BalanceTxLog (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
@@ -70,10 +69,6 @@ module Cardano.Wallet.Write.Tx.Balance
 
 import Prelude
 
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation, HasSeverityAnnotation, Tracer )
-import Cardano.BM.Tracing
-    ( HasSeverityAnnotation (..), Severity (..), traceWith )
 import Cardano.Ledger.Alonzo.Core
     ( ppCollateralPercentageL, ppMaxCollateralInputsL )
 import Cardano.Ledger.Api
@@ -94,13 +89,9 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOf (change)
     , SelectionOutputError (..)
     , SelectionParams (..)
-    , SelectionReportDetailed
-    , SelectionReportSummarized
     , SelectionStrategy (..)
     , WalletSelectionContext
     , WalletUTxO (..)
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
     , performSelection
     , toInternalUTxOMap
     )
@@ -161,8 +152,6 @@ import Control.Monad
     ( forM, unless, when )
 import Control.Monad.Random
     ( MonadRandom, evalRand )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (ExceptT), catchE, except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State
@@ -185,22 +174,10 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Fmt
-    ( Buildable
-    , Builder
-    , blockListF'
-    , build
-    , nameF
-    , pretty
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
+    ( Buildable, Builder, blockListF', build, nameF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -256,40 +233,6 @@ instance Eq (BuildableInAnyEra a) where
 
 instance Buildable (BuildableInAnyEra a) where
     build (BuildableInAnyEra _ x) = build x
-
-data BalanceTxLog
-    = MsgSelectionForBalancingStart Int (BuildableInAnyEra PartialTx)
-    | MsgSelectionStart Int [W.TxOut]
-    | MsgSelectionError (SelectionError WalletSelectionContext)
-    | MsgSelectionReportSummarized SelectionReportSummarized
-    | MsgSelectionReportDetailed SelectionReportDetailed
-    deriving (Eq, Show)
-
-instance ToText BalanceTxLog where
-    toText = \case
-        MsgSelectionStart utxoSize recipients ->
-            "Starting coin selection " <>
-            "|utxo| = "+|utxoSize|+" " <>
-            "#recipients = "+|length recipients|+""
-        MsgSelectionForBalancingStart utxoSize partialTx ->
-            "Starting coin selection for balancing " <>
-            "|utxo| = "+|utxoSize|+" " <>
-            "partialTx = "+|partialTx|+""
-        MsgSelectionError e ->
-            "Failed to select assets:\n"+|| e ||+""
-        MsgSelectionReportSummarized s ->
-            "Selection report (summarized):\n"+| s |+""
-        MsgSelectionReportDetailed s ->
-            "Selection report (detailed):\n"+| s |+""
-
-instance HasPrivacyAnnotation BalanceTxLog
-instance HasSeverityAnnotation BalanceTxLog where
-    getSeverityAnnotation = \case
-        MsgSelectionStart{} -> Debug
-        MsgSelectionForBalancingStart{} -> Debug
-        MsgSelectionError{} -> Debug
-        MsgSelectionReportSummarized{} -> Info
-        MsgSelectionReportDetailed{} -> Debug
 
 data ErrSelectAssets
     = ErrSelectAssetsPrepareOutputsError
@@ -370,8 +313,7 @@ balanceTransaction
         ( MonadRandom m
         , IsRecentEra era
         )
-    => Tracer m BalanceTxLog
-    -> UTxOAssumptions
+    => UTxOAssumptions
     -> ProtocolParameters era
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -399,7 +341,6 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction
-    tr
     utxoAssumptions
     pp
     timeTranslation
@@ -415,7 +356,6 @@ balanceTransaction
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                tr
                 utxoAssumptions
                 pp
                 timeTranslation
@@ -500,8 +440,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         ( MonadRandom m
         , IsRecentEra era
         )
-    => Tracer m BalanceTxLog
-    -> UTxOAssumptions
+    => UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
     -> UTxOIndex era
@@ -511,7 +450,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    tr
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
@@ -558,10 +496,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , s'
                     )
 
-        lift $ traceWith tr $ MsgSelectionForBalancingStart
-            (UTxOIndex.size internalUtxoAvailable)
-            (BuildableInAnyEra Cardano.cardanoEra ptx)
-
         externalSelectedUtxo <- extractExternallySelectedUTxO ptx
 
         let mSel = selectAssets
@@ -577,14 +511,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 randomSeed
                 genChange
                 selectionStrategy
-
-        case mSel of
-            Left e -> lift $ traceWith tr $ MsgSelectionError e
-            Right sel -> lift $ do
-                traceWith tr $ MsgSelectionReportSummarized
-                    $ makeSelectionReportSummarized sel
-                traceWith tr $ MsgSelectionReportDetailed
-                    $ makeSelectionReportDetailed sel
 
         withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
             . except
