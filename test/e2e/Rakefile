@@ -320,9 +320,9 @@ task :get_latest_configs, [:env] do |_task, args|
 
     config_dir = File.join(CONFIGS, args[:env])
     # Temporary/ad-hoc config changes for cardano-node:
-    # config_json = JSON.parse(File.read("#{config_dir}/config.json"))
-    # config_json['EnableP2P'] = false
-    # File.write("#{config_dir}/config.json", JSON.pretty_generate(config_json))
+    config_json = JSON.parse(File.read("#{config_dir}/config.json"))
+    config_json['EnableP2P'] = false
+    File.write("#{config_dir}/config.json", JSON.pretty_generate(config_json))
 
     topology = %({
           "Producers": [

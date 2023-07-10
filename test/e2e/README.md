@@ -77,7 +77,7 @@ One can also start tests against cardano-wallet docker. There is docker-compose-
 >NETWORK=preprod \
 >TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 >WALLET=dev-master \
->NODE=1.30.1 \
+>NODE=8.1.1 \
 >NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
 >DATA=`pwd`/state/node_db/$NETWORK
 >docker-compose -f docker-compose-test.yml up
@@ -94,12 +94,12 @@ One can also run tests against `cardano-wallet` and `cardano-node` which are spe
 ```bash
 $ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
-Running tests as such skips downloading latest binaries from Hydra.
+Running tests as such skips downloading latest wallet and node binaries.
 
 ### Test artifacts
 
 By default following locations are used for different artifacts used by the tests:
-- `./bins` - location for wallet and node binaries (will be downloaded here from [Hydra](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs))
+- `./bins` - location for wallet and node binaries (will be downloaded here from [Buildkite](https://buildkite.com/cardanofoundation/cardano-wallet))
 - `./state` - wallet/node databases, logs and configs
 
 Locations are relative to `test/e2e` directory.
