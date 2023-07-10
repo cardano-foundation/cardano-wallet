@@ -23,6 +23,8 @@ import Cardano.Wallet.DB.Store.Info.Store
     ( mkStoreInfo )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
     ( mkStorePrivateKey )
+import Cardano.Wallet.DB.Store.Rewards.Store
+    ( mkStoreRewards )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
@@ -42,12 +44,9 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
-{-------------------------------------------------------------------------------
-    WalletState Store
--------------------------------------------------------------------------------}
-
-
--- | Store for 'WalletState' of a single wallet.
+-- | Store for 'WalletState' of a single wallet. This is a composite store
+-- which stores all the sub-stores for the various components of the wallet.
+-- TODO: Remove the WalletId parameter as we are storing on a per-wallet basis.
 mkStoreWallet
     :: PersistAddressBook s
     => WalletFlavorS s
@@ -60,6 +59,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
     infoStore = mkStoreInfo
     pkStore = mkStorePrivateKey (keyOfWallet wF) wid
     delegationsStore = mkStoreDelegations
+    rewardsStore = mkStoreRewards wid
 
     load = do
         eprologue <-
@@ -70,6 +70,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
         einfo <- loadS infoStore
         ecredentials <- loadS pkStore
         edelegations <- loadS delegationsStore
+        erewards <- loadS rewardsStore
         pure
             $ WalletState
                 <$> eprologue
@@ -78,6 +79,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
                 <*> einfo
                 <*> ecredentials
                 <*> edelegations
+                <*> erewards
 
     write wallet = do
         writeS infoStore (wallet ^. #info)
@@ -105,3 +107,4 @@ mkStoreWallet wF wid = mkUpdateStore load write update
                 (updateS delegationsStore . Just)
                 (delegations s)
                 deltas
+        update1 _ (UpdateRewards delta) = updateS rewardsStore Nothing delta

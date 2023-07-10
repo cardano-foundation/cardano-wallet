@@ -1,11 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -64,12 +66,14 @@ import Cardano.Wallet.Flavor
     ( KeyOf )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( HashedCredentials )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..), Replace (..) )
 import Data.Delta.Update
     ( Update, updateField )
 import Data.Generics.Internal.VL
@@ -138,6 +142,7 @@ data WalletState s = WalletState
     , info :: !WalletInfo
     , credentials :: Maybe (HashedCredentials (KeyOf s))
     , delegations :: Delegations
+    , rewards :: Coin
     } deriving (Generic)
 
 deriving instance
@@ -160,6 +165,7 @@ fromGenesis cp winfo
                 , info = winfo
                 , credentials = Nothing
                 , delegations = mempty
+                , rewards = mempty
                 }
     | otherwise = Nothing
   where
@@ -189,6 +195,7 @@ data DeltaWalletState1 s
     | UpdateInfo DeltaWalletInfo
     | UpdateCredentials (DeltaPrivateKey (KeyOf s))
     | UpdateDelegations DeltaDelegations
+    | UpdateRewards (Replace Coin)
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
@@ -198,6 +205,7 @@ instance Delta (DeltaWalletState1 s) where
     apply (UpdateInfo d) = over #info $ apply d
     apply (UpdateCredentials d) = over #credentials $ apply d
     apply (UpdateDelegations d) = over #delegations $ apply d
+    apply (UpdateRewards d) = over #rewards $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
@@ -206,6 +214,7 @@ instance Buildable (DeltaWalletState1 s) where
     build (UpdateInfo d) = "UpdateInfo (" <> build d <> ")"
     build (UpdateCredentials _d) = "UpdatePrivateKey"
     build (UpdateDelegations d) = "UpdateDelegations (" <> build d <> ")"
+    build (UpdateRewards d) = "UpdateRewards (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty
@@ -222,3 +231,6 @@ updateSubmissions
     :: Update DeltaTxSubmissions r
     -> Update (DeltaWalletState s) r
 updateSubmissions = updateField submissions ((:[]) . UpdateSubmissions)
+
+instance Buildable (Replace Coin) where
+    build (Replace x) = build x

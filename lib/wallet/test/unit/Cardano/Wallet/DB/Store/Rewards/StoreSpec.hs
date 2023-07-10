@@ -25,8 +25,6 @@ import Cardano.Wallet.DB.Store.Rewards.Store
     ( mkStoreRewards )
 import Data.Delta
     ( Replace (..) )
-import Fmt
-    ( Buildable (..) )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -54,6 +52,3 @@ prop_StoreRewardsLaws db wid =
 
 genDelta :: p -> Gen (Replace W.Coin)
 genDelta _ = Replace <$> arbitrary
-
-instance Buildable (Replace W.Coin) where
-    build (Replace x) = build x
