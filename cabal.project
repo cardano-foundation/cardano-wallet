@@ -69,6 +69,7 @@ packages:
   , lib/text-class/
   , lib/wai-middleware-logging/
   , lib/wallet/
+  , lib/wallet-benchmarks/
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
