@@ -30,13 +30,24 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Build bench and run unit tests (linux)'
+  - label: 'Run unit tests (linux)'
     depends_on: linux-nix
-    command:
-      - 'nix build .#ci.tests.all'
-      - 'nix build .#ci.benchmarks.all'
-      - 'nix build -L .#ci.${linux}.tests.run.unit'
+    command: 'nix build -L .#ci.${linux}.tests.run.unit'
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
+  - label: 'Run integration tests (linux)'
+    command: 'nix build -L .#ci.${linux}.tests.run.integration'
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
+
+  - label: 'Build bemchmarks (linux)'
+    depends_on: linux-nix
+    command: 'nix build .#ci.benchmarks.all'
     agents:
       system: ${linux}
     env:
@@ -102,19 +113,6 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - block: 'Run integration tests (linux)'
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
-    key: trigger-linux
-    depends_on:
-      - linux-nix
-
-  - label: 'Run integration tests (linux)'
-    command: 'nix build -L .#ci.${linux}.tests.run.integration'
-    depends_on: trigger-linux
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
 
   - block: 'Run benchmark (api)'
     depends_on: linux-nix
