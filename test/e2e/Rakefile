@@ -176,14 +176,14 @@ task :start_node_and_wallet, [:env] do |_task, args|
     cmd start_node
     cmd start_wallet
   else
-    start_node =<<~CMD
+    start_node = <<~CMD
       #{bin_dir}cardano-node run \
         --config #{config_dir}/config.json \
         --topology #{config_dir}/topology.json \
         --database-path #{node_db_dir} \
         --socket-path #{node_db_dir}/node.socket
     CMD
-    start_wallet =<<~CMD
+    start_wallet = <<~CMD
       #{bin_dir}cardano-wallet serve #{network} \
         --port #{WALLET_PORT} \
         --node-socket #{node_db_dir}/node.socket \
