@@ -1260,7 +1260,8 @@ readDelegationRewardBalance
     :: Monad stm
     => DBVar stm (DeltaWalletState s)
     -> stm Coin
-readDelegationRewardBalance _walletState = error "TODO"
+readDelegationRewardBalance walletState =
+    view #rewards <$> readDBVar walletState
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s . DBLayer IO s -> IO Coin
@@ -1479,8 +1480,14 @@ handleRewardAccountQuery tr DBLayer{..} query = do
            -- just update the balance next time the tip changes.
            pure ()
 
-putDelegationRewardBalance :: DBVar stm (DeltaWalletState s) -> Coin -> stm ()
-putDelegationRewardBalance = error "TODO"
+putDelegationRewardBalance
+    :: (Monad stm)
+    => DBVar stm (DeltaWalletState s)
+    -> Coin
+    -> stm ()
+putDelegationRewardBalance walletState amt =
+    onDBVar walletState $ update $ \_ ->
+        [UpdateRewards $ Replace amt]
 
 manageSharedRewardBalance
     :: forall n block
