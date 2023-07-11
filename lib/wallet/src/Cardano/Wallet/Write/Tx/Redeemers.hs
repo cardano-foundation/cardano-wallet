@@ -161,19 +161,12 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
         -> Tx (Cardano.ShelleyLedgerEra era)
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits indexedRedeemers ledgerTx = do
-        let res =
-                Ledger.evalTxExUnits
-                    pparams
-                    ledgerTx
-                    (fromCardanoUTxO utxo)
-                    epochInformation
-                    systemStart
-        case res of
-            Left translationError ->
-                Left $ ErrAssignRedeemersTranslationError translationError
-            Right report ->
-                Right $ hoistScriptFailure indexedRedeemers report
+    evaluateExecutionUnits indexedRedeemers ledgerTx =
+        Ledger.evalTxExUnits
+            pparams ledgerTx (fromCardanoUTxO utxo) epochInformation systemStart
+        & bimap
+            ErrAssignRedeemersTranslationError
+            (hoistScriptFailure indexedRedeemers)
 
     hoistScriptFailure
         :: Show scriptFailure
