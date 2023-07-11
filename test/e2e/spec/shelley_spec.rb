@@ -414,16 +414,14 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         expect(s).to be_correct_and_respond 204
 
         eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
-          sps = pools.list({ stake: 1000 })
-          !sps.select { |p| p['metadata'] }.empty?
+          pools.list({ stake: 1000 }).any? { |p| p['metadata'] }
         end
 
         s = settings.update({ pool_metadata_source: 'none' })
         expect(s).to be_correct_and_respond 204
 
         eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-          sps = pools.list({ stake: 1000 })
-          sps.select { |p| p['metadata'] }.empty?
+          pools.list({ stake: 1000 }).none? { |p| p['metadata'] }
         end
       end
 
@@ -435,16 +433,14 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         expect(s).to be_correct_and_respond 204
 
         eventually "Pools have metadata when 'pool_metadata_source' => '#{ENV.fetch('TESTS_E2E_SMASH', nil)}'" do
-          sps = pools.list({ stake: 1000 })
-          !sps.select { |p| p['metadata'] }.empty?
+          pools.list({ stake: 1000 }).any? { |p| p['metadata'] }
         end
 
         s = settings.update({ pool_metadata_source: 'none' })
         expect(s).to be_correct_and_respond 204
 
         eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-          sps = pools.list({ stake: 1000 })
-          sps.select { |p| p['metadata'] }.empty?
+          pools.list({ stake: 1000 }).none? { |p| p['metadata'] }
         end
       end
     end
