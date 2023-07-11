@@ -68,7 +68,6 @@ import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
     ( DBCheckpoints (..)
-    , DBDelegation (..)
     , DBFactory (..)
     , DBFresh (..)
     , DBLayer (..)
@@ -88,7 +87,6 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
-    , DelegationReward (..)
     , EntityField (..)
     , Key (..)
     , TxMeta (..)
@@ -176,7 +174,6 @@ import Data.Word
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
-    , repsert
     , selectFirst
     , selectKeysList
     , selectList
@@ -200,7 +197,6 @@ import UnliftIO.MVar
 import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TransactionInfo as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -606,8 +602,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    dbDelegation = mkDBDelegation wid_
-
 
 mkDBFreshFromParts
     :: forall stm m s
@@ -669,30 +663,6 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTxFromLookupTxOut lookupTxOut
   where
     lookupTxOut = queryS transactionsQS . GetTxOut
-
-{-----------------------------------------------------------------------
-                            Wallet Delegation
------------------------------------------------------------------------}
-
-mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
-mkDBDelegation wid =
-    DBDelegation
-        { putDelegationRewardBalance_
-        , readDelegationRewardBalance_
-        }
-  where
-
-    putDelegationRewardBalance_ :: Coin.Coin -> SqlPersistT IO ()
-    putDelegationRewardBalance_ amount =
-        repsert
-            (DelegationRewardKey wid)
-            (DelegationReward wid (Coin.unsafeToWord64 amount))
-
-    readDelegationRewardBalance_ :: SqlPersistT IO Coin.Coin
-    readDelegationRewardBalance_ =
-        Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
-            selectFirst [RewardWalletId ==. wid] []
-
 
 {-------------------------------------------------------------------------------
     Conversion between types

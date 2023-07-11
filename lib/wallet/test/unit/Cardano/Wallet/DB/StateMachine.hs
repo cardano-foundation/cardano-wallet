@@ -88,10 +88,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     , WalletDatabase (..)
     , mInitializeWallet
     , mListCheckpoints
-    , mPutDelegationRewardBalance
     , mPutTxHistory
     , mReadCheckpoint
-    , mReadDelegationRewardBalance
     , mReadGenesisParameters
     , mReadTxHistory
     , mRollbackTo
@@ -296,8 +294,6 @@ data Cmd s wid
     | GetTx (Hash "Tx")
     | ReadGenesisParameters
     | RollbackTo wid Slot
-    | PutDelegationRewardBalance wid Coin
-    | ReadDelegationRewardBalance
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
     deriving anyclass (CommandNames)
 
@@ -312,7 +308,6 @@ data Success s wid
     | GenesisParams (Maybe GenesisParameters)
     | ChainPoints [ChainPoint]
     | Point ChainPoint
-    | DelegationRewardBalance Coin
     | StakeKeyStatus Bool
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
 
@@ -354,11 +349,6 @@ runMock = \case
         . (Right Nothing,)
     ReadGenesisParameters ->
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
-    PutDelegationRewardBalance _wid amt ->
-        first (Resp . fmap Unit) . mPutDelegationRewardBalance amt
-    ReadDelegationRewardBalance ->
-        first (Resp . fmap DelegationRewardBalance)
-        . mReadDelegationRewardBalance
     RollbackTo _wid point ->
         first (Resp . fmap Point) . mRollbackTo point
   where
@@ -405,10 +395,6 @@ runIO DBLayer{..} = fmap Resp . go
             runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
         ReadGenesisParameters -> Right . GenesisParams <$>
             atomically readGenesisParameters
-        PutDelegationRewardBalance _wid amt -> runDBSuccess atomically Unit $
-            putDelegationRewardBalance amt
-        ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
-            atomically readDelegationRewardBalance
         RollbackTo _wid sl -> runDBSuccess atomically Point $ rollbackTo sl
 
 

@@ -274,6 +274,7 @@ library
     Cardano.Wallet.DB.Store.Meta.Model
     Cardano.Wallet.DB.Store.Meta.Store
     Cardano.Wallet.DB.Store.PrivateKey.Store
+    Cardano.Wallet.DB.Store.Rewards.Store
     Cardano.Wallet.DB.Store.Submissions.Layer
     Cardano.Wallet.DB.Store.Submissions.Operations
     Cardano.Wallet.DB.Store.Transactions.Decoration
@@ -939,6 +940,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
     Cardano.Wallet.DB.Store.PrivateKey.StoreSpec
+    Cardano.Wallet.DB.Store.Rewards.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
