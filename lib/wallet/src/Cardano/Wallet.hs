@@ -635,7 +635,7 @@ import Ouroboros.Consensus.Util.IOLike
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import UnliftIO.Exception
-    ( Exception, catch, evaluate, throwIO )
+    ( Exception, catch, evaluate, throwIO, try )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -909,14 +909,32 @@ readDelegation walletState = do
     dels <- view #delegations <$> readDBVar walletState
     pure $ \dsarg -> Dlgs.readDelegation dsarg dels
 
+-- | Return information about the current epoch.
+--
+-- In the event that wall clock time is too far ahead of the node,
+-- we return the epoch of the node tip.
 getCurrentEpochSlotting
     :: NetworkLayer IO block
     -> IO CurrentEpochSlotting
 getCurrentEpochSlotting nl = do
-    epoch <- Slotting.currentEpoch ti
+    epoch <- getCurrentEpoch
     mkCurrentEpochSlotting ti epoch
   where
-    ti = neverFails "currentEpoch is past horizon" $ timeInterpreter nl
+    ti = Slotting.expectAndThrowFailures $ timeInterpreter nl
+
+    getCurrentEpoch =
+        currentEpochFromWallClock >>= \case
+            Right a -> pure a
+            Left _ -> currentEpochFromNodeTip
+
+    currentEpochFromNodeTip :: IO W.EpochNo
+    currentEpochFromNodeTip = do
+        tip <- currentNodeTip nl
+        interpretQuery ti $ Slotting.epochOf $ tip ^. #slotNo
+
+    currentEpochFromWallClock :: IO (Either PastHorizonException W.EpochNo)
+    currentEpochFromWallClock =
+        try $ Slotting.currentEpoch ti
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
