@@ -7,13 +7,42 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/input-output-hk/cardano-wallet/releases"><img src="https://img.shields.io/github/release-pre/input-output-hk/cardano-wallet.svg?style=for-the-badge"  /></a>
-  <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>
-  <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  /></a>
-  <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly"><img src="https://img.shields.io/buildkite/59ea9363b8526e867005ca8839db47715bc5f661f36e490143/master?label=BENCHMARKS&style=for-the-badge"  /></a> <a href="https://github.com/input-output-hk/cardano-wallet/actions?query=workflow%3Awindows"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  /></a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/releases">
+        <img src="https://img.shields.io/github/release-pre/input-output-hk/cardano-wallet.svg?style=for-the-badge"  />
+    </a>
+    <a href="https://buildkite.com/cardanofoundation/cardano-wallet">
+        <img src="https://img.shields.io/buildkite/da223f1dbf24e8a64a27f50a49190ce7a9ee867d221c20d70a/master?label=BUILD&style=for-the-badge"/>
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml/badge.svg">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://buildkite.com/cardanofoundation/cardano-wallet-nightly">
+        <img src="https://img.shields.io/buildkite/94de95cfe78b09c547cb109b0a44e6cd489341ea9e2c224ead/master?label=BENCHMARKS&style=for-the-badge"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml/badge.svg">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-docker.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-docker.yml?label=E2E Docker&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-linux.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-linux.yml?label=E2E Linux&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-macos.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-macos.yml?label=E2E MacOs&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-windows.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-windows.yml?label=E2E Windows&style=for-the-badge&branch=master" />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/docker_linux.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_linux.yml?label=Docker-compose Linux&style=for-the-badge&branch=master"  />
+    </a>
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/docker_macos.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_macos.yml?label=Docker-compose Macos&style=for-the-badge&branch=master"  />
+    </a>
 </p>
 <p align="center">
-  <a href="https://github.com/input-output-hk/cardano-wallet/tree/master/test/e2e#e2e-testing">E2E Tests Status</a>
+  <a href="https://github.com/cardano-foundation/cardano-wallet/tree/master/test/e2e#e2e-testing">E2E Tests Status</a>
 </p>
 
 <hr/>
