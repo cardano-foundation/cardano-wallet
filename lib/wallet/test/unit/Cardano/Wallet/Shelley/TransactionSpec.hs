@@ -245,7 +245,6 @@ import Cardano.Wallet.Shelley.Transaction
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , estimateTxSize
-    , evaluateMinimumFee
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -3275,16 +3274,13 @@ txMinFee
     :: Cardano.Tx Cardano.BabbageEra
     -> Cardano.UTxO Cardano.BabbageEra
     -> Cardano.Lovelace
-txMinFee (Cardano.Tx body _) u =
-    toCardanoLovelace
-        $ evaluateMinimumFee
-            ( either (error . show) id $
-                Cardano.bundleProtocolParams
-                    Cardano.BabbageEra
-                    mockCardanoApiPParamsForBalancing
-            )
+txMinFee tx@(Cardano.Tx body _) u =
+    Write.toCardanoLovelace
+        $ Write.evaluateMinimumFee
+            RecentEraBabbage
+            (Write.pparamsLedger $ mockPParamsForBalancing @Cardano.BabbageEra)
+            (Write.fromCardanoTx tx)
             (estimateKeyWitnessCount u body)
-            body
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
