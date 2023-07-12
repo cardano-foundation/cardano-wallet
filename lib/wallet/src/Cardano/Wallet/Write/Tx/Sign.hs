@@ -59,7 +59,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
 
--- | Estimate the size of the transaction (body) when fully signed.
+-- | Estimate the size of the transaction when fully signed.
 estimateSignedTxSize
     :: forall era. Write.IsRecentEra era
     => Write.PParams (Write.ShelleyLedgerEra era)
