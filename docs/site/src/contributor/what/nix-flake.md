@@ -1,3 +1,5 @@
+# Nix flake
+
 ## Status
 
 Accepted - [ADP-983](https://input-output.atlassian.net/browse/ADP-983)
