@@ -138,10 +138,10 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
-import Cardano.Wallet.Write.Tx.Balance.CoinSelection
-    ( TxSkeleton (..), estimateTxCost )
 import Cardano.Wallet.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), assignScriptRedeemers )
+import Cardano.Wallet.Write.Tx.SizeEstimation
+    ( TxSkeleton (..), estimateTxCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Cardano.Wallet.Write.UTxOAssumptions

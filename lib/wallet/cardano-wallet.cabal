@@ -410,9 +410,9 @@ library
     Cardano.Wallet.Write.ProtocolParameters
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
-    Cardano.Wallet.Write.Tx.Balance.CoinSelection
     Cardano.Wallet.Write.Tx.Gen
     Cardano.Wallet.Write.Tx.Redeemers
+    Cardano.Wallet.Write.Tx.SizeEstimation
     Cardano.Wallet.Write.Tx.TimeTranslation
     Cardano.Wallet.Write.UTxOAssumptions
     Control.Concurrent.Concierge

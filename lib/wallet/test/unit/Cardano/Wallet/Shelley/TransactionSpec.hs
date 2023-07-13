@@ -286,7 +286,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , posAndNegFromCardanoValue
     , updateTx
     )
-import Cardano.Wallet.Write.Tx.Balance.CoinSelection
+import Cardano.Wallet.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     , sizeOf_BootstrapWitnesses

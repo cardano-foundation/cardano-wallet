@@ -23,20 +23,18 @@
 -- Copyright: © 2023 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
 --
---
-module Cardano.Wallet.Write.Tx.Balance.CoinSelection
-    ( -- * Coin-selection for use with balanceTx
-      -- TODO: Move the actual coin-selection function to here, and don't expose
-      -- this group of functions / types.
+-- Module containing logic relating to size estimation as needed, mainly for
+-- the purpose of coin-selection.
+module Cardano.Wallet.Write.Tx.SizeEstimation
+    ( -- * Needed for normal coin-selection for balanceTx
       estimateTxSize
     , estimateTxCost
     , TxSkeleton (..)
 
-     -- * Additional exposed functionality
-     -- ** For migration
+     -- ** Needed for migration
     , txConstraints
 
-     -- ** For estimateSignedTxSize
+     -- ** Needed for estimateSignedTxSize
     , sizeOf_BootstrapWitnesses
 
       -- ** For the wallet
@@ -688,4 +686,3 @@ sizeOf_Array = 3
 -- of the values, after the given function has been applied to each value.
 sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
 sumVia f = F.foldl' (\t -> (t +) . f) 0
-

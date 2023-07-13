@@ -530,7 +530,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , constructUTxOIndex
     )
-import Cardano.Wallet.Write.Tx.Balance.CoinSelection
+import Cardano.Wallet.Write.Tx.SizeEstimation
     ( getFeePerByteFromWalletPParams, _txRewardWithdrawalCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
@@ -664,7 +664,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance.CoinSelection as Write
+import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
