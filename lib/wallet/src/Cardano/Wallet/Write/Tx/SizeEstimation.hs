@@ -24,14 +24,14 @@
 -- License: Apache-2.0
 --
 -- Module containing logic relating to size estimation as needed, mainly for
--- the purpose of coin-selection.
+-- the purpose of coin selection.
 module Cardano.Wallet.Write.Tx.SizeEstimation
-    ( -- * Needed for normal coin-selection for balanceTx
+    ( -- * Needed for normal coin selection for balanceTx
       estimateTxSize
     , estimateTxCost
     , TxSkeleton (..)
 
-     -- ** Needed for migration
+     -- ** Needed for balance migration
     , txConstraints
 
      -- ** Needed for estimateSignedTxSize
@@ -139,19 +139,17 @@ _txRewardWithdrawalSize
     -> TxSize
 _txRewardWithdrawalSize _ (Coin 0) = TxSize 0
 _txRewardWithdrawalSize witType _ =
-        sizeOf_Withdrawals 1 <> wits
-      where
-        wits = case witType of
-            Right TxWitnessByronUTxO ->
-                sizeOf_BootstrapWitnesses 1 - sizeOf_BootstrapWitnesses 0
-            Right TxWitnessShelleyUTxO ->
-                sizeOf_VKeyWitnesses 1
-            Left scriptTemplate ->
-                let n = fromIntegral $ estimateMaxWitnessRequiredPerInput
-                        $ view #template scriptTemplate
-                in sizeOf_VKeyWitnesses n
-
-
+    sizeOf_Withdrawals 1 <> wits
+  where
+    wits = case witType of
+        Right TxWitnessByronUTxO ->
+            sizeOf_BootstrapWitnesses 1 - sizeOf_BootstrapWitnesses 0
+        Right TxWitnessShelleyUTxO ->
+            sizeOf_VKeyWitnesses 1
+        Left scriptTemplate ->
+            let n = fromIntegral $ estimateMaxWitnessRequiredPerInput
+                    $ view #template scriptTemplate
+            in sizeOf_VKeyWitnesses n
 txConstraints
     :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
@@ -628,26 +626,22 @@ sizeOf_NativeScript = \case
 -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
 -- with 2 bytes overhead (length <255, but length > 23)
 sizeOf_Hash28 :: TxSize
-sizeOf_Hash28
-    = 30
+sizeOf_Hash28 = 30
 
 -- A Blake2b-256 hash, resulting in a 32-byte digest wrapped in CBOR, so
 -- with 2 bytes overhead (length <255, but length > 23)
 sizeOf_Hash32 :: TxSize
-sizeOf_Hash32
-    = 34
+sizeOf_Hash32 = 34
 
 -- A 32-byte Ed25519 public key, encoded as a CBOR-bytestring so with 2
 -- bytes overhead (length < 255, but length > 23)
 sizeOf_VKey :: TxSize
-sizeOf_VKey
-    = 34
+sizeOf_VKey = 34
 
 -- A 64-byte Ed25519 signature, encoded as a CBOR-bytestring so with 2
 -- bytes overhead (length < 255, but length > 23)
 sizeOf_Signature :: TxSize
-sizeOf_Signature
-    = 66
+sizeOf_Signature = 66
 
 -- A CBOR UInt which is less than 23 in value fits on a single byte. Beyond,
 -- the first byte is used to encode the number of bytes necessary to encode

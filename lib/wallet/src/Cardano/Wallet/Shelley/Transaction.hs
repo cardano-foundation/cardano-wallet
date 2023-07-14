@@ -99,6 +99,8 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( toRewardAccountRaw )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey )
 import Cardano.Wallet.Flavor
@@ -212,8 +214,6 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import Cardano.Wallet.Address.Discovery.Shared
-    ( estimateMaxWitnessRequiredPerInput )
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
