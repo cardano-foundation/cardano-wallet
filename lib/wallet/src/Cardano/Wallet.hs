@@ -497,8 +497,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWallet )
-import Cardano.Wallet.Shelley.Transaction
-    ( getFeePerByteFromWalletPParams, _txRewardWithdrawalCost )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -532,6 +530,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , constructUTxOIndex
     )
+import Cardano.Wallet.Write.Tx.SizeEstimation
+    ( getFeePerByteFromWalletPParams, _txRewardWithdrawalCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
@@ -664,6 +664,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -1026,7 +1027,7 @@ getWalletUtxoSnapshot ctx = do
         computeMinAdaQuantity :: TxOut -> Coin
         computeMinAdaQuantity (TxOut addr bundle) =
             view #txOutputMinimumAdaQuantity
-                (constraints tl pp)
+                (Write.txConstraints pp (transactionWitnessTag tl))
                 (addr)
                 (view #tokens bundle)
 
@@ -1852,8 +1853,10 @@ calcMinimumCoinValues
     -> TxOut
     -> Coin
 calcMinimumCoinValues pp txLayer =
-    uncurry (constraints txLayer pp ^. #txOutputMinimumAdaQuantity)
+    uncurry (constraints ^. #txOutputMinimumAdaQuantity)
      . (\o -> (o ^. #address, o ^. #tokens . #tokens))
+  where
+    constraints = Write.txConstraints pp $ transactionWitnessTag txLayer
 
 signTransaction
   :: forall k ktype
@@ -2697,7 +2700,7 @@ createMigrationPlan
 createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet ctx
     pp <- currentProtocolParameters nl
-    let txConstraints = constraints tl pp
+    let txConstraints = Write.txConstraints pp (transactionWitnessTag tl)
     let utxo = availableUTxO pending wallet
     pure
         $ Migration.createPlan txConstraints utxo
