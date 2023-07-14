@@ -1,5 +1,6 @@
 - [Introduction](index.md)
 - [User Manual](user.md)
+    - [When to use](user/when.md)
     - [How to](user/common-use-cases.md)
         - [Start a server](user/common-use-cases/start-wallet-server.md)
         - [Create a wallet](user/common-use-cases/create-a-wallet.md)
