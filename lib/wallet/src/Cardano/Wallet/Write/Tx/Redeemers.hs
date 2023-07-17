@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,22 +17,29 @@
 module Cardano.Wallet.Write.Tx.Redeemers
     ( assignScriptRedeemers
     , ErrAssignRedeemers (..)
+    , Redeemer (..)
     ) where
 
 import Prelude
 
+import Cardano.Api
+    ( StakeAddress, serialiseToBech32 )
+import Cardano.Crypto.Hash.Class
+    ( Hash )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError )
 import Cardano.Ledger.Api
     ( Tx, bodyTxL, rdmrsTxWitsL, scriptIntegrityHashTxBodyL, witsTxL )
+import Cardano.Ledger.Mary.Value
+    ( PolicyID (..) )
 import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (..) )
+    ( ScriptHash (..), StrictMaybe (..) )
 import Cardano.Slotting.EpochInfo
     ( EpochInfo, hoistEpochInfo )
-import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer, redeemerData )
-import Cardano.Wallet.Shelley.Compatibility
-    ( toScriptPurpose )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( Convert (..) )
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (recentEra)
     , PParams
@@ -59,6 +68,8 @@ import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify', put )
 import Data.Bifunctor
     ( bimap )
+import Data.ByteString
+    ( ByteString )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -67,17 +78,25 @@ import Data.Generics.Labels
     ()
 import Data.Map.Strict
     ( Map, (!) )
+import Data.Maybe
+    ( fromMaybe )
+import Fmt
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -222,6 +241,50 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
             , (not . Ledger.isNativeScript @(ShelleyLedgerEra era)) script
             , Just l <- [Alonzo.language script]
             ]
+
+--
+-- The 'Redeemer' type
+-- TODO: Move back to the wallet and/or retire
+--
+
+data Redeemer
+    = RedeemerSpending ByteString W.TxIn
+    | RedeemerMinting ByteString TokenPolicyId
+    | RedeemerRewarding ByteString StakeAddress
+    deriving (Eq, Generic, Show)
+
+instance Buildable Redeemer where
+    build = \case
+        RedeemerSpending _ input ->
+            "spending(" <> build input <> ")"
+        RedeemerMinting _ pid ->
+            "minting(" <> build pid <> ")"
+        RedeemerRewarding _ addr ->
+            "rewarding(" <> build (serialiseToBech32 addr) <> ")"
+
+redeemerData :: Redeemer -> ByteString
+redeemerData = \case
+    RedeemerSpending  bytes _ -> bytes
+    RedeemerMinting   bytes _ -> bytes
+    RedeemerRewarding bytes _ -> bytes
+
+toScriptPurpose :: Redeemer -> Alonzo.ScriptPurpose StandardCrypto
+toScriptPurpose = \case
+    RedeemerSpending _ txin ->
+        Alonzo.Spending (toLedger txin)
+    RedeemerMinting _ pid ->
+        Alonzo.Minting (toPolicyID pid)
+    RedeemerRewarding _ (Cardano.StakeAddress ntwrk acct) ->
+        Alonzo.Rewarding (Ledger.RewardAcnt ntwrk acct)
+
+toPolicyID :: W.TokenPolicyId -> PolicyID StandardCrypto
+toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
+    PolicyID (ScriptHash (unsafeHashFromBytes bytes))
+  where
+    unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
+    unsafeHashFromBytes =
+        fromMaybe (error "unsafeHashFromBytes: wrong length")
+        . Crypto.hashFromBytes
 
 --------------------------------------------------------------------------------
 -- Utils

@@ -91,7 +91,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , toLedgerExUnits
     , fromCardanoAddress
     , toSystemStart
-    , toScriptPurpose
     , fromShelleyTxIn
     , toCostModelsAsArray
     , toCardanoPolicyId
@@ -379,7 +378,6 @@ import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
@@ -390,8 +388,6 @@ import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary as Mary
-import qualified Cardano.Ledger.Mary.Value as SL
-import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
@@ -402,7 +398,6 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
@@ -1354,33 +1349,12 @@ fromUnitInterval x =
 toSystemStart :: W.StartTime -> SystemStart
 toSystemStart (W.StartTime t) = SystemStart t
 
-toScriptPurpose :: W.Redeemer -> Alonzo.ScriptPurpose StandardCrypto
-toScriptPurpose = \case
-    W.RedeemerSpending _ txin ->
-        Alonzo.Spending (toTxIn txin)
-    W.RedeemerMinting _ pid ->
-        Alonzo.Minting (toPolicyID pid)
-    W.RedeemerRewarding _ (Cardano.StakeAddress ntwrk acct) ->
-        Alonzo.Rewarding (SL.RewardAcnt ntwrk acct)
-
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
 
 toCardanoTxIn :: W.TxIn -> Cardano.TxIn
 toCardanoTxIn (W.TxIn tid ix) =
     Cardano.TxIn (toCardanoTxId tid) (Cardano.TxIx (fromIntegral ix))
-
-toTxIn :: SL.Crypto crypto => W.TxIn -> SL.TxIn crypto
-toTxIn (W.TxIn tid ix) =
-    SL.TxIn (toTxId tid) (SL.mkTxIxPartial $ fromIntegral ix)
-
-toTxId :: Crypto.HashAlgorithm (SL.HASH crypto) => W.Hash "Tx" -> SL.TxId crypto
-toTxId (W.Hash h) =
-    (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
-
-toPolicyID :: SL.Crypto crypto => W.TokenPolicyId -> SL.PolicyID crypto
-toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
-    SL.PolicyID (SL.ScriptHash (unsafeHashFromBytes bytes))
 
 toCardanoStakeCredential :: W.RewardAccount -> Cardano.StakeCredential
 toCardanoStakeCredential = \case

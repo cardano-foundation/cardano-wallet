@@ -39,6 +39,7 @@ module Cardano.Wallet.Write.Tx.Balance
 
     -- * Partial transactions
     , PartialTx (..)
+    , Redeemer (..)
 
     -- * UTxO assumptions
     , UTxOAssumptions (..)
@@ -105,8 +106,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
-import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -147,7 +146,7 @@ import Cardano.Wallet.Write.Tx
     , withConstraints
     )
 import Cardano.Wallet.Write.Tx.Redeemers
-    ( ErrAssignRedeemers (..), assignScriptRedeemers )
+    ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.Sign
     ( estimateKeyWitnessCount, estimateSignedTxSize )
 import Cardano.Wallet.Write.Tx.SizeEstimation
