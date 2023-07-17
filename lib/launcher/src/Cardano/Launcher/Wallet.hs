@@ -65,6 +65,7 @@ data CardanoWalletConfig = CardanoWalletConfig
     -- ^ Extra arguments to be passed to the process
     , executable :: Maybe FilePath
     -- ^ Path to the @cardano-wallet@ executable.
+    , workingDir :: Maybe FilePath
     }
     deriving (Show, Eq)
 
@@ -85,16 +86,20 @@ withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =
-    proc (fromMaybe "cardano-wallet" executable)
-        $ [ "serve"
-          , "--node-socket"
-          , nodeSocketFile node
-          , "--database"
-          , walletDatabaseDir
-          , "--port"
-          , show walletPort
-          ]
-            <> case walletNetwork of
-                Mainnet -> ["--mainnet"]
-                Testnet path -> ["--testnet", path]
-            <> extraArgs
+
+    let cp = proc (fromMaybe "cardano-wallet" executable)
+            $ [ "serve"
+            , "--node-socket"
+            , nodeSocketFile node
+            , "--database"
+            , walletDatabaseDir
+            , "--port"
+            , show walletPort
+            ]
+                <> case walletNetwork of
+                    Mainnet -> ["--mainnet"]
+                    Testnet path -> ["--testnet", path]
+                <> extraArgs
+    in cp
+        { cwd = workingDir
+        }

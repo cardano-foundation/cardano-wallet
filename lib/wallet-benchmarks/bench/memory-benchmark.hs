@@ -38,7 +38,6 @@ import qualified Cardano.BM.Setup as Log
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
 import qualified Cardano.Launcher.Wallet as C
-import qualified Data.Text as T
 import qualified "optparse-applicative" Options.Applicative as O
 import qualified System.Process as S
 
@@ -63,14 +62,12 @@ testMnemonic =
     Main
 ------------------------------------------------------------------------------}
 
-
-
 data Config = Config
   { nodeExe :: FilePath
   , walletExe :: FilePath
   , snapshot :: FilePath
+  , workingDir :: FilePath
   }
-
 
 configParser :: O.Parser Config
 configParser = Config
@@ -89,6 +86,11 @@ configParser = Config
         <> O.metavar "PATH"
         <> O.help "Path to the snapshot archive"
         )
+    <*> O.strOption
+        ( O.long "work-dir"
+        <> O.metavar "PATH"
+        <> O.help "Path to the working directory"
+        )
 
 configInfo :: O.ParserInfo Config
 configInfo = O.info (configParser O.<**> O.helper) $ mconcat
@@ -96,8 +98,6 @@ configInfo = O.info (configParser O.<**> O.helper) $ mconcat
     , O.progDesc "Run the memory benchmark"
     , O.header "memory-benchmark - a benchmark for cardano-wallet memory usage"
     ]
-
-
 
 main :: IO ()
 main = withUtf8Encoding $ do
@@ -108,6 +108,7 @@ main = withUtf8Encoding $ do
     requireExecutable "jq" "--version"
 
     installSignalHandlers (pure ())
+
     trText <- initLogging "memory-benchmark" Log.Debug
     let tr0 = trText
         tr = contramap toText tr0
@@ -116,17 +117,17 @@ main = withUtf8Encoding $ do
         cfg <- copyNodeSnapshot snapshot tmp
         void $ withCardanoNode tr nodeExe cfg $ \node -> do
             sleep 5
-            withCardanoWallet tr walletExe cfg node $ \wallet -> void $ do
-                sleep 1
-                createWallet wallet testMnemonic
-                sleep 1
-                waitUntilSynchronized tr0 wallet
+            withCardanoWallet tr workingDir walletExe cfg node
+                $ \wallet -> void $ do
+                    sleep 1
+                    createWallet wallet testMnemonic
+                    sleep 1
+                    waitUntilSynchronized tr0 wallet
 
 waitUntilSynchronized :: Tracer IO Text  -> C.CardanoWalletConn -> IO ()
 waitUntilSynchronized tr wallet = do
 
     height <- getLatestBlockHeight tr wallet
-    traceWith tr $ "-------------------------------------------Current block height: " <> T.pack (show height)
 
     when (height < testBlockHeight) $ do
         sleep 10
@@ -148,11 +149,6 @@ copyNodeSnapshot snapshot tmp = do
 ------------------------------------------------------------------------------}
 getLatestBlockHeight :: Tracer IO Text -> C.CardanoWalletConn -> IO Int
 getLatestBlockHeight tr wallet = do
-    r <- flip S.readCreateProcess ""
-        . S.shell
-        $ curlGetCommand wallet "/wallets"
-            <> " "
-    traceWith tr $ "++++++++++++++++++++++++++++++++++++getLatestBlockHeight: " <> T.pack r
     fmap (fromMaybe 0 . readMaybe)
         . flip S.readCreateProcess ""
         . S.shell
@@ -203,11 +199,12 @@ data BenchmarkConfig = BenchmarkConfig
 withCardanoWallet
     :: Tracer IO C.LauncherLog
     -> FilePath
+    -> FilePath
     -> BenchmarkConfig
     -> C.CardanoNodeConn
     -> (C.CardanoWalletConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
-withCardanoWallet tr walletExe BenchmarkConfig{..} node =
+withCardanoWallet tr workingDir walletExe BenchmarkConfig{..} node action = do
     C.withCardanoWallet tr node
         C.CardanoWalletConfig
             { C.walletPort =
@@ -220,7 +217,9 @@ withCardanoWallet tr walletExe BenchmarkConfig{..} node =
                 profilingOptions
             , C.executable =
                 Just walletExe
+            , C.workingDir = Just workingDir
             }
+        action
   where
     profilingOptions = words "+RTS -N1 -qg -A1m -I0 -T -h -i0.01 -RTS"
 
