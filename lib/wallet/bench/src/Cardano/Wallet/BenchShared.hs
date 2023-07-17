@@ -168,6 +168,7 @@ withNetworkConfiguration args action = do
         , nodeVrfKeyFile   = Nothing
         , nodePort         = Just (NodePort port)
         , nodeLoggingHostname = Nothing
+        , nodeExecutable   = Nothing
         }
 
 argsNetworkDir :: RestoreBenchArgs -> FilePath

@@ -433,7 +433,7 @@ instance ToText TimeInterpreterLog where
             , renderPastHorizonException e t0
             ]
         MsgInterpreterPastHorizon (Just reason) t0 e -> mconcat
-            [ "Time interpreter queried past the horizon. "
+            [ "Time interpreter was queried past the horizon. "
             , "This should not happen because "
             , T.pack reason
             , renderPastHorizonException e t0

@@ -29,7 +29,7 @@ import Data.Bifunctor
 import Data.List
     ( isPrefixOf )
 import Data.Maybe
-    ( maybeToList )
+    ( fromMaybe, maybeToList )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import System.Environment
@@ -95,6 +95,7 @@ data CardanoNodeConfig = CardanoNodeConfig
     , nodeVrfKeyFile      :: Maybe FilePath
     , nodePort            :: Maybe NodePort
     , nodeLoggingHostname :: Maybe String
+    , nodeExecutable      :: Maybe FilePath
     } deriving (Show, Eq)
 
 -- | Spawns a @cardano-node@ process.
@@ -122,7 +123,7 @@ cardanoNodeProcess cfg socketPath = do
     myEnv <- getEnvironment
     let env' = ("CARDANO_NODE_LOGGING_HOSTNAME",) <$> nodeLoggingHostname cfg
 
-    pure $ (proc "cardano-node" args)
+    pure $ (proc (fromMaybe "cardano-node" $ nodeExecutable cfg) args)
         { env = Just $ maybeToList env' ++ myEnv
         , cwd = Just $ nodeDir cfg
         }

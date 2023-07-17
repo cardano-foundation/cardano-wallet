@@ -62,7 +62,10 @@ Makefile
 ## Lean
 *.olean
 leanpkg.path
+
+## Artifacts
 bench-wallet
-memory
 memory-time.txt
 memory.log
+memory
+memory.svg

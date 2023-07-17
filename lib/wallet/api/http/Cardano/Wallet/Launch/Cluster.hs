@@ -567,6 +567,7 @@ configurePool tr baseDir era metadataServer recipe = do
                         , nodeVrfKeyFile = Just vrfPrv
                         , nodePort = Just (NodePort port)
                         , nodeLoggingHostname = Just name
+                        , nodeExecutable = Nothing
                         }
 
                 withCardanoNodeProcess tr name cfg $ \socket -> do
@@ -1319,6 +1320,7 @@ withBFTNode tr baseDir params action =
                 , nodeVrfKeyFile = Just vrfPrv
                 , nodePort = Just (NodePort port)
                 , nodeLoggingHostname = Just name
+                , nodeExecutable = Nothing
                 }
 
         withCardanoNodeProcess tr name cfg $ \socket ->
@@ -1366,6 +1368,7 @@ _withRelayNode tr baseDir params act =
                 , nodeVrfKeyFile = Nothing
                 , nodePort = Just (NodePort port)
                 , nodeLoggingHostname = Just name
+                , nodeExecutable = Nothing
                 }
 
         let act' socket = act $ RunningNode socket block0 (bp, vd) []

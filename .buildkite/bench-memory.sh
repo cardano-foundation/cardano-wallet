@@ -35,7 +35,6 @@ echo "------------------------ Results ----------------------------------------"
 
 cat $results
 
-mv memory.hp $artifact_name.hp
 hp2pretty $artifact_name.hp
 
 GNUPLOT_PROGRAM=$(
@@ -61,6 +60,8 @@ LABEL = system("ls -1 *.dat");
 plot for [i=1:words(FILES)] word(FILES,i) u 1:2 title word(LABEL,i) noenhanced with lines
 EOP
 )
+
+echo $GNUPLOT_PROGRAM | gnuplot
 
 if [ -n "${BUILDKITE:-}" ]; then
   echo "--- Upload"

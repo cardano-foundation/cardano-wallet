@@ -1,4 +1,6 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings, PackageImports #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE RecordWildCards #-}
 
 import Prelude
 
@@ -36,9 +38,9 @@ import qualified Cardano.BM.Setup as Log
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
 import qualified Cardano.Launcher.Wallet as C
-import qualified System.Process as S
 import qualified Data.Text as T
 import qualified "optparse-applicative" Options.Applicative as O
+import qualified System.Process as S
 
 {-----------------------------------------------------------------------------
     Configuration
@@ -112,9 +114,9 @@ main = withUtf8Encoding $ do
 
     withSystemTempDirectory "wallet" $ \tmp -> do
         cfg <- copyNodeSnapshot snapshot tmp
-        void $ withCardanoNode tr cfg $ \node -> do
+        void $ withCardanoNode tr nodeExe cfg $ \node -> do
             sleep 5
-            withCardanoWallet tr cfg node $ \wallet -> void $ do
+            withCardanoWallet tr walletExe cfg node $ \wallet -> void $ do
                 sleep 1
                 createWallet wallet testMnemonic
                 sleep 1
@@ -200,11 +202,12 @@ data BenchmarkConfig = BenchmarkConfig
 -- | Start a `cardano-wallet` process on the benchmark configuration.
 withCardanoWallet
     :: Tracer IO C.LauncherLog
+    -> FilePath
     -> BenchmarkConfig
     -> C.CardanoNodeConn
     -> (C.CardanoWalletConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
-withCardanoWallet tr BenchmarkConfig{..} node =
+withCardanoWallet tr walletExe BenchmarkConfig{..} node =
     C.withCardanoWallet tr node
         C.CardanoWalletConfig
             { C.walletPort =
@@ -215,6 +218,8 @@ withCardanoWallet tr BenchmarkConfig{..} node =
                 walletDatabaseDir
             , C.extraArgs =
                 profilingOptions
+            , C.executable =
+                Just walletExe
             }
   where
     profilingOptions = words "+RTS -N1 -qg -A1m -I0 -T -h -i0.01 -RTS"
@@ -222,10 +227,11 @@ withCardanoWallet tr BenchmarkConfig{..} node =
 -- | Start a `cardano-node` process on the benchmark configuration.
 withCardanoNode
     :: Tracer IO C.LauncherLog
+    -> FilePath
     -> BenchmarkConfig
     -> (C.CardanoNodeConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
-withCardanoNode tr BenchmarkConfig{..} =
+withCardanoNode tr nodeExe BenchmarkConfig{..} =
     C.withCardanoNode tr
         C.CardanoNodeConfig
             { C.nodeDir = nodeDatabaseDir
@@ -239,6 +245,7 @@ withCardanoNode tr BenchmarkConfig{..} =
             , C.nodeVrfKeyFile = Nothing
             , C.nodePort = Just (C.NodePort 8061)
             , C.nodeLoggingHostname = Nothing
+            , C.nodeExecutable = Just nodeExe
             }
 
 {-----------------------------------------------------------------------------
