@@ -69,3 +69,6 @@ memory-time.txt
 memory.log
 memory
 memory.svg
+bench-restore
+restore-time.txt
+restore.log
