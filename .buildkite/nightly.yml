@@ -56,6 +56,14 @@ steps:
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
+  - label: 'Memory benchmark'
+    command: "./.buildkite/bench-memory.sh"
+    timeout_in_minutes: 30
+    agents:
+      system: x86_64-linux
+      queue: adrestia-bench
+    if: 'build.env("step") == null || build.env("step") =~ /bench-memory/'
+
   # TODO: ADP-549 Port migrations test to shelley
   # - label: 'Database Migrations Test'
   #   commands:
