@@ -1,0 +1,43 @@
+cabal-version:       3.0
+name:                cardano-wallet-benchmarks
+version:             2023.4.14
+synopsis:            Benchmarks for the `cardano-wallet` exectuable.
+description:         This package is a collection of benchmarks
+                     for the `cardano-wallet` exectuable.
+                     It currently comprises a memory benchmark (heap profile).
+homepage:            https://github.com/cardano-foundation/cardano-wallet
+author:              High Assurance Lab at Cardano Foundation
+maintainer:          cardanofoundation.org
+copyright:           2023 Cardano Foundation
+license:             Apache-2.0
+category:            Web
+build-type:          Simple
+
+common language
+  ghc-options:        -threaded -Wall
+  default-language:   Haskell2010
+  default-extensions:
+    NamedFieldPuns
+    NoImplicitPrelude
+    OverloadedStrings
+
+benchmark memory
+  import:         language
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench
+  main-is:        memory-benchmark.hs
+  build-depends:
+    , base
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , containers
+    , contra-tracer
+    , filepath
+    , fmt
+    , iohk-monitoring
+    , network
+    , process
+    , temporary
+    , text
+    , text-class
+    , transformers

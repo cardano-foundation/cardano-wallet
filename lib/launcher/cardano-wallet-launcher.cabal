@@ -38,6 +38,7 @@ library
     , filepath
     , fmt
     , iohk-monitoring
+    , network
     , process
     , text
     , text-class
@@ -48,6 +49,7 @@ library
   exposed-modules:
       Cardano.Launcher
     , Cardano.Launcher.Node
+      Cardano.Launcher.Wallet
     , Cardano.Startup
   if os(windows)
     build-depends: Win32
