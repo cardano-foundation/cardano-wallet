@@ -442,7 +442,10 @@
               constituents =
                 lib.collect lib.isDerivation packages.tests;
             };
-            ci.benchmarks = packages.benchmarks.cardano-wallet // {
+
+            ci.benchmarks =
+            packages.benchmarks.cardano-wallet-benchmarks //
+            packages.benchmarks.cardano-wallet // {
               all = pkgs.releaseTools.aggregate {
                 name = "cardano-wallet-benchmarks";
                 meta.description = "Build all benchmarks";

@@ -62,3 +62,7 @@ Makefile
 ## Lean
 *.olean
 leanpkg.path
+bench-wallet
+memory
+memory-time.txt
+memory.log

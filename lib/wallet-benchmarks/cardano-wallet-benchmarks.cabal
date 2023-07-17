@@ -12,6 +12,7 @@ copyright:           2023 Cardano Foundation
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
+data-files:          data/membench-snapshot.tgz
 
 common language
   ghc-options:        -threaded -Wall
@@ -26,6 +27,8 @@ benchmark memory
   type:           exitcode-stdio-1.0
   hs-source-dirs: bench
   main-is:        memory-benchmark.hs
+  other-modules:
+    Paths_cardano_wallet_benchmarks
   build-depends:
     , base
     , cardano-wallet-launcher
@@ -41,3 +44,4 @@ benchmark memory
     , text
     , text-class
     , transformers
+    , optparse-applicative
