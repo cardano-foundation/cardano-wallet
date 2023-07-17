@@ -41,6 +41,8 @@ import qualified Cardano.Launcher.Wallet as C
 import qualified "optparse-applicative" Options.Applicative as O
 import qualified System.Process as S
 
+-- See ADP-1910 for Options.Applicative usage
+
 {-----------------------------------------------------------------------------
     Configuration
 ------------------------------------------------------------------------------}

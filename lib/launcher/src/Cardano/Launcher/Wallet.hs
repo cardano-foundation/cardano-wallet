@@ -100,6 +100,4 @@ cardanoWallet CardanoWalletConfig{..} node =
                     Mainnet -> ["--mainnet"]
                     Testnet path -> ["--testnet", path]
                 <> extraArgs
-    in cp
-        { cwd = workingDir
-        }
+    in cp { cwd = workingDir }
