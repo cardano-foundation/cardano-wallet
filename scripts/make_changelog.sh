@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-repo="input-output-hk/cardano-wallet"
+repo="cardano-foundation/cardano-wallet"
 since_date="${1:-}"
 
 if [ -z "$since_date" ]; then
