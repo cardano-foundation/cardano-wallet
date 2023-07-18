@@ -11,7 +11,7 @@ module Cardano.Launcher.Wallet
     , CardanoWalletConfig (..)
     , NetworkConfig (..)
 
-    -- * Run
+      -- * Run
     , CardanoWalletConn
     , getWalletPort
     ) where
@@ -24,6 +24,8 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn, nodeSocketFile )
 import Control.Tracer
     ( Tracer (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Network.Socket
@@ -34,8 +36,9 @@ import UnliftIO.Process
 {-----------------------------------------------------------------------------
     Launching a `cardano-wallet` process
 ------------------------------------------------------------------------------}
+
 -- | Parameters for connecting to the running wallet process.
-newtype CardanoWalletConn = CardanoWalletConn { getWalletPort :: PortNumber }
+newtype CardanoWalletConn = CardanoWalletConn {getWalletPort :: PortNumber}
     deriving (Show, Eq)
 
 instance ToText CardanoWalletConn where
@@ -46,21 +49,25 @@ instance FromText CardanoWalletConn where
 
 data NetworkConfig
     = Mainnet
-    | Testnet { nodeByronGenesis :: FilePath }
+    | Testnet {nodeByronGenesis :: FilePath}
     deriving (Show, Eq)
 
 -- | A subset of the @cardano-wallet@ CLI parameters,
 -- used for starting the process.
 data CardanoWalletConfig = CardanoWalletConfig
-    { walletPort          :: PortNumber
-        -- ^ Port number for HTTP API. Good default: 8090.
-    , walletDatabaseDir   :: FilePath
-        -- ^ Path to the wallet database file.
-    , walletNetwork       :: NetworkConfig
-        -- ^ Network (mainnet or a testnet) that we connect to.
-    , extraArgs           :: [String]
-        -- ^ Extra arguments to be passed to the process
-    } deriving (Show, Eq)
+    { walletPort :: PortNumber
+    -- ^ Port number for HTTP API. Good default: 8090.
+    , walletDatabaseDir :: FilePath
+    -- ^ Path to the wallet database file.
+    , walletNetwork :: NetworkConfig
+    -- ^ Network (mainnet or a testnet) that we connect to.
+    , extraArgs :: [String]
+    -- ^ Extra arguments to be passed to the process
+    , executable :: Maybe FilePath
+    -- ^ Path to the @cardano-wallet@ executable.
+    , workingDir :: Maybe FilePath
+    }
+    deriving (Show, Eq)
 
 -- | Spawns a @cardano-wallet@ process.
 --
@@ -74,18 +81,23 @@ withCardanoWallet
     -- ^ Callback function with a socket filename and genesis params
     -> IO (Either ProcessHasExited a)
 withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
-    withBackendCreateProcess tr (cardanoWallet cfg node) $
-        \_ _ -> action $ CardanoWalletConn walletPort
+    withBackendCreateProcess tr (cardanoWallet cfg node)
+        $ \_ _ -> action $ CardanoWalletConn walletPort
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =
-    proc "cardano-wallet" $
-        [ "serve"
-        , "--node-socket", nodeSocketFile node
-        , "--database", walletDatabaseDir
-        , "--port", show walletPort
-        ]
-        <> case walletNetwork of
-            Mainnet -> ["--mainnet"]
-            Testnet path -> ["--testnet", path]
-        <> extraArgs
+
+    let cp = proc (fromMaybe "cardano-wallet" executable)
+            $ [ "serve"
+            , "--node-socket"
+            , nodeSocketFile node
+            , "--database"
+            , walletDatabaseDir
+            , "--port"
+            , show walletPort
+            ]
+                <> case walletNetwork of
+                    Mainnet -> ["--mainnet"]
+                    Testnet path -> ["--testnet", path]
+                <> extraArgs
+    in cp { cwd = workingDir }

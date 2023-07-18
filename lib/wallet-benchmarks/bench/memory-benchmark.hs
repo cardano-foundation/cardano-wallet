@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RecordWildCards #-}
 
 import Prelude
@@ -36,7 +38,10 @@ import qualified Cardano.BM.Setup as Log
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
 import qualified Cardano.Launcher.Wallet as C
+import qualified "optparse-applicative" Options.Applicative as O
 import qualified System.Process as S
+
+-- See ADP-1910 for Options.Applicative usage
 
 {-----------------------------------------------------------------------------
     Configuration
@@ -46,9 +51,6 @@ testSnapshot = "membench-snapshot.tgz"
 
 testBlockHeight :: Int
 testBlockHeight = 7280
-
-cabalDataDir :: FilePath
-cabalDataDir = "lib/wallet-benchmarks/data"
 
 testMnemonic :: [String]
 testMnemonic =
@@ -61,37 +63,81 @@ testMnemonic =
 {-----------------------------------------------------------------------------
     Main
 ------------------------------------------------------------------------------}
+
+data Config = Config
+  { nodeExe :: FilePath
+  , walletExe :: FilePath
+  , snapshot :: FilePath
+  , workingDir :: FilePath
+  }
+
+configParser :: O.Parser Config
+configParser = Config
+    <$> O.strOption
+        ( O.long "node"
+        <> O.metavar "PATH"
+        <> O.help "Path to the cardano-node executable"
+        )
+    <*> O.strOption
+        ( O.long "wallet"
+        <> O.metavar "PATH"
+        <> O.help "Path to the cardano-wallet executable"
+        )
+    <*> O.strOption
+        ( O.long "snapshot"
+        <> O.metavar "PATH"
+        <> O.help "Path to the snapshot archive"
+        )
+    <*> O.strOption
+        ( O.long "work-dir"
+        <> O.metavar "PATH"
+        <> O.help "Path to the working directory"
+        )
+
+configInfo :: O.ParserInfo Config
+configInfo = O.info (configParser O.<**> O.helper) $ mconcat
+    [ O.fullDesc
+    , O.progDesc "Run the memory benchmark"
+    , O.header "memory-benchmark - a benchmark for cardano-wallet memory usage"
+    ]
+
 main :: IO ()
 main = withUtf8Encoding $ do
-    requireExecutable "cardano-node" "--version"
-    requireExecutable "cardano-wallet" "version"
+    Config{..} <- O.execParser configInfo
+    requireExecutable nodeExe "--version"
+    requireExecutable walletExe "version"
     requireExecutable "curl" "--version"
     requireExecutable "jq" "--version"
 
     installSignalHandlers (pure ())
+
     trText <- initLogging "memory-benchmark" Log.Debug
-    let tr = contramap toText trText
+    let tr0 = trText
+        tr = contramap toText tr0
 
     withSystemTempDirectory "wallet" $ \tmp -> do
-        cfg <- copyNodeSnapshot tmp
-        void $ withCardanoNode tr cfg $ \node -> do
-            sleep 2
-            withCardanoWallet tr cfg node $ \wallet -> void $ do
-                sleep 1
-                createWallet wallet testMnemonic
-                sleep 1
-                waitUntilSynchronized wallet
+        cfg <- copyNodeSnapshot snapshot tmp
+        void $ withCardanoNode tr nodeExe cfg $ \node -> do
+            sleep 5
+            withCardanoWallet tr workingDir walletExe cfg node
+                $ \wallet -> void $ do
+                    sleep 1
+                    createWallet wallet testMnemonic
+                    sleep 1
+                    waitUntilSynchronized tr0 wallet
 
-waitUntilSynchronized :: C.CardanoWalletConn -> IO ()
-waitUntilSynchronized wallet = do
-    height <- getLatestBlockHeight wallet
+waitUntilSynchronized :: Tracer IO Text  -> C.CardanoWalletConn -> IO ()
+waitUntilSynchronized tr wallet = do
+
+    height <- getLatestBlockHeight tr wallet
+
     when (height < testBlockHeight) $ do
-        sleep 1
-        waitUntilSynchronized wallet
+        sleep 10
+        waitUntilSynchronized tr wallet
 
-copyNodeSnapshot :: FilePath -> IO BenchmarkConfig
-copyNodeSnapshot tmp = do
-    copyFile (cabalDataDir </> testSnapshot) tmp
+copyNodeSnapshot :: FilePath -> FilePath -> IO BenchmarkConfig
+copyNodeSnapshot snapshot tmp = do
+    copyFile snapshot tmp
     let dir = tmp </> takeBaseName testSnapshot
     decompress (tmp </> testSnapshot) tmp
     pure $ BenchmarkConfig
@@ -103,13 +149,13 @@ copyNodeSnapshot tmp = do
 {-----------------------------------------------------------------------------
     Cardano commands
 ------------------------------------------------------------------------------}
-getLatestBlockHeight :: C.CardanoWalletConn -> IO Int
-getLatestBlockHeight wallet =
+getLatestBlockHeight :: Tracer IO Text -> C.CardanoWalletConn -> IO Int
+getLatestBlockHeight tr wallet = do
     fmap (fromMaybe 0 . readMaybe)
-    . flip S.readCreateProcess ""
-    . S.shell
-    $ curlGetCommand wallet "/wallets"
-        <> " | jq '.[0].tip.height.quantity'"
+        . flip S.readCreateProcess ""
+        . S.shell
+        $ curlGetCommand wallet "/wallets"
+            <> " | jq '.[0].tip.height.quantity'"
 
 curlGetCommand
     :: C.CardanoWalletConn -> String -> String
@@ -154,11 +200,13 @@ data BenchmarkConfig = BenchmarkConfig
 -- | Start a `cardano-wallet` process on the benchmark configuration.
 withCardanoWallet
     :: Tracer IO C.LauncherLog
+    -> FilePath
+    -> FilePath
     -> BenchmarkConfig
     -> C.CardanoNodeConn
     -> (C.CardanoWalletConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
-withCardanoWallet tr BenchmarkConfig{..} node =
+withCardanoWallet tr workingDir walletExe BenchmarkConfig{..} node action = do
     C.withCardanoWallet tr node
         C.CardanoWalletConfig
             { C.walletPort =
@@ -169,17 +217,22 @@ withCardanoWallet tr BenchmarkConfig{..} node =
                 walletDatabaseDir
             , C.extraArgs =
                 profilingOptions
+            , C.executable =
+                Just walletExe
+            , C.workingDir = Just workingDir
             }
+        action
   where
     profilingOptions = words "+RTS -N1 -qg -A1m -I0 -T -h -i0.01 -RTS"
 
 -- | Start a `cardano-node` process on the benchmark configuration.
 withCardanoNode
     :: Tracer IO C.LauncherLog
+    -> FilePath
     -> BenchmarkConfig
     -> (C.CardanoNodeConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
-withCardanoNode tr BenchmarkConfig{..} =
+withCardanoNode tr nodeExe BenchmarkConfig{..} =
     C.withCardanoNode tr
         C.CardanoNodeConfig
             { C.nodeDir = nodeDatabaseDir
@@ -193,6 +246,7 @@ withCardanoNode tr BenchmarkConfig{..} =
             , C.nodeVrfKeyFile = Nothing
             , C.nodePort = Just (C.NodePort 8061)
             , C.nodeLoggingHostname = Nothing
+            , C.nodeExecutable = Just nodeExe
             }
 
 {-----------------------------------------------------------------------------

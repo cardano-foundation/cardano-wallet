@@ -62,3 +62,13 @@ Makefile
 ## Lean
 *.olean
 leanpkg.path
+
+## Artifacts
+bench-wallet
+memory-time.txt
+memory.log
+memory
+memory.svg
+bench-restore
+restore-time.txt
+restore.log
