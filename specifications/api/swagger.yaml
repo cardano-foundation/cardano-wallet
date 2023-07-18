@@ -3674,6 +3674,15 @@ components:
              containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
+        reference_policy_script_template:
+          <<: *ScriptTemplateValue
+          description: |
+            Optional policy script template that could be used as script reference
+            in another transaction.
+            In the current transaction the script will enrich the first output. The script
+            is constructed by replacing cosigner with policy public key of a given wallet.
+            In the future transactions the reference script can be used by a given
+            wallet multiple times by referencing the current transaction id and index=0.
         encoding:
           type: string
           enum: ["base16", "base64"]
