@@ -4090,6 +4090,10 @@ x-parametersAddress: &parametersAddress
   name: address
   description: |
     An optional address.
+    If given, the list of transactions will be filtered
+    to only contain transactions that refer to this address in their inputs or outputs.
+    This may exclude transactions whose inputs reference outside transactions
+    that are not part of the transaction history of the wallet.
   schema: *addressId
 
 x-parametersAddressState: &parametersAddressState

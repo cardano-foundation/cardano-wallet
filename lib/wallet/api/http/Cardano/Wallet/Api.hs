@@ -604,7 +604,7 @@ type ListTransactions n = "wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> QueryParam "max_count" ApiLimit
-    :> QueryParam "addressId" (ApiAddressIdT n)
+    :> QueryParam "address" (ApiAddressIdT n)
     :> QueryFlag "simple-metadata"
     :> Get '[JSON] [ApiTransactionT n]
 
@@ -925,7 +925,7 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> QueryParam "max_count" ApiLimit
-    :> QueryParam "addressId" (ApiAddressIdT n)
+    :> QueryParam "address" (ApiAddressIdT n)
     :> Get '[JSON] [ApiTransactionT n]
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/getByronTransaction
@@ -1190,7 +1190,7 @@ type ListSharedTransactions n = "shared-wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> QueryParam "max_count" ApiLimit
-    :> QueryParam "addressId" (ApiAddressIdT n)
+    :> QueryParam "address" (ApiAddressIdT n)
     :> QueryFlag "simple-metadata"
     :> Get '[JSON] [ApiTransactionT n]
 
