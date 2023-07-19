@@ -220,6 +220,7 @@ module Cardano.Wallet
     , throttle
     , guardHardIndex
     , utxoAssumptionsForWallet
+    , txWitnessTagForKey
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -497,6 +498,8 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWallet )
+import Cardano.Wallet.Shelley.Transaction
+    ( txWitnessTagForKey )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -515,7 +518,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag )
+    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.Tx
     ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance

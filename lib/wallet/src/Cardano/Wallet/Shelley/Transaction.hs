@@ -37,7 +37,6 @@ module Cardano.Wallet.Shelley.Transaction
     -- * Internals
     , TxPayload (..)
     , TxWitnessTag (..)
-    , TxWitnessTagFor (..)
     , EraConstraints
     , _decodeSealedTx
     , mkDelegationCertificates
@@ -45,6 +44,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkShelleyWitness
     , mkTx
     , mkUnsignedTx
+    , txWitnessTagForKey
     ) where
 
 import Prelude
@@ -91,7 +91,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -153,7 +153,7 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     )
 import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..), TxWitnessTagFor (..) )
+    ( TxWitnessTag (..) )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
 import Control.Arrow
@@ -267,7 +267,7 @@ constructUnsignedTx
 
 mkTx
     :: forall k era
-     .  (TxWitnessTagFor k, EraConstraints era)
+     . EraConstraints era
     => KeyFlavorS k
     -> Cardano.NetworkId
     -> TxPayload era
@@ -324,7 +324,7 @@ mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees 
 -- If a key for a given input isn't found, the input is skipped.
 signTransaction
     :: forall k ktype era
-     . (EraConstraints era, TxWitnessTagFor k)
+     . EraConstraints era
     => KeyFlavorS k
     -> Cardano.NetworkId
     -- ^ Network identifier (e.g. mainnet, testnet)
@@ -435,7 +435,7 @@ signTransaction
         addr <- resolveInput i
         (k, pwd) <- resolveAddress addr
         let  pk = (getRawKey keyF k, pwd)
-        pure $ case txWitnessTagFor @k of
+        pure $ case txWitnessTagForKey keyF of
             TxWitnessShelleyUTxO -> mkShelleyWitness body pk
             TxWitnessByronUTxO ->
                 mkByronWitness body networkId addr pk
@@ -466,9 +466,7 @@ signTransaction
         pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
-    :: forall k ktype
-     . TxWitnessTagFor k
-    => KeyFlavorS k
+    :: KeyFlavorS k
     -> NetworkId
     -> TransactionLayer k ktype SealedTx
 newTransactionLayer keyF networkId = TransactionLayer
@@ -594,7 +592,7 @@ newTransactionLayer keyF networkId = TransactionLayer
 
     , decodeTx = _decodeSealedTx
 
-    , transactionWitnessTag = txWitnessTagFor @k
+    , transactionWitnessTag = txWitnessTagForKey keyF
     }
 
 _decodeSealedTx
@@ -653,7 +651,7 @@ withShelleyBasedEra era fn = case era of
 --
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
-    :: forall era.  Cardano.IsCardanoEra era
+    :: forall era. Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
@@ -988,7 +986,7 @@ mkShelleyWitness body key =
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: forall era. (EraConstraints era)
+    :: forall era. EraConstraints era
     => Cardano.TxBody era
     -> Cardano.NetworkId
     -> Address
@@ -1025,3 +1023,18 @@ explicitFees era = case era of
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
     ShelleyBasedEraConway ->
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInConwayEra
+
+-- NOTE: Should probably not exist.  We could consider replacing it with
+-- `UTxOAssumptions`, which has the benefit of containing the script template we
+-- often need in the case of shared wallets. `UTxOAssumptions` is difficult to
+-- construct, but we need to do so anyway as part of constructing txs. We could
+-- ensure 'checkRewardIsWorthTxCost' can reuse that `UTxOAssumptions`. A hickup
+-- regarding the name however would be that 'checkRewardIsWorthTxCost' cares
+-- about assumptions about the reward account credentials, not about the utxo
+-- (credentials).
+txWitnessTagForKey :: KeyFlavorS a -> TxWitnessTag
+txWitnessTagForKey = \case
+    ByronKeyS -> TxWitnessByronUTxO
+    IcarusKeyS -> TxWitnessByronUTxO
+    ShelleyKeyS -> TxWitnessShelleyUTxO
+    SharedKeyS -> TxWitnessShelleyUTxO

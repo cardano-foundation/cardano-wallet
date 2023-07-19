@@ -99,8 +99,6 @@ import Cardano.Wallet.Read.NetworkId
     , SNetworkId (..)
     , networkDiscriminantBits
     )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Lens
@@ -149,9 +147,6 @@ shelleyKey :: Iso (ShelleyKey depth key) (ShelleyKey depth key') key key'
 shelleyKey = iso getKey ShelleyKey
 
 instance NFData key => NFData (ShelleyKey depth key)
-
-instance TxWitnessTagFor ShelleyKey where
-    txWitnessTagFor = TxWitnessShelleyUTxO
 
 -- | The minimum seed length for 'generateKeyFromSeed' and
 -- 'unsafeGenerateKeyFromSeed'.
