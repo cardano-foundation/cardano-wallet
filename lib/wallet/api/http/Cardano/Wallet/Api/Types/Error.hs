@@ -94,6 +94,7 @@ data ApiErrorInfo
     | BalanceTxInternalError
     | BalanceTxUnderestimatedFee
         ApiErrorBalanceTxUnderestimatedFee
+    | UTxOAssumptionsViolated
     | CannotCoverFee
     | CreatedInvalidTransaction
     | CreatedMultiaccountTransaction

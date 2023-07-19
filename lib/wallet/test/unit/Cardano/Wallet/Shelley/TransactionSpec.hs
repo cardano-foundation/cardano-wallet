@@ -45,6 +45,7 @@ import Cardano.Api
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
     , IsShelleyBasedEra (..)
+    , PaymentCredential (PaymentCredentialByKey)
     , ShelleyBasedEra (..)
     )
 import Cardano.Api.Gen
@@ -52,7 +53,6 @@ import Cardano.Api.Gen
     , genAddressInEra
     , genEncodingBoundaryLovelace
     , genNetworkId
-    , genPaymentCredential
     , genSignedValue
     , genStakeAddressReference
     , genTx
@@ -63,6 +63,7 @@ import Cardano.Api.Gen
     , genTxOutDatum
     , genTxOutValue
     , genValueForTxOut
+    , genVerificationKeyHash
     , genWitnesses
     )
 import Cardano.Api.Shelley
@@ -485,6 +486,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
+import Cardano.Wallet.Write.UTxOAssumptions
+    ( UTxOAssumptionViolation (UTxOAssumptionViolation) )
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
@@ -1922,6 +1925,12 @@ instance Show AnyChangeAddressGenWithState where
     show (AnyChangeAddressGenWithState (ChangeAddressGen gen _) s) =
             show $ toLedger $ fst $ gen s
 
+instance Arbitrary AnyChangeAddressGenWithState where
+    arbitrary = elements
+        [ dummyByronChangeAddressGen
+        , dummyShelleyChangeAddressGen
+        ]
+
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
     -- TODO: Create a test to show that datums are passed through...
@@ -2186,6 +2195,39 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 `shouldBe`
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
+
+    describe "when selected UTxOs violate the UTxOAssumptions" $ do
+        it "fails with ErrBalanceTxInternalError" $ property $ \changeAddrGen seed -> do
+
+            let partialTx :: PartialTx Cardano.BabbageEra
+                partialTx = paymentPartialTx
+                        [ TxOut dummyAddr
+                            (TokenBundle.fromCoin (Coin 1_000_000))
+                        ]
+
+            let illconfiguredWallet =
+                    Wallet'
+                    AllKeyPaymentCredentials
+                    (byronUtxo (replicate 3 (Coin 1_000_000)))
+                    changeAddrGen
+
+
+            let res =
+                    balanceTx
+                        illconfiguredWallet
+                        mockPParamsForBalancing
+                        (dummyTimeTranslationWithHorizon horizon)
+                        seed
+                        partialTx
+
+            res === Left
+                ( ErrBalanceTxInternalError
+                ( ErrUTxOViolatesAssumptions
+                ( UTxOAssumptionViolation
+                    (toLedger dummyBootstrapAddr)
+                    "AllKeyPaymentCredentials")))
+
+
   where
     mapFirst f (x:xs) = f x : xs
     mapFirst _ [] = error "mapFirst: empty list"
@@ -2194,6 +2236,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     beyondHorizon = SlotNo 21
 
     wallet = mkTestWallet (utxo [Coin 5_000_000])
+
 
     -- Wallet with only small utxos, and enough of them to fill a tx in the
     -- tests below.
@@ -2216,6 +2259,17 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         ins = map (TxIn dummyHash) [0..]
         outs = map (TxOut dummyAddr . TokenBundle.fromCoin) coins
         dummyHash = Hash $ B8.replicate 32 '0'
+
+    dummyBootstrapAddr = case dummyByronChangeAddressGen of
+        AnyChangeAddressGenWithState g s0 ->
+            fst $ getChangeAddressGen g s0
+
+    byronUtxo coins = UTxO $ Map.fromList $ zip ins outs
+      where
+        ins = map (TxIn dummyHash) [0..]
+        outs = map (TxOut dummyBootstrapAddr . TokenBundle.fromCoin) coins
+        dummyHash = Hash $ B8.replicate 32 '0'
+
 
     dummyAddr = Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
@@ -2702,8 +2756,12 @@ instance Buildable Wallet' where
         nameF "Wallet" $ mconcat
             [ nameF "assumptions" $ build assumptions
             , nameF "changeAddressGen" $ build changeAddressGen
-            , nameF "utxo" $ pretty utxo
+            , nameF "utxo" $ build $ show $ fromWalletUTxO utxo
             ]
+          where
+            fromWalletUTxO (UTxO m) =
+                Map.mapKeys toLedger
+                $ Map.map toBabbageTxOut m
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
@@ -2721,7 +2779,8 @@ instance Arbitrary Wallet' where
         genShelleyVkAddr = Cardano.shelleyAddressInEra
             <$> (Cardano.makeShelleyAddress
                 <$> genNetworkId
-                <*> genPaymentCredential -- only vk credentials
+                <*> (PaymentCredentialByKey
+                        <$> genVerificationKeyHash Cardano.AsPaymentKey)
                 <*> genStakeAddressReference)
 
         genByronVkAddr :: Gen (Cardano.AddressInEra Cardano.BabbageEra)

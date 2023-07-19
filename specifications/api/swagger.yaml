@@ -4834,6 +4834,19 @@ x-errBalanceTxExistingTotalCollateral: &errBalanceTxExistingTotalCollateral
       type: string
       enum: ["balance_tx_existing_total_collateral"]
 
+x-errUTxOViolatesAssumptions: &errUTxOViolatesAssumptions
+  <<: *responsesErr
+  title: utxo_violates_assumptions
+  properties:
+    message:
+      type: string
+      description: |
+        Internal error. The wallet has discovered something and cannot spend it.
+
+    code:
+      type: string
+      enum: ["balance_tx_internal_error"]
+
 x-errBalanceTxInternalError: &errBalanceTxInternalError
   <<: *responsesErr
   title: balance_tx_internal_error
