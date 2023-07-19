@@ -1,0 +1,2232 @@
+openapi: 3.0.0
+info:
+  title: Cardano Wallet Backend API
+  version: 2.0.0
+  license:
+    name: Apache-2.0
+    url: https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/LICENSE
+  description: |
+    <p align="right"><img style="position: relative; top: -10em; margin-bottom: -12em;" width="20%" src="https://cardanodocs.com/img/cardano.png"></img></p>
+externalDocs:
+  description: Need more? Click here to access our API guide and walkthrough.
+  url: https://github.com/input-output-hk/cardano-wallet/wiki
+
+servers:
+  - url: https://localhost:8090/v2/
+
+#############################################################################
+#                                                                           #
+#                                 FIELDS                                    #
+#                                                                           #
+#############################################################################
+
+x-date: &date
+  type: string
+  format: iso-8601-date-and-time
+  example: 2019-02-27T14:46:45Z
+
+x-slotNumber: &slotNumber
+  type: integer
+  minimum: 0
+  example: 1337
+
+x-numberOfSeconds: &numberOfSeconds
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0.0
+      example: 10.0
+    unit:
+      type: string
+      enum: ["second"]
+
+x-epochNumber: &epochNumber
+  type: integer
+  minimum: 0
+  example: 14
+
+x-blockId: &blockId
+  description: The hash of genesis block
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 3c07030e36bfffe67e2e2ec09e5293d384637cd2f004356ef320f3fe6c52041a
+
+x-numberOfSlots: &numberOfSlots
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 42000
+    unit:
+      type: string
+      enum: ["slot"]
+
+x-numberOfBlocks: &numberOfBlocks
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 1337
+    unit:
+      type: string
+      enum:
+        - block
+      example: "block"
+
+x-blockReference: &blockReference
+  description: A reference to a particular block.
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+    - height
+  properties:
+    slot_number: *slotNumber
+    epoch_number: *epochNumber
+    height: *numberOfBlocks
+
+x-genesisBlock: &genesisBlock
+  description: A reference to a particular block.
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+  properties:
+    slot_number:
+      <<: *slotNumber
+      maximum: 0
+      example: 0
+    epoch_number:
+      <<: *epochNumber
+      maximum: 0
+      example: 0
+
+x-percentage: &percentage
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0
+      maximum: 100
+      example: 42
+    unit:
+      type: string
+      enum:
+        - percent
+
+x-microseconds: &microseconds
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      example: 42
+    unit:
+      type: string
+      enum:
+        - microsecond
+
+x-syncProgress: &syncProgress
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - ready
+        - syncing
+        - not_responding
+    progress:
+      <<: *percentage
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == syncing
+        </span><br/>
+  example:
+    status: ready
+
+x-syncClockProgress: &syncClockProgress
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - unavailable
+        - pending
+        - available
+    offset:
+      <<: *microseconds
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == available
+        </span><br/>
+  example:
+    status: pending
+
+x-amount: &amount
+  description: Coins, in Lovelace
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 42000000
+    unit:
+      type: string
+      enum:
+        - lovelace
+
+x-addressId: &addressId
+  type: string
+  format: base58|bech32
+  example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
+
+x-addressState: &addressState
+  type: string
+  enum:
+    - used
+    - unused
+
+x-stakePoolId: &stakePoolId
+  type: string
+  format: hex
+  minLength: 64
+  maxLength: 64
+  example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
+  description: A unique identifier for the pool.
+
+x-walletAccountPubkey: &walletAccountPubkey
+  description: An extended account public key (public key + chain code)
+  type: string
+  format: hex
+  minLength: 128
+  maxLength: 128
+  example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
+x-walletId: &walletId
+  description: A unique identifier for the wallet
+  type: string
+  format: hex
+  maxLength: 40
+  minLength: 40
+  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
+
+x-walletName: &walletName
+  type: string
+  maxLength: 255
+  minLength: 1
+  example: Alan's Wallet
+
+x-walletMnemonicSentence: &walletMnemonicSentence
+  description: A list of mnemonic words
+  type: array
+  minItems: 15
+  maxItems: 24
+  items:
+    type: string
+    format: bip-0039-mnemonic-word{english}
+  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
+
+x-walletSecondFactor: &walletSecondFactor
+  description: An optional passphrase used to encrypt the mnemonic sentence.
+  type: array
+  minItems: 9
+  maxItems: 12
+  items:
+    type: string
+    format: bip-0039-mnemonic-word{english}
+  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
+
+x-walletPassphrase: &walletPassphrase
+  description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+  type: string
+  minLength: 10
+  maxLength: 255
+  example: Secure Passphrase
+
+x-byronWalletPassphrase: &byronWalletPassphrase
+  description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+  type: string
+  minLength: 0
+  maxLength: 255
+  example: Secure Passphrase
+
+x-walletPassphraseHash: &walletPassphraseHash
+  description: |
+    A hash of master passphrase. The hash should be an output of a Scrypt function with the following parameters:
+    - logN = 14
+    - r = 8
+    - p = 1
+  type: string
+  format: hex
+  example: 31347c387c317c574342652b796362417576356c2b4258676a344a314c6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f376738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45414941366a515867386539493d
+
+x-walletEncryptedRootPrivateKey: &walletEncryptedRootPrivateKey
+  description: |
+    A root private key, encrypted using a given passphrase. The underlying key should contain:
+    - A private key
+    - A chain code
+    - A public key
+  type: string
+  format: hex
+  minLength: 256
+  maxLength: 256
+
+x-walletAddressPoolGap: &walletAddressPoolGap
+  description: Number of consecutive unused addresses allowed
+  type: integer
+  minimum: 10
+  maximum: 100
+  example: 20
+  default: 20
+
+x-walletState: &walletState
+  <<: *syncProgress
+  description: Whether a wallet is ready to use or still syncing
+
+x-walletBalance: &walletBalance
+  description: Wallet current balance(s)
+  type: object
+  required:
+    - available
+    - reward
+    - total
+  properties:
+    available:
+      <<: *amount
+      description: Available balance (funds that can be spent)
+    reward:
+      <<: *amount
+      description: The balance of the reward account for this wallet.
+    total:
+      <<: *amount
+      description: Total balance (available balance plus pending change)
+
+x-byronWalletBalance: &byronWalletBalance
+  description: Byron wallet's current balance(s)
+  type: object
+  required:
+    - available
+    - total
+  properties:
+    available:
+      <<: *amount
+      description: Available balance (funds that can be spent)
+    total:
+      <<: *amount
+      description: Total balance (available balance plus pending change)
+
+x-walletPassphraseInfo :: &walletPassphraseInfo
+  description: Information about the wallet's passphrase
+  type: object
+  required:
+    - last_updated_at
+  properties:
+    last_updated_at: *date
+
+x-transactionId: &transactionId
+  description: A unique identifier for this transaction
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
+x-transactionAmount: &transactionAmount
+  <<: *amount
+
+x-transactionInsertedAt: &transactionInsertedAt
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status != pending
+    </span><br/>
+    Absolute time at which the transaction was inserted in a block.
+  type: object
+  required:
+    - block
+    - time
+  properties:
+    time: *date
+    block: *blockReference
+
+x-transactionPendingSince: &transactionPendingSince
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status == pending
+    </span><br/>
+    The point in time at which a transaction became pending.
+  type: object
+  required:
+    - block
+    - time
+  properties:
+    time: *date
+    block: *blockReference
+
+x-transactionDepth: &transactionDepth
+  description: Current depth of the transaction in the local chain
+  <<: *numberOfBlocks
+
+x-transactionDirection: &transactionDirection
+  type: string
+  enum:
+    - outgoing
+    - incoming
+
+x-transactionInputs: &transactionInputs
+  description: A list of transaction inputs
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+    properties:
+      address: *addressId
+      amount: *transactionAmount
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+
+x-transactionOutputs: &transactionOutputs
+  description: A list of target outputs
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - address
+      - amount
+    properties:
+      address: *addressId
+      amount: *transactionAmount
+
+x-transactionResolvedInputs: &transactionResolvedInputs
+  description: A list of transaction inputs
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+      - address
+      - amount
+    properties:
+      address: *addressId
+      amount: *transactionAmount
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+
+x-signedTransactionBlob: &signedTransactionBlob
+  description: Signed transaction message binary blob.
+  type: string
+  format: binary
+
+x-transactionStatus: &transactionStatus
+  description: |
+    Current transaction status.
+
+      ```
+             *---------*
+             |         |
+      -------> PENDING <----------------*
+             |         |                |
+             *---------*            (rollback)
+                  |                     |
+             (in ledger)          *-----------*
+                  |               |           |
+                  *---------------> IN_LEDGER |
+                                  |           |
+                                  *-----------*
+      ```
+  type: string
+  enum:
+    - pending
+    - in_ledger
+
+x-stakePoolMetrics: &stakePoolMetrics
+  type: object
+  required:
+    - controlled_stake
+    - produced_blocks
+  properties:
+    controlled_stake: *transactionAmount
+    produced_blocks:
+      <<: *numberOfBlocks
+      description: Number of blocks produced by a given stake pool
+
+x-stakePoolApparentPerformance: &stakePoolApparentPerformance
+  description: |
+    Apparent performance of the stake pool over past epochs. This indicator is computed
+    using data available to the server. In particular, the server can't reliably know the
+    stake distribution of past epochs without being during those epochs. The performance
+    are therefore an average measure that is more accurate for servers that are online
+    often.
+
+    The performance is a float with double-precision which is _typically_ within `0` and `1`:
+
+      - `0` means that a pool is not performing well.
+      - `1` means that a pool is performing _as expected_.
+      - above `1` means the pool is performing beyond expectations.
+
+    Pools that are lucky enough to win most of their slots early in the epoch will tend to look
+    like they're over-performing for a while. Having a wallet regularly connected to the network
+    would harmonize the performance and give better results.
+
+  type: number
+  minimum: 0
+  example: 0.5053763440860215
+
+x-stakePoolMetadata: &stakePoolMetadata
+  description: |
+    Information about the stake pool.
+  type: object
+  required:
+    - owner
+    - ticker
+    - name
+    - homepage
+    - pledge_address
+  additionalProperties: false
+  properties:
+    owner:
+      type: string
+      format: bech32
+      example: ed25519_pk1lrspg0h4afh3l2kaneqlktdv9kaq4zskcvehqwhc4lmx36f5dweqjtaga8
+    ticker:
+      type: string
+      minLength: 3
+      maxLength: 5
+      example: IOHK
+    name:
+      type: string
+      minLength: 1
+      maxLength: 50
+    description:
+      type: string
+      maxLength: 255
+    homepage:
+      type: string
+      format: uri
+      example: https://iohk.io
+    pledge_address:
+      type: string
+      format: bech32
+      example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
+
+x-stakePoolCost: &stakePoolCost
+  <<: *amount
+  description: |
+      Estimated cost set by the pool operator when registering his pool.
+      This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
+
+x-stakePoolMargin: &stakePoolMargin
+  <<: *percentage
+  description: |
+      Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
+
+x-stakePoolSaturation: &stakePoolSaturation
+  type: number
+  minimum: 0
+  description: |
+    Saturation-level of the pool based on the desired number of pools aimed by the network.
+    A value above `1` indicates that the pool is saturated.
+  example: 0.74
+
+x-stakePoolDesirability: &stakePoolDesirability
+  type: number
+  minimum: 0
+  description: |
+    How desirable / attractive a pool is. To determine a pool's _rank_, we order pools by decreasing desirability.
+    The most desirable pool gets rank 1, the second most desirable pool gets rank 2 and so on.
+  example: 42
+
+x-networkInformationSyncProgress: &networkInformationSyncProgress
+  <<: *syncProgress
+  description: |
+    Estimated synchronization progress of the node with the underlying network. Note that this may
+    change quite arbitrarily as the node may switch to shorter or longer chain forks.
+
+x-networkClockSyncProgress: &networkClockSyncProgress
+  <<: *syncClockProgress
+  description: |
+    The status progress of syncing local ntp client aiming to get ntp offset.
+
+x-networkInformationNtpStatus: &networkInformationNtpStatus
+  type: object
+  description: |
+    [Network Time Protocol](https://en.wikipedia.org/wiki/Network_Time_Protocol) information of the server.
+
+    **Important:** This piece of information only makes sense when the server runs on the same host machine as the node.
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - available
+        - unavailable
+        - pending
+    offset:
+      type: object
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == available
+        </span><br/>
+        Drift offset of the local clock.
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          example: 14
+        unit:
+          type: string
+          enum:
+            - microsecond
+
+x-networkInformationNodeTip: &networkInformationNodeTip
+  <<: *blockReference
+  description: Underlying node's tip
+
+x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
+  type: string
+  description: |
+    Whether protocol updates have been submitted and accepted by the network.
+  enum:
+    - up_to_date
+    - update_available
+
+x-delegationStatus: &delegationStatus
+  type: string
+  enum:
+    - not_delegating
+    - delegating
+
+x-delegationTarget: &delegationTarget
+  <<: *stakePoolId
+  description: A unique Stake-Pool identifier (present only if status = `delegating`)
+
+x-addressIndex: &addressIndex
+  type: number
+  minimum: 0
+  maximum: 4294967296 # 2 ^ 32, whole range (soft and hard) for random addresses.
+  description: |
+    An optional address derivation index. Leave out to get an address
+    with a randomly generated index.
+
+#############################################################################
+#                                                                           #
+#                              DEFINITIONS                                  #
+#                                                                           #
+#############################################################################
+
+components:
+  schemas:
+    ApiAddress: &ApiAddress
+      type: object
+      required:
+        - id
+        - state
+      properties:
+        id: *addressId
+        state: *addressState
+
+    ApiEpochInfo: &ApiEpochInfo
+      type: object
+      required:
+        - epoch_number
+        - epoch_start_time
+      properties:
+        epoch_number: *epochNumber
+        epoch_start_time: *date
+
+    ApiNetworkTip: &ApiNetworkTip
+      description: A network tip
+      type: object
+      required:
+        - slot_number
+        - epoch_number
+      properties:
+        slot_number: *slotNumber
+        epoch_number: *epochNumber
+
+    ApiNetworkInformation: &ApiNetworkInformation
+      type: object
+      required:
+        - sync_progress
+        - node_tip
+        - network_tip
+        - next_epoch
+      properties:
+        sync_progress: *networkInformationSyncProgress
+        node_tip: *networkInformationNodeTip
+        network_tip: *ApiNetworkTip
+        next_epoch: *ApiEpochInfo
+
+    ApiNetworkClock: &ApiNetworkClock
+      <<: *networkInformationNtpStatus
+
+    ApiNetworkParameters: &ApiNetworkParameters
+      type: object
+      required:
+        - genesis_block_hash
+        - blockchain_start_time
+        - slot_length
+        - epoch_length
+        - epoch_stability
+        - active_slot_coefficient
+      properties:
+        genesis_block_hash: *blockId
+        blockchain_start_time: *date
+        slot_length: *numberOfSeconds
+        epoch_length: *numberOfSlots
+        epoch_stability: *numberOfBlocks
+        active_slot_coefficient: *percentage
+
+    ApiSelectCoinsData: &ApiSelectCoinsData
+      type: object
+      required:
+        - payments
+      properties:
+        payments: *transactionOutputs
+
+    ApiCoinSelection: &ApiCoinSelection
+      type: object
+      required:
+        - inputs
+        - outputs
+      properties:
+        inputs: *transactionResolvedInputs
+        outputs: *transactionOutputs
+
+    ApiStakePool: &ApiStakePool
+      type: object
+      required:
+        - id
+        - metrics
+        - apparent_performance
+        - cost
+        - margin
+        - saturation
+        - desirability
+      properties:
+        id: *stakePoolId
+        metrics: *stakePoolMetrics
+        apparent_performance: *stakePoolApparentPerformance
+        cost: *stakePoolCost
+        margin: *stakePoolMargin
+        metadata: *stakePoolMetadata
+        saturation: *stakePoolSaturation
+        desirability: *stakePoolDesirability
+
+    ApiFee: &ApiFee
+      type: object
+      required:
+        - amount
+      properties:
+        amount: *transactionAmount
+
+    ApiTxId: &ApiTxId
+      type: object
+      required:
+        - id
+      properties:
+        id: *transactionId
+
+    ApiTransaction: &ApiTransaction
+      type: object
+      required:
+        - id
+        - amount
+        - depth
+        - direction
+        - inputs
+        - outputs
+        - status
+      properties:
+        id: *transactionId
+        amount: *transactionAmount
+        inserted_at: *transactionInsertedAt
+        pending_since: *transactionPendingSince
+        depth: *transactionDepth
+        direction: *transactionDirection
+        inputs: *transactionInputs
+        outputs: *transactionOutputs
+        status: *transactionStatus
+
+    ApiWalletDelegationNext: &ApiWalletDelegationNext
+      type: object
+      description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
+      required:
+        - status
+        - changes_at
+      properties:
+        status: *delegationStatus
+        target: *delegationTarget
+        changes_at: *ApiEpochInfo
+      example:
+        status: not_delegating
+        changes_at:
+          epoch_number: 14
+          epoch_start_time: 2020-01-22T10:06:39.037Z
+
+    ApiWalletDelegation: &ApiWalletDelegation
+      description: Delegation settings
+      type: object
+      required:
+        - active
+        - next
+      properties:
+        active:
+          type: object
+          description: Currently active delegation status.
+          required:
+            - status
+          properties:
+            status: *delegationStatus
+            target: *delegationTarget
+          example:
+            status: delegating
+            target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+        next:
+          type: array
+          items: *ApiWalletDelegationNext
+
+    ApiWallet: &ApiWallet
+      type: object
+      required:
+        - id
+        - address_pool_gap
+        - balance
+        - delegation
+        - name
+        - state
+        - tip
+      properties:
+        id: *walletId
+        address_pool_gap: *walletAddressPoolGap
+        balance: *walletBalance
+        delegation: *ApiWalletDelegation
+        name: *walletName
+        passphrase: *walletPassphraseInfo
+        state: *walletState
+        tip: *blockReference
+
+    ApiByronWallet: &ApiByronWallet
+      type: object
+      required:
+        - id
+        - balance
+        - name
+        - state
+        - tip
+      properties:
+        id: *walletId
+        balance: *byronWalletBalance
+        name: *walletName
+        passphrase: *walletPassphraseInfo
+        state: *walletState
+        tip: *blockReference
+
+    ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
+      type: object
+      required:
+        - migration_cost
+      properties:
+        migration_cost: *amount
+
+    ApiWalletPassphrase: &ApiWalletPassphrase
+      type: object
+      required:
+        - passphrase
+      properties:
+        passphrase:
+          <<: *walletPassphrase
+          description: The source Byron wallet's master passphrase.
+
+    ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
+      type: object
+      required:
+        - total
+        - scale
+        - distribution
+      properties:
+        total: *amount
+        scale:
+          type: string
+          enum:
+            - log10
+        distribution:
+          type: object
+          additionalProperties:
+            type: integer
+      example:
+        total:
+          quantity: 42000000
+          unit: lovelace
+        scale: log10
+        distribution:
+          10: 1
+          100: 0
+          1000: 8
+          10000: 14
+          100000: 32
+          1000000: 3
+          10000000: 0
+          100000000: 12
+          1000000000: 0
+          10000000000: 0
+          100000000000: 0
+          1000000000000: 0
+          10000000000000: 0
+          100000000000000: 0
+          1000000000000000: 0
+          10000000000000000: 0
+          45000000000000000: 0
+
+    ApiWalletPostData: &ApiWalletPostData
+      type: object
+      description: Restore from root private key
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        name: *walletName
+        mnemonic_sentence: *walletMnemonicSentence
+        mnemonic_second_factor: *walletSecondFactor
+        passphrase: *walletPassphrase
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiAccountPostData: &ApiAccountPostData
+      type: object
+      description: Restore from account public key
+      required:
+        - name
+        - account_public_key
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
+      type: object
+      oneOf:
+        - *ApiAccountPostData
+        - *ApiWalletPostData
+
+    ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
+      type: object
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        style:
+          type: string
+          enum: ["random"]
+        name: *walletName
+        passphrase: *walletPassphrase
+        mnemonic_sentence:
+          <<: *walletMnemonicSentence
+          minItems: 12
+          maxItems: 12
+
+    ApiByronWalletRandomXPrvPostData: &ApiByronWalletRandomXPrvPostData
+      type: object
+      required:
+        - name
+        - encrypted_root_private_key
+        - passphrase_hash
+      properties:
+        style:
+          type: string
+          enum: ["random"]
+        name: *walletName
+        encrypted_root_private_key: *walletEncryptedRootPrivateKey
+        passphrase_hash: *walletPassphraseHash
+
+    ApiByronWalletIcarusPostData: &ApiByronWalletIcarusPostData
+      type: object
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        style:
+          type: string
+          enum: ["icarus"]
+        name: *walletName
+        passphrase: *walletPassphrase
+        mnemonic_sentence:
+          <<: *walletMnemonicSentence
+          minItems: 15
+          maxItems: 15
+
+    ApiByronWalletTrezorPostData: &ApiByronWalletTrezorPostData
+      type: object
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        style:
+          type: string
+          enum: ["trezor"]
+        name: *walletName
+        passphrase: *walletPassphrase
+        mnemonic_sentence:
+          <<: *walletMnemonicSentence
+          minItems: 12
+          maxItems: 24
+
+    ApiByronWalletLedgerPostData: &ApiByronWalletLedgerPostData
+      type: object
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        style:
+          type: string
+          enum: ["ledger"]
+        name: *walletName
+        passphrase: *walletPassphrase
+        mnemonic_sentence:
+          <<: *walletMnemonicSentence
+          minItems: 12
+          maxItems: 24
+
+    ApiWalletPutData: &ApiWalletPutData
+      type: object
+      properties:
+        name: *walletName
+
+    ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
+      type: object
+      required:
+        - old_passphrase
+        - new_passphrase
+      properties:
+        old_passphrase:
+          <<: *walletPassphrase
+          description: The current passphrase.
+        new_passphrase:
+          <<: *walletPassphrase
+          description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+    ApiByronWalletPutPassphraseData: &ApiByronWalletPutPassphraseData
+      type: object
+      required:
+        - new_passphrase
+      properties:
+        old_passphrase:
+          <<: *byronWalletPassphrase
+          description: The current passphrase if present.
+        new_passphrase:
+          <<: *walletPassphrase
+          description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+    ApiPostTransactionData: &ApiPostTransactionData
+      type: object
+      required:
+        - payments
+        - passphrase
+      properties:
+        payments: *transactionOutputs
+        passphrase:
+          <<: *walletPassphrase
+          description: The wallet's master passphrase.
+
+    ApiPostTransactionFeeData: &ApiPostTransactionFeeData
+      type: object
+      required:
+        - payments
+      properties:
+        payments: *transactionOutputs
+
+    ApiPostRandomAddressData: &ApiPostRandomAddressData
+      type: object
+      required:
+        - passphrase
+      properties:
+        passphrase: *walletPassphrase
+        address_index: *addressIndex
+
+#############################################################################
+#                                                                           #
+#                               PARAMETERS                                  #
+#                                                                           #
+#############################################################################
+
+x-parametersWalletId: &parametersWalletId
+  in: path
+  name: walletId
+  required: true
+  schema:
+    type: string
+    format: hex
+    maxLength: 40
+    minLength: 40
+
+x-parametersTransactionId: &parametersTransactionId
+  in: path
+  name: transactionId
+  required: true
+  schema:
+    type: string
+    format: hex
+    maxLength: 64
+    minLength: 64
+
+x-parametersEpochId: &parametersEpochId
+  in: path
+  name: epochId
+  required: true
+  description: |
+    Epoch parameter number as string or `latest`
+    Example: `latest`, `0`, `22`
+  schema:
+    type: string
+
+x-parametersStakePoolId: &parametersStakePoolId
+  in: path
+  name: stakePoolId
+  required: true
+  schema:
+    type: string
+    format: hex
+    maxLength: 64
+    minLength: 64
+
+x-parametersStartDate: &parametersStartDate
+  in: query
+  name: start
+  description: |
+    An optional start time in ISO 8601 date-and-time format. Basic and
+    extended formats are both accepted. Times can be local (with a
+    timezone offset) or UTC.
+
+    If both a start time and an end time are specified, then the start
+    time must not be later than the end time.
+
+    Example: `2008-08-08T08:08:08Z`
+  schema:
+    type: string
+    format: ISO 8601
+
+x-parametersEndDate: &parametersEndDate
+  in: query
+  name: end
+  description: |
+    An optional end time in ISO 8601 date-and-time format. Basic and
+    extended formats are both accepted. Times can be local (with a
+    timezone offset) or UTC.
+
+    If both a start time and an end time are specified, then the start
+    time must not be later than the end time.
+
+    Example: `2008-08-08T08:08:08Z`
+  schema:
+    type: string
+    format: ISO 8601
+
+x-parametersSortOrder: &parametersSortOrder
+  in: query
+  name: order
+  description: An optional sort order.
+  schema:
+    type: string
+    enum:
+      - ascending
+      - descending
+    default: descending
+
+x-parametersAddressState: &parametersAddressState
+  in: query
+  name: state
+  description: An optional filter on the address state.
+  schema:
+    type: string
+    enum:
+      - used
+      - unused
+
+#############################################################################
+#                                                                           #
+#                                RESPONSES                                  #
+#                                                                           #
+#############################################################################
+
+x-responsesErr: &responsesErr
+  type: object
+  required:
+    - message
+    - code
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+      type: string
+      description: A specific error code for this error, more precise than HTTP ones.
+      example: an_error_code
+
+x-responsesErr400: &responsesErr400
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr403: &responsesErr403
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr404: &responsesErr404
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr405: &responsesErr405
+  405:
+    description: Method Not Allowed
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr406: &responsesErr406
+  406:
+    description: Not Acceptable
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr409: &responsesErr409
+  409:
+    description: Conflict
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr410: &responsesErr410
+  410:
+    description: Gone
+    content:
+      application/json:
+    schema: *responsesErr
+
+x-responsesErr415: &responsesErr415
+  415:
+    description: Unsupported Media Type
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesErr423: &responsesErr423
+  423:
+    description: Locked
+    content:
+      application/json:
+        schema: *responsesErr
+
+x-responsesListWallets: &responsesListWallets
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiWallet
+
+x-responsesListByronWallets: &responsesListByronWallets
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiByronWallet
+
+x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiWalletUTxOsStatistics
+
+x-responsesPostWallet: &responsesPostWallet
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr409
+  <<: *responsesErr415
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiWallet
+
+x-responsesPostByronWallet: &responsesPostByronWallet
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr409
+  <<: *responsesErr415
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiByronWallet
+
+x-responsesGetWallet: &responsesGetWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiWallet
+
+x-responsesGetByronWallet: &responsesGetByronWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiByronWallet
+
+x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiByronWalletMigrationInfo
+
+x-responsesMigrateByronWallet: &responsesMigrateByronWallet
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiTransaction
+
+x-responsesDeleteWallet: &responsesDeleteWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  204:
+    description: No Content
+
+x-responsesForceResyncWallet: &responsesForceResyncWallet
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  204:
+    description: No Content
+
+x-responsesPutWallet: &responsesPutWallet
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiWallet
+
+x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  204:
+    description: No Content
+
+x-responsesSelectCoins: &responsesSelectCoins
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: OK
+    content:
+      application/json:
+        schema: *ApiCoinSelection
+
+x-responsesDeleteTransaction: &responsesDeleteTransaction
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  204:
+    description: No Content
+
+x-responsesListTransactions: &responsesListTransactions
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    headers:
+      Content-Range:
+        schema:
+          type: string
+          format: inserted-at {range-start}-{range-end}/{total}
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiTransaction
+
+x-responsesPostTransaction: &responsesPostTransaction
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTransaction
+
+x-responsesPostExternalTransaction: &responsesPostExternalTransaction
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTxId
+
+x-responsesPostTransactionFee: &responsesPostTransactionFee
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiFee
+
+x-responsesGetDelegationFee: &responsesGetDelegationFee
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiFee
+
+x-responsesListAddresses: &responsesListAddresses
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiAddress
+
+x-responsesListStakePools: &responsesListStakePools
+  <<: *responsesErr405
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+            type: array
+            items: *ApiStakePool
+
+x-responsesJoinStakePool: &responsesJoinStakePool
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTransaction
+
+x-responsesQuitStakePool: &responsesQuitStakePool
+  <<: *responsesJoinStakePool
+
+x-responsesGetNetworkInformation: &responsesGetNetworkInformation
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiNetworkInformation
+
+x-responsesGetNetworkClock: &responsesGetNetworkClock
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiNetworkClock
+
+x-responsesGetNetworkParameters: &responsesGetNetworkParameters
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiNetworkParameters
+
+x-responsesPostRandomAddress: &responsesPostRandomAddress
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiAddress
+
+#############################################################################
+#                                                                           #
+#                                  PATHS                                    #
+#                                                                           #
+#############################################################################
+
+x-tagGroups:
+  - name: Shelley (Sequential)
+    tags:
+    - Wallets
+    - Addresses
+    - Coin Selections
+    - Transactions
+    - Stake Pools
+
+  - name: Byron (Random)
+    tags:
+    - Byron Wallets
+    - Byron Addresses
+    - Byron Transactions
+    - Byron Migrations
+
+  - name: Miscellaneous
+    tags:
+    - Network
+    - Proxy
+
+paths:
+  /wallets:
+    get:
+      operationId: listWallets
+      tags: ["Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known wallets, ordered from oldest to newest.
+      responses: *responsesListWallets
+
+    post:
+      operationId: postWallet
+      tags: ["Wallets"]
+      summary: Create / Restore
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and restore a wallet from a mnemonic sentence or account public key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletOrAccountPostData
+      responses: *responsesPostWallet
+
+  /wallets/{walletId}:
+    get:
+      operationId: getWallet
+      tags: ["Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWallet
+
+    delete:
+      operationId: deleteWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+    put:
+      operationId: putWallet
+      tags: ["Wallets"]
+      summary: Update Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutData
+      responses: *responsesPutWallet
+
+  /wallets/{walletId}/tip:
+    put:
+      operationId: forceResync
+      tags: ["Wallets"]
+      summary: Force Resync
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Force the wallet to rewind back to the given block and sync again with the chain.
+        Any incoming transaction will be erased whereas outgoing transactions will be put back
+        as pending. This action should only be taken as an extreme measure to resolve potential
+        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
+
+        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
+        > Any other point will yield a `403 Forbidden` error.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *genesisBlock
+      responses: *responsesForceResyncWallet
+
+  /wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getUTxOsStatistics
+      tags: ["Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
+
+  /wallets/{walletId}/passphrase:
+    put:
+      operationId: putWalletPassphrase
+      tags: ["Wallets"]
+      summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
+
+  /wallets/{walletId}/transactions:
+    get:
+      operationId: listTransactions
+      tags: ["Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Lists all incoming and outgoing wallet's transactions.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
+    post:
+      operationId: postTransaction
+      tags: ["Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+  /wallets/{walletId}/payment-fees:
+    post:
+      operationId: postTransactionFee
+      tags: ["Transactions"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for the transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionFeeData
+      responses: *responsesPostTransactionFee
+
+  /wallets/{walletId}/transactions/{transactionId}:
+    delete:
+      operationId: deleteTransaction
+      tags: ["Transactions"]
+      summary: Forget
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Forget pending transaction. Importantly, a transaction, when sent,
+        cannot be cancelled. One can only request forgetting about it
+        in order to try spending (concurrently) the same UTxO in another
+        transaction. But, the transaction may still show up later in a block
+        and therefore, appear in the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesDeleteTransaction
+
+  /wallets/{walletId}/addresses:
+    get:
+      operationId: listAddresses
+      tags: ["Addresses"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known addresses, ordered from newest to oldest
+      parameters:
+        - *parametersWalletId
+        - *parametersAddressState
+      responses: *responsesListAddresses
+
+  /stake-pools:
+    get:
+      operationId: listStakePools
+      tags: ["Stake Pools"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        List all known stake pools ordered by descending `desirability`.
+        Some pools _may_ also have metadata attached to them if they have been registered
+        to the metadata registry.
+      responses: *responsesListStakePools
+
+  /stake-pools/{stakePoolId}/wallets/{walletId}:
+    put:
+      operationId: joinStakePool
+      tags: ["Stake Pools"]
+      summary: Join
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Delegate all (current and future) addresses from the given wallet to the given stake pool.
+      parameters:
+        - *parametersStakePoolId
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesJoinStakePool
+
+  /stake-pools/*/wallets/{walletId}:
+    delete:
+      operationId: quitStakePool
+      tags: ["Stake Pools"]
+      summary: Quit
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Stop delegating completely. The wallet's stake will become inactive.
+
+        > ⚠️  Disclaimer ⚠️
+        >
+        > This endpoint historically use to take a stake pool id as a path parameter.
+        > However, retiring from delegation is ubiquitous and not tight to a particular
+        > stake pool. For backward-compatibility reasons, sending stake pool ids as path
+        > parameter will still be accepted by the server but new integrations are
+        > encouraged to provide a placeholder asterisk `*` instead.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesQuitStakePool
+
+  /wallets/{walletId}/delegation-fees:
+    get:
+      operationId: getDelegationFee
+      tags: ["Stake Pools"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for joining or leaving a stake pool. Note that it is an
+        estimation because a delegation induces a transaction for which coins
+        have to be selected randomly within the wallet. Because of this randomness,
+        fees can only be estimated.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetDelegationFee
+
+  /wallets/{walletId}/coin-selections/random:
+    post:
+      operationId: selectCoins
+      tags: ["Coin Selections"]
+      summary: Random
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Select coins to cover the given set of payments.
+
+        Uses the <a href="https://iohk.io/blog/self-organisation-in-coin-selection/">
+        Random-Improve coin selection algorithm</a>.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSelectCoinsData
+      responses: *responsesSelectCoins
+
+  /byron-wallets:
+    get:
+      operationId: listByronWallets
+      tags: ["Byron Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known Byron wallets, ordered from oldest to newest.
+      responses: *responsesListByronWallets
+
+    post:
+      operationId: postByronWallet
+      tags: ["Byron Wallets"]
+      summary: Restore
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Restore a Byron wallet from a mnemonic sentence or encrypted root private key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - *ApiByronWalletRandomPostData
+                - *ApiByronWalletRandomXPrvPostData
+                - *ApiByronWalletIcarusPostData
+                - *ApiByronWalletTrezorPostData
+                - *ApiByronWalletLedgerPostData
+      responses: *responsesPostByronWallet
+
+  /byron-wallets/{walletId}:
+    get:
+      operationId: getByronWallet
+      tags: ["Byron Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return information about a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWallet
+
+    delete:
+      operationId: deleteByronWallet
+      tags: ["Byron Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Delete a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+    put:
+      operationId: putByronWallet
+      tags: ["Byron Wallets"]
+      summary: Update Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutData
+      responses: *responsesPutWallet
+
+  /byron-wallets/{walletId}/passphrase:
+    put:
+      operationId: putByronWalletPassphrase
+      tags: ["Byron Wallets"]
+      summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiByronWalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
+
+  /byron-wallets/{walletId}/tip:
+    put:
+      operationId: forceResyncByron
+      tags: ["Byron Wallets"]
+      summary: Force Resync
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Force the wallet to rewind back to the given block and sync again with the chain.
+        Any incoming transaction will be erased whereas outgoing transactions will be put back
+        as pending. This action should only be taken as an extreme measure to resolve potential
+        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
+
+        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
+        > Any other point will yield a `403 Forbidden` error.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *genesisBlock
+      responses: *responsesForceResyncWallet
+
+  /byron-wallets/{walletId}/addresses:
+      get:
+        operationId: listAddresses
+        tags: ["Byron Addresses"]
+        summary: List
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
+          Arbitrarily ordered for random wallets.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressState
+        responses: *responsesListAddresses
+
+      post:
+        operationId: createAddress
+        tags: ["Byron Addresses"]
+        summary: Create Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostRandomAddressData
+        responses: *responsesPostRandomAddress
+
+  /byron-wallets/{walletId}/transactions:
+    get:
+      operationId: listByronTransactions
+      tags: ["Byron Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        List all incoming and outgoing transactions for the given wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
+    post:
+      operationId: postByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+  /byron-wallets/{walletId}/payment-fees:
+    post:
+      operationId: postByronTransactionFee
+      tags: ["Byron Transactions"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for the transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionFeeData
+      responses: *responsesPostTransactionFee
+
+  /byron-wallets/{walletId}/transactions/{transactionId}:
+    delete:
+      operationId: deleteByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Forget
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Forget pending Byron transaction. Importantly, a transaction, when sent,
+        cannot be cancelled. One can only request forgetting about it
+        in order to try spending (concurrently) the same UTxO in another
+        transaction. But, the transaction may still show up later in a block
+        and therefore, appear in the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesDeleteTransaction
+
+  /byron-wallets/{walletId}/migrations:
+    get:
+      operationId: getByronWalletMigrationInfo
+      tags: ["Byron Migrations"]
+      summary: Calculate Cost
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Calculate the exact cost of migrating from a Byron wallet to a new
+        wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWalletMigrationInfo
+
+  /byron-wallets/{sourceWalletId}/migrations/{targetWalletId}:
+    post:
+      operationId: migrateByronWallet
+      tags: ["Byron Migrations"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Migrate all funds from a Byron wallet to a new-style wallet.
+      parameters:
+        - <<: *parametersWalletId
+          name: sourceWalletId
+        - <<: *parametersWalletId
+          name: targetWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesMigrateByronWallet
+
+  /byron-wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getByronUTxOsStatistics
+      tags: ["Byron Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
+
+  /network/information:
+    get:
+      operationId: getNetworkInformation
+      tags: ["Network"]
+      summary: Information
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      responses: *responsesGetNetworkInformation
+
+  /network/clock:
+    get:
+      operationId: getNetworkClock
+      tags: ["Network"]
+      summary: Clock
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      responses: *responsesGetNetworkClock
+
+  /network/parameters/{epochId}:
+    get:
+      operationId: getNetworkParameters
+      tags: ["Network"]
+      summary: Parameters
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - <<: *parametersEpochId
+          name: epochId
+      responses: *responsesGetNetworkParameters
+
+  /proxy/transactions:
+    post:
+      operationId: postExternalTransaction
+      tags: ["Proxy"]
+      summary: Submit External Transaction
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Submits a transaction that was created and signed outside of cardano-wallet.
+      requestBody:
+        content:
+          application/octet-stream:
+            schema: *signedTransactionBlob
+      responses: *responsesPostExternalTransaction

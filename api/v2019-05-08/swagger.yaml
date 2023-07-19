@@ -1,0 +1,990 @@
+swagger: '2.0'
+schemes: ["https"]
+host: localhost
+basePath: /v2
+info:
+  title: Cardano Wallet Backend API
+  version: 2.0.0
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/LICENSE
+  description: |
+    <p align="right"><img style="position: relative; top: -10em; margin-bottom: -12em;" width="20%" src="https://cardanodocs.com/img/cardano.png"></img></p>
+externalDocs:
+  description: Need more? Click here to access our API guide and walkthrough.
+  url: 'TODO'
+consumes: ["application/json"]
+produces: ["application/json"]
+
+#############################################################################
+#                                                                           #
+#                                 FIELDS                                    #
+#                                                                           #
+#############################################################################
+
+data: &date
+  type: string
+  format: iso-8601-date-and-time
+  example: 2019-02-27T14:46:45Z
+
+numberOfSlots: &numberOfSlots
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 1337
+    unit:
+      type: string
+      enum:
+        - slot
+      example: "slot"
+
+numberOfBlocks: &numberOfBlocks
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 1337
+    unit:
+      type: string
+      enum:
+        - block
+      example: "block"
+
+percentage: &percentage
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0
+      maximum: 100
+      example: 42
+    unit:
+      type: string
+      enum:
+        - percent
+
+amount: &amount
+  description: Coins, in Lovelace
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 42000000
+    unit:
+      type: string
+      enum:
+        - lovelace
+
+addressId: &addressId
+  type: string
+  format: base58
+  example: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
+
+addressState: &addressState
+  type: string
+  enum:
+    - used
+    - unused
+
+walletId: &walletId
+  description: A unique identifier for the wallet
+  type: string
+  format: hex
+  maxLength: 40
+  minLength: 40
+  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
+
+walletName: &walletName
+  type: string
+  maxLength: 255
+  minLength: 1
+  example: Alan's Wallet
+
+walletMnemonicSentence: &walletMnemonicSentence
+  description: A list of mnemonic words
+  type: array
+  minItems: 15
+  maxItems: 24
+  items:
+    type: string
+    format: bip-0039-mnemonic-word{english}
+  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
+
+walletSecondFactor: &walletSecondFactor
+  description: An optional passphrase used to encrypt the mnemonic sentence.
+  type: array
+  minItems: 9
+  maxItems: 12
+  items:
+    type: string
+    format: bip-0039-mnemonic-word{english}
+  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
+
+walletPassphrase: &walletPassphrase
+  description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+  type: string
+  minLength: 10
+  maxLength: 255
+  example: Secure Passphrase
+
+walletAddressPoolGap: &walletAddressPoolGap
+  description: Number of consecutive unused addresses allowed
+  type: integer
+  minimum: 10
+  maximum: 100
+  example: 20
+  default: 20
+
+walletState: &walletState
+  description: Whether a wallet is ready to use or still syncing
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - ready
+        - restoring
+    progress:
+      <<: *percentage
+      description: Only present if status `restoring`
+  example:
+    status: ready
+
+walletBalance: &walletBalance
+  description: Wallet current balance(s)
+  type: object
+  required:
+    - available
+    - total
+  properties:
+    available:
+      <<: *amount
+      description: Available balance (funds that can be spent)
+    total:
+      <<: *amount
+      description: Total balance (available balance plus pending change)
+
+walletDelegation: &walletDelegation
+  description: Delegation settings
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - not_delegating
+        - delegating
+    target:
+      <<: *addressId
+      description: A unique Stake-Pool identifier (present only if status = `delegating`)
+  example:
+    status: delegating
+    target: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
+
+walletPassphraseInfo :: &walletPassphraseInfo
+  description: Information about the wallet's passphrase
+  type: object
+  required:
+    - last_updated_at
+  properties:
+    last_updated_at: *date
+
+transactionId: &transactionId
+  description: A unique identifier for this transaction
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
+transactionAmount: &transactionAmount
+  <<: *amount
+
+transactionInsertedAt: &transactionInsertedAt
+  description: Absolute time the transaction was inserted in a block
+  type: object
+  required:
+    - block
+    - time
+  properties:
+    time: *date
+    block:
+      type: object
+      required:
+        - slot_number
+        - epoch_number
+      properties:
+        slot_number:
+          type: integer
+          minimum: 0
+          example: 1337
+        epoch_number:
+          type: integer
+          minimum: 0
+          example: 14
+
+transactionDepth: &transactionDepth
+  description: Current depth of the transaction in the local chain
+  <<: *numberOfBlocks
+
+transactionDirection: &transactionDirection
+  type: string
+  enum:
+    - outgoing
+    - incoming
+
+transactionInputs: &transactionInputs
+  description: A list of resolved inputs
+  type: array
+  minItems: 1
+  items:
+    type: object
+    required:
+      - address
+      - amount
+    properties:
+      address: *addressId
+      amount: *transactionAmount
+
+transactionOutputs: &transactionOutputs
+  description: A list of target outputs
+  <<: *transactionInputs
+
+transactionStatus: &transactionStatus
+  description: |
+    Current transaction status.
+
+      ```
+                                  *-------------*
+                                  |             |
+                  *---------------> INVALIDATED |
+                  |               |             |
+              (timeout)           *-------------*
+                  |
+             *---------*
+             |         |
+      -------> PENDING <----------------*
+             |         |                |
+             *---------*            (rollback)
+                  |                     |
+             (in ledger)          *-----------*
+                  |               |           |
+                  *---------------> IN_LEDGER |
+                                  |           |
+                                  *-----------*
+      ```
+  type: string
+  enum:
+    - pending
+    - in_ledger
+    - invalidated
+
+stakePoolId: &stakePoolId
+  <<: *addressId
+  description: A unique identifier (i.e. its public key)
+
+stakePoolTicker: &stakePoolTicker
+  type: string
+  minLength: 3
+  maxLength: 4
+  description: A short human-readable identifier
+  example: IOHK
+
+stakePoolMetrics: &stakePoolMetrics
+  type: object
+  required:
+    - controlled_stake
+    - performance
+    - last_blocks
+  properties:
+    controlled_stake: *transactionAmount
+    performance:
+      description: Estimated performance computed over the last epoch
+      <<: *percentage
+
+    last_blocks:
+      <<: *numberOfBlocks
+      description: Number of blocks correctly processed during the last epoch
+
+stakePoolProfitMargin: &stakePoolProfitMargin
+  <<: *percentage
+  description: What proportion of the reward is paid to the pool operator
+
+networkInformationSyncProgress: &networkInformationSyncProgress
+  <<: *percentage
+
+networkInformationBlockchainHeight: &networkInformationBlockchainHeight
+  <<: *numberOfSlots
+
+networkInformationLocalHeight: &networkInformationLocalHeight
+  <<: *numberOfSlots
+
+networkInformationNtpStatus: &networkInformationNtpStatus
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - available
+        - pending
+        - unavailable
+    drift:
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          example: 14
+        unit:
+          type: string
+          enum:
+            - microseconds
+
+networkInformationTip: &networkInformationTip
+  description: Underlying node's network tip
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+  properties:
+    slot_number:
+      type: integer
+      minimum: 0
+      example: 1337
+    epoch_number:
+      type: integer
+      minimum: 0
+      example: 14
+
+networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
+  type: string
+  enum:
+    - up_to_date
+    - update_available
+
+
+#############################################################################
+#                                                                           #
+#                              DEFINITIONS                                  #
+#                                                                           #
+#############################################################################
+
+definitions:
+  ApiAddress: &ApiAddress
+    type: object
+    required:
+      - id
+      - state
+    properties:
+      id: *addressId
+      state: *addressState
+
+  NetworkInformation: &networkInformation
+    type: object
+    required:
+      - blockchainHeight
+      - localHeight
+      - ntpStatus
+      - software_update
+      - syncProgress
+      - tip
+    properties:
+      blockchainHeight: *networkInformationBlockchainHeight
+      localHeight: *networkInformationLocalHeight
+      ntpStatus: *networkInformationNtpStatus
+      software_update: *networkInformationSoftwareUpdate
+      syncProgress: *networkInformationSyncProgress
+      tip: *networkInformationTip
+
+  StakePool: &stakePool
+    type: object
+    required:
+      - id
+      - ticker
+      - metrics
+      - profit_margin
+    properties:
+      id: *stakePoolId
+      ticker: *stakePoolTicker
+      metrics: *stakePoolMetrics
+      profit_margin: *stakePoolProfitMargin
+
+  ApiTransaction: &ApiTransaction
+    type: object
+    required:
+      - id
+      - amount
+      - depth
+      - direction
+      - inputs
+      - outputs
+      - status
+    properties:
+      id: *transactionId
+      amount: *transactionAmount
+      inserted_at: *transactionInsertedAt
+      depth: *transactionDepth
+      direction: *transactionDirection
+      inputs: *transactionInputs
+      outputs: *transactionOutputs
+      status: *transactionStatus
+
+  ApiWallet: &ApiWallet
+    type: object
+    required:
+      - id
+      - address_pool_gap
+      - balance
+      - delegation
+      - name
+      - passphrase
+      - state
+    properties:
+      id: *walletId
+      address_pool_gap: *walletAddressPoolGap
+      balance: *walletBalance
+      delegation: *walletDelegation
+      name: *walletName
+      passphrase: *walletPassphraseInfo
+      state: *walletState
+
+  WalletUTxOsStatistics: &walletUTxOsStatistics
+    type: object
+    required:
+      - total
+      - scale
+      - distribution
+    properties:
+      total: *amount
+      scale:
+        type: string
+        enum:
+          - log10
+      distribution:
+        type: object
+        additionalProperties:
+          type: integer
+    example:
+      total:
+        quantity: 42000000
+        unit: lovelace
+      scale: log10
+      distribution:
+        10: 1
+        100: 0
+        1000: 8
+        10000: 14
+        100000: 32
+        1000000: 3
+        10000000: 0
+        100000000: 12
+        1000000000: 0
+        10000000000: 0
+        100000000000: 0
+        1000000000000: 0
+        10000000000000: 0
+        100000000000000: 0
+        1000000000000000: 0
+        10000000000000000: 0
+        45000000000000000: 0
+
+  WalletPostData: &WalletPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      mnemonic_sentence: *walletMnemonicSentence
+      mnemonic_second_factor: *walletSecondFactor
+      passphrase: *walletPassphrase
+      address_pool_gap: *walletAddressPoolGap
+
+  WalletPutData: &WalletPutData
+    type: object
+    properties:
+      name: *walletName
+
+  WalletPutPassphraseData: &WalletPutPassphraseData
+    type: object
+    required:
+      - old_passphrase
+      - new_passphrase
+    properties:
+      old_passphrase:
+        <<: *walletPassphrase
+        description: The current passphrase.
+      new_passphrase:
+        <<: *walletPassphrase
+        description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+  PostTransactionData: &PostTransactionData
+    type: object
+    required:
+      - targets
+      - passphrase
+    properties:
+      targets: *transactionOutputs
+      passphrase:
+        <<: *walletPassphrase
+        description: The wallet's master passphrase.
+
+#############################################################################
+#                                                                           #
+#                               PARAMETERS                                  #
+#                                                                           #
+#############################################################################
+
+parametersBody: &parametersBody
+  in: body
+  name: body
+  required: true
+
+parametersWalletId: &parametersWalletId
+  in: path
+  name: walletId
+  required: true
+  type: string
+  format: hex
+  maxLength: 40
+  minLength: 40
+  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
+
+parametersStakePoolId: &parametersStakePoolId
+  in: path
+  name: stakePoolId
+  required: true
+  type: string
+  format: base58
+
+parametersPostTransactionFee: &parametersPostTransactionFee
+  type: object
+  required:
+    - targets
+  properties:
+    targets: *transactionOutputs
+
+parametersJoinStakePool: &parametersJoinStakePool
+  type: object
+  required:
+    - passphrase
+  properties:
+    passphrase:
+      <<: *walletPassphrase
+      description: The wallet's master passphrase.
+
+parametersQuitStakePool: &parametersQuitStakePool
+  <<: *parametersJoinStakePool
+
+
+#############################################################################
+#                                                                           #
+#                                RESPONSES                                  #
+#                                                                           #
+#############################################################################
+
+responsesErr: &responsesErr
+  type: object
+  required:
+    - message
+  properties:
+    message:
+      type: string
+
+responsesErr400: &responsesErr400
+  400:
+    description: Bad Request
+    schema: *responsesErr
+
+responsesErr403: &responsesErr403
+  403:
+    description: Forbidden
+    schema: *responsesErr
+
+responsesErr404: &responsesErr404
+  404:
+    description: Not Found
+    schema: *responsesErr
+
+responsesErr406: &responsesErr406
+  406:
+    description: Not Acceptable
+    schema: *responsesErr
+
+responsesErr409: &responsesErr409
+  409:
+    description: Conflict
+    schema: *responsesErr
+
+responsesErr410: &responsesErr410
+  410:
+    description: Gone
+    schema: *responsesErr
+
+responsesErr415: &responsesErr415
+  415:
+    description: Unsupported Media Type
+    schema: *responsesErr
+
+responseErr423: &responsesErr423
+  423:
+    description: Locked
+    schema: *responsesErr
+
+responsesListWallets: &responsesListWallets
+  200:
+    description: Ok
+    schema:
+      type: array
+      items: *ApiWallet
+
+responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr423
+  200:
+    description: Ok
+    schema: *walletUTxOsStatistics
+
+responsesPostWallet: &responsesPostWallet
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr409
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: *ApiWallet
+
+responsesGetWallet: &responsesGetWallet
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiWallet
+
+responsesDeleteWallet: &responsesDeleteWallet
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr423
+  204:
+    description: No Content
+
+responsesPutWallet: &responsesPutWallet
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr410
+  <<: *responsesErr415
+  200:
+    description: Ok
+    schema: *ApiWallet
+
+responsesPutWalletPassphrase: &responsesPutWalletPassphrase
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr410
+  <<: *responsesErr415
+  204:
+    description: No Content
+
+responsesListTransactions: &responsesListTransactions
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    headers:
+      Content-Range:
+        type: string
+        format: inserted-at {range-start}-{range-end}/{total}
+        example: inserted-at 20190227T160329Z-20190101T042557Z/42
+    schema:
+      type: array
+      items: &ApiTransaction
+
+responsesPostTransaction: &responsesPostTransaction
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: &ApiTransaction
+
+responsesPostTransactionFee: &responsesPostTransactionFee
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: Ok
+    schema:
+      type: object
+      required:
+        - amount
+      properties:
+        amount: *transactionAmount
+
+responsesListAddresses: &responsesListAddresses
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema:
+      type: array
+      items: &ApiAddress
+
+responsesListStakePools: &responsesListStakePools
+  200:
+    description: Ok
+    schema:
+        type: array
+        items: *stakePool
+
+responsesJoinStakePool: &responsesJoinStakePool
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: &ApiTransaction
+
+responsesQuitStakePool: &responsesQuitStakePool
+  <<: *responsesJoinStakePool
+
+responsesGetNetworkInformation: &responsesGetNetworkInformation
+  200:
+    description: Ok
+    schema: *networkInformation
+
+
+#############################################################################
+#                                                                           #
+#                                  PATHS                                    #
+#                                                                           #
+#############################################################################
+
+paths:
+  /wallets:
+    get:
+      operationId: listWallets
+      tags: ["Wallets"]
+      summary: List
+      description: |
+        Priority [Very High]
+
+        Return a list of known wallets, ordered from oldest to newest.
+      responses: *responsesListWallets
+
+    post:
+      operationId: postWallet
+      tags: ["Wallets"]
+      summary: Create / Restore
+      description: Priority [Very High]
+      parameters:
+        - <<: *parametersBody
+          schema: *WalletPostData
+      responses: *responsesPostWallet
+
+  /wallets/{walletId}:
+    get:
+      operationId: getWallet
+      tags: ["Wallets"]
+      summary: Get
+      description: Priority [High]
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWallet
+
+    delete:
+      operationId: deleteWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: Priority [Low]
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+    put:
+      operationId: putWallet
+      tags: ["Wallets"]
+      summary: Update Metadata
+      description: Priority [Low]
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *WalletPutData
+      responses: *responsesPutWallet
+
+  /wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getUTxOsStatistics
+      tags: ["Wallets"]
+      summary: UTxO Statistics
+      description: |
+        Piority [Low]
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
+
+  /wallets/{walletId}/passphrase:
+    put:
+      operationId: putWalletPassphrase
+      tags: ["Wallets"]
+      summary: Update Passphrase
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *WalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
+
+  /wallets/{walletId}/transactions:
+    get:
+      operationId: listTransactions
+      tags: ["Transactions"]
+      summary: List
+      description: Priority [High]
+      parameters:
+        - in: header
+          name: Range
+          type: string
+          format: inserted_at={range-start}-{range-end}
+          example: inserted-at 20190227T160329Z-*
+          description: |
+            A range of date in ISO-8601 UTC format without symbols to retrieve. Note that
+            the start joker symbol `*` can be used instead of a date to refer to a lower
+            or upper boundary.
+      responses: *responsesListTransactions
+
+    post:
+      operationId: postTransaction
+      tags: ["Transactions"]
+      summary: Create
+      description: Priority [High]
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *PostTransactionData
+      responses: *responsesPostTransaction
+
+  /wallets/{walletId}/transactions/fees:
+    post:
+      operationId: postTransactionFee
+      tags: ["Transactions"]
+      summary: Estimate
+      description: Priority [Medium]
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *parametersPostTransactionFee
+      responses: *responsesPostTransactionFee
+
+  /wallets/{walletId}/addresses:
+    get:
+      operationId: listAddresses
+      tags: ["Addresses"]
+      summary: List
+      description: |
+        Priority [High]
+
+        Return a list of known addresses, ordered from newest to oldest
+      parameters:
+        - *parametersWalletId
+        - in: query
+          name: state
+          type: string
+          enum:
+            - used
+            - unused
+          description: An optional filter on the address state.
+      responses: *responsesListAddresses
+
+  /stake-pools:
+    get:
+      operationId: listStakePools
+      tags: ["Stake Pools"]
+      summary: List
+      description: Priority [High]
+      responses: *responsesListStakePools
+
+  /stake-pools/{stakePoolId}/wallets/{walletId}:
+    put:
+      operationId: joinStakePool
+      tags: ["Stake Pools"]
+      summary: Join
+      description: Priority [High]
+      parameters:
+        - *parametersStakePoolId
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *parametersJoinStakePool
+      responses: *responsesJoinStakePool
+
+    delete:
+      operationId: quitStakePool
+      tags: ["Stake Pools"]
+      summary: Quit
+      description: Priority [High]
+      parameters:
+        - *parametersStakePoolId
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *parametersQuitStakePool
+      responses: *responsesQuitStakePool
+
+  /network/information:
+    get:
+        operationId: getNetworkInformation
+        tags: ["Network"]
+        summary: Information
+        description: Priority [Low]
+        responses: *responsesGetNetworkInformation
