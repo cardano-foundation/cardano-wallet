@@ -1,0 +1,344 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Handle delegation - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/delegation.html" class="active"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../developer-guide/building.html"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="how-to-delegate"><a class="header" href="#how-to-delegate">How to delegate</a></h1>
+<h2 id="pre-requisites"><a class="header" href="#pre-requisites">Pre-requisites</a></h2>
+<ul>
+<li><a href="start-wallet-server.html">how to start a server</a></li>
+<li><a href="create-a-wallet.html">how to create a wallet</a></li>
+<li>In order to be able to send transactions, our wallet must have funds. In case of <code>preview</code> and <code>preprod</code> <a href="https://testnets.cardano.org/en/testnets/cardano/overview/">testnets</a> we can request tADA from the <a href="https://testnets.cardano.org/en/testnets/cardano/tools/faucet/">faucet</a>.</li>
+</ul>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>Delegation is the process by which ada holders delegate the stake associated with their ada to a stake pool. Cardano wallet allows listing all stake pools that are operating on the blockchain and then &quot;join&quot; or &quot;quit&quot; them via special delegation transaction.</p>
+<p>Delegation is supported only for <strong>Shelley</strong> wallets. <strong>Shared</strong> wallets will support it too in the near future.</p>
+<h2 id="listing-stake-pools"><a class="header" href="#listing-stake-pools">Listing stake pools</a></h2>
+<p>Before joining any stake pool we can first list all available stake pools that are operating on our blockchain. Stake pools are ordered by <code>non_myopic_member_rewards</code> which gives higher ranking and hence favors the pools potentially producing the best rewards in the future. The ordering could be influenced by the <code>?stake</code> query parameter which says how much stake we want to delegate.</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listStakePools"><code>GET /stake-pools</code></a></li>
+</ul>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000
+</code></pre>
+<h2 id="joining-stake-pool"><a class="header" href="#joining-stake-pool">Joining stake pool</a></h2>
+<p>Once we select a stake pool we can &quot;join&quot; it. This operation will &quot;virtually&quot; add our wallet balance to the stake of this particular stake pool. Joining a pool for the first time will incur <code>fee</code> and <code>deposit</code> required for registering our stake key on the blockchain. This deposit will be returned to us if we quit stake pool all together.</p>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>The amount of the deposit is controlled by Cardano network parameter. It is currently 2₳ on <code>mainnet</code> and <code>testnet</code>. Deposit is taken only once, when joining stake pool for the first time. Rejoining another stake pool does not incur another deposit.</p>
+</div>
+</div>
+<p>We can join stake pool using old transaction workflow:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/joinStakePool"><code>PUT /stake-pools/{stakePoolId}/wallets/{walletId}</code></a></li>
+</ul>
+<p>Or new transaction workflow, where we can <strong>construct</strong> delegation transaction and then <strong>sign</strong> and <strong>submit</strong> it to the network:</p>
+<ul>
+<li>Construct: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructTransaction"><code>POST /wallets/{walletId}/transactions-construct</code></a></li>
+<li>Sign: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signTransaction"><code>POST /wallets/{walletId}/transactions-sign</code></a></li>
+<li>Submit: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitTransaction"><code>POST /wallets/{walletId}/transactions-submit</code></a></li>
+</ul>
+<p>Exemplary construct delegation request may look as follows:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;delegations&quot;:
+     [{&quot;join&quot;:{&quot;pool&quot;:&quot;pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k&quot;,
+               &quot;stake_key_index&quot;:&quot;0H&quot;}}]}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>Refer to <a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a>
+for details on signing and submitting it to the network.</p>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<div>
+<p>Information about <code>deposit_taken</code> and <code>deposit_returned</code> is available in the wallet transaction history. Refer to <a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a></p>
+</div>
+</div>
+<h2 id="joining-another-stake-pool"><a class="header" href="#joining-another-stake-pool">Joining another stake pool</a></h2>
+<p>Joining another stake pool doesn't differ from the previous process at all. The only difference is that, behind the scenes, <code>deposit</code> is not taken from the wallet, as it was already taken when joining for the first time.</p>
+<h2 id="withdrawing-rewards"><a class="header" href="#withdrawing-rewards">Withdrawing rewards</a></h2>
+<p>Our wallet accumulates rewards from delegating to a stake pool on special rewards account associated with it. We can see how many rewards we have on the wallet balance at any time.</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getWallet"><code>GET /wallets/{walletId}</code></a></li>
+</ul>
+<p>Just look up <code>balance</code> while getting your wallet details:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a5927c65 | jq .balance
+
+{
+  &quot;total&quot;: {
+    &quot;quantity&quot;: 14883796944,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;available&quot;: {
+    &quot;quantity&quot;: 14876107482,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;reward&quot;: {
+    &quot;quantity&quot;: 7689462, &lt;----------- accumulated rewards
+    &quot;unit&quot;: &quot;lovelace&quot;
+  }
+}
+</code></pre>
+<p>We can withdraw those rewards when making any transaction. In the both, old and new transaction workflow, it is as simple as adding <code>{ &quot;withdrawal&quot;: &quot;self&quot; }</code> to the transaction payload.</p>
+<p>In particular in <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#tag/Transactions-New">new transaction workflow</a> we can just withdraw our rewards:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;withdrawal&quot;:&quot;self&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>or withdraw rewards while doing any other transaction:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;payments&quot;:[{&quot;address&quot;:&quot;addr_test1qrtez7vn0d8xp495ggypmu2kyt7tt6qyva2spm0f5a3ewn0v474mcs4q8e9g55yknx3729kyg5dl69x5596ee9tvnynq7ffety&quot;,&quot;amount&quot;:{&quot;quantity&quot;:1000000,&quot;unit&quot;:&quot;lovelace&quot;}}],
+     &quot;withdrawal&quot;:&quot;self&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>As a result, after we sign and submit such transaction, the rewards will be added to our available balance (or just spend in case the amount of the transaction we're doing is bigger than our available balance and rewards are enough to compensate).</p>
+<div id="admonition-note-2" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-2"></a></p>
+</div>
+<div>
+<p>Information about <code>withdrawals</code> is also available in the wallet transaction history. Refer to <a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a></p>
+</div>
+</div>
+<h2 id="quitting-stake-pool"><a class="header" href="#quitting-stake-pool">Quitting stake pool</a></h2>
+<p>At any point we can decide to quit delegation all together. Quitting stake pool will cause de-registration of the stake key associated to our wallet and our deposit will be returned. After that we're not longer going to receive rewards.</p>
+<p>Quitting can be done in old transaction workflow:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/quitStakePool"><code>DELETE /stake-pools/*/wallets/{walletId}</code></a></li>
+</ul>
+<div id="admonition-note-3" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-3"></a></p>
+</div>
+<div>
+<p>All rewards will be withdrawn automatically upon quitting a stake pool.</p>
+</div>
+</div>
+<p>or <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#tag/Transactions-New">new transaction workflow</a>, for instance:</p>
+<p>Just quitting:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;delegations&quot;:[{&quot;quit&quot;:{&quot;stake_key_index&quot;:&quot;0H&quot;}}]}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>Quitting and withdrawing rewards in the same transaction. It should be noted that quitting can be realized only when all rewards are withdrawn:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;withdrawal&quot;:&quot;self&quot;,
+     &quot;delegations&quot;:[{&quot;quit&quot;:{&quot;stake_key_index&quot;:&quot;0H&quot;}}]}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>After constructing a transaction that undelegates from a stake pool, I should receive a CBOR-encoded <code>transaction</code>, <code>fee</code>, and <code>coin_selection</code> in the response.
+I can now <strong>sign</strong> and <strong>submit</strong> such a transaction just like in
+<a href="how-to-make-a-transaction.html">how-to-make-a-transaction</a>.</p>
+<div id="admonition-note-4" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-4"></a></p>
+</div>
+<div>
+<p>All rewards will be withdrawn only if you add {&quot;withdrawal&quot;:&quot;self&quot;} to the payload. You can achieve this with a single transaction, as shown above.</p>
+</div>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../user-guide/common-use-cases/assets.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../user-guide/common-use-cases/handle-metadata.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../user-guide/common-use-cases/assets.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../user-guide/common-use-cases/handle-metadata.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

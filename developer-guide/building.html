@@ -1,0 +1,472 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Building - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../user-guide.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../user-guide/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../user-guide/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../user-guide/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../user-guide/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../user-guide/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../user-guide/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../user-guide/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../user-guide/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../user-guide/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../user-guide/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../developers.html"><strong aria-hidden="true">3.</strong> Developer Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../developer-guide/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../developer-guide/building.html" class="active"><strong aria-hidden="true">3.3.</strong> Building</a></li><li class="chapter-item expanded "><a href="../developer-guide/coding-standards.html"><strong aria-hidden="true">3.4.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../developer-guide/code-review-guidelines.html"><strong aria-hidden="true">3.5.</strong> Code Review Guidelines</a></li><li class="chapter-item expanded "><a href="../developer-guide/resources.html"><strong aria-hidden="true">3.6.</strong> Resources</a></li></ol></li><li class="chapter-item expanded "><a href="../concepts.html"><strong aria-hidden="true">4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../concepts/recovery-phrases.html"><strong aria-hidden="true">4.1.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../concepts/master-key-generation.html"><strong aria-hidden="true">4.2.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../concepts/address-derivation.html"><strong aria-hidden="true">4.3.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../concepts/byron-address-format.html"><strong aria-hidden="true">4.4.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../concepts/coin-selection.html"><strong aria-hidden="true">4.5.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">4.6.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../concepts/transaction-lifecycle.html"><strong aria-hidden="true">4.7.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../concepts/utxo.html"><strong aria-hidden="true">4.8.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../design.html"><strong aria-hidden="true">5.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/eras.html"><strong aria-hidden="true">5.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../design/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">5.2.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../design/wallet-id.html"><strong aria-hidden="true">5.3.</strong> Wallet ID</a></li><li class="chapter-item expanded "><a href="../design/specs.html"><strong aria-hidden="true">5.4.</strong> Specs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/specs/light-mode.html"><strong aria-hidden="true">5.4.1.</strong> Light Mode</a></li></ol></li><li class="chapter-item expanded "><a href="../design/records.html"><strong aria-hidden="true">5.5.</strong> Records</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../design/records/2021-01-17-nix-flake.html"><strong aria-hidden="true">5.5.1.</strong> 2021-01-17</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">6.</strong> Contributing</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/logging-guidelines.html"><strong aria-hidden="true">6.1.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../contributing/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">6.2.</strong> Notes from upgrading GHC version</a></li><li class="chapter-item expanded "><a href="../contributing/updating-dependencies.html"><strong aria-hidden="true">6.3.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../contributing/swagger-development.html"><strong aria-hidden="true">6.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../contributing/release-process.html"><strong aria-hidden="true">6.5.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../contributing/release-checklist.html"><strong aria-hidden="true">6.5.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing/nix.html"><strong aria-hidden="true">6.6.</strong> Nix</a></li><li class="chapter-item expanded "><a href="../contributing/testing.html"><strong aria-hidden="true">6.7.</strong> Testing</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="building"><a class="header" href="#building">Building</a></h1>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p><code>cardano-wallet</code> uses the following Haskell build tool versions.</p>
+<div class="table-wrapper"><table><thead><tr><th></th><th><strong>Supported version</strong></th><th><strong>Dependency?</strong></th></tr></thead><tbody>
+<tr><td><a href="https://www.haskell.org/downloads/">ghc</a></td><td>== 9.2.8</td><td>Required</td></tr>
+<tr><td><a href="https://www.haskell.org/cabal/download.html">cabal</a></td><td>&gt;= 3.4.0.0</td><td>Required</td></tr>
+<tr><td><a href="../contributing/nix.html">Nix</a></td><td>&gt;= 2.5.1</td><td>Optional</td></tr>
+</tbody></table>
+</div>
+<h2 id="cabal"><a class="header" href="#cabal">Cabal</a></h2>
+<p><strong>Note:</strong> the Cabal build is checked by <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/nightly.yml">Buildkite</a>.</p>
+<ol>
+<li>
+<p>Update your Hackage index (this may take a while):</p>
+<pre><code class="language-console">&gt; cabal update
+</code></pre>
+</li>
+</ol>
+<div id="admonition-warning" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning"></a></p>
+</div>
+<div>
+<p>Don't skip this, otherwise there may be
+warnings from Cabal about index states, or some packages will
+fail to build.</p>
+</div>
+</div>
+<ol start="2">
+<li>
+<p>Build the project packages:</p>
+<pre><code class="language-console">&gt; cabal build all
+</code></pre>
+</li>
+<li>
+<p>Run the freshly-built <code>cardano-wallet</code> executable.</p>
+<p>As an example, this will show the help page:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet:exe:cardano-wallet -- --help
+</code></pre>
+</li>
+<li>
+<p>Make a build with <code>-O2</code> level compiler optimizations:</p>
+<pre><code class="language-console">&gt; cabal build cardano-wallet:exe:cardano-wallet -frelease
+</code></pre>
+</li>
+<li>
+<p>Build and run the test suites or benchmarks.</p>
+<p>First, enable tests and benchmarks:</p>
+<pre><code class="language-console">&gt; cabal configure --enable-tests --enable-benchmarks
+</code></pre>
+<p>To run one of the unit test suites:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet:test:unit
+</code></pre>
+<p>To run the DB benchmark:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet:bench:db
+</code></pre>
+<p>To run the integration test suite:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet:test:integration
+</code></pre>
+</li>
+<li>
+<p>Install binaries from <code>./dist-newstyle/</code> into a system location:</p>
+<pre><code class="language-console">&gt; cabal install --install-method=copy --installdir=/usr/local/bin
+</code></pre>
+</li>
+<li>
+<p>Build without <code>scrypt</code> (for compatibility with Apple M1 chip)</p>
+<pre><code class="language-console">&gt; cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
+&gt; cabal build cardano-wallet:exe:cardano-wallet
+</code></pre>
+</li>
+</ol>
+<h2 id="nix"><a class="header" href="#nix">Nix</a></h2>
+<p>Use the <a href="../contributing/nix.html">Nix</a> build if:</p>
+<ol>
+<li>You don't have Haskell development tools installed, but you do have
+Nix installed.</li>
+<li>You would like to cross-compile a build for Windows, or run the
+tests under Wine.</li>
+<li>You would like to quickly grab a build of another branch from the
+Hydra cache, without needing to build it yourself.</li>
+</ol>
+<p>Follow the instructions on the <a href="../contributing/nix.html">Nix</a>
+page to install <em>and configure</em> Nix.</p>
+<div id="admonition-warning-1" class="admonition warning">
+<div class="admonition-title">
+<p>Warning</p>
+<p><a class="admonition-anchor-link" href="#admonition-warning-1"></a></p>
+</div>
+<div>
+<p>As of 2022-12, the following information is out of date
+as https://hydra.iohk.io/ has been decomissioned.</p>
+</div>
+</div>
+<p><strong>Note</strong>: It must be stressed that, if you see GHC being built by Nix,
+then you don't have the IOHK Hydra binary cache configured correctly.</p>
+<p>To build the wallet for your current platform:</p>
+<pre><code>&gt; nix build
+</code></pre>
+<p>The resulting executable will appear at <code>./result/bin/cardano-wallet</code>.</p>
+<p>Unless you have local changes in your git repo, Nix will download the
+build from a nix cache rather than building locally.</p>
+<p>You may also run the executable directly with:</p>
+<pre><code class="language-console">&gt; nix run . -- &lt;cardano wallet arguments&gt;
+</code></pre>
+<p>or more comfortably, for pre-configured networks (<code>mainnet</code>, <code>testnet</code>, ...):</p>
+<pre><code class="language-console">&gt; CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+&gt; nix run .#mainnet/wallet -- &lt;optional additional cardano wallet arguments&gt;
+</code></pre>
+<p>You may run the integration tests with:</p>
+<pre><code class="language-console">nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
+</code></pre>
+<h4 id="cross-compiling-with-nix"><a class="header" href="#cross-compiling-with-nix">Cross-compiling with Nix</a></h4>
+<p>To build the wallet for Windows, from <strong>Linux</strong>:</p>
+<pre><code>nix build .#hydraJobs.linux.windows.cardano-wallet
+</code></pre>
+<h4 id="building-straight-from-github"><a class="header" href="#building-straight-from-github">Building straight from GitHub</a></h4>
+<p>The following command will build the <code>master</code> branch, with the resulting executable appearing at <code>./result/bin/cardano-wallet</code>. To build another branch, add <code>/&lt;branch name, tag, or commit hash&gt;</code> (see <a href="https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references">Nix Manual: Flake References</a> for syntax). As before, if the target ref has already been built by Hydra, then it will be fetched from cache rather than built locally.</p>
+<pre><code class="language-console">&gt; nix build github:input-output-hk/cardano-wallet
+&gt; ./result/bin/cardano-wallet version
+v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
+</code></pre>
+<h4 id="cabalnix-build"><a class="header" href="#cabalnix-build">Cabal+Nix build</a></h4>
+<p>Use the Cabal+Nix build if you want to develop with incremental
+builds, but also have it automatically download cached builds of
+all dependencies.</p>
+<p>If you run <code>nix develop</code>, it will start a
+<a href="https://input-output-hk.github.io/haskell.nix/user-guide/development/">development environment</a>
+for <code>cardano-wallet</code>. This will contain:</p>
+<ul>
+<li><code>cabal-install</code> and a GHC configured with a package database containing all Haskell package dependencies;</li>
+<li>system library dependencies;</li>
+<li>a Hoogle index and <code>hoogle</code> command for searching documentation;</li>
+<li>development tools such as <code>haskell-language-server</code>, <code>hlint</code>, <code>stylish-haskell</code>, and <code>weeder</code>;</li>
+<li>the <code>sqlite3</code> command;</li>
+<li>the Shelley node backend <code>cardano-node</code> and <code>cardano-cli</code>; and</li>
+<li>other Adrestia utility programs such as <code>cardano-address</code> and <code>bech32</code></li>
+</ul>
+<p>Inside this shell you can use <code>cabal build</code> and <code>ghci</code> for development.</p>
+<p>For example, you might start an incremental build of the integration test suite with:</p>
+<pre><code class="language-console">ghcid -c &quot;cabal repl test:integration&quot;
+</code></pre>
+<p>and run the test suite with:</p>
+<pre><code class="language-console">cabal run test:integration
+</code></pre>
+<h5 id="profiling-build-with-cached-dependencies"><a class="header" href="#profiling-build-with-cached-dependencies">Profiling build with cached dependencies</a></h5>
+<p>Use <code>nix develop .#profiled</code> to get a shell where Haskell
+dependencies are built with profiling enabled. You won't need to
+rebuild all of the dependencies because they can be downloaded from
+the Hydra cache.</p>
+<pre><code class="language-console">&gt; nix develop .#profiled
+
+[nix-shell:~/iohk/cardano-wallet]$ cabal build \
+    --enable-tests --enable-benchmarks \
+    --enable-profiling \
+    all
+</code></pre>
+<h2 id="haskell-language-server"><a class="header" href="#haskell-language-server">Haskell-Language-Server</a></h2>
+<p>The <a href="https://haskell-language-server.readthedocs.io/en/latest/">haskell-language-server</a> provides an IDE for developers with some typical features:</p>
+<ul>
+<li>Jump to definition.</li>
+<li>Find references.</li>
+<li>Documentation on hover.</li>
+<li>etc.</li>
+</ul>
+<h3 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h3>
+<p>The following must be installed:</p>
+<ul>
+<li><a href="https://direnv.net/">direnv</a></li>
+<li><a href="https://github.com/nix-community/nix-direnv">nix-direnv</a></li>
+</ul>
+<p>We do not require a special version per-project so these executables can be installed system-wide.</p>
+<p>Additionally, the following tools are provided by the cardano-wallet nix development shell:</p>
+<ul>
+<li><a href="https://github.com/haskell/hie-bios">hie-bios</a></li>
+<li><a href="https://haskell-language-server.readthedocs.io/en/latest/">haskell-language-server</a></li>
+</ul>
+<p>We require a particular version of each per-project, so it's recommended to use the nix development environment to ensure you have the correct version.</p>
+<p>In these instructions we enter a nix development environment using <code>direnv allow</code> rather than <code>nix develop</code> or <code>nix-shell</code> (see <a href="#editor-setup">Editor Setup</a>).</p>
+<h3 id="setup"><a class="header" href="#setup">Setup</a></h3>
+<p><strong>haskell-language-server</strong> requires some priming to work with <em>cardano-wallet</em>:</p>
+<pre><code># Symlink hie.yaml to hie-direnv.yaml, which is the project configuration for haskell-language-server
+ln -sf hie-direnv.yaml hie.yaml
+
+# Build and cache the nix development environment
+direnv allow
+
+# Generate a build plan
+cabal configure --enable-tests --enable-benchmarks -O0
+
+# Build entire project
+cabal build all
+</code></pre>
+<p>This will prime <strong>haskell-language-server</strong> to work with all modules of the project (tests, benchmarks, etc.) and be fully featured. Without these steps, <strong>haskell-language-server</strong> may fail to:</p>
+<ul>
+<li>Find auto-generated modules (such as Paths_* modules).</li>
+<li>Navigate across projects (jump-to-definition).</li>
+<li>Provide documentation on hover.</li>
+</ul>
+<h3 id="testing"><a class="header" href="#testing">Testing</a></h3>
+<p>To test the <strong>haskell-language-server</strong>, use the following commands (these should be in your $PATH because you executed <code>direnv allow</code> previously, or have entered a nix development environment):</p>
+<pre><code>hie-bios check lib/wallet/src/Cardano/Wallet.hs
+haskell-language-server lib/wallet/exe/cardano-wallet.hs
+</code></pre>
+<p>Occasionally <code>hie-bios</code> will fail with a <code>Segmentation Fault</code>. In these cases just run <code>hie-bios</code> again.</p>
+<p>Note that these commands will only test a couple of files. To test the whole project, see <a href="#troubleshooting">Troubleshooting</a>.</p>
+<h3 id="editor-setup"><a class="header" href="#editor-setup">Editor Setup</a></h3>
+<p>With a working installation of <strong>haskell-language-server</strong>, we can integrate with our IDE of choice. See <a href="https://haskell-language-server.readthedocs.io/en/latest/configuration.html#configuring-your-editor">Configuring Your Editor</a>.</p>
+<p>IMPORTANT: you need to ensure that your editor invokes the same version of <strong>haskell-language-server</strong> that we have configured above. A simple way to do that is to launch your editor from within a nix development environment (e.g. <code>nix develop --command 'vim'</code>), or, more practically, to configure your editor with <code>direnv</code> support. Here are some examples:</p>
+<ul>
+<li><a href="https://github.com/direnv/direnv.vim">direnv.vim</a></li>
+<li><a href="https://github.com/wbolster/emacs-direnv">emacs-direnv</a></li>
+</ul>
+<h3 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h3>
+<p>Helpful resources:</p>
+<ul>
+<li><a href="https://haskell-language-server.readthedocs.io/en/latest/configuration.html#configuring-haskell-language-server">Configuring haskell-language-server</a></li>
+<li><a href="https://github.com/haskell/hie-bios#bios">hie-bios BIOS Configuration</a></li>
+<li><a href="https://haskell-language-server.readthedocs.io/en/latest/troubleshooting.html">Troubleshooting haskell-language-server</a></li>
+</ul>
+<p>The <a href="#testing">Testing</a> commands only tested a subset of the files in the project. To troubleshoot configuration issues, it's important to determine the source of the error.</p>
+<p>If you know the source of the error, you can reproduce it on the command line with <code>haskell-language-server &lt;the file&gt;</code>. There are debug flags which might be useful (see <code>--help</code>).</p>
+<p>If you do not know the source of the error, you can test every file in the project with:</p>
+<pre><code># Provide list_sources function.
+source &quot;$(dirname &quot;$0&quot;)/../cabal-lib.sh&quot;
+
+# Get every file in the project.
+mapfile -t srcs &lt; &lt;(list_sources)
+
+# Execute haskell-language-server on every file in the project.
+# Note that this command can take upwards of an hour.
+haskell-language-server &quot;${srcs[@]}&quot;
+</code></pre>
+<p>Once you can reproduce the error, look through the <a href="#worked-examples">Worked Examples</a> below and see if you can resolve the issue. If you cannot, raise a <a href="https://github.com/cardano-foundation/cardano-wallet/issues/new?assignees=&amp;labels=BUG&amp;template=bug_report.yml">GitHub issue</a> (external) or a JIRA issue (internal) with reproduction steps and tag @sevanspowell or @rvl.</p>
+<h4 id="worked-examples"><a class="header" href="#worked-examples">Worked Examples</a></h4>
+<p>NOTE: <a href="https://github.com/haskell/hie-bios#bios">hie-bios BIOS Configuration</a> is helpful background reading.</p>
+<h5 id="source-filtering"><a class="header" href="#source-filtering">Source Filtering</a></h5>
+<p>In the past <strong>haskell-language-server</strong> failed when processing the <code>lib/wallet/extra/Plutus/FlatInteger.hs</code> file, as it was technically a Haskell file in the repository, but wasn't intended to be compiled with the project.</p>
+<p>To fix this issue, we excluded the <code>lib/wallet/extra</code> folder from the project sources.</p>
+<p>The bash function <code>list_sources</code> in <code>scripts/cabal-lib.sh</code> is responsible for determining the source files <strong>haskell-language-server</strong> sees. Modify this function to further remove any other files you wish to exclude:</p>
+<pre><code>list_sources() {
+  # Exclude lib/wallet/extra. Those files are Plutus scripts intended
+  # to be serialised for use in the tests. They are not intended to be built
+  # with the project.
+  # Exclude prototypes dir because it's a different project.
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/wallet/extra
+}
+</code></pre>
+<h5 id="ghci-flags"><a class="header" href="#ghci-flags">GHCI Flags</a></h5>
+<p>There were previously issues debugging overlapping/ambiguous instances as the error message printed by <strong>haskell-language-server</strong> did not contain enough information. We rectified this by adding <code>-fprint-potential-instances</code> to the GHCI flags of the <strong>haskell-language-server</strong> BIOS.</p>
+<p>The bash function <code>ghci_flags</code> in <code>scripts/cabal-lib.sh</code> is responsible for providing the GHCI flags <strong>haskell-language-server</strong> uses. Modify this file with any other GHC flags you may require:</p>
+<pre><code>ghci_flags() {
+  cat &lt;&lt;EOF
+-XOverloadedStrings
+-XNoImplicitPrelude
+-XTypeApplications
+-XDataKinds
+-fwarn-unused-binds
+-fwarn-unused-imports
+-fwarn-orphans
+-fprint-potential-instances
+-Wno-missing-home-modules
+EOF
+
+...
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../developer-guide/adrestia-architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../developer-guide/coding-standards.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../developer-guide/adrestia-architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../developer-guide/coding-standards.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
