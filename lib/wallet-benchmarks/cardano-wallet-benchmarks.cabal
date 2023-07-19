@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                cardano-wallet-benchmarks
-version:             2023.4.14
+version:             2023.7.18
 synopsis:            Benchmarks for the `cardano-wallet` exectuable.
 description:         This package is a collection of benchmarks
                      for the `cardano-wallet` exectuable.
