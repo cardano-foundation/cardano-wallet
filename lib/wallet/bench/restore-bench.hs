@@ -159,7 +159,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTagFor (..), newTransactionLayer )
+    ( newTransactionLayer )
 import Cardano.Wallet.Transaction
     ( PreSelection (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
@@ -184,8 +184,6 @@ import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
 import Data.Functor.Contravariant
     ( contramap )
-import Data.Kind
-    ( Type )
 import Data.List
     ( foldl' )
 import Data.Proxy
@@ -683,14 +681,12 @@ bench_baseline_restoration
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
-    :: forall n (k :: Depth -> Type -> Type) s results.
+    :: forall n s results.
         ( IsOurs s RewardAccount
         , MaybeLight s
         , PersistAddressBook s
         , WalletFlavor s
-        , KeyOf s ~ k
         , HasSNetworkId n
-        , TxWitnessTagFor k
         , Buildable results
         , ToJSON results
         , IsOurs s Address

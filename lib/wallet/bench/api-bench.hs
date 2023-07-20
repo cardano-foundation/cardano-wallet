@@ -95,7 +95,7 @@ import Cardano.Wallet.Read.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTagFor (..), newTransactionLayer )
+    ( newTransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
@@ -437,7 +437,6 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s =
 benchmarkWallets
     :: forall n s results
      . ( PersistAddressBook s
-       , TxWitnessTagFor (KeyOf s)
        , KeyFlavor (KeyOf s)
        , Buildable results
        , ToJSON results
@@ -489,7 +488,6 @@ withWalletsFromDirectory
      . ( PersistAddressBook s
        , WalletFlavor s
        , k ~ KeyOf s
-       , TxWitnessTagFor k
        , KeyFlavor k
        )
     => FilePath

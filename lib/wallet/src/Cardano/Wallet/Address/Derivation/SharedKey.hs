@@ -43,8 +43,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (sNetworkId), SNetworkId (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Lens
@@ -89,9 +87,6 @@ sharedKey :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
 sharedKey = iso getKey SharedKey
 
 instance NFData key => NFData (SharedKey depth key)
-
-instance TxWitnessTagFor SharedKey where
-    txWitnessTagFor = TxWitnessShelleyUTxO
 
 constructAddressFromIx
     :: forall n
