@@ -1185,7 +1185,7 @@ modifyShelleyTxBody txUpdate era = withConstraints era $
 -- distributeSurplus
 --------------------------------------------------------------------------------
 
--- | Error for when its impossible for 'distributeSurplus' to distribute the
+-- | Indicates that it's impossible for 'distributeSurplus' to distribute a
 -- surplus. As long as the surplus is larger than 'costOfIncreasingCoin', this
 -- should never happen.
 newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded W.Coin
@@ -1212,8 +1212,6 @@ mapTxFeeAndChange
     -- ^ The transformed fee and change
 mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
-
-
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
 --
