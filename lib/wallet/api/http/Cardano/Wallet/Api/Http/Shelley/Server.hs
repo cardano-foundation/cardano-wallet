@@ -2464,7 +2464,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         liftHandler $ except $ parseMintBurnData body validityInterval
 
     mintBurnReferenceScript <-
-        liftHandler $ except $ parseMintBurnReferenceScript body validityInterval
+        liftHandler $ except $ parseReferenceScript body validityInterval
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
@@ -2626,29 +2626,42 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     walletId = getApiT apiWalletId
 
-    parseMintBurnReferenceScript
+    parseReferenceScript
         :: ApiConstructTransactionData n
         -> (SlotNo, SlotNo)
-        -> Either ErrConstructTx (Maybe (ApiT (Script Cosigner)))
-    parseMintBurnReferenceScript tx validity = do
+        -> Either ErrConstructTx (Maybe (Script Cosigner))
+    parseReferenceScript tx validity = do
         let mbRefScript = tx ^. #referencePolicyScriptTemplate
-        for mbRefScript $ \refScript -> do
+        for mbRefScript $ \(ApiT refScript) -> do
             guardWrongScriptTemplate refScript
+            guardOutsideValidityInterval validity refScript
             Right refScript
       where
         guardWrongScriptTemplate
-            :: ApiT (Script Cosigner) -> Either ErrConstructTx ()
+            :: Script Cosigner -> Either ErrConstructTx ()
         guardWrongScriptTemplate apiScript =
             when (wrongMintingTemplate apiScript)
                 $ Left ErrConstructTxWrongMintingBurningTemplate
           where
-            wrongMintingTemplate (ApiT script) =
+            wrongMintingTemplate script =
                 isLeft (validateScriptOfTemplate RecommendedValidation script)
                 || countCosigners script /= (1 :: Int)
                 || existsNonZeroCosigner script
             countCosigners = foldScript (const (+ 1)) 0
             existsNonZeroCosigner =
                 foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
+
+        guardOutsideValidityInterval
+            :: (SlotNo, SlotNo)
+            -> Script Cosigner
+            -> Either ErrConstructTx ()
+        guardOutsideValidityInterval (before, hereafter) script =
+            when notWithinValidityInterval $
+                Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
+          where
+            notWithinValidityInterval =
+                not $ withinSlotInterval before hereafter $
+                    scriptSlotIntervals script
 
     parseMintBurnData
         :: ApiConstructTransactionData n
