@@ -45,7 +45,7 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Build bemchmarks (linux)'
+  - label: 'Build benchmarks (linux)'
     depends_on: linux-nix
     command: 'nix build .#ci.benchmarks.all'
     agents:
