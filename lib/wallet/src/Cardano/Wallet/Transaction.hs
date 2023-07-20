@@ -7,7 +7,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -39,8 +38,6 @@ module Cardano.Wallet.Transaction
     , PlutusVersion (..)
     , ScriptReference (..)
     , ReferenceInput (..)
-    , TxFeeAndChange (..)
-    , mapTxFeeAndChange
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     , emptyWitnessCount
@@ -52,7 +49,6 @@ module Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrMoreSurplusNeeded (..)
     ) where
 
 import Prelude
@@ -431,34 +427,6 @@ data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
-
--- | Error for when its impossible for 'distributeSurplus' to distribute the
--- surplus. As long as the surplus is larger than 'costOfIncreasingCoin', this
--- should never happen.
-newtype ErrMoreSurplusNeeded = ErrMoreSurplusNeeded Coin
-    deriving (Generic, Eq, Show)
-
--- | Small helper record to disambiguate between a fee and change Coin values.
--- Used by 'distributeSurplus'.
-data TxFeeAndChange change = TxFeeAndChange
-    { fee :: Coin
-    , change :: change
-    }
-    deriving (Eq, Show)
-
--- | Manipulates a 'TxFeeAndChange' value.
---
-mapTxFeeAndChange
-    :: (Coin -> Coin)
-    -- ^ A function to transform the fee
-    -> (change1 -> change2)
-    -- ^ A function to transform the change
-    -> TxFeeAndChange change1
-    -- ^ The original fee and change
-    -> TxFeeAndChange change2
-    -- ^ The transformed fee and change
-mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
-    TxFeeAndChange (mapFee fee) (mapChange change)
 
 data ValidityIntervalExplicit = ValidityIntervalExplicit
     { invalidBefore :: !(Quantity "slot" Word64)
