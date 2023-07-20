@@ -144,6 +144,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (KeyHash)
     , KeyRole (..)
+    , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -2462,6 +2463,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     mintBurnData <-
         liftHandler $ except $ parseMintBurnData body validityInterval
 
+    mintBurnReferenceScript <-
+        liftHandler $ except $ parseMintBurnReferenceScript body validityInterval
+
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
@@ -2621,6 +2625,30 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     ti = timeInterpreter (api ^. networkLayer)
 
     walletId = getApiT apiWalletId
+
+    parseMintBurnReferenceScript
+        :: ApiConstructTransactionData n
+        -> (SlotNo, SlotNo)
+        -> Either ErrConstructTx (Maybe (ApiT (Script Cosigner)))
+    parseMintBurnReferenceScript tx validity = do
+        let mbRefScript = tx ^. #referencePolicyScriptTemplate
+        for mbRefScript $ \refScript -> do
+            guardWrongScriptTemplate refScript
+            Right refScript
+      where
+        guardWrongScriptTemplate
+            :: ApiT (Script Cosigner) -> Either ErrConstructTx ()
+        guardWrongScriptTemplate apiScript =
+            when (wrongMintingTemplate apiScript)
+                $ Left ErrConstructTxWrongMintingBurningTemplate
+          where
+            wrongMintingTemplate (ApiT script) =
+                isLeft (validateScriptOfTemplate RecommendedValidation script)
+                || countCosigners script /= (1 :: Int)
+                || existsNonZeroCosigner script
+            countCosigners = foldScript (const (+ 1)) 0
+            existsNonZeroCosigner =
+                foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
 
     parseMintBurnData
         :: ApiConstructTransactionData n
