@@ -112,8 +112,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
-import Cardano.Wallet.Shelley.Transaction
-    ( KeyWitnessCount (..) )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -122,6 +120,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrUpdateSealedTx (..)
     )
+import Cardano.Wallet.Write.Tx.Sign
+    ( KeyWitnessCount (..) )
 import Control.Monad.Except
     ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except

@@ -236,13 +236,10 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
-    , KeyWitnessCount (..)
     , TxWitnessTag (..)
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
-    , estimateKeyWitnessCount
-    , estimateSignedTxSize
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -286,6 +283,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , posAndNegFromCardanoValue
     , updateTx
     )
+import Cardano.Wallet.Write.Tx.Sign
+    ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
 import Cardano.Wallet.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
