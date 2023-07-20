@@ -7,6 +7,7 @@ module Cardano.Wallet.Address.Keys.MintBurn
     ( derivePolicyKeyAndHash
     , toTokenMapAndScript
     , toTokenPolicyId
+    , replaceCosigner
     ) where
 
 import Prelude

@@ -246,7 +246,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Address.Keys.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId )
+    ( replaceCosigner, toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.Shared
@@ -2451,7 +2451,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     mintBurnData <-
         liftHandler $ except $ parseMintBurnData body validityInterval
 
-    mintBurnReferenceScript <-
+    mintBurnReferenceScriptTemplate <-
         liftHandler $ except $ parseReferenceScript body validityInterval
 
     delegationRequest <-
@@ -2547,6 +2547,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     , Just policyXPub)
             else
                 pure (transactionCtx1, Nothing)
+
+        let referenceScript = case policyXPubM of
+                Just policyXPub ->
+                    replaceCosigner
+                    ShelleyKeyS
+                    (Map.singleton (Cosigner 0) policyXPub)
+                    <$> mintBurnReferenceScriptTemplate
+                Nothing -> Nothing
 
         outs <- case body ^. #payments of
             Nothing -> pure []
