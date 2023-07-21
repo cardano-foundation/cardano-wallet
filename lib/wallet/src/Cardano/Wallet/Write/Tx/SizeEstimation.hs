@@ -330,8 +330,8 @@ estimateTxSize skeleton =
         = case txWitnessTag of
             TxWitnessByronUTxO -> 0
             TxWitnessShelleyUTxO ->
-                -- there cannot be missing payment script if there is delegation script
-                -- the latter is optional
+                -- there cannot be missing payment script if there is
+                -- delegation script the latter is optional
                 if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
                 else

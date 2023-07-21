@@ -279,8 +279,8 @@ class
 
 -- | Convenient constraints. Constraints may be dropped as we move to new eras.
 --
--- Adding too many constraints shouldn't be a concern as the point of 'RecentEra'
--- is to work with a small closed set of eras, anyway.
+-- Adding too many constraints shouldn't be a concern as the point of
+-- 'RecentEra' is to work with a small closed set of eras, anyway.
 type RecentEraLedgerConstraints era =
     ( Core.Era era
     , Core.EraTx era

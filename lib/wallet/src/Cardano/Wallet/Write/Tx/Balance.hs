@@ -391,7 +391,8 @@ balanceTransaction
     --
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
-    -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
+    -- or similar ticket. Relevant ledger code:
+    -- https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOIndex era
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
     -> ChangeAddressGen changeState
@@ -409,7 +410,9 @@ balanceTransaction
     partialTx
     = do
     let adjustedPartialTx =
-            over #tx (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp)) partialTx
+            over #tx
+                (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
+                partialTx
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -626,7 +629,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
 
-    (balance, candidateMinFee, witCount) <- balanceAfterSettingMinFee candidateTx
+    (balance, candidateMinFee, witCount) <-
+        balanceAfterSettingMinFee candidateTx
     surplus <- case Cardano.selectLovelace balance of
         (Cardano.Lovelace c)
             | c >= 0 ->
@@ -653,7 +657,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
+    fmap (, s') . guardTxSize witCount
+        =<< guardTxBalanced
+        =<< assembleTransaction
         TxUpdate
             { extraInputs
             , extraCollateral
@@ -735,7 +741,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
-        -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
+        -> ExceptT ErrBalanceTx m
+            (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
         let minfee = W.toWalletCoin $ evaluateMinimumFee
