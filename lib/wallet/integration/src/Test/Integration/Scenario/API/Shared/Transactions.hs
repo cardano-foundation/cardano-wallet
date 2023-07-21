@@ -159,7 +159,6 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
-    , (.<)
     , (.>)
     )
 import Test.Integration.Framework.Request
@@ -2742,14 +2741,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
          return (filter isExternal $ getFromResponse Prelude.id r)
 
      sendAmtToAddr ctx src dest amt addrIx = do
-         (_, Right (ApiSharedWallet (Right wal1))) <-
-             getSharedWallet ctx (ApiSharedWallet (Right dest))
-         let bal1 = wal1 ^. (#balance . #available)
-
-         (_, Right (ApiSharedWallet (Right wal2))) <-
-             getSharedWallet ctx (ApiSharedWallet (Right src))
-         let bal2 = wal2 ^. (#balance . #available)
-
          addrs <- listExternalAddresses ctx dest
          let destination = (addrs !! addrIx) ^. #id
          let payload = Json [json|{
@@ -2778,23 +2769,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
              [ expectSuccess
              , expectResponseCode HTTP.status202
              ]
-         eventually "dest wallet balance is higher than before" $ do
-             rGet <- request @ApiWallet ctx
-                 (Link.getWallet @'Shared dest) Default Empty
-             verify rGet
-                 [ expectField (#balance . #total)
-                     (.> bal1)
-                 , expectField (#balance . #available)
-                     (.> bal1)
+
+         let txid = getFromResponse #id submittedTx
+         let queryTx w = Link.getTransaction @'Shared w (ApiTxId txid)
+
+         eventually "Tx is in ledger finally for dest wallet" $ do
+             rGetTx' <- request @(ApiTransaction n) ctx (queryTx dest) Default Empty
+             verify rGetTx'
+                 [ expectResponseCode HTTP.status200
+                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                  ]
-         eventually "src wallet balance is lower than before" $ do
-             rGet <- request @ApiWallet ctx
-                 (Link.getWallet @'Shared src) Default Empty
-             verify rGet
-                 [ expectField (#balance . #total)
-                     (.< bal2)
-                 , expectField (#balance . #available)
-                     (.< bal2)
+         eventually "Tx is in ledger finally for src wallet" $ do
+             rGetTx' <- request @(ApiTransaction n) ctx (queryTx src) Default Empty
+             verify rGetTx'
+                 [ expectResponseCode HTTP.status200
+                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                  ]
 
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
