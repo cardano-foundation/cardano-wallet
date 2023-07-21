@@ -8,18 +8,18 @@
 
 <p align="center">
     <a href="https://github.com/cardano-foundation/cardano-wallet/releases">
-        <img src="https://img.shields.io/github/release-pre/input-output-hk/cardano-wallet.svg?style=for-the-badge"  />
+        <img src="https://img.shields.io/github/release-pre/cardano-foundation/cardano-wallet.svg?style=for-the-badge"  />
     </a>
     <a href="https://buildkite.com/cardanofoundation/cardano-wallet">
         <img src="https://img.shields.io/buildkite/da223f1dbf24e8a64a27f50a49190ce7a9ee867d221c20d70a/master?label=BUILD&style=for-the-badge"/>
     </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml/badge.svg">
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  />
     </a>
     <a href="https://buildkite.com/cardanofoundation/cardano-wallet-nightly">
         <img src="https://img.shields.io/buildkite/94de95cfe78b09c547cb109b0a44e6cd489341ea9e2c224ead/master?label=BENCHMARKS&style=for-the-badge"  />
     </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml/badge.svg">
+    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  />
     </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-docker.yml">
@@ -41,16 +41,13 @@
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_macos.yml?label=Docker-compose Macos&style=for-the-badge&branch=master"  />
     </a>
 </p>
-<p align="center">
-  <a href="https://github.com/cardano-foundation/cardano-wallet/tree/master/test/e2e#e2e-testing">E2E Tests Status</a>
-</p>
+
 
 <hr/>
 
 ## Overview
 
-Cardano Wallet helps you manage your Ada. You can use it to send and
-receive payments on the [Cardano](https://www.cardano.org) blockchain.
+Cardano Wallet is software that helps you manage your Ada. You can use it to send and receive payments on the [Cardano blockchain](https://www.cardano.org).
 
 This project provides an HTTP Application Programming Interface (API)
 and command-line interface (CLI) for working with your wallet.
@@ -60,18 +57,12 @@ It can be used as a component of a frontend such as
 interface for wallets. Most users who would like to use Cardano should
 start with Daedalus.
 
-> :information_source: This source code repository contains the next major version of Cardano
-> Wallet, which has been completely rewritten for the
-> [Shelley](https://roadmap.cardano.org/) phase.
->
-> :bulb: The Byron version of Cardano Wallet is in the
-> [cardano-sl](https://github.com/input-output-hk/cardano-sl)
-> repository.
+## Quickstart
 
-## Getting Started
+The `cardano-wallet` executable is an HTTP server that manages your wallet(s). Here is one way to start the server using Docker:
 
 ```
-wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
+wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
 NETWORK=mainnet docker-compose up
 ```
 
@@ -91,26 +82,33 @@ See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide
 
 NixOS users can also use the [NixOS service](https://cardano-foundation.github.io/cardano-wallet/user-guide/NixOS).
 
-## How to install (Linux / Windows / Mac OS)
+## Obtaining `cardano-wallet`
 
-See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
+### Executables (Linux / Windows / Mac OS)
 
-> ### Latest releases
+We provide executables as part of our [releases](https://github.com/cardano-foundation/cardano-wallet/releases). Please also see the installation instructions highlighted in the release notes.
+
+> **Latest releases**
 >
 > | cardano-wallet | cardano-node (compatible versions) |
 > | --- | --- |
 > | `master` branch | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-07-18](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-04-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
-> | [v2022-12-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | [v2023-07-18](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
+> | [v2023-04-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | [v2022-12-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
 
-## How to build from sources
+### Building from source
 
 See [Building](https://cardano-foundation.github.io/cardano-wallet/developers/Building)
 
-## How to test
+### Testing
 
 See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributing/Testing)
+
+## History
+
+The `cardano-wallet` repository was introduced during the [Shelley phase](https://roadmap.cardano.org/) of the Cardano blockchain.
+Previously, during the Byron phase, the wallet was part of the [cardano-sl](https://github.com/input-output-hk/cardano-sl) repository. (This is useful to know — sometimes the ghosts of the past come back to haunt us in the form of obscure bugs.)
 
 ## Documentation
 
@@ -125,5 +123,5 @@ See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributing/T
 <hr/>
 
 <p align="center">
-  <a href="https://github.com/input-output-hk/cardano-wallet/blob/master/LICENSE"><img src="https://img.shields.io/github/license/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
+  <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/LICENSE"><img src="https://img.shields.io/github/license/cardano-foundation/cardano-wallet.svg?style=for-the-badge" /></a>
 </p>
