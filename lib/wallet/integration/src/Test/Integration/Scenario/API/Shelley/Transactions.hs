@@ -271,6 +271,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         $ fromText endTimeAfterShelley)
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize 10 r
@@ -342,6 +343,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     (Just Descending)
+                    Nothing
                     Nothing
             (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
             case filter ((== Pending) . view (#status . #getApiT)) txs of
@@ -1463,6 +1465,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
             pure (getFromResponse Prelude.id rl)
@@ -1766,6 +1769,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -1781,6 +1785,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400MinWithdrawalWrong r
@@ -1792,6 +1797,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             w <- emptyWallet ctx
             let link = Link.listTransactions' @'Shelley w
                     (Just 1)
+                    Nothing
                     Nothing
                     Nothing
                     Nothing

@@ -117,7 +117,7 @@ newDBFresh timeInterpreter wid = do
 
         , putTxHistory = noErrorAlterDB db . mPutTxHistory
 
-        , readTransactions = \minWithdrawal order range mstatus _mlimit ->
+        , readTransactions = \minWithdrawal order range mstatus _mlimit maddress ->
             fmap (fromMaybe []) $
             readDBMaybe db $
                 mReadTxHistory
@@ -126,6 +126,7 @@ newDBFresh timeInterpreter wid = do
                     order
                     range
                     mstatus
+                    maddress
 
         -- TODO: shift implementation to mGetTx
         , getTx = \tid -> do
@@ -136,6 +137,7 @@ newDBFresh timeInterpreter wid = do
                         Nothing
                         Descending
                         wholeRange
+                        Nothing
                         Nothing
                 let txPresent (TransactionInfo{..}) = txInfoId == tid
                 case filter txPresent txInfos of

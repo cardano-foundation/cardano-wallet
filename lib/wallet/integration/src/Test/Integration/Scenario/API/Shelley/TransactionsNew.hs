@@ -544,7 +544,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         let expectedCreateTx =
                 [ expectSuccess
@@ -756,7 +756,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -777,7 +777,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -790,7 +790,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) + 1]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -805,7 +805,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [srcAmt]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb reqAmt
+        payload <- liftIO $ mkTxPayload ctx wb reqAmt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -818,7 +818,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -903,7 +903,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        payload <- liftIO $ mkTxPayload ctx wb amt 1
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -2301,7 +2301,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2326,7 +2326,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2369,7 +2369,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         (ApiSerialisedTransaction (ApiT apiTx) _) <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2422,7 +2422,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             wb <- foreignWallet ctx
 
             -- Construct tx
-            payload <- mkTxPayload ctx wb $ minUTxOValue (_mainEra ctx)
+            payload <- mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
             let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
             sealedTx <- getFromResponse #transaction <$>
                 request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2454,7 +2454,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let wid = wb ^. walletId
 
             -- Construct tx
-            payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+            payload <- mkTxPayload ctx wa (minUTxOValue (_mainEra ctx)) 1
             let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
             sealedTx <- getFromResponse #transaction <$>
                 request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2482,7 +2482,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
 
         -- Construct tx
-        payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx wa (minUTxOValue (_mainEra ctx)) 1
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -2806,7 +2806,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shelley src (Just 1)
-                Nothing Nothing Nothing Nothing)
+                Nothing Nothing Nothing Nothing Nothing)
             Default Empty
         verify rw1 [ expectListSize 0 ]
 
@@ -4161,7 +4161,139 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "parsing ApiValidityBound object failed, \
                 \expected Object, but encountered String"
             ]
+
+    it "TRANS_NEW_LIST_05 - filter address output side" $ \ctx -> runResourceT $ do
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = minUTxOValue'
+        let a2 = 2 * minUTxOValue'
+        let a3 = 3 * minUTxOValue'
+        let a4 = 4 * minUTxOValue'
+        let a5 = 5 * minUTxOValue'
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        -- initially empty wallet wDest should have two txs on address 0,
+        -- one tx on address 1 and three txs on address 2
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a2 0
+        sendAmtToAddr ctx wSrc wDest a3 1
+        sendAmtToAddr ctx wSrc wDest a1 2
+        sendAmtToAddr ctx wSrc wDest a4 2
+        sendAmtToAddr ctx wSrc wDest a5 2
+
+        eventually "There are exactly 6 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 6]
+
+        addrs <- listExternalAddresses ctx wDest
+
+        let addr0 = (head addrs) ^. #id
+        let query0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
+        rl0 <- request @([ApiTransaction n]) ctx query0 Default Empty
+        verify rl0 [expectListSize 2]
+        let txs0 = getFromResponse Prelude.id rl0
+        let amts0 = fmap (view #amount) txs0
+        Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
+
+        let addr1 = (addrs !! 1) ^. #id
+        let query1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
+        rl1 <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1 [expectListSize 1]
+        let txs1 = getFromResponse Prelude.id rl1
+        let amts1 = fmap (view #amount) txs1
+        amts1 `shouldBe` (Quantity <$> [a3])
+
+        let addr2 = (addrs !! 2) ^. #id
+        let query2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+        rl2 <- request @([ApiTransaction n]) ctx query2 Default Empty
+        verify rl2 [expectListSize 3]
+        let txs2 = getFromResponse Prelude.id rl2
+        let amts2 = fmap (view #amount) txs2
+        Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
+
+    it "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = minUTxOValue'
+        let a2 = fromIntegral $ oneAda * 5_000
+        let a3 = fromIntegral $ oneAda * 10_000
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        addrs <- listExternalAddresses ctx wDest
+
+        -- initially empty wallet wDest should have five txs on address 0 with
+        -- just 5*a1 on it, one tx on address 1 with a2 and three txs on address
+        -- 2 with 3*a3
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+        sendAmtToAddr ctx wSrc wDest a1 0
+
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+        sendAmtToAddr ctx wSrc wDest a3 2
+
+        eventually "There are exactly 8 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 8]
+
+        -- from newly funded wallet we send back funds in such a way that we can
+        -- indetify that address 2 was engaged in a given tx
+        let a4 = fromIntegral $ oneAda * 29_990
+        let addr2 = (addrs !! 2) ^. #id
+        let query2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+        rl2a <- request @([ApiTransaction n]) ctx query2 Default Empty
+        verify rl2a [expectListSize 3]
+        let txs2a = getFromResponse Prelude.id rl2a
+        let amts2a = fmap (view #amount) txs2a
+        amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
+
+        sendAmtToAddr ctx wDest wSrc a4 0
+        eventually "There are exactly 9 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 9]
+
+        rl2b <- request @([ApiTransaction n]) ctx query2 Default Empty
+        verify rl2b [expectListSize 4]
+
+        -- destination wallet is refunded on address 1
+        let addr1 = (addrs !! 1) ^. #id
+        let query1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
+        rl1a <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1a [expectListSize 0]
+
+        sendAmtToAddr ctx wSrc wDest a2 1
+        eventually "There are exactly 10 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 10]
+
+        -- next the funded wallet sends back funds in such a way that we can
+        -- indentify address 1 was engaged in a given tx
+        rl1b <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1b [expectListSize 1]
+
+        -- due to the amt there is no way address 1 is not engaged
+        let a5 = fromIntegral $ oneAda * 4_990
+        sendAmtToAddr ctx wDest wSrc a5 0
+        eventually "There are exactly 11 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 11]
+
+        rl1c <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1c [expectListSize 2]
   where
+    listTransactionsFilteredByAddress wallet addrM =
+        Link.listTransactions' @'Shelley wallet
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        addrM
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
@@ -4176,10 +4308,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         => Context
         -> ApiWallet
         -> Natural
+        -> Int
         -> m Payload
-    mkTxPayload ctx wDest amt = do
+    mkTxPayload ctx wDest amt addrIx = do
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! addrIx) ^. #id
         return $ Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -4189,6 +4322,60 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
+
+    listExternalAddresses ctx w = do
+        let link = Link.listAddresses @'Shelley w
+        r <- request @[ApiAddressWithPath n] ctx link Default Empty
+        expectResponseCode HTTP.status200 r
+        let isExternal (ApiAddressWithPath _ _
+                (_ NE.:| [_, _, (ApiT (DerivationIndex ix)), _] ) ) = ix == 0
+            isExternal _ = False
+        return (filter isExternal $ getFromResponse Prelude.id r)
+
+    sendAmtToAddr ctx src dest amt addrIx = do
+        addrs <- listExternalAddresses ctx dest
+        let destination = (addrs !! addrIx) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx src apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx src signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let txid = getFromResponse #id submittedTx
+        let queryTx w = Link.getTransaction @'Shelley w (ApiTxId txid)
+
+        eventually "Tx is in ledger finally for dest wallet" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx (queryTx dest) Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+        eventually "Tx is in ledger finally for src wallet" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx (queryTx src) Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
     mkTxPayloadHex
         :: MonadUnliftIO m

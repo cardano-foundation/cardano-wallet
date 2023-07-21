@@ -334,7 +334,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shelley src (Just 1)
-                Nothing Nothing Nothing Nothing)
+                Nothing Nothing Nothing Nothing Nothing)
             Default Empty
         verify rw1 [ expectListSize 0 ]
 
@@ -386,7 +386,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
             rw2 <- request @[ApiTransaction n] ctx
                 (Link.listTransactions' @'Shelley src (Just 1)
-                    Nothing Nothing Nothing Nothing)
+                    Nothing Nothing Nothing Nothing Nothing)
                 Default Empty
             verify rw2 [ expectListSize 1 ]
 

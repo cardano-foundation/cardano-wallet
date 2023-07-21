@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -90,6 +91,8 @@ import Cardano.Wallet.Primitive.Types
     , isWithinRange
     , toSlot
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -101,6 +104,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -341,8 +346,9 @@ mReadTxHistory
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
+    -> Maybe Address
     -> ModelOp wid s xprv [TransactionInfo]
-mReadTxHistory ti minWithdrawal order range mstatus db@(Database _ wallet txs) =
+mReadTxHistory ti minWithdrawal order range mstatus maddress db@(Database _ wallet txs) =
     (Right res, db)
   where
     slotStartTime' = runIdentity . interpretQuery ti . slotToUTCTime
@@ -352,7 +358,7 @@ mReadTxHistory ti minWithdrawal order range mstatus db@(Database _ wallet txs) =
 
     getTxs cp history
             = fmap (mkTransactionInfo cp)
-            $ filterTxHistory minWithdrawal order range
+            $ filterTxHistory minWithdrawal order range maddress
             $ catMaybes
             [ fmap (, meta) (Map.lookup tid txs)
             | (tid, meta) <- Map.toList history
@@ -497,10 +503,12 @@ filterTxHistory
     :: Maybe Coin
     -> SortOrder
     -> Range SlotNo
+    -> Maybe Address
     -> TxHistory
     -> TxHistory
-filterTxHistory minWithdrawal order range =
-    filter (filterWithdrawals minWithdrawal)
+filterTxHistory minWithdrawal order range address =
+    filter (filterAddress address)
+    . filter (filterWithdrawals minWithdrawal)
     . filter ((`isWithinRange` range) . (slotNo :: TxMeta -> SlotNo) . snd)
     . (case order of
         Ascending -> reverse
@@ -514,6 +522,26 @@ filterTxHistory minWithdrawal order range =
     filterWithdrawals = maybe
         (const True)
         (\inf -> atLeast inf . withdrawals . fst)
+
+    addressInTxOut addr = any (\(TxOut addr' _) -> addr' == addr)
+    checkOut addr = addressInTxOut addr . outputs . fst
+
+    isAddressPresent addr = \case
+        (_, Just (TxOut addr' _)) -> addr' == addr
+        _ -> False
+    addressInInp addr = any (isAddressPresent addr)
+    checkInp addr = addressInInp addr . resolvedInputs . fst
+    checkCollInp addr = addressInInp addr . resolvedCollateralInputs . fst
+
+    addressInCollTxOut addr (Just (TxOut addr' _)) = addr' == addr
+    addressInCollTxOut _ Nothing = False
+    checkCollOut addr = addressInCollTxOut addr . collateralOutput . fst
+
+    filterAddress addrM txhistory = case addrM of
+        Nothing -> True
+        Just addr ->
+            checkOut addr txhistory || checkInp addr txhistory ||
+            checkCollInp addr txhistory || checkCollOut addr txhistory
 
 tip :: Wallet s -> SlotNo
 tip = (slotNo :: BlockHeader -> SlotNo) . currentTip

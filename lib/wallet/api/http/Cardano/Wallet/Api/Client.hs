@@ -172,6 +172,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
         -> Maybe ApiLimit
+        -> Maybe (ApiAddressIdT Aeson.Value)
         -> Bool
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
@@ -366,8 +367,8 @@ byronTransactionClient =
             = client (Proxy @("v2" :> Proxy_))
 
     in TransactionClient
-        { listTransactions = \wid start end order limit _ ->
-            _listTransactions wid start end order limit
+        { listTransactions = \wid start end order limit addr _ ->
+            _listTransactions wid start end order limit addr
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx

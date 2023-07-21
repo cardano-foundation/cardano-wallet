@@ -16,7 +16,8 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
+    ( ApiAddress (..)
+    , ApiAddressWithPath
     , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
@@ -636,6 +637,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                         Nothing
                         Nothing
                         (Just $ ApiLimit 9)
+                        Nothing
                 r <- request @([ApiTransaction n]) ctx link Default Empty
                 verify r
                     [ expectResponseCode HTTP.status200
@@ -729,6 +731,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -742,3 +745,123 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    describe "BYRON_TX_LIST_ADDRESS - Transactions can be filtered by address" $
+        forM_ [ (fixtureRandomWallet, emptyRandomWallet, "Byron wallet")
+              , (fixtureIcarusWallet, emptyIcarusWallet, "Icarus wallet")] $
+            \(srcFixture, srcEmpty, name) -> it name $ \ctx -> runResourceT $ do
+                wSrc <- srcFixture ctx
+                wDest <- srcEmpty ctx
+                let link w = listTransactionsFilteredByAddress w Nothing
+                r1 <- request @([ApiTransaction n]) ctx (link wSrc) Default Empty
+                verify r1
+                    [ expectResponseCode HTTP.status200
+                    , expectListSize 10
+                    ]
+                r2 <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
+                verify r2
+                    [ expectResponseCode HTTP.status200
+                    , expectListSize 0
+                    ]
+
+                let a1 = oneAda * 10
+                let a2 = oneAda * 100
+                let a3 = oneAda * 1_000
+
+                addr0 <- sendAmtToNewAddr ctx wSrc wDest a1 0
+                addr1 <- sendAmtToNewAddr ctx wSrc wDest a2 1
+                addr2 <- sendAmtToNewAddr ctx wSrc wDest a3 2
+
+                eventually "There are exactly 3 transactions for wDest" $ do
+                    rl <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
+                    verify rl [expectListSize 3]
+
+                let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
+                rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
+                verify rl0 [expectListSize 1]
+
+                let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
+                rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
+                verify rl1 [expectListSize 1]
+
+                let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+                rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
+                verify rl2 [expectListSize 1]
+
+                let a4 = oneAda * 900
+                -- fixture wallet has 10 addresses, hence we use next one
+                _ <- sendAmtToNewAddr ctx wDest wSrc a4 10
+                let linkList3 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+                rl3 <- request @([ApiTransaction n]) ctx linkList3 Default Empty
+                verify rl3 [expectListSize 2]
+  where
+    listTransactionsFilteredByAddress wallet addrM =
+        Link.listTransactions' @'Byron wallet
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        addrM
+
+    oneAda :: Integer
+    oneAda = 1_000_000
+
+    getAddress ctx wal addrIx = do
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wal) Default Empty
+
+        let walType = getFromResponse #discovery ra
+        -- needs to be >= 2^31
+        let addrIx' = 2_147_483_648 + addrIx
+
+        case walType of
+            DiscoveryRandom -> do
+                let payloadAddr = Json [json|
+                       { "passphrase": #{fixturePassphrase}
+                       , "address_index": #{addrIx'}
+                       }|]
+                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wal) Default payloadAddr
+                pure $ getFromResponse #id rA
+            DiscoverySequential -> do
+                let link = Link.listAddresses @'Byron wal
+                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
+                let addrs = getFromResponse Prelude.id rA2
+                pure $ (addrs !! addrIx) ^. #id
+
+    sendAmtToNewAddr ctx src dest amt addrIx = do
+        destination <- getAddress ctx dest addrIx
+
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Byron src) Default payloadTx
+        verify rTx
+            [ expectSuccess ]
+
+        let txId = getFromResponse (#id) rTx
+
+        eventually "Tx is in ledger finally for dest wallet" $ do
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron dest (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+        eventually "Tx is in ledger finally for src wallet" $ do
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron src (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        pure destination

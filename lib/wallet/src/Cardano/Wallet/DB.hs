@@ -67,12 +67,16 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, TransactionInfo (..), Tx (..), TxMeta (..), TxStatus )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Cardano.Wallet.Read.Tx.Cardano
@@ -227,6 +231,7 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Range SlotNo
         -> Maybe TxStatus
         -> Maybe Natural
+        -> Maybe Address
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
@@ -361,7 +366,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putTxHistory = putTxHistory_ dbTxHistory
-    , readTransactions = \minWithdrawal order range status limit ->
+    , readTransactions = \minWithdrawal order range status limit maddress ->
         readCurrentTip >>= \tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
                     then readTxHistory_ dbTxHistory range tip limit order
@@ -388,6 +393,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     . maybe id (take . fromIntegral) limit
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
+                    . filterAddress maddress
                     $ inLedgers <> inSubmissions
     , getTx = \txid -> readCurrentTip >>= \tip -> do
         historical <- getTx_ dbTxHistory txid tip
@@ -507,6 +513,27 @@ filterMinWithdrawal Nothing = id
 filterMinWithdrawal (Just minWithdrawal) = filter p
   where
     p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
+
+-- | Keep all transactions where the address is engaged.
+filterAddress
+    :: Maybe Address -> [TransactionInfo] -> [TransactionInfo]
+filterAddress Nothing = id
+filterAddress (Just addr) =
+    filter (\info -> p1 info || p2 info || p3 info || p4 info)
+  where
+    addressInTxOut = any (\(TxOut addr' _) -> addr' == addr)
+    p1 = addressInTxOut . txInfoOutputs
+
+    isAddressPresent = \case
+        (_, Just (TxOut addr' _)) -> addr' == addr
+        _ -> False
+    addressInInp = any isAddressPresent
+    p2 = addressInInp . txInfoInputs
+    p3 = addressInInp . txInfoCollateralInputs
+
+    addressInCollaterlaOut (Just (TxOut addr' _)) = addr' == addr
+    addressInCollaterlaOut Nothing = False
+    p4 = addressInCollaterlaOut . txInfoCollateralOutput
 
 mkTransactionInfo
     :: Monad stm

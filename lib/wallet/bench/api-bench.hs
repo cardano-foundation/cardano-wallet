@@ -246,12 +246,12 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50) Nothing
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
         $ W.createMigrationPlan ctx Tx.NoWithdrawal
@@ -326,12 +326,12 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50) Nothing
 
     pure BenchSharedResults
         { benchName = benchmarkName
@@ -395,12 +395,12 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50) Nothing
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
         $ W.createMigrationPlan ctx Tx.NoWithdrawal

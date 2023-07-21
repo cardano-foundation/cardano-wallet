@@ -167,7 +167,7 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\db _ -> readTxHistory_ db)
                 ( let sort' =
                         GenTxHistory
-                            . filterTxHistory Nothing Descending wholeRange
+                            . filterTxHistory Nothing Descending wholeRange Nothing
                             . unGenTxHistory
                   in  Identity . sort' . fold
                 )
@@ -185,7 +185,7 @@ readTxHistory_
 readTxHistory_ DBLayer {..} =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
-            (readTransactions Nothing Descending wholeRange Nothing Nothing)
+            (readTransactions Nothing Descending wholeRange Nothing Nothing Nothing)
 
 putTxHistory_
     :: DBLayer m s
@@ -387,6 +387,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
                             Nothing
                             Descending
                             wholeRange
+                            Nothing
                             Nothing
                             Nothing
             pure (point, txs)

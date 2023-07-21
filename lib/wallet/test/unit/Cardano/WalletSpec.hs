@@ -482,7 +482,7 @@ walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
         atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
             W.listTransactions wl Nothing Nothing Nothing
-                Descending Nothing
+                Descending Nothing Nothing
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
@@ -526,7 +526,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
             atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
                 W.listTransactions wl Nothing start stop order
-                    $ Just limitNatural
+                    (Just limitNatural) Nothing
             let times = [(txInfoId i, txInfoTime i) | i <- txs]
             shouldBe times $ take limit $ sortOn (dir . snd) $ do
                 (tx, meta) <- history'

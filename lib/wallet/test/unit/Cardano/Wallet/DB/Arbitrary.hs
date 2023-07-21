@@ -290,7 +290,7 @@ instance Arbitrary GenTxHistory where
         -- tracked as part of the WalletState.
         filter (isInLedger . snd) <$> scale (min 25) arbitrary
       where
-        sortTxHistory = filterTxHistory Nothing Descending wholeRange
+        sortTxHistory = filterTxHistory Nothing Descending wholeRange Nothing
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
