@@ -1202,13 +1202,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> wal) balanceExp
 
         txs <- eventually "I make sure there are exactly 2 transactions" $ do
-            let linkList = Link.listTransactions' @'Shared walDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress walDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
             pure (getFromResponse Prelude.id rl)
@@ -2616,13 +2610,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a5 2
 
         eventually "There are exactly 6 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shared wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 6]
 
@@ -2632,13 +2620,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let addrs = getFromResponse Prelude.id rAddr
 
         let addr0 = (head addrs) ^. #id
-        let linkList0 = Link.listTransactions' @'Shared wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr0))
+        let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
         verify rl0 [expectListSize 2]
         let txs0 = getFromResponse Prelude.id rl0
@@ -2646,13 +2628,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
-        let linkList1 = Link.listTransactions' @'Shared wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr1))
+        let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
         rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
         verify rl1 [expectListSize 1]
         let txs1 = getFromResponse Prelude.id rl1
@@ -2660,13 +2636,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         amts1 `shouldBe` (Quantity <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2 = Link.listTransactions' @'Shared wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr2))
+        let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
         verify rl2 [expectListSize 3]
         let txs2 = getFromResponse Prelude.id rl2
@@ -2696,13 +2666,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a3 2
 
         eventually "There are exactly 8 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shared wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 8]
 
@@ -2712,13 +2676,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- indetify that address 2 was engaged in a given tx
         let a4 = fromIntegral $ oneAda * 29_990
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2a = Link.listTransactions' @'Shared wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr2))
+        let linkList2a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
         verify rl2a [expectListSize 3]
         let txs2a = getFromResponse Prelude.id rl2a
@@ -2727,13 +2685,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         sendAmtToAddr ctx wDest wSrc a4 0
         eventually "There are exactly 9 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shared wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 9]
 
@@ -2742,26 +2694,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         -- destination wallet is refunded on address 1
         let addr1 = (addrs !! 1) ^. #id
-        let linkList1a = Link.listTransactions' @'Shared wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr1))
+        let linkList1a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
         rl1a <- request @([ApiTransaction n]) ctx linkList1a Default Empty
         verify rl1a [expectListSize 0]
 
         sendAmtToAddr ctx wSrc wDest a2 1
 
         eventually "There are exactly 10 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shared wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 10]
         rl1b <- request @([ApiTransaction n]) ctx linkList1a Default Empty
@@ -2773,19 +2713,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         sendAmtToAddr ctx wDest wSrc a5 0
         eventually "There are exactly 11 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shared wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 11]
 
         rl1c <- request @([ApiTransaction n]) ctx linkList1a Default Empty
         verify rl1c [expectListSize 2]
   where
+     listTransactionsFilteredByAddress wallet addrM =
+         Link.listTransactions' @'Shared wallet
+         Nothing
+         Nothing
+         Nothing
+         Nothing
+         Nothing
+         addrM
+
      oneAda :: Integer
      oneAda = 1_000_000
 
