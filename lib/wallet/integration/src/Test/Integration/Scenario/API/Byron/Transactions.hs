@@ -97,8 +97,6 @@ import Test.Integration.Framework.DSL
     , toQueryString
     , verify
     , walletId
-    , (.<)
-    , (.>)
     , (.>=)
     )
 import Test.Integration.Framework.Request
@@ -831,14 +829,6 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 pure $ (addrs !! addrIx) ^. #id
 
     sendAmtToNewAddr ctx src dest amt addrIx = do
-        rDest <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron dest) Default Empty
-        let balDest = getFromResponse (#balance . #available) rDest
-
-        rSrc <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron src) Default Empty
-        let balSrc = getFromResponse (#balance . #available) rSrc
-
         destination <- getAddress ctx dest addrIx
 
         let payloadTx = Json [json|{
@@ -857,24 +847,21 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess ]
 
-        eventually "dest wallet balance is higher than before" $ do
-            rGet <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron dest) Default Empty
-            verify rGet
-                [ expectField (#balance . #total)
-                    (.> balDest)
-                , expectField (#balance . #available)
-                    (.> balDest)
-                ]
+        let txId = getFromResponse (#id) rTx
 
-        eventually "src wallet balance is lower than before" $ do
-            rGet <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron src) Default Empty
-            verify rGet
-                [ expectField (#balance . #total)
-                    (.< balSrc)
-                , expectField (#balance . #available)
-                    (.< balSrc)
+        eventually "Tx is in ledger finally for dest wallet" $ do
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron dest (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+        eventually "Tx is in ledger finally for src wallet" $ do
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron src (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
         pure destination
