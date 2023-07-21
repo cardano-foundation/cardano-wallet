@@ -754,13 +754,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             \(srcFixture, srcEmpty, name) -> it name $ \ctx -> runResourceT $ do
                 wSrc <- srcFixture ctx
                 wDest <- srcEmpty ctx
-                let link w = Link.listTransactions' @'Byron w
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
+                let link w = listTransactionsFilteredByAddress w Nothing
                 r1 <- request @([ApiTransaction n]) ctx (link wSrc) Default Empty
                 verify r1
                     [ expectResponseCode HTTP.status200
@@ -784,49 +778,34 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     rl <- request @([ApiTransaction n]) ctx (link wDest) Default Empty
                     verify rl [expectListSize 3]
 
-                let linkList0 = Link.listTransactions' @'Byron wDest
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        (Just (apiAddress addr0))
+                let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
                 rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
                 verify rl0 [expectListSize 1]
 
-                let linkList1 = Link.listTransactions' @'Byron wDest
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        (Just (apiAddress addr1))
+                let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
                 rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
                 verify rl1 [expectListSize 1]
 
-                let linkList2 = Link.listTransactions' @'Byron wDest
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        (Just (apiAddress addr2))
+                let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
                 rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
                 verify rl2 [expectListSize 1]
 
                 let a4 = oneAda * 900
                 -- fixture wallet has 10 addresses, hence we use next one
                 _ <- sendAmtToNewAddr ctx wDest wSrc a4 10
-                let linkList3 = Link.listTransactions' @'Byron wDest
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        Nothing
-                        (Just (apiAddress addr2))
+                let linkList3 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
                 rl3 <- request @([ApiTransaction n]) ctx linkList3 Default Empty
                 verify rl3 [expectListSize 2]
   where
+    listTransactionsFilteredByAddress wallet addrM =
+        Link.listTransactions' @'Byron wallet
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        addrM
+
     oneAda :: Integer
     oneAda = 1_000_000
 
