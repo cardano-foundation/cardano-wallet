@@ -4181,31 +4181,31 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a5 2
 
         eventually "There are exactly 6 transactions for wDest" $ do
-            let linkList = listTransactionsFilteredByAddress wDest Nothing
-            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
             verify rl [expectListSize 6]
 
-        addrs <- listAddresses @n ctx wDest
+        addrs <- listExternalAddresses ctx wDest
 
         let addr0 = (head addrs) ^. #id
-        let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
-        rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
+        let query0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
+        rl0 <- request @([ApiTransaction n]) ctx query0 Default Empty
         verify rl0 [expectListSize 2]
         let txs0 = getFromResponse Prelude.id rl0
         let amts0 = fmap (view #amount) txs0
         Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
-        let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
-        rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
+        let query1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
+        rl1 <- request @([ApiTransaction n]) ctx query1 Default Empty
         verify rl1 [expectListSize 1]
         let txs1 = getFromResponse Prelude.id rl1
         let amts1 = fmap (view #amount) txs1
         amts1 `shouldBe` (Quantity <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
-        rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
+        let query2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+        rl2 <- request @([ApiTransaction n]) ctx query2 Default Empty
         verify rl2 [expectListSize 3]
         let txs2 = getFromResponse Prelude.id rl2
         let amts2 = fmap (view #amount) txs2
@@ -4217,6 +4217,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let a2 = fromIntegral $ oneAda * 5_000
         let a3 = fromIntegral $ oneAda * 10_000
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        addrs <- listExternalAddresses ctx wDest
 
         -- initially empty wallet wDest should have five txs on address 0 with
         -- just 5*a1 on it, one tx on address 1 with a2 and three txs on address
@@ -4232,18 +4234,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a3 2
 
         eventually "There are exactly 8 transactions for wDest" $ do
-            let linkList = listTransactionsFilteredByAddress wDest Nothing
-            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
             verify rl [expectListSize 8]
-
-        addrs <- listAddresses @n ctx wDest
 
         -- from newly funded wallet we send back funds in such a way that we can
         -- indetify that address 2 was engaged in a given tx
         let a4 = fromIntegral $ oneAda * 29_990
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
-        rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        let query2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
+        rl2a <- request @([ApiTransaction n]) ctx query2 Default Empty
         verify rl2a [expectListSize 3]
         let txs2a = getFromResponse Prelude.id rl2a
         let amts2a = fmap (view #amount) txs2a
@@ -4251,52 +4251,40 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         sendAmtToAddr ctx wDest wSrc a4 0
         eventually "There are exactly 9 transactions for wDest" $ do
-            let linkList = listTransactionsFilteredByAddress wDest Nothing
-            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
             verify rl [expectListSize 9]
 
-        rl2b <- request @([ApiTransaction n]) ctx linkList2a Default Empty
+        rl2b <- request @([ApiTransaction n]) ctx query2 Default Empty
         verify rl2b [expectListSize 4]
 
-        eventually "Wallet balance is as expected" $ do
-            rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wSrc) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldSatisfy` (> 0))
-                ]
-
         -- destination wallet is refunded on address 1
-        sendAmtToAddr ctx wSrc wDest a2 1
+        let addr1 = (addrs !! 1) ^. #id
+        let query1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
+        rl1a <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1a [expectListSize 0]
 
-        eventually "Wallet balance is as expected" $ do
-            rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wDest) Default Empty
-            verify rWa
-                [ expectSuccess
-                , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldSatisfy` (> 0))
-                ]
+        sendAmtToAddr ctx wSrc wDest a2 1
+        eventually "There are exactly 10 transactions for wDest" $ do
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
+            verify rl [expectListSize 10]
 
         -- next the funded wallet sends back funds in such a way that we can
-        -- indetify address 1 was engaged in a given tx
-        let a5 = fromIntegral $ oneAda * 4_990
-        let addr1 = (addrs !! 1) ^. #id
-        let linkList1a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
-        rl1a <- request @([ApiTransaction n]) ctx linkList1a Default Empty
-        let txs1a = getFromResponse Prelude.id rl1a
+        -- indentify address 1 was engaged in a given tx
+        rl1b <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1b [expectListSize 1]
 
+        -- due to the amt there is no way address 1 is not engaged
+        let a5 = fromIntegral $ oneAda * 4_990
         sendAmtToAddr ctx wDest wSrc a5 0
         eventually "There are exactly 11 transactions for wDest" $ do
-            let linkList = listTransactionsFilteredByAddress wDest Nothing
-            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            let query = listTransactionsFilteredByAddress wDest Nothing
+            rl <- request @([ApiTransaction n]) ctx query Default Empty
             verify rl [expectListSize 11]
 
-        rl1b <- request @([ApiTransaction n]) ctx linkList1a Default Empty
-        verify rl1b [expectListSize (length txs1a + 1)]
+        rl1c <- request @([ApiTransaction n]) ctx query1 Default Empty
+        verify rl1c [expectListSize 2]
   where
     listTransactionsFilteredByAddress wallet addrM =
         Link.listTransactions' @'Shelley wallet
@@ -4335,8 +4323,27 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
+    listExternalAddresses ctx w = do
+        let link = Link.listAddresses @'Shelley w
+        r <- request @[ApiAddressWithPath n] ctx link Default Empty
+        expectResponseCode HTTP.status200 r
+        let isExternal (ApiAddressWithPath _ _
+                (_ NE.:| [_, _, (ApiT (DerivationIndex ix)), _] ) ) = ix == 0
+            isExternal _ = False
+        return (filter isExternal $ getFromResponse Prelude.id r)
+
     sendAmtToAddr ctx src dest amt addrIx = do
-        payload <- liftIO $ mkTxPayload ctx dest amt addrIx
+        addrs <- listExternalAddresses ctx dest
+        let destination = (addrs !! addrIx) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default payload
@@ -4353,6 +4360,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        let txid = getFromResponse #id submittedTx
+        let queryTx w = Link.getTransaction @'Shelley w (ApiTxId txid)
+
+        eventually "Tx is in ledger finally for dest wallet" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx (queryTx dest) Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+        eventually "Tx is in ledger finally for src wallet" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx (queryTx src) Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
     mkTxPayloadHex
         :: MonadUnliftIO m
