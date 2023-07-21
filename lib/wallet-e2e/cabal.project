@@ -1,0 +1,4 @@
+packages: cardano-wallet-e2e.cabal
+
+constraints: 
+  optparse-applicative ^>= 0.17

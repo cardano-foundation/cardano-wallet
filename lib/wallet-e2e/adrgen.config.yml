@@ -1,0 +1,12 @@
+default_meta: []
+default_status: proposed
+directory: docs/adr
+id_digit_number: 4
+supported_statuses:
+    - proposed
+    - accepted
+    - rejected
+    - superseded
+    - amended
+    - deprecated
+template_file: docs/adr/adr_template.md
