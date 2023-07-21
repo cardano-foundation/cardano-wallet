@@ -1,3 +1,3 @@
 # Continuous Integration
 
-TODO: Information about our Continuous Integration pipeline.
+TODO: Information about our continuous integration pipeline.

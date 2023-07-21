@@ -7,8 +7,8 @@ This includes:
 * Information about our **code** ("what"). This includes information about
     
     * coding style,
-    * libraries,
-    * tools,
+    * libraries, and
+    * tools
     
     that we use, and which are not specific to our problem domain.
 
