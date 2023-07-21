@@ -4181,26 +4181,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a5 2
 
         eventually "There are exactly 6 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shelley wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 6]
 
         addrs <- listAddresses @n ctx wDest
 
         let addr0 = (head addrs) ^. #id
-        let linkList0 = Link.listTransactions' @'Shelley wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr0))
+        let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
         verify rl0 [expectListSize 2]
         let txs0 = getFromResponse Prelude.id rl0
@@ -4208,13 +4196,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
-        let linkList1 = Link.listTransactions' @'Shelley wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr1))
+        let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
         rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
         verify rl1 [expectListSize 1]
         let txs1 = getFromResponse Prelude.id rl1
@@ -4222,13 +4204,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         amts1 `shouldBe` (Quantity <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2 = Link.listTransactions' @'Shelley wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr2))
+        let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
         verify rl2 [expectListSize 3]
         let txs2 = getFromResponse Prelude.id rl2
@@ -4256,13 +4232,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         sendAmtToAddr ctx wSrc wDest a3 2
 
         eventually "There are exactly 8 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shelley wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 8]
 
@@ -4272,13 +4242,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- indetify that address 2 was engaged in a given tx
         let a4 = fromIntegral $ oneAda * 29_990
         let addr2 = (addrs !! 2) ^. #id
-        let linkList2a = Link.listTransactions' @'Shelley wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr2))
+        let linkList2a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
         verify rl2a [expectListSize 3]
         let txs2a = getFromResponse Prelude.id rl2a
@@ -4287,13 +4251,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         sendAmtToAddr ctx wDest wSrc a4 0
         eventually "There are exactly 9 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shelley wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 9]
 
@@ -4327,31 +4285,27 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- indetify address 1 was engaged in a given tx
         let a5 = fromIntegral $ oneAda * 4_990
         let addr1 = (addrs !! 1) ^. #id
-        let linkList1a = Link.listTransactions' @'Shelley wDest
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                Nothing
-                (Just (apiAddress addr1))
+        let linkList1a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
         rl1a <- request @([ApiTransaction n]) ctx linkList1a Default Empty
         let txs1a = getFromResponse Prelude.id rl1a
 
         sendAmtToAddr ctx wDest wSrc a5 0
         eventually "There are exactly 11 transactions for wDest" $ do
-            let linkList = Link.listTransactions' @'Shelley wDest
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
+            let linkList = listTransactionsFilteredByAddress wDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 11]
 
         rl1b <- request @([ApiTransaction n]) ctx linkList1a Default Empty
         verify rl1b [expectListSize (length txs1a + 1)]
   where
+    listTransactionsFilteredByAddress wallet addrM =
+        Link.listTransactions' @'Shelley wallet
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        addrM
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
