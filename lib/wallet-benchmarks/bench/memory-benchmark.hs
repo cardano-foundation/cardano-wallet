@@ -150,7 +150,7 @@ copyNodeSnapshot snapshot tmp = do
     Cardano commands
 ------------------------------------------------------------------------------}
 getLatestBlockHeight :: Tracer IO Text -> C.CardanoWalletConn -> IO Int
-getLatestBlockHeight tr wallet = do
+getLatestBlockHeight _tr wallet = do
     fmap (fromMaybe 0 . readMaybe)
         . flip S.readCreateProcess ""
         . S.shell
