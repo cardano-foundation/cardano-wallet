@@ -500,8 +500,6 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -558,7 +556,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( UTxOAssumptions (..) )
+    ( Redeemer (..), UTxOAssumptions (..) )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq

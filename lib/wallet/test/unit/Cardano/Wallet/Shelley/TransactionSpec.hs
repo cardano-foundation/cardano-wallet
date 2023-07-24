@@ -179,8 +179,6 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( testParameter_coinsPerUTxOByte_Babbage
     , testParameter_coinsPerUTxOWord_Alonzo
     )
-import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -265,6 +263,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
+    , Redeemer (..)
     , TxFeeAndChange (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)

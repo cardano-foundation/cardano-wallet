@@ -88,6 +88,9 @@ module Cardano.Wallet.Write.Tx
     , modifyLedgerBody
     , emptyTx
 
+    -- * TxId
+    , Ledger.TxId
+
     -- * TxOut
     , Core.TxOut
     , BabbageTxOut (..)
