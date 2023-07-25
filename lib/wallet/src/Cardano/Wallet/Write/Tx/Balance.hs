@@ -412,7 +412,7 @@ balanceTransaction
             over #tx
                 (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
                 partialTx
-    let balanceWith strategy =
+        balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
                 tr
@@ -617,9 +617,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 AllScriptPaymentCredentialsFrom _template toInpScripts ->
                     toInpScripts . view #address . snd <$>
                         extraInputs <> extraCollateral'
-
-    let extraCollateral = fst <$> extraCollateral'
-    let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+        extraCollateral = fst <$> extraCollateral'
+        unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
@@ -644,8 +643,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     let feeAndChange = TxFeeAndChange
             (unsafeFromLovelace candidateMinFee)
             (extraOutputs)
-
-    let feePerByte = getFeePerByte (recentEra @era) pp
+        feePerByte = getFeePerByte (recentEra @era) pp
 
     -- @distributeSurplus@ should never fail becase we have provided enough
     -- padding in @selectAssets@.
@@ -696,7 +694,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                        Left i
                     Just o -> do
                         let i' = fromCardanoTxIn i
-                        let W.TxOut addr bundle = fromCardanoTxOut o
+                            W.TxOut addr bundle = fromCardanoTxOut o
                         pure (WalletUTxO i' addr, bundle)
 
         case partitionEithers res of
@@ -744,12 +742,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
-        let minfee = W.toWalletCoin $ evaluateMinimumFee
+            minfee = W.toWalletCoin $ evaluateMinimumFee
                 (recentEra @era) pp (fromCardanoTx tx) witCount
-        let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
+            update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
-        let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
+            minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
         return (balance, minfee', witCount)
       where
         getBody (Cardano.Tx body _) = body
@@ -771,7 +769,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let u = Map.mapKeys fromCardanoTxIn
                 . Map.map fromCardanoTxOut
                 $ (unUTxO u')
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
+            conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
                     Nothing -> pure ()
@@ -833,7 +831,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- total balance. Because the wallet does not consider the network tag,
         -- it will drop one of the two, leading to a discrepancy.
         let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
-        let conflictingWdrlNetworks = case Cardano.txWithdrawals body of
+            conflictingWdrlNetworks = case Cardano.txWithdrawals body of
                 Cardano.TxWithdrawalsNone -> False
                 Cardano.TxWithdrawals _ wdrls -> Set.size
                     (Set.fromList $ map networkOfWdrl wdrls) > 1
