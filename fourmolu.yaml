@@ -1,21 +1,16 @@
+indentation: 2
+column-limit: 80
+newlines-between-decls: 1
 comma-style: leading
 function-arrows: leading
 import-export-style: leading
-fixities:
-  - infixr 9  .
-  - infixr 5  ++
-  - infixl 4  <$, <$>
-  - infixl 2  >>, >>=
-  - infixr 2  =<<, <=<
-  - infixr 1  $, $!
-  - infixl 4 <*>, <*, *>, <**>
-  - infixl 6 ^.
-  - infixl 3 =.
 haddock-style: single-line
+haddock-style-module: single-line
+let-style: newline
 in-style: left-align
-indent-wheres: false
-indentation: 4
-let-style: auto
-newlines-between-decls: 1
-record-brace-space: false
-respectful: true
+indent-wheres: true
+record-brace-space: true
+respectful: false
+single-constraint-parens: auto
+fixities:
+  - infixr 1 $
