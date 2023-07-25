@@ -19,6 +19,7 @@ library
   default-language:
       Haskell2010
   default-extensions:
+      ImportQualifiedPost
       NoImplicitPrelude
       OverloadedStrings
   ghc-options:
@@ -54,6 +55,7 @@ test-suite unit
   default-language:
       Haskell2010
   default-extensions:
+      ImportQualifiedPost
       NoImplicitPrelude
       OverloadedStrings
   ghc-options:
