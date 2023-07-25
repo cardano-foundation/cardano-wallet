@@ -1563,23 +1563,25 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
         pair :| pairs | adaAvailable >= adaRequired ->
             -- We have enough ada available to pay for the minimum required
             -- amount of every asset map that remains in our list:
-            let assetMapsRemaining = fst <$> (pair :| pairs) in
-            let bundlesForAssetsWithMinimumCoins =
-                    assignMinimumCoin minCoinFor <$> assetMapsRemaining in
-            -- Calculate the amount of ada that remains after assigning the
-            -- minimum amount to each map. This should be safe, as we have
-            -- already determined that we have enough ada available:
-            let adaRemaining = adaAvailable `Coin.distance` adaRequired in
-            -- Partition any remaining ada according to the weighted
-            -- distribution of output coins that remain in our list:
-            let outputCoinsRemaining = snd <$> (pair :| pairs) in
-            let bundlesForOutputCoins = TokenBundle.fromCoin <$>
-                    makeChangeForCoin outputCoinsRemaining adaRemaining in
-            -- Finally, combine the minimal coin asset bundles with the
-            -- bundles obtained by partitioning the remaining ada amount:
-            Right $ NE.toList $ NE.zipWith (<>)
-                bundlesForAssetsWithMinimumCoins
-                bundlesForOutputCoins
+            let
+                assetMapsRemaining = fst <$> (pair :| pairs)
+                bundlesForAssetsWithMinimumCoins =
+                    assignMinimumCoin minCoinFor <$> assetMapsRemaining
+                -- Calculate the amount of ada that remains after assigning the
+                -- minimum amount to each map. This should be safe, as we have
+                -- already determined that we have enough ada available:
+                adaRemaining = adaAvailable `Coin.distance` adaRequired
+                -- Partition any remaining ada according to the weighted
+                -- distribution of output coins that remain in our list:
+                outputCoinsRemaining = snd <$> (pair :| pairs)
+                bundlesForOutputCoins = TokenBundle.fromCoin <$>
+                    makeChangeForCoin outputCoinsRemaining adaRemaining
+            in
+                -- Finally, combine the minimal coin asset bundles with the
+                -- bundles obtained by partitioning the remaining ada amount:
+                Right $ NE.toList $ NE.zipWith (<>)
+                    bundlesForAssetsWithMinimumCoins
+                    bundlesForOutputCoins
 
         (m, _) :| (p : ps) | TokenMap.isEmpty m && adaAvailable < adaRequired ->
             -- We don't have enough ada available to pay for the minimum
