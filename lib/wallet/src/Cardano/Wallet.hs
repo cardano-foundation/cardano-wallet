@@ -861,8 +861,8 @@ createIcarusWallet
     wname
     credentials = do
         let g = defaultAddressPoolGap
-        let s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
-        let (hist, cp) = initWallet block0 s
+            s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
+            (hist, cp) = initWallet block0 s
         now <- lift getCurrentTime
         let meta =
                 WalletMetadata
@@ -1010,7 +1010,7 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let new' = (currentPassphraseScheme, new)
-            let xprv' = changePassphraseNew (keyOfWallet wF)
+                xprv' = changePassphraseNew (keyOfWallet wF)
                     (scheme, old) new' xprv
             lift $ attachPrivateKeyFromPwdScheme ctx (xprv', new')
   where
@@ -1188,22 +1188,22 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks blocks cp0
     let cps = NE.map snd cps'
         filteredBlocks = concat filteredBlocks'
-    let slotPoolDelegations =
+        slotPoolDelegations =
             [ (pseudoSlotNo (fblock ^. #slot), cert)
             | fblock <- filteredBlocks
             , cert <- view #delegations fblock
             ]
         pseudoSlotNo Origin = 0
         pseudoSlotNo (At sl) = sl
-    let txs = foldMap (view #transactions) filteredBlocks
-    let epochStability = (3*) <$> getSecurityParameter slottingParams
-    let localTip = currentTip $ NE.last cps
+        txs = foldMap (view #transactions) filteredBlocks
+        epochStability = (3*) <$> getSecurityParameter slottingParams
+        localTip = currentTip $ NE.last cps
 
-    let finalitySlot = nodeTip ^. #slotNo
+        finalitySlot = nodeTip ^. #slotNo
             - stabilityWindowShelley slottingParams
 
-    -- Checkpoint deltas
-    let wcps = snd . fromWallet <$> cps
+        -- Checkpoint deltas
+        wcps = snd . fromWallet <$> cps
         deltaPutCheckpoints =
             extendCheckpoints
                 getSlot
@@ -1219,7 +1219,6 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
                 (localTip ^. #blockHeight)
                 (wallet ^. #checkpoints)
 
-    let
         -- NOTE: We have to update the 'Prologue' as well,
         -- as it can contain addresses for pending transactions,
         -- which are removed from the 'Prologue' once the
@@ -1380,7 +1379,7 @@ readRewardAccount db = do
     case walletFlavor @s of
         ShelleyWallet -> do
             let xpub = Seq.rewardAccountKey walletState
-            let path = stakeDerivationPath $ Seq.derivationPrefix walletState
+                path = stakeDerivationPath $ Seq.derivationPrefix walletState
             pure (toRewardAccount xpub, Just $ getRawKey ShelleyKeyS xpub, path)
         SharedWallet -> do
             let path = stakeDerivationPath $ Shared.derivationPrefix walletState
@@ -2043,7 +2042,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
                 (Delta.onDBVar walletState . Delta.updateWithResultAndError)) $
                 \s -> do
                     let wallet = WalletState.getLatest s
-                    let utxo = availableUTxO (Set.fromList pendingTxs) wallet
+                        utxo = availableUTxO (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s
                         timeTranslation
                         utxo
@@ -2140,7 +2139,7 @@ buildAndSignTransactionPure
             _
                 -> Nothing
 
-    let passphrase = preparePassphrase passphraseScheme userPassphrase
+        passphrase = preparePassphrase passphraseScheme userPassphrase
         signedTx = signTransaction @k @'CredFromKeyK
             (keyFlavorFromState @s)
             txLayer
@@ -2153,7 +2152,7 @@ buildAndSignTransactionPure
             Nothing
             (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
-    let ( tx
+        ( tx
             , _tokenMapWithScripts1
             , _tokenMapWithScripts2
             , _certificates
@@ -2161,7 +2160,7 @@ buildAndSignTransactionPure
             , _witnessCount
             ) = decodeTx txLayer anyCardanoEra AnyWitnessCountCtx signedTx
 
-    let utxo' = applyOurTxToUTxO
+        utxo' = applyOurTxToUTxO
             (Slot.at $ currentTip wallet ^. #slotNo)
             (currentTip wallet ^. #blockHeight)
             (getState wallet)
@@ -2177,10 +2176,10 @@ buildAndSignTransactionPure
                     { status = Pending
                     , expiry = Just (snd (txValidityInterval txCtx))
                     }
-    -- tx coming from `decodeTx` doesn't contain previous tx outputs that
-    -- correspond to this tx inputs, so its inputs aren't "resolved".
-    -- We restore corresponding outputs by searching them in the UTxO again.
-    let txResolved = tx
+        -- tx coming from `decodeTx` doesn't contain previous tx outputs that
+        -- correspond to this tx inputs, so its inputs aren't "resolved".
+        -- We restore corresponding outputs by searching them in the UTxO again.
+        txResolved = tx
             { resolvedInputs =
                 resolveInputs  (resolvedInputs tx)
             , resolvedCollateralInputs =
@@ -2335,7 +2334,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             cp <- lift readCheckpoint
             pp <- liftIO $ currentProtocolParameters nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
-            let rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
+                rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
             let amountOut :: Coin =
@@ -2396,10 +2395,10 @@ constructUnbalancedSharedTransaction
 constructUnbalancedSharedTransaction txLayer db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
-    let scriptM =
+        scriptM =
             flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
             delegationTemplate s
-    let getScript addr = case fst (isShared addr s) of
+        getScript addr = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
                 <> "to multi-signature wallet"
@@ -2444,13 +2443,13 @@ constructTxMeta
 constructTxMeta DBLayer{..} txCtx inps outs = atomically $ do
         checkpoint <- readCheckpoint
         let latestBlockHeader = currentTip checkpoint
-        let amountOut = F.fold $ map TxOut.coin outs
+            amountOut = F.fold $ map TxOut.coin outs
             amountIn = F.fold (map snd inps)
                 & case txWithdrawal txCtx of
                     w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                     WithdrawalExternal{} -> Prelude.id
                     NoWithdrawal -> Prelude.id
-        let validity = txValidityInterval txCtx
+            validity = txValidityInterval txCtx
         pure $ mkTxMeta latestBlockHeader validity amountIn amountOut
 
 ourCoin :: IsOurs s Address => TxOut -> s -> Maybe Coin
@@ -2724,7 +2723,7 @@ createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet ctx
     pp <- currentProtocolParameters nl
     let txConstraints = Write.txConstraints pp (transactionWitnessTag tl)
-    let utxo = availableUTxO pending wallet
+        utxo = availableUTxO pending wallet
     pure
         $ Migration.createPlan txConstraints utxo
         $ Migration.RewardWithdrawal
@@ -3171,9 +3170,9 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
 
     withRootKey db wid pwd ErrSignMetadataWithRootKey $ \rootK scheme -> do
         let encPwd = preparePassphrase scheme pwd
-        let DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
-        let acctK = deriveAccountPrivateKey encPwd rootK acctIx
-        let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
+            DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
+            acctK = deriveAccountPrivateKey encPwd rootK acctIx
+            addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
         pure $
             Signature $ BA.convert $
             CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK) $
@@ -3198,7 +3197,7 @@ derivePublicKey ctx role_ ix = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
 
     let acctK = getAccount $ getState cp
-    let addrK = deriveAddressPublicKey acctK role_ addrIx
+        addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK
   where
@@ -3234,7 +3233,7 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
         db wid pwd ErrWritePolicyPublicKeyWithRootKey $
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = derivePolicyPrivateKey encPwd
+                xprv = derivePolicyPrivateKey encPwd
                     (getRawKey ShelleyKeyS rootK)
                     minBound
             pure $ ShelleyKey $ toXPub xprv
@@ -3273,7 +3272,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
     withRootKey db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = deriveAccountPrivateKeyShelley purpose encPwd
+                xprv = deriveAccountPrivateKeyShelley purpose encPwd
                     (getRawKey kf rootK) acctIx
             pure $ liftRawKey kf $ toXPub xprv
   where
