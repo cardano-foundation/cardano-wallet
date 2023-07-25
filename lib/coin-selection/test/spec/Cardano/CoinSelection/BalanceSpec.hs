@@ -1191,7 +1191,7 @@ prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
             , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
-    let balanceLeftover = UTxOSelection.leftoverBalance result
+        balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
@@ -1214,7 +1214,7 @@ prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
             , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
-    let balanceLeftover = UTxOSelection.leftoverBalance result
+        balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
@@ -1238,7 +1238,7 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
             , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
-    let balanceLeftover = UTxOSelection.leftoverBalance result
+        balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
@@ -1266,7 +1266,7 @@ prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
             , selectionStrategy = strategy
             }
     let balanceSelected = UTxOSelection.selectedBalance result
-    let balanceLeftover = UTxOSelection.leftoverBalance result
+        balanceLeftover = UTxOSelection.leftoverBalance result
     monitor $ cover 80
         (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
         "assetsRequested ⊂ assetsAvailable"
@@ -1314,7 +1314,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
                 , selectionStrategy = strategy
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
-        let balanceLeftover = UTxOSelection.leftoverBalance result
+            balanceLeftover = UTxOSelection.leftoverBalance result
         monitor $ cover 80
             (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
             "assetsRequested ⊂ assetsAvailable"
