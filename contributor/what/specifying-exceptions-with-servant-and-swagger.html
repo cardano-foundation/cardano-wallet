@@ -1,0 +1,376 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Specifying exceptions with Servant and Swagger - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html" class="active"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="specifying-exceptions-with-servant-and-swagger"><a class="header" href="#specifying-exceptions-with-servant-and-swagger">Specifying Exceptions with Servant and Swagger</a></h1>
+<h2 id="contents"><a class="header" href="#contents">Contents</a></h2>
+<ul>
+<li><a href="#specifying-exceptions-with-servant-and-swagger">Specifying Exceptions with Servant and Swagger</a>
+<ul>
+<li><a href="#contents">Contents</a></li>
+<li><a href="#goal">Goal</a></li>
+<li><a href="#background">Background</a></li>
+<li><a href="#example">Example</a></li>
+<li><a href="#what-do-we-really-want">What do we really want?</a></li>
+<li><a href="#how-can-we-achieve-this">How can we achieve this?</a>
+<ul>
+<li><a href="#adding-custom-errors-to-the-generated-swagger-output">Adding custom errors to the generated Swagger output</a></li>
+<li><a href="#removing-default-errors-from-the-generated-swagger-output">Removing default errors from the generated Swagger output</a></li>
+</ul>
+</li>
+<li><a href="#complete-working-example-project">Complete working example project</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="goal"><a class="header" href="#goal">Goal</a></h2>
+<p>To be able to exert fine-grained control over errors defined in Swagger API specifications.</p>
+<h2 id="background"><a class="header" href="#background">Background</a></h2>
+<p>Our API is defined in Haskell with <a href="https://haskell-servant.github.io/">Servant</a>, and translated into <a href="https://swagger.io/">Swagger</a> format using the <a href="http://hackage.haskell.org/package/servant-swagger"><code>servant-swagger</code></a> library.</p>
+<p>Swagger makes it possible to specify that an endpoint can return one or more errors. For example, the following specification states that the endpoint can return a <code>404</code> (not found) error:</p>
+<pre><code class="language-JSON">&quot;responses&quot; :
+  { &quot;200&quot; : { &quot;schema&quot; : {&quot;$ref&quot; : &quot;#/definitions/Location&quot; }
+            , &quot;description&quot; : &quot;the matching location&quot; } }
+  , &quot;404&quot; : { &quot;description&quot; : &quot;a matching location was not found&quot; }
+</code></pre>
+<p>By default, Servant doesn't provide a way for API authors to manually specify errors they might wish to return. However, this might be desirable: consider the case where you'd like to perform validation based on constraints that are not conveniently expressible in the Haskell type system. In this case, you would reject input at run-time, but this would typically not be reflected in the Servant type.</p>
+<p>Since Servant itself doesn't provide a way to manually specify errors, and since it is typical to define errors when writing a Swagger specification, <code>servant-swagger</code> takes the approach of <strong>auto-generating</strong> errors when various Servant combinators appear in the API. For example, when a <code>Capture</code> combinator is used, <code>servant-swagger</code> automatically inserts a <code>404</code> (not found) error in the generated Swagger output.</p>
+<p>However, auto-generation of error responses has two problems:</p>
+<ol>
+<li>The generated error responses are sometimes <strong>incomplete</strong>.</li>
+<li>The generated error responses are sometimes <strong>inappropriate</strong>.</li>
+</ol>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<p>Consider the following endpoint, allowing the caller to add a new <code>Location</code> to a location database:</p>
+<pre><code class="language-Haskell">type AddLocation = &quot;location&quot;
+  :&gt; &quot;add&quot;
+  :&gt; Summary &quot;Add a new location&quot;
+  :&gt; Capture &quot;locationName&quot; Text
+  :&gt; Put '[JSON] Location
+</code></pre>
+<p>By default, the generated Swagger output includes a 404 error (not found):</p>
+<pre><code class="language-JSON">&quot;/location/add/{locationName}&quot; :
+  { &quot;put&quot; :
+    { &quot;parameters&quot; : [ { &quot;in&quot; : &quot;path&quot;
+                       , &quot;type&quot; : &quot;string&quot;
+                       , &quot;name&quot; : &quot;locationName&quot;
+                       , &quot;required&quot; : true } ]
+    , &quot;responses&quot; :
+      { &quot;200&quot; : { &quot;schema&quot; : { &quot;$ref&quot; : &quot;#/definitions/Location&quot; }
+                , &quot;description&quot; : &quot;the added location&quot; }
+      , &quot;404&quot; : { &quot;description&quot; : &quot;`locationName` not found&quot; } }
+    , &quot;summary&quot; : &quot;Add a new location&quot;
+    , &quot;produces&quot; : [&quot;application/json;charset=utf-8&quot;] } }
+</code></pre>
+<p>In the above example:</p>
+<ol>
+<li>The generated error is <strong>inappropriate</strong>. Since we're adding a new location (and not looking up an existing location), we don't want to ever return a <code>404</code>.</li>
+<li>The error we really want is <strong>missing</strong>. We'd like to perform various validation checks on the new location name, and possibly return a <code>400</code> error if validation fails. However, this isn't included in the generated Swagger output.</li>
+</ol>
+<h2 id="what-do-we-really-want"><a class="header" href="#what-do-we-really-want">What do we really want?</a></h2>
+<p>Suppose that adding a <code>Location</code> can fail in two ways, either because:</p>
+<ul>
+<li>the location name is too short; or</li>
+<li>the location name contains invalid characters.</li>
+</ul>
+<p>We'd ideally like for the <code>&quot;responses&quot;</code> section to reflect the above modes of failure:</p>
+<pre><code class="language-JSON">&quot;responses&quot; :
+  { &quot;200&quot; : { &quot;schema&quot; : { &quot;$ref&quot; : &quot;#/definitions/Location&quot; }
+            , &quot;description&quot; : &quot;the added location&quot; }
+  , &quot;400&quot; : { &quot;description&quot; :
+                &quot;the location name was too short
+                 OR
+                 the location name contained invalid characters&quot; } }
+</code></pre>
+<h2 id="how-can-we-achieve-this"><a class="header" href="#how-can-we-achieve-this">How can we achieve this?</a></h2>
+<p>The <a href="http://hackage.haskell.org/package/servant-checked-exceptions"><code>servant-checked-exceptions</code></a> package defines the <a href="http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:Throws"><code>Throws</code> combinator</a>, making it possible to specify individual exceptions as part of the endpoint definition.</p>
+<p>Let's have a look at how we might use the <code>Throws</code> combinator to define our modes of failure:</p>
+<pre><code class="language-Haskell">type AddLocation = &quot;location&quot;
+  :&gt; &quot;add&quot;
+  :&gt; Summary &quot;Add a new location&quot;
+  :&gt; Throws LocationNameHasInvalidCharsError
+  :&gt; Throws LocationNameTooShortError
+  :&gt; Capture &quot;locationName&quot; Text
+  :&gt; Put '[JSON] Location
+
+data LocationNameTooShortError = LocationNameTooShortError
+  deriving (Eq, Generic, Read, Show)
+data LocationNameHasInvalidCharsError = LocationNameHasInvalidCharsError
+  deriving (Eq, Generic, Read, Show)
+</code></pre>
+<p>The above type specifies an endpoint that can throw two different types of exception.</p>
+<p>It's possible to assign specific response codes to individual exceptions by defining <a href="http://hackage.haskell.org/package/servant-checked-exceptions-core-2.0.0.0/docs/Servant-Checked-Exceptions-Internal-Servant-API.html#t:ErrStatus"><code>ErrStatus</code></a> instances. In our example, both exceptions will share the same response code <code>400</code> (bad request):</p>
+<pre><code class="language-Haskell">instance ErrStatus LocationNameHasInvalidCharsError where
+  toErrStatus _ = toEnum 400
+instance ErrStatus LocationNameTooShortError where
+  toErrStatus _ = toEnum 400
+</code></pre>
+<p>For client code that's written in Haskell, the <code>servant-checked-exceptions</code> library provides the very useful <a href="https://hackage.haskell.org/package/servant-checked-exceptions-core/docs/Servant-Checked-Exceptions-Internal-Envelope.html#v:catchesEnvelope"><code>catchesEnvelope</code></a> function, allowing the caller to perform exception case analysis on values returned by an API.</p>
+<p>So far so good.</p>
+<p>However there are two problems that we need to solve:</p>
+<ol>
+<li><code>servant-swagger</code> doesn't know what to do with the <code>Throws</code> combinator.</li>
+<li><code>servant-swagger</code> inserts its own default error response codes.</li>
+</ol>
+<p>In the sections below, we attempt to solve these errors.</p>
+<h3 id="adding-custom-errors-to-the-generated-swagger-output"><a class="header" href="#adding-custom-errors-to-the-generated-swagger-output">Adding custom errors to the generated Swagger output</a></h3>
+<p>Recall that Swagger error definitions include a description:</p>
+<pre><code class="language-JSON">&quot;400&quot; : { &quot;description&quot; : &quot;the location name was too short&quot; }
+</code></pre>
+<p>By default, <code>servant-checked-exceptions</code> doesn't provide a way to define descriptions for exceptions. We can solve this by defining our own <code>ErrDescription</code> class, and providing instances:</p>
+<pre><code class="language-Haskell">class ErrDescription e where
+  toErrDescription :: e -&gt; Text
+
+instance ErrDescription LocationNameHasInvalidCharsError where
+  toErrDescription _ =
+    &quot;the location name contained non-alphabetic characters&quot;
+instance ErrDescription LocationNameTooShortError where
+  toErrDescription _ =
+    &quot;the location name was too short&quot;
+</code></pre>
+<p>To include these descriptions in the generated Swagger output, we need to define a new instance of the <a href="http://hackage.haskell.org/package/servant-swagger-1.1.7/docs/Servant-Swagger-Internal.html"><code>HasSwagger</code></a> type class:</p>
+<pre><code class="language-Haskell">type IsErr err = (ErrDescription err, ErrStatus err)
+
+instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
+  where
+    toSwagger _ =
+      toSwagger (Proxy :: Proxy sub) &amp;
+        setResponseWith
+          (\old _ -&gt; addDescription old)
+          (fromEnum $ toErrStatus (undefined :: err))
+          (return $ mempty &amp; description .~ errDescription)
+        where
+          addDescription = description %~ ((errDescription &lt;&gt; &quot; OR &quot;) &lt;&gt;)
+          errDescription = toErrDescription (undefined :: err)
+</code></pre>
+<p>Note that in the above instance, if multiple errors share the same response code, then we concatenate together the descriptions, separating the descriptions with <code>&quot; OR &quot;</code>.</p>
+<p>Let's have a look at the auto-generated output:</p>
+<pre><code class="language-JSON">&quot;responses&quot; :
+  { &quot;200&quot; : { &quot;schema&quot; : { &quot;$ref&quot; : &quot;#/definitions/Location&quot; }
+            , &quot;description&quot; : &quot;the added location&quot; }
+  , &quot;400&quot; : { &quot;description&quot; :
+                &quot;the location name was too short
+                 OR
+                 the location name contained invalid characters&quot; }
+  , &quot;404&quot; : { &quot;description&quot; : &quot;`locationName` not found&quot; } }
+</code></pre>
+<p>The <code>400</code> section now contains what we want.</p>
+<p>However, the unwanted <code>404</code> section is still there. Recall that this is generated automatically by <code>servant-swagger</code>. How can we remove this default error response?</p>
+<h3 id="removing-default-errors-from-the-generated-swagger-output"><a class="header" href="#removing-default-errors-from-the-generated-swagger-output">Removing default errors from the generated Swagger output</a></h3>
+<p>Currently, <code>servant-swagger</code> doesn't provide a way to disable the generation of default error responses. There are several possible ways to solve this:</p>
+<ol>
+<li>
+<p>Provide a patch to <code>servant-swagger</code> that adds a configuration option to disable the generation of default error responses. See <a href="https://github.com/jonathanknowles/servant-swagger/tree/jonathanknowles/disable-default-error-responses">here</a> for a simple fork that disables all default error responses.</p>
+</li>
+<li>
+<p>Define a new alternative <code>Capture</code> operator and associated <code>HasSwagger</code> instances that don't generated default error responses. The downside is that this might require us to define instances for multiple other type classes.</p>
+</li>
+<li>
+<p>Amend the <code>HasSwagger</code> instance of <code>Throws</code> to detect and erase any default error responses. This solution would be rather brittle, as it would require the <code>Throws</code> combinator to appear at a particular place in endpoint definition.</p>
+</li>
+<li>
+<p>Add a new combinator that disables the generation of default error responses. This solution would also be rather brittle, as it would require the new combinator to appear at a particular place in the endpoint definition.</p>
+</li>
+</ol>
+<h2 id="complete-working-example-project"><a class="header" href="#complete-working-example-project">Complete working example project</a></h2>
+<p>See the following example project for a complete working example:</p>
+<p>https://github.com/jonathanknowles/servant-checked-exceptions-example</p>
+<p>Note that the above example also uses a <strong>patched</strong> version of <code>servant-client</code>, to allow pattern matching on error responses with the <code>catchesEnvelope</code> function.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../contributor/what/swagger-development.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../contributor/what/nix.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../contributor/what/swagger-development.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../contributor/what/nix.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,676 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Create shared-wallets - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html" class="active"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="shared-wallets"><a class="header" href="#shared-wallets">Shared wallets</a></h1>
+<h2 id="pre-requisites"><a class="header" href="#pre-requisites">Pre-requisites</a></h2>
+<ul>
+<li><a href="start-wallet-server.html">how to start a server</a></li>
+<li>In order to be able to send transactions, our wallet must have funds. In case of <code>preview</code> and <code>preprod</code> <a href="https://testnets.cardano.org/en/testnets/cardano/overview/">testnets</a> we can request tADA from the <a href="https://testnets.cardano.org/en/testnets/cardano/tools/faucet/">faucet</a>.</li>
+</ul>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the <code>payment_script_template</code> and <code>delegation_script_template</code> fields. In this example, we'll create two shared wallets using the same template for both payment and delegation operations. The template that we'll use will indicate that we require signatures from <strong>all</strong> co-owners in order to make a transaction. In our case, the wallet will have two co-owners <code>cosigner#0</code> and <code>cosigner#1</code>:</p>
+<pre><code>&quot;template&quot;:
+    { &quot;all&quot;:
+       [ &quot;cosigner#0&quot;, &quot;cosigner#1&quot;]
+    }
+</code></pre>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>The script templates use Cardano <a href="https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md">simple scripts</a> therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet"><code>POST /shared-wallets</code></a> swagger specification for more details.</p>
+</div>
+</div>
+<h3 id="template-examples"><a class="header" href="#template-examples">Template examples</a></h3>
+<ul>
+<li>required signature from any cosigner from the list</li>
+</ul>
+<pre><code>&quot;template&quot;:
+    { &quot;any&quot;:
+       [ &quot;cosigner#0&quot;, &quot;cosigner#1&quot;, &quot;cosigner#2&quot;]
+    }
+</code></pre>
+<ul>
+<li>required signature from at least 2 cosigners from the list</li>
+</ul>
+<pre><code>&quot;template&quot;:
+    { &quot;some&quot;:
+       { &quot;at_least&quot;: 2,
+         &quot;from&quot;: [ &quot;cosigner#0&quot;, &quot;cosigner#1&quot;, &quot;cosigner#2&quot;]
+       }
+    }
+</code></pre>
+<ul>
+<li>required signature from at least 1 cosigners from the list but with additional nested constraints (at least <code>cosigner#0</code> or at least <code>cosigner#1</code> or at least both <code>cosigner#2</code> and <code>cosigner#3</code> and any of <code>cosigner#4</code> and <code>cosigner#5</code>)</li>
+</ul>
+<pre><code>&quot;template&quot;:{
+  &quot;some&quot;:{
+      &quot;at_least&quot;:1,
+      &quot;from&quot;:[
+        &quot;cosigner#0&quot;,
+        &quot;cosigner#1&quot;,
+        {
+            &quot;all&quot;:[
+              &quot;cosigner#2&quot;,
+              &quot;cosigner#3&quot;,
+              {
+                  &quot;any&quot;:[
+                    &quot;cosigner#4&quot;,
+                    &quot;cosigner#5&quot;
+                  ]
+              }
+            ]
+        }
+      ]
+  }
+}
+</code></pre>
+<ul>
+<li>required signature from any cosigner but with additional time locking constraints (either <code>cosigner#0</code> or <code>cosigner#1</code> but only until slot 18447928 or <code>cosigner#2</code> but only from slot 18447928)</li>
+</ul>
+<pre><code>&quot;template&quot;:{
+  &quot;any&quot;:[
+      &quot;cosigner#0&quot;,
+      {
+        &quot;all&quot;:[
+            &quot;cosigner#1&quot;,
+            {
+              &quot;active_until&quot;:18447928
+            }
+        ]
+      },
+      {
+        &quot;all&quot;:[
+            &quot;cosigner#2&quot;,
+            {
+              &quot;active_from&quot;:18447928
+            }
+        ]
+      }
+  ]
+}
+</code></pre>
+<h2 id="creating-wallets"><a class="header" href="#creating-wallets">Creating wallets</a></h2>
+<p>First let's create two <code>incomplete</code> shared wallets using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet"><code>POST /shared-wallets</code></a> endpoint. The wallets are marked as &quot;incomplete&quot; because they do not yet have public keys from all cosigners.</p>
+<ol>
+<li><code>Cosigner#0</code> wallet</li>
+</ol>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets \
+-d '{
+   &quot;mnemonic_sentence&quot;:[
+      &quot;beach&quot;,
+      &quot;want&quot;,
+      &quot;fly&quot;,
+      &quot;guess&quot;,
+      &quot;cabbage&quot;,
+      &quot;hybrid&quot;,
+      &quot;profit&quot;,
+      &quot;leaf&quot;,
+      &quot;term&quot;,
+      &quot;air&quot;,
+      &quot;join&quot;,
+      &quot;feel&quot;,
+      &quot;sting&quot;,
+      &quot;nurse&quot;,
+      &quot;anchor&quot;,
+      &quot;come&quot;,
+      &quot;entire&quot;,
+      &quot;oil&quot;,
+      &quot;kidney&quot;,
+      &quot;situate&quot;,
+      &quot;fun&quot;,
+      &quot;deal&quot;,
+      &quot;palm&quot;,
+      &quot;chimney&quot;
+   ],
+   &quot;passphrase&quot;:&quot;Secure Passphrase&quot;,
+   &quot;name&quot;:&quot;`Cosigner#0` wallet&quot;,
+   &quot;account_index&quot;:&quot;0H&quot;,
+   &quot;payment_script_template&quot;:{
+      &quot;cosigners&quot;:{
+         &quot;cosigner#0&quot;:&quot;self&quot;
+      },
+      &quot;template&quot;:{
+         &quot;all&quot;:[
+            &quot;cosigner#0&quot;,
+            &quot;cosigner#1&quot;
+         ]
+      }
+   },
+   &quot;delegation_script_template&quot;:{
+      &quot;cosigners&quot;:{
+         &quot;cosigner#0&quot;:&quot;self&quot;
+      },
+      &quot;template&quot;:{
+         &quot;all&quot;:[
+            &quot;cosigner#0&quot;,
+            &quot;cosigner#1&quot;
+         ]
+      }
+   }
+}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<ol start="2">
+<li><code>Cosigner#1</code> wallet</li>
+</ol>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets \
+-d '{
+   &quot;mnemonic_sentence&quot;:[
+      &quot;slight&quot;,
+      &quot;tool&quot;,
+      &quot;pear&quot;,
+      &quot;write&quot;,
+      &quot;body&quot;,
+      &quot;fruit&quot;,
+      &quot;crucial&quot;,
+      &quot;tomorrow&quot;,
+      &quot;hunt&quot;,
+      &quot;alley&quot;,
+      &quot;object&quot;,
+      &quot;tool&quot;,
+      &quot;voyage&quot;,
+      &quot;loud&quot;,
+      &quot;loop&quot;,
+      &quot;client&quot;,
+      &quot;access&quot;,
+      &quot;vocal&quot;,
+      &quot;unable&quot;,
+      &quot;brand&quot;,
+      &quot;patch&quot;,
+      &quot;remain&quot;,
+      &quot;object&quot;,
+      &quot;boat&quot;
+   ],
+   &quot;passphrase&quot;:&quot;Secure Passphrase&quot;,
+   &quot;name&quot;:&quot;`Cosigner#1` wallet&quot;,
+   &quot;account_index&quot;:&quot;0H&quot;,
+   &quot;payment_script_template&quot;:{
+      &quot;cosigners&quot;:{
+         &quot;cosigner#1&quot;:&quot;self&quot;
+      },
+      &quot;template&quot;:{
+         &quot;all&quot;:[
+            &quot;cosigner#0&quot;,
+            &quot;cosigner#1&quot;
+         ]
+      }
+   },
+   &quot;delegation_script_template&quot;:{
+      &quot;cosigners&quot;:{
+         &quot;cosigner#1&quot;:&quot;self&quot;
+      },
+      &quot;template&quot;:{
+         &quot;all&quot;:[
+            &quot;cosigner#0&quot;,
+            &quot;cosigner#1&quot;
+         ]
+      }
+   }
+}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>Notice that the templates <code>payment_script_template</code> and <code>delegation_script_template</code> are partially the same for both wallets:</p>
+<pre><code>  &quot;template&quot;:{
+      &quot;all&quot;:[
+        &quot;cosigner#0&quot;,
+        &quot;cosigner#1&quot;
+      ]
+  }
+</code></pre>
+<p>However the <code>&quot;cosigners&quot;:</code> part differs slightly. &quot;<code>Cosigner#0</code> wallet&quot; has <code>&quot;cosigner#0&quot;:&quot;self&quot;</code> and &quot;<code>Cosigner#1</code> wallet&quot; - <code>&quot;cosigner#1&quot;:&quot;self&quot;</code>. Each wallet has partial information about cosigners. &quot;<code>Cosigner#0</code> wallet&quot; only knows about <code>cosigner#0</code> and &quot;<code>Cosigner#1</code> wallet&quot; only knows about <code>cosigner#1</code>.</p>
+<p>Now we can look up the wallets we've just created using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getSharedWallet"><code>GET /shared-wallets/{walletId}</code></a> endpoint. From the response, we can tell that the wallet's status is &quot;incomplete&quot;. For instance:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8 | jq
+
+{
+  &quot;account_index&quot;: &quot;0H&quot;,
+  &quot;address_pool_gap&quot;: 20,
+  &quot;delegation_script_template&quot;: {
+    &quot;cosigners&quot;: {
+      &quot;cosigner#1&quot;: &quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;
+    },
+    &quot;template&quot;: {
+      &quot;all&quot;: [
+        &quot;cosigner#0&quot;,
+        &quot;cosigner#1&quot;
+      ]
+    }
+  },
+  &quot;id&quot;: &quot;5e46668c320bb4568dd25551e0c33b0539668aa8&quot;,
+  &quot;name&quot;: &quot;`Cosigner#1` wallet&quot;,
+  &quot;payment_script_template&quot;: {
+    &quot;cosigners&quot;: {
+      &quot;cosigner#1&quot;: &quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;
+    },
+    &quot;template&quot;: {
+      &quot;all&quot;: [
+        &quot;cosigner#0&quot;,
+        &quot;cosigner#1&quot;
+      ]
+    }
+  },
+  &quot;state&quot;: {
+    &quot;status&quot;: &quot;incomplete&quot;
+  }
+}
+
+</code></pre>
+<h3 id="patching-wallets"><a class="header" href="#patching-wallets">Patching wallets</a></h3>
+<p>In order to be able to spend from the wallets we need to <em>patch</em> their payment and delegation templates with missing cosigners.
+We already know that &quot;<code>Cosigner#0</code> wallet&quot; is missing the <code>cosigner#1</code> key and &quot;<code>Cosigner#1</code> wallet&quot; is missing the <code>cosigner#0</code> key.</p>
+<p>First, let's get the <code>cosigner#1</code> key from the &quot;<code>Cosigner#1</code> wallet&quot;. We can use the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared"><code>GET /shared-wallets/{walletId}/keys</code></a> endpoint for this:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/keys?format=extended
+
+&quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;
+
+</code></pre>
+<p>Now we can <em>patch</em> the payment and delegation templates of the &quot;<code>Cosigner#0</code> wallet&quot; with the <code>cosigner#1</code> key using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment"><code>PATCH /shared-wallets/{walletId}/payment-script-template</code></a> and <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation"><code>PATCH /shared-wallets/{walletId}/delegation-script-template</code></a> endpoints, respectively.</p>
+<pre><code>&gt; curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/payment-script-template \
+-d '{&quot;cosigner#1&quot;:&quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+
+&gt; curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/delegation-script-template \
+-d '{&quot;cosigner#1&quot;:&quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>We'll repeat the same action or &quot;<code>Cosigner#1</code> wallet&quot;, i.e. first get <code>cosigner#0</code> key from &quot;<code>Cosigner#0</code> wallet&quot; and then patch the payment and delegation templates of &quot;<code>Cosigner#1</code> wallet&quot; with it.</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/keys?format=extended
+
+&quot;acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl&quot;
+
+&gt; curl -X PATCH http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/payment-script-template \
+-d '{&quot;cosigner#0&quot;:&quot;acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+
+&gt; curl -X PATCH http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/delegation-script-template \
+-d '{&quot;cosigner#0&quot;:&quot;acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>Now, if we look up the wallet again with <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getSharedWallet"><code>GET /shared-wallets/{walletId}</code></a>, we should notice that the wallet has started restoring, and after a while it is ready to use:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .state
+
+{
+  &quot;status&quot;: &quot;ready&quot;
+}
+</code></pre>
+<p>Furthermore, the wallets now have complete information about cosigners for delegation and payment templates:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .payment_script_template
+
+{
+  &quot;cosigners&quot;: {
+    &quot;cosigner#0&quot;: &quot;acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl&quot;,
+    &quot;cosigner#1&quot;: &quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;
+  },
+  &quot;template&quot;: {
+    &quot;all&quot;: [
+      &quot;cosigner#0&quot;,
+      &quot;cosigner#1&quot;
+    ]
+  }
+}
+
+&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .delegation_script_template
+
+{
+  &quot;cosigners&quot;: {
+    &quot;cosigner#0&quot;: &quot;acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl&quot;,
+    &quot;cosigner#1&quot;: &quot;acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp&quot;
+  },
+  &quot;template&quot;: {
+    &quot;all&quot;: [
+      &quot;cosigner#0&quot;,
+      &quot;cosigner#1&quot;
+    ]
+  }
+}
+</code></pre>
+<h3 id="spending-transactions"><a class="header" href="#spending-transactions">Spending transactions</a></h3>
+<p>Our shared wallets are now fully-operational. In particular, we can access the addresses of the wallets via the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses"><code>GET /shared-wallets/{walletId}/addresses</code></a> endpoint. We can get the address and fund it from the <a href="https://testnets.cardano.org/en/testnets/cardano/tools/faucet/">faucet</a> so that we can spend from our wallet later on.</p>
+<p>After we have funded the &quot;<code>Cosigner#0</code> wallet&quot;, we can see that the balance has changed on the &quot;<code>Cosigner#1</code> wallet&quot; as well. Both wallets have the same balance:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .balance
+
+{
+  &quot;available&quot;: {
+    &quot;quantity&quot;: 10000000000,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;reward&quot;: {
+    &quot;quantity&quot;: 0,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;total&quot;: {
+    &quot;quantity&quot;: 10000000000,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  }
+}
+
+&gt; curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8 | jq .balance
+
+{
+  &quot;available&quot;: {
+    &quot;quantity&quot;: 10000000000,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;reward&quot;: {
+    &quot;quantity&quot;: 0,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  &quot;total&quot;: {
+    &quot;quantity&quot;: 10000000000,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  }
+}
+</code></pre>
+<p>Of course, this is expected. Both co-owners have full knowledge of the balance, however they cannot spend from the balance on their own. As required by the payment template, the wallet needs signatures from both co-owners before funds can be spent.</p>
+<p>Let's make a simple transaction. The owner of &quot;<code>Cosigner#0</code> wallet&quot; will construct and sign a transaction on their end, and then provide a CBOR blob of this transaction to the owner of &quot;<code>Cosigner#1</code> wallet&quot;. Then <code>Cosigner#1</code> can sign it on their own, and submit it to the network.</p>
+<p>We will be using the following shared wallet transaction endpoints:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-construct</code></a></li>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-sign</code></a></li>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-submit</code></a></li>
+</ul>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<div>
+<p>At any point during the process of constructing and signing a transaction, both &quot;<code>Cosigner#0</code>&quot; and &quot;<code>Cosigner#1</code>&quot; may decode the transaction from its CBOR representation using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-decode</code></a> endpoint. Decoding the transaction makes it possible to see all details associated with the transaction, such as its <code>inputs</code>, <code>outputs</code>, <code>fees</code>, <code>deposits</code>, <code>metadata</code>, or <code>witness_count</code>.</p>
+</div>
+</div>
+<h4 id="cosigner0"><a class="header" href="#cosigner0"><code>Cosigner#0</code></a></h4>
+<h5 id="constructing"><a class="header" href="#constructing">Constructing</a></h5>
+<p>&quot;<code>Cosigner#0</code>&quot; constructs a transaction sending 10₳ to an external address using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-construct</code></a> endpoint. In response, they receive a CBOR representation of the unsigned transaction.</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-construct \
+-d '{
+   &quot;payments&quot;:[
+      {
+         &quot;address&quot;:&quot;addr_test1qq86pgrf7yyzp3gysxgqwt4ahegzslygvzh77eq2qwg66pedkztnw78s6gkt3eux35sllasu0x6grejewlrzaus8kekq7cp9ck&quot;,
+         &quot;amount&quot;:{
+            &quot;quantity&quot;:10000000,
+            &quot;unit&quot;:&quot;lovelace&quot;
+         }
+      }
+   ]
+}' \
+-H &quot;Content-Type: application/json&quot; | jq .transaction
+
+&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHtNCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY=&quot;
+</code></pre>
+<h5 id="signing"><a class="header" href="#signing">Signing</a></h5>
+<p>&quot;<code>Cosigner#0</code>&quot; signs the transaction with the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-sign</code></a> endpoint:</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-sign \
+-d '{
+   &quot;passphrase&quot;:&quot;Secure Passphrase&quot;,
+   &quot;transaction&quot;:&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY=&quot;
+}' \
+-H &quot;Content-Type: application/json&quot; | jq .transaction
+
+&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIGCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAQGBggGCggBYHIk7LOWaTw4n8005aVVWzUmmRhEc63tc9OV2FVmCAFgcx5qZAMFgkZ1E33E8tGmStiyyzN+mP+IGTJSYZvX2&quot;
+</code></pre>
+<p>and in response, receives a CBOR representation of the partially-signed transaction.</p>
+<h4 id="cosigner1"><a class="header" href="#cosigner1"><code>Cosigner#1</code></a></h4>
+<p>Now &quot;<code>Cosigner#0</code>&quot; can hand over the CBOR of the partially-signed transaction to &quot;<code>Cosigner#1</code>&quot;, who can then sign it on their own.</p>
+<h5 id="signing-1"><a class="header" href="#signing-1">Signing</a></h5>
+<p>&quot;<code>Cosigner#1</code>&quot; signs the transaction with <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-sign</code></a> and gets a CBOR representation of the fully-signed transaction in response.</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-sign \
+-d '{
+   &quot;passphrase&quot;:&quot;Secure Passphrase&quot;,
+   &quot;transaction&quot;:&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIGCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAQGBggGCggBYHIk7LOWaTw4n8005aVVWzUmmRhEc63tc9OV2FVmCAFgcx5qZAMFgkZ1E33E8tGmStiyyzN+mP+IGTJSYZvX2&quot;
+}' \
+-H &quot;Content-Type: application/json&quot; | jq .transaction
+
+&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY=&quot;
+</code></pre>
+<h5 id="submission"><a class="header" href="#submission">Submission</a></h5>
+<p>The transaction is now fully-signed by both co-owners: &quot;<code>Cosigner#0</code>&quot; and &quot;<code>Cosigner#1</code>&quot;. At this point, either of them can submit it to the network using their respective wallets via the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint.</p>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-submit \
+-d '{
+   &quot;transaction&quot;:&quot;hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY=&quot;
+}' \
+-H &quot;Content-Type: application/json&quot; | jq
+
+{
+  &quot;id&quot;: &quot;d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c&quot;
+}
+</code></pre>
+<p>The transaction has been submitted successfully. The <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction"><code>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint provides a transaction identifier in its response.</p>
+<p>We can use this transaction identifier to look up the transaction from either shared wallet using the <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listSharedTransactions"><code>GET /shared-wallets/{walletId}/transactions</code></a> or <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getSharedTransaction"><code>GET /shared-wallets/{walletId}/transactions/{transactionId}</code></a> endpoints.</p>
+<p>&quot;<code>Cosigner#0</code> wallet&quot;:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
+
+{
+  &quot;amount&quot;: {
+    &quot;quantity&quot;: 10176721,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  ...
+  &quot;direction&quot;: &quot;outgoing&quot;,
+  ...
+  &quot;fee&quot;: {
+    &quot;quantity&quot;: 176721,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+...
+</code></pre>
+<p>&quot;<code>Cosigner#1</code> wallet&quot;:</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
+
+{
+  &quot;amount&quot;: {
+    &quot;quantity&quot;: 10176721,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+  ...
+  &quot;direction&quot;: &quot;outgoing&quot;,
+  ...
+  &quot;fee&quot;: {
+    &quot;quantity&quot;: 176721,
+    &quot;unit&quot;: &quot;lovelace&quot;
+  },
+...
+</code></pre>
+<h3 id="delegation"><a class="header" href="#delegation">Delegation</a></h3>
+<p>Delegation of shared wallets will be supported <em>soon</em>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../user/common-use-cases/handle-metadata.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../user/installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../user/common-use-cases/handle-metadata.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../user/installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>

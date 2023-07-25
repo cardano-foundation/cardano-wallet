@@ -1,0 +1,312 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Create a transaction - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = null;
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.1.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.1.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.1.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.1.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.1.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html" class="active"><strong aria-hidden="true">2.1.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.1.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.1.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.1.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.1.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.2.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.2.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.2.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.3.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.4.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.5.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.6.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.7.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.8.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.9.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.10.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="how-to-make-a-transaction"><a class="header" href="#how-to-make-a-transaction">How to make a transaction</a></h1>
+<h2 id="pre-requisites"><a class="header" href="#pre-requisites">Pre-requisites</a></h2>
+<ul>
+<li><a href="start-wallet-server.html">how to start a server</a></li>
+<li><a href="create-a-wallet.html">how to create a wallet</a></li>
+<li>In order to be able to send transactions, our wallet must have funds. In case of <code>preview</code> and <code>preprod</code> <a href="https://testnets.cardano.org/en/testnets/cardano/overview/">testnets</a> we can request tADA from the <a href="https://testnets.cardano.org/en/testnets/cardano/tools/faucet/">faucet</a>.</li>
+</ul>
+<h2 id="old-transaction-workflow"><a class="header" href="#old-transaction-workflow">Old transaction workflow</a></h2>
+<p>Assuming you have already created a wallet, you can send a transaction by using the following endpoint:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postTransaction"><code>POST /wallets/{walletId}/transactions</code></a> - transaction from <strong>Shelley</strong> wallet</li>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postByronTransaction"><code>POST /byron-wallets/{walletId}/transactions</code></a> - transaction from <strong>Byron</strong> wallet</li>
+</ul>
+<p>Behind the scene, the wallet engine will select necessary inputs from the wallet, generate a change address within the wallet, sign and submit the transaction. A transaction can have multiple outputs, possibly to the same address. Note that in Byron, addresses are necessarily base58-encoded (as an enforced convention).</p>
+<h2 id="new-transaction-workflow"><a class="header" href="#new-transaction-workflow">New transaction workflow</a></h2>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#tag/Transactions-New">New transaction workflow</a> decouples creation of the transaction into separate steps:</p>
+<ul>
+<li>Construct: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructTransaction"><code>POST /wallets/{walletId}/transactions-construct</code></a></li>
+<li>Sign: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signTransaction"><code>POST /wallets/{walletId}/transactions-sign</code></a></li>
+<li>Submit: <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitTransaction"><code>POST /wallets/{walletId}/transactions-submit</code></a></li>
+</ul>
+<p>Behind the scene, on the <strong>construct</strong> step, the wallet engine will select necessary inputs belonging to the wallet, generate a change address of the wallet and calculate the <code>fee</code> for this particular transaction.</p>
+<p><strong>Sign</strong> and <strong>submit</strong> are now invoked as separate steps. This allows for presenting the actual transaction <code>fee</code> to the end user. In the old workflow, when all those steps where done in one go, showing precise fee was not possible and it had to be estimated using separate wallet endpoint. Because of the random nature of coin-selection algorithm such estimation might not have been always the same as the actual transaction fee.</p>
+<p>Here is very basic example sending out 10₳ and 1 <code>asset</code> from the wallet:</p>
+<ol>
+<li>Construct.</li>
+</ol>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-construct \
+-d '{&quot;payments&quot;:
+[{&quot;address&quot;:&quot;addr_test1qrv60y8vwu8cke6j83tgkfjttmtv0ytfvnhggp6f4gl5kf0l0dw5r75vk42mv3ykq8vyjeaanvpytg79xqzymqy5acmq5k85dg&quot;,
+&quot;amount&quot;:{&quot;quantity&quot;:10000000,&quot;unit&quot;:&quot;lovelace&quot;},
+&quot;assets&quot;:[{&quot;policy_id&quot;:&quot;b518eee977e1c8e3ce020e745be63b8b14498c565f5b59653e104ec7&quot;,
+           &quot;asset_name&quot;:&quot;4163757374696330&quot;,
+           &quot;quantity&quot;:1}]}]}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<ol start="2">
+<li>Sign.</li>
+</ol>
+<div id="admonition-note" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note"></a></p>
+</div>
+<div>
+<p>The response from <strong>construct</strong> will give us information like <code>fee</code> or <code>coin selection</code> details. It also returns a CBOR-encoded <code>transaction</code> represented in base64 encoding. This is what we need to feed into <strong>sign</strong>'s payload.</p>
+</div>
+</div>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-sign \
+-d '{&quot;passphrase&quot;:&quot;Secure Passphrase&quot;,
+     &quot;transaction&quot;:&quot;hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBBQ2AAYKCWDkA0Tt2d1mVEvi5ZUp1k6RAHcWWqmNX0+gr0ea9nv97XUH6jLVVtkSWAdhJZ72bAkWjxTAETYCU7jaCGgCYloChWBy1GO7pd+HI484CDnRb5juLFEmMVl9bWWU+EE7HoUhBY3VzdGljMAGCWDkAILE1lnWHTaOk26BI/mHKGcjdgw9DcIsWT4W0YxcKHXESwr9eLTleQaAYVejg2GktTDXVp7ygo4CCGrYB1PChWBy1GO7pd+HI484CDnRb5juLFEmMVl9bWWU+EE7Hp0hBY3VzdGljMQFIQWN1c3RpYzIBSEFjdXN0aWM0AURCYXNzBUVEcnVtcwZJRHJ1bXNPbmx5AUhFbGVjdHJpYwYCGgAC2VUDGgMDcO8OgKD19g==&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+</code></pre>
+<ol start="3">
+<li>Submit.</li>
+</ol>
+<div id="admonition-note-1" class="admonition note">
+<div class="admonition-title">
+<p>Note</p>
+<p><a class="admonition-anchor-link" href="#admonition-note-1"></a></p>
+</div>
+<div>
+<p>Again, we are feeding <strong>submit</strong>'s payload with CBOR-encoded <code>transaction</code> returned by <strong>sign</strong> request.</p>
+</div>
+</div>
+<pre><code>&gt; curl -X POST http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions-submit \
+-d '{&quot;transaction&quot;:&quot;hKYAgYJYIJs6ATvbNwo5xpOkjHfUzr9Cv4zuFLFicFwWwpPC4ltBBQ2AAYKCWDkA0Tt2d1mVEvi5ZUp1k6RAHcWWqmNX0+gr0ea9nv97XUH6jLVVtkSWAdhJZ72bAkWjxTAETYCU7jaCGgCYloChWBy1GO7pd+HI484CDnRb5juLFEmMVl9bWWU+EE7HoUhBY3VzdGljMAGCWDkAILE1lnWHTaOk26BI/mHKGcjdgw9DcIsWT4W0YxcKHXESwr9eLTleQaAYVejg2GktTDXVp7ygo4CCGrYB1PChWBy1GO7pd+HI484CDnRb5juLFEmMVl9bWWU+EE7Hp0hBY3VzdGljMQFIQWN1c3RpYzIBSEFjdXN0aWM0AURCYXNzBUVEcnVtcwZJRHJ1bXNPbmx5AUhFbGVjdHJpYwYCGgAC2VUDGgMDcO8OgKEAgYJYIASQMgPsYJvlhj+L/ttWXivY8xL/Pzun5qalDwy+pVTpWECQQJAildc3KiO1u86KTH+qSg45K7/wckT4KPE21a819POFIf15NVDY9tsGAkT9uCBRyJ13m0h01ZsA9TWVso8J9fY=&quot;}' \
+-H &quot;Content-Type: application/json&quot;
+
+{
+  &quot;id&quot;: &quot;35dd9db1f61822ac82f4690ea4fe12426bf6e534aff8e13563fce55a4d502772&quot;
+}
+</code></pre>
+<p>We can monitor status of submitted transaction using <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getTransaction">GET /wallets/{walletId}/transactions/{transactionId}</a> endpoint.</p>
+<pre><code>&gt; curl -X GET http://localhost:8090/v2/wallets/1b0aa24994b4181e79116c131510f2abf6cdaa4f/transactions/35dd9db1f61822ac82f4690ea4fe12426bf6e534aff8e13563fce55a4d502772 | jq
+
+{
+  &quot;inserted_at&quot;: {
+    &quot;height&quot;: {
+      &quot;quantity&quot;: 2975821,
+      &quot;unit&quot;: &quot;block&quot;
+    },
+    &quot;time&quot;: &quot;2021-10-08T11:25:32Z&quot;,
+    &quot;epoch_number&quot;: 161,
+    &quot;absolute_slot_number&quot;: 39323116,
+    &quot;slot_number&quot;: 140716
+  },
+  &quot;status&quot;: &quot;in_ledger&quot;,
+....
+</code></pre>
+<h2 id="transaction-history"><a class="header" href="#transaction-history">Transaction history</a></h2>
+<p>Note that all transactions made from and to any wallet are available in the transaction history.
+We can always display details of a particular transaction as well as list all transactions that are known to a wallet.</p>
+<p>For instance, transactions can be tracked via:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listTransactions"><code>GET /wallets/{walletId}/transactions</code></a> - transactions from <strong>Shelley</strong> wallet</li>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listByronTransactions"><code>GET /byron-wallets/{walletId}/transactions</code></a> - transactions from <strong>Byron</strong> wallet</li>
+</ul>
+<p>Which returns a list of all transactions for this particular wallet. Optional range filters can be provided. A transaction will go through a succession of states, starting as “Pending”. If a transaction stays pending for too long (because rejected by a mempool, or because lost in translation due to multiple chain switches), users may decide to forget it using:</p>
+<ul>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/deleteTransaction"><code>DELETE /wallets/{walletId}/transactions/{transactionId}</code></a>  - transactions from <strong>Shelley</strong> wallet</li>
+<li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction"><code>DELETE /byron-wallets/{walletId}/transactions/{transactionId}</code></a>  - transactions from <strong>Byron</strong> wallet</li>
+</ul>
+<p>For more information about transactions lifecycle, have a look at
+<a href="../../concepts/transaction-lifecycle.html">transaction lifecycle</a>.</p>
+<h2 id="signed-and-serialized-transactions"><a class="header" href="#signed-and-serialized-transactions">Signed and serialized transactions</a></h2>
+<p>Alternatively, <code>cardano-wallet</code> allows clients to submit already signed and serialized transactions as a raw bytes blob. This can be done by submitting such serialized data as an <code>application/octet-stream</code> :</p>
+<p><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction"><code>POST /proxy/transactions</code></a></p>
+<p>In this scenario, the server engine will verify that the transaction is structurally well-formed and forward it to the node instance associated with it. If the transaction belongs to a known wallet, it will eventually show up in the wallet.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../user/common-use-cases/how-to-create-addresses.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../../user/common-use-cases/assets.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../user/common-use-cases/how-to-create-addresses.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../../user/common-use-cases/assets.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
