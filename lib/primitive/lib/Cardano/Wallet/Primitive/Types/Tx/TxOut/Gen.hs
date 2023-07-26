@@ -54,11 +54,16 @@ genTxOut :: Gen TxOut
 genTxOut = TxOut
     <$> genAddress
     <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
+    <*> pure Nothing
 
 shrinkTxOut :: TxOut -> [TxOut]
-shrinkTxOut (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
+shrinkTxOut (TxOut a b c) =
+    map enrichPair $
+    shrinkInterleaved
     (a, shrinkAddress)
     (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+  where
+    enrichPair (a',b') = TxOut a' b' c
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
