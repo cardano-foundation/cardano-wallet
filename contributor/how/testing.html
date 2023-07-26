@@ -359,47 +359,7 @@ $ eog restore.svg
 <h2 id="e2e-tests"><a class="header" href="#e2e-tests">E2E Tests</a></h2>
 <p>See: <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/test/e2e/README.md">README</a>.</p>
 <h2 id="qa-schedule"><a class="header" href="#qa-schedule">QA Schedule</a></h2>
-<div class="table-wrapper"><table><thead><tr><th></th><th style="text-align: center"><strong>PR Push</strong></th><th style="text-align: center"><strong>Bors Merge</strong></th><th style="text-align: center"><strong>Nightly</strong></th><th style="text-align: center"><strong>Pre-release</strong></th><th></th><th style="text-align: center"><strong>Hydra</strong></th><th style="text-align: center"><strong>Buildkite</strong></th><th style="text-align: center"><strong>GitHub</strong></th><th></th><th><strong>Required for</strong></th><th><strong>Status</strong></th></tr></thead><tbody>
-<tr><td>Unit tests</td><td style="text-align: center">LMw</td><td style="text-align: center">LM</td><td style="text-align: center">W</td><td style="text-align: center"></td><td></td><td style="text-align: center">LMw</td><td style="text-align: center">L</td><td style="text-align: center">W</td><td></td><td>Merge</td><td><a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a></td></tr>
-<tr><td>Integation tests</td><td style="text-align: center"></td><td style="text-align: center">LM</td><td style="text-align: center">W</td><td style="text-align: center"></td><td></td><td style="text-align: center">LMw</td><td style="text-align: center">L</td><td style="text-align: center">W</td><td></td><td>Merge</td><td><a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a><br><a href="https://github.com/cardano-foundation/cardano-wallet/actions?query=workflow%3A%22cardano-wallet+Windows+Tests%22"><img src="https://img.shields.io/github/workflow/status/input-output-hk/cardano-wallet/cardano-wallet%20Windows%20Tests?label=Windows&style=for-the-badge" /></a></td></tr>
-<tr><td>E2E tests</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">LDMW</td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">LDMW</td><td></td><td>Merge</td><td><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-linux.yml"><img src="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg" alt="E2E Linux" /></a><br><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-docker.yml"><img src="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg" alt="E2E Docker" /></a><br><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-macos.yml"><img src="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg" alt="E2E MacOS" /></a><br><a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-windows.yml"><img src="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg" alt="E2E Windows" /></a><br></td></tr>
-<tr><td>Code linting</td><td style="text-align: center">X</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center">X</td><td style="text-align: center"></td><td></td><td>Merge</td><td></td></tr>
-<tr><td>Code review</td><td style="text-align: center">X</td><td style="text-align: center">X</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td>Merge</td><td></td></tr>
-<tr><td>DB Migration Path tests</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td></td><td></td></tr>
-<tr><td>Release file contents tests</td><td style="text-align: center">LMW</td><td style="text-align: center">LMW</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td style="text-align: center">LMW</td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td>Release</td><td></td></tr>
-<tr><td>Manual tests</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">LMW</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td>Release</td><td></td></tr>
-<tr><td>Wiki docs checks</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">X</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td>Release</td><td></td></tr>
-<tr><td>Database benchmark</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td></td><td></td></tr>
-<tr><td>API Latency benchmark</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td></td><td></td></tr>
-<tr><td>Restore benchmark</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td></td><td></td></tr>
-<tr><td>Docker image push</td><td style="text-align: center"></td><td style="text-align: center">L--</td><td style="text-align: center"></td><td style="text-align: center">X</td><td></td><td style="text-align: center"></td><td style="text-align: center">L</td><td style="text-align: center"></td><td></td><td>Merge</td><td></td></tr>
-<tr><td>ChangeLog review</td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">X</td><td></td><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center"></td><td></td><td>Release</td><td></td></tr>
-</tbody></table>
-</div><div class="table-wrapper"><table><thead><tr><th style="text-align: center"><strong>Key</strong></th><th><strong>Meaning</strong></th></tr></thead><tbody>
-<tr><td style="text-align: center">L</td><td>Run for Linux platform</td></tr>
-<tr><td style="text-align: center">D</td><td>Run under Docker for Linux platform</td></tr>
-<tr><td style="text-align: center">M</td><td>Run fox macOS platform</td></tr>
-<tr><td style="text-align: center">W</td><td>Run for Windows platform</td></tr>
-<tr><td style="text-align: center">w</td><td>Run under Wine on Linux</td></tr>
-<tr><td style="text-align: center">-</td><td>N/A</td></tr>
-<tr><td style="text-align: center">X</td><td>Test is executed</td></tr>
-</tbody></table>
-</div>
-<h2 id="handy-things-to-know"><a class="header" href="#handy-things-to-know">Handy things to know</a></h2>
-<ol>
-<li>
-<p>Normal PR builds do not run integration tests. This is to save CI
-resources and time.</p>
-</li>
-<li>
-<p>Bors job builds also execute integration tests. This can be the
-reason why your PR is green, but Bors still fails.</p>
-</li>
-<li>
-<p>Retrying a build in Buildkite or Hydra will have absolutely no
-effect if the Bors job has already failed.</p>
-</li>
-</ol>
+<p>See our Advice Process on Continuous Integration for information on which test is executed when.</p>
 
                     </main>
 
