@@ -106,13 +106,11 @@ steps:
   - label: 'Check HLS works'
     depends_on: linux-nix
     command: |
-        ln -sf hie-direnv.yaml hie.yaml
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
-
 
   - block: 'Run benchmark (api)'
     depends_on: linux-nix
