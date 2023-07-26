@@ -4,4 +4,4 @@ Pull requests are welcome!
 
 When creating a pull request, please make sure that your code adheres to our [coding standards](https://github.com/input-output-hk/adrestia/blob/master/docs/code/Coding-Standards.md).
 
-For more information, please consult our [contributors' guide](https://cardano-foundation.github.io/cardano-wallet/contributing).
+For more information, please consult our [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor).
