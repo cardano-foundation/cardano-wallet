@@ -619,7 +619,7 @@ prop_addressSuitableForCollateral_equivalence =
 -- | Assert that if the "composition" of "addressSuitableForCollateral" and
 -- "TokenBundle.toCoin" returns, "asCollateral" should also return.
 prop_equivalence_bool :: TxOut -> Property
-prop_equivalence_bool txOut@(TxOut addr toks) =
+prop_equivalence_bool txOut@(TxOut addr toks _) =
     isJust (asCollateral txOut)
     ===
     (addressSuitableForCollateral addr && TokenBundle.isCoin toks)
@@ -627,7 +627,7 @@ prop_equivalence_bool txOut@(TxOut addr toks) =
 -- | Assert that the "asCollateral" function is equivalent to the "composition"
 -- of "addressSuitableForCollateral" and "TokenBundle.toCoin".
 prop_equivalence :: TxOut -> Property
-prop_equivalence txOut@(TxOut addr toks) =
+prop_equivalence txOut@(TxOut addr toks _) =
     asCollateral txOut
     ===
     (guard (addressSuitableForCollateral addr) >> TokenBundle.toCoin toks)
@@ -651,7 +651,7 @@ instance Arbitrary TokenBundle where
     shrink = shrinkTokenBundleSmallRangePositive
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut <$> genAnyAddress <*> arbitrary
+    arbitrary = TxOut <$> genAnyAddress <*> arbitrary <*> pure Nothing
 
 -- Finally we group the tests for easy execution
 

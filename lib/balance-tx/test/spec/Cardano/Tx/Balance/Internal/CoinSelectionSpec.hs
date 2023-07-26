@@ -123,7 +123,7 @@ genSelection = Selection
     genAssetsToBurn = genTokenMap
     genExtraCoinSource = genCoin
     genExtraCoinSink = genCoin
-    genTxOutCoin = TxOut <$> genAddress <*> (TokenBundle.fromCoin <$> genCoin)
+    genTxOutCoin = TxOut <$> genAddress <*> (TokenBundle.fromCoin <$> genCoin) <*> pure Nothing
 
 shrinkSelection :: Selection -> [Selection]
 shrinkSelection = genericRoundRobinShrink

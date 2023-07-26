@@ -185,7 +185,7 @@ prop_deltaUTxO_semigroup_apply =
     names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..]
     mkTxIn name = TxIn (mockHash name) (names Map.! name)
     mkUTxO ix = UTxO $ Map.fromList
-        [(mkTxIn ix, TxOut (Address "TEST") mempty)]
+        [(mkTxIn ix, TxOut (Address "TEST") mempty Nothing)]
     mkUTxOs = mconcat . map mkUTxO
     mkDelta ex re =
         fst (excludingD (mkUTxOs ex) $ Set.fromList (map mkTxIn ex))

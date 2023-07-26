@@ -48,7 +48,7 @@ data FailedDecodingDeltaUTxO
 instance Exception FailedDecodingDeltaUTxO
 
 encodeTxOut :: TxOut -> Encoding
-encodeTxOut (TxOut (Address addr) (TokenBundle (Coin c) m)) =
+encodeTxOut (TxOut (Address addr) (TokenBundle (Coin c) m) _) =
     encodeListLen 3
         <> encodeBytes addr
         <> encodeInteger (fromIntegral c)

@@ -190,10 +190,10 @@ toInternalUTxOMap :: UTxO -> Map WalletUTxO TokenBundle
 toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
 
 toExternalUTxO' :: (b -> TokenBundle) -> (WalletUTxO, b) -> (TxIn, TxOut)
-toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b))
+toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b) Nothing)
 
 toInternalUTxO' :: (TokenBundle -> b) -> (TxIn, TxOut) -> (WalletUTxO, b)
-toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
+toInternalUTxO' f (i, TxOut a b _) = (WalletUTxO i a, f b)
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -311,7 +311,7 @@ toInternalSelectionParams SelectionParams {..} =
     TokenBundle extraCoinOut assetsToBurn = extraValueOut
 
     identifyCollateral :: WalletUTxO -> TokenBundle -> Maybe Coin
-    identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
+    identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b Nothing)
 
 --------------------------------------------------------------------------------
 -- Selection skeletons
@@ -352,9 +352,11 @@ toExternalSelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
         { skeletonOutputs =
-            uncurry TxOut <$> skeletonOutputs
+            map enrichPair skeletonOutputs
         , ..
         }
+  where
+    enrichPair (a,b) = TxOut a b Nothing
 
 --------------------------------------------------------------------------------
 -- Selections
@@ -405,10 +407,11 @@ toExternalSelection Internal.Selection {..} =
             <$> collateral
         , inputs = toExternalUTxO
             <$> inputs
-        , outputs = uncurry TxOut
-            <$> outputs
+        , outputs = map enrichPair outputs
         , ..
         }
+  where
+    enrichPair (a,b) = TxOut a b Nothing
 
 toInternalSelection
     :: (change -> TokenBundle)
