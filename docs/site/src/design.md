@@ -1,4 +1,4 @@
-# Design
+# Design Documents
 
 Information about the design of the wallet.
 

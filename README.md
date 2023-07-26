@@ -114,10 +114,13 @@ Previously, during the Byron phase, the wallet was part of the [cardano-sl](http
 
 | Link                                                                                               | Audience                                                     |
 | ---                                                                                                | ---                                                          |
-| [User Guide](https://cardano-foundation.github.io/cardano-wallet/user-guide) | Users of Cardano Wallet                              |
-| [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user-guide/cli) | Users of the Cardano Wallet API                              |
-| [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
-| [Cardano Wallet Documentation](https://cardano-foundation.github.io/cardano-wallet/)                                     | Anyone interested in the project and our development process |
+| [Documentation](https://cardano-foundation.github.io/cardano-wallet/)                                     |  |
+| • [User Manual](https://cardano-foundation.github.io/cardano-wallet/user) | Users of Cardano Wallet                              |
+| &nbsp;&nbsp;⤷ [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user/cli) | Users of the Cardano Wallet API                              |
+| &nbsp;&nbsp;⤷ [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
+| • [Design Documents](https://cardano-foundation.github.io/cardano-wallet/design)                     | Anyone interested in wallet design and specifications|
+| &nbsp;&nbsp;⤷ [Specifications](https://cardano-foundation.github.io/cardano-wallet/design/specs)                     | Anyone interested in wallet design and specifications|
+| • [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor)                     | Anyone interested in the project and our development process |
 | [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                                     | Anyone interested in the project and our development process |
 
 <hr/>
