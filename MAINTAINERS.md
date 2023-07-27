@@ -13,7 +13,6 @@ See CONTRIBUTING.md for general contribution guidelines.
 | Jonathan Knowles    | @jonathanknowles      |
 | Paolo Veronelli     | @paolino              |
 | Pawel Jakubas       | @paweljakubas         |
-| Piotr Stachyra      | @piotr-iohk           |
 | Yuriy Lazaryev      | @Unisay               |
 
 ## Emeritus Maintainers (in alphabetical order)
@@ -23,5 +22,6 @@ See CONTRIBUTING.md for general contribution guidelines.
 | Ante Kegalj         | @akegalj              |
 | Julian Ospald       | @hasufell             |
 | Matthias Benkort    | @KtorZ                |
+| Piotr Stachyra      | @piotr-iohk           |
 | Rodney Lorrimar     | @rvl                  |
 | Samuel Evans-Powell | @sevanspowell         |
