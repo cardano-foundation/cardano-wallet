@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -101,6 +102,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Allegra.Scripts as Scripts
 import qualified Cardano.Ledger.Alonzo as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Scripts
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
@@ -114,6 +116,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence.Strict as StrictSeq
 import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
@@ -301,64 +304,103 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
 toShelleyTxOut
     :: TxOut
     -> Shelley.ShelleyTxOut StandardShelley
-toShelleyTxOut (TxOut addr bundle) =
+toShelleyTxOut (TxOut addr bundle _) =
     Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
 
 toAllegraTxOut
     :: TxOut
     -> Shelley.ShelleyTxOut StandardAllegra
-toAllegraTxOut (TxOut addr bundle) =
+toAllegraTxOut (TxOut addr bundle _) =
     Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
 
 toMaryTxOut
     :: TxOut
     -> Shelley.ShelleyTxOut StandardMary
-toMaryTxOut (TxOut addr bundle) =
+toMaryTxOut (TxOut addr bundle _) =
     Shelley.ShelleyTxOut (toLedger addr) (toLedger bundle)
 
 toAlonzoTxOut
     :: TxOut
     -> Alonzo.AlonzoTxOut StandardAlonzo
-toAlonzoTxOut (TxOut addr bundle) =
+toAlonzoTxOut (TxOut addr bundle _) =
     Alonzo.AlonzoTxOut
         (toLedger addr)
         (toLedger bundle)
         Ledger.SNothing
 
+toBabbageScriptM
+    :: LCore.Era crypto
+    => Maybe (Script KeyHash)
+    -> Ledger.StrictMaybe (Scripts.AlonzoScript crypto)
+toBabbageScriptM = \case
+    Nothing -> Ledger.SNothing
+    Just s -> Ledger.SJust $ Scripts.TimelockScript $ toLedgerScript s
+
+toLedgerScript
+    :: LCore.Era crypto
+    => Script KeyHash
+    -> Scripts.Timelock crypto
+toLedgerScript = \case
+    RequireSignatureOf (KeyHash _ h) ->
+            Scripts.RequireSignature $
+            Ledger.KeyHash $ Crypto.UnsafeHash $ toShort h
+    RequireAllOf contents ->
+        Scripts.RequireAllOf $ StrictSeq.fromList $
+        map toLedgerScript contents
+    RequireAnyOf contents ->
+        Scripts.RequireAnyOf $ StrictSeq.fromList $
+        map toLedgerScript contents
+    RequireSomeOf num contents ->
+        Scripts.RequireMOf (fromIntegral num) $ StrictSeq.fromList $
+            map toLedgerScript contents
+    ActiveFromSlot slot ->
+        Scripts.RequireTimeStart (O.SlotNo $ fromIntegral slot)
+    ActiveUntilSlot slot ->
+        Scripts.RequireTimeExpire (O.SlotNo $ fromIntegral slot)
+
 toBabbageTxOut
     :: HasCallStack
     => TxOut
     -> Babbage.BabbageTxOut StandardBabbage
-toBabbageTxOut (TxOut addr bundle) =
+toBabbageTxOut (TxOut addr bundle scriptM) =
     Babbage.BabbageTxOut
         (toLedger addr)
         (toLedger bundle)
         Babbage.NoDatum
-        Ledger.SNothing
+        (toBabbageScriptM scriptM)
 
 toConwayTxOut
     :: TxOut
     -> Babbage.BabbageTxOut StandardConway
-toConwayTxOut (TxOut addr bundle) =
+toConwayTxOut (TxOut addr bundle scriptM) =
     Babbage.BabbageTxOut
         (toLedger addr)
         (toLedger bundle)
         Babbage.NoDatum
-        Ledger.SNothing
+        (toBabbageScriptM scriptM)
+
+fromLedgerScriptM
+    :: LCore.Era crypto
+    => Ledger.StrictMaybe (Scripts.AlonzoScript crypto)
+    -> Maybe (Script KeyHash)
+fromLedgerScriptM = \case
+    Ledger.SJust (Scripts.TimelockScript s) ->
+        Just $ toWalletScript (const Policy) s
+    _ -> Nothing
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromConwayTxOut
     :: Babbage.BabbageTxOut StandardConway
     -> TxOut
-fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromConwayTxOut (Babbage.BabbageTxOut addr val _ scriptM)
+    = TxOut (toWallet addr) (toWallet val) (fromLedgerScriptM scriptM)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
     -> TxOut
-fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
+fromBabbageTxOut (Babbage.BabbageTxOut addr val _ scriptM)
+    = TxOut (toWallet addr) (toWallet val) (fromLedgerScriptM scriptM)
 
 toWalletScript
     :: LCore.Era crypto

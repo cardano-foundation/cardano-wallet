@@ -345,6 +345,7 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
                 (\i -> TxOut
                     (mkAddress $ keyAtIx ds i)
                     (TB.fromCoin minUTxOVal)
+                    Nothing
                 ) <$> pointerIx n
             }
           where
@@ -417,13 +418,13 @@ applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
                 , show $ state ds
                 ]
           where
-            isOurOut (TxOut addr _b) =
+            isOurOut (TxOut addr _b _) =
                 case (paymentKeyFingerprint @k $ keyAtIx ds ix, paymentKeyFingerprint addr) of
                 (Right fp, Right fp')
                     | fp == fp' -> True
                     | otherwise -> False
                 _ -> False
-            mkPointer (txIx, TxOut _ tb) = PointerUTxO (TxIn h txIx) (TB.getCoin tb)
+            mkPointer (txIx, TxOut _ tb _) = PointerUTxO (TxIn h txIx) (TB.getCoin tb)
             pointerOuts = filter (isOurOut . snd) $ zip [0..] outs
 
     modifyState

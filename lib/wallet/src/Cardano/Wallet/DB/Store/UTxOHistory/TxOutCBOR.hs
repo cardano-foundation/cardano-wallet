@@ -96,6 +96,7 @@ decodeTxOut = do
                     ( TokenBundle (Coin $ fromIntegral c) $
                         fromFlatList tokens
                     )
+                    Nothing
         _ -> fail $ "decodeTxOut: expected 3, got " ++ show len
 
 -- | Read a 'TxOut' from a binary blob.

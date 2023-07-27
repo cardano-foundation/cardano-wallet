@@ -214,7 +214,7 @@ genesisBlockFromTxOuts gp outs = W.Block
     , transactions = mkTx <$> outs
     }
   where
-    mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
+    mkTx out@(W.TxOut (W.Address bytes) _ _) = W.Tx
         { txId = W.Hash $ blake2b256 bytes
         , txCBOR = Nothing
         , fee = Nothing

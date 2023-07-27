@@ -275,7 +275,8 @@ decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
-    TxOut addr . TokenBundle.fromCoin . Coin.fromWord64 <$> CBOR.decodeWord64
+    bundle <- TokenBundle.fromCoin . Coin.fromWord64 <$> CBOR.decodeWord64
+    TxOut addr bundle Nothing
 
 -- * Encoding
 
