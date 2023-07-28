@@ -1,0 +1,27 @@
+cabal-version:      3.4
+name:               local-cluster
+version:            0.1.0.0
+synopsis:           Local cluster of cardano nodes
+-- description:
+homepage:           https://github.com/cardanofoundation/cardano-wallet
+license:            Apache-2.0
+license-file:       LICENSE
+author:             Hal, Cardano Foundation
+maintainer:         hal@cardanofoundation.org
+-- copyright:
+category:           Web
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+executable local-cluster
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base ^>=4.14.3.0
+    hs-source-dirs:   exe
+    default-language: Haskell2010

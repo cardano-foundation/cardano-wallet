@@ -63,6 +63,7 @@ packages:
   , lib/delta-table
   , lib/delta-types/
   , lib/launcher/
+  , lib/local-cluster/
   , lib/numeric/
   , lib/primitive/
   , lib/test-utils/
