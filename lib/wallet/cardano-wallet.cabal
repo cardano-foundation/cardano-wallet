@@ -436,6 +436,7 @@ library
 
 library cardano-wallet-api-http
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  api/http
   build-depends:
     , aeson

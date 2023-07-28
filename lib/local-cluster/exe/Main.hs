@@ -1,4 +1,6 @@
-module Main where
+import qualified Service
+
+import Prelude
 
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = Service.main
