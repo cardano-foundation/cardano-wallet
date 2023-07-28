@@ -1,4 +1,4 @@
-cabal-version:      3.4
+cabal-version:      3.0
 name:               local-cluster
 version:            0.1.0.0
 synopsis:           Local cluster of cardano nodes
@@ -6,22 +6,69 @@ synopsis:           Local cluster of cardano nodes
 homepage:           https://github.com/cardano-foundation/cardano-wallet
 license:            Apache-2.0
 license-file:       LICENSE
-author:             Hal, Cardano Foundation
+author:             HAL, Cardano Foundation
 maintainer:         hal@cardanofoundation.org
--- copyright:
+copyright:          2023 Cardano Foundation
 category:           Web
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
-common warnings
-    ghc-options: -Wall
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 executable local-cluster
-    import:           warnings
+    import:         language, opts-exe
     main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    base ^>=4.14.3.0
+    ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+    build-depends:
+        base
+        , local-cluster
+
+
     hs-source-dirs:   exe
     default-language: Haskell2010
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+
+  exposed-modules:
+    Service
+  build-depends:
+    base
+    , cardano-addresses
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet:cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet-local-cluster
+    , contra-tracer
+    , directory
+    , filepath
+    , iohk-monitoring
+    , lobemo-backend-ekg
+    , text
+    , text-class
