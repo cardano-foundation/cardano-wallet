@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
-import Cardano.Wallet.Read.Tx.Cardano
+import Cardano.Wallet.Read.Primitive.Tx.Sealed
     ( fromSealedTx )
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), txStatus )
