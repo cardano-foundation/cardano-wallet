@@ -321,6 +321,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
@@ -357,8 +359,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import "cardano-addresses" Codec.Binary.Encoding

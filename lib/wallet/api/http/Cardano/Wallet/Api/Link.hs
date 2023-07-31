@@ -142,6 +142,8 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -152,8 +154,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, nullTokenName )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens

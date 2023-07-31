@@ -21,7 +21,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )

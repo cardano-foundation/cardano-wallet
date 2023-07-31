@@ -80,12 +80,12 @@ import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..), WalletFlavorS (ShelleyWallet) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Cardano.Wallet.Util

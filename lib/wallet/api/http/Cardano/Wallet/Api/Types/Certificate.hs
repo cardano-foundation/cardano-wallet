@@ -42,12 +42,12 @@ import Cardano.Wallet.Api.Lib.ExtendedObject
     ( extendAesonObject, parseExtendedAesonObject )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate )
 import Cardano.Wallet.Primitive.Types.Coin
     ( unCoin )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeStakeAddress, encodeStakeAddress )
 import Cardano.Wallet.Util

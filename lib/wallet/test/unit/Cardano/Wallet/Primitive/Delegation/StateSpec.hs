@@ -44,6 +44,8 @@ import Cardano.Wallet.Primitive.Delegation.State
     , setPortfolioOf
     , usableKeys
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -54,8 +56,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Control.Arrow
     ( first )
 import Crypto.Hash.Utils

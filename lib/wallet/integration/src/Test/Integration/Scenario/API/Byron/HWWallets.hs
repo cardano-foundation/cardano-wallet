@@ -42,10 +42,10 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (IcarusKeyS) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )
 import Control.Monad

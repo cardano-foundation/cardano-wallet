@@ -42,6 +42,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Pools
     ( StakePool (..), StakePoolFlag (Delisted) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..), LinearFunction (..), PoolMetadataSource (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -50,8 +52,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad

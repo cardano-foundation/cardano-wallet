@@ -76,6 +76,8 @@ import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ByronKeyS, IcarusKeyS, ShelleyKeyS) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -86,8 +88,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId, nullTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad

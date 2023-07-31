@@ -23,12 +23,12 @@ import Cardano.Wallet.Address.States.Features
     ( TestFeatures (isOwnedTest) )
 import Cardano.Wallet.Flavor
     ( WalletFlavorS (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq

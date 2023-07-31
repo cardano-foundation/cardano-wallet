@@ -51,6 +51,8 @@ import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Flavor
     ( KeyFlavor, keyFlavor )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..), SNetworkId (..), withSNetworkId )
 import Cardano.Wallet.Primitive.Types
     ( SlotId (..), TokenBundleMaxSize (..), getDecentralizationLevel )
 import Cardano.Wallet.Primitive.Types.Address
@@ -74,8 +76,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkId (..), SNetworkId (..), withSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto

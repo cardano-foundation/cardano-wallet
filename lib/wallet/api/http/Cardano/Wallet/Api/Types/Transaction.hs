@@ -54,6 +54,8 @@ import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -68,8 +70,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata (..), TxScriptValidity, txMetadataIsNull )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Transaction

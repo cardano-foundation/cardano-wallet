@@ -47,12 +47,12 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (ByronKeyS), WalletFlavorS (ByronWallet) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding

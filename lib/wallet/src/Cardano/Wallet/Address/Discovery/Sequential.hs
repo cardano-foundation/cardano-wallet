@@ -116,14 +116,14 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
 import Cardano.Wallet.TypeLevel

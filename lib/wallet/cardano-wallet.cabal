@@ -310,6 +310,7 @@ library
     Cardano.Wallet.Primitive.Migration.Planning
     Cardano.Wallet.Primitive.Migration.Selection
     Cardano.Wallet.Primitive.Model
+    Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Passphrase
     Cardano.Wallet.Primitive.Passphrase.Current
     Cardano.Wallet.Primitive.Passphrase.Gen
@@ -335,7 +336,6 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
-    Cardano.Wallet.Read.NetworkId
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Read.Primitive.Tx.Alonzo

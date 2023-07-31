@@ -78,6 +78,8 @@ import Cardano.Wallet.Gen
     ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (..)
@@ -145,8 +147,6 @@ import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( knownEraIndices )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Unsafe

@@ -64,12 +64,12 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
     ( Tracers, serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Shelley.BlockchainSource

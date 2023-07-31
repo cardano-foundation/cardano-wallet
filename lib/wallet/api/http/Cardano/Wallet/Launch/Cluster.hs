@@ -153,6 +153,8 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochNo (..)
@@ -170,8 +172,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress, fromGenesisData )
 import Cardano.Wallet.Unsafe

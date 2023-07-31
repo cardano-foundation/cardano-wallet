@@ -73,14 +73,14 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     , MaybeLight (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
 import Control.Arrow

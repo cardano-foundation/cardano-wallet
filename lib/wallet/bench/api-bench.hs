@@ -78,6 +78,14 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Model
     ( totalUTxO )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -86,14 +94,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..)
-    , NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , networkIdVal
-    , withSNetworkId
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Unsafe

@@ -83,14 +83,14 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), SNetworkId )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), SNetworkId )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq

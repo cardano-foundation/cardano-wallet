@@ -20,10 +20,10 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..), Tracer )
 import Cardano.Wallet.Network
     ( NetworkLayer )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkId )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility

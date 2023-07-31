@@ -98,6 +98,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -156,8 +158,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Foldl

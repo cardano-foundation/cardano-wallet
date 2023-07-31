@@ -44,12 +44,12 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
     ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Shelley.BlockchainSource
