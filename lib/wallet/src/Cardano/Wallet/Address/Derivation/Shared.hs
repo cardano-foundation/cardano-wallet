@@ -63,12 +63,12 @@ import Cardano.Wallet.Address.Derivation.Shelley
     )
 import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
 import Control.Monad
     ( (<=<) )
 import Crypto.Hash.Algorithms

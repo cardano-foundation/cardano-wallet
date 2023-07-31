@@ -15,7 +15,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 import Cardano.Wallet.Address.States.Test.State
     ( TestState )
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant )
 import Data.Kind
     ( Type )

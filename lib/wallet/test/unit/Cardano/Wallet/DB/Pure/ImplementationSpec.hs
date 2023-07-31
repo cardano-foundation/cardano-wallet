@@ -25,10 +25,10 @@ import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad.IO.Class

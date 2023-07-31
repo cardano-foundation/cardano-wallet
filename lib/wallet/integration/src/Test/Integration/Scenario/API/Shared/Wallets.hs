@@ -51,14 +51,14 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..), ApiErrorSharedWalletNoSuchCosigner (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class

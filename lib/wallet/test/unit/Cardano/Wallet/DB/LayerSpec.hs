@@ -115,6 +115,8 @@ import Cardano.Wallet.Primitive.Model
     , getState
     , initWallet
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase, preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -161,8 +163,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad

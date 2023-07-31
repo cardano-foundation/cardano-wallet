@@ -39,10 +39,10 @@ import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..), Role (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (sNetworkId), SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId), SNetworkId (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Lens

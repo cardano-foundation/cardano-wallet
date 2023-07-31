@@ -89,6 +89,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
     ( StakePool )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -116,8 +118,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)

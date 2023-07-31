@@ -42,12 +42,12 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (IcarusKeyS) )
 import Cardano.Wallet.Gen
     ( genLegacyAddress )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck

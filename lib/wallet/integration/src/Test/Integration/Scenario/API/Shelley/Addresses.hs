@@ -30,12 +30,12 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class

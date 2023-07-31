@@ -33,6 +33,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -43,8 +45,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxTokenQuantity )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens

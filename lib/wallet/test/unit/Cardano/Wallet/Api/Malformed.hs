@@ -90,14 +90,14 @@ import Cardano.Wallet.Api.Types
     , WalletPutData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, SerialisedTx )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ

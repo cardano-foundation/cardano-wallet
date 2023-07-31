@@ -236,6 +236,8 @@ import Cardano.Slotting.Time
     ( SystemStart (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , PoolCertificate
@@ -248,8 +250,6 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo

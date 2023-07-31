@@ -30,14 +30,14 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad

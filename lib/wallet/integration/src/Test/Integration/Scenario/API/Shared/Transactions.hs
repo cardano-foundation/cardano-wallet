@@ -61,6 +61,8 @@ import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -75,8 +77,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , cardanoTxIdeallyNoLaterThan
     )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..), ScriptReference (..), WitnessCount (..) )
 import Control.Monad

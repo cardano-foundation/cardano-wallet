@@ -66,14 +66,14 @@ import Cardano.Wallet.Address.Derivation
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( magicSNetworkId )
-import Cardano.Wallet.Read.NetworkId
-    ( SNetworkId (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Lens

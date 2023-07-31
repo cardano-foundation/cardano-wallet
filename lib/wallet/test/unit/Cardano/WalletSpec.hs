@@ -88,6 +88,8 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Passphrase.Current
@@ -142,8 +144,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..)
     , Withdrawal (..)

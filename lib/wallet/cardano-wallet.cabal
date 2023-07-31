@@ -309,11 +309,7 @@ library
     Cardano.Wallet.Primitive.Migration.Planning
     Cardano.Wallet.Primitive.Migration.Selection
     Cardano.Wallet.Primitive.Model
-    Cardano.Wallet.Primitive.Passphrase
-    Cardano.Wallet.Primitive.Passphrase.Current
-    Cardano.Wallet.Primitive.Passphrase.Gen
-    Cardano.Wallet.Primitive.Passphrase.Legacy
-    Cardano.Wallet.Primitive.Passphrase.Types
+    Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types
@@ -341,7 +337,6 @@ library
     Cardano.Wallet.Read.Eras.EraValue
     Cardano.Wallet.Read.Eras.InAnyCardanoEra
     Cardano.Wallet.Read.Eras.KnownEras
-    Cardano.Wallet.Read.NetworkId
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Read.Primitive.Tx.Alonzo

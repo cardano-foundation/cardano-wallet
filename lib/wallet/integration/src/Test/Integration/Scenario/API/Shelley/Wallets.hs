@@ -33,14 +33,14 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText, unsafeXPub )
 import Control.Monad

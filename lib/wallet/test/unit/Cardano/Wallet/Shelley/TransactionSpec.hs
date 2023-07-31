@@ -143,6 +143,12 @@ import Cardano.Wallet.Gen
     ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseMaxLength (..)
@@ -211,12 +217,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , withSNetworkId
-    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     ( txIntegrity )
 import Cardano.Wallet.Read.Tx.Cardano

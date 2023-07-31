@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Wallet.Read.NetworkId
+module Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     , networkDiscriminantVal
     , networkDiscriminantBits

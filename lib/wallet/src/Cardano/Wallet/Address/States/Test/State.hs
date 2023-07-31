@@ -8,7 +8,7 @@ import Prelude
 
 import Cardano.Wallet.Address.Derivation
     ( Depth )
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant )
 import Data.Kind
     ( Type )

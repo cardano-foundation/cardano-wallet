@@ -66,6 +66,14 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId
+    , NetworkId
+    , SNetworkId
+    , networkDiscriminantVal
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( neverFails )
 import Cardano.Wallet.Primitive.Types
@@ -86,14 +94,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
-    , NetworkId
-    , SNetworkId
-    , networkDiscriminantVal
-    , networkIdVal
-    , withSNetworkId
-    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource

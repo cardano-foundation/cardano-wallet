@@ -26,10 +26,10 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath, ApiSharedWallet (..), WalletStyle (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
