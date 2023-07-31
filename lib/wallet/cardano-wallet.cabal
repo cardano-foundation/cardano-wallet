@@ -310,7 +310,6 @@ library
     Cardano.Wallet.Primitive.Migration.Planning
     Cardano.Wallet.Primitive.Migration.Selection
     Cardano.Wallet.Primitive.Model
-    Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Passphrase
     Cardano.Wallet.Primitive.Passphrase.Current
     Cardano.Wallet.Primitive.Passphrase.Gen
