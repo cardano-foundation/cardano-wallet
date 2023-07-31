@@ -1121,3 +1121,61 @@ benchmark api
     , with-utf8
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
+
+library address-derivation
+  import:          language, opts-lib
+  hs-source-dirs:  address
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  build-depends:
+    base
+    , bytestring
+    , binary
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-slotting
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cborg
+    , containers
+    , cryptonite
+    , data-interval
+    , deepseq
+    , digest
+    , extra
+    , fmt
+    , int-cast
+    , lens
+    , memory
+    , quiet
+    , random
+    , safe
+    , scientific
+    , text
+    , text-class
+    , time
+
+  exposed-modules:
+    Cardano.Byron.Codec.Cbor
+    Cardano.Wallet.Address.Book
+    Cardano.Wallet.Address.Derivation
+    Cardano.Wallet.Address.Derivation.Byron
+    Cardano.Wallet.Address.Derivation.Icarus
+    Cardano.Wallet.Address.Derivation.MintBurn
+    Cardano.Wallet.Address.Derivation.Shared
+    Cardano.Wallet.Address.Derivation.SharedKey
+    Cardano.Wallet.Address.Derivation.Shelley
+    Cardano.Wallet.Address.Discovery
+    Cardano.Wallet.Address.Discovery.Random
+    Cardano.Wallet.Address.Discovery.Sequential
+    Cardano.Wallet.Address.Discovery.Shared
+    Cardano.Wallet.Address.HasDelegation
+    Cardano.Wallet.Address.Pool
+    Cardano.Wallet.Address.States.Test.State
+    Cardano.Wallet.Address.States.Families
+    Cardano.Wallet.Address.States.Features
+    Cardano.Wallet.Primitive.Passphrase
+    Cardano.Wallet.Primitive.Passphrase.Current
+    Cardano.Wallet.Primitive.Passphrase.Legacy
+    Cardano.Wallet.Primitive.Passphrase.Types
+    Crypto.Hash.Utils
