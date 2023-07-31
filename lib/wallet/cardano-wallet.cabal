@@ -317,8 +317,6 @@ library
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     Cardano.Wallet.Primitive.Types.ProtocolMagic
-    Cardano.Wallet.Primitive.Types.RewardAccount
-    Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
     Cardano.Wallet.Primitive.Types.Tx
     Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -414,7 +412,6 @@ library
     Control.Monad.Fail.Extended
     Control.Monad.Util
     Crypto.Hash.Utils
-    Data.Aeson.Extra
     Data.Function.Utils
     Data.Text.Class.Extended
     Data.Time.Text
