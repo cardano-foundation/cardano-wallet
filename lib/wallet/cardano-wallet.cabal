@@ -309,7 +309,6 @@ library
     Cardano.Wallet.Primitive.Migration.Planning
     Cardano.Wallet.Primitive.Migration.Selection
     Cardano.Wallet.Primitive.Model
-    Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types

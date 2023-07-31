@@ -46,6 +46,7 @@ library
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
     , cardano-numeric
     , cardano-wallet-test-utils
@@ -83,6 +84,7 @@ library
 
   exposed-modules:
     Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Coin
