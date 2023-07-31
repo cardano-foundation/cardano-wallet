@@ -1,0 +1,58 @@
+module BabbageTxOut where
+{-----------------------------------------------------------------------------
+    Elaboration of
+    some of the types from the Babbage era
+------------------------------------------------------------------------------}
+
+-- elaborate Babbage;
+
+Ix = ℕ;
+ByteString = Bytes;
+
+TxId = Bytes;
+
+ScriptHash = Bytes;
+Script^ph1 = Bytes;
+Script^ph2 = Bytes;
+Script     = Script^ph1 ⊎ Script^ph2;
+
+AssetName = ByteString;
+PolicyID  = ScriptHash;
+AdaIDType = Unit;
+
+Quantity  = ℤ;
+Value     = AssetID ↦0 Quantity;
+
+Addr     = Bytes;
+Datum    = Bytes;
+DataHash = Bytes;
+
+AssetIDNonAda =
+  { policyId  : PolicyID
+  , assetName : AssetName
+  };
+
+AssetID =
+  [+ ada   : AdaIDType
+  ,  asset : AssetIDNonAda
+  +];
+
+
+TxIn =
+  { id    : TxId
+  , index : Ix
+  };
+
+TxOut =
+  { address   : Addr
+  , value     : Value
+  , datum     : (Datum ⊎ DataHash)?
+  , scriptRef : Script?
+  };
+
+DatumOrHash =
+  [+ datum    : Datum
+  ,  dataHash : DataHash
+  +];
+
+UTxO = TxIn ↦ TxOut;
