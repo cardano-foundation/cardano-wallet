@@ -94,6 +94,7 @@ library
     , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -334,13 +335,6 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
-    Cardano.Wallet.Read
-    Cardano.Wallet.Read.Block
-    Cardano.Wallet.Read.Eras
-    Cardano.Wallet.Read.Eras.EraFun
-    Cardano.Wallet.Read.Eras.EraValue
-    Cardano.Wallet.Read.Eras.InAnyCardanoEra
-    Cardano.Wallet.Read.Eras.KnownEras
     Cardano.Wallet.Read.NetworkId
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
@@ -364,26 +358,6 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Mary
     Cardano.Wallet.Read.Primitive.Tx.Shelley
     Cardano.Wallet.Read.Primitive.Tx.Sealed
-    Cardano.Wallet.Read.Tx
-    Cardano.Wallet.Read.Tx.Cardano
-    Cardano.Wallet.Read.Tx.CBOR
-    Cardano.Wallet.Read.Tx.Certificates
-    Cardano.Wallet.Read.Tx.CollateralInputs
-    Cardano.Wallet.Read.Tx.CollateralOutputs
-    Cardano.Wallet.Read.Tx.Eras
-    Cardano.Wallet.Read.Tx.ExtraSigs
-    Cardano.Wallet.Read.Tx.Fee
-    Cardano.Wallet.Read.Tx.Hash
-    Cardano.Wallet.Read.Tx.Inputs
-    Cardano.Wallet.Read.Tx.Integrity
-    Cardano.Wallet.Read.Tx.Metadata
-    Cardano.Wallet.Read.Tx.Mint
-    Cardano.Wallet.Read.Tx.Outputs
-    Cardano.Wallet.Read.Tx.ReferenceInputs
-    Cardano.Wallet.Read.Tx.ScriptValidity
-    Cardano.Wallet.Read.Tx.Validity
-    Cardano.Wallet.Read.Tx.Withdrawals
-    Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
@@ -465,6 +439,7 @@ library cardano-wallet-api-http
     , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -800,6 +775,7 @@ test-suite unit
     , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , connection
@@ -1139,6 +1115,7 @@ benchmark api
     , cardano-wallet
     , cardano-wallet-bench
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , containers
     , deepseq
     , directory
