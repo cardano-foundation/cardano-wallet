@@ -4,7 +4,7 @@
 
 ## Check additional automated tests
 - [ ] Verify that the latest E2E tests are fine (See "E2E *" workflows on https://github.com/cardano-foundation/cardano-wallet/actions).
-- [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine. [Benchmark charts](http://ec2-44-197-192-237.compute-1.amazonaws.com:5555) may be helpful in analysis.
+- [ ] Verify latest [buildkite nightly](https://buildkite.com/cardano-foundation/cardano-wallet-nightly) and make sure the results are fine. [Benchmark charts](http://ec2-44-197-192-237.compute-1.amazonaws.com:5555) may be helpful in analysis.
 
 ## Prepare the release
 - [ ] Make sure `cardano-wallet` points to correct revisions of

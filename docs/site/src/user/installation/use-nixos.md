@@ -5,14 +5,14 @@
 The following command will download and run a given release of `cardano-wallet` using Nix:
 
 ```console
-> nix run github:input-output-hk/cardano-wallet/v2022-01-18 -- version
+> nix run github:cardano-foundation/cardano-wallet/v2022-01-18 -- version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 ```
 
 It's also possible to run the very latest version from the master branch on GitHub:
 
 ```console
-> nix run github:input-output-hk/cardano-wallet -- --help
+> nix run github:cardano-foundation/cardano-wallet -- --help
 ...
 ```
 
@@ -23,13 +23,13 @@ To run a wallet on _mainnet_:
 ```console
 > CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 
-> nix run github:input-output-hk/cardano-wallet#mainnet/wallet
+> nix run github:cardano-foundation/cardano-wallet#mainnet/wallet
 ```
 
 ## Installing into user profile
 
 ```
-> nix profile install github:input-output-hk/cardano-wallet/v2022-01-18
+> nix profile install github:cardano-foundation/cardano-wallet/v2022-01-18
 > cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 ```
@@ -43,7 +43,7 @@ Then `cardano-wallet` server can then be activated and configured:
 ```nix
 {
   description = "Flake example with cardano-wallet NixOS module";
-  inputs.cardano-wallet.url = github:input-output-hk/cardano-wallet;
+  inputs.cardano-wallet.url = github:cardano-foundation/cardano-wallet;
   outputs = { self, cardano-wallet }@inputs: {
     nixosModules.example = { config, ...}: {
       imports = [

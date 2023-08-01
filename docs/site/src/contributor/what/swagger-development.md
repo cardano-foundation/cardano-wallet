@@ -10,7 +10,7 @@ To view the file online, use:
 - [http-api](../user-guide/http-api.md)
     for the latest released version.
 
-- [ReDoc viewer](https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml) for the `master` branch version.
+- [ReDoc viewer](https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/specifications/api/swagger.yaml) for the `master` branch version.
 
 
 ## Validating locally
