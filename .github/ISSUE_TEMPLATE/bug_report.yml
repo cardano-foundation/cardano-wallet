@@ -18,7 +18,7 @@ body:
 
 
         If you know that the issue is already tracked in
-        [IOHK Jira](https://cardanofoundation.atlassian.net/) (i.e. has an `ADP-` issue number)
+        [Jira](https://cardanofoundation.atlassian.net/) (i.e. has an `ADP-` issue number)
         then please do not also submit it here. See the
         [release notes](https://github.com/input-output-hk/cardano-wallet/releases)
         for known issues.
