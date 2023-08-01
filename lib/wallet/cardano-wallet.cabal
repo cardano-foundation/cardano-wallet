@@ -300,7 +300,6 @@ library
     Cardano.Wallet.Network
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Ports
-    Cardano.Wallet.Orphans
     Cardano.Wallet.Pools
     Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
@@ -317,11 +316,7 @@ library
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    Cardano.Wallet.Primitive.Types.Tx
-    Cardano.Wallet.Primitive.Types.Tx.Gen
-    Cardano.Wallet.Primitive.Types.Tx.SealedTx
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    Cardano.Wallet.Primitive.Types.Tx.Tx
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen

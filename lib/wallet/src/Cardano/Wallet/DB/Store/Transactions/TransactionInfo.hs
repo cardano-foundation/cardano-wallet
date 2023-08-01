@@ -27,8 +27,6 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..), fromTxCollateralOut, fromTxOut, txCBORPrism )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxCBOR )
 import Cardano.Wallet.Read.Eras
     ( EraFun, EraValue, K, applyEraFun, extractEraValue )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
@@ -50,7 +48,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( getWithdrawals )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR, TxCBOR )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( getEraCollateralInputs )
 import Cardano.Wallet.Read.Tx.CollateralOutputs

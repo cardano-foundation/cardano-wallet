@@ -6,7 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, GeneralisedNewtypeDeriving #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -58,8 +58,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -84,6 +82,8 @@ import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+newtype TxCBOR = TxCBOR ()
+    deriving (Show, Eq, Ord, Generic, NFData)
 -- | Primitive @Tx@-type.
 --
 -- Currently tailored for jormungandr in that inputs are @(TxIn, Coin)@

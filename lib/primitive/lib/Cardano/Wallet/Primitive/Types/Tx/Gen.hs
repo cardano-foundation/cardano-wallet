@@ -17,7 +17,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 
 import Prelude
 
-import Cardano.Wallet.Gen
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
     ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
