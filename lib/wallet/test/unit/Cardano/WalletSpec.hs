@@ -124,22 +124,19 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , mockSealedTx
-    )
+    ( SealedTx (..), Tx (..), mockSealedTx )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxInLargeRange )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO

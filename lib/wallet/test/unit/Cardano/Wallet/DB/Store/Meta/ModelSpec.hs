@@ -24,7 +24,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (Incoming, Outgoing) )
 import Control.Arrow
     ( (***) )

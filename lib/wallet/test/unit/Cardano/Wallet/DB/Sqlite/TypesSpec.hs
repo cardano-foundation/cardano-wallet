@@ -14,12 +14,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( stdGenFromString )
 import Cardano.Wallet.Gen
-    ( genNestedTxMetadata
-    , genSimpleTxMetadata
-    , genSlotNo
-    , shrinkSlotNo
-    , shrinkTxMetadata
-    )
+    ( genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -30,6 +25,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata, TxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    ( genNestedTxMetadata, genSimpleTxMetadata, shrinkTxMetadata )
 import Data.Either
     ( isLeft )
 import Data.Proxy

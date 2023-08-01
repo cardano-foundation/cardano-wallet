@@ -74,7 +74,11 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, TransactionInfo (..), Tx (..), TxMeta (..), TxStatus )
+    ( SealedTx, Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxMeta (..), TxStatus )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.Eras

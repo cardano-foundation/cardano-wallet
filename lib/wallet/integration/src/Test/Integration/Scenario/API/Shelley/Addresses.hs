@@ -34,7 +34,7 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
 import Control.Monad
     ( forM, forM_ )

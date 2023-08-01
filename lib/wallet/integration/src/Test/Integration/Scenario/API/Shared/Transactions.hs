@@ -70,13 +70,13 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TxMetadata (..)
+    ( TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
-    , TxStatus (..)
     , cardanoTxIdeallyNoLaterThan
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..), ScriptReference (..), WitnessCount (..) )
 import Control.Monad

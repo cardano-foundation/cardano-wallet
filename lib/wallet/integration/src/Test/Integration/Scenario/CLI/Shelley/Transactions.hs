@@ -24,7 +24,9 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )
 import Control.Monad

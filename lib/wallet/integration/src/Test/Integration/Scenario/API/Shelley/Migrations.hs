@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )

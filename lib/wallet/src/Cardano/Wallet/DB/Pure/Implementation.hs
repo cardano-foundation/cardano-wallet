@@ -98,11 +98,12 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
+    ( SealedTx (..), Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxMeta (TxMeta, blockHeight, expiry, slotNo, status)
+    , TxStatus (Expired, Pending)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )

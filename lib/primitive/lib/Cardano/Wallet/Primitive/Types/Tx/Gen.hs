@@ -17,8 +17,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 
 import Prelude
 
-import Cardano.Wallet.Gen
-    ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -31,6 +29,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     ( genRewardAccount, shrinkRewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxMetadata (..), TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen

@@ -141,9 +141,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TransactionInfo, Tx (..), TxMeta (..), TxStatus (..) )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO

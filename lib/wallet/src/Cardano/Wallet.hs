@@ -466,21 +466,20 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus
-    , SealedTx (..)
-    , TransactionInfo (..)
+    ( LocalTxSubmissionStatus
+    , SealedTx
     , Tx (..)
     , TxChange (..)
-    , TxMeta (..)
     , TxMetadata (..)
-    , TxStatus (..)
     , UnsignedTx (..)
-    , fromTransactionInfo
     , sealedTxFromCardano
     )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..), fromTransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO

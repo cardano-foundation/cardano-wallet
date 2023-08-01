@@ -31,6 +31,7 @@ import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WT
 
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]

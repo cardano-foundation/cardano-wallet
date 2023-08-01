@@ -36,7 +36,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, TxSubmissionStatusEnum (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxMeta (..) )
 import Cardano.Wallet.Submissions.Operations
     ( applyOperations )
@@ -67,6 +67,7 @@ import Database.Persist.Sql
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Cardano.Wallet.Submissions.Operations as Sbm
 import qualified Cardano.Wallet.Submissions.Submissions as Sbm
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbm

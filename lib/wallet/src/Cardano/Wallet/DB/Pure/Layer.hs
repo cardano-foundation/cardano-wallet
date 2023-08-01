@@ -39,7 +39,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..) )
 import Control.Monad
     ( join, unless )

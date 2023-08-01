@@ -32,11 +32,9 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
-    , genNestedTxMetadata
     , genSlotNo
     , shrinkActiveSlotCoefficient
     , shrinkSlotNo
-    , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( SlotParameters (..)
@@ -102,6 +100,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn

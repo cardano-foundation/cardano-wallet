@@ -46,9 +46,12 @@ library
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-binary
     , cardano-api
     , cardano-crypto
     , cardano-numeric
+    , cardano-slotting
+    , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , commutative-semigroups
@@ -59,6 +62,7 @@ library
     , errors
     , extra
     , fmt
+    , generic-arbitrary
     , generic-lens
     , generics-sop
     , hashable
@@ -71,6 +75,8 @@ library
     , network-uri
     , nothunks
     , OddWord
+    , ouroboros-consensus
+    , pretty-simple
     , QuickCheck
     , quiet
     , random
@@ -81,8 +87,10 @@ library
     , transformers
     , unliftio
     , unliftio-core
+    , unordered-containers
 
   exposed-modules:
+    Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Types.Address
@@ -101,7 +109,12 @@ library
     Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     Cardano.Wallet.Primitive.Types.TokenQuantity
     Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    Cardano.Wallet.Primitive.Types.Tx
     Cardano.Wallet.Primitive.Types.Tx.Constraints
+    Cardano.Wallet.Primitive.Types.Tx.Gen
+    Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    Cardano.Wallet.Primitive.Types.Tx.Tx
     Cardano.Wallet.Primitive.Types.Tx.TxIn
     Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxOut

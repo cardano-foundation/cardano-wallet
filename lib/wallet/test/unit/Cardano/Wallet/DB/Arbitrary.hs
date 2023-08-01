@@ -75,7 +75,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (SharedKeyS, ShelleyKeyS) )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.NetworkId
@@ -131,6 +131,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    ( genSimpleTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata, TxScriptValidity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn

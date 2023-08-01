@@ -32,7 +32,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )

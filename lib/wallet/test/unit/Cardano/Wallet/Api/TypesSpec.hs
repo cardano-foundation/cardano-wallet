@@ -87,6 +87,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( retrieveAllCosigners )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKey )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -263,13 +265,11 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genMockXPub
-    , genNestedTxMetadata
     , genPercentage
     , genScript
     , genScriptCosigners
     , genScriptTemplate
     , shrinkPercentage
-    , shrinkTxMetadata
     )
 import Cardano.Wallet.Pools
     ( EpochInfo (..)
@@ -338,20 +338,22 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
+    ( SealedTx (..)
     , SerialisedTx (..)
     , TxMetadata (..)
     , TxScriptValidity (..)
-    , TxStatus (..)
     , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
+import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
+    ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction, TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
@@ -521,8 +523,6 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Api as Cardano
-import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics

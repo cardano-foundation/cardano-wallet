@@ -378,16 +378,16 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
+    ( SealedTx (..)
     , SerialisedTx (..)
     , TxMetadata
     , TxScriptValidity (..)
-    , TxStatus (..)
     , sealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction, TxStatus )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Shelley.Compatibility
