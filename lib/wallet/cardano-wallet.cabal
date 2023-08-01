@@ -316,7 +316,6 @@ library
     Cardano.Wallet.Primitive.Types.Credentials
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
     Cardano.Wallet.Primitive.Types.Tx
     Cardano.Wallet.Primitive.Types.Tx.Gen
