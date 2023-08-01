@@ -18,7 +18,7 @@
 -- Good to read before / additional resources:
 --
 -- - Module's documentation in `ouroboros-network/typed-protocols/src/Network/TypedProtocols.hs`
--- - Data Diffusion and Peer Networking in Shelley (see: https://raw.githubusercontent.com/wiki/input-output-hk/cardano-wallet/data_diffusion_and_peer_networking_in_shelley.pdf)
+-- - Data Diffusion and Peer Networking in Shelley (see: https://raw.githubusercontent.com/wiki/cardano-foundation/cardano-wallet/data_diffusion_and_peer_networking_in_shelley.pdf)
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer

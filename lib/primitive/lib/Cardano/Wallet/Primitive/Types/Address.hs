@@ -53,7 +53,7 @@ import qualified Data.Text.Encoding as T
 -- - Byron Sequential addresses, also known as Icarus'style addresses
 -- - Shelley base addresses, see also [implementation-decisions/address](https://github.com/input-output-hk/implementation-decisions/blob/master/text/0001-address.md)
 --
--- For more details, see also [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
+-- For more details, see also [About Address Derivation](https://github.com/cardano-foundation/cardano-wallet/wiki/About-Address-Derivation)
 --
 -- Shelley base addresses can be divided into two types:
 --
