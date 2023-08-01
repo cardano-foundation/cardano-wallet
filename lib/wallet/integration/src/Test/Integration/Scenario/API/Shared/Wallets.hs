@@ -1448,7 +1448,7 @@ spec = describe "SHARED_WALLETS" $ do
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
 
-        -- TODO Drop expectation https://input-output.atlassian.net/browse/ADP-2935
+        -- TODO Drop expectation https://cardanofoundation.atlassian.net/browse/ADP-2935
         expectField
             (#fee . #getQuantity)
             (between (feeMin, feeMax))

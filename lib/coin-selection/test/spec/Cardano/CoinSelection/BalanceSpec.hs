@@ -16,7 +16,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {- HLINT ignore "Use camelCase" -}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
@@ -1939,7 +1939,7 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
 -- the change generation algorithm terminates after only a subset of the UTxO
 -- has been selected.
 --
--- See: https://input-output.atlassian.net/browse/ADP-890
+-- See: https://cardanofoundation.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_5 :: BoundaryTestData
 boundaryTest_largeTokenQuantities_5 = BoundaryTestData
@@ -1978,7 +1978,7 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
 -- the change generation algorithm terminates after only a subset of the UTxO
 -- has been selected.
 --
--- See: https://input-output.atlassian.net/browse/ADP-890
+-- See: https://cardanofoundation.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_6 :: BoundaryTestData
 boundaryTest_largeTokenQuantities_6 = BoundaryTestData

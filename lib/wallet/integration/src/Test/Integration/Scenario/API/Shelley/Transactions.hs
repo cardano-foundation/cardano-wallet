@@ -2131,7 +2131,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#amount . #getQuantity)
                 (`shouldBe` (oneMillionAda - fee))
 
-            -- TODO: Drop https://input-output.atlassian.net/browse/ADP-2935
+            -- TODO: Drop https://cardanofoundation.atlassian.net/browse/ADP-2935
             , expectField (#fee . #getQuantity)
                 (between (estimatedFeeMin, estimatedFeeMax))
             ]
@@ -2487,7 +2487,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- TODO Consider replacing with golden tests on the unit level
         -- for fee values.
         --
-        -- Related to https://input-output.atlassian.net/browse/ADP-2935
+        -- Related to https://cardanofoundation.atlassian.net/browse/ADP-2935
         liftIO $ withinToleranceTo
             expectedFee
             1_000
@@ -2519,7 +2519,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 -- TODO Consider replacing with golden tests on the unit level
                 -- for fee values.
                 --
-                -- Related to https://input-output.atlassian.net/browse/ADP-2935
+                -- Related to https://cardanofoundation.atlassian.net/browse/ADP-2935
             ]
 
         eventually "metadata is confirmed in transaction list" $ do

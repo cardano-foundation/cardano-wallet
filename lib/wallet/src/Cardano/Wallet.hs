@@ -2290,7 +2290,7 @@ buildTransactionPure
 -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
 -- make 'buildAndSignTransactionPure' partial instead.
 --
--- https://input-output.atlassian.net/browse/ADP-2933
+-- https://cardanofoundation.atlassian.net/browse/ADP-2933
 
 unsafeShelleyOnlyGetRewardXPub
     :: forall s
