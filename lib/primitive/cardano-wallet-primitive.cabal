@@ -90,6 +90,7 @@ library
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.TokenBundle
