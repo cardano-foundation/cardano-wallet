@@ -2,7 +2,7 @@ name:                cardano-wallet-test-utils
 version:             2023.7.18
 synopsis:            Shared utilities for writing unit and property tests.
 description:         Shared utilities for writing unit and property tests.
-homepage:            https://github.com/input-output-hk/cardano-wallet
+homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
 copyright:           2018-2020 IOHK
