@@ -16,7 +16,7 @@ The roadmap is actually divided into _phases_, under which one or more eras (har
 
 The mechanism whereby the Cardano Node operates in different modes - depending on which slot it is up to - is called the "Hard Fork Combinator".
 
-The following [seminars](https://cardanofoundation.atlassian.net/wiki/spaces/EN/pages/718962750/IOHK+Research+Engineering+Seminar) (company internal use only) are a good introduction:
+The following [seminars](https://input-output.atlassian.net/wiki/spaces/EN/pages/718962750/IOHK+Research+Engineering+Seminar) (company internal use only) are a good introduction:
 
 | Date | Title | Description |
 | --- | --- | --- |
