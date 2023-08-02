@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted - [ADP-983](https://input-output.atlassian.net/browse/ADP-983)
+Accepted - [ADP-983](https://cardanofoundation.atlassian.net/browse/ADP-983)
 
 ## Context
 

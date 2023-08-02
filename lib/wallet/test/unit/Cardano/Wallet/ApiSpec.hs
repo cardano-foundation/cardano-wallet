@@ -27,7 +27,7 @@
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-star-is-type #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}

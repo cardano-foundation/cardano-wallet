@@ -625,7 +625,7 @@ estimateMaxWitnessRequiredPerInput = \case
     -- however we'd then need to adjust signTx accordingly such that it still
     -- doesn't add more witnesses than we plan for.
     --
-    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
+    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
     RequireSomeOf _m xs   ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     -- Estimate (and tx fees) could be lowered with:
@@ -637,7 +637,7 @@ estimateMaxWitnessRequiredPerInput = \case
     -- however we'd then need to adjust signTx accordingly such that it still
     -- doesn't add more witnesses than we plan for.
     --
-    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
+    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
 

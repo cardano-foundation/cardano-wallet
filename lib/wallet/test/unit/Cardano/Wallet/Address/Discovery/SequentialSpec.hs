@@ -17,7 +17,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-star-is-type #-}
 
 module Cardano.Wallet.Address.Discovery.SequentialSpec

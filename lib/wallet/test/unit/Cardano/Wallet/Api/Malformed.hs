@@ -28,7 +28,7 @@
 -- API servant type. These tests enforces that the API behaves as expected when
 -- present with malformed data, and do so consistently across each endpoint.
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-star-is-type #-}
 
 -- TODO: Temporary until all 'integration' scenarios have been move here.

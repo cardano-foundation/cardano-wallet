@@ -317,7 +317,7 @@ genTxFromUTxO genAddr u = do
         , Just TxScriptInvalid
         ]
     pure $ txWithoutIdToTx TxWithoutId
-        -- TODO: https://input-output.atlassian.net/browse/ADP-2895
+        -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2895
         -- We currently do not cover the case where fees are 'Nothing':
         { fee = Just feeCoin
         , resolvedInputs = fmap Just <$> inputs

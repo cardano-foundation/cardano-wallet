@@ -1,5 +1,5 @@
 {{ range .issues }}
-h1. [{{ .key }}|https://input-output.atlassian.net/browse/{{ .key }}] {{ .fields.summary }}
+h1. [{{ .key }}|https://cardanofoundation.atlassian.net/browse/{{ .key }}] {{ .fields.summary }}
 
 |Type|{{ .fields.issuetype.name }}|
 |Priority|{{ if .fields.priority }}{{ .fields.priority.name }}{{ end }}|

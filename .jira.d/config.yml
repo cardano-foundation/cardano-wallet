@@ -16,7 +16,7 @@
 #    authentication-method: api-token
 #    login: your.name@iohk.io
 #    password-source: keyring
-#    password-name: input-output.atlassian.net/your.name@iohk.io
+#    password-name: cardanofoundation.atlassian.net/your.name@iohk.io
 #
 #    For those who aren't using an explicit keyring, pass can also be used as a
 #    password source, the advantage of this is that it's lightweight way of
@@ -26,7 +26,7 @@
 #    authentication-method: api-token
 #    login: your.name@iohk.io
 #    password-source: pass
-#    password-name: input-output.atlassian.net/your.name@iohk.io
+#    password-name: cardanofoundation.atlassian.net/your.name@iohk.io
 #
 #    # gpg --list-keys
 #    /home/alice/.gnupg/pubring.kbx
@@ -36,15 +36,15 @@
 #    uid                   [ultimate] Alice Bloggs <alice@iohk.io>
 #
 #    # pass init "0x4404B986C4C026D4" # KEY_ID of YubiKey key, or other GPG key
-#    # pass insert input-output.atlassian.net/your.name@iohk.io
+#    # pass insert cardanofoundation.atlassian.net/your.name@iohk.io
 #    # pass list
 #    Password Store
-#    └── input-output.atlassian.net
+#    └── cardanofoundation.atlassian.net
 #        └── your.name@iohk.io
 #
 ######################################################################
 
-endpoint: https://input-output.atlassian.net
+endpoint: https://cardanofoundation.atlassian.net
 project: ADP
 
 custom-commands:

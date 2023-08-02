@@ -307,7 +307,7 @@ type RecentEraLedgerConstraints era =
 -- TODO [ADP-2354] Make 'RecentEraLedgerConstraints' superclass of
 -- 'IsRecentEra'. Currently this would cause weird type-inference errors in the
 -- wallet code specifically with GHC 8.10.
--- https://input-output.atlassian.net/browse/ADP-2353
+-- https://cardanofoundation.atlassian.net/browse/ADP-2353
 withConstraints
     :: RecentEra era
     -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)

@@ -14,7 +14,7 @@ jobs:
     steps:
       # This should create an empty release draft
       # TODO: get artifacts from Buildkite to be attached to the draft
-      # Task: https://input-output.atlassian.net/browse/ADP-2502
+      # Task: https://cardanofoundation.atlassian.net/browse/ADP-2502
       - name: '🚀 Release'
         uses: softprops/action-gh-release@v1
         with:

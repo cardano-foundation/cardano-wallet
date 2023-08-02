@@ -705,7 +705,7 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
 
 -- | Transaction metadata for ADP-1005.
 --
--- See https://input-output.atlassian.net/browse/ADP-1005
+-- See https://cardanofoundation.atlassian.net/browse/ADP-1005
 --
 txMetadata_ADP_1005 :: TxMetadata
 txMetadata_ADP_1005 = TxMetadata $ Map.fromList

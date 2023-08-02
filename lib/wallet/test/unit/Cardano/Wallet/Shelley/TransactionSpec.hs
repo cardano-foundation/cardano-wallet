@@ -24,7 +24,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
@@ -3283,7 +3283,7 @@ txMinFee tx@(Cardano.Tx body _) u =
 prop_balanceTransactionValid
     :: forall era. era ~ Cardano.BabbageEra
     -- TODO [ADP-2997] Test with all RecentEras
-    -- https://input-output.atlassian.net/browse/ADP-2997
+    -- https://cardanofoundation.atlassian.net/browse/ADP-2997
     => Wallet'
     -> ShowBuildable (PartialTx Cardano.BabbageEra)
     -> StdGenSeed
