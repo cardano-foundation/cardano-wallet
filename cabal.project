@@ -65,6 +65,7 @@ packages:
   , lib/launcher/
   , lib/numeric/
   , lib/primitive/
+  , lib/read
   , lib/test-utils/
   , lib/text-class/
   , lib/wai-middleware-logging/

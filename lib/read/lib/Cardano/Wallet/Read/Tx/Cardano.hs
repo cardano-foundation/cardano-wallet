@@ -8,19 +8,12 @@
 
 module Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx
-    , fromSealedTx
-    , anythingFromSealedTx
     ) where
 
 import Prelude
 
-import Cardano.Api
-    ( InAnyCardanoEra (..) )
-import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (unsafeCardanoTx) )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
-    , K (..)
     , allegra
     , alonzo
     , babbage
@@ -30,10 +23,6 @@ import Cardano.Wallet.Read.Eras
     , mary
     , shelley
     )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun, applyEraFun )
-import Cardano.Wallet.Read.Eras.EraValue
-    ( extractEraValue )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Control.Monad
@@ -42,7 +31,6 @@ import Control.Monad
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
 
 fromCardanoApiTx :: Cardano.Tx era -> EraValue Tx
 fromCardanoApiTx = \case
@@ -54,11 +42,3 @@ fromCardanoApiTx = \case
         Cardano.ShelleyBasedEraBabbage -> inject babbage $ Tx tx
         Cardano.ShelleyBasedEraConway -> inject conway $ Tx tx
     Cardano.ByronTx tx -> inject byron $ Tx $ void tx
-
-fromSealedTx:: W.SealedTx -> EraValue Tx
-fromSealedTx sealed =
-    case unsafeCardanoTx sealed of
-        InAnyCardanoEra _ce tx -> fromCardanoApiTx tx
-
-anythingFromSealedTx :: EraFun Tx (K a) -> SealedTx -> a
-anythingFromSealedTx f = extractEraValue . applyEraFun f . fromSealedTx

@@ -1,0 +1,135 @@
+cabal-version:      3.0
+name:               cardano-wallet-read
+version:            2023.8.1
+synopsis:
+    Primitive era-dependent operations to read the cardano blocks and transactions
+
+-- description:
+homepage:           https://github.com/cardanofoundation/cardano-wallet
+license:            Apache-2.0
+license-file:       LICENSE
+author:             HAL, Cardano Foundation
+maintainer:         hal@cardanofoundation.org
+copyright: 2023 Cardano Foundation
+category:           Cardano
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-lib
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Wredundant-constraints
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+    import:           opts-lib, language
+    exposed-modules:
+        Cardano.Wallet.Read
+        Cardano.Wallet.Read.Block
+        Cardano.Wallet.Read.Eras
+        Cardano.Wallet.Read.Eras.EraFun
+        Cardano.Wallet.Read.Eras.EraValue
+        Cardano.Wallet.Read.Eras.InAnyCardanoEra
+        Cardano.Wallet.Read.Eras.KnownEras
+        Cardano.Wallet.Read.Tx
+        Cardano.Wallet.Read.Tx.Cardano
+        Cardano.Wallet.Read.Tx.CBOR
+        Cardano.Wallet.Read.Tx.Certificates
+        Cardano.Wallet.Read.Tx.CollateralInputs
+        Cardano.Wallet.Read.Tx.CollateralOutputs
+        Cardano.Wallet.Read.Tx.Eras
+        Cardano.Wallet.Read.Tx.ExtraSigs
+        Cardano.Wallet.Read.Tx.Fee
+        Cardano.Wallet.Read.Tx.Hash
+        Cardano.Wallet.Read.Tx.Inputs
+        Cardano.Wallet.Read.Tx.Integrity
+        Cardano.Wallet.Read.Tx.Metadata
+        Cardano.Wallet.Read.Tx.Mint
+        Cardano.Wallet.Read.Tx.Outputs
+        Cardano.Wallet.Read.Tx.ReferenceInputs
+        Cardano.Wallet.Read.Tx.ScriptValidity
+        Cardano.Wallet.Read.Tx.Validity
+        Cardano.Wallet.Read.Tx.Withdrawals
+        Cardano.Wallet.Read.Tx.Witnesses
+    build-depends:
+        base
+        , bytestring
+        , cardano-api
+        , cardano-crypto
+        , cardano-crypto-class
+        , cardano-crypto-wrapper
+        , cardano-ledger-allegra
+        , cardano-ledger-alonzo
+        , cardano-ledger-api
+        , cardano-ledger-babbage
+        , cardano-ledger-binary
+        , cardano-ledger-byron
+        , cardano-ledger-conway
+        , cardano-ledger-core
+        , cardano-ledger-mary
+        , cardano-ledger-shelley
+        , cardano-strict-containers
+        , containers
+        , deepseq
+        , extra
+        , fmt
+        , generic-lens
+        , generics-sop
+        , lens
+        , memory
+        , ouroboros-consensus-cardano
+        , text
+        , text-class
+
+    hs-source-dirs:   lib
+    default-language: Haskell2010
+
+test-suite test
+    import:           opts-exe, language
+    default-language: Haskell2010
+    ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+    build-tool-depends: hspec-discover:hspec-discover
+    other-modules:
+        Cardano.Wallet.Read.Tx.CBORSpec
+        Spec
+        SpecHook
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          main.hs
+    build-depends:
+        base
+        , bytestring
+        , cardano-wallet-read
+        , cardano-wallet-test-utils
+        , casing
+        , extra
+        , formatting
+        , hspec
+        , memory
+        , OddWord
+        , QuickCheck
+        , text
+        , time
+        , with-utf8
