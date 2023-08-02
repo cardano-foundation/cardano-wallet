@@ -3649,14 +3649,25 @@ components:
             burn: *ApiBurnData
 
     ApiMintBurnData: &ApiMintBurnData
-      type: object
-      required:
-        - operation
-        - policy_script_template
-      properties:
-        policy_script_template: *ScriptTemplateValue
-        asset_name: *assetName
-        operation: *ApiMintBurnOperation
+      oneOf:
+        - type: object
+          title: minting via script template
+          required:
+            - operation
+            - policy_script_template
+          properties:
+            policy_script_template: *ScriptTemplateValue
+            asset_name: *assetName
+            operation: *ApiMintBurnOperation
+        - type: object
+          title: minting via script reference
+          required:
+            - operation
+            - reference_input
+          properties:
+            reference_input: *referenceInput
+            asset_name: *assetName
+            operation: *ApiMintBurnOperation
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen

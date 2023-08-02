@@ -32,11 +32,50 @@ Specifically:
 
 2. Using a refence input that contains a minting script.
 
-    In the `mint_burn` field, the array element `policy_script_template` contains an option `reference_input`. This option specifies a transaction input (pair of transaction ID and output index) which will be added as a reference input and is assumed to contain the minting script. (If the corresponding output was created using the method above, the appropriate output index is `0`).
+    In the `mint_burn` field, the array element contains `reference_input`. This field specifies a transaction input (pair of transaction ID and output index) which will be added as a reference input and is assumed to contain the minting script. (If the corresponding output was created using the method above, the appropriate output index is `0`).
 
     Example `POST` data for the endpoint:
 
     ```
-    { "mint_burn": [???]
+    {
+    ...
+    "mint_burn": [{
+        "reference_input":
+            { "id": "464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9",
+              "index": 0
+            },
+        "asset_name": "ab12",
+        "operation":
+            { "mint" :
+                  { "receiving_address": #{destination},
+                     "quantity": 10000
+                  }
+            }
+    }]
+    ...
+    }
+    ```
+
+    in constrast to example `POST` data for the endpoint when script is defined
+
+    ```
+    {
+    ...
+    "mint_burn": [{
+        "policy_script_template":
+            { "all":
+               [ "cosigner#0",
+                 { "active_from": 120 }
+               ]
+            },
+        "asset_name": "ab12",
+        "operation":
+            { "mint" :
+                  { "receiving_address": #{destination},
+                     "quantity": 10000
+                  }
+            }
+    }]
+    ...
     }
     ```
