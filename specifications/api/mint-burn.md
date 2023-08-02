@@ -23,9 +23,12 @@ Specifically:
     ```
     {
     ...
-      "validity_interval": ...
-      "reference_policy_script_template": { all: ['cosigner#0', { active_from: 120 }] },
-      "encoding": ...
+      "reference_policy_script_template":
+          { "all":
+             [ "cosigner#0",
+               { "active_from": 120 }
+             ]
+          },
     ...
     }
     ```
