@@ -150,21 +150,21 @@
                         <h1 id="running-cardano-wallet-with-nixos"><a class="header" href="#running-cardano-wallet-with-nixos">Running cardano-wallet with NixOS</a></h1>
 <h2 id="running-without-installation"><a class="header" href="#running-without-installation">Running without installation</a></h2>
 <p>The following command will download and run a given release of <code>cardano-wallet</code> using Nix:</p>
-<pre><code class="language-console">&gt; nix run github:input-output-hk/cardano-wallet/v2022-01-18 -- version
+<pre><code class="language-console">&gt; nix run github:cardano-foundation/cardano-wallet/v2022-01-18 -- version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>
 <p>It's also possible to run the very latest version from the master branch on GitHub:</p>
-<pre><code class="language-console">&gt; nix run github:input-output-hk/cardano-wallet -- --help
+<pre><code class="language-console">&gt; nix run github:cardano-foundation/cardano-wallet -- --help
 ...
 </code></pre>
 <h3 id="wrapper-script-with-pre-configured-network-settings"><a class="header" href="#wrapper-script-with-pre-configured-network-settings">Wrapper script with pre-configured network settings</a></h3>
 <p>To run a wallet on <em>mainnet</em>:</p>
 <pre><code class="language-console">&gt; CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 
-&gt; nix run github:input-output-hk/cardano-wallet#mainnet/wallet
+&gt; nix run github:cardano-foundation/cardano-wallet#mainnet/wallet
 </code></pre>
 <h2 id="installing-into-user-profile"><a class="header" href="#installing-into-user-profile">Installing into user profile</a></h2>
-<pre><code>&gt; nix profile install github:input-output-hk/cardano-wallet/v2022-01-18
+<pre><code>&gt; nix profile install github:cardano-foundation/cardano-wallet/v2022-01-18
 &gt; cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>
@@ -173,7 +173,7 @@ v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 <p>Then <code>cardano-wallet</code> server can then be activated and configured:</p>
 <pre><code class="language-nix">{
   description = &quot;Flake example with cardano-wallet NixOS module&quot;;
-  inputs.cardano-wallet.url = github:input-output-hk/cardano-wallet;
+  inputs.cardano-wallet.url = github:cardano-foundation/cardano-wallet;
   outputs = { self, cardano-wallet }@inputs: {
     nixosModules.example = { config, ...}: {
       imports = [

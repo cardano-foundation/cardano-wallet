@@ -267,7 +267,7 @@ build from a nix cache rather than building locally.</p>
 </code></pre>
 <h4 id="building-straight-from-github"><a class="header" href="#building-straight-from-github">Building straight from GitHub</a></h4>
 <p>The following command will build the <code>master</code> branch, with the resulting executable appearing at <code>./result/bin/cardano-wallet</code>. To build another branch, add <code>/&lt;branch name, tag, or commit hash&gt;</code> (see <a href="https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references">Nix Manual: Flake References</a> for syntax). As before, if the target ref has already been built by Hydra, then it will be fetched from cache rather than built locally.</p>
-<pre><code class="language-console">&gt; nix build github:input-output-hk/cardano-wallet
+<pre><code class="language-console">&gt; nix build github:cardano-foundation/cardano-wallet
 &gt; ./result/bin/cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>

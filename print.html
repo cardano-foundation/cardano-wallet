@@ -1731,28 +1731,28 @@ inside the Docker image, use the bash shell as the entrypoint:</p>
 <p>One can also use <a href="https://docs.docker.com/compose/">docker-compose</a> to quickly spin up <code>cardano-wallet</code> together with supported block producer. Those are useful for a quick start or as a baseline for development.</p>
 <p><a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/docker-compose.yml">cardano-wallet/docker-compose.yml</a> is an example <code>docker-compose.yaml</code> combining the latest versions of <code>cardano-wallet</code> and <code>cardano-node</code>.</p>
 <p>To give it a spin, simply launch:</p>
-<pre><code>wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
+<pre><code>wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
 NETWORK=mainnet docker-compose up
 </code></pre>
 <p>There is also an example configuration for <a href="https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml">cardano-graphql</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="running-cardano-wallet-with-nixos"><a class="header" href="#running-cardano-wallet-with-nixos">Running cardano-wallet with NixOS</a></h1>
 <h2 id="running-without-installation"><a class="header" href="#running-without-installation">Running without installation</a></h2>
 <p>The following command will download and run a given release of <code>cardano-wallet</code> using Nix:</p>
-<pre><code class="language-console">&gt; nix run github:input-output-hk/cardano-wallet/v2022-01-18 -- version
+<pre><code class="language-console">&gt; nix run github:cardano-foundation/cardano-wallet/v2022-01-18 -- version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>
 <p>It's also possible to run the very latest version from the master branch on GitHub:</p>
-<pre><code class="language-console">&gt; nix run github:input-output-hk/cardano-wallet -- --help
+<pre><code class="language-console">&gt; nix run github:cardano-foundation/cardano-wallet -- --help
 ...
 </code></pre>
 <h3 id="wrapper-script-with-pre-configured-network-settings"><a class="header" href="#wrapper-script-with-pre-configured-network-settings">Wrapper script with pre-configured network settings</a></h3>
 <p>To run a wallet on <em>mainnet</em>:</p>
 <pre><code class="language-console">&gt; CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 
-&gt; nix run github:input-output-hk/cardano-wallet#mainnet/wallet
+&gt; nix run github:cardano-foundation/cardano-wallet#mainnet/wallet
 </code></pre>
 <h2 id="installing-into-user-profile"><a class="header" href="#installing-into-user-profile">Installing into user profile</a></h2>
-<pre><code>&gt; nix profile install github:input-output-hk/cardano-wallet/v2022-01-18
+<pre><code>&gt; nix profile install github:cardano-foundation/cardano-wallet/v2022-01-18
 &gt; cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>
@@ -1761,7 +1761,7 @@ v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 <p>Then <code>cardano-wallet</code> server can then be activated and configured:</p>
 <pre><code class="language-nix">{
   description = &quot;Flake example with cardano-wallet NixOS module&quot;;
-  inputs.cardano-wallet.url = github:input-output-hk/cardano-wallet;
+  inputs.cardano-wallet.url = github:cardano-foundation/cardano-wallet;
   outputs = { self, cardano-wallet }@inputs: {
     nixosModules.example = { config, ...}: {
       imports = [
@@ -4165,7 +4165,7 @@ build from a nix cache rather than building locally.</p>
 </code></pre>
 <h4 id="building-straight-from-github"><a class="header" href="#building-straight-from-github">Building straight from GitHub</a></h4>
 <p>The following command will build the <code>master</code> branch, with the resulting executable appearing at <code>./result/bin/cardano-wallet</code>. To build another branch, add <code>/&lt;branch name, tag, or commit hash&gt;</code> (see <a href="https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references">Nix Manual: Flake References</a> for syntax). As before, if the target ref has already been built by Hydra, then it will be fetched from cache rather than built locally.</p>
-<pre><code class="language-console">&gt; nix build github:input-output-hk/cardano-wallet
+<pre><code class="language-console">&gt; nix build github:cardano-foundation/cardano-wallet
 &gt; ./result/bin/cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </code></pre>
@@ -5757,7 +5757,7 @@ mainApp tr = doFoo (contramap (fmap FooMsg) tr)
 for the latest released version.</p>
 </li>
 <li>
-<p><a href="https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml">ReDoc viewer</a> for the <code>master</code> branch version.</p>
+<p><a href="https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/specifications/api/swagger.yaml">ReDoc viewer</a> for the <code>master</code> branch version.</p>
 </li>
 </ul>
 <h2 id="validating-locally"><a class="header" href="#validating-locally">Validating locally</a></h2>
@@ -6287,7 +6287,7 @@ Make a copy of this <code>Release Checklist Template</code> document as a new pa
 <li><input disabled="" type="checkbox"/>
 Verify that the latest E2E tests are fine (See &quot;E2E *&quot; workflows on https://github.com/cardano-foundation/cardano-wallet/actions).</li>
 <li><input disabled="" type="checkbox"/>
-Verify latest <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly">buildkite nightly</a> and make sure the results are fine. <a href="http://ec2-44-197-192-237.compute-1.amazonaws.com:5555">Benchmark charts</a> may be helpful in analysis.</li>
+Verify latest <a href="https://buildkite.com/cardano-foundation/cardano-wallet-nightly">buildkite nightly</a> and make sure the results are fine. <a href="http://ec2-44-197-192-237.compute-1.amazonaws.com:5555">Benchmark charts</a> may be helpful in analysis.</li>
 </ul>
 <h2 id="prepare-the-release"><a class="header" href="#prepare-the-release">Prepare the release</a></h2>
 <ul>
