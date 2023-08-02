@@ -8,7 +8,7 @@ Windows, MacOS, Linux
 
 ## Start previous version of the wallet
 
-1. Get **previous** release -> https://github.com/input-output-hk/cardano-wallet/releases
+1. Get **previous** release -> https://github.com/cardano-foundation/cardano-wallet/releases
 2. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html). Make sure both are fully synced.
 
 ```bash
@@ -90,7 +90,7 @@ $ curl -vX GET http://localhost:8090/v2/network/clock
 
 ## Start current version of the wallet
 
-1. Get **current** release -> https://github.com/input-output-hk/cardano-wallet/releases
+1. Get **current** release -> https://github.com/cardano-foundation/cardano-wallet/releases
 2. start wallet (on the same `--database`)
 
 ```bash

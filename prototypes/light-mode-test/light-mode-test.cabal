@@ -18,7 +18,7 @@ description:
     .
     The "Demo" module contains example code for running these answers.
 
-bug-reports:        https://github.com/input-output-hk/cardano-wallet
+bug-reports:        https://github.com/cardano-foundation/cardano-wallet
 author:             IOHK Engineering Team
 maintainer:         operations@iohk.io
 copyright:          2021-2022 IOHK

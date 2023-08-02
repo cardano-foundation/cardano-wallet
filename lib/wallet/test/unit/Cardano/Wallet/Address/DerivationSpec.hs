@@ -110,8 +110,8 @@ spec = do
     describe "MkSomeMnemonic" $ do
         let noInDictErr =
                 "Found an unknown word not present in the pre-defined dictionary. \
-                \The full dictionary is available here: https://github.com/input\
-                \-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+                \The full dictionary is available here: \
+                \https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
 
         it "early error reported first (Invalid Entropy)" $ do
             let res = mkSomeMnemonic @'[15,18,21]

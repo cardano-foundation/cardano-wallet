@@ -1,7 +1,7 @@
 name:                cardano-numeric
 version:             2020.12.8
 synopsis:            Types and functions for performing numerical calculations.
-homepage:            https://github.com/input-output-hk/cardano-wallet
+homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
 copyright:           2018-2020 IOHK

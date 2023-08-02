@@ -20,7 +20,7 @@ body:
         If you know that the issue is already tracked in
         [Jira](https://cardanofoundation.atlassian.net/) (i.e. has an `ADP-` issue number)
         then please do not also submit it here. See the
-        [release notes](https://github.com/input-output-hk/cardano-wallet/releases)
+        [release notes](https://github.com/cardano-foundation/cardano-wallet/releases)
         for known issues.
   - type: checkboxes
     attributes:
@@ -33,11 +33,11 @@ body:
         [cardano-node](https://github.com/input-output-hk/cardano-node).
 
         2. You are using the latest
-        [`cardano-wallet` release](https://github.com/input-output-hk/cardano-wallet/releases).
+        [`cardano-wallet` release](https://github.com/cardano-foundation/cardano-wallet/releases).
 
         3. You are using the correct version of cardano-node according to the
-        [cardano-wallet version matrix](https://github.com/input-output-hk/cardano-wallet#latest-releases)
-        or [release notes](https://github.com/input-output-hk/cardano-wallet/releases).
+        [cardano-wallet version matrix](https://github.com/cardano-foundation/cardano-wallet#latest-releases)
+        or [release notes](https://github.com/cardano-foundation/cardano-wallet/releases).
       options:
         - label: This is a `cardano-wallet` bug.
           required: true

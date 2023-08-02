@@ -493,7 +493,7 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
                 , "mnemonic_sentence": #{notInDictMnemonics15}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
               )
             , ( [aesonQQ|
                 { "style": "trezor"
@@ -647,7 +647,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "mnemonic_sentence": #{notInDictMnemonics15}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -668,7 +668,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "mnemonic_sentence": #{japaneseMnemonics15}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -682,7 +682,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "mnemonic_sentence": #{chineseMnemonics18}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -696,7 +696,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "mnemonic_sentence": #{frenchMnemonics21}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -1012,7 +1012,7 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 , "new_passphrase": #{wPassphrase}
                 }|]
               , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
-                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+                  \https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{specMnemonicSentence}
@@ -1031,7 +1031,7 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 , "new_passphrase": #{wPassphrase}
                 }|]
               , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
-                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+                  \https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{chineseMnemonics9}
@@ -1044,7 +1044,7 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 , "new_passphrase": #{wPassphrase}
                 }|]
               , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
-                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+                  \https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{frenchMnemonics12}
@@ -1057,7 +1057,7 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 , "new_passphrase": #{wPassphrase}
                 }|]
               , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: \
-                  \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
+                  \https://github.com/cardano-foundation/cardano-wallet/tree/master/specifications/mnemonic/english.txt, mnemonic variant"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{mnemonics15}

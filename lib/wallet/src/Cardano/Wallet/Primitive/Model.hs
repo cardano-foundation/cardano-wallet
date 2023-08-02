@@ -14,7 +14,7 @@
 --
 -- This module implements the "business logic" to manage a Cardano wallet.
 -- It is a direct implementation of the model, with extensions, from the
--- [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf).
+-- [Formal Specification for a Cardano Wallet](https://github.com/cardano-foundation/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf).
 --
 -- In other words, this module is about how the wallet keeps track of its
 -- internal state, specifically the 'UTxO' set and the address discovery state.

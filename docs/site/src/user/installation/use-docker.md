@@ -87,7 +87,7 @@ One can also use [docker-compose](https://docs.docker.com/compose/) to quickly s
 To give it a spin, simply launch:
 
 ```
-wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
+wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
 NETWORK=mainnet docker-compose up
 ```
 

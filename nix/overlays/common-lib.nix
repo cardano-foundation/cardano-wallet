@@ -56,7 +56,7 @@ in {
     projectPackageList = lib.attrNames (lib.filterAttrs
         (_: p: p != null
           && haskellLib.isLocalPackage p.package
-          && p.package.homepage == "https://github.com/input-output-hk/cardano-wallet")
+          && p.package.homepage == "https://github.com/cardano-foundation/cardano-wallet")
         cardanoWalletHaskellProject.pkg-set.config.packages);
 
     ############################################################################

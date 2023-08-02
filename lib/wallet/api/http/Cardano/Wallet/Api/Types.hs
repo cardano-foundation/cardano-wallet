@@ -40,7 +40,7 @@
 -- This module also define required API instances (JSON, HttpApiData...) for all
 -- those types, making sure to match the specification document:
 --
--- <https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml Wallet API Specification>
+-- <https://github.com/cardano-foundation/cardano-wallet/blob/master/specifications/api/swagger.yaml Wallet API Specification>
 
 module Cardano.Wallet.Api.Types
     (

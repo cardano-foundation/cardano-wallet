@@ -3,7 +3,7 @@ name:               cardano-coin-selection
 version:            2023.7.18
 synopsis:           Coin selection algorithms for the Cardano blockchain.
 description:        Please see README.md.
-homepage:           https://github.com/input-output-hk/cardano-wallet
+homepage:           https://github.com/cardano-foundation/cardano-wallet
 author:             IOHK Engineering Team
 maintainer:         operations@iohk.io
 copyright:          2018-2022 IOHK

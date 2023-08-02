@@ -42,7 +42,7 @@ RUN test -n "${USE_IOHK_CACHE}" && ( echo "Note: using IOHK nix cache" > /dev/st
 
 # Make a docker layer with a warm cache (helps re-use compilers for
 # subsequent builds).
-RUN nix --experimental-features "nix-command flakes" build github:input-output-hk/cardano-wallet#ci.artifacts.linux64.release --no-link
+RUN nix --experimental-features "nix-command flakes" build github:cardano-foundation/cardano-wallet#ci.artifacts.linux64.release --no-link
 
 
 ############################################################################
@@ -53,7 +53,7 @@ ARG CODE_VERSION=master
 
 # Download from GitHub instead of using COPY
 # Checkout a specific version
-RUN git clone --depth 1 --branch ${CODE_VERSION} https://github.com/input-output-hk/cardano-wallet
+RUN git clone --depth 1 --branch ${CODE_VERSION} https://github.com/cardano-foundation/cardano-wallet
 WORKDIR cardano-wallet
 
 
