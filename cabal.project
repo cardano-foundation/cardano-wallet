@@ -95,8 +95,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
-    tag: 6b55f96d57a181f898eb2a50531d3ae4280c549c
-    --sha256: 0yygam995i3mawk6hfgxb6v918phvqzyipzhjflff0l6zfrldy7f
+    tag: bee48c1ac9df21309e702585bfad7db6134d7517
+    --sha256: 1zl6l3qyf2zh1vi0qm00nxk8y8lx7rfbca2zcv0xx515w98j644b
     subdir: command-line
             core
 
