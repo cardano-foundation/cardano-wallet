@@ -54,12 +54,12 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn, cardanoNodeConn, isWindows )
 import Cardano.Wallet.Logging
     ( BracketLog, BracketLog' (..), bracketTracer )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), NetworkParameters (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkId (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except

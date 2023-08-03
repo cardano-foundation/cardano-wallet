@@ -52,7 +52,7 @@ import Cardano.Wallet.Api.Malformed
     , malformed
     , wellformed
     )
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )

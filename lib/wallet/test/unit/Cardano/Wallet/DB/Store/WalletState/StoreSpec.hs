@@ -40,10 +40,10 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Flavor
     ( KeyOf, WalletFlavorS (ShelleyWallet) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
 import Data.Maybe

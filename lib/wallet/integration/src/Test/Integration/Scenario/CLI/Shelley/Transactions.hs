@@ -19,12 +19,14 @@ import Cardano.Wallet.Api.Types
     ( ApiFee (..), ApiTransaction, ApiWallet, apiAddress )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), detailedMetadata, noSchemaMetadata )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )
 import Control.Monad

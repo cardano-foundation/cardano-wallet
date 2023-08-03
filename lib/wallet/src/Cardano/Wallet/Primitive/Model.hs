@@ -101,16 +101,11 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , collateralInputs
-    , inputs
-    , txScriptInvalid
-    )
+    ( Tx (..), collateralInputs, inputs, txScriptInvalid )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
 import Control.Applicative

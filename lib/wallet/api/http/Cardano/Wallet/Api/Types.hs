@@ -347,6 +347,8 @@ import Cardano.Wallet.Api.Types.Transaction
     )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -376,20 +378,18 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
+    ( SealedTx (..)
     , SerialisedTx (..)
     , TxMetadata
     , TxScriptValidity (..)
-    , TxStatus (..)
     , sealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction, TxStatus )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.TokenMetadata

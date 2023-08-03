@@ -65,18 +65,18 @@ import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId
+    , NetworkDiscriminant
+    , NetworkDiscriminantCheck (..)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( magicSNetworkId )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant
-    , NetworkDiscriminantCheck (..)
-    , SNetworkId (..)
-    )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq

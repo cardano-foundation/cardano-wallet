@@ -110,6 +110,14 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (sNetworkId)
+    , NetworkDiscriminant (..)
+    , SNetworkId (..)
+    , networkDiscriminantVal
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -139,14 +147,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminant (..)
-    , SNetworkId (..)
-    , networkDiscriminantVal
-    , networkIdVal
-    , withSNetworkId
-    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)
     , CardanoBlock

@@ -301,7 +301,6 @@ library
     Cardano.Wallet.Network
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Ports
-    Cardano.Wallet.Orphans
     Cardano.Wallet.Pools
     Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
@@ -322,20 +321,12 @@ library
     Cardano.Wallet.Primitive.Types.Credentials
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    Cardano.Wallet.Primitive.Types.ProtocolMagic
-    Cardano.Wallet.Primitive.Types.RewardAccount
-    Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    Cardano.Wallet.Primitive.Types.Tx
-    Cardano.Wallet.Primitive.Types.Tx.Gen
-    Cardano.Wallet.Primitive.Types.Tx.SealedTx
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    Cardano.Wallet.Primitive.Types.Tx.Tx
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
-    Cardano.Wallet.Read.NetworkId
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -395,7 +386,6 @@ library
     Control.Monad.Fail.Extended
     Control.Monad.Util
     Crypto.Hash.Utils
-    Data.Aeson.Extra
     Data.Function.Utils
     Data.Text.Class.Extended
     Data.Time.Text
@@ -947,7 +937,6 @@ test-suite unit
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
-    Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.TypesSpec
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
@@ -1081,6 +1070,7 @@ benchmark db
     , cardano-wallet-bench
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-test-utils
     , containers
     , contra-tracer

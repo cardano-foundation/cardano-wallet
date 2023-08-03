@@ -29,14 +29,14 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )
 import Control.Monad

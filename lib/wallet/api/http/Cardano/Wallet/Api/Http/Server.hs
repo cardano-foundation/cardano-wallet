@@ -190,10 +190,10 @@ import Cardano.Wallet.Flavor
     ( WalletFlavorS (..) )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), networkIdVal )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), networkIdVal )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility

@@ -58,14 +58,14 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (SharedKeyS) )
 import Cardano.Wallet.Gen
     ( genNatural, genScript, genScriptTemplate )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Arrow

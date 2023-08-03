@@ -38,10 +38,10 @@ import Prelude hiding
 
 import Cardano.Wallet.Api.Types
     ( ApiT (..), ApiWalletInput (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText, unsafeRight )
 import Codec.Binary.Bech32.TH

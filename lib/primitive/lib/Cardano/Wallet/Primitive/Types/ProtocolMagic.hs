@@ -21,7 +21,7 @@ module Cardano.Wallet.Primitive.Types.ProtocolMagic
 
 import Prelude
 
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..), fromSNat )
 import Control.DeepSeq
     ( NFData (..) )

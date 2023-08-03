@@ -48,6 +48,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------

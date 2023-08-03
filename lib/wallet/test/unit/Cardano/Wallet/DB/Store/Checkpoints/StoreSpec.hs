@@ -32,10 +32,10 @@ import Cardano.Wallet.DB.Fixtures
     ( initializeWalletTable, withDBInMemory )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId, WithOrigin (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Fmt
     ( Buildable (..), pretty )
 import Test.Hspec

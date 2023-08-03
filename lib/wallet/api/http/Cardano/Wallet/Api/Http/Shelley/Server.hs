@@ -453,6 +453,8 @@ import Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (..)
@@ -508,11 +510,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo
-    , Tx (..)
-    , TxCBOR
+    ( Tx (..)
     , TxChange (..)
-    , TxStatus (..)
     , UnsignedTx (..)
     , cardanoTxInExactEra
     , getSealedTxWitnesses
@@ -520,12 +519,16 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminantCheck )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)

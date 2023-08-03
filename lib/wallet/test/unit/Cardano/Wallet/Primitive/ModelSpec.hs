@@ -88,9 +88,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxMeta (direction)
+    ( Tx (..)
     , TxScriptValidity (..)
     , collateralInputs
     , inputs
@@ -103,6 +101,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn, shrinkTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (Incoming), direction )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen

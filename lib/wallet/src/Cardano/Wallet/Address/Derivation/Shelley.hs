@@ -88,17 +88,17 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     , rewardAccountKey
     )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
-import Cardano.Wallet.Read.NetworkId
+import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant (..)
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
     , networkDiscriminantBits
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Lens

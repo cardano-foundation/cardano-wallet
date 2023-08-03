@@ -50,7 +50,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo (..), Tx (..), TxMeta (..), toTxHistory )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..), toTxHistory )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxMeta (slotNo) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util

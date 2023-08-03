@@ -88,6 +88,8 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Passphrase.Current
@@ -122,28 +124,23 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , mockSealedTx
-    )
+    ( SealedTx (..), Tx (..), mockSealedTx )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxInLargeRange )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..)
     , Withdrawal (..)

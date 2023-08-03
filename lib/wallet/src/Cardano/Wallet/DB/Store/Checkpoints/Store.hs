@@ -92,12 +92,12 @@ import Cardano.Wallet.DB.WalletState
     ( WalletCheckpoint (..), getSlot )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class

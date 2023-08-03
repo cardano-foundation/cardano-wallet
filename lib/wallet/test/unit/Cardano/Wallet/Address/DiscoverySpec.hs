@@ -35,6 +35,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (ByronKeyS) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (EncryptWithPBKDF2)
@@ -42,8 +44,6 @@ import Cardano.Wallet.Primitive.Passphrase
     , passphraseMinLength
     , preparePassphrase
     )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
 import Control.Monad
     ( replicateM )
 import Data.Maybe

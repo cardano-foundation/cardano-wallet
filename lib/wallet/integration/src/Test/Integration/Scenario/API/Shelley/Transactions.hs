@@ -46,6 +46,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -55,9 +57,9 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( encodeAddress )
 import Cardano.Wallet.Unsafe

@@ -115,6 +115,8 @@ import Cardano.Wallet.Primitive.Model
     , getState
     , initWallet
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase, preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -149,20 +151,15 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , toTxHistory
-    )
+    ( Tx (..), TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..), toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad

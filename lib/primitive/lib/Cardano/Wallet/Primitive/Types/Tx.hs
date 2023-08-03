@@ -19,17 +19,12 @@ module Cardano.Wallet.Primitive.Types.Tx
     -- * Types
       Tx (..)
     , TxChange (..)
-    , TxMeta (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TxStatus (..)
     , UnsignedTx (..)
-    , TransactionInfo (..)
-    , Direction (..)
     , LocalTxSubmissionStatus (..)
     , TxScriptValidity(..)
     , ScriptWitnessIndex (..)
-    , TxCBOR
 
     -- * Serialisation
     , SealedTx (serialisedTx)
@@ -52,11 +47,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , withinEra
 
     -- * Functions
-    , fromTransactionInfo
     , inputs
     , collateralInputs
-    , isPending
-    , toTxHistory
     , txIns
     , txMetadataIsNull
     , txScriptInvalid
@@ -106,8 +98,6 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     , unsafeSealedTxFromBytes
     , withinEra
     )
-import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..), fromTransactionInfo, toTxHistory )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( ScriptWitnessIndex (..)
     , Tx (..)
@@ -124,10 +114,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , txRemoveAssetId
     , txScriptInvalid
     )
-import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..), isPending )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
 import Data.Word
     ( Word64 )
 import GHC.Generics

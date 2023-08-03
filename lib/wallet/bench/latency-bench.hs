@@ -59,14 +59,14 @@ import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Pools
     ( StakePool )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..), NetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..) )
 import Cardano.Wallet.Shelley
     ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Shelley.BlockchainSource

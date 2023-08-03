@@ -5,7 +5,9 @@ module Cardano.Wallet.Transaction.Built
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, Tx, TxMeta )
+    ( SealedTx, Tx )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxMeta )
 
 data BuiltTx = BuiltTx
     { builtTx :: Tx

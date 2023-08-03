@@ -107,6 +107,8 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -139,15 +141,17 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TransactionInfo, Tx (..), TxMeta (..), TxStatus (..) )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq

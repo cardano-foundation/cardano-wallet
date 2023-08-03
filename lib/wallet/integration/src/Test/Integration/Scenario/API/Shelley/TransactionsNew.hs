@@ -89,6 +89,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
     ( StakePool )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -104,20 +106,16 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
+    ( SealedTx (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
-    , TxStatus (..)
     , cardanoTxIdeallyNoLaterThan
-    , getSealedTxBody
-    , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)

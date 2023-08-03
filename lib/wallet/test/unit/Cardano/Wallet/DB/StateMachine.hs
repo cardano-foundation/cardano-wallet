@@ -98,6 +98,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -134,30 +136,30 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxCBOR
-    , TxMeta
+    ( LocalTxSubmissionStatus (..)
+    , SealedTx
+    , Tx
     , TxMetadata
     , TxScriptValidity
-    , TxStatus
     , inputs
+    , outputs
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction, TxMeta, TxStatus )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR )
 import Control.DeepSeq
     ( NFData )
 import Control.Foldl

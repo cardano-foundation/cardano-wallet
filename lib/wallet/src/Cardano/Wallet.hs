@@ -401,6 +401,8 @@ import Cardano.Wallet.Primitive.Model
     , initWallet
     , totalUTxO
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
     , Passphrase
@@ -464,29 +466,26 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus
-    , SealedTx (..)
-    , TransactionInfo (..)
+    ( LocalTxSubmissionStatus
+    , SealedTx
     , Tx (..)
     , TxChange (..)
-    , TxMeta (..)
     , TxMetadata (..)
-    , TxStatus (..)
     , UnsignedTx (..)
-    , fromTransactionInfo
     , sealedTxFromCardano
     )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( TransactionInfo (..), fromTransactionInfo )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility

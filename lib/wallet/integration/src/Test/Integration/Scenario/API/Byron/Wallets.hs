@@ -22,12 +22,12 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
