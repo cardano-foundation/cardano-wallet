@@ -82,23 +82,7 @@ getDiscoveries = withIso addressIso $ \from _ -> snd . from
 {-------------------------------------------------------------------------------
     Sequential address book
 -------------------------------------------------------------------------------}
--- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key))
-    => AddressBookIso (Seq.SeqAnyState n key p)
-  where
-    data Prologue (Seq.SeqAnyState n key p) = PS (Prologue (Seq.SeqState n key))
-    data Discoveries (Seq.SeqAnyState n key p) = DS (Discoveries (Seq.SeqState n key))
 
-    addressIso = withIso addressIso $ \from to ->
-        let from2 st = let (a,b) = from $ Seq.innerState st in (PS a, DS b)
-            to2 (PS a, DS b) = Seq.SeqAnyState $ to (a,b)
-        in  iso from2 to2
-
-instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqAnyState n k p)) where
-    (PS a) == (PS b) = a == b
-
-instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqAnyState n k p)) where
-    (DS a) == (DS b) = a == b
 
 -- | Isomorphism for sequential address book.
 instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )

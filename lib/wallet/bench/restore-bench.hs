@@ -69,7 +69,9 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.RandomAny
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, purposeCIP1852 )
+    ( AddressPoolGap, mkAddressPoolGap, purposeCIP1852 )
+import Cardano.Wallet.Address.Discovery.SequentialAny
+    ( SeqAnyState )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqAnyState )
 import Cardano.Wallet.Address.Keys.WalletKey

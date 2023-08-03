@@ -14,6 +14,14 @@ module Cardano.Wallet.Address.MaybeLight
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DelegationAddress
+    , Depth (..)
+    , PaymentAddress
+    , ToRewardAccount (toRewardAccount)
+    , liftDelegationAddressS
+    , liftPaymentAddressS
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -25,7 +33,9 @@ import Cardano.Wallet.Address.Discovery.Random
 import Cardano.Wallet.Address.Discovery.RandomAny
     ( RndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAddressPool (..), SeqAnyState, SeqState (..) )
+    ( SeqAddressPool (..), SeqState (..) )
+import Cardano.Wallet.Address.Discovery.SequentialAny
+    ( SeqAnyState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 import Cardano.Wallet.Primitive.BlockSummary
@@ -39,16 +49,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Data.Bifunctor
     ( second )
 
-import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress
-    , Depth (..)
-    , PaymentAddress
-    , ToRewardAccount (toRewardAccount)
-    , liftDelegationAddressS
-    , liftPaymentAddressS
-    )
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-
 
 -- | Checks whether the address discovery state @s@ works in light-mode
 -- and returns a procedure for discovering addresses

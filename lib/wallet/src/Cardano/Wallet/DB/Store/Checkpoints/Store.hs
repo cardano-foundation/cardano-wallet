@@ -58,6 +58,8 @@ import Cardano.Wallet.Address.Discovery
     ( PendingIxs, pendingIxsFromList, pendingIxsToList )
 import Cardano.Wallet.Address.Discovery.RandomAny
     ( Discoveries (..), Prologue (..) )
+import Cardano.Wallet.Address.Discovery.SequentialAny
+    ( Discoveries (..), Prologue (..) )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
@@ -151,6 +153,7 @@ import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.RandomAny as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.SequentialAny as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
