@@ -1079,6 +1079,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) =
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
+    , referencePolicyScriptTemplate :: !(Maybe (ApiT (Script Cosigner)))
     , encoding :: !(Maybe ApiSealedTxEncoding)
     }
     deriving (Eq, Generic, Show, Typeable)
