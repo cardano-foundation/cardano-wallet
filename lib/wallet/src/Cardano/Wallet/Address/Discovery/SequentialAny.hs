@@ -62,6 +62,8 @@ import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..), GenChange (..), IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAddressPool (..), SeqState (..), SupportsDiscovery )
+import Cardano.Wallet.Address.States.Families
+    ( CredFromOf, KeyOf, NetworkOf )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types.Address
@@ -190,3 +192,7 @@ instance Eq (Seq.SeqState n k) => Eq (Prologue (SeqAnyState n k p)) where
 
 instance Eq (Seq.SeqState n k) => Eq (Discoveries (SeqAnyState n k p)) where
     (DS a) == (DS b) = a == b
+
+type instance CredFromOf (SeqAnyState n key p) = 'CredFromKeyK
+type instance KeyOf (SeqAnyState n k p) = k
+type instance NetworkOf (SeqAnyState n k p) = n

@@ -51,6 +51,8 @@ import Cardano.Wallet.Address.Discovery.Random
     , findUnusedPath
     , toDerivationIndexes
     )
+import Cardano.Wallet.Address.States.Families
+    ( CredFromOf, KeyOf, NetworkOf )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types.Address
@@ -197,3 +199,7 @@ instance AddressBookIso (RndAnyState n p)
 instance Eq (Prologue (RndAnyState n p)) where PR a == PR b = a == b
 
 instance Eq (Discoveries (RndAnyState n p)) where DR a == DR b = a == b
+
+type instance CredFromOf (RndAnyState n p) = 'CredFromKeyK
+type instance KeyOf (RndAnyState n p) = ByronKey
+type instance NetworkOf (RndAnyState n p) = n

@@ -9,12 +9,8 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState )
-import Cardano.Wallet.Address.Discovery.RandomAny
-    ( RndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( SeqAnyState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 import Cardano.Wallet.Address.States.Test.State
@@ -24,27 +20,21 @@ import Cardano.Wallet.Primitive.NetworkId
 import Data.Kind
     ( Type )
 
-type family CredFromOf s where
-    CredFromOf (SharedState n key) = 'CredFromScriptK
-    CredFromOf (SeqState n key) = 'CredFromKeyK
-    CredFromOf (RndState n) = 'CredFromKeyK
-    CredFromOf (TestState s n key kt) = kt
-    CredFromOf (RndAnyState n p) = 'CredFromKeyK
-    CredFromOf (SeqAnyState n key p) = 'CredFromKeyK
+type family CredFromOf s :: Depth
+type instance CredFromOf (SharedState n key) = 'CredFromScriptK
+type instance CredFromOf (SeqState n key) = 'CredFromKeyK
+type instance CredFromOf (RndState n) = 'CredFromKeyK
+type instance CredFromOf (TestState s n key kt) = kt
 
 -- | A type family to get the key type from a state.
-type family KeyOf (s :: Type) :: (Depth -> Type -> Type) where
-    KeyOf (SeqState n k) = k
-    KeyOf (RndState n) = ByronKey
-    KeyOf (SharedState n k) = k
-    KeyOf (SeqAnyState n k p) = k
-    KeyOf (RndAnyState n p) = ByronKey
-    KeyOf (TestState s n k kt) = k
+type family KeyOf (s :: Type) :: (Depth -> Type -> Type)
+type instance KeyOf (SeqState n k) = k
+type instance KeyOf (RndState n) = ByronKey
+type instance KeyOf (SharedState n k) = k
+type instance KeyOf (TestState s n k kt) = k
 
-type family NetworkOf (s :: Type) :: NetworkDiscriminant where
-    NetworkOf (SeqState n k) = n
-    NetworkOf (RndState n) = n
-    NetworkOf (SharedState n k) = n
-    NetworkOf (SeqAnyState n k p) = n
-    NetworkOf (RndAnyState n p) = n
-    NetworkOf (TestState s n k kt) = n
+type family NetworkOf (s :: Type) :: NetworkDiscriminant
+type instance NetworkOf (SeqState n k) = n
+type instance NetworkOf (RndState n) = n
+type instance NetworkOf (SharedState n k) = n
+type instance NetworkOf (TestState s n k kt) = n
