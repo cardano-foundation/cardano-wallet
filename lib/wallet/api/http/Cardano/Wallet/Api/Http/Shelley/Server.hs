@@ -2456,6 +2456,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
+    when (isJust $ body ^. #referencePolicyScriptTemplate) $
+        liftHandler $ throwE ErrConstructTxNotImplemented
+
     let metadata =
             body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
