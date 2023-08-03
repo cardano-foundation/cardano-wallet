@@ -65,7 +65,7 @@ import Cardano.Wallet.Address.Derivation.Shared
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
-    ( GenChange (..), IsOurs, MaybeLight )
+    ( GenChange (..), IsOurs )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -74,6 +74,8 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqAnyState )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( digest, publicKey )
+import Cardano.Wallet.Address.MaybeLight
+    ( MaybeLight )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared

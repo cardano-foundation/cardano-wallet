@@ -71,7 +71,6 @@ import Cardano.Wallet.Address.Discovery
     , GenChange (..)
     , IsOurs (isOurs)
     , KnownAddresses (..)
-    , MaybeLight (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId, NetworkDiscriminant )
@@ -371,8 +370,7 @@ instance KnownAddresses (RndState n) where
                 (\path v result -> mk (toDerivationIndexes path) v : result)
                 []
 
-instance MaybeLight (RndState n) where
-    maybeDiscover = Nothing
+
 
 --------------------------------------------------------------------------------
 --
@@ -473,5 +471,4 @@ instance CompareDiscovery (RndAnyState n p) where
 instance KnownAddresses (RndAnyState n p) where
     knownAddresses (RndAnyState s) = knownAddresses s
 
-instance MaybeLight (RndAnyState n p) where
-    maybeDiscover = Nothing
+

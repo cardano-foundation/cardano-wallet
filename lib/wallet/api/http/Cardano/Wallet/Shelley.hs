@@ -36,13 +36,15 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs, MaybeLight )
+    ( IsOurs )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
+import Cardano.Wallet.Address.MaybeLight
+    ( MaybeLight )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Http.Logging

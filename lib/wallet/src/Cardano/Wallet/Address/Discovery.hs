@@ -27,9 +27,6 @@ module Cardano.Wallet.Address.Discovery
     , GetPurpose (..)
     , GetAccount (..)
     , coinTypeAda
-    , MaybeLight (..)
-    , DiscoverTxs (..)
-
     , PendingIxs
     , emptyPendingIxs
     , pendingIxsToList
@@ -48,10 +45,7 @@ import Cardano.Wallet.Address.Derivation
     , DerivationType (..)
     , Index (..)
     , KeyFingerprint (..)
-    , RewardAccount
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Control.DeepSeq
@@ -160,22 +154,6 @@ class GetPurpose (key :: Depth -> Type -> Type)  where
 -- It is used for getting account public key for a given state.
 class GetAccount s (key :: Depth -> Type -> Type) | s -> key  where
     getAccount :: s -> key 'AccountK XPub
-
--- | Checks whether the address discovery state @s@ works in light-mode
--- and returns a procedure for discovering addresses
--- if that is indeed the case.
-class MaybeLight s where
-    maybeDiscover :: Maybe (LightDiscoverTxs s)
-
-type LightDiscoverTxs s =
-    DiscoverTxs (Either Address RewardAccount) ChainEvents s
-
--- | Function that discovers transactions based on an address.
-newtype DiscoverTxs addr txs s = DiscoverTxs
-    { discoverTxs
-        :: forall m. Monad m
-        => (addr -> m txs) -> s -> m (txs, s)
-    }
 
 {-------------------------------------------------------------------------------
                         Pending Tx Change Indexes

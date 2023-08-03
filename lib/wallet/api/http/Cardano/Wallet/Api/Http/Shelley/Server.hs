@@ -228,7 +228,6 @@ import Cardano.Wallet.Address.Discovery
     , GetPurpose (..)
     , IsOurs
     , KnownAddresses
-    , MaybeLight
     )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
@@ -258,6 +257,8 @@ import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron, digest, getRawKey, publicKey )
 import Cardano.Wallet.Address.Keys.WitnessCount
     ( toWitnessCountCtx )
+import Cardano.Wallet.Address.MaybeLight
+    ( MaybeLight (..) )
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Api

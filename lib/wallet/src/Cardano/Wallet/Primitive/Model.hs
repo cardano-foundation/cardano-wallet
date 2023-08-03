@@ -73,7 +73,7 @@ module Cardano.Wallet.Primitive.Model
 import Prelude
 
 import Cardano.Wallet.Address.Discovery
-    ( DiscoverTxs (..), IsOurs (..) )
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (..)
     , BlockSummary (..)
@@ -139,6 +139,8 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import Cardano.Wallet.Address.MaybeLight
+    ( DiscoverTxs (discoverTxs) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
