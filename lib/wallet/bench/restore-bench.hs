@@ -66,7 +66,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
     ( GenChange (..), IsOurs )
-import Cardano.Wallet.Address.Discovery.Random
+import Cardano.Wallet.Address.Discovery.RandomAny
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, purposeCIP1852 )

@@ -8,7 +8,9 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndAnyState, RndState )
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.RandomAny
+    ( RndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAnyState, SeqState )
 import Cardano.Wallet.Address.Discovery.Shared

@@ -21,7 +21,9 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery
     ( dropLowerPendingIxs )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndAnyState, RndState )
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.RandomAny
+    ( RndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAddressPool (..), SeqAnyState, SeqState (..) )
 import Cardano.Wallet.Address.Discovery.Shared
