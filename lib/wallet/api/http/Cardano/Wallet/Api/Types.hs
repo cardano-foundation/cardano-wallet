@@ -394,6 +394,8 @@ import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Transaction
+    ( ReferenceInput )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import "cardano-addresses" Codec.Binary.Encoding
@@ -3084,6 +3086,28 @@ instance ToJSON (ApiT SmashServer) where
 -- ix=0 is assumed to be used. The verification key derivation is performed
 -- according to CIP 1855.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
+    { postData :: Either (ApiMintBurnDataFromScript n) (ApiMintBurnDataFromInput n) }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance HasSNetworkId n =>  FromJSON (ApiMintBurnData n) where
+    parseJSON obj = do
+        refInp <-
+            (withObject "mintBurnPostData" $
+             \o -> o .:? "referenceInput" :: Aeson.Parser (Maybe ReferenceInput)) obj
+        case refInp of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiMintBurnDataFromScript n)
+                pure $ ApiMintBurnData $ Left xs
+            _ -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiMintBurnDataFromInput n)
+                pure $ ApiMintBurnData $ Right xs
+
+instance HasSNetworkId n => ToJSON (ApiMintBurnData n) where
+    toJSON (ApiMintBurnData (Left c))= toJSON c
+    toJSON (ApiMintBurnData (Right c))= toJSON c
+
+data ApiMintBurnDataFromScript (n :: NetworkDiscriminant) = ApiMintBurnDataFromScript
     { policyScriptTemplate
         :: !(ApiT (Script Cosigner))
         -- ^ A script regulating minting/burning policy. 'self' is expected
@@ -3096,7 +3120,22 @@ data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
         -- ^ The minting or burning operation to perform.
     }
     deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiMintBurnData n)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiMintBurnDataFromScript n)
+    deriving anyclass NFData
+
+data ApiMintBurnDataFromInput (n :: NetworkDiscriminant) = ApiMintBurnDataFromInput
+    { referenceInput
+        :: !ReferenceInput
+        -- ^ A reference input that contains script regulating minting/burning policy.
+    , assetName
+        :: !(Maybe (ApiT W.TokenName))
+        -- ^ The name of the asset to mint/burn.
+    , operation
+        :: !(ApiMintBurnOperation n)
+        -- ^ The minting or burning operation to perform.
+    }
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiMintBurnDataFromInput n)
     deriving anyclass NFData
 
 -- | A user may choose to either mint tokens or burn tokens with each operation.
