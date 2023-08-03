@@ -41,6 +41,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , unavailablePaths
     , defaultAccountIndex
     , withRNG
+    , addDiscoveredAddress
 
     ) where
 import Prelude

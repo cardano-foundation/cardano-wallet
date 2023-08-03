@@ -907,7 +907,6 @@ postAccountWallet
         , HasWorkerRegistry s ctx
         , IsOurs s RewardAccount
         , MaybeLight s
-        , Excluding '[SharedKey] k
         , AddressBookIso s
         , WalletFlavor s
         )
