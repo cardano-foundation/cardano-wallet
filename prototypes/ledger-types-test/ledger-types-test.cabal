@@ -25,13 +25,18 @@ library
         NoImplicitPrelude
     build-depends:
         base ^>= 4.14.3
+      , aeson ^>= 2.1.2
       , bytestring
       , containers
       , megaparsec ^>= 9.2.1
       , parser-combinators
+      , text
+      , yaml
     exposed-modules:
         Demo
+        Demo.Export
         Elaborate
+        Export.OpenAPI
         Module
         Parser
         Type
