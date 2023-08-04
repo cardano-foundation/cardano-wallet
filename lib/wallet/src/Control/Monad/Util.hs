@@ -6,10 +6,10 @@
 -- License: Apache-2.0
 --
 -- Monadic utility functions.
---
 module Control.Monad.Util
-    ( applyNM
-    ) where
+  ( applyNM
+  )
+where
 
 import Prelude
 
@@ -27,11 +27,10 @@ import Prelude
 -- , ...
 -- ]
 -- @
---
 applyNM :: forall m a. Monad m => Int -> (a -> m a) -> a -> m a
 applyNM n next = loop n
   where
     loop :: Int -> a -> m a
     loop !i !a
-        | i <= 0 = pure a
-        | otherwise = loop (i - 1) =<< next a
+      | i <= 0 = pure a
+      | otherwise = loop (i - 1) =<< next a

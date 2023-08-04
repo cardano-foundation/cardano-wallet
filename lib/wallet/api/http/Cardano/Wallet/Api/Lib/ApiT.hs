@@ -9,43 +9,51 @@
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..)
-    , fromTextApiT
-    , toTextApiT
-    )
-    where
-
-import Prelude
+  ( ApiT (..)
+  , fromTextApiT
+  , toTextApiT
+  )
+where
 
 import Cardano.Wallet.Api.Aeson
-    ( fromTextJSON, toTextJSON )
+  ( fromTextJSON
+  , toTextJSON
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Data.Aeson
-    ( Value )
+  ( Value
+  )
 import Data.Aeson.Types
-    ( Parser )
+  ( Parser
+  )
 import Data.Hashable
-    ( Hashable )
+  ( Hashable
+  )
 import Data.Text.Class
-    ( FromText, ToText )
+  ( FromText
+  , ToText
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Quiet
-    ( Quiet (Quiet) )
+  ( Quiet (Quiet)
+  )
+import Prelude
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party lib
 -- types to avoid defining orphan instances and/or, undesirable instances on
 -- primitive types. It helps to keep a nice separation of concerns between the
 -- API layer and other modules.
-newtype ApiT a =
-    ApiT { getApiT :: a }
-    deriving (Generic, Eq, Functor)
-    deriving newtype (Semigroup, Monoid, Hashable)
-    deriving anyclass NFData
-    deriving Show via (Quiet (ApiT a))
+newtype ApiT a = ApiT {getApiT :: a}
+  deriving (Generic, Eq, Functor)
+  deriving newtype (Semigroup, Monoid, Hashable)
+  deriving anyclass (NFData)
+  deriving (Show) via (Quiet (ApiT a))
+
 deriving instance Ord a => Ord (ApiT a)
 
 fromTextApiT :: FromText a => String -> Value -> Parser (ApiT a)

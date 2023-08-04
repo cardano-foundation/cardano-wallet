@@ -12,66 +12,75 @@
 
 -- | Module for `DelegationState`.
 module Cardano.Wallet.Primitive.Delegation.State
-    ( -- * Creation
-      DelegationState (..)
-    , initialDelegationState
+  ( -- * Creation
+    DelegationState (..)
+  , initialDelegationState
 
-      -- * Operations
-    , presentableKeys
-    , usableKeys
-    , activeKeys
+    -- * Operations
+  , presentableKeys
+  , usableKeys
+  , activeKeys
 
     -- * For Testing
-    , keyAtIx
-    , lastActiveIx
-    , PointerUTxO (..)
-    , State (..)
-    , Key0Status (..)
+  , keyAtIx
+  , lastActiveIx
+  , PointerUTxO (..)
+  , State (..)
+  , Key0Status (..)
 
-      -- * Chain following model
-    , Tx (..)
-    , Cert (..)
-    , applyTx
-    , setPortfolioOf
-    )
-    where
-
-import Prelude
+    -- * Chain following model
+  , Tx (..)
+  , Cert (..)
+  , applyTx
+  , setPortfolioOf
+  )
+where
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+  ( XPub
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , MkKeyFingerprint (paymentKeyFingerprint)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    )
+  ( Depth (..)
+  , DerivationType (..)
+  , HardDerivation (..)
+  , Index (..)
+  , MkKeyFingerprint (paymentKeyFingerprint)
+  , Role (..)
+  , SoftDerivation (..)
+  , ToRewardAccount (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+  ( Address
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+  ( RewardAccount
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TB
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+  ( TxIn (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+  ( TxOut (..)
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Data.Maybe
-    ( maybeToList )
+  ( maybeToList
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Quiet
-    ( Quiet (..) )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+  ( Quiet (..)
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Delegation State
@@ -139,15 +148,16 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 --                                                                             └────────────────────┘            └─────────────────────┘
 -- @
 data DelegationState k = DelegationState
-    { -- | The account public key from which the stake keys should be derived.
-      rewardAccountKey :: k 'AccountK XPub
-    , state :: State
-    } deriving (Generic)
+  { rewardAccountKey :: k 'AccountK XPub
+  -- ^ The account public key from which the stake keys should be derived.
+  , state :: State
+  }
+  deriving (Generic)
 
 -- | Construct the initial delegation state.
 initialDelegationState
-    :: k 'AccountK XPub
-    -> DelegationState k
+  :: k 'AccountK XPub
+  -> DelegationState k
 initialDelegationState accK = DelegationState accK Zero
 
 -- | The internal state, without the account key.
@@ -159,22 +169,20 @@ initialDelegationState accK = DelegationState accK Zero
 --
 -- Maybe that would help simplify `applyTx` and `setPortfolioOf`...
 data State
-    -- | No active stake keys. The initial state of a new wallet.
-    = Zero
-
-    -- | The first stake-key (index 0) is registered and either delegating or
+  = -- | No active stake keys. The initial state of a new wallet.
+    Zero
+  | -- | The first stake-key (index 0) is registered and either delegating or
     -- about to be delegating.
-    | One
-
-    -- | There is more than one active stake keys. Can only be reached using
+    One
+  | -- | There is more than one active stake keys. Can only be reached using
     -- wallets with support for multiple stake keys.
-    | More
-        !(Index 'Soft 'CredFromKeyK)
-          -- nextKeyIx - the ix of the next unused key
-        PointerUTxO
-          -- ^ pointer utxo that need to be spent when changing state.
-        !Key0Status
-    deriving (Eq, Show, Generic)
+    More
+      !(Index 'Soft 'CredFromKeyK)
+      -- nextKeyIx - the ix of the next unused key
+      PointerUTxO
+      -- ^ pointer utxo that need to be spent when changing state.
+      !Key0Status
+  deriving (Eq, Show, Generic)
 
 instance NFData State
 
@@ -191,48 +199,51 @@ instance NFData State
 --
 -- See the implementation of @applyTx@ for how it is used.
 data Key0Status = ValidKey0 | MissingKey0
-    deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance NFData Key0Status
 
-instance (NFData (k 'AccountK XPub), NFData (k 'CredFromKeyK XPub))
-    => NFData (DelegationState k)
+instance
+  (NFData (k 'AccountK XPub), NFData (k 'CredFromKeyK XPub))
+  => NFData (DelegationState k)
 
 deriving instance
-    ( Show (k 'AccountK XPub)
-    , Show (k 'CredFromKeyK XPub)
-    ) => Show (DelegationState k)
+  ( Show (k 'AccountK XPub)
+  , Show (k 'CredFromKeyK XPub)
+  )
+  => Show (DelegationState k)
 
 deriving instance
-    ( Eq (k 'AccountK XPub)
-    , Eq (k 'CredFromKeyK XPub)
-    ) => Eq (DelegationState k)
+  ( Eq (k 'AccountK XPub)
+  , Eq (k 'CredFromKeyK XPub)
+  )
+  => Eq (DelegationState k)
 
 keyAtIx
-    :: (SoftDerivation k, AddressCredential k ~ 'CredFromKeyK)
-    => DelegationState k
-    -> Index 'Soft 'CredFromKeyK
-    -> k 'CredFromKeyK XPub
+  :: (SoftDerivation k, AddressCredential k ~ 'CredFromKeyK)
+  => DelegationState k
+  -> Index 'Soft 'CredFromKeyK
+  -> k 'CredFromKeyK XPub
 keyAtIx s = deriveAddressPublicKey (rewardAccountKey s) MutableAccount
 
 nextKeyIx
-    :: DelegationState k
-    -> Index 'Soft 'CredFromKeyK
+  :: DelegationState k
+  -> Index 'Soft 'CredFromKeyK
 nextKeyIx s = case state s of
-    Zero -> minBound
-    One -> succ minBound
-    More ix _ _ -> ix
+  Zero -> minBound
+  One -> succ minBound
+  More ix _ _ -> ix
 
 lastActiveIx
-    :: DelegationState k
-    -> Maybe (Index 'Soft 'CredFromKeyK)
+  :: DelegationState k
+  -> Maybe (Index 'Soft 'CredFromKeyK)
 lastActiveIx s
-    | nextKeyIx s == minBound = Nothing
-    | otherwise               = Just $ pred $ nextKeyIx s
+  | nextKeyIx s == minBound = Nothing
+  | otherwise = Just $ pred $ nextKeyIx s
 
-data PointerUTxO = PointerUTxO { pTxIn :: TxIn, pCoin :: Coin }
-    deriving (Generic, Eq, Show)
-    deriving anyclass NFData
+data PointerUTxO = PointerUTxO {pTxIn :: TxIn, pCoin :: Coin}
+  deriving (Generic, Eq, Show)
+  deriving anyclass (NFData)
 
 -- | Returns the index corresponding to the payment key the `PointerUTxO`
 -- should be locked with for a portfolio of a given size @n@.
@@ -240,8 +251,8 @@ data PointerUTxO = PointerUTxO { pTxIn :: TxIn, pCoin :: Coin }
 -- In our current implementation we require the `PointerUTxO` to be created in
 -- the @[0] -> [0,1] transition@, i.e. @nextKeyIx 1 -> nextKeyIx 2@.
 pointerIx
-    :: Int
-    -> Maybe (Index 'Soft 'CredFromKeyK)
+  :: Int
+  -> Maybe (Index 'Soft 'CredFromKeyK)
 pointerIx 0 = Nothing
 pointerIx 1 = Nothing
 pointerIx n = Just $ toEnum n
@@ -264,27 +275,27 @@ pointer _ = Nothing
 -- also a user-specified output with the same payment key as the pointer output,
 -- `applyTx` will track the first one as the new pointer.
 data Tx = Tx
-    { certs :: [Cert]
-    , inputs :: [(TxIn, Coin)]
-    , outputs :: [TxOut]
-    }
-    deriving (Eq, Generic)
-    deriving Show via (Quiet Tx)
+  { certs :: [Cert]
+  , inputs :: [(TxIn, Coin)]
+  , outputs :: [TxOut]
+  }
+  deriving (Eq, Generic)
+  deriving (Show) via (Quiet Tx)
 
 instance Semigroup Tx where
-    (Tx cs1 is1 os1) <> (Tx cs2 is2 os2) =
-        Tx (cs1 <> cs2) (is1 <> is2) (os1 <> os2)
+  (Tx cs1 is1 os1) <> (Tx cs2 is2 os2) =
+    Tx (cs1 <> cs2) (is1 <> is2) (os1 <> os2)
 
 data Cert
-    = RegisterKey RewardAccount
-    | Delegate RewardAccount
-      -- ^ Which pool we're delegating to is here (and for now) irrelevant.
-      -- The main thing is that there exists a witness on-chain for this stake
-      -- key (registration certs don't require witnesses)
-      --
-      -- TODO: We may also want to add the PoolId here.
-    | DeRegisterKey RewardAccount
-    deriving (Eq, Show, Generic)
+  = RegisterKey RewardAccount
+  | -- | Which pool we're delegating to is here (and for now) irrelevant.
+    -- The main thing is that there exists a witness on-chain for this stake
+    -- key (registration certs don't require witnesses)
+    --
+    -- TODO: We may also want to add the PoolId here.
+    Delegate RewardAccount
+  | DeRegisterKey RewardAccount
+  deriving (Eq, Show, Generic)
 
 -- | Given a `DelegationState`, produce a `Tx` registering or de-registering
 -- stake-keys, in order to have @n@ stake-keys.
@@ -294,23 +305,24 @@ data Cert
 --
 -- Returns @Nothing@ if the target @n@ is already reached.
 setPortfolioOf
-    :: ( SoftDerivation k
-       , ToRewardAccount k
-       , AddressCredential k ~ 'CredFromKeyK)
-    => DelegationState k
-    -> Coin
-        -- ^ minUTxOVal
-    -> (k 'CredFromKeyK XPub -> Address)
-        -- ^ A way to construct an Address
-    -> (RewardAccount -> Bool)
-        -- ^ Whether or not the key is registered.
-        --
-        -- TODO: Need a Set or Map for the real implementation with LSQ.
-    -> Int
-        -- ^ Target number of stake keys.
-    -> Maybe Tx
+  :: ( SoftDerivation k
+     , ToRewardAccount k
+     , AddressCredential k ~ 'CredFromKeyK
+     )
+  => DelegationState k
+  -> Coin
+  -- ^ minUTxOVal
+  -> (k 'CredFromKeyK XPub -> Address)
+  -- ^ A way to construct an Address
+  -> (RewardAccount -> Bool)
+  -- ^ Whether or not the key is registered.
+  --
+  -- TODO: Need a Set or Map for the real implementation with LSQ.
+  -> Int
+  -- ^ Target number of stake keys.
+  -> Maybe Tx
 setPortfolioOf ds minUTxOVal mkAddress isReg n =
-    repairKey0IfNeededTx <> changeStateTx
+  repairKey0IfNeededTx <> changeStateTx
   where
     -- The `changeStateTx` calculation assumes that key 0 is registered. If it
     -- is not, we fix it here.
@@ -322,52 +334,58 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
     -- - `setPortfolio [B,C]` to replace key 2 with key 0
     repairKey0IfNeededTx :: Maybe Tx
     repairKey0IfNeededTx = case repairKey0 $ state ds of
-        [] -> Nothing
-        cs -> Just $ Tx cs [] []
+      [] -> Nothing
+      cs -> Just $ Tx cs [] []
       where
         repairKey0 (More _ _ MissingKey0) | n > 0 = deleg [minBound]
         repairKey0 _ = []
 
     changeStateTx :: Maybe Tx
     changeStateTx = txWithCerts $ case compare (toEnum n) (nextKeyIx ds) of
-        GT -> deleg [nextKeyIx ds .. toEnum (n - 1)]
-        EQ -> []
-        LT -> dereg $ reverse [toEnum n .. (pred $ nextKeyIx ds)]
-
+      GT -> deleg [nextKeyIx ds .. toEnum (n - 1)]
+      EQ -> []
+      LT -> dereg $ reverse [toEnum n .. (pred $ nextKeyIx ds)]
       where
         txWithCerts [] = Nothing
-        txWithCerts cs = Just $ Tx
-            { certs = cs
-            , inputs = maybeToList (mkTxIn <$> pointer ds)
-            , outputs = maybeToList $
-                -- Note that this is the only place where we move the pointer.
-                -- I.e. repairKey0IfNeededTx won't do it on its own.
-                (\i -> TxOut
-                    (mkAddress $ keyAtIx ds i)
-                    (TB.fromCoin minUTxOVal)
-                ) <$> pointerIx n
-            }
+        txWithCerts cs =
+          Just
+            $ Tx
+              { certs = cs
+              , inputs = maybeToList (mkTxIn <$> pointer ds)
+              , outputs =
+                  maybeToList
+                    $
+                    -- Note that this is the only place where we move the pointer.
+                    -- I.e. repairKey0IfNeededTx won't do it on its own.
+                    ( \i ->
+                        TxOut
+                          (mkAddress $ keyAtIx ds i)
+                          (TB.fromCoin minUTxOVal)
+                    )
+                      <$> pointerIx n
+              }
           where
             mkTxIn (PointerUTxO txIx coin) = (txIx, coin)
-            -- Note: If c > minUTxOVal we need to rely on the wallet to return the
-            -- difference to the user as change.
+    -- Note: If c > minUTxOVal we need to rely on the wallet to return the
+    -- difference to the user as change.
 
     deleg :: [Index 'Soft 'CredFromKeyK] -> [Cert]
-    deleg = (>>= \ix ->
-        if isReg (acct ix)
-        then [Delegate (acct ix)]
-        else [RegisterKey (acct ix),  Delegate (acct ix)]
-        )
-
+    deleg =
+      ( >>=
+          \ix ->
+            if isReg (acct ix)
+              then [Delegate (acct ix)]
+              else [RegisterKey (acct ix), Delegate (acct ix)]
+      )
 
     dereg :: [Index 'Soft 'CredFromKeyK] -> [Cert]
     dereg ixs =
-        [ DeRegisterKey (acct ix)
-        | ix <- ixs
-        , isReg . acct $ ix
-        -- We need to /at least/ check @isReg (key 0)@, because the user could
-        -- have deregistered it using old wallet software.
-        ]
+      [ DeRegisterKey (acct ix)
+      | ix <- ixs
+      , isReg . acct $ ix
+      -- We need to /at least/ check @isReg (key 0)@, because the user could
+      -- have deregistered it using old wallet software.
+      ]
 
     acct = toRewardAccount . keyAtIx ds
 
@@ -375,42 +393,46 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
 --
 -- Expects the @PointerUTxO@ to be correctly managed, and will panic otherwise.
 applyTx
-    :: forall k. ( SoftDerivation k
-        , ToRewardAccount k
-        , MkKeyFingerprint k Address
-        , MkKeyFingerprint k (k 'CredFromKeyK XPub)
-        , AddressCredential k ~ 'CredFromKeyK )
-    => Tx
-    -> Hash "Tx"
-    -> DelegationState k
-    -> DelegationState k
+  :: forall k
+   . ( SoftDerivation k
+     , ToRewardAccount k
+     , MkKeyFingerprint k Address
+     , MkKeyFingerprint k (k 'CredFromKeyK XPub)
+     , AddressCredential k ~ 'CredFromKeyK
+     )
+  => Tx
+  -> Hash "Tx"
+  -> DelegationState k
+  -> DelegationState k
 applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
   where
     applyCert ds cert = flip modifyState ds $ case cert of
-            RegisterKey _                   -> id
-            Delegate k
-               | k == nextKey ds            -> inc
-               | otherwise                  -> modifyKey0 cert
-            DeRegisterKey k
-               | Just k == lastActiveKey ds -> dec
-               | otherwise                  -> modifyKey0 cert
+      RegisterKey _ -> id
+      Delegate k
+        | k == nextKey ds -> inc
+        | otherwise -> modifyKey0 cert
+      DeRegisterKey k
+        | Just k == lastActiveKey ds -> dec
+        | otherwise -> modifyKey0 cert
       where
         inc s = case s of
-            Zero -> One
-            One -> More (toEnum 2) (findOut $ toEnum 2) ValidKey0
-            More ix _ is0Reg -> let ix' = succ ix in More ix' (findOut ix') is0Reg
+          Zero -> One
+          One -> More (toEnum 2) (findOut $ toEnum 2) ValidKey0
+          More ix _ is0Reg -> let ix' = succ ix in More ix' (findOut ix') is0Reg
         dec s = case s of
-            Zero -> error "impossible: can't decrement beyond zero"
-            One -> Zero
-            More ix _ is0Reg
-                | fromEnum ix > 2 -> let ix' = pred ix in More ix' (findOut ix') is0Reg
-                | otherwise -> case is0Reg of
-                    ValidKey0   -> One
-                    MissingKey0 -> Zero
+          Zero -> error "impossible: can't decrement beyond zero"
+          One -> Zero
+          More ix _ is0Reg
+            | fromEnum ix > 2 -> let ix' = pred ix in More ix' (findOut ix') is0Reg
+            | otherwise -> case is0Reg of
+                ValidKey0 -> One
+                MissingKey0 -> Zero
 
         findOut ix = case map mkPointer pointerOuts of
-            (x:_) -> x
-            _     -> error $ mconcat
+          (x : _) -> x
+          _ ->
+            error
+              $ mconcat
                 [ "couldn't find pointer output for ix "
                 , show ix
                 , " with state "
@@ -418,29 +440,29 @@ applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
                 ]
           where
             isOurOut (TxOut addr _b) =
-                case (paymentKeyFingerprint @k $ keyAtIx ds ix, paymentKeyFingerprint addr) of
+              case (paymentKeyFingerprint @k $ keyAtIx ds ix, paymentKeyFingerprint addr) of
                 (Right fp, Right fp')
-                    | fp == fp' -> True
-                    | otherwise -> False
+                  | fp == fp' -> True
+                  | otherwise -> False
                 _ -> False
             mkPointer (txIx, TxOut _ tb) = PointerUTxO (TxIn h txIx) (TB.getCoin tb)
-            pointerOuts = filter (isOurOut . snd) $ zip [0..] outs
+            pointerOuts = filter (isOurOut . snd) $ zip [0 ..] outs
 
     modifyState
-        :: (State -> State)
-        -> DelegationState k
-        -> DelegationState k
-    modifyState f s = s { state = f (state s) }
+      :: (State -> State)
+      -> DelegationState k
+      -> DelegationState k
+    modifyState f s = s {state = f (state s)}
 
-    -- | Modifies the "isKey0Reg" of the `More` constructor.
+    -- \| Modifies the "isKey0Reg" of the `More` constructor.
     modifyKey0 cert s@(More i p _) = case cert of
-        Delegate k
-            | k == acct 0 -> More i p ValidKey0
-            | otherwise   -> s
-        DeRegisterKey k
-            | k == acct 0 -> More i p MissingKey0
-            | otherwise   -> s
-        _                 -> s
+      Delegate k
+        | k == acct 0 -> More i p ValidKey0
+        | otherwise -> s
+      DeRegisterKey k
+        | k == acct 0 -> More i p MissingKey0
+        | otherwise -> s
+      _ -> s
       where
         acct = toRewardAccount . keyAtIx ds0 . toEnum
     modifyKey0 _ s = s
@@ -470,12 +492,14 @@ applyTx (Tx cs _ins outs) h ds0 = foldl applyCert ds0 cs
 -- >>> presentableKeys s2
 -- [0, 1, 2]
 presentableKeys
-    :: ( SoftDerivation k
-       , AddressCredential k ~ 'CredFromKeyK)
-    => DelegationState k -> [k 'CredFromKeyK XPub]
+  :: ( SoftDerivation k
+     , AddressCredential k ~ 'CredFromKeyK
+     )
+  => DelegationState k
+  -> [k 'CredFromKeyK XPub]
 presentableKeys s = case lastActiveIx s of
-    Just i -> map (keyAtIx s) [minBound .. (succ i)]
-    Nothing -> [keyAtIx s minBound]
+  Just i -> map (keyAtIx s) [minBound .. (succ i)]
+  Nothing -> [keyAtIx s minBound]
 
 -- Keys meant to be used in addresses.
 --
@@ -494,20 +518,24 @@ presentableKeys s = case lastActiveIx s of
 -- despite stake key 1 being active. This doesn't affect `usableKeys`
 -- (it still includes key 0), as we view the state as incorrect and temporary.
 usableKeys
-    :: ( SoftDerivation k
-       , AddressCredential k ~ 'CredFromKeyK)
-    => DelegationState k -> [k 'CredFromKeyK XPub]
+  :: ( SoftDerivation k
+     , AddressCredential k ~ 'CredFromKeyK
+     )
+  => DelegationState k
+  -> [k 'CredFromKeyK XPub]
 usableKeys s = case lastActiveIx s of
-    Just i -> map (keyAtIx s) [minBound .. i]
-    Nothing -> [keyAtIx s minBound]
+  Just i -> map (keyAtIx s) [minBound .. i]
+  Nothing -> [keyAtIx s minBound]
 
 -- | For testing. Returns all registered and delegating stake keys.
 activeKeys
-    :: ( SoftDerivation k
-       , AddressCredential k ~ 'CredFromKeyK )
-    => DelegationState k -> [k 'CredFromKeyK XPub]
+  :: ( SoftDerivation k
+     , AddressCredential k ~ 'CredFromKeyK
+     )
+  => DelegationState k
+  -> [k 'CredFromKeyK XPub]
 activeKeys ds = map (keyAtIx ds) $ case state ds of
-    Zero                      -> []
-    One                       -> [minBound]
-    More nextIx _ ValidKey0   -> [minBound .. pred nextIx]
-    More nextIx _ MissingKey0 -> [succ minBound .. pred nextIx]
+  Zero -> []
+  One -> [minBound]
+  More nextIx _ ValidKey0 -> [minBound .. pred nextIx]
+  More nextIx _ MissingKey0 -> [succ minBound .. pred nextIx]

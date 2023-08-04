@@ -4,183 +4,242 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
-import Prelude
-
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), NetworkId (..), NetworkMagic (..) )
+  ( AnyCardanoEra (..)
+  , CardanoEra (..)
+  , NetworkId (..)
+  , NetworkMagic (..)
+  )
 import Cardano.BM.Trace
-    ( nullTracer )
+  ( nullTracer
+  )
 import Cardano.Slotting.Slot
-    ( EpochNo (..) )
+  ( EpochNo (..)
+  )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( IsServerError (..)
-    , Listen (..)
-    , ListenError (..)
-    , getNetworkClock
-    , getNetworkInformation
-    , liftHandler
-    , withListeningSocket
-    )
+  ( IsServerError (..)
+  , Listen (..)
+  , ListenError (..)
+  , getNetworkClock
+  , getNetworkInformation
+  , liftHandler
+  , withListeningSocket
+  )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..), ApiWalletMode (..) )
+  ( ApiNetworkInformation (..)
+  , ApiWalletMode (..)
+  )
 import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchWallet (..) )
+  ( ErrNoSuchWallet (..)
+  )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyNetworkLayer )
+  ( dummyNetworkLayer
+  )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+  ( NetworkLayer (..)
+  )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
-    , currentRelativeTime
-    , mkTimeInterpreter
-    , neverFails
-    )
+  ( PastHorizonException
+  , TimeInterpreter
+  , currentRelativeTime
+  , mkTimeInterpreter
+  , neverFails
+  )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+  ( SyncTolerance (..)
+  )
+import Cardano.Wallet.Primitive.SyncProgress qualified as S
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
+  ( Block (..)
+  , BlockHeader (..)
+  , SlotNo (..)
+  , StartTime (..)
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+  ( unsafeFromText
+  )
 import Control.Monad
-    ( void )
+  ( void
+  )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+  ( ExceptT (..)
+  , throwE
+  )
+import Data.ByteString.Char8 qualified as B8
+import Data.ByteString.Lazy qualified as BL
 import Data.Either
-    ( isLeft )
+  ( isLeft
+  )
 import Data.Maybe
-    ( isJust, isNothing )
+  ( isJust
+  , isNothing
+  )
 import Data.Quantity
-    ( Quantity (..) )
+  ( Quantity (..)
+  )
 import Data.SOP.Counting
-    ( exactlyOne )
+  ( exactlyOne
+  )
 import Data.Time.Clock
-    ( addUTCTime, getCurrentTime )
+  ( addUTCTime
+  , getCurrentTime
+  )
 import Network.Socket
-    ( Family (..)
-    , SockAddr (..)
-    , SocketType (..)
-    , accept
-    , connect
-    , defaultProtocol
-    , getSocketName
-    , socket
-    , tupleToHostAddress
-    )
+  ( Family (..)
+  , SockAddr (..)
+  , SocketType (..)
+  , accept
+  , connect
+  , defaultProtocol
+  , getSocketName
+  , socket
+  , tupleToHostAddress
+  )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
+  ( RelativeTime (..)
+  , mkSlotLength
+  )
 import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
+  ( SecurityParam (..)
+  )
+import Ouroboros.Consensus.HardFork.History.EraParams qualified as HF
+import Ouroboros.Consensus.HardFork.History.Qry qualified as HF
+import Ouroboros.Consensus.HardFork.History.Summary qualified as HF
 import Servant.Server
-    ( ServerError (..), runHandler )
+  ( ServerError (..)
+  , runHandler
+  )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe, shouldReturn, shouldSatisfy )
+  ( Spec
+  , describe
+  , it
+  , pendingWith
+  , shouldBe
+  , shouldReturn
+  , shouldSatisfy
+  )
 import Test.QuickCheck.Modifiers
-    ( NonNegative (..) )
+  ( NonNegative (..)
+  )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+  ( PropertyM
+  , assert
+  , monadicIO
+  , monitor
+  , run
+  )
 import Test.QuickCheck.Property
-    ( counterexample, property )
+  ( counterexample
+  , property
+  )
 import Test.Utils.Platform
-    ( skipOnWindows )
+  ( skipOnWindows
+  )
 import UnliftIO.Async
-    ( concurrently_, race_ )
+  ( concurrently_
+  , race_
+  )
 import UnliftIO.Concurrent
-    ( threadDelay )
-
-import qualified Cardano.Wallet.Primitive.SyncProgress as S
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
-import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
-import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
+  ( threadDelay
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    serverSpec
-    networkInfoSpec
-    errorHandlingSpec
+  serverSpec
+  networkInfoSpec
+  errorHandlingSpec
 
 serverSpec :: Spec
 serverSpec = describe "API Server" $ do
-    let lo = tupleToHostAddress (0x7f, 0, 0, 1)
+  let
+    lo = tupleToHostAddress (0x7f, 0, 0, 1)
 
-    it "binds to the local interface" $ do
-        withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
-            Right (port, sock) -> do
-                getSocketName sock `shouldReturn`
-                    SockAddrInet (fromIntegral port) lo
-            Left e -> fail (show e)
+  it "binds to the local interface" $ do
+    withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
+      Right (port, sock) -> do
+        getSocketName sock
+          `shouldReturn` SockAddrInet (fromIntegral port) lo
+      Left e -> fail (show e)
 
-    it "can bind on any interface" $ do
-        withListeningSocket "0.0.0.0" ListenOnRandomPort $ \case
-            Right (port, sock) -> do
-                getSocketName sock `shouldReturn`
-                    SockAddrInet (fromIntegral port) 0
-            Left e -> fail (show e)
+  it "can bind on any interface" $ do
+    withListeningSocket "0.0.0.0" ListenOnRandomPort $ \case
+      Right (port, sock) -> do
+        getSocketName sock
+          `shouldReturn` SockAddrInet (fromIntegral port) 0
+      Left e -> fail (show e)
 
-    it "listens on the local interface" $ do
-        let
-            client port = do
-                sock <- socket AF_INET Stream defaultProtocol
-                connect sock $ SockAddrInet (fromIntegral port) lo
+  it "listens on the local interface" $ do
+    let
+      client port = do
+        sock <- socket AF_INET Stream defaultProtocol
+        connect sock $ SockAddrInet (fromIntegral port) lo
 
-            server sock = do
-                threadDelay 1_000_000
-                void $ accept sock
+      server sock = do
+        threadDelay 1_000_000
+        void $ accept sock
 
-            timeout = do
-                threadDelay 2_000_000
-                fail "test case timed out"
+      timeout = do
+        threadDelay 2_000_000
+        fail "test case timed out"
 
-        withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
-            Right (port, sock) -> race_ timeout $
-                concurrently_ (client port) (server sock)
-            Left e -> fail (show e)
+    withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
+      Right (port, sock) ->
+        race_ timeout
+          $ concurrently_ (client port) (server sock)
+      Left e -> fail (show e)
 
-    -- assuming there is no host "patate"
-    it "handles bad host name" $ do
-        withListeningSocket "patate" ListenOnRandomPort $ \res ->
-            res `shouldBe` Left (ListenErrorHostDoesNotExist "patate")
+  -- assuming there is no host "patate"
+  it "handles bad host name" $ do
+    withListeningSocket "patate" ListenOnRandomPort $ \res ->
+      res `shouldBe` Left (ListenErrorHostDoesNotExist "patate")
 
-    -- can't bind to link-local IPv6 address
-    it "handles invalid address" $ do
-        withListeningSocket "fe80::90c2:786f:431:b721" ListenOnRandomPort $ \res ->
-            res `shouldBe` Left (ListenErrorInvalidAddress "fe80::90c2:786f:431:b721")
+  -- can't bind to link-local IPv6 address
+  it "handles invalid address" $ do
+    withListeningSocket "fe80::90c2:786f:431:b721" ListenOnRandomPort $ \res ->
+      res `shouldBe` Left (ListenErrorInvalidAddress "fe80::90c2:786f:431:b721")
 
-    -- assuming we are not running the tests as root
-    it "handles privileged ports" $ do
-        skipOnWindows "Impossible to uniquely detect this error case"
-        withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \res ->
-            res `shouldBe` Left ListenErrorOperationNotPermitted
+  -- assuming we are not running the tests as root
+  it "handles privileged ports" $ do
+    skipOnWindows "Impossible to uniquely detect this error case"
+    withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \res ->
+      res `shouldBe` Left ListenErrorOperationNotPermitted
 
-    it "handles port in use" $ do
-        skipOnWindows "Windows permits listening on same port multiple times"
-        withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
-            Right (port, _) ->
-                withListeningSocket "127.0.0.1" (ListenOnPort port) $ \res ->
-                    res `shouldBe` Left (ListenErrorAddressAlreadyInUse (Just port))
-            Left e -> fail (show e)
+  it "handles port in use" $ do
+    skipOnWindows "Windows permits listening on same port multiple times"
+    withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
+      Right (port, _) ->
+        withListeningSocket "127.0.0.1" (ListenOnPort port) $ \res ->
+          res `shouldBe` Left (ListenErrorAddressAlreadyInUse (Just port))
+      Left e -> fail (show e)
 
 networkInfoSpec :: Spec
 networkInfoSpec = describe "getNetworkInformation" $ do
-    it "doesn't return 500 when the time interpreter horizon is behind\
-       \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
-        monadicIO $ do
-        let gap = fromRational $ toRational $ getNonNegative gap'
+  it
+    "doesn't return 500 when the time interpreter horizon is behind\
+    \ the current time"
+    $ property
+    $ \(gap' :: (NonNegative Int)) ->
+      monadicIO $ do
+        let
+          gap = fromRational $ toRational $ getNonNegative gap'
         st <- run $ StartTime . ((negate gap) `addUTCTime`) <$> getCurrentTime
-        let ti = forkInterpreter st
+        let
+          ti = forkInterpreter st
         now <- currentRelativeTime ti
-        let nodeTip' = SlotNo 0
-        let nl = mockNetworkLayer nodeTip' ti now
-        Right info <- run
+        let
+          nodeTip' = SlotNo 0
+        let
+          nl = mockNetworkLayer nodeTip' ti now
+        Right info <-
+          run
             $ runHandler
             $ getNetworkInformation (Testnet $ NetworkMagic 1) nl Node
 
@@ -192,95 +251,105 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         --
         --  20 = epoch length = 10*k
         if gap >= 20
-        then do
+          then do
             assertWith "networkTip is Nothing" $ isNothing $ networkTip info
             assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
-        else do
+          else do
             assertWith "networkTip is Just " $ isJust $ networkTip info
             assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
-
   where
     assertWith :: String -> Bool -> PropertyM IO ()
     assertWith lbl condition = do
-        let flag = if condition then "✓" else "✗"
-        monitor (counterexample $ lbl <> " " <> flag)
-        assert condition
+      let
+        flag = if condition then "✓" else "✗"
+      monitor (counterexample $ lbl <> " " <> flag)
+      assert condition
 
     mockNetworkLayer
-        :: SlotNo
-        -> TimeInterpreter (ExceptT PastHorizonException IO)
-        -> RelativeTime
-        -> NetworkLayer IO Block
+      :: SlotNo
+      -> TimeInterpreter (ExceptT PastHorizonException IO)
+      -> RelativeTime
+      -> NetworkLayer IO Block
     mockNetworkLayer sl ti relativeTime =
-        dummyNetworkLayer
-            { currentNodeEra = pure $ AnyCardanoEra MaryEra
-            , currentNodeTip = pure $
-                BlockHeader
-                    sl
-                    (Quantity $ fromIntegral $ unSlotNo sl)
-                    (Hash "header hash")
-                    (Just $ Hash "prevHeaderHash")
-            , timeInterpreter = ti
-            , syncProgress = \slot ->
-                S.syncProgress
-                    (SyncTolerance 10)
-                    (neverFails "syncProgress" ti)
-                    slot
-                    relativeTime
-            }
+      dummyNetworkLayer
+        { currentNodeEra = pure $ AnyCardanoEra MaryEra
+        , currentNodeTip =
+            pure
+              $ BlockHeader
+                sl
+                (Quantity $ fromIntegral $ unSlotNo sl)
+                (Hash "header hash")
+                (Just $ Hash "prevHeaderHash")
+        , timeInterpreter = ti
+        , syncProgress = \slot ->
+            S.syncProgress
+              (SyncTolerance 10)
+              (neverFails "syncProgress" ti)
+              slot
+              relativeTime
+        }
 
     forkInterpreter startTime =
-        let
-            start = HF.initBound
-            end = HF.Bound
-                    (RelativeTime 20)
-                    (SlotNo 20)
-                    (EpochNo 1)
+      let
+        start = HF.initBound
+        end =
+          HF.Bound
+            (RelativeTime 20)
+            (SlotNo 20)
+            (EpochNo 1)
 
-            era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
-            summary = HF.summaryWithExactly $ exactlyOne $
-                HF.EraSummary start (HF.EraEnd end) era1Params
-            int = HF.mkInterpreter summary
-        in mkTimeInterpreter nullTracer startTime (pure int)
-
-
+        era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+        summary =
+          HF.summaryWithExactly
+            $ exactlyOne
+            $ HF.EraSummary start (HF.EraEnd end) era1Params
+        int = HF.mkInterpreter summary
+      in
+        mkTimeInterpreter nullTracer startTime (pure int)
 
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do
-    let testWalletHandler
-            :: IsServerError e
-            => ExceptT e IO a
-            -> IO (Either ServerError a)
-        testWalletHandler = runHandler . liftHandler
+  let
+    testWalletHandler
+      :: IsServerError e
+      => ExceptT e IO a
+      -> IO (Either ServerError a)
+    testWalletHandler = runHandler . liftHandler
 
-    -- Check that an example error handled by the wallet API server produces a
-    -- structured JSON error message response.
-    it "ErrNoSuchWallet" $ do
-        let handler :: ExceptT ErrNoSuchWallet IO ()
-            handler = throwE $ ErrNoSuchWallet wid
-            wid = unsafeFromText "0000000000000000000000000000000000000000"
-        res <- testWalletHandler handler
-        res `shouldSatisfy` isLeft
-        let Left actualErr = res
-        errHTTPCode actualErr `shouldBe` 404
-        errReasonPhrase actualErr `shouldBe`
-            "Not Found"
-        BL.toStrict (errBody actualErr) `shouldSatisfy`
-            (B8.isInfixOf "no_such_wallet")
-        errHeaders actualErr `shouldBe`
-            [("Content-Type","application/json;charset=utf-8")]
+  -- Check that an example error handled by the wallet API server produces a
+  -- structured JSON error message response.
+  it "ErrNoSuchWallet" $ do
+    let
+      handler :: ExceptT ErrNoSuchWallet IO ()
+      handler = throwE $ ErrNoSuchWallet wid
+      wid = unsafeFromText "0000000000000000000000000000000000000000"
+    res <- testWalletHandler handler
+    res `shouldSatisfy` isLeft
+    let
+      Left actualErr = res
+    errHTTPCode actualErr `shouldBe` 404
+    errReasonPhrase actualErr
+      `shouldBe` "Not Found"
+    BL.toStrict (errBody actualErr)
+      `shouldSatisfy` (B8.isInfixOf "no_such_wallet")
+    errHeaders actualErr
+      `shouldBe` [("Content-Type", "application/json;charset=utf-8")]
 
-    it "Unhandled exception" $ do
-        pendingWith "TODO: ADP-641 catch all exceptions in application"
-        let expectedErr = ServerError
-                { errHTTPCode = 500
-                , errReasonPhrase = "Internal Server Error"
-                , errBody = mconcat
-                    [ "{\"code\":\"internal_server_error\","
-                    , "\"message\":\"Something went wrong\"}" ]
-                , errHeaders =
-                    [("Content-Type","application/json;charset=utf-8")]
-                }
+  it "Unhandled exception" $ do
+    pendingWith "TODO: ADP-641 catch all exceptions in application"
+    let
+      expectedErr =
+        ServerError
+          { errHTTPCode = 500
+          , errReasonPhrase = "Internal Server Error"
+          , errBody =
+              mconcat
+                [ "{\"code\":\"internal_server_error\","
+                , "\"message\":\"Something went wrong\"}"
+                ]
+          , errHeaders =
+              [("Content-Type", "application/json;charset=utf-8")]
+          }
 
-        runHandler (getNetworkClock (error "bomb") True)
-            `shouldReturn` Left expectedErr
+    runHandler (getNetworkClock (error "bomb") True)
+      `shouldReturn` Left expectedErr

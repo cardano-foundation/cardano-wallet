@@ -8,58 +8,59 @@
 -- License: Apache-2.0
 --
 -- This module provides the 'NonRandom' type and related instances.
---
 module Control.Monad.Random.NonRandom
-    (
-    -- * Non-random contexts
-      NonRandom (..)
-
-    ) where
-
-import Prelude
+  ( -- * Non-random contexts
+    NonRandom (..)
+  )
+where
 
 import Control.Applicative
-    ( Applicative (..) )
+  ( Applicative (..)
+  )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+  ( MonadRandom (..)
+  )
 import Data.Coerce
-    ( coerce )
+  ( coerce
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import System.Random
-    ( Random (..), RandomGen (..) )
+  ( Random (..)
+  , RandomGen (..)
+  )
+import Prelude
 
 -- | Provides a stateless context for computations that must be non-random.
 --
 -- This type is useful for testing functions that require a 'MonadRandom'
 -- context, but when actual randomness is not required or even desired.
---
 newtype NonRandom a = NonRandom
-    { runNonRandom :: a }
-    deriving (Eq, Generic, Ord, Show)
+  {runNonRandom :: a}
+  deriving (Eq, Generic, Ord, Show)
 
 instance Functor NonRandom where
-    fmap = coerce
+  fmap = coerce
 
 instance Applicative NonRandom where
-    liftA2 = coerce
-    pure = NonRandom
-    (<*>) = coerce
+  liftA2 = coerce
+  pure = NonRandom
+  (<*>) = coerce
 
 instance Monad NonRandom where
-    m >>= k = k (runNonRandom m)
+  m >>= k = k (runNonRandom m)
 
 instance MonadRandom NonRandom where
-    getRandom = pure $ fst $ random NonRandomGen
-    getRandomR r = pure $ fst $ randomR r NonRandomGen
-    getRandomRs r = pure $ randomRs r NonRandomGen
-    getRandoms = pure $ randoms NonRandomGen
+  getRandom = pure $ fst $ random NonRandomGen
+  getRandomR r = pure $ fst $ randomR r NonRandomGen
+  getRandomRs r = pure $ randomRs r NonRandomGen
+  getRandoms = pure $ randoms NonRandomGen
 
 -- | Provides a stateless and non-random implementation of 'RandomGen'
---
 data NonRandomGen = NonRandomGen
 
 instance RandomGen NonRandomGen where
-    genRange NonRandomGen = (minBound, maxBound)
-    next NonRandomGen = (0, NonRandomGen)
-    split NonRandomGen = (NonRandomGen, NonRandomGen)
+  genRange NonRandomGen = (minBound, maxBound)
+  next NonRandomGen = (0, NonRandomGen)
+  split NonRandomGen = (NonRandomGen, NonRandomGen)

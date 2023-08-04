@@ -2,50 +2,58 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 -- Portability: POSIX
---
-
 module Cardano.Startup.POSIX
-    ( installSignalHandlers
-    , setDefaultFilePermissions
-    , restrictFileMode
-    , killProcess
-    ) where
-
-import Prelude
+  ( installSignalHandlers
+  , setDefaultFilePermissions
+  , restrictFileMode
+  , killProcess
+  )
+where
 
 import Control.Monad
-    ( void )
+  ( void
+  )
 import Data.Bits
-    ( (.|.) )
+  ( (.|.)
+  )
 import System.Posix.Files
-    ( groupModes, otherModes, ownerReadMode, setFileCreationMask, setFileMode )
+  ( groupModes
+  , otherModes
+  , ownerReadMode
+  , setFileCreationMask
+  , setFileMode
+  )
 import System.Posix.Signals
-    ( Handler (..)
-    , installHandler
-    , keyboardSignal
-    , raiseSignal
-    , sigKILL
-    , signalProcess
-    , softwareTermination
-    )
+  ( Handler (..)
+  , installHandler
+  , keyboardSignal
+  , raiseSignal
+  , sigKILL
+  , signalProcess
+  , softwareTermination
+  )
 import System.Process
-    ( Pid )
+  ( Pid
+  )
+import Prelude
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.
 installSignalHandlers :: IO () -> IO ()
-installSignalHandlers notify = void $
-    installHandler softwareTermination termHandler Nothing
-    where
-        termHandler = CatchOnce $ do
-            notify
-            raiseSignal keyboardSignal
+installSignalHandlers notify =
+  void
+    $ installHandler softwareTermination termHandler Nothing
+  where
+    termHandler = CatchOnce $ do
+      notify
+      raiseSignal keyboardSignal
 
 -- | Restricts the process umask so that any files created are only readable by
 -- their owner.
 setDefaultFilePermissions :: IO ()
 setDefaultFilePermissions = void $ setFileCreationMask mask
-    where mask = groupModes .|. otherModes
+  where
+    mask = groupModes .|. otherModes
 
 -- | Changes permissions of an existing file so that only the owner can read
 -- them.

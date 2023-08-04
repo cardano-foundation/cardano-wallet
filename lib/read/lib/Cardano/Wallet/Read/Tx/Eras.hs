@@ -3,15 +3,15 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Tx.Eras
-    ( onTx
-    )
-    where
+  ( onTx
+  )
+where
 
 import Cardano.Wallet.Read.Tx
-    ( Tx (..), TxT )
+  ( Tx (..)
+  , TxT
+  )
 
 -- | Act upon the 'TxT' type value of a 'Tx'
 onTx :: (TxT era -> t) -> Tx era -> t

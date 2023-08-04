@@ -10,81 +10,110 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Test.Integration.Scenario.API.Shared.Addresses
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( purposeCIP1854 )
+  ( purposeCIP1854
+  )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+  ( defaultAddressPoolGap
+  , getAddressPoolGap
+  )
+import Cardano.Wallet.Api.Link qualified as Link
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath, ApiSharedWallet (..), WalletStyle (..) )
+  ( ApiAddressWithPath
+  , ApiSharedWallet (..)
+  , WalletStyle (..)
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+  ( HasSNetworkId
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+  ( AddressState (..)
+  )
 import Control.Monad
-    ( forM_ )
+  ( forM_
+  )
 import Control.Monad.IO.Class
-    ( liftIO )
+  ( liftIO
+  )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+  ( runResourceT
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
+import Network.HTTP.Types qualified as HTTP
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+  ( SpecWith
+  , describe
+  , shouldBe
+  , shouldSatisfy
+  )
 import Test.Hspec.Extra
-    ( it )
+  ( it
+  )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , expectListField
-    , expectListSize
-    , expectResponseCode
-    , genXPubsBech32
-    , getFromResponse
-    , isValidDerivationPath
-    , json
-    , postSharedWallet
-    , request
-    , verify
-    )
-
-import qualified Cardano.Wallet.Api.Link as Link
-import qualified Network.HTTP.Types as HTTP
+  ( Context (..)
+  , Headers (..)
+  , Payload (..)
+  , expectListField
+  , expectListSize
+  , expectResponseCode
+  , genXPubsBech32
+  , getFromResponse
+  , isValidDerivationPath
+  , json
+  , postSharedWallet
+  , request
+  , verify
+  )
+import Prelude
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHARED_ADDRESSES" $ do
-    it "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
-        let walName = "Shared Wallet" :: Text
-        (_, payload) <- getAccountWallet walName
-        rPost <- postSharedWallet ctx Default payload
-        verify rPost
-            [ expectResponseCode HTTP.status201
-            ]
-        let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
+  it "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
+    let
+      walName = "Shared Wallet" :: Text
+    (_, payload) <- getAccountWallet walName
+    rPost <- postSharedWallet ctx Default payload
+    verify
+      rPost
+      [ expectResponseCode HTTP.status201
+      ]
+    let
+      (ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddressWithPath n] ctx
-            (Link.listAddresses @'Shared wal) Default Empty
-        expectResponseCode HTTP.status200 r
-        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-        expectListSize g r
-        forM_ [0..(g-1)] $ \addrNum -> do
-            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
-            expectListField addrNum #derivationPath
-                (`shouldSatisfy` (isValidDerivationPath purposeCIP1854)) r
+    r <-
+      request @[ApiAddressWithPath n]
+        ctx
+        (Link.listAddresses @'Shared wal)
+        Default
+        Empty
+    expectResponseCode HTTP.status200 r
+    let
+      g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
+    expectListSize g r
+    forM_ [0 .. (g - 1)] $ \addrNum -> do
+      expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+      expectListField
+        addrNum
+        #derivationPath
+        (`shouldSatisfy` (isValidDerivationPath purposeCIP1854))
+        r
 
-    it "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
-        let payload = Json [json| {
+  it "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet" $ \ctx -> runResourceT $ do
+    (_, accXPubTxt) : _ <- liftIO $ genXPubsBech32 1
+    let
+      payload =
+        Json
+          [json| {
                 "name": "Shared Wallet",
                 "account_public_key": #{accXPubTxt},
                 "account_index": "10H",
@@ -100,24 +129,33 @@ spec = describe "SHARED_ADDRESSES" $ do
                           }
                     }
                 } |]
-        rPost <- postSharedWallet ctx Default payload
-        verify rPost
-            [ expectResponseCode HTTP.status201
-            ]
-        let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
+    rPost <- postSharedWallet ctx Default payload
+    verify
+      rPost
+      [ expectResponseCode HTTP.status201
+      ]
+    let
+      (ApiSharedWallet (Left wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddressWithPath n] ctx
-            (Link.listAddresses @'Shared wal) Default Empty
-        expectResponseCode HTTP.status200 r
-        expectListSize 0 r
+    r <-
+      request @[ApiAddressWithPath n]
+        ctx
+        (Link.listAddresses @'Shared wal)
+        Default
+        Empty
+    expectResponseCode HTTP.status200 r
+    expectListSize 0 r
   where
-     getAccountWallet name = do
-          (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
-          -- NOTE: A previous test had used "account_index": "30H",
-          -- presumably to spice things up,
-          -- but the `isValidDerivationPath` function expects that the
-          -- account index is equal to "0H".
-          let payload = Json [json| {
+    getAccountWallet name = do
+      (_, accXPubTxt) : _ <- liftIO $ genXPubsBech32 1
+      -- NOTE: A previous test had used "account_index": "30H",
+      -- presumably to spice things up,
+      -- but the `isValidDerivationPath` function expects that the
+      -- account index is equal to "0H".
+      let
+        payload =
+          Json
+            [json| {
                   "name": #{name},
                   "account_public_key": #{accXPubTxt},
                   "account_index": "0H",
@@ -132,4 +170,4 @@ spec = describe "SHARED_ADDRESSES" $ do
                             }
                       }
                   } |]
-          return (accXPubTxt, payload)
+      return (accXPubTxt, payload)

@@ -19,45 +19,61 @@
 -- Auto-generated Sqlite & Persistent machinery via Template-Haskell. This has
 -- been moved into a separate file so that we can treat it slightly differently
 -- when computing code-coverage.
-
 module Cardano.Pool.DB.Sqlite.TH where
 
+import Cardano.Pool.Metadata.Types
+  ( StakePoolMetadataHash (..)
+  , StakePoolMetadataUrl (..)
+  )
+import Cardano.Pool.Types
+  ( PoolId (..)
+  , StakePoolTicker
+  )
+import Cardano.Pool.Types qualified as P
+import Cardano.Slotting.Slot
+  ( SlotNo
+  )
+import Cardano.Wallet.DB.Sqlite.Types
+  ( sqlSettings'
+  )
+import Cardano.Wallet.DB.Sqlite.Types qualified as W
+import Cardano.Wallet.Primitive.Types
+  (
+  )
+import Cardano.Wallet.Primitive.Types qualified as W
+import Data.Text
+  ( Text
+  )
+import Data.Time.Clock
+  ( UTCTime
+  )
+import Data.Time.Clock.POSIX
+  ( POSIXTime
+  )
+import Data.Word
+  ( Word32
+  , Word64
+  , Word8
+  )
+import Database.Persist.TH
+  ( mkMigrate
+  , mkPersist
+  , persistLowerCase
+  , share
+  )
+import GHC.Generics
+  ( Generic (..)
+  )
+import System.Random
+  ( StdGen
+  )
 import Prelude
 
-import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
-import Cardano.Pool.Types
-    ( PoolId (..), StakePoolTicker )
-import Cardano.Slotting.Slot
-    ( SlotNo )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( sqlSettings' )
-import Cardano.Wallet.Primitive.Types
-    ()
-import Data.Text
-    ( Text )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Clock.POSIX
-    ( POSIXTime )
-import Data.Word
-    ( Word32, Word64, Word8 )
-import Database.Persist.TH
-    ( mkMigrate, mkPersist, persistLowerCase, share )
-import GHC.Generics
-    ( Generic (..) )
-import System.Random
-    ( StdGen )
-
-import qualified Cardano.Pool.Types as P
-import qualified Cardano.Wallet.DB.Sqlite.Types as W
-import qualified Cardano.Wallet.Primitive.Types as W
-
 share
-    [ mkPersist sqlSettings'
-    , mkMigrate "migrateAll"
-    ]
-    [persistLowerCase|
+  [ mkPersist sqlSettings'
+  , mkMigrate "migrateAll"
+  ]
+  [persistLowerCase|
 
 InternalState sql=internal_state
     lastGCMetadata                   POSIXTime Maybe   sql=last_gc_metadata

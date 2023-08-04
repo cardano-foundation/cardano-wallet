@@ -4,100 +4,124 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.Address.Keys.MintBurn
-    ( derivePolicyKeyAndHash
-    , toTokenMapAndScript
-    , toTokenPolicyId
-    ) where
-
-import Prelude
+  ( derivePolicyKeyAndHash
+  , toTokenMapAndScript
+  , toTokenPolicyId
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+  ( XPrv
+  , XPub
+  )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptHash (unScriptHash), toScriptHash )
+  ( Cosigner
+  , KeyHash
+  , Script (..)
+  , ScriptHash (unScriptHash)
+  , toScriptHash
+  )
+import Cardano.Address.Script qualified as CA
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index )
+  ( Depth (..)
+  , DerivationType (..)
+  , Index
+  )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
+  ( derivePolicyPrivateKey
+  )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron, getRawKey, hashVerificationKey, liftRawKey, publicKey )
+  ( AfterByron
+  , getRawKey
+  , hashVerificationKey
+  , liftRawKey
+  , publicKey
+  )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+  ( KeyFlavorS
+  )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+  ( AssetId (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId (..) )
+  ( TokenName
+  , TokenPolicyId (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+  ( TokenQuantity (..)
+  )
 import Data.Map
-    ( Map )
+  ( Map
+  )
+import Data.Map qualified as Map
 import GHC.Natural
-    ( Natural )
+  ( Natural
+  )
 import GHC.Stack
-    ( HasCallStack )
-
-import qualified Cardano.Address.Script as CA
-import qualified Data.Map as Map
+  ( HasCallStack
+  )
+import Prelude
 
 toTokenPolicyId
-    :: forall key
-     . (HasCallStack, AfterByron key)
-    => KeyFlavorS key
-    -> Script Cosigner
-    -> Map Cosigner XPub
-    -> TokenPolicyId
+  :: forall key
+   . (HasCallStack, AfterByron key)
+  => KeyFlavorS key
+  -> Script Cosigner
+  -> Map Cosigner XPub
+  -> TokenPolicyId
 toTokenPolicyId kf scriptTempl cosignerMap =
-      UnsafeTokenPolicyId
+  UnsafeTokenPolicyId
     . Hash
     . unScriptHash
     . toScriptHash
     $ replaceCosigner kf cosignerMap scriptTempl
 
 toTokenMapAndScript
-    :: forall key
-     . (HasCallStack, AfterByron key)
-    => KeyFlavorS key
-    -> Script Cosigner
-    -> Map Cosigner XPub
-    -> TokenName
-    -> Natural
-    -> (AssetId, TokenQuantity, Script KeyHash)
+  :: forall key
+   . (HasCallStack, AfterByron key)
+  => KeyFlavorS key
+  -> Script Cosigner
+  -> Map Cosigner XPub
+  -> TokenName
+  -> Natural
+  -> (AssetId, TokenQuantity, Script KeyHash)
 toTokenMapAndScript kf scriptTempl cosignerMap tName val =
-    ( AssetId (toTokenPolicyId kf scriptTempl cosignerMap) tName
-    , TokenQuantity val
-    , replaceCosigner kf cosignerMap scriptTempl
-    )
+  ( AssetId (toTokenPolicyId kf scriptTempl cosignerMap) tName
+  , TokenQuantity val
+  , replaceCosigner kf cosignerMap scriptTempl
+  )
 
 replaceCosigner
-    :: forall key
-     . (HasCallStack, AfterByron key)
-    => KeyFlavorS key
-    -> Map Cosigner XPub
-    -> Script Cosigner
-    -> Script KeyHash
+  :: forall key
+   . (HasCallStack, AfterByron key)
+  => KeyFlavorS key
+  -> Map Cosigner XPub
+  -> Script Cosigner
+  -> Script KeyHash
 replaceCosigner kf cosignerMap = \case
-    RequireSignatureOf c ->
-        RequireSignatureOf $ toKeyHash c
-    RequireAllOf xs ->
-        RequireAllOf (map (replaceCosigner kf cosignerMap) xs)
-    RequireAnyOf xs ->
-        RequireAnyOf (map (replaceCosigner kf cosignerMap) xs)
-    RequireSomeOf m xs ->
-        RequireSomeOf m (map (replaceCosigner kf cosignerMap) xs)
-    ActiveFromSlot s ->
-        ActiveFromSlot s
-    ActiveUntilSlot s ->
-        ActiveUntilSlot s
+  RequireSignatureOf c ->
+    RequireSignatureOf $ toKeyHash c
+  RequireAllOf xs ->
+    RequireAllOf (map (replaceCosigner kf cosignerMap) xs)
+  RequireAnyOf xs ->
+    RequireAnyOf (map (replaceCosigner kf cosignerMap) xs)
+  RequireSomeOf m xs ->
+    RequireSomeOf m (map (replaceCosigner kf cosignerMap) xs)
+  ActiveFromSlot s ->
+    ActiveFromSlot s
+  ActiveUntilSlot s ->
+    ActiveUntilSlot s
   where
     toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c = case Map.lookup c cosignerMap of
-        Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
-        Nothing -> error "Impossible: cosigner without xpub."
-
+      Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
+      Nothing -> error "Impossible: cosigner without xpub."
 
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.

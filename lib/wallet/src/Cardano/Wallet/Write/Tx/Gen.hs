@@ -4,25 +4,29 @@
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
---
 module Cardano.Wallet.Write.Tx.Gen
-    ( genDatumHash
-    )
-    where
-
-import Prelude
+  ( genDatumHash
+  )
+where
 
 import Cardano.Wallet.Write.Tx
-    ( DatumHash, datumHashFromBytes )
+  ( DatumHash
+  , datumHashFromBytes
+  )
+import Data.ByteString qualified as BS
 import Data.Maybe
-    ( fromMaybe )
+  ( fromMaybe
+  )
 import Test.QuickCheck
-    ( Gen, arbitrary, vectorOf )
-
-import qualified Data.ByteString as BS
+  ( Gen
+  , arbitrary
+  , vectorOf
+  )
+import Prelude
 
 genDatumHash :: Gen DatumHash
 genDatumHash =
-    fromMaybe (error "genDatumHash should always generate valid hashes")
+  fromMaybe (error "genDatumHash should always generate valid hashes")
     . datumHashFromBytes
-    . BS.pack <$> vectorOf 32 arbitrary
+    . BS.pack
+    <$> vectorOf 32 arbitrary

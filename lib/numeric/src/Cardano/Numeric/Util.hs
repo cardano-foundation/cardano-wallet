@@ -3,49 +3,58 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Numeric.Util
-    (
-      -- * Coalescing values
-      padCoalesce
+  ( -- * Coalescing values
+    padCoalesce
 
-      -- * Partitioning natural numbers
-    , equipartitionNatural
-    , partitionNatural
-    , unsafePartitionNatural
+    -- * Partitioning natural numbers
+  , equipartitionNatural
+  , partitionNatural
+  , unsafePartitionNatural
 
-      -- * Partial orders
-    , inAscendingPartialOrder
+    -- * Partial orders
+  , inAscendingPartialOrder
 
-      -- * Monomorphic functions
-    , power
-
-    ) where
-
-import Prelude hiding
-    ( round )
+    -- * Monomorphic functions
+  , power
+  )
+where
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+  ( PartialOrd (..)
+  )
 import Control.Arrow
-    ( (&&&) )
+  ( (&&&)
+  )
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+  ( NonEmpty (..)
+  )
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe
-    ( fromMaybe )
+  ( fromMaybe
+  )
 import Data.Ord
-    ( Down (..), comparing )
+  ( Down (..)
+  , comparing
+  )
 import Data.Ratio
-    ( (%) )
+  ( (%)
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
 import Numeric.Natural
-    ( Natural )
+  ( Natural
+  )
 import Safe
-    ( tailMay )
-
-import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
+  ( tailMay
+  )
+import Prelude hiding
+  ( round
+  )
 
 --------------------------------------------------------------------------------
 -- Public functions
@@ -86,20 +95,21 @@ import qualified Data.List.NonEmpty as NE
 --
 -- >>> padCoalesce [Sum 8, Sum 4, Sum 2, Sum 1] (replicate 1 ())
 -- [Sum 15]
---
-padCoalesce :: forall m a. (Monoid m, Ord m)
-    => NonEmpty m
-    -- ^ Source list
-    -> NonEmpty a
-    -- ^ Target list
-    -> NonEmpty m
+padCoalesce
+  :: forall m a
+   . (Monoid m, Ord m)
+  => NonEmpty m
+  -- ^ Source list
+  -> NonEmpty a
+  -- ^ Target list
+  -> NonEmpty m
 padCoalesce sourceUnsorted target
-    | sourceLength < targetLength =
-        applyN (targetLength - sourceLength) pad source
-    | sourceLength > targetLength =
-        applyN (sourceLength - targetLength) coalesce source
-    | otherwise =
-        source
+  | sourceLength < targetLength =
+      applyN (targetLength - sourceLength) pad source
+  | sourceLength > targetLength =
+      applyN (sourceLength - targetLength) coalesce source
+  | otherwise =
+      source
   where
     source = NE.sort sourceUnsorted
 
@@ -123,20 +133,19 @@ padCoalesce sourceUnsorted target
 -- into 'n' smaller numbers whose values differ by no more than 1.
 --
 -- The resultant list is sorted in ascending order.
---
 equipartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ The natural number to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the number.
-    -> NonEmpty Natural
-    -- ^ The partitioned numbers.
+  :: HasCallStack
+  => Natural
+  -- ^ The natural number to be partitioned.
+  -> NonEmpty a
+  -- ^ Represents the number of portions in which to partition the number.
+  -> NonEmpty Natural
+  -- ^ The partitioned numbers.
 equipartitionNatural n count =
-    -- Note: due to the behaviour of the underlying partition algorithm, a
-    -- simple list reversal is enough to ensure that the resultant list is
-    -- sorted in ascending order.
-    NE.reverse $ unsafePartitionNatural n (1 <$ count)
+  -- Note: due to the behaviour of the underlying partition algorithm, a
+  -- simple list reversal is enough to ensure that the resultant list is
+  -- sorted in ascending order.
+  NE.reverse $ unsafePartitionNatural n (1 <$ count)
 
 -- | Partitions a natural number into a number of parts, where the size of each
 --   part is proportional to the size of its corresponding element in the given
@@ -171,21 +180,20 @@ equipartitionNatural n count =
 --
 --  3.  The size of each element in the resulting list is within unity of the
 --      ideal proportion.
---
 partitionNatural
-    :: Natural
-        -- ^ Natural number to partition
-    -> NonEmpty Natural
-        -- ^ List of weights
-    -> Maybe (NonEmpty Natural)
+  :: Natural
+  -- ^ Natural number to partition
+  -> NonEmpty Natural
+  -- ^ List of weights
+  -> Maybe (NonEmpty Natural)
 partitionNatural target weights
-    | totalWeight == 0 = Nothing
-    | otherwise = Just portionsRounded
+  | totalWeight == 0 = Nothing
+  | otherwise = Just portionsRounded
   where
     portionsRounded :: NonEmpty Natural
-    portionsRounded
-        -- 1. Start with the list of unrounded portions:
-        = portionsUnrounded
+    portionsRounded =
+      -- 1. Start with the list of unrounded portions:
+      portionsUnrounded
         -- 2. Attach an index to each portion, so that we can remember the
         --    original order:
         & NE.zip indices
@@ -206,19 +214,19 @@ partitionNatural target weights
     portionsUnrounded :: NonEmpty Rational
     portionsUnrounded = computeIdealPortion <$> weights
       where
-        computeIdealPortion c
-            = fromIntegral target
+        computeIdealPortion c =
+          fromIntegral target
             * fromIntegral c
             % fromIntegral totalWeight
 
     roundings :: NonEmpty RoundingDirection
     roundings =
-        applyN shortfall (NE.cons RoundUp) (NE.repeat RoundDown)
+      applyN shortfall (NE.cons RoundUp) (NE.repeat RoundDown)
       where
-        shortfall
-            = fromIntegral target
+        shortfall =
+          fromIntegral target
             - fromIntegral @Integer
-                (F.sum $ round RoundDown <$> portionsUnrounded)
+              (F.sum $ round RoundDown <$> portionsUnrounded)
 
     totalWeight :: Natural
     totalWeight = F.sum weights
@@ -232,21 +240,22 @@ partitionNatural target weights
 --   list of weights, and the number of parts is equal to the number of weights.
 --
 -- Throws a run-time error if the sum of weights is equal to zero.
---
 unsafePartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ Natural number to partition
-    -> NonEmpty Natural
-    -- ^ List of weights
-    -> NonEmpty Natural
+  :: HasCallStack
+  => Natural
+  -- ^ Natural number to partition
+  -> NonEmpty Natural
+  -- ^ List of weights
+  -> NonEmpty Natural
 unsafePartitionNatural target =
-    fromMaybe zeroWeightSumError . partitionNatural target
+  fromMaybe zeroWeightSumError . partitionNatural target
   where
-    zeroWeightSumError = error $ unwords
-        [ "unsafePartitionNatural:"
-        , "specified weights must have a non-zero sum."
-        ]
+    zeroWeightSumError =
+      error
+        $ unwords
+          [ "unsafePartitionNatural:"
+          , "specified weights must have a non-zero sum."
+          ]
 
 --------------------------------------------------------------------------------
 -- Partial orders
@@ -266,8 +275,8 @@ applyN n f = F.foldr (.) id (replicate n f)
 
 consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
-    Nothing -> []
-    Just ys -> xs `zip` ys
+  Nothing -> []
+  Just ys -> xs `zip` ys
 
 -- Extract the fractional part of a rational number.
 --
@@ -289,21 +298,19 @@ integralPart = floor
 --   fractional value to an integral value.
 --
 -- See 'round'.
---
 data RoundingDirection
-    = RoundUp
-      -- ^ Round up to the nearest integral value.
-    | RoundDown
-      -- ^ Round down to the nearest integral value.
-    deriving (Eq, Show)
+  = -- | Round up to the nearest integral value.
+    RoundUp
+  | -- | Round down to the nearest integral value.
+    RoundDown
+  deriving (Eq, Show)
 
 -- | Use the given rounding direction to round the given fractional value,
 --   producing an integral result.
---
 round :: (RealFrac a, Integral b) => RoundingDirection -> a -> b
 round = \case
-    RoundUp -> ceiling
-    RoundDown -> floor
+  RoundUp -> ceiling
+  RoundDown -> floor
 
 --------------------------------------------------------------------------------
 -- Monomorphic functions
@@ -312,6 +319,5 @@ round = \case
 -- | Power function where all arguments are of the same type.
 --
 -- Helps to avoid the use of boilerplate type annotations.
---
 power :: Integral a => a -> a -> a
 power = (^)

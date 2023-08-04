@@ -6,59 +6,75 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.DB.Pure.ImplementationSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+  ( ShelleyKey
+  )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..) )
+  ( IsOurs (..)
+  )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+  ( SeqState (..)
+  )
 import Cardano.Wallet.DB.Properties
-    ( properties )
+  ( properties
+  )
+import Cardano.Wallet.DB.Pure.Layer qualified as PureLayer
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+  ( dummyTimeInterpreter
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+  ( NetworkDiscriminant (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+  ( Address
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Control.Monad.IO.Class
-    ( liftIO )
+  ( liftIO
+  )
 import Test.Hspec
-    ( Spec, before, describe )
+  ( Spec
+  , before
+  , describe
+  )
 import Test.QuickCheck
-    ( Arbitrary (..) )
+  ( Arbitrary (..)
+  )
 import Test.Utils.Platform
-    ( pendingOnMacOS )
-
-import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
+  ( pendingOnMacOS
+  )
+import Prelude
 
 spec :: Spec
 spec =
-    before (pendingOnMacOS "#2472: timeouts in CI mac builds")
+  before (pendingOnMacOS "#2472: timeouts in CI mac builds")
     $ describe "PureLayer"
-    $ properties $ \wid test -> do
-        run <- liftIO $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
-            dummyTimeInterpreter wid
-        test run
+    $ properties
+    $ \wid test -> do
+      run <-
+        liftIO
+          $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
+            dummyTimeInterpreter
+            wid
+      test run
 
 newtype DummyStatePureLayer = DummyStatePureLayer Int
-    deriving (Show, Eq)
+  deriving (Show, Eq)
 
 instance Arbitrary DummyStatePureLayer where
-    shrink _ = []
-    arbitrary = DummyStatePureLayer <$> arbitrary
+  shrink _ = []
+  arbitrary = DummyStatePureLayer <$> arbitrary
 
 deriving instance NFData DummyStatePureLayer
 
 instance IsOurs DummyStatePureLayer Address where
-    isOurs _ num = (Nothing, num)
+  isOurs _ num = (Nothing, num)

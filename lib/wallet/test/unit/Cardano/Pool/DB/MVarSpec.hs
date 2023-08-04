@@ -3,24 +3,28 @@
 -- License: Apache-2.0
 --
 -- Tests for the 'MVar' implementation of the pool 'DBLayer' interface.
---
 module Cardano.Pool.DB.MVarSpec
-    ( spec
-    ) where
+  ( spec
+  )
+where
 
+import Cardano.Pool.DB.MVar qualified as MVar
+import Cardano.Pool.DB.Properties
+  ( properties
+  )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+  ( dummyTimeInterpreter
+  )
+import Test.Hspec
+  ( Spec
+  , before
+  , describe
+  )
 import Prelude
 
-import Cardano.Pool.DB.Properties
-    ( properties )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
-import Test.Hspec
-    ( Spec, before, describe )
-
-import qualified Cardano.Pool.DB.MVar as MVar
-
 spec :: Spec
-spec = before (MVar.newDBLayer ti) $
-    describe "MVar" properties
+spec =
+  before (MVar.newDBLayer ti)
+    $ describe "MVar" properties
   where
     ti = dummyTimeInterpreter

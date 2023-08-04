@@ -10,29 +10,30 @@
 -- License: Apache-2.0
 --
 -- A type list of known eras, useful for indexed-by-era operations.
-
 module Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras
-    , knownEraIndices
-    ) where
-
-import Prelude
+  ( KnownEras
+  , knownEraIndices
+  )
+where
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+  ( AllegraEra
+  , AlonzoEra
+  , BabbageEra
+  , ByronEra
+  , ConwayEra
+  , MaryEra
+  , ShelleyEra
+  )
 import Generics.SOP
-    ( Proxy (..), lengthSList )
+  ( Proxy (..)
+  , lengthSList
+  )
+import Prelude
 
 -- | Known eras, for simplicity we reuse the types from 'Cardano.API'.
 type KnownEras =
-    '[ByronEra, ShelleyEra, AllegraEra, MaryEra, AlonzoEra, BabbageEra, ConwayEra]
+  '[ByronEra, ShelleyEra, AllegraEra, MaryEra, AlonzoEra, BabbageEra, ConwayEra]
 
 -- | Official numbering of the KnownEras.
 knownEraIndices :: [Int]

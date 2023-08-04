@@ -5,8 +5,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -17,44 +17,50 @@
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
-    ( Error (displayError)
-    , TxMetadataJsonSchema (..)
-    , metadataFromJson
-    , metadataToJson
-    )
+  ( Error (displayError)
+  , TxMetadataJsonSchema (..)
+  , metadataFromJson
+  , metadataToJson
+  )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata )
+  ( TxMetadata
+  )
 import Control.Applicative
-    ( liftA2, (<|>) )
+  ( liftA2
+  , (<|>)
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON) )
+  ( FromJSON (parseJSON)
+  , ToJSON (toJSON)
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Prelude
 
 -- | A tag to select the json codec
 data TxMetadataSchema = TxMetadataNoSchema | TxMetadataDetailedSchema
-    deriving (Show, Eq, Generic, NFData)
+  deriving (Show, Eq, Generic, NFData)
 
 -- | A wrapper to drive the json codec of metadata
 data TxMetadataWithSchema = TxMetadataWithSchema
-    { -- | How to codec the metadata into json
-        txMetadataWithSchema_schema :: TxMetadataSchema
-    , -- | The metadata
-        txMetadataWithSchema_metadata :: TxMetadata
-    }
-    deriving (Show, Eq, Generic, NFData)
+  { txMetadataWithSchema_schema :: TxMetadataSchema
+  -- ^ How to codec the metadata into json
+  , txMetadataWithSchema_metadata :: TxMetadata
+  -- ^ The metadata
+  }
+  deriving (Show, Eq, Generic, NFData)
 
 -- | Parses a Boolean "simple-metadata" API flag.
 --
 -- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
 -- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
---
 parseSimpleMetadataFlag :: Bool -> TxMetadataSchema
 parseSimpleMetadataFlag flag =
-    if flag
+  if flag
     then TxMetadataNoSchema
     else TxMetadataDetailedSchema
 
@@ -62,17 +68,16 @@ parseSimpleMetadataFlag flag =
 --
 -- prop> toSimpleMetadataFlag . parseSimpleMetadataFlag == id
 -- prop> parseSimpleMetadataFlag . toSimpleMetadataFlag == id
---
 toSimpleMetadataFlag :: TxMetadataSchema -> Bool
 toSimpleMetadataFlag = \case
-    TxMetadataNoSchema -> True
-    TxMetadataDetailedSchema -> False
+  TxMetadataNoSchema -> True
+  TxMetadataDetailedSchema -> False
 
 instance ToJSON TxMetadataWithSchema where
-    toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
-        metadataToJson TxMetadataJsonDetailedSchema x
-    toJSON (TxMetadataWithSchema TxMetadataNoSchema x) =
-        metadataToJson TxMetadataJsonNoSchema x
+  toJSON (TxMetadataWithSchema TxMetadataDetailedSchema x) =
+    metadataToJson TxMetadataJsonDetailedSchema x
+  toJSON (TxMetadataWithSchema TxMetadataNoSchema x) =
+    metadataToJson TxMetadataJsonNoSchema x
 
 detailedMetadata :: TxMetadata -> TxMetadataWithSchema
 detailedMetadata = TxMetadataWithSchema TxMetadataDetailedSchema
@@ -81,13 +86,14 @@ noSchemaMetadata :: TxMetadata -> TxMetadataWithSchema
 noSchemaMetadata = TxMetadataWithSchema TxMetadataNoSchema
 
 instance FromJSON TxMetadataWithSchema where
-    parseJSON = liftA2
-        (<|>)
-        (fmap detailedMetadata
-            . either (fail . displayError) pure
-            . metadataFromJson TxMetadataJsonDetailedSchema
-        )
-        (fmap noSchemaMetadata
-            . either (fail . displayError) pure
-            . metadataFromJson TxMetadataJsonNoSchema
-        )
+  parseJSON =
+    liftA2
+      (<|>)
+      ( fmap detailedMetadata
+          . either (fail . displayError) pure
+          . metadataFromJson TxMetadataJsonDetailedSchema
+      )
+      ( fmap noSchemaMetadata
+          . either (fail . displayError) pure
+          . metadataFromJson TxMetadataJsonNoSchema
+      )

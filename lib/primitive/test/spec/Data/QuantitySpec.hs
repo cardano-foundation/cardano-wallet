@@ -5,135 +5,165 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.QuantitySpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+  ( unsafeMkPercentage
+  )
 import Control.Monad
-    ( forM_ )
+  ( forM_
+  )
+import Data.Aeson qualified as Aeson
+import Data.ByteString.Char8 qualified as B8
+import Data.ByteString.Lazy qualified as BL
 import Data.Either
-    ( isRight )
+  ( isRight
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import Data.Quantity
-    ( MkPercentageError (..)
-    , Percentage (..)
-    , Quantity (..)
-    , mkPercentage
-    , percentageToDouble
-    )
+  ( MkPercentageError (..)
+  , Percentage (..)
+  , Quantity (..)
+  , mkPercentage
+  , percentageToDouble
+  )
 import Data.Ratio
-    ( (%) )
+  ( (%)
+  )
+import Data.Text qualified as T
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+  ( FromText (..)
+  , TextDecodingError (..)
+  , ToText (..)
+  )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+  ( Spec
+  , describe
+  , it
+  , shouldBe
+  , shouldSatisfy
+  )
 import Test.QuickCheck
-    ( Arbitrary (..), checkCoverage, choose, cover, property, (===) )
+  ( Arbitrary (..)
+  , checkCoverage
+  , choose
+  , cover
+  , property
+  , (===)
+  )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
-
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-
+  ( textRoundtrip
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    describe "Quantity" $ do
-        textRoundtrip (Proxy @(Quantity "bytes" Int))
+  describe "Quantity" $ do
+    textRoundtrip (Proxy @(Quantity "bytes" Int))
 
-        it "fail to parse from JSON if unit doesn't match" $ do
-            let msg =
-                    "Error in $: failed to parse quantified value. Expected \
-                    \value in 'bytes' (e.g. { \"unit\": \"bytes\", \"quantity\"\
-                    \: ... }) but got something else."
-            Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
-                `shouldBe`
-                (Left @String @(Quantity "bytes" Int) msg)
+    it "fail to parse from JSON if unit doesn't match" $ do
+      let
+        msg =
+          "Error in $: failed to parse quantified value. Expected \
+          \value in 'bytes' (e.g. { \"unit\": \"bytes\", \"quantity\"\
+          \: ... }) but got something else."
+      Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
+        `shouldBe` (Left @String @(Quantity "bytes" Int) msg)
 
-    describe "Percentage" $ do
-        textRoundtrip (Proxy @Percentage)
+  describe "Percentage" $ do
+    textRoundtrip (Proxy @Percentage)
 
-        describe "fromText failures" $ do
-            let err = TextDecodingError
-                    "expected a value between 0 and 100 with a '%' suffix \
-                    \(e.g. '14%')"
-            let tests =
-                    [ "14..2%"
-                    , "42%%"
-                    , "%"
-                    , "-65%"
-                    , "42"
-                    , "14.0"
-                    , "101%"
-                    , "100% "
-                    ]
-            forM_ tests $ \test -> it (T.unpack test) $ do
-                fromText @Percentage test `shouldBe` Left err
+    describe "fromText failures" $ do
+      let
+        err =
+          TextDecodingError
+            "expected a value between 0 and 100 with a '%' suffix \
+            \(e.g. '14%')"
+      let
+        tests =
+          [ "14..2%"
+          , "42%%"
+          , "%"
+          , "-65%"
+          , "42"
+          , "14.0"
+          , "101%"
+          , "100% "
+          ]
+      forM_ tests $ \test -> it (T.unpack test) $ do
+        fromText @Percentage test `shouldBe` Left err
 
-        describe "ToText & ToJSON goldens (checking rounding)" $ do
-            let tests =
-                    [ (unsafeMkPercentage $ 1 % 3, "33.33%", "33.33")
-                    , (unsafeMkPercentage 1, "100.00%", "100")
-                    , (unsafeMkPercentage 0, "0.00%", "0")
-                    , (unsafeMkPercentage 0.0001, "0.01%", "1.0e-2")
-                    , (unsafeMkPercentage 0.00009, "0.01%", "1.0e-2")
-                    , (unsafeMkPercentage 0.00006, "0.01%", "1.0e-2")
-                    , (unsafeMkPercentage 0.00005, "0.00%", "0")
-                    , (unsafeMkPercentage 0.00004, "0.00%", "0")
-                    ]
+    describe "ToText & ToJSON goldens (checking rounding)" $ do
+      let
+        tests =
+          [ (unsafeMkPercentage $ 1 % 3, "33.33%", "33.33")
+          , (unsafeMkPercentage 1, "100.00%", "100")
+          , (unsafeMkPercentage 0, "0.00%", "0")
+          , (unsafeMkPercentage 0.0001, "0.01%", "1.0e-2")
+          , (unsafeMkPercentage 0.00009, "0.01%", "1.0e-2")
+          , (unsafeMkPercentage 0.00006, "0.01%", "1.0e-2")
+          , (unsafeMkPercentage 0.00005, "0.00%", "0")
+          , (unsafeMkPercentage 0.00004, "0.00%", "0")
+          ]
 
-            forM_ tests $ \(p,txt,json) -> do
-                let desc = mconcat
-                        [ show (percentageToDouble p)
-                        , " -> toText: "
-                        , T.unpack txt
-                        , ", toJSON: "
-                        , B8.unpack . BL.toStrict $ json
-                        ]
-                it desc $ do
-                    toText p `shouldBe` txt
-                    Aeson.encode p `shouldBe` json
+      forM_ tests $ \(p, txt, json) -> do
+        let
+          desc =
+            mconcat
+              [ show (percentageToDouble p)
+              , " -> toText: "
+              , T.unpack txt
+              , ", toJSON: "
+              , B8.unpack . BL.toStrict $ json
+              ]
+        it desc $ do
+          toText p `shouldBe` txt
+          Aeson.encode p `shouldBe` json
 
-        it "fail to percent from JSON when out of bounds" $ do
-            let msg = "Error in $.quantity: PercentageOutOfBoundsError"
-            Aeson.eitherDecode "{\"unit\":\"percent\",\"quantity\":-14}"
-                `shouldBe` (Left @String @(Quantity "percent" Percentage) msg)
+    it "fail to percent from JSON when out of bounds" $ do
+      let
+        msg = "Error in $.quantity: PercentageOutOfBoundsError"
+      Aeson.eitherDecode "{\"unit\":\"percent\",\"quantity\":-14}"
+        `shouldBe` (Left @String @(Quantity "percent" Percentage) msg)
 
-        it "can't make percentage out of bound" $ checkCoverage $ \case
-            n | n > 10 -> cover 25 True "n > 100" $
-                -- NOTE taking 10 * n to get bigger Int generated by QuickCheck
-                mkPercentage (n / 10) === Left PercentageOutOfBoundsError
-            n | n < 0 -> cover 25 True "n < 0" $
-                mkPercentage n === Left PercentageOutOfBoundsError
-            n ->
-                case mkPercentage (n / 10) of
-                    Left _  -> property False
-                    Right _ -> property True
+    it "can't make percentage out of bound" $ checkCoverage $ \case
+      n
+        | n > 10 ->
+            cover 25 True "n > 100"
+              $
+              -- NOTE taking 10 * n to get bigger Int generated by QuickCheck
+              mkPercentage (n / 10) === Left PercentageOutOfBoundsError
+      n
+        | n < 0 ->
+            cover 25 True "n < 0"
+              $ mkPercentage n === Left PercentageOutOfBoundsError
+      n ->
+        case mkPercentage (n / 10) of
+          Left _ -> property False
+          Right _ -> property True
 
+    it "mkPercentage $ getPercentage maxBound succeeds" $ do
+      mkPercentage (getPercentage minBound) `shouldSatisfy` isRight
 
-        it "mkPercentage $ getPercentage maxBound succeeds" $ do
-            mkPercentage (getPercentage minBound) `shouldSatisfy` isRight
-
-        it "mkPercentage $ getPercentage minBound succeeds" $ do
-            mkPercentage (getPercentage minBound) `shouldSatisfy` isRight
+    it "mkPercentage $ getPercentage minBound succeeds" $ do
+      mkPercentage (getPercentage minBound) `shouldSatisfy` isRight
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (Quantity u a) where
-    shrink (Quantity a) = Quantity <$> shrink a
-    arbitrary = Quantity <$> arbitrary
+  shrink (Quantity a) = Quantity <$> shrink a
+  arbitrary = Quantity <$> arbitrary
 
 instance Arbitrary Percentage where
-    shrink _ = []
-    -- Note: We are only generating values that pass roundtrips here!
-    --
-    -- 0.01% is the precision we use for presentation.
-    arbitrary = unsafeMkPercentage . (% 10000) <$> choose (0, 10000)
+  shrink _ = []
+
+  -- Note: We are only generating values that pass roundtrips here!
+  --
+  -- 0.01% is the precision we use for presentation.
+  arbitrary = unsafeMkPercentage . (% 10000) <$> choose (0, 10000)

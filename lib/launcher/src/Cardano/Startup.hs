@@ -7,54 +7,78 @@
 --
 -- This module contains functions relating to startup and shutdown of the
 -- @cardano-wallet serve@ program.
-
 module Cardano.Startup
-    (
-    -- * Program startup
-      withUtf8Encoding
-    , setUtf8EncodingHandles
+  ( -- * Program startup
+    withUtf8Encoding
+  , setUtf8EncodingHandles
 
     -- * Clean shutdown
-    , withShutdownHandler
-    , withShutdownHandler'
-    , installSignalHandlers
-    , installSignalHandlersNoLogging
-    , killProcess
+  , withShutdownHandler
+  , withShutdownHandler'
+  , installSignalHandlers
+  , installSignalHandlersNoLogging
+  , killProcess
 
     -- * File permissions
-    , setDefaultFilePermissions
-    , restrictFileMode
+  , setDefaultFilePermissions
+  , restrictFileMode
 
     -- * Logging
-    , ShutdownHandlerLog(..)
-    ) where
-
-import Prelude
+  , ShutdownHandlerLog (..)
+  )
+where
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+  ( Severity (..)
+  )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+  ( HasPrivacyAnnotation (..)
+  , HasSeverityAnnotation (..)
+  )
 import Control.Tracer
-    ( Tracer, traceWith )
+  ( Tracer
+  , traceWith
+  )
 import Data.Either.Extra
-    ( eitherToMaybe )
+  ( eitherToMaybe
+  )
 import Data.Text.Class
-    ( ToText (..) )
+  ( ToText (..)
+  )
 import GHC.IO.Encoding
-    ( setFileSystemEncoding )
+  ( setFileSystemEncoding
+  )
 import System.IO
-    ( Handle, hIsOpen, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
+  ( Handle
+  , hIsOpen
+  , hSetEncoding
+  , mkTextEncoding
+  , stderr
+  , stdin
+  , stdout
+  )
 import System.IO.CodePage
-    ( withCP65001 )
+  ( withCP65001
+  )
 import UnliftIO.Async
-    ( race )
+  ( race
+  )
 import UnliftIO.Concurrent
-    ( forkIO )
+  ( forkIO
+  )
 import UnliftIO.Exception
-    ( IOException, catch, handle, throwIO )
+  ( IOException
+  , catch
+  , handle
+  , throwIO
+  )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+  ( MVar
+  , newEmptyMVar
+  , putMVar
+  , takeMVar
+  )
+import Prelude
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
@@ -62,8 +86,8 @@ import Cardano.Startup.Windows
 import Cardano.Startup.POSIX
 #endif
 
-import qualified Data.ByteString as BS
-import qualified Data.Text as T
+import Data.ByteString qualified as BS
+import Data.Text qualified as T
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers
@@ -79,9 +103,9 @@ withUtf8Encoding action = withCP65001 (setUtf8EncodingHandles >> action)
 
 setUtf8EncodingHandles :: IO ()
 setUtf8EncodingHandles = do
-    utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
-    mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]
-    setFileSystemEncoding utf8'
+  utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
+  mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]
+  setFileSystemEncoding utf8'
 
 {-------------------------------------------------------------------------------
                                Shutdown handlers
@@ -104,51 +128,56 @@ withShutdownHandler :: Tracer IO ShutdownHandlerLog -> IO a -> IO (Maybe a)
 withShutdownHandler tr = withShutdownHandler' tr stdin
 
 -- | A variant of 'withShutdownHandler' where the handle to read can be chosen.
-withShutdownHandler' :: Tracer IO ShutdownHandlerLog -> Handle -> IO a -> IO (Maybe a)
+withShutdownHandler'
+  :: Tracer IO ShutdownHandlerLog -> Handle -> IO a -> IO (Maybe a)
 withShutdownHandler' tr h action = do
-    enabled <- hIsOpen h
-    traceWith tr $ MsgShutdownHandler enabled
-    let with
-            | enabled = fmap eitherToMaybe . race readerLoop
-            | otherwise = fmap Just
-    with action
+  enabled <- hIsOpen h
+  traceWith tr $ MsgShutdownHandler enabled
+  let
+    with
+      | enabled = fmap eitherToMaybe . race readerLoop
+      | otherwise = fmap Just
+  with action
   where
     readerLoop = do
-        handle (traceWith tr . MsgShutdownError) readerLoop'
-        traceWith tr MsgShutdownEOF
-    readerLoop' = waitForInput >>= \case
+      handle (traceWith tr . MsgShutdownError) readerLoop'
+      traceWith tr MsgShutdownEOF
+    readerLoop' =
+      waitForInput >>= \case
         "" -> pure () -- eof: stop loop
         _ -> readerLoop' -- repeat
-    -- Wait indefinitely for input to be available.
-    -- Runs in separate thread so that it does not deadlock on Windows.
+        -- Wait indefinitely for input to be available.
+        -- Runs in separate thread so that it does not deadlock on Windows.
     waitForInput = do
-        v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
-        _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
-        takeMVar v >>= either throwIO pure
+      v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
+      _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
+      takeMVar v >>= either throwIO pure
 
 data ShutdownHandlerLog
-    = MsgShutdownHandler Bool
-    | MsgShutdownEOF
-    | MsgShutdownError IOException
-    deriving (Show, Eq)
+  = MsgShutdownHandler Bool
+  | MsgShutdownEOF
+  | MsgShutdownError IOException
+  deriving (Show, Eq)
 
 instance ToText ShutdownHandlerLog where
-    toText = \case
-        MsgShutdownHandler enabled ->
-            "Cross-platform subprocess shutdown handler is "
-            <> if enabled then "enabled." else "disabled."
-        MsgShutdownEOF ->
-            "Starting clean shutdown..."
-        MsgShutdownError e ->
-            "Error waiting for shutdown: " <> T.pack (show e)
-            <> ". Shutting down..."
+  toText = \case
+    MsgShutdownHandler enabled ->
+      "Cross-platform subprocess shutdown handler is "
+        <> if enabled then "enabled." else "disabled."
+    MsgShutdownEOF ->
+      "Starting clean shutdown..."
+    MsgShutdownError e ->
+      "Error waiting for shutdown: "
+        <> T.pack (show e)
+        <> ". Shutting down..."
 
 instance HasPrivacyAnnotation ShutdownHandlerLog
+
 instance HasSeverityAnnotation ShutdownHandlerLog where
-    getSeverityAnnotation = \case
-        MsgShutdownHandler _ -> Debug
-        MsgShutdownEOF -> Notice
-        MsgShutdownError _ -> Error
+  getSeverityAnnotation = \case
+    MsgShutdownHandler _ -> Debug
+    MsgShutdownEOF -> Notice
+    MsgShutdownError _ -> Error
 
 {-------------------------------------------------------------------------------
                           Termination Signal Handling

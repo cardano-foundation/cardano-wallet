@@ -8,45 +8,47 @@
 --
 -- This module provides functions and types that extend those provided by
 -- the 'aeson' package.
---
 module Data.Aeson.Extra
-    ( objectUnion
-    , parseBoundedIntegral
-    , aesonFromText
-    ) where
-
-import Prelude
+  ( objectUnion
+  , parseBoundedIntegral
+  , aesonFromText
+  )
+where
 
 import Data.Aeson
-    ( Value (Number, Object), withText )
+  ( Value (Number, Object)
+  , withText
+  )
 import Data.Aeson.Types
-    ( Parser )
+  ( Parser
+  )
+import Data.Scientific qualified as Scientific
 import Data.Text.Class
-    ( FromText (fromText) )
-
-import qualified Data.Scientific as Scientific
+  ( FromText (fromText)
+  )
+import Prelude
 
 -- | Performs the union of two JSON 'Object' values.
 --
 -- If either of the given values is not an 'Object', then this function will
 -- return 'Nothing'.
---
 objectUnion :: Value -> Value -> Maybe Value
 objectUnion (Object a) (Object b) = Just $ Object $ a <> b
 objectUnion _ _ = Nothing
 
 parseBoundedIntegral
-    :: forall a. (Bounded a, Integral a) => String -> Value -> Parser a
+  :: forall a. (Bounded a, Integral a) => String -> Value -> Parser a
 parseBoundedIntegral typeName =
-    maybe (fail errorMessage) pure . parseInner
+  maybe (fail errorMessage) pure . parseInner
   where
     parseInner :: Value -> Maybe a
     parseInner = \case
-        Number n -> Scientific.toBoundedInteger n
-        _        -> Nothing
+      Number n -> Scientific.toBoundedInteger n
+      _ -> Nothing
 
     errorMessage :: String
-    errorMessage = mconcat
+    errorMessage =
+      mconcat
         [ "Failed to parse value of type '" ++ typeName ++ "'. "
         , "Expected an integral value in the range ["
         , show (toInteger $ minBound @a)

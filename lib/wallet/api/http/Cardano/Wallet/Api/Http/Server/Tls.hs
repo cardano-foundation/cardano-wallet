@@ -6,35 +6,45 @@
 --
 -- Optional TLS support for mutual client-server authentication on top of a Wai
 -- application.
-
 module Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration (..)
-    , requireClientAuth
-    ) where
-
-import Prelude
+  ( TlsConfiguration (..)
+  , requireClientAuth
+  )
+where
 
 import Data.Default
-    ( Default (..) )
+  ( Default (..)
+  )
 import Data.X509
-    ( ExtKeyUsagePurpose (..), HashALG (..) )
+  ( ExtKeyUsagePurpose (..)
+  , HashALG (..)
+  )
 import Data.X509.CertificateStore
-    ( readCertificateStore )
+  ( readCertificateStore
+  )
 import Data.X509.Validation
-    ( ValidationChecks (..), ValidationHooks (..) )
+  ( ValidationChecks (..)
+  , ValidationHooks (..)
+  )
+import Data.X509.Validation qualified as X509
 import Network.TLS
-    ( CertificateRejectReason (..), CertificateUsage (..), ServerHooks (..) )
+  ( CertificateRejectReason (..)
+  , CertificateUsage (..)
+  , ServerHooks (..)
+  )
 import Network.Wai.Handler.WarpTLS
-    ( TLSSettings (..), tlsSettingsChain )
-
-import qualified Data.X509.Validation as X509
+  ( TLSSettings (..)
+  , tlsSettingsChain
+  )
+import Prelude
 
 -- | Path to a x.509 PKI for mutual client-server authentication.
 data TlsConfiguration = TlsConfiguration
-    { tlsCaCert :: !FilePath
-    , tlsSvCert :: !FilePath
-    , tlsSvKey  :: !FilePath
-    } deriving (Show)
+  { tlsCaCert :: !FilePath
+  , tlsSvCert :: !FilePath
+  , tlsSvKey :: !FilePath
+  }
+  deriving (Show)
 
 -- Create TLS settings for a Warp Handler from the given TLS configuration.
 -- These settings will expect clients to provide a valid TLS certificate during
@@ -43,18 +53,20 @@ data TlsConfiguration = TlsConfiguration
 -- - Have been signed by the same authority (CA).
 -- - Have a 'Key Usage Purpose' set to 'Client'
 requireClientAuth
-    :: TlsConfiguration
-    -> TLSSettings
-requireClientAuth TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = tlsSettings
+  :: TlsConfiguration
+  -> TLSSettings
+requireClientAuth TlsConfiguration {tlsCaCert, tlsSvCert, tlsSvKey} =
+  tlsSettings
     { tlsWantClientCert = True
-    , tlsServerHooks = def
-        { onClientCertificate =
-            fmap certificateUsageFromValidations . validateCertificate
-        }
+    , tlsServerHooks =
+        def
+          { onClientCertificate =
+              fmap certificateUsageFromValidations . validateCertificate
+          }
     }
   where
     tlsSettings =
-        tlsSettingsChain tlsSvCert [tlsCaCert] tlsSvKey
+      tlsSettingsChain tlsSvCert [tlsCaCert] tlsSvKey
 
     -- NOTE
     -- This checks makes sense only for remote services, to validate that the
@@ -62,22 +74,25 @@ requireClientAuth TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = tlsSettings
     -- service we're trying to reach. This is of little use for a server
     -- validation.
     serviceID =
-        ("", "")
+      ("", "")
 
     certificateUsageFromValidations =
-        maybe CertificateUsageAccept (CertificateUsageReject . CertificateRejectOther)
+      maybe CertificateUsageAccept (CertificateUsageReject . CertificateRejectOther)
 
     -- By default, X509.Validation validates the certificate names against the host
     -- which is irrelevant when checking the client certificate (but relevant for
     -- the client when checking the server's certificate).
-    hooks = def
-        { hookValidateName = \_ _ -> [] }
+    hooks =
+      def
+        { hookValidateName = \_ _ -> []
+        }
 
     -- Here we add extra checks as the ones performed by default to enforce that
     -- the client certificate is actually _meant_ to be used for client auth.
     -- This should prevent server certificates to be used to authenticate
     -- against the server.
-    checks = def
+    checks =
+      def
         { checkStrictOrdering = True
         , checkLeafKeyPurpose = [KeyUsagePurpose_ClientAuth]
         }
@@ -85,16 +100,16 @@ requireClientAuth TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = tlsSettings
     -- This solely verify that the provided certificate is valid and was signed by authority we
     -- recognize (tpCaPath)
     validateCertificate cert = do
-        mstore <- readCertificateStore tlsCaCert
-        maybe
-            (pure $ Just "Cannot init a store, unable to validate client certificates")
-            (fmap fromX509FailedReasons . validateStore)
-            mstore
+      mstore <- readCertificateStore tlsCaCert
+      maybe
+        (pure $ Just "Cannot init a store, unable to validate client certificates")
+        (fmap fromX509FailedReasons . validateStore)
+        mstore
       where
         validateStore store =
-            X509.validate HashSHA256 hooks checks store def serviceID cert
+          X509.validate HashSHA256 hooks checks store def serviceID cert
 
     fromX509FailedReasons reasons =
-        case reasons of
-            [] -> Nothing
-            _  -> Just (show reasons)
+      case reasons of
+        [] -> Nothing
+        _ -> Just (show reasons)

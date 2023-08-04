@@ -5,75 +5,85 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Address.Derivation.IcarusSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+  ( SomeMnemonic (..)
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , SoftDerivation (..)
-    )
+  ( Depth (..)
+  , DerivationType (..)
+  , HardDerivation (..)
+  , Index
+  , MkKeyFingerprint (..)
+  , PaymentAddress (..)
+  , Role (..)
+  , SoftDerivation (..)
+  )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..)
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    , unsafeGenerateKeyFromSeed
-    )
+  ( IcarusKey (..)
+  , generateKeyFromSeed
+  , minSeedLengthBytes
+  , unsafeGenerateKeyFromSeed
+  )
 import Cardano.Wallet.Address.DerivationSpec
-    ()
+  (
+  )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+  ( publicKey
+  )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (IcarusKeyS) )
+  ( KeyFlavorS (IcarusKeyS)
+  )
 import Cardano.Wallet.Gen
-    ( genLegacyAddress )
+  ( genLegacyAddress
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+  ( SNetworkId (..)
+  )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+  ( Address
+  )
+import Data.ByteArray qualified as BA
+import Data.ByteString qualified as BS
 import Test.Hspec
-    ( Spec, describe, it )
+  ( Spec
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , arbitraryBoundedEnum
-    , choose
-    , property
-    , vector
-    , (===)
-    )
-
-import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
+  ( Arbitrary (..)
+  , Property
+  , arbitraryBoundedEnum
+  , choose
+  , property
+  , vector
+  , (===)
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    describe "BIP-0044 Derivation Properties" $ do
-        it "deriveAccountPrivateKey works for various indexes" $
-            property prop_accountKeyDerivation
-        it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
-            property prop_publicChildKeyDerivation
+  describe "BIP-0044 Derivation Properties" $ do
+    it "deriveAccountPrivateKey works for various indexes"
+      $ property prop_accountKeyDerivation
+    it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)"
+      $ property prop_publicChildKeyDerivation
 
-    describe "MkKeyFingerprint Properties" $ do
-        it "paymentKeyFingerprint . liftPaymentAddress == pure" $
-            property prop_roundtripFingerprintLift
+  describe "MkKeyFingerprint Properties" $ do
+    it "paymentKeyFingerprint . liftPaymentAddress == pure"
+      $ property prop_roundtripFingerprintLift
 
 {-------------------------------------------------------------------------------
                                  Properties
@@ -95,55 +105,56 @@ spec = do
 --
 -- For details see <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#private-parent-key--public-child-key bip-0039>
 prop_publicChildKeyDerivation
-    :: SomeMnemonic
-    -> Passphrase "encryption"
-    -> Role
-    -> Index 'Soft 'CredFromKeyK
-    -> Property
+  :: SomeMnemonic
+  -> Passphrase "encryption"
+  -> Role
+  -> Index 'Soft 'CredFromKeyK
+  -> Property
 prop_publicChildKeyDerivation seed encPwd cc ix =
-    addrXPub1 === addrXPub2
+  addrXPub1 === addrXPub2
   where
     accXPrv = unsafeGenerateKeyFromSeed seed encPwd :: IcarusKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
-    addrXPub1 = publicKey IcarusKeyS  $ deriveAddressPrivateKey encPwd accXPrv cc ix
+    addrXPub1 = publicKey IcarusKeyS $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
     addrXPub2 = deriveAddressPublicKey (publicKey IcarusKeyS accXPrv) cc ix
 
 prop_accountKeyDerivation
-    :: SomeMnemonic
-    -> Passphrase "encryption"
-    -> Index 'Hardened 'AccountK
-    -> Property
+  :: SomeMnemonic
+  -> Passphrase "encryption"
+  -> Index 'Hardened 'AccountK
+  -> Property
 prop_accountKeyDerivation seed encPwd ix =
-    accXPrv `seq` property () -- NOTE Making sure this doesn't throw
+  accXPrv `seq` property () -- NOTE Making sure this doesn't throw
   where
     rootXPrv = generateKeyFromSeed seed encPwd :: IcarusKey 'RootK XPrv
     accXPrv = deriveAccountPrivateKey encPwd rootXPrv ix
 
 prop_roundtripFingerprintLift
-    :: Address
-    -> Property
+  :: Address
+  -> Property
 prop_roundtripFingerprintLift addr =
-    let
-        fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
-            <$> fingerprint
-    in
-        eAddr === Right addr
+  let
+    fingerprint = paymentKeyFingerprint @IcarusKey addr
+    eAddr =
+      liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
+        <$> fingerprint
+  in
+    eAddr === Right addr
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Role where
-    shrink _ = []
-    arbitrary = arbitraryBoundedEnum
+  shrink _ = []
+  arbitrary = arbitraryBoundedEnum
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
-    arbitrary = do
-        n <- choose (minSeedLengthBytes, 64)
-        bytes <- BS.pack <$> vector n
-        return $ Passphrase $ BA.convert bytes
+  arbitrary = do
+    n <- choose (minSeedLengthBytes, 64)
+    bytes <- BS.pack <$> vector n
+    return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary Address where
-    arbitrary = genLegacyAddress Nothing
+  arbitrary = genLegacyAddress Nothing

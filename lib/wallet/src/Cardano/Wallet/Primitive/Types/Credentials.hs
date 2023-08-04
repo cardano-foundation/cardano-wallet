@@ -3,28 +3,32 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..)
-    , HashedCredentials
-    , ClearCredentials
-    ) where
-
-import Prelude
-
+  ( RootCredentials (..)
+  , HashedCredentials
+  , ClearCredentials
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+  ( Depth (RootK)
+  )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase, PassphraseHash )
+  ( Passphrase
+  , PassphraseHash
+  )
+import Prelude
 
 -- | A 'PrivateKey' for a given 'KeyFlavor'.
 data RootCredentials k pw = RootCredentials
-    { credentialsKey :: k 'RootK XPrv
-    , credentialsPassword :: pw
-    }
+  { credentialsKey :: k 'RootK XPrv
+  , credentialsPassword :: pw
+  }
 
 deriving instance (Eq (k 'RootK XPrv), Eq pw) => Eq (RootCredentials k pw)
+
 deriving instance (Show (k 'RootK XPrv), Show pw) => Show (RootCredentials k pw)
 
 type HashedCredentials k = RootCredentials k PassphraseHash

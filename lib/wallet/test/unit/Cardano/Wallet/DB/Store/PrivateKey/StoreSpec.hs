@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# LANGUAGE RankNTypes #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
@@ -12,67 +12,90 @@
 --
 -- Test properties of the privatekey 'Store'.
 module Cardano.Wallet.DB.Store.PrivateKey.StoreSpec
-    ( spec
-    )
+  ( spec
+  )
 where
 
-import Prelude
-
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+  ( ForeignKeysSetting (..)
+  , runQuery
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+  ( Depth (RootK)
+  )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+  (
+  )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory )
+  ( WalletProperty
+  , logScale
+  , withDBInMemory
+  )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( DeltaPrivateKey, mkStorePrivateKey )
+  ( DeltaPrivateKey
+  , mkStorePrivateKey
+  )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+  ( KeyFlavorS (..)
+  )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials, RootCredentials (RootCredentials) )
+  ( HashedCredentials
+  , RootCredentials (RootCredentials)
+  )
 import Data.Delta
-    ( Replace (..) )
+  ( Replace (..)
+  )
 import Fmt
-    ( Buildable (..) )
+  ( Buildable (..)
+  )
 import Test.Hspec
-    ( Spec, around, describe, it )
+  ( Spec
+  , around
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Arbitrary, Gen, arbitrary, property )
+  ( Arbitrary
+  , Gen
+  , arbitrary
+  , property
+  )
 import Test.Store
-    ( prop_StoreUpdate )
+  ( prop_StoreUpdate
+  )
+import Prelude
 
 spec :: Spec
 spec =
-    around (withDBInMemory ForeignKeysDisabled) $ do
-        describe "private-key store" $ do
-            it "respects store laws for ShelleyKeyS"
-                $ property . prop_StorePrivateKeyLaws ShelleyKeyS
-            it "respects store laws for ByronKeyS"
-                $ property . prop_StorePrivateKeyLaws ByronKeyS
+  around (withDBInMemory ForeignKeysDisabled) $ do
+    describe "private-key store" $ do
+      it "respects store laws for ShelleyKeyS"
+        $ property . prop_StorePrivateKeyLaws ShelleyKeyS
+      it "respects store laws for ByronKeyS"
+        $ property . prop_StorePrivateKeyLaws ByronKeyS
 
 prop_StorePrivateKeyLaws
-    :: (Eq (k 'RootK XPrv), Show (k 'RootK XPrv), Arbitrary (k 'RootK XPrv))
-    => KeyFlavorS k
-    -> WalletProperty
+  :: (Eq (k 'RootK XPrv), Show (k 'RootK XPrv), Arbitrary (k 'RootK XPrv))
+  => KeyFlavorS k
+  -> WalletProperty
 prop_StorePrivateKeyLaws kF db wid = do
-    prop_StoreUpdate
-        (runQuery db)
-        (pure $ mkStorePrivateKey kF wid)
-        genPrivateKey
-        (logScale . genDelta)
+  prop_StoreUpdate
+    (runQuery db)
+    (pure $ mkStorePrivateKey kF wid)
+    genPrivateKey
+    (logScale . genDelta)
 
 genPrivateKey :: Arbitrary (k 'RootK XPrv) => Gen (Maybe (HashedCredentials k))
 genPrivateKey = fmap Just $ RootCredentials <$> arbitrary <*> arbitrary
 
 instance Buildable (DeltaPrivateKey k) where
-    build _ = "DeltaPrivateKey"
+  build _ = "DeltaPrivateKey"
 
 genDelta
-    :: Arbitrary (k 'RootK XPrv)
-    => (Maybe (HashedCredentials k))
-    -> Gen (DeltaPrivateKey k)
+  :: Arbitrary (k 'RootK XPrv)
+  => (Maybe (HashedCredentials k))
+  -> Gen (DeltaPrivateKey k)
 genDelta _ = Replace <$> genPrivateKey

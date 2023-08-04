@@ -3,18 +3,20 @@
 -- License: Apache-2.0
 --
 -- Source of the blockchain data for the wallet
---
 module Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..)
-    ) where
+  ( BlockchainSource (..)
+  )
+where
 
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+  ( CardanoNodeConn
+  )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
+  ( SyncTolerance
+  )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeToClientVersionData )
-
+  ( NodeToClientVersionData
+  )
 
 data BlockchainSource
-    = NodeSource CardanoNodeConn NodeToClientVersionData SyncTolerance
+  = NodeSource CardanoNodeConn NodeToClientVersionData SyncTolerance

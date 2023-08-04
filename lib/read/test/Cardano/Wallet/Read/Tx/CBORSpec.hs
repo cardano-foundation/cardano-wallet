@@ -2,63 +2,77 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Read.Tx.CBORSpec
-    ( spec
-    ) where
-
-import Prelude
-
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, parseTxFromCBOR, serializeTx )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
-import Data.ByteString
-    ( ByteString )
-import Data.ByteString.Lazy
-    ( fromStrict )
-import Test.Hspec
-    ( Spec, describe, it, pendingWith )
-import Test.QuickCheck
-    ( Property, property, (===) )
+  ( spec
+  )
+where
 
 import Cardano.Wallet.Read.Eras
-    ( EraValue
-    , K (..)
-    , MkEraValue
-    , allegra
-    , alonzo
-    , applyEraFun
-    , babbage
-    , byron
-    , inject
-    , mary
-    , shelley
-    )
+  ( EraValue
+  , K (..)
+  , MkEraValue
+  , allegra
+  , alonzo
+  , applyEraFun
+  , babbage
+  , byron
+  , inject
+  , mary
+  , shelley
+  )
+import Cardano.Wallet.Read.Tx.CBOR
+  ( TxCBOR
+  , parseTxFromCBOR
+  , serializeTx
+  )
+import Data.ByteArray.Encoding
+  ( Base (..)
+  , convertFromBase
+  )
+import Data.ByteString
+  ( ByteString
+  )
+import Data.ByteString.Lazy
+  ( fromStrict
+  )
 import qualified Data.ByteString.Lazy as BL
+import Test.Hspec
+  ( Spec
+  , describe
+  , it
+  , pendingWith
+  )
+import Test.QuickCheck
+  ( Property
+  , property
+  , (===)
+  )
+import Prelude
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
-    describe "TxCBOR encoding" $ do
-
-        it "roundtrips byron tx properly" $ do
-            pendingWith "CBOR for  byron missing"
-            --  property $ prop_roundtrip byronTx
-        it "roundtrips shelley tx properly" $ do
-            property $ prop_roundtrip shelleyTx
-        it "roundtrips allegra tx properly" $ do
-            property $ prop_roundtrip allegraTx
-        it "roundtrips mary tx properly" $ do
-            property $ prop_roundtrip maryTx
-        it "roundtrips alonzo tx properly" $ do
-            property $ prop_roundtrip alonzoTx
-        it "roundtrips babbage tx properly" $ do
-            property $ prop_roundtrip babbageTx
+  describe "TxCBOR encoding" $ do
+    it "roundtrips byron tx properly" $ do
+      pendingWith "CBOR for  byron missing"
+    --  property $ prop_roundtrip byronTx
+    it "roundtrips shelley tx properly" $ do
+      property $ prop_roundtrip shelleyTx
+    it "roundtrips allegra tx properly" $ do
+      property $ prop_roundtrip allegraTx
+    it "roundtrips mary tx properly" $ do
+      property $ prop_roundtrip maryTx
+    it "roundtrips alonzo tx properly" $ do
+      property $ prop_roundtrip alonzoTx
+    it "roundtrips babbage tx properly" $ do
+      property $ prop_roundtrip babbageTx
 
 prop_roundtrip :: TxCBOR -> Property
 prop_roundtrip tx =
-    (applyEraFun serializeTx <$> parseTxFromCBOR tx) === Right tx
+  (applyEraFun serializeTx <$> parseTxFromCBOR tx) === Right tx
 
 alonzoTx :: TxCBOR
-alonzoTx = mkTxCBOR alonzo
+alonzoTx =
+  mkTxCBOR
+    alonzo
     "84a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -83,7 +97,9 @@ alonzoTx = mkTxCBOR alonzo
     \f6"
 
 babbageTx :: TxCBOR
-babbageTx = mkTxCBOR babbage
+babbageTx =
+  mkTxCBOR
+    babbage
     "84a400818258200000000000000000000000000000000000000000\
     \000000000000000000000000000182a20058390101010101010101\
     \010101010101010101010101010101010101010101010101010101\
@@ -99,7 +115,9 @@ babbageTx = mkTxCBOR babbage
     \44a1024100f5f6"
 
 maryTx :: TxCBOR
-maryTx = mkTxCBOR mary
+maryTx =
+  mkTxCBOR
+    mary
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -123,7 +141,9 @@ maryTx = mkTxCBOR mary
     \00000000000000000000000000000000000000000044a1024100f6"
 
 allegraTx :: TxCBOR
-allegraTx = mkTxCBOR allegra
+allegraTx =
+  mkTxCBOR
+    allegra
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -147,7 +167,9 @@ allegraTx = mkTxCBOR allegra
     \00000000000000000000000000000000000000000044a1024100f6"
 
 shelleyTx :: TxCBOR
-shelleyTx = mkTxCBOR shelley
+shelleyTx =
+  mkTxCBOR
+    shelley
     "83a400828258200000000000000000000000000000000000000000\
     \000000000000000000000000008258200000000000000000000000\
     \000000000000000000000000000000000000000000010183825839\
@@ -171,13 +193,15 @@ shelleyTx = mkTxCBOR shelley
     \00000000000000000000000000000000000000000044a1024100f6"
 
 _byronTx :: TxCBOR
-_byronTx = mkTxCBOR byron
+_byronTx =
+  mkTxCBOR
+    byron
     ""
 
 mkTxCBOR
-    :: MkEraValue (K BL.ByteString) era
-    -> ByteString
-    -> EraValue (K BL.ByteString)
+  :: MkEraValue (K BL.ByteString) era
+  -> ByteString
+  -> EraValue (K BL.ByteString)
 mkTxCBOR era = inject era . K . unsafeReadBase16
 
 unsafeReadBase16 :: ByteString -> BL.ByteString

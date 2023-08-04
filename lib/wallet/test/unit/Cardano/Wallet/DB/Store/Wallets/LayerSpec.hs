@@ -4,36 +4,49 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.DB.Store.Wallets.LayerSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+  ( ForeignKeysSetting (..)
+  , runQuery
+  )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory )
+  ( WalletProperty
+  , logScale
+  , withDBInMemory
+  )
 import Cardano.Wallet.DB.Store.Wallets.Layer
-    ( newQueryStoreTxWalletsHistory )
+  ( newQueryStoreTxWalletsHistory
+  )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
-    ( genDeltaTxWallets )
+  ( genDeltaTxWallets
+  )
 import Test.Hspec
-    ( Spec, around, describe, it )
+  ( Spec
+  , around
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( property )
+  ( property
+  )
 import Test.Store
-    ( prop_StoreUpdate )
+  ( prop_StoreUpdate
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    around (withDBInMemory ForeignKeysDisabled) $ do
-        describe "newQueryStoreTxWalletsHistory" $ do
-            it "respects store laws" $ property . prop_StoreWalletsLaws
+  around (withDBInMemory ForeignKeysDisabled) $ do
+    describe "newQueryStoreTxWalletsHistory" $ do
+      it "respects store laws" $ property . prop_StoreWalletsLaws
 
 prop_StoreWalletsLaws :: WalletProperty
 prop_StoreWalletsLaws db wid =
-    prop_StoreUpdate
-        (runQuery db)
-        (pure newQueryStoreTxWalletsHistory)
-        (pure mempty)
-        (logScale . genDeltaTxWallets wid)
+  prop_StoreUpdate
+    (runQuery db)
+    (pure newQueryStoreTxWalletsHistory)
+    (pure mempty)
+    (logScale . genDeltaTxWallets wid)

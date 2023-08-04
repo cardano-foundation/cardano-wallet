@@ -2,56 +2,80 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.DB.Store.Submissions.StoreSpec ( spec ) where
-
-import Prelude
+module Cardano.Wallet.DB.Store.Submissions.StoreSpec (spec) where
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+  ( ForeignKeysSetting (..)
+  , runQuery
+  )
 import Cardano.Wallet.DB.Arbitrary
-    ()
+  (
+  )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
+  ( WalletProperty
+  , initializeWalletTable
+  , logScale
+  , withDBInMemory
+  )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+  ( TxId (..)
+  )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..), mkStoreSubmissions )
+  ( SubmissionMeta (..)
+  , mkStoreSubmissions
+  )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+  ( SlotNo (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (Coin) )
+  ( Coin (Coin)
+  )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), mockSealedTx )
+  ( SealedTx (..)
+  , mockSealedTx
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (Outgoing) )
+  ( Direction (Outgoing)
+  )
 import Cardano.Wallet.Submissions.OperationsSpec
-    ( genOperationsDelta )
+  ( genOperationsDelta
+  )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions (..) )
+  ( Submissions (..)
+  )
 import Control.Monad
-    ( replicateM )
+  ( replicateM
+  )
+import Data.ByteString qualified as BS
 import Data.Quantity
-    ( Quantity (..) )
+  ( Quantity (..)
+  )
 import System.Random
-    ( Random )
+  ( Random
+  )
 import Test.Hspec
-    ( Spec, around, describe, it )
+  ( Spec
+  , around
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Arbitrary (..), property )
+  ( Arbitrary (..)
+  , property
+  )
 import Test.Store
-    ( prop_StoreUpdate )
-
-import qualified Data.ByteString as BS
+  ( prop_StoreUpdate
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    around (withDBInMemory ForeignKeysDisabled) $ do
-        describe "submissions via API for a single wallet store" $ do
-            it "respects store laws"
-                $ property . prop_SingleWalletStoreLawsOperations
+  around (withDBInMemory ForeignKeysDisabled) $ do
+    describe "submissions via API for a single wallet store" $ do
+      it "respects store laws"
+        $ property . prop_SingleWalletStoreLawsOperations
 
 deriving instance Random SlotNo
 
@@ -60,21 +84,21 @@ dummyMetadata = SubmissionMeta 0 (Quantity 0) (Coin 0) Outgoing 0
 
 prop_SingleWalletStoreLawsOperations :: WalletProperty
 prop_SingleWalletStoreLawsOperations db wid =
-    prop_StoreUpdate
-        (runQuery db)
-        setupStore
-        (pure $ Submissions mempty 0 0)
-        (logScale . genOperationsDelta (pure dummyMetadata))
+  prop_StoreUpdate
+    (runQuery db)
+    setupStore
+    (pure $ Submissions mempty 0 0)
+    (logScale . genOperationsDelta (pure dummyMetadata))
   where
     setupStore = do
-        initializeWalletTable wid
-        pure $ mkStoreSubmissions wid
+      initializeWalletTable wid
+      pure $ mkStoreSubmissions wid
 
 {-------------------------------------------------------------------------------
     Arbitrary instances
 -------------------------------------------------------------------------------}
 instance Arbitrary TxId where
-    arbitrary = TxId <$> arbitrary
+  arbitrary = TxId <$> arbitrary
 
 instance Arbitrary SealedTx where
-    arbitrary = mockSealedTx . BS.pack <$> replicateM 16 arbitrary
+  arbitrary = mockSealedTx . BS.pack <$> replicateM 16 arbitrary

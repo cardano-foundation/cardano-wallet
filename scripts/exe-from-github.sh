@@ -8,7 +8,7 @@
 #
 #   Runs an executable fetched from a github repository, on a given release & platform.
 #   This only works for executables which follow a similar naming convention, like hlint
-#   and stylish-haskell.
+#   and fourmolu.
 #
 #   Adapted from https://raw.githubusercontent.com/ndmitchell/neil/master/misc/travis.sh
 #

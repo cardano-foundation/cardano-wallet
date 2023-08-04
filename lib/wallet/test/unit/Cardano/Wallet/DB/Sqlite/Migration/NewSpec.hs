@@ -6,68 +6,85 @@
 -- Tests for new database migration sqlite instance.  A module that tests a new
 -- database migration sqlite instance.
 module Cardano.Wallet.DB.Sqlite.Migration.NewSpec
-    ( spec
-    ) where
+  ( spec
+  )
+where
 
 import Cardano.DB.Sqlite
-    ( DBHandle (dbBackend) )
+  ( DBHandle (dbBackend)
+  )
 import Cardano.Wallet.DB.Migration
-    ( MigrationInterface (..), Version (..) )
+  ( MigrationInterface (..)
+  , Version (..)
+  )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( newMigrationInterface )
+  ( newMigrationInterface
+  )
 import Control.Tracer
-    ( nullTracer )
+  ( nullTracer
+  )
 import Data.List
-    ( sort )
+  ( sort
+  )
 import Data.Text
-    ( Text )
-import Prelude hiding
-    ( (.) )
+  ( Text
+  )
+import Database.Persist.Sqlite qualified as Sqlite
 import System.Directory
-    ( listDirectory )
+  ( listDirectory
+  )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+  ( withSystemTempDirectory
+  )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+  ( Spec
+  , describe
+  , it
+  , shouldReturn
+  )
 import UnliftIO
-    ( MonadUnliftIO )
-
-import qualified Database.Persist.Sqlite as Sqlite
+  ( MonadUnliftIO
+  )
+import Prelude hiding
+  ( (.)
+  )
 
 {-----------------------------------------------------------------------------
     Tests
 ------------------------------------------------------------------------------}
 spec :: Spec
 spec = do
-    describe "new migrations" $ do
-        it "handles backupDatabaseFile and withDatabaseFile" $ do
-            withSystemTempDirectory "test" $ \dir -> do
-                let interface = newMigrationInterface nullTracer
-                let dbf = dir <> "/db"
-                execute interface dbf createTable
-                backupDatabaseFile interface dbf $ Version 1
-                execute interface dbf populateTable
-                backupDatabaseFile interface dbf $ Version 2
-                sort <$> listDirectory dir `shouldReturn`
-                    sort ["db", "db.v1.bak", "db.v2.bak"]
+  describe "new migrations" $ do
+    it "handles backupDatabaseFile and withDatabaseFile" $ do
+      withSystemTempDirectory "test" $ \dir -> do
+        let
+          interface = newMigrationInterface nullTracer
+        let
+          dbf = dir <> "/db"
+        execute interface dbf createTable
+        backupDatabaseFile interface dbf $ Version 1
+        execute interface dbf populateTable
+        backupDatabaseFile interface dbf $ Version 2
+        sort <$> listDirectory dir
+          `shouldReturn` sort ["db", "db.v1.bak", "db.v2.bak"]
 
 execute
-    :: MonadUnliftIO m
-    => MigrationInterface m DBHandle
-    -> FilePath
-    -> Text
-    -> m ()
+  :: MonadUnliftIO m
+  => MigrationInterface m DBHandle
+  -> FilePath
+  -> Text
+  -> m ()
 execute interface dbf t =
-    withDatabaseFile interface dbf $ \handle ->
-        Sqlite.runSqlConn
-            (Sqlite.rawExecute t [])
-            (dbBackend handle)
+  withDatabaseFile interface dbf $ \handle ->
+    Sqlite.runSqlConn
+      (Sqlite.rawExecute t [])
+      (dbBackend handle)
 
 createTable :: Text
 createTable =
-    "CREATE TABLE IF NOT EXISTS test \
-    \(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)"
+  "CREATE TABLE IF NOT EXISTS test \
+  \(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)"
 
 populateTable :: Text
 populateTable =
-    "INSERT INTO test (name) VALUES ('hello')"
+  "INSERT INTO test (name) VALUES ('hello')"

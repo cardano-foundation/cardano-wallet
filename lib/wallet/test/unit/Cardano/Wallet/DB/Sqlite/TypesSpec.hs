@@ -2,115 +2,159 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.DB.Sqlite.TypesSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( stdGenFromString )
+  ( stdGenFromString
+  )
 import Cardano.Wallet.Gen
-    ( genSlotNo, shrinkSlotNo )
+  ( genSlotNo
+  , shrinkSlotNo
+  )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SlotInEpoch (..), SlotNo )
+  ( EpochNo (..)
+  , SlotInEpoch (..)
+  , SlotNo
+  )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+  ( TokenQuantity (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+  ( genTokenQuantityFullRange
+  , shrinkTokenQuantityFullRange
+  )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata, TxScriptValidity )
+  ( TxMetadata
+  , TxScriptValidity
+  )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxScriptValidity, shrinkTxScriptValidity )
+  ( genTxScriptValidity
+  , shrinkTxScriptValidity
+  )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, genSimpleTxMetadata, shrinkTxMetadata )
+  ( genNestedTxMetadata
+  , genSimpleTxMetadata
+  , shrinkTxMetadata
+  )
 import Data.Either
-    ( isLeft )
+  ( isLeft
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+  ( POSIXTime
+  )
 import Data.Typeable
-    ( Typeable, typeRep )
+  ( Typeable
+  , typeRep
+  )
 import Data.Word
-    ( Word64 )
+  ( Word64
+  )
 import Data.Word.Odd
-    ( Word31 )
+  ( Word31
+  )
 import Database.Persist.Class
-    ( PersistField (..) )
+  ( PersistField (..)
+  )
 import System.Random
-    ( StdGen, mkStdGen )
+  ( StdGen
+  , mkStdGen
+  )
 import System.Random.Internal
-    ( StdGen (..) )
+  ( StdGen (..)
+  )
 import System.Random.SplitMix
-    ( seedSMGen )
+  ( seedSMGen
+  )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+  ( Spec
+  , describe
+  , it
+  , shouldBe
+  , shouldSatisfy
+  )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonNegative (..)
-    , Property
-    , arbitrarySizedBoundedIntegral
-    , checkCoverage
-    , cover
-    , property
-    , shrinkIntegral
-    , shrinkMapBy
-    , (===)
-    )
+  ( Arbitrary (..)
+  , NonNegative (..)
+  , Property
+  , arbitrarySizedBoundedIntegral
+  , checkCoverage
+  , cover
+  , property
+  , shrinkIntegral
+  , shrinkMapBy
+  , (===)
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    describe "Values can be persisted and unpersisted successfully" $ do
-        persistRoundtrip $ Proxy @SlotNo
-        persistRoundtrip $ Proxy @POSIXTime
-        persistRoundtrip $ Proxy @TokenQuantity
-        persistRoundtrip $ Proxy @StdGen
-        persistRoundtrip $ Proxy @(Nested TxMetadata)
-        persistRoundtrip $ Proxy @(Simple TxMetadata)
-        persistRoundtrip $ Proxy @TxScriptValidity
+  describe "Values can be persisted and unpersisted successfully" $ do
+    persistRoundtrip $ Proxy @SlotNo
+    persistRoundtrip $ Proxy @POSIXTime
+    persistRoundtrip $ Proxy @TokenQuantity
+    persistRoundtrip $ Proxy @StdGen
+    persistRoundtrip $ Proxy @(Nested TxMetadata)
+    persistRoundtrip $ Proxy @(Simple TxMetadata)
+    persistRoundtrip $ Proxy @TxScriptValidity
 
-    describe "Backwards compatible instance PersistField StdGen" $ do
-        it "rnd_state empty" $
-            stdGenFromString "1233322640 1"
-                `shouldBe` Right
-                (StdGen $ seedSMGen 1233322640 1)
-        it "rnd_state" $
-            stdGenFromString "444941957 1872071452"
-                `shouldBe` Right
-                (StdGen $ seedSMGen 444941957 1872071452)
-        it "malformed" $
-            stdGenFromString "1233322640" `shouldSatisfy` isLeft
+  describe "Backwards compatible instance PersistField StdGen" $ do
+    it "rnd_state empty"
+      $ stdGenFromString "1233322640 1"
+      `shouldBe` Right
+        (StdGen $ seedSMGen 1233322640 1)
+    it "rnd_state"
+      $ stdGenFromString "444941957 1872071452"
+      `shouldBe` Right
+        (StdGen $ seedSMGen 444941957 1872071452)
+    it "malformed"
+      $ stdGenFromString "1233322640"
+      `shouldSatisfy` isLeft
 
-    describe "Coverage checks for generators" $ do
-        it "TokenQuantity" $
-            property prop_checkTokenQuantityCoverage
+  describe "Coverage checks for generators" $ do
+    it "TokenQuantity"
+      $ property prop_checkTokenQuantityCoverage
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
 persistRoundtrip
-    :: forall a. (Arbitrary a, Eq a, Show a, PersistField a, Typeable a)
-    => Proxy a
-    -> Spec
-persistRoundtrip proxy = it
-    ("can persist and unpersist values of type '"
+  :: forall a
+   . (Arbitrary a, Eq a, Show a, PersistField a, Typeable a)
+  => Proxy a
+  -> Spec
+persistRoundtrip proxy =
+  it
+    ( "can persist and unpersist values of type '"
         <> show (typeRep proxy)
-        <> "'")
-    (property $ \a ->
-        fromPersistValue (toPersistValue @a a) === Right a)
+        <> "'"
+    )
+    ( property $ \a ->
+        fromPersistValue (toPersistValue @a a) === Right a
+    )
 
 prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
-prop_checkTokenQuantityCoverage q = checkCoverage
-    $ cover 2 (q == minTokenQuantity)
-        "token quantity is smallest allowable"
-    $ cover 2 (q == maxTokenQuantity)
-        "token quantity is greatest allowable"
-    $ cover 2 (q > minTokenQuantity && q < maxTokenQuantity)
-        "token quantity is between smallest and greatest"
-    True
+prop_checkTokenQuantityCoverage q =
+  checkCoverage
+    $ cover
+      2
+      (q == minTokenQuantity)
+      "token quantity is smallest allowable"
+    $ cover
+      2
+      (q == maxTokenQuantity)
+      "token quantity is greatest allowable"
+    $ cover
+      2
+      (q > minTokenQuantity && q < maxTokenQuantity)
+      "token quantity is between smallest and greatest"
+      True
   where
     minTokenQuantity :: TokenQuantity
     minTokenQuantity = TokenQuantity 0
@@ -122,52 +166,53 @@ prop_checkTokenQuantityCoverage q = checkCoverage
 -------------------------------------------------------------------------------}
 
 instance Arbitrary POSIXTime where
-    arbitrary = do
-        NonNegative int <- arbitrary @(NonNegative Int)
-        pure (fromIntegral int)
+  arbitrary = do
+    NonNegative int <- arbitrary @(NonNegative Int)
+    pure (fromIntegral int)
 
 instance Arbitrary SlotNo where
-    arbitrary = genSlotNo
-    shrink = shrinkSlotNo
+  arbitrary = genSlotNo
+  shrink = shrinkSlotNo
 
 instance Arbitrary EpochNo where
-    arbitrary = EpochNo <$> arbitrary
-    shrink (EpochNo n) = EpochNo <$> shrink n
+  arbitrary = EpochNo <$> arbitrary
+  shrink (EpochNo n) = EpochNo <$> shrink n
 
 instance Arbitrary SlotInEpoch where
-    arbitrary = SlotInEpoch <$> arbitrary
-    shrink (SlotInEpoch n) = SlotInEpoch <$> shrink n
+  arbitrary = SlotInEpoch <$> arbitrary
+  shrink (SlotInEpoch n) = SlotInEpoch <$> shrink n
 
 instance Arbitrary Word31 where
-    arbitrary = arbitrarySizedBoundedIntegral
-    shrink = shrinkIntegral
+  arbitrary = arbitrarySizedBoundedIntegral
+  shrink = shrinkIntegral
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantityFullRange
-    shrink = shrinkTokenQuantityFullRange
+  arbitrary = genTokenQuantityFullRange
+  shrink = shrinkTokenQuantityFullRange
 
-newtype Nested a = Nested { unNested :: a } deriving (Eq, Show)
-newtype Simple a = Simple { unSimple :: a } deriving (Eq, Show)
+newtype Nested a = Nested {unNested :: a} deriving (Eq, Show)
+
+newtype Simple a = Simple {unSimple :: a} deriving (Eq, Show)
 
 instance Arbitrary (Nested TxMetadata) where
-    arbitrary = Nested <$> genNestedTxMetadata
-    shrink = shrinkMapBy Nested unNested shrinkTxMetadata
+  arbitrary = Nested <$> genNestedTxMetadata
+  shrink = shrinkMapBy Nested unNested shrinkTxMetadata
 
 instance Arbitrary (Simple TxMetadata) where
-    arbitrary = Simple <$> genSimpleTxMetadata
-    shrink = shrinkMapBy Simple unSimple shrinkTxMetadata
+  arbitrary = Simple <$> genSimpleTxMetadata
+  shrink = shrinkMapBy Simple unSimple shrinkTxMetadata
 
 instance PersistField a => PersistField (Nested a) where
-    toPersistValue = toPersistValue . unNested
-    fromPersistValue = fmap Nested . fromPersistValue
+  toPersistValue = toPersistValue . unNested
+  fromPersistValue = fmap Nested . fromPersistValue
 
 instance PersistField a => PersistField (Simple a) where
-    toPersistValue = toPersistValue . unSimple
-    fromPersistValue = fmap Simple . fromPersistValue
+  toPersistValue = toPersistValue . unSimple
+  fromPersistValue = fmap Simple . fromPersistValue
 
 instance Arbitrary StdGen where
-    arbitrary = mkStdGen <$> arbitrary
+  arbitrary = mkStdGen <$> arbitrary
 
 instance Arbitrary TxScriptValidity where
-    arbitrary = genTxScriptValidity
-    shrink = shrinkTxScriptValidity
+  arbitrary = genTxScriptValidity
+  shrink = shrinkTxScriptValidity

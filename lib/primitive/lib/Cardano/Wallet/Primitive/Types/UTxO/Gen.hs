@@ -1,31 +1,45 @@
 module Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO
-    , genUTxOLarge
-    , genUTxOLargeN
-    , selectUTxOEntries
-    , shrinkUTxO
-    ) where
-
-import Prelude
+  ( genUTxO
+  , genUTxOLarge
+  , genUTxOLargeN
+  , selectUTxOEntries
+  , shrinkUTxO
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+  ( TxIn
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, genTxInLargeRange, shrinkTxIn )
+  ( genTxIn
+  , genTxInLargeRange
+  , shrinkTxIn
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+  ( TxOut
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+  ( genTxOut
+  , shrinkTxOut
+  )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+  ( UTxO (..)
+  )
 import Control.Monad
-    ( replicateM )
+  ( replicateM
+  )
+import Data.Map.Strict qualified as Map
 import Test.QuickCheck
-    ( Gen, choose, shrinkList, sized )
+  ( Gen
+  , choose
+  , shrinkList
+  , sized
+  )
 import Test.QuickCheck.Extra
-    ( selectMapEntries, shrinkInterleaved )
-
-import qualified Data.Map.Strict as Map
+  ( selectMapEntries
+  , shrinkInterleaved
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- UTxO sets generated according to the size parameter
@@ -33,12 +47,12 @@ import qualified Data.Map.Strict as Map
 
 genUTxO :: Gen UTxO
 genUTxO = sized $ \size -> do
-    entryCount <- choose (0, size)
-    UTxO . Map.fromList <$> replicateM entryCount genEntry
+  entryCount <- choose (0, size)
+  UTxO . Map.fromList <$> replicateM entryCount genEntry
 
 shrinkUTxO :: UTxO -> [UTxO]
-shrinkUTxO
-    = take 16
+shrinkUTxO =
+  take 16
     . fmap (UTxO . Map.fromList)
     . shrinkList shrinkEntry
     . Map.toList
@@ -48,9 +62,11 @@ genEntry :: Gen (TxIn, TxOut)
 genEntry = (,) <$> genTxIn <*> genTxOut
 
 shrinkEntry :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntry (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxIn)
-    (o, shrinkTxOut)
+shrinkEntry (i, o) =
+  uncurry (,)
+    <$> shrinkInterleaved
+      (i, shrinkTxIn)
+      (o, shrinkTxOut)
 
 --------------------------------------------------------------------------------
 -- Large UTxO sets
@@ -58,15 +74,16 @@ shrinkEntry (i, o) = uncurry (,) <$> shrinkInterleaved
 
 genUTxOLarge :: Gen UTxO
 genUTxOLarge = do
-    entryCount <- choose (1024, 4096)
-    genUTxOLargeN entryCount
+  entryCount <- choose (1024, 4096)
+  genUTxOLargeN entryCount
 
 genUTxOLargeN :: Int -> Gen UTxO
 genUTxOLargeN entryCount = do
-    UTxO . Map.fromList <$> replicateM entryCount genEntryLargeRange
+  UTxO . Map.fromList <$> replicateM entryCount genEntryLargeRange
 
 genEntryLargeRange :: Gen (TxIn, TxOut)
-genEntryLargeRange = (,)
+genEntryLargeRange =
+  (,)
     <$> genTxInLargeRange
     -- Note that we don't need to choose outputs from a large range, as inputs
     -- are already chosen from a large range:
@@ -80,6 +97,5 @@ genEntryLargeRange = (,)
 --
 -- Returns the selected entries and the remaining UTxO set with the entries
 -- removed.
---
 selectUTxOEntries :: UTxO -> Int -> Gen ([(TxIn, TxOut)], UTxO)
 selectUTxOEntries = (fmap (fmap UTxO) .) . selectMapEntries . unUTxO

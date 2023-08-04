@@ -7,85 +7,106 @@
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx
-    )
-    where
-
-import Prelude
+  ( fromShelleyTx
+  )
+where
 
 import Cardano.Address.Script
-    ( KeyRole (..) )
+  ( KeyRole (..)
+  )
 import Cardano.Api
-    ( ShelleyEra )
+  ( ShelleyEra
+  )
+import Cardano.Api.Shelley qualified as Cardano
+import Cardano.Ledger.BaseTypes qualified as SL
 import Cardano.Ledger.Core
-    ( addrTxWitsL
-    , auxDataTxL
-    , bodyTxL
-    , bootAddrTxWitsL
-    , feeTxBodyL
-    , inputsTxBodyL
-    , outputsTxBodyL
-    , scriptTxWitsL
-    , witsTxL
-    )
+  ( addrTxWitsL
+  , auxDataTxL
+  , bodyTxL
+  , bootAddrTxWitsL
+  , feeTxBodyL
+  , inputsTxBodyL
+  , outputsTxBodyL
+  , scriptTxWitsL
+  , witsTxL
+  )
 import Cardano.Ledger.Shelley
-    ( ShelleyTx )
+  ( ShelleyTx
+  )
+import Cardano.Ledger.Shelley.API qualified as SL
 import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL, ttlTxBodyL )
+  ( certsTxBodyL
+  , ttlTxBodyL
+  )
+import Cardano.Wallet.Primitive.Types qualified as W
+import Cardano.Wallet.Primitive.Types.Hash qualified as W
+import Cardano.Wallet.Primitive.Types.Tx qualified as W
+import Cardano.Wallet.Primitive.Types.Tx.TxIn qualified as W
+  ( TxIn (TxIn)
+  )
 import Cardano.Wallet.Read.Eras
-    ( inject, shelley )
+  ( inject
+  , shelley
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+  ( anyEraCerts
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromShelleyMetadata )
+  ( fromShelleyMetadata
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromShelleyTxOut )
+  ( fromShelleyTxOut
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( shelleyValidityInterval )
+  ( shelleyValidityInterval
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+  ( fromLedgerWithdrawals
+  )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+  ( Tx (..)
+  )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+  ( renderTxToCBOR
+  )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId, shelleyTxHash )
+  ( fromShelleyTxId
+  , shelleyTxHash
+  )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+  ( shelleyWithdrawals
+  )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScriptFromShelley )
+  ( toWalletScriptFromShelley
+  )
+import Cardano.Wallet.Shelley.Compatibility.Ledger qualified as Ledger
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    , emptyTokenMapWithScripts
-    )
+  ( AnyExplicitScript (..)
+  , ScriptReference (..)
+  , TokenMapWithScripts (..)
+  , ValidityIntervalExplicit (..)
+  , WitnessCount (..)
+  , emptyTokenMapWithScripts
+  )
 import Control.Lens
-    ( folded, (^.), (^..) )
+  ( folded
+  , (^.)
+  , (^..)
+  )
+import Data.Set qualified as Set
 import Data.Word
-    ( Word16, Word32, Word64 )
-
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
-import qualified Data.Set as Set
+  ( Word16
+  , Word32
+  , Word64
+  )
+import Prelude
 
 fromShelleyTxIn
-    :: SL.TxIn crypto
-    -> W.TxIn
+  :: SL.TxIn crypto
+  -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
-    W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
+  W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
   where
     -- During the Vasil hard-fork the cardano-ledger team moved from
     -- representing transaction indices with Word16s, to using Word64s (see
@@ -95,51 +116,52 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     -- reflect that here.
     unsafeCast :: Word64 -> Word32
     unsafeCast txIx =
-        if txIx > fromIntegral (maxBound :: Word16)
+      if txIx > fromIntegral (maxBound :: Word16)
         then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
         else fromIntegral txIx
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       , WitnessCount
-       )
+  :: ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
+  -> ( W.Tx
+     , [W.Certificate]
+     , TokenMapWithScripts
+     , TokenMapWithScripts
+     , Maybe ValidityIntervalExplicit
+     , WitnessCount
+     )
 fromShelleyTx tx =
-    ( W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject shelley $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            fromShelleyTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Shelley.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Nothing
-        }
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
-    , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        ((`NativeExplicitScript` ViaSpending)
-         . toWalletScriptFromShelley Payment
-            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
-    )
+  ( W.Tx
+      { txId =
+          W.Hash $ shelleyTxHash tx
+      , txCBOR =
+          Just $ renderTxToCBOR $ inject shelley $ Tx tx
+      , fee =
+          Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
+      , resolvedInputs =
+          (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
+      , resolvedCollateralInputs =
+          []
+      , outputs =
+          fromShelleyTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
+      , collateralOutput =
+          Nothing -- Collateral outputs are not supported in Shelley.
+      , withdrawals =
+          fromLedgerWithdrawals . shelleyWithdrawals $ tx
+      , metadata =
+          fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+      , scriptValidity =
+          Nothing
+      }
+  , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+  , emptyTokenMapWithScripts
+  , emptyTokenMapWithScripts
+  , Just $ shelleyValidityInterval $ tx ^. bodyTxL . ttlTxBodyL
+  , WitnessCount
+      (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+      ( (`NativeExplicitScript` ViaSpending)
+          . toWalletScriptFromShelley Payment
+          <$> tx ^.. witsTxL . scriptTxWitsL . folded
+      )
+      (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
+  )

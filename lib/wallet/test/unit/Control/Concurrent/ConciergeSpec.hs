@@ -4,59 +4,77 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Control.Concurrent.ConciergeSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Control.Concurrent.Concierge
-    ( atomicallyWithLifted, newConcierge )
+  ( atomicallyWithLifted
+  , newConcierge
+  )
 import Control.Monad.Class.MonadFork
-    ( forkIO )
+  ( forkIO
+  )
 import Control.Monad.Class.MonadSay
-    ( say )
+  ( say
+  )
 import Control.Monad.Class.MonadThrow
-    ( throwIO, try )
+  ( throwIO
+  , try
+  )
 import Control.Monad.Class.MonadTimer
-    ( threadDelay )
+  ( threadDelay
+  )
 import Control.Monad.IOSim
-    ( IOSim, runSimTrace, selectTraceEventsSay )
+  ( IOSim
+  , runSimTrace
+  , selectTraceEventsSay
+  )
 import Test.Hspec
-    ( Spec, describe, it )
+  ( Spec
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Property, (===) )
+  ( Property
+  , (===)
+  )
+import Prelude
 
 spec :: Spec
 spec =
-    describe "Control.Concurrent.Concierge" $ do
-        it "Atomic operations do not interleave"
-            unit_atomic
+  describe "Control.Concurrent.Concierge" $ do
+    it
+      "Atomic operations do not interleave"
+      unit_atomic
 
-        it "throwIO releases lock"
-            unit_release_lock
+    it
+      "throwIO releases lock"
+      unit_release_lock
 
 {-------------------------------------------------------------------------------
     Properties
 -------------------------------------------------------------------------------}
+
 -- | Deterministic test for atomicity.
 -- We have to compare a program run that interleaves against one that is atomic.
 unit_atomic :: Bool
 unit_atomic =
-    ("ABAB" == sayings testInterleave) && ("AABB" == sayings testAtomic)
+  ("ABAB" == sayings testInterleave) && ("AABB" == sayings testAtomic)
   where
     sayings :: (forall s. IOSim s a) -> String
     sayings x = concat . selectTraceEventsSay $ runSimTrace x
 
     testAtomic = do
-        concierge <- newConcierge
-        test $ atomicallyWithLifted id concierge ()
+      concierge <- newConcierge
+      test $ atomicallyWithLifted id concierge ()
     testInterleave = test id
 
     test :: (forall a. IOSim s a -> IOSim s a) -> IOSim s ()
     test atomically = do
-        _ <- forkIO $ atomically (threadDelay 1 >> action "B")
-        atomically $ action "A"
-        threadDelay 4
+      _ <- forkIO $ atomically (threadDelay 1 >> action "B")
+      atomically $ action "A"
+      threadDelay 4
 
     action :: String -> IOSim s ()
     action s = say s >> threadDelay 2 >> say s
@@ -66,7 +84,8 @@ unit_release_lock = ["A"] === selectTraceEventsSay (runSimTrace test)
   where
     test :: IOSim s ()
     test = do
-        concierge <- newConcierge
-        let atomically = atomicallyWithLifted id concierge ()
-        _ <- try @_ @IOError $ atomically $ throwIO $ userError "X"
-        atomically $ say "A"
+      concierge <- newConcierge
+      let
+        atomically = atomicallyWithLifted id concierge ()
+      _ <- try @_ @IOError $ atomically $ throwIO $ userError "X"
+      atomically $ say "A"

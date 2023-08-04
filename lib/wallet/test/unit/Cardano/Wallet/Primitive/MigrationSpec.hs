@@ -1,59 +1,78 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-module Cardano.Wallet.Primitive.MigrationSpec
-    where
-
-import Prelude
+module Cardano.Wallet.Primitive.MigrationSpec where
 
 import Cardano.Wallet.Primitive.Migration
-    ( RewardWithdrawal (..), createPlan )
+  ( RewardWithdrawal (..)
+  , createPlan
+  )
 import Cardano.Wallet.Primitive.Migration.Planning
-    ( categorizeUTxO, uncategorizeUTxO )
+  ( categorizeUTxO
+  , uncategorizeUTxO
+  )
+import Cardano.Wallet.Primitive.Migration.Planning qualified as Planning
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockTxConstraints
-    , genRewardWithdrawal
-    , genTokenBundleMixed
-    , testAll
-    , unMockTxConstraints
-    )
+  ( MockTxConstraints
+  , genRewardWithdrawal
+  , genTokenBundleMixed
+  , testAll
+  , unMockTxConstraints
+  )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+  ( genAddress
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+  ( TxIn (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxInLargeRange )
+  ( genTxInLargeRange
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+  ( TxOut (..)
+  )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+  ( UTxO (..)
+  )
 import Control.Monad
-    ( replicateM )
+  ( replicateM
+  )
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+  ( view
+  )
 import Data.Generics.Labels
-    ()
+  (
+  )
+import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as Map
 import Test.Hspec
-    ( Spec, describe, it )
+  ( Spec
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Blind (..), Gen, Property, choose, forAllBlind, property )
+  ( Blind (..)
+  , Gen
+  , Property
+  , choose
+  , forAllBlind
+  , property
+  )
 import Test.QuickCheck.Extra
-    ( verify )
-
-import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
+  ( verify
+  )
+import Prelude
 
 spec :: Spec
 spec =
-    describe "Cardano.Wallet.Primitive.MigrationSpec" $
-
-        describe "Creating migration plans (with concrete wallet types)" $ do
-
-            it "prop_createPlan_equivalent" $
-                property prop_createPlan_equivalent
+  describe "Cardano.Wallet.Primitive.MigrationSpec"
+    $ describe "Creating migration plans (with concrete wallet types)"
+    $ do
+      it "prop_createPlan_equivalent"
+        $ property prop_createPlan_equivalent
 
 --------------------------------------------------------------------------------
 -- Creating migration plans (with concrete wallet types)
@@ -74,14 +93,14 @@ spec =
 --
 prop_createPlan_equivalent :: Blind MockTxConstraints -> Property
 prop_createPlan_equivalent (Blind mockConstraints) =
-    forAllBlind genUTxO $ \utxo ->
+  forAllBlind genUTxO $ \utxo ->
     forAllBlind genRewardWithdrawal $ \reward ->
-    prop_createPlan_equivalent_inner mockConstraints utxo reward
+      prop_createPlan_equivalent_inner mockConstraints utxo reward
   where
     genUTxO :: Gen UTxO
     genUTxO = do
-        entryCount <- choose (0, 64)
-        UTxO . Map.fromList <$> replicateM entryCount genUTxOEntry
+      entryCount <- choose (0, 64)
+      UTxO . Map.fromList <$> replicateM entryCount genUTxOEntry
       where
         genUTxOEntry :: Gen (TxIn, TxOut)
         genUTxOEntry = (,) <$> genTxIn <*> genTxOut
@@ -90,29 +109,31 @@ prop_createPlan_equivalent (Blind mockConstraints) =
             genTxIn = genTxInLargeRange
 
             genTxOut :: Gen TxOut
-            genTxOut = TxOut
+            genTxOut =
+              TxOut
                 <$> genAddress
                 <*> genTokenBundleMixed mockConstraints
 
 prop_createPlan_equivalent_inner
-    :: MockTxConstraints
-    -> UTxO
-    -> RewardWithdrawal
-    -> Property
-prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
+  :: MockTxConstraints
+  -> UTxO
+  -> RewardWithdrawal
+  -> Property
+prop_createPlan_equivalent_inner mockConstraints utxo reward =
+  testAll
     $ verify
-        (totalFeeConcrete == totalFeeAbstract)
-        "totalFeeConcrete == totalFeeAbstract"
-    . verify
+      (totalFeeConcrete == totalFeeAbstract)
+      "totalFeeConcrete == totalFeeAbstract"
+      . verify
         (selectionsConcrete == selectionsAbstract)
         "selectionsConcrete == selectionsAbstract"
-    . verify
+      . verify
         (unselectedConcrete == unselectedAbstract)
         "unselectedConcrete == unselectedAbstract"
-    . verify
+      . verify
         (utxoEmpty == utxoIntersect utxoSelected utxoNotSelected)
         "utxoEmpty == utxoIntersect utxoSelected utxoNotSelected"
-    . verify
+      . verify
         (utxo == utxoUnion utxoSelected utxoNotSelected)
         "utxo == utxoUnion utxoSelected utxoNotSelected"
   where
@@ -123,12 +144,16 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
     selectionsAbstract = view #selections planAbstract
 
     unselectedConcrete = view #unselected planConcrete
-    unselectedAbstract = view #unselected planAbstract
+    unselectedAbstract =
+      view #unselected planAbstract
         & uncategorizeUTxO
 
     planConcrete = createPlan constraints utxo reward
-    planAbstract = Planning.createPlan
-        constraints (categorizeUTxO constraints utxo) reward
+    planAbstract =
+      Planning.createPlan
+        constraints
+        (categorizeUTxO constraints utxo)
+        reward
 
     constraints = unMockTxConstraints mockConstraints
 
@@ -142,7 +167,8 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
     utxoUnion (UTxO u1) (UTxO u2) = UTxO $ Map.union u1 u2
 
     utxoSelected :: UTxO
-    utxoSelected = planConcrete
+    utxoSelected =
+      planConcrete
         & view #selections
         & fmap (NE.toList . view #inputIds)
         & mconcat
@@ -150,5 +176,6 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
         & UTxO
 
     utxoNotSelected :: UTxO
-    utxoNotSelected = planConcrete
+    utxoNotSelected =
+      planConcrete
         & view #unselected

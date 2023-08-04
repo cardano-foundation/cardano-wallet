@@ -14,53 +14,51 @@
 -- This module is meant to be imported qualified. For example:
 --
 -- >>> import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
---
 module Cardano.Wallet.Primitive.Types.UTxOIndex
-    (
-    -- * Type
-      UTxOIndex
+  ( -- * Type
+    UTxOIndex
 
     -- * Construction
-    , empty
-    , singleton
-    , fromMap
-    , fromSequence
+  , empty
+  , singleton
+  , fromMap
+  , fromSequence
 
     -- * Deconstruction
-    , toList
-    , toMap
+  , toList
+  , toMap
 
     -- * Folding
-    , fold
+  , fold
 
     -- * Modification
-    , insert
-    , insertMany
-    , delete
-    , deleteMany
+  , insert
+  , insertMany
+  , delete
+  , deleteMany
 
     -- * Filtering and partitioning
-    , filter
-    , partition
+  , filter
+  , partition
 
     -- * Queries
-    , assets
-    , balance
-    , lookup
-    , member
-    , null
-    , size
+  , assets
+  , balance
+  , lookup
+  , member
+  , null
+  , size
 
     -- * Set operations
-    , difference
-    , disjoint
+  , difference
+  , disjoint
 
     -- * Selection
-    , Asset (..)
-    , SelectionFilter (..)
-    , selectRandom
-    , selectRandomWithPriority
-
-    ) where
+  , Asset (..)
+  , SelectionFilter (..)
+  , selectRandom
+  , selectRandomWithPriority
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal

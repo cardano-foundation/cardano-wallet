@@ -1,216 +1,234 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.TokenQuantitySpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+  ( TokenQuantity (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenQuantity qualified as TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange
-    , genTokenQuantityPartition
-    , shrinkTokenQuantityFullRange
-    )
+  ( genTokenQuantityFullRange
+  , genTokenQuantityPartition
+  , shrinkTokenQuantityFullRange
+  )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+  ( FromJSON (..)
+  , ToJSON (..)
+  )
+import Data.Char qualified as Char
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
+import Data.Text qualified as T
 import Data.Text.Class
-    ( ToText (..) )
+  ( ToText (..)
+  )
 import Data.Typeable
-    ( Typeable )
+  ( Typeable
+  )
 import System.FilePath
-    ( (</>) )
+  ( (</>)
+  )
 import Test.Hspec
-    ( Spec, describe, it )
+  ( Spec
+  , describe
+  , it
+  )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+  ( modifyMaxSuccess
+  )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , cover
-    , forAll
-    , property
-    , (===)
-    , (==>)
-    )
+  ( Arbitrary (..)
+  , Property
+  , checkCoverage
+  , cover
+  , forAll
+  , property
+  , (===)
+  , (==>)
+  )
+import Test.QuickCheck qualified as QC
 import Test.QuickCheck.Classes
-    ( eqLaws
-    , monoidLaws
-    , ordLaws
-    , semigroupLaws
-    , semigroupMonoidLaws
-    , showReadLaws
-    )
+  ( eqLaws
+  , monoidLaws
+  , ordLaws
+  , semigroupLaws
+  , semigroupMonoidLaws
+  , showReadLaws
+  )
 import Test.QuickCheck.Extra
-    ( genNonEmpty, shrinkNonEmpty )
+  ( genNonEmpty
+  , shrinkNonEmpty
+  )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+  ( textRoundtrip
+  )
 import Test.Utils.Laws
-    ( testLawsMany )
+  ( testLawsMany
+  )
 import Test.Utils.Paths
-    ( getTestData )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Data.Char as Char
-import qualified Data.Foldable as F
-import qualified Data.Text as T
-import qualified Test.QuickCheck as QC
-import qualified Test.Utils.Roundtrip as JsonRoundtrip
+  ( getTestData
+  )
+import Test.Utils.Roundtrip qualified as JsonRoundtrip
+import Prelude
 
 spec :: Spec
 spec =
-    describe "Token quantity properties" $
-    modifyMaxSuccess (const 1000) $ do
-
-    describe "Class instances obey laws" $ do
+  describe "Token quantity properties"
+    $ modifyMaxSuccess (const 1000)
+    $ do
+      describe "Class instances obey laws" $ do
         testLawsMany @TokenQuantity
-            [ eqLaws
-            , monoidLaws
-            , ordLaws
-            , semigroupLaws
-            , semigroupMonoidLaws
-            , showReadLaws
-            ]
+          [ eqLaws
+          , monoidLaws
+          , ordLaws
+          , semigroupLaws
+          , semigroupMonoidLaws
+          , showReadLaws
+          ]
 
-    describe "Operations" $ do
+      describe "Operations" $ do
+        it "prop_pred_succ"
+          $ property prop_pred_succ
+        it "prop_succ_pred"
+          $ property prop_succ_pred
+        it "prop_succ_predZero"
+          $ property prop_succ_predZero
+        it "prop_predZero_difference"
+          $ property prop_predZero_difference
+        it "prop_predZero_pred"
+          $ property prop_predZero_pred
 
-        it "prop_pred_succ" $
-            property prop_pred_succ
-        it "prop_succ_pred" $
-            property prop_succ_pred
-        it "prop_succ_predZero" $
-            property prop_succ_predZero
-        it "prop_predZero_difference" $
-            property prop_predZero_difference
-        it "prop_predZero_pred" $
-            property prop_predZero_pred
+      describe "Partitioning" $ do
+        it "prop_partitionDefault_fold"
+          $ prop_partitionDefault_fold
+          & property
+        it "prop_partitionDefault_length"
+          $ prop_partitionDefault_length
+          & property
+        it "prop_partitionDefault_zeroWeightSum"
+          $ prop_partitionDefault_zeroWeightSum
+          & property
 
-    describe "Partitioning" $ do
+      describe "Generating partitions" $ do
+        it "prop_genTokenQuantityPartition_fold"
+          $ prop_genTokenQuantityPartition_fold
+          & property
+        it "prop_genTokenQuantityPartition_length"
+          $ prop_genTokenQuantityPartition_length
+          & property
+        it "prop_genTokenQuantityPartition_nonPositive"
+          $ prop_genTokenQuantityPartition_nonPositive
+          & property
 
-        it "prop_partitionDefault_fold" $
-            prop_partitionDefault_fold & property
-        it "prop_partitionDefault_length" $
-            prop_partitionDefault_length & property
-        it "prop_partitionDefault_zeroWeightSum" $
-            prop_partitionDefault_zeroWeightSum & property
-
-    describe "Generating partitions" $ do
-
-        it "prop_genTokenQuantityPartition_fold" $
-            prop_genTokenQuantityPartition_fold & property
-        it "prop_genTokenQuantityPartition_length" $
-            prop_genTokenQuantityPartition_length & property
-        it "prop_genTokenQuantityPartition_nonPositive" $
-            prop_genTokenQuantityPartition_nonPositive & property
-
-    describe "JSON serialization" $ do
-
+      describe "JSON serialization" $ do
         describe "Roundtrip tests" $ do
-            testJson $ Proxy @TokenQuantity
+          testJson $ Proxy @TokenQuantity
 
-    describe "Text serialization" $ do
-
+      describe "Text serialization" $ do
         describe "Roundtrip tests" $ do
-            textRoundtrip $ Proxy @TokenQuantity
+          textRoundtrip $ Proxy @TokenQuantity
         it "prop_toText_noQuotes" $ do
-            property prop_toText_noQuotes
+          property prop_toText_noQuotes
 
 --------------------------------------------------------------------------------
 -- Operations
 --------------------------------------------------------------------------------
 
 prop_pred_succ :: TokenQuantity -> Property
-prop_pred_succ q = q > TokenQuantity.zero ==>
+prop_pred_succ q =
+  q > TokenQuantity.zero ==>
     (TokenQuantity.succ <$> TokenQuantity.pred q) === Just q
 
 prop_succ_pred :: TokenQuantity -> Property
 prop_succ_pred q =
-    TokenQuantity.pred (TokenQuantity.succ q) === Just q
+  TokenQuantity.pred (TokenQuantity.succ q) === Just q
 
 prop_succ_predZero :: TokenQuantity -> Property
 prop_succ_predZero q =
-    TokenQuantity.predZero (TokenQuantity.succ q) === q
+  TokenQuantity.predZero (TokenQuantity.succ q) === q
 
 prop_predZero_difference :: TokenQuantity -> Property
 prop_predZero_difference q =
-    checkCoverage $
-    cover  1 (q == TokenQuantity 0) "q == 0" $
-    cover 10 (q >= TokenQuantity 1) "q >= 1" $
-    TokenQuantity.predZero q === q `TokenQuantity.difference` TokenQuantity 1
+  checkCoverage
+    $ cover 1 (q == TokenQuantity 0) "q == 0"
+    $ cover 10 (q >= TokenQuantity 1) "q >= 1"
+    $ TokenQuantity.predZero q === q `TokenQuantity.difference` TokenQuantity 1
 
 prop_predZero_pred :: TokenQuantity -> Property
 prop_predZero_pred q =
-    checkCoverage $
-    cover  1 (q == TokenQuantity 0) "q == 0" $
-    cover 10 (q >= TokenQuantity 1) "q >= 1" $
-    if q == TokenQuantity.zero
-    then TokenQuantity.predZero q === TokenQuantity.zero
-    else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
+  checkCoverage
+    $ cover 1 (q == TokenQuantity 0) "q == 0"
+    $ cover 10 (q >= TokenQuantity 1) "q >= 1"
+    $ if q == TokenQuantity.zero
+      then TokenQuantity.predZero q === TokenQuantity.zero
+      else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
 
 --------------------------------------------------------------------------------
 -- Partitioning
 --------------------------------------------------------------------------------
 
 prop_partitionDefault_fold
-    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+  :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_partitionDefault_fold c cs =
-    F.fold (TokenQuantity.partitionDefault c cs) === c
+  F.fold (TokenQuantity.partitionDefault c cs) === c
 
 prop_partitionDefault_length
-    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+  :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_partitionDefault_length c cs =
-    length (TokenQuantity.partitionDefault c cs) === length cs
+  length (TokenQuantity.partitionDefault c cs) === length cs
 
 prop_partitionDefault_zeroWeightSum
-    :: TokenQuantity -> NonEmpty () -> Property
+  :: TokenQuantity -> NonEmpty () -> Property
 prop_partitionDefault_zeroWeightSum c cs =
-    TokenQuantity.partitionDefault c (TokenQuantity 0 <$ cs)
-        === TokenQuantity.equipartition c cs
+  TokenQuantity.partitionDefault c (TokenQuantity 0 <$ cs)
+    === TokenQuantity.equipartition c cs
 
 --------------------------------------------------------------------------------
 -- Generating partitions
 --------------------------------------------------------------------------------
 
 prop_genTokenQuantityPartition_fold
-    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+  :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
 prop_genTokenQuantityPartition_fold m (QC.Positive (QC.Small i)) =
-    forAll (genTokenQuantityPartition m i) $ (=== m) . F.fold
+  forAll (genTokenQuantityPartition m i) $ (=== m) . F.fold
 
 prop_genTokenQuantityPartition_length
-    :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
+  :: TokenQuantity -> QC.Positive (QC.Small Int) -> Property
 prop_genTokenQuantityPartition_length m (QC.Positive (QC.Small i)) =
-    forAll (genTokenQuantityPartition m i) $ (=== i) . F.length
+  forAll (genTokenQuantityPartition m i) $ (=== i) . F.length
 
 prop_genTokenQuantityPartition_nonPositive
-    :: TokenQuantity -> QC.NonPositive (QC.Small Int) -> Property
+  :: TokenQuantity -> QC.NonPositive (QC.Small Int) -> Property
 prop_genTokenQuantityPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
-    forAll (genTokenQuantityPartition m i) (=== pure m)
+  forAll (genTokenQuantityPartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- JSON serialization
 --------------------------------------------------------------------------------
 
 testJson
-    :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
+  :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
 testJson = JsonRoundtrip.jsonRoundtripAndGolden testJsonDataDirectory
 
 testJsonDataDirectory :: FilePath
 testJsonDataDirectory =
-    ($(getTestData) </> "Cardano" </> "Wallet" </> "Primitive" </> "Types")
+  ($(getTestData) </> "Cardano" </> "Wallet" </> "Primitive" </> "Types")
 
 --------------------------------------------------------------------------------
 -- Text serialization
@@ -218,10 +236,10 @@ testJsonDataDirectory =
 
 prop_toText_noQuotes :: TokenQuantity -> Property
 prop_toText_noQuotes q = property $ case text of
-    c : cs ->
-        Char.isDigit c || c == '-' && F.all Char.isDigit cs
-    [] ->
-        error "Unexpected empty string."
+  c : cs ->
+    Char.isDigit c || c == '-' && F.all Char.isDigit cs
+  [] ->
+    error "Unexpected empty string."
   where
     text = T.unpack $ toText q
 
@@ -230,12 +248,12 @@ prop_toText_noQuotes q = property $ case text of
 --------------------------------------------------------------------------------
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genNonEmpty arbitrary
-    shrink = shrinkNonEmpty shrink
+  arbitrary = genNonEmpty arbitrary
+  shrink = shrinkNonEmpty shrink
 
 instance Arbitrary TokenQuantity where
-    -- We test with token quantities of a variety of magnitudes to ensure that
-    -- roundtrip serialization works even with large values, both positive and
-    -- negative.
-    arbitrary = genTokenQuantityFullRange
-    shrink = shrinkTokenQuantityFullRange
+  -- We test with token quantities of a variety of magnitudes to ensure that
+  -- roundtrip serialization works even with large values, both positive and
+  -- negative.
+  arbitrary = genTokenQuantityFullRange
+  shrink = shrinkTokenQuantityFullRange

@@ -2,26 +2,28 @@
 {-# LANGUAGE GADTs #-}
 
 module Cardano.Wallet.Address.Keys.BoundedAddressLength
-    ( maxLengthAddressFor
-    )
-    where
+  ( maxLengthAddressFor
+  )
+where
 
-import Prelude
-
+import Cardano.Byron.Codec.Cbor qualified as CBOR
+import Cardano.Crypto.Wallet qualified as CC
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+  ( KeyFlavorS (..)
+  )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (Address) )
+  ( Address (Address)
+  )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (ProtocolMagic) )
-
-import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Codec.CBOR.Write as CBOR
-import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
+  ( ProtocolMagic (ProtocolMagic)
+  )
+import Codec.CBOR.Write qualified as CBOR
+import Data.ByteArray qualified as BA
+import Data.ByteString qualified as BS
+import Prelude
 
 -- | Returns the longest address that the wallet can generate for a given
 --   key.
@@ -35,24 +37,24 @@ import qualified Data.ByteString as BS
 --  - never be used for anything besides its length and validity properties.
 --  - never be used as a payment target within a real transaction.
 maxLengthAddressFor
-    :: KeyFlavorS k
-    -- ^ The key flavor
-    -> Address
+  :: KeyFlavorS k
+  -- ^ The key flavor
+  -> Address
 maxLengthAddressFor keyS = case keyS of
-    ByronKeyS -> maxLengthAddressForByron
-    IcarusKeyS -> maxLengthAddressForIcarus
-    ShelleyKeyS -> maxLengthAddressForShelley
-    SharedKeyS -> maxLengthAddressForShelley
+  ByronKeyS -> maxLengthAddressForByron
+  IcarusKeyS -> maxLengthAddressForIcarus
+  ShelleyKeyS -> maxLengthAddressForShelley
+  SharedKeyS -> maxLengthAddressForShelley
 
 maxLengthAddressForByron :: Address
 maxLengthAddressForByron =
-    Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress
-            xpub
-            [ CBOR.encodeDerivationPathAttr passphrase maxBound maxBound
-            , CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
-            ]
+  Address
+    $ CBOR.toStrictByteString
+    $ CBOR.encodeAddress
+      xpub
+      [ CBOR.encodeDerivationPathAttr passphrase maxBound maxBound
+      , CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
+      ]
   where
     -- Must apparently always be 32 bytes:
     passphrase :: Passphrase "addr-derivation-payload"
@@ -65,12 +67,12 @@ maxLengthAddressForByron =
 
 maxLengthAddressForIcarus :: Address
 maxLengthAddressForIcarus =
-    Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress
-            xpub
-            [ CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
-            ]
+  Address
+    $ CBOR.toStrictByteString
+    $ CBOR.encodeAddress
+      xpub
+      [ CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
+      ]
   where
     xpub :: CC.XPub
     xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass

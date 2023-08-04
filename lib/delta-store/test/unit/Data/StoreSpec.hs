@@ -1,65 +1,86 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
 module Data.StoreSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Data.Delta
-    ( Delta (..) )
+  ( Delta (..)
+  )
 import Data.Store
-    ( Store (..), UpdateStore, newCachedStore, newStore )
+  ( Store (..)
+  , UpdateStore
+  , newCachedStore
+  , newStore
+  )
 import Fmt
-    ( Buildable (..) )
+  ( Buildable (..)
+  )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+  ( Spec
+  , describe
+  , it
+  , parallel
+  )
 import Test.QuickCheck
-    ( elements, generate, (===) )
+  ( elements
+  , generate
+  , (===)
+  )
 import Test.QuickCheck.Gen
-    ( Gen, listOf )
+  ( Gen
+  , listOf
+  )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+  ( monadicIO
+  , run
+  )
 import Test.Store
-    ( prop_StoreUpdate )
+  ( prop_StoreUpdate
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    parallel $ describe "Data.Delta" $ do
-        it "Dummy test, to be expanded"
-            True
-    describe "CachedStore" $ do
-        it "respects store laws" $
-            let setupStore = do
-                    testStore <- newTestStore
-                    resetTestStoreBase testStore
-                    newCachedStore testStore
-            in  prop_StoreUpdate
-                    id
-                    setupStore
-                    (pure emptyTestStore)
-                    $ const genTestStoreDeltas
-
-        it "behaves like the cached one" $ monadicIO $ run $ do
-
-            das <- generate $ listOf genTestStoreDeltas
-
+  parallel $ describe "Data.Delta" $ do
+    it
+      "Dummy test, to be expanded"
+      True
+  describe "CachedStore" $ do
+    it "respects store laws"
+      $ let
+          setupStore = do
             testStore <- newTestStore
-
-            cachedStore <- newCachedStore testStore
-
             resetTestStoreBase testStore
-            updateStore cachedStore das
-            Right cachedFinal <- loadS cachedStore
+            newCachedStore testStore
+        in
+          prop_StoreUpdate
+            id
+            setupStore
+            (pure emptyTestStore)
+            $ const genTestStoreDeltas
 
-            resetTestStoreBase testStore
-            updateStore testStore das
-            Right originalFinal <- loadS testStore
+    it "behaves like the cached one" $ monadicIO $ run $ do
+      das <- generate $ listOf genTestStoreDeltas
 
-            pure $ cachedFinal === originalFinal
+      testStore <- newTestStore
+
+      cachedStore <- newCachedStore testStore
+
+      resetTestStoreBase testStore
+      updateStore cachedStore das
+      Right cachedFinal <- loadS cachedStore
+
+      resetTestStoreBase testStore
+      updateStore testStore das
+      Right originalFinal <- loadS testStore
+
+      pure $ cachedFinal === originalFinal
 
 newTestStore :: IO (UpdateStore IO TestStoreDelta)
 newTestStore = newStore
@@ -77,22 +98,22 @@ emptyTestStore :: TestStoreBase
 emptyTestStore = TestStoreBase []
 
 newtype TestStoreBase = TestStoreBase [Int]
-    deriving (Show, Eq)
+  deriving (Show, Eq)
 
 data TestStoreDelta
-    = AddOne
-    | AddTwo
-    | RemoveOne
+  = AddOne
+  | AddTwo
+  | RemoveOne
+  deriving (Show, Eq)
 
-    deriving (Show, Eq)
 instance Buildable TestStoreDelta where
-    build = build . show
+  build = build . show
 
 instance Delta TestStoreDelta where
-    type Base TestStoreDelta = TestStoreBase
-    apply AddOne = overTestStoreBase (1:)
-    apply AddTwo = overTestStoreBase (2:)
-    apply RemoveOne = overTestStoreBase (drop 1)
+  type Base TestStoreDelta = TestStoreBase
+  apply AddOne = overTestStoreBase (1 :)
+  apply AddTwo = overTestStoreBase (2 :)
+  apply RemoveOne = overTestStoreBase (drop 1)
 
 overTestStoreBase :: ([Int] -> [Int]) -> TestStoreBase -> TestStoreBase
 overTestStoreBase f (TestStoreBase xs) = TestStoreBase (f xs)

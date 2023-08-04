@@ -12,37 +12,45 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    , networkDiscriminantVal
-    , networkDiscriminantBits
-    , NetworkDiscriminantCheck (..)
-    , SNetworkId (..)
-    , HasSNetworkId (..)
-    , NetworkId (..)
-    , fromSNat
-    , fromSNetworkId
-    , withSNetworkId
-    , networkIdVal
-    )
-  where
+  ( NetworkDiscriminant (..)
+  , networkDiscriminantVal
+  , networkDiscriminantBits
+  , NetworkDiscriminantCheck (..)
+  , SNetworkId (..)
+  , HasSNetworkId (..)
+  , NetworkId (..)
+  , fromSNat
+  , fromSNetworkId
+  , withSNetworkId
+  , networkIdVal
+  )
+where
 
-import Prelude
-
+import Cardano.Api qualified as Cardano
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
+import Data.Text qualified as T
 import Data.Typeable
-    ( Typeable )
+  ( Typeable
+  )
 import Data.Word
-    ( Word8 )
+  ( Word8
+  )
 import GHC.Natural
-    ( Natural )
+  ( Natural
+  )
 import GHC.TypeNats
-    ( KnownNat, Nat, SomeNat (..), natVal, someNatVal )
-
-import qualified Cardano.Api as Cardano
-import qualified Data.Text as T
+  ( KnownNat
+  , Nat
+  , SomeNat (..)
+  , natVal
+  , someNatVal
+  )
+import Prelude
 
 {-------------------------------------------------------------------------------
                              Network Discrimination
@@ -58,26 +66,26 @@ import qualified Data.Text as T
 --              and, that requires _explicit_ network discrimination in
 --              addresses. Genesis file needs to be passed explicitly when
 --              starting the application.
---
 data NetworkDiscriminant = Mainnet | Testnet Nat
-    deriving (Typeable)
+  deriving (Typeable)
 
 class NetworkDiscriminantCheck k where
-    networkDiscriminantCheck :: SNetworkId n -> Word8 -> Bool
+  networkDiscriminantCheck :: SNetworkId n -> Word8 -> Bool
 
 {-----------------------------------------------------------------------------
     Value level network discrimination
 ------------------------------------------------------------------------------}
 
 data NetworkId
-    = NMainnet
-    | NTestnet Natural
-    deriving (Eq, Show)
+  = NMainnet
+  | NTestnet Natural
+  deriving (Eq, Show)
 
 data SNat (n :: Nat) where
-    SNat :: KnownNat n => Proxy n -> SNat n
+  SNat :: KnownNat n => Proxy n -> SNat n
 
 deriving instance Show (SNat n)
+
 deriving instance Eq (SNat n)
 
 fromSNat :: SNat n -> Natural
@@ -85,7 +93,7 @@ fromSNat p@(SNat _) = natVal p
 
 withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
 withSNat nat f = case someNatVal nat of
-    SomeNat proxy -> f (SNat proxy)
+  SomeNat proxy -> f (SNat proxy)
 
 {-----------------------------------------------------------------------------
     singleton for NetworkDiscriminant
@@ -93,21 +101,22 @@ withSNat nat f = case someNatVal nat of
 
 -- | A singleton for 'NetworkDiscriminant'.
 data SNetworkId (n :: NetworkDiscriminant) where
-    SMainnet :: SNetworkId 'Mainnet
-    STestnet :: SNat i -> SNetworkId ('Testnet i)
+  SMainnet :: SNetworkId 'Mainnet
+  STestnet :: SNat i -> SNetworkId ('Testnet i)
 
 deriving instance Show (SNetworkId n)
+
 deriving instance Eq (SNetworkId n)
 
 -- | A class for extracting the singleton for 'NetworkDiscriminant'.
 class HasSNetworkId n where
-    sNetworkId :: SNetworkId n
+  sNetworkId :: SNetworkId n
 
 instance HasSNetworkId 'Mainnet where
-    sNetworkId = SMainnet
+  sNetworkId = SMainnet
 
 instance KnownNat i => HasSNetworkId ('Testnet i) where
-    sNetworkId = STestnet $ SNat Proxy
+  sNetworkId = STestnet $ SNat Proxy
 
 {-----------------------------------------------------------------------------
    Type level network discrimination
@@ -115,8 +124,8 @@ instance KnownNat i => HasSNetworkId ('Testnet i) where
 
 networkDiscriminantVal :: SNetworkId n -> Text
 networkDiscriminantVal SMainnet = "mainnet"
-networkDiscriminantVal (STestnet pm)
-    = "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
+networkDiscriminantVal (STestnet pm) =
+  "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
 
 networkDiscriminantBits :: SNetworkId n -> Word8
 networkDiscriminantBits SMainnet = 0b00000001
@@ -126,9 +135,9 @@ networkDiscriminantBits (STestnet _) = 0b00000000
 networkIdVal :: SNetworkId n -> Cardano.NetworkId
 networkIdVal SMainnet = Cardano.Mainnet
 networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
-      where
-        networkMagic =
-            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+  where
+    networkMagic =
+      Cardano.NetworkMagic . fromIntegral $ fromSNat snat
 
 {-----------------------------------------------------------------------------
    conversions
@@ -141,12 +150,12 @@ fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
 withSNetworkId
-    :: NetworkId
-    -> ( forall (n :: NetworkDiscriminant)
-          . (Typeable n, HasSNetworkId n)
-         => SNetworkId n
-         -> a
-       )
-    -> a
+  :: NetworkId
+  -> ( forall (n :: NetworkDiscriminant)
+        . (Typeable n, HasSNetworkId n)
+       => SNetworkId n
+       -> a
+     )
+  -> a
 withSNetworkId NMainnet f = f SMainnet
-withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
+withSNetworkId (NTestnet i) f = withSNat i $ f . STestnet

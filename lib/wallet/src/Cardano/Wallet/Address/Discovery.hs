@@ -18,53 +18,58 @@
 --
 --  * "Cardano.Wallet.Address.Discovery.Sequential"
 --  * "Cardano.Wallet.Address.Discovery.Random"
-
 module Cardano.Wallet.Address.Discovery
-    ( IsOurs(..)
-    , GenChange(..)
-    , CompareDiscovery(..)
-    , KnownAddresses(..)
-    , GetPurpose (..)
-    , GetAccount (..)
-    , coinTypeAda
-    , MaybeLight (..)
-    , DiscoverTxs (..)
-
-    , PendingIxs
-    , emptyPendingIxs
-    , pendingIxsToList
-    , pendingIxsFromList
-    , nextChangeIndex
-    , dropLowerPendingIxs
-    ) where
-
-import Prelude
+  ( IsOurs (..)
+  , GenChange (..)
+  , CompareDiscovery (..)
+  , KnownAddresses (..)
+  , GetPurpose (..)
+  , GetAccount (..)
+  , coinTypeAda
+  , MaybeLight (..)
+  , DiscoverTxs (..)
+  , PendingIxs
+  , emptyPendingIxs
+  , pendingIxsToList
+  , pendingIxsFromList
+  , nextChangeIndex
+  , dropLowerPendingIxs
+  )
+where
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+  ( XPub
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , RewardAccount
-    )
+  ( Depth (..)
+  , DerivationIndex (..)
+  , DerivationType (..)
+  , Index (..)
+  , KeyFingerprint (..)
+  , RewardAccount
+  )
+import Cardano.Wallet.Address.Pool qualified as AddressPool
 import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents )
+  ( ChainEvents
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+  ( Address (..)
+  , AddressState (..)
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Data.Kind
-    ( Type )
+  ( Type
+  )
+import Data.List qualified as L
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
 import GHC.Generics
-    ( Generic )
-
-import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Data.List as L
+  ( Generic
+  )
+import Prelude
 
 -- | Checks whether or not a given entity belongs to us.
 --
@@ -85,11 +90,11 @@ import qualified Data.List as L
 -- same time, and this little abstraction can buy us this without introducing
 -- too much overhead.
 class IsOurs s entity where
-    isOurs
-        :: entity
-        -> s
-        -> (Maybe (NonEmpty DerivationIndex), s)
-        -- ^ Returns derivation path if the entity is ours, otherwise Nothing.
+  isOurs
+    :: entity
+    -> s
+    -> (Maybe (NonEmpty DerivationIndex), s)
+    -- ^ Returns derivation path if the entity is ours, otherwise Nothing.
 
 -- | Abstracting over change address generation. In theory, this is only needed
 -- for sending transactions on a wallet following a particular scheme. This
@@ -97,13 +102,13 @@ class IsOurs s entity where
 -- instance, in BIP-44, change addresses belong to a particular change chain
 -- (also called "Internal Chain").
 class GenChange s where
-    type ArgGenChange s :: Type
-    genChange
-        :: ArgGenChange s
-        -> s
-        -> (Address, s)
-        -- ^ Generate a new change address for the given scheme. The rules for
-        -- generating a new change address depends on the underlying scheme.
+  type ArgGenChange s :: Type
+  genChange
+    :: ArgGenChange s
+    -> s
+    -> (Address, s)
+    -- ^ Generate a new change address for the given scheme. The rules for
+    -- generating a new change address depends on the underlying scheme.
 
 -- | Ordering addresses by discovery date.
 --
@@ -122,11 +127,11 @@ class GenChange s where
 -- Note that, if an address isn't known it is considered not discovered and
 -- therefore, is always _greater than_ any known address.
 class CompareDiscovery s where
-    compareDiscovery
-        :: s
-        -> Address
-        -> Address
-        -> Ordering
+  compareDiscovery
+    :: s
+    -> Address
+    -> Address
+    -> Ordering
 
 -- | Extract the list of all known addresses.
 --
@@ -134,9 +139,9 @@ class CompareDiscovery s where
 -- rationale is that, we don't want users or consumers of the wallet to be using
 -- change addresses prematurely.
 class KnownAddresses s where
-    knownAddresses
-        :: s
-        -> [(Address, AddressState, NonEmpty DerivationIndex)]
+  knownAddresses
+    :: s
+    -> [(Address, AddressState, NonEmpty DerivationIndex)]
 
 -- | One master node (seed) can be used for unlimited number of independent
 -- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the
@@ -154,28 +159,31 @@ coinTypeAda :: Index 'Hardened 'CoinTypeK
 coinTypeAda = toEnum 0x80000717
 
 -- It is used for getting purpose for a given key.
-class GetPurpose (key :: Depth -> Type -> Type)  where
-    getPurpose :: Index 'Hardened 'PurposeK
+class GetPurpose (key :: Depth -> Type -> Type) where
+  getPurpose :: Index 'Hardened 'PurposeK
 
 -- It is used for getting account public key for a given state.
-class GetAccount s (key :: Depth -> Type -> Type) | s -> key  where
-    getAccount :: s -> key 'AccountK XPub
+class GetAccount s (key :: Depth -> Type -> Type) | s -> key where
+  getAccount :: s -> key 'AccountK XPub
 
 -- | Checks whether the address discovery state @s@ works in light-mode
 -- and returns a procedure for discovering addresses
 -- if that is indeed the case.
 class MaybeLight s where
-    maybeDiscover :: Maybe (LightDiscoverTxs s)
+  maybeDiscover :: Maybe (LightDiscoverTxs s)
 
 type LightDiscoverTxs s =
-    DiscoverTxs (Either Address RewardAccount) ChainEvents s
+  DiscoverTxs (Either Address RewardAccount) ChainEvents s
 
 -- | Function that discovers transactions based on an address.
 newtype DiscoverTxs addr txs s = DiscoverTxs
-    { discoverTxs
-        :: forall m. Monad m
-        => (addr -> m txs) -> s -> m (txs, s)
-    }
+  { discoverTxs
+      :: forall m
+       . Monad m
+      => (addr -> m txs)
+      -> s
+      -> m (txs, s)
+  }
 
 {-------------------------------------------------------------------------------
                         Pending Tx Change Indexes
@@ -183,8 +191,9 @@ newtype DiscoverTxs addr txs s = DiscoverTxs
 
 -- | An ordered set of indexes used by pending transactions.
 newtype PendingIxs k = PendingIxs
-    { pendingIxsToList :: [Index 'Soft k]
-    } deriving stock (Generic, Show, Eq)
+  { pendingIxsToList :: [Index 'Soft k]
+  }
+  deriving stock (Generic, Show, Eq)
 
 instance NFData (PendingIxs k)
 
@@ -203,28 +212,36 @@ pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
 -- | Get the next change index; If every available indexes have already been
 -- taken, we'll rotate the pending set and re-use already provided indexes.
 nextChangeIndex
-    :: forall (key :: Depth -> Type -> Type) k.
-       AddressPool.Pool (KeyFingerprint "payment" key) (Index 'Soft k)
-    -> PendingIxs k
-    -> (Index 'Soft k, PendingIxs k)
+  :: forall (key :: Depth -> Type -> Type) k
+   . AddressPool.Pool (KeyFingerprint "payment" key) (Index 'Soft k)
+  -> PendingIxs k
+  -> (Index 'Soft k, PendingIxs k)
 nextChangeIndex pool (PendingIxs pendingIndexes) =
-    let poolLen = AddressPool.size pool
-        gap = AddressPool.gap pool
-        firstUnused = toEnum $ poolLen - gap
-        lastUnused = toEnum $ poolLen - 1
-        (nextIndex, pendingIndexes') =
-            case pendingIndexes of
-                [] -> (firstUnused, PendingIxs [firstUnused])
-                firstIndex : restIndexes ->
-                    if length pendingIndexes < AddressPool.gap pool
-                        then let next = succ firstIndex
-                             in (next, PendingIxs (next : pendingIndexes))
-                        else ( firstIndex
-                             , PendingIxs (restIndexes <> [firstIndex])
-                             )
-    in if nextIndex >= firstUnused && nextIndex <= lastUnused
-        then (nextIndex, pendingIndexes')
-        else error $ concat
+  let
+    poolLen = AddressPool.size pool
+    gap = AddressPool.gap pool
+    firstUnused = toEnum $ poolLen - gap
+    lastUnused = toEnum $ poolLen - 1
+    (nextIndex, pendingIndexes') =
+      case pendingIndexes of
+        [] -> (firstUnused, PendingIxs [firstUnused])
+        firstIndex : restIndexes ->
+          if length pendingIndexes < AddressPool.gap pool
+            then
+              let
+                next = succ firstIndex
+              in
+                (next, PendingIxs (next : pendingIndexes))
+            else
+              ( firstIndex
+              , PendingIxs (restIndexes <> [firstIndex])
+              )
+  in
+    if nextIndex >= firstUnused && nextIndex <= lastUnused
+      then (nextIndex, pendingIndexes')
+      else
+        error
+          $ concat
             [ "Next change index ("
             , show (getIndex nextIndex)
             , ") is NOT between the first unused ("

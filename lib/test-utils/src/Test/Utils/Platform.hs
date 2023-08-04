@@ -7,40 +7,50 @@
 -- License: Apache-2.0
 --
 -- Utility function for making test suites pass on difficult platforms.
-
 module Test.Utils.Platform
-    ( -- * Skipping tests
-      skipOnWindows
-    , pendingOnWindows
-    , pendingOnWine
-    , pendingOnMacOS
+  ( -- * Skipping tests
+    skipOnWindows
+  , pendingOnWindows
+  , pendingOnWine
+  , pendingOnMacOS
 
     -- * OS detection
-    , whenWindows
-    , isWindows
-    , isMacOS
-    , getIsWine
+  , whenWindows
+  , isWindows
+  , isMacOS
+  , getIsWine
 
     -- * Cross-platform compatibility
-    , nullFileName
-    ) where
-
-import Prelude
+  , nullFileName
+  )
+where
 
 import Control.Monad
-    ( when )
+  ( when
+  )
 import System.Exit
-    ( ExitCode (..) )
+  ( ExitCode (..)
+  )
 import System.Info
-    ( os )
+  ( os
+  )
 import Test.Hspec.Core.Spec
-    ( ResultStatus (..), pendingWith )
+  ( ResultStatus (..)
+  , pendingWith
+  )
 import Test.Hspec.Expectations
-    ( Expectation, HasCallStack )
+  ( Expectation
+  , HasCallStack
+  )
 import UnliftIO.Exception
-    ( IOException, handle, throwIO )
+  ( IOException
+  , handle
+  , throwIO
+  )
 import UnliftIO.Process
-    ( readProcessWithExitCode )
+  ( readProcessWithExitCode
+  )
+import Prelude
 
 skipOnWindows :: HasCallStack => String -> Expectation
 skipOnWindows _reason = whenWindows $ throwIO Success
@@ -50,8 +60,8 @@ pendingOnWindows reason = whenWindows $ pendingWith reason
 
 pendingOnWine :: HasCallStack => String -> Expectation
 pendingOnWine reason = whenWindows $ do
-    wine <- getIsWine
-    when wine $ pendingWith reason
+  wine <- getIsWine
+  when wine $ pendingWith reason
 
 -- | Mark test pending if running on macOS
 pendingOnMacOS :: HasCallStack => String -> Expectation
@@ -67,8 +77,8 @@ whenWindows = when isWindows
 -- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
 getIsWine :: IO Bool
 getIsWine = handle (\(_ :: IOException) -> pure False) $ do
-    (code, _, _) <- readProcessWithExitCode "winepath" ["--version"] mempty
-    pure (code == ExitSuccess)
+  (code, _, _) <- readProcessWithExitCode "winepath" ["--version"] mempty
+  pure (code == ExitSuccess)
 
 nullFileName :: FilePath
 nullFileName = if isWindows then "NUL" else "/dev/null"

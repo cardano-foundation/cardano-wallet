@@ -51,110 +51,135 @@
 --    - Use 'toTxGroupList' to view a 'TxSeq' as a list of transaction groups.
 --
 -- By default, all transactions are held within a single group.
---
 module Cardano.Wallet.Primitive.Types.Tx.TxSeq
-    (
-    -- * Types
-      TxSeq
+  ( -- * Types
+    TxSeq
 
     -- * Constructors
-    , empty
-    , fromUTxO
+  , empty
+  , fromUTxO
 
     -- * Measurements
-    , length
-    , txCount
-    , txGroupCount
-    , txGroupBoundaryCount
+  , length
+  , txCount
+  , txGroupCount
+  , txGroupBoundaryCount
 
     -- * Validation
-    , isValid
-    , safeApplyTxToUTxO
+  , isValid
+  , safeApplyTxToUTxO
 
     -- * Conversions
-    , toTxList
-    , toTxGroupList
-    , toTransitionList
+  , toTxList
+  , toTxGroupList
+  , toTransitionList
 
     -- * Views
-    , assetIds
-    , txIds
-    , headUTxO
-    , lastUTxO
+  , assetIds
+  , txIds
+  , headUTxO
+  , lastUTxO
 
     -- * Maps
-    , mapAssetIds
-    , mapTxIds
+  , mapAssetIds
+  , mapTxIds
 
     -- * Extension
-    , appendTx
-    , appendTxGroupBoundary
+  , appendTx
+  , appendTxGroupBoundary
 
     -- * Shrinking
-    , dropHeadTx
-    , dropLastTx
-    , dropNullTx
-    , dropNullTxs
-    , dropGroupBoundary
-    , dropGroupBoundaries
-    , prefixes
-    , suffixes
-    , removeAssetId
-    , removeAssets
-    , shrinkAssetIds
-    , shrinkTxIds
-    ) where
-
-import Prelude hiding
-    ( length, seq )
+  , dropHeadTx
+  , dropLastTx
+  , dropNullTx
+  , dropNullTxs
+  , dropGroupBoundary
+  , dropGroupBoundaries
+  , prefixes
+  , suffixes
+  , removeAssetId
+  , removeAssets
+  , shrinkAssetIds
+  , shrinkTxIds
+  )
+where
 
 import Cardano.Wallet.Primitive.Model
-    ( applyTxToUTxO )
+  ( applyTxToUTxO
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    ( StateDeltaSeq )
+  ( StateDeltaSeq
+  )
+import Cardano.Wallet.Primitive.Types.StateDeltaSeq qualified as Seq
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+  ( AssetId (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+  ( TokenName (..)
+  , TokenPolicyId (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), txAssetIds, txMapAssetIds, txMapTxIds, txRemoveAssetId )
+  ( Tx (..)
+  , txAssetIds
+  , txMapAssetIds
+  , txMapTxIds
+  , txRemoveAssetId
+  )
+import Cardano.Wallet.Primitive.Types.Tx qualified as Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+  ( TxIn
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+  ( TxOut
+  )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut qualified as TxOut
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+  ( UTxO
+  )
+import Cardano.Wallet.Primitive.Types.UTxO qualified as UTxO
 import Data.Bifoldable
-    ( Bifoldable (..) )
+  ( Bifoldable (..)
+  )
 import Data.Bifunctor
-    ( bimap )
+  ( bimap
+  )
 import Data.Either
-    ( isLeft, isRight, lefts, rights )
+  ( isLeft
+  , isRight
+  , lefts
+  , rights
+  )
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+  ( NonEmpty (..)
+  )
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict
-    ( Map )
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
 import Data.Maybe
-    ( mapMaybe )
+  ( mapMaybe
+  )
 import Data.Set
-    ( Set )
-
-import qualified Cardano.Wallet.Primitive.Types.StateDeltaSeq as Seq
-import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+  ( Set
+  )
+import Data.Set qualified as Set
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Prelude hiding
+  ( length
+  , seq
+  )
 
 --------------------------------------------------------------------------------
 -- Public interface
@@ -183,29 +208,25 @@ import qualified Data.Text.Encoding as T
 --    ...
 --    utxo_p -> tx_p_q -> utxo_q
 -- @
---
 newtype TxSeq = TxSeq
-    {unTxSeq :: StateDeltaSeq UTxO (Either TxSeqGroupBoundary Tx)}
-    deriving (Eq, Show)
+  {unTxSeq :: StateDeltaSeq UTxO (Either TxSeqGroupBoundary Tx)}
+  deriving (Eq, Show)
 
 -- | An internal type representing a boundary between groups of transactions.
 --
 -- See 'appendTxGroupBoundary'.
---
 data TxSeqGroupBoundary = TxSeqGroupBoundary
-    deriving (Eq, Show)
+  deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 -- Constructors
 --------------------------------------------------------------------------------
 
 -- | Constructs a 'TxSeq' from an empty 'UTxO' set.
---
 empty :: TxSeq
 empty = fromUTxO mempty
 
 -- | Constructs a 'TxSeq' from an initial 'UTxO' set.
---
 fromUTxO :: UTxO -> TxSeq
 fromUTxO = TxSeq . Seq.fromState
 
@@ -216,22 +237,18 @@ fromUTxO = TxSeq . Seq.fromState
 -- | Counts the total number of transitions in the sequence.
 --
 -- A transition can either be a transaction, or a group boundary.
---
 length :: TxSeq -> Int
 length = F.length . unTxSeq
 
 -- | Counts the total number of transactions in the sequence.
---
 txCount :: TxSeq -> Int
 txCount = F.length . toTxList
 
 -- | Counts the total number of transaction groups in the sequence.
---
 txGroupCount :: TxSeq -> Int
 txGroupCount = succ . txGroupBoundaryCount
 
 -- | Counts the total number of transaction group boundaries in the sequence.
---
 txGroupBoundaryCount :: TxSeq -> Int
 txGroupBoundaryCount = F.length . lefts . Seq.toDeltaList . unTxSeq
 
@@ -245,7 +262,6 @@ txGroupBoundaryCount = F.length . lefts . Seq.toDeltaList . unTxSeq
 -- transition 'utxo_i -> tx_i_j -> utxo_j' in the sequence:
 --
 -- >>> safeApplyTxToUTxO tx_i_j utxo_i == pure utxo_j
---
 isValid :: TxSeq -> Bool
 isValid = (Just True ==) . Seq.isValidM safeAppendTxM . unTxSeq
 
@@ -257,12 +273,12 @@ isValid = (Just True ==) . Seq.isValidM safeAppendTxM . unTxSeq
 -- >>> safeApplyTxToUTxO tx_i_j utxo_i == pure utxo_j
 --
 -- To check the validity of a 'TxSeq', use the 'isValid' function.
---
 safeApplyTxToUTxO :: MonadFail m => Tx -> UTxO -> m UTxO
 safeApplyTxToUTxO tx u
-    | tx `canApplyTxToUTxO` u =
-        pure $ tx `applyTxToUTxO` u
-    | otherwise = fail
+  | tx `canApplyTxToUTxO` u =
+      pure $ tx `applyTxToUTxO` u
+  | otherwise =
+      fail
         "cannot spend an input that does not refer to a known UTxO"
 
 --------------------------------------------------------------------------------
@@ -275,21 +291,19 @@ safeApplyTxToUTxO tx u
 --
 -- >>> toTxList s == mconcat (toTxGroupList s)
 -- >>> toTxList s == (\(_, tx, _) -> tx) <$> toTransitionList s
---
 toTxList :: TxSeq -> [Tx]
 toTxList = rights . Seq.toDeltaList . unTxSeq
 
 -- | Generates the complete list of transaction groups for a given 'TxSeq'.
---
 toTxGroupList :: TxSeq -> NonEmpty [Tx]
 toTxGroupList = F.foldr acc (pure []) . unTxSeq
   where
     acc :: Either TxSeqGroupBoundary Tx -> NonEmpty [Tx] -> NonEmpty [Tx]
     acc delta groups@(h :| t) = case delta of
-        Left TxSeqGroupBoundary ->
-            [] `NE.cons` groups
-        Right tx ->
-            (tx : h) :| t
+      Left TxSeqGroupBoundary ->
+        [] `NE.cons` groups
+      Right tx ->
+        (tx : h) :| t
 
 -- | Converts the given 'TxSeq' to a list of 'UTxO' set transitions.
 --
@@ -306,39 +320,36 @@ toTxGroupList = F.foldr acc (pure []) . unTxSeq
 -- The 'UTxO' set 'utxo_j' following 'tx_i_j' within the first transition is
 -- guaranteed to be identical to the 'UTxO' set 'utxo_p' preceding 'tx_p_q'
 -- within the second transition.
---
 toTransitionList :: TxSeq -> [(UTxO, Tx, UTxO)]
 toTransitionList (TxSeq s) =
-    mapMaybe maybeTxTransition (Seq.toTransitionList s)
+  mapMaybe maybeTxTransition (Seq.toTransitionList s)
   where
     maybeTxTransition :: (u, Either a Tx, u) -> Maybe (u, Tx, u)
-    maybeTxTransition (u0, e, u1) = e & either
-        (const Nothing)
-        (\tx -> Just (u0, tx, u1))
+    maybeTxTransition (u0, e, u1) =
+      e
+        & either
+          (const Nothing)
+          (\tx -> Just (u0, tx, u1))
 
 --------------------------------------------------------------------------------
 -- Views
 --------------------------------------------------------------------------------
 
 -- | Generates the set of all asset identifiers within a 'TxSeq'.
---
 assetIds :: TxSeq -> Set AssetId
 assetIds = bifoldMap UTxO.assetIds (either (const mempty) txAssetIds) . unTxSeq
 
 -- | Generates the set of all transaction identifiers within a 'TxSeq'.
---
 txIds :: TxSeq -> Set (Hash "Tx")
-txIds
-    = bifoldMap UTxO.txIds (either (const mempty) (Set.singleton . txId))
+txIds =
+  bifoldMap UTxO.txIds (either (const mempty) (Set.singleton . txId))
     . unTxSeq
 
 -- | Views the head (initial) UTxO set of a 'TxSeq'.
---
 headUTxO :: TxSeq -> UTxO
 headUTxO = Seq.headState . unTxSeq
 
 -- | Views the last (final) UTxO set of a 'TxSeq'.
---
 lastUTxO :: TxSeq -> UTxO
 lastUTxO = Seq.lastState . unTxSeq
 
@@ -355,10 +366,9 @@ lastUTxO = Seq.lastState . unTxSeq
 -- However, provided that the given 'TxSeq' is valid when checked with the
 -- 'isValid' function, the resultant sequence will also be valid, regardless of
 -- whether or not the given mapping function is injective.
---
 mapAssetIds :: (AssetId -> AssetId) -> TxSeq -> TxSeq
-mapAssetIds f
-    = TxSeq
+mapAssetIds f =
+  TxSeq
     . bimap (UTxO.mapAssetIds f) (fmap (txMapAssetIds f))
     . unTxSeq
 
@@ -367,10 +377,9 @@ mapAssetIds f
 -- Caution: specifying a non-injective mapping function may produce a 'TxSeq'
 -- where transaction identifiers are no longer unique, which may cause the
 -- 'TxSeq' to be invalid when checked with the 'isInvalid' function.
---
 mapTxIds :: (Hash "Tx" -> Hash "Tx") -> TxSeq -> TxSeq
-mapTxIds f
-    = TxSeq
+mapTxIds f =
+  TxSeq
     . bimap (UTxO.mapTxIds f) (fmap (txMapTxIds f))
     . unTxSeq
 
@@ -385,19 +394,17 @@ mapTxIds f
 -- (see 'lastUTxO').
 --
 -- Otherwise, returns 'Nothing'.
---
 appendTx :: Tx -> TxSeq -> Maybe TxSeq
 appendTx tx =
-    fmap TxSeq . Seq.applyDeltaM safeAppendTxM (Right tx) . unTxSeq
+  fmap TxSeq . Seq.applyDeltaM safeAppendTxM (Right tx) . unTxSeq
 
 -- | Extends a 'TxSeq' with a transaction group boundary.
 --
 -- Transactions added after the boundary will appear within a new group when
 -- the 'TxSeq' is viewed with the 'toTxGroupList' function.
---
 appendTxGroupBoundary :: TxSeq -> TxSeq
 appendTxGroupBoundary =
-    TxSeq . Seq.applyDelta const (Left TxSeqGroupBoundary) . unTxSeq
+  TxSeq . Seq.applyDelta const (Left TxSeqGroupBoundary) . unTxSeq
 
 --------------------------------------------------------------------------------
 -- Shrinking
@@ -406,14 +413,12 @@ appendTxGroupBoundary =
 -- | Removes the head (left-most) transaction of a 'TxSeq'.
 --
 -- The head UTxO set is also removed (see 'headUTxO').
---
 dropHeadTx :: TxSeq -> Maybe TxSeq
 dropHeadTx = fmap TxSeq . Seq.dropHead . unTxSeq
 
 -- | Removes the last (right-most) transaction of a 'TxSeq'.
 --
 -- The last UTxO set is also removed (see 'lastUTxO').
---
 dropLastTx :: TxSeq -> Maybe TxSeq
 dropLastTx = fmap TxSeq . Seq.dropLast . unTxSeq
 
@@ -423,7 +428,6 @@ dropLastTx = fmap TxSeq . Seq.dropLast . unTxSeq
 -- In the context of a 'TxSeq', a null transaction is a transaction 't' that
 -- has no effect: the 'UTxO' set that precedes 't' is identical to the 'UTxO'
 -- set that follows 't'.
---
 dropNullTx :: TxSeq -> [TxSeq]
 dropNullTx (TxSeq s) = TxSeq <$> Seq.dropEmptyTransitionWhere isRight s
 
@@ -432,7 +436,6 @@ dropNullTx (TxSeq s) = TxSeq <$> Seq.dropEmptyTransitionWhere isRight s
 -- In the context of a 'TxSeq', a null transaction is a transaction 't' that
 -- has no effect: the 'UTxO' set that precedes 't' is identical to the 'UTxO'
 -- set that follows 't'.
---
 dropNullTxs :: TxSeq -> TxSeq
 dropNullTxs (TxSeq s) = TxSeq $ Seq.dropEmptyTransitionsWhere isRight s
 
@@ -440,12 +443,10 @@ dropNullTxs (TxSeq s) = TxSeq $ Seq.dropEmptyTransitionsWhere isRight s
 --   exactly one group boundary has been removed.
 --
 -- All transactions in the sequence are preserved.
---
 dropGroupBoundary :: TxSeq -> [TxSeq]
 dropGroupBoundary (TxSeq s) = TxSeq <$> Seq.dropEmptyTransitionWhere isLeft s
 
 -- | Removes all group boundaries from a 'TxSeq'.
---
 dropGroupBoundaries :: TxSeq -> TxSeq
 dropGroupBoundaries (TxSeq s) = TxSeq $ Seq.dropEmptyTransitionsWhere isLeft s
 
@@ -453,7 +454,6 @@ dropGroupBoundaries (TxSeq s) = TxSeq $ Seq.dropEmptyTransitionsWhere isLeft s
 --
 -- The list is sorted into ascending order of length, such that each element is
 -- a proper prefix of the subsequent element.
---
 prefixes :: TxSeq -> [TxSeq]
 prefixes = fmap TxSeq . Seq.prefixes . unTxSeq
 
@@ -461,18 +461,16 @@ prefixes = fmap TxSeq . Seq.prefixes . unTxSeq
 --
 -- The list is sorted into ascending order of length, such that each element is
 -- a proper suffix of the subsequent element.
---
 suffixes :: TxSeq -> [TxSeq]
 suffixes = fmap TxSeq . Seq.suffixes . unTxSeq
 
 -- | Removes a given asset from all transactions in a 'TxSeq'.
---
 removeAssetId :: TxSeq -> AssetId -> TxSeq
-removeAssetId (TxSeq s) a = TxSeq $
-    bimap (`UTxO.removeAssetId` a) (fmap (`txRemoveAssetId` a)) s
+removeAssetId (TxSeq s) a =
+  TxSeq
+    $ bimap (`UTxO.removeAssetId` a) (fmap (`txRemoveAssetId` a)) s
 
 -- | Removes all non-ada assets from all transactions within a 'TxSeq'.
---
 removeAssets :: TxSeq -> TxSeq
 removeAssets s0 = F.foldl' removeAssetId s0 (assetIds s0)
 
@@ -480,12 +478,12 @@ removeAssets s0 = F.foldl' removeAssetId s0 (assetIds s0)
 --
 -- The number of unique assets is preserved, but the length of each asset
 -- identifier is minimized.
---
 shrinkAssetIds :: TxSeq -> TxSeq
 shrinkAssetIds s = mapAssetIds toSimpleAssetId s
   where
     toSimpleAssetId :: AssetId -> AssetId
-    toSimpleAssetId = mapToFunction
+    toSimpleAssetId =
+      mapToFunction
         (head simpleAssetIds)
         (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
 
@@ -493,12 +491,12 @@ shrinkAssetIds s = mapAssetIds toSimpleAssetId s
 --
 -- The number of transactions is preserved, but the length of each transaction
 -- identifier is minimized.
---
 shrinkTxIds :: TxSeq -> TxSeq
 shrinkTxIds s = mapTxIds toSimpleTxId s
   where
     toSimpleTxId :: Hash "Tx" -> Hash "Tx"
-    toSimpleTxId = mapToFunction
+    toSimpleTxId =
+      mapToFunction
         (head simpleTxIds)
         (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
 
@@ -511,12 +509,13 @@ shrinkTxIds s = mapTxIds toSimpleTxId s
 --------------------------------------------------------------------------------
 
 simpleAssetIds :: [AssetId]
-simpleAssetIds
-    = AssetId (UnsafeTokenPolicyId $ Hash mempty)
+simpleAssetIds =
+  AssetId (UnsafeTokenPolicyId $ Hash mempty)
     . UnsafeTokenName
     . T.encodeUtf8
     . T.pack
-    . show <$> [0 :: Integer ..]
+    . show
+    <$> [0 :: Integer ..]
 
 simpleTxIds :: [Hash "Tx"]
 simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
@@ -526,15 +525,16 @@ simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
 --------------------------------------------------------------------------------
 
 canApplyTxToUTxO :: Tx -> UTxO -> Bool
-canApplyTxToUTxO tx u =  (&&)
+canApplyTxToUTxO tx u =
+  (&&)
     (all inputRefIsValid (Tx.resolvedInputs tx))
     (all inputRefIsValid (Tx.resolvedCollateralInputs tx))
   where
     inputRefIsValid :: (TxIn, Maybe TxOut) -> Bool
     inputRefIsValid (ti, c) =
-        case UTxO.lookup ti u of
-            Nothing -> False
-            Just c' -> TxOut.coin c' == maybe (Coin 0) TxOut.coin c
+      case UTxO.lookup ti u of
+        Nothing -> False
+        Just c' -> TxOut.coin c' == maybe (Coin 0) TxOut.coin c
 
 safeAppendTx :: MonadFail m => UTxO -> Tx -> m UTxO
 safeAppendTx = flip safeApplyTxToUTxO

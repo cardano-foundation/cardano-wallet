@@ -1,20 +1,19 @@
-
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Re-export `EraValue` library.
---
-
 module Cardano.Wallet.Read.Eras
   ( -- * Eras.
     KnownEras
   , knownEraIndices
+
     -- * Era bounded values.
   , EraValue
   , eraValueSerialize
   , extractEraValue
-  -- * Era specific prisms.
+
+    -- * Era specific prisms.
   , MkEraValue (..)
   , byron
   , shelley
@@ -23,51 +22,69 @@ module Cardano.Wallet.Read.Eras
   , alonzo
   , babbage
   , conway
-  -- * Era specific prism shortcuts.
+
+    -- * Era specific prism shortcuts.
   , inject
   , project
-  -- * Specials.
+
+    -- * Specials.
   , sequenceEraValue
-  -- * Era bounded functions.
+
+    -- * Era bounded functions.
   , EraFun (..)
-  -- * Composing era functions.
+
+    -- * Composing era functions.
   , (*.**)
   , (*&&&*)
-  -- * Applying era functions.
+
+    -- * Applying era functions.
   , applyEraFun
-  -- * Reexports from elsewhere.
-  , (:.:)(..)
+
+    -- * Reexports from elsewhere.
+  , (:.:) (..)
   , K (..)
-  ,  unK
-  , (:*:)(..)
-  -- * Conversion.
+  , unK
+  , (:*:) (..)
+
+    -- * Conversion.
   , isoInAnyCardanoEra
   )
-  where
+where
 
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..), applyEraFun, (*&&&*), (*.**) )
+  ( EraFun (..)
+  , applyEraFun
+  , (*&&&*)
+  , (*.**)
+  )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue
-    , MkEraValue (..)
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
-    , eraValueSerialize
-    , extractEraValue
-    , inject
-    , mary
-    , project
-    , sequenceEraValue
-    , shelley
-    )
+  ( EraValue
+  , MkEraValue (..)
+  , allegra
+  , alonzo
+  , babbage
+  , byron
+  , conway
+  , eraValueSerialize
+  , extractEraValue
+  , inject
+  , mary
+  , project
+  , sequenceEraValue
+  , shelley
+  )
 import Cardano.Wallet.Read.Eras.InAnyCardanoEra
-    ( isoInAnyCardanoEra )
+  ( isoInAnyCardanoEra
+  )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras, knownEraIndices )
-import Generics.SOP
-    ( (:.:) (..), K (..), unK )
+  ( KnownEras
+  , knownEraIndices
+  )
 import GHC.Generics
-    ( (:*:) (..) )
+  ( (:*:) (..)
+  )
+import Generics.SOP
+  ( K (..)
+  , unK
+  , (:.:) (..)
+  )

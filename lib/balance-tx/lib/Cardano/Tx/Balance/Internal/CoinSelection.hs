@@ -22,160 +22,182 @@
 --  - balancing a selection to pay for the transaction fee.
 --
 -- Use the 'performSelection' function to perform a coin selection.
---
 module Cardano.Tx.Balance.Internal.CoinSelection
-    (
-    -- * Selection contexts
-      WalletSelectionContext
-    , WalletUTxO (..)
+  ( -- * Selection contexts
+    WalletSelectionContext
+  , WalletUTxO (..)
 
     -- * Mapping between external (wallet) types and internal types
-    , toExternalUTxO
-    , toExternalUTxOMap
-    , toInternalUTxO
-    , toInternalUTxOMap
+  , toExternalUTxO
+  , toExternalUTxOMap
+  , toInternalUTxO
+  , toInternalUTxOMap
 
     -- * Mapping between external (wallet) selections and internal selections.
-    , toExternalSelection
-    , toInternalSelection
+  , toExternalSelection
+  , toInternalSelection
 
     -- * Performing selections
-    , performSelection
-    , Selection
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOf (..)
-    , SelectionParams (..)
-    , SelectionStrategy (..)
+  , performSelection
+  , Selection
+  , SelectionCollateralRequirement (..)
+  , SelectionConstraints (..)
+  , SelectionError (..)
+  , SelectionOf (..)
+  , SelectionParams (..)
+  , SelectionStrategy (..)
 
     -- * Selection skeletons
-    , SelectionSkeleton (..)
-    , emptySkeleton
+  , SelectionSkeleton (..)
+  , emptySkeleton
 
     -- * Selection errors
-    , BalanceInsufficientError (..)
-    , SelectionBalanceError (..)
-    , SelectionCollateralError
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , UnableToConstructChangeError (..)
+  , BalanceInsufficientError (..)
+  , SelectionBalanceError (..)
+  , SelectionCollateralError
+  , SelectionOutputError (..)
+  , SelectionOutputErrorInfo (..)
+  , SelectionOutputCoinInsufficientError (..)
+  , SelectionOutputSizeExceedsLimitError (..)
+  , SelectionOutputTokenQuantityExceedsLimitError (..)
+  , UnableToConstructChangeError (..)
 
     -- * Selection reports
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
-    , SelectionReportDetailed
-    , SelectionReportSummarized
+  , makeSelectionReportDetailed
+  , makeSelectionReportSummarized
+  , SelectionReportDetailed
+  , SelectionReportSummarized
 
     -- * Selection deltas
-    , selectionDelta
-    )
-    where
+  , selectionDelta
+  )
+where
 
 import Cardano.CoinSelection
-    ( SelectionCollateralError
-    , SelectionCollateralRequirement (..)
-    , SelectionError (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    )
+  ( SelectionCollateralError
+  , SelectionCollateralRequirement (..)
+  , SelectionError (..)
+  , SelectionOutputCoinInsufficientError (..)
+  , SelectionOutputError (..)
+  , SelectionOutputErrorInfo (..)
+  , SelectionOutputSizeExceedsLimitError (..)
+  , SelectionOutputTokenQuantityExceedsLimitError (..)
+  )
+import Cardano.CoinSelection qualified as Internal
 import Cardano.CoinSelection.Balance
-    ( BalanceInsufficientError (..)
-    , SelectionBalanceError (..)
-    , SelectionStrategy (..)
-    , UnableToConstructChangeError (..)
-    )
+  ( BalanceInsufficientError (..)
+  , SelectionBalanceError (..)
+  , SelectionStrategy (..)
+  , UnableToConstructChangeError (..)
+  )
+import Cardano.CoinSelection.Context qualified as SC
 import Cardano.Wallet.Primitive.Collateral
-    ( asCollateral )
+  ( asCollateral
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+  ( Address (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle (..) )
+  ( Flat (..)
+  , TokenBundle (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+  ( AssetId
+  , TokenMap
+  )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment, txOutMaxCoin, txOutMaxTokenQuantity )
+  ( TokenBundleSizeAssessment
+  , txOutMaxCoin
+  , txOutMaxTokenQuantity
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+  ( TxIn
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+  ( TxOut (..)
+  )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+  ( UTxO (..)
+  )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
+  ( UTxOSelection
+  )
 import Control.Arrow
-    ( (&&&) )
+  ( (&&&)
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+  ( MonadRandom (..)
+  )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+  ( ExceptT (..)
+  )
+import Data.Foldable qualified as F
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+  ( over
+  , view
+  )
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
 import Data.Map.Strict
-    ( Map )
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
 import Data.Set
-    ( Set )
+  ( Set
+  )
+import Data.Set qualified as Set
 import Fmt
-    ( Buildable (..), genericF )
+  ( Buildable (..)
+  , genericF
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
 import Numeric.Natural
-    ( Natural )
-
+  ( Natural
+  )
 import Prelude
-
-import qualified Cardano.CoinSelection as Internal
-import qualified Cardano.CoinSelection.Context as SC
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Data.Foldable as F
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 -- Selection contexts
 --------------------------------------------------------------------------------
 
 -- | A selection context for the wallet.
---
 data WalletSelectionContext
 
 instance SC.SelectionContext WalletSelectionContext where
-    type Address WalletSelectionContext = Address
-    type UTxO WalletSelectionContext = WalletUTxO
+  type Address WalletSelectionContext = Address
+  type UTxO WalletSelectionContext = WalletUTxO
 
 --------------------------------------------------------------------------------
 -- Mapping between external (wallet) and internal UTxO identifiers
 --------------------------------------------------------------------------------
 
 -- | A type of unique UTxO identifier for the wallet.
---
 data WalletUTxO = WalletUTxO
-    { txIn
-        :: !TxIn
-    , address
-        :: !Address
-    }
-    deriving (Eq, Generic, Ord, Show)
+  { txIn
+      :: !TxIn
+  , address
+      :: !Address
+  }
+  deriving (Eq, Generic, Ord, Show)
 
 instance Buildable WalletUTxO where
-    build (WalletUTxO i a) = build i <> ":" <> build a
+  build (WalletUTxO i a) = build i <> ":" <> build a
 
 instance Buildable (WalletUTxO, TokenBundle) where
-    build (u, b) = build u <> ":" <> build (Flat b)
+  build (u, b) = build u <> ":" <> build (Flat b)
 
 toExternalUTxO :: (WalletUTxO, TokenBundle) -> (TxIn, TxOut)
 toExternalUTxO = toExternalUTxO' id
@@ -209,105 +231,109 @@ toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
 --
 --    - place limits on the coin selection algorithm, enabling it to produce
 --      selections that are acceptable to the ledger.
---
 data SelectionConstraints = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
-        -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
-    , computeMinimumAdaQuantity
-        :: Address -> TokenMap -> Coin
-        -- ^ Computes the minimum ada quantity required for a given output.
-    , isBelowMinimumAdaQuantity
-        :: Address -> TokenBundle -> Bool
-      -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
-      -- below the minimum required.
-    , computeMinimumCost
-        :: SelectionSkeleton -> Coin
-        -- ^ Computes the minimum cost of a given selection skeleton.
-    , maximumCollateralInputCount
-        :: Int
-        -- ^ Specifies an inclusive upper bound on the number of unique inputs
-        -- that can be selected as collateral.
-    , minimumCollateralPercentage
-        :: Natural
-        -- ^ Specifies the minimum required amount of collateral as a
-        -- percentage of the total transaction fee.
-    , maximumLengthChangeAddress
-        :: Address
-    }
-    deriving Generic
+  { assessTokenBundleSize
+      :: TokenBundle
+      -> TokenBundleSizeAssessment
+  -- ^ Assesses the size of a token bundle relative to the upper limit of
+  -- what can be included in a transaction output. See documentation for
+  -- the 'TokenBundleSizeAssessor' type to learn about the expected
+  -- properties of this field.
+  , computeMinimumAdaQuantity
+      :: Address
+      -> TokenMap
+      -> Coin
+  -- ^ Computes the minimum ada quantity required for a given output.
+  , isBelowMinimumAdaQuantity
+      :: Address
+      -> TokenBundle
+      -> Bool
+  -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
+  -- below the minimum required.
+  , computeMinimumCost
+      :: SelectionSkeleton
+      -> Coin
+  -- ^ Computes the minimum cost of a given selection skeleton.
+  , maximumCollateralInputCount
+      :: Int
+  -- ^ Specifies an inclusive upper bound on the number of unique inputs
+  -- that can be selected as collateral.
+  , minimumCollateralPercentage
+      :: Natural
+  -- ^ Specifies the minimum required amount of collateral as a
+  -- percentage of the total transaction fee.
+  , maximumLengthChangeAddress
+      :: Address
+  }
+  deriving (Generic)
 
 toInternalSelectionConstraints
-    :: SelectionConstraints
-    -> Internal.SelectionConstraints WalletSelectionContext
+  :: SelectionConstraints
+  -> Internal.SelectionConstraints WalletSelectionContext
 toInternalSelectionConstraints SelectionConstraints {..} =
-    Internal.SelectionConstraints
-        { computeMinimumCost =
-            computeMinimumCost . toExternalSelectionSkeleton
-        , maximumOutputAdaQuantity =
-            txOutMaxCoin
-        , maximumOutputTokenQuantity =
-            txOutMaxTokenQuantity
-        , nullAddress =
-            Address ""
-        , ..
-        }
+  Internal.SelectionConstraints
+    { computeMinimumCost =
+        computeMinimumCost . toExternalSelectionSkeleton
+    , maximumOutputAdaQuantity =
+        txOutMaxCoin
+    , maximumOutputTokenQuantity =
+        txOutMaxTokenQuantity
+    , nullAddress =
+        Address ""
+    , ..
+    }
 
 --------------------------------------------------------------------------------
 -- Selection parameters
 --------------------------------------------------------------------------------
 
 -- | Specifies all parameters that are specific to a given selection.
---
 data SelectionParams = SelectionParams
-    { extraValueIn
-        :: !TokenBundle
-        -- ^ Specifies extra value on the input side.
-    , extraValueOut
-        :: !TokenBundle
-        -- ^ Specifies extra value on the output side.
-    , outputsToCover
-        :: ![TxOut]
-        -- ^ Specifies a set of outputs that must be paid for.
-    , collateralRequirement
-        :: !SelectionCollateralRequirement
-        -- ^ Specifies the collateral requirement for this selection.
-    , utxoAvailableForCollateral
-        :: !(Map WalletUTxO TokenBundle)
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- collateral inputs.
-        --
-        -- This set is allowed to intersect with 'utxoAvailableForInputs',
-        -- since the ledger does not require that these sets are disjoint.
-    , utxoAvailableForInputs
-        :: !(UTxOSelection WalletUTxO)
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- ordinary inputs and optionally, a subset that has already been
-        -- selected.
-        --
-        -- Further entries from this set will be selected to cover any deficit.
-    , selectionStrategy
-        :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
-    }
-    deriving (Eq, Generic, Show)
+  { extraValueIn
+      :: !TokenBundle
+  -- ^ Specifies extra value on the input side.
+  , extraValueOut
+      :: !TokenBundle
+  -- ^ Specifies extra value on the output side.
+  , outputsToCover
+      :: ![TxOut]
+  -- ^ Specifies a set of outputs that must be paid for.
+  , collateralRequirement
+      :: !SelectionCollateralRequirement
+  -- ^ Specifies the collateral requirement for this selection.
+  , utxoAvailableForCollateral
+      :: !(Map WalletUTxO TokenBundle)
+  -- ^ Specifies a set of UTxOs that are available for selection as
+  -- collateral inputs.
+  --
+  -- This set is allowed to intersect with 'utxoAvailableForInputs',
+  -- since the ledger does not require that these sets are disjoint.
+  , utxoAvailableForInputs
+      :: !(UTxOSelection WalletUTxO)
+  -- ^ Specifies a set of UTxOs that are available for selection as
+  -- ordinary inputs and optionally, a subset that has already been
+  -- selected.
+  --
+  -- Further entries from this set will be selected to cover any deficit.
+  , selectionStrategy
+      :: SelectionStrategy
+  -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
+  }
+  deriving (Eq, Generic, Show)
 
 toInternalSelectionParams
-    :: SelectionParams
-    -> Internal.SelectionParams WalletSelectionContext
+  :: SelectionParams
+  -> Internal.SelectionParams WalletSelectionContext
 toInternalSelectionParams SelectionParams {..} =
-    Internal.SelectionParams
-        { utxoAvailableForCollateral =
-            Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
-        , outputsToCover =
-            (view #address &&& view #tokens) <$> outputsToCover
-        , ..
-        }
+  Internal.SelectionParams
+    { utxoAvailableForCollateral =
+        Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
+    , outputsToCover =
+        (view #address &&& view #tokens) <$> outputsToCover
+    , ..
+    }
   where
-    TokenBundle extraCoinIn  assetsToMint = extraValueIn
+    TokenBundle extraCoinIn assetsToMint = extraValueIn
     TokenBundle extraCoinOut assetsToBurn = extraValueOut
 
     identifyCollateral :: WalletUTxO -> TokenBundle -> Maybe Coin
@@ -326,106 +352,110 @@ toInternalSelectionParams SelectionParams {..} =
 --
 -- Increasing or decreasing the quantity of a particular asset in a change
 -- output must not change the estimated cost of a selection.
---
 data SelectionSkeleton = SelectionSkeleton
-    { skeletonInputCount
-        :: !Int
-    , skeletonOutputs
-        :: ![TxOut]
-    , skeletonChange
-        :: ![Set AssetId]
-    }
-    deriving (Eq, Generic, Show)
+  { skeletonInputCount
+      :: !Int
+  , skeletonOutputs
+      :: ![TxOut]
+  , skeletonChange
+      :: ![Set AssetId]
+  }
+  deriving (Eq, Generic, Show)
 
 -- | Creates an empty 'SelectionSkeleton'.
---
 emptySkeleton :: SelectionSkeleton
-emptySkeleton = SelectionSkeleton
+emptySkeleton =
+  SelectionSkeleton
     { skeletonInputCount = 0
     , skeletonOutputs = mempty
     , skeletonChange = mempty
     }
 
 toExternalSelectionSkeleton
-    :: Internal.SelectionSkeleton WalletSelectionContext
-    -> SelectionSkeleton
+  :: Internal.SelectionSkeleton WalletSelectionContext
+  -> SelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
-    SelectionSkeleton
-        { skeletonOutputs =
-            uncurry TxOut <$> skeletonOutputs
-        , ..
-        }
+  SelectionSkeleton
+    { skeletonOutputs =
+        uncurry TxOut <$> skeletonOutputs
+    , ..
+    }
 
 --------------------------------------------------------------------------------
 -- Selections
 --------------------------------------------------------------------------------
 
 -- | Represents a balanced selection.
---
 data SelectionOf change = Selection
-    { inputs
-        :: !(NonEmpty (TxIn, TxOut))
-        -- ^ Selected inputs.
-    , collateral
-        :: ![(TxIn, TxOut)]
-        -- ^ Selected collateral inputs.
-    , outputs
-        :: ![TxOut]
-        -- ^ User-specified outputs
-    , change
-        :: ![change]
-        -- ^ Generated change outputs.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Assets to mint.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ Assets to burn.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
-    }
-    deriving (Generic, Eq, Show)
+  { inputs
+      :: !(NonEmpty (TxIn, TxOut))
+  -- ^ Selected inputs.
+  , collateral
+      :: ![(TxIn, TxOut)]
+  -- ^ Selected collateral inputs.
+  , outputs
+      :: ![TxOut]
+  -- ^ User-specified outputs
+  , change
+      :: ![change]
+  -- ^ Generated change outputs.
+  , assetsToMint
+      :: !TokenMap
+  -- ^ Assets to mint.
+  , assetsToBurn
+      :: !TokenMap
+  -- ^ Assets to burn.
+  , extraCoinSource
+      :: !Coin
+  -- ^ An extra source of ada.
+  , extraCoinSink
+      :: !Coin
+  -- ^ An extra sink for ada.
+  }
+  deriving (Generic, Eq, Show)
 
 instance NFData change => NFData (SelectionOf change)
 
 -- | The default type of selection.
 --
 -- In this type of selection, change values do not have addresses assigned.
---
 type Selection = SelectionOf TokenBundle
 
 toExternalSelection :: Internal.Selection WalletSelectionContext -> Selection
 toExternalSelection Internal.Selection {..} =
-    Selection
-        { collateral = toExternalUTxO' TokenBundle.fromCoin
-            <$> collateral
-        , inputs = toExternalUTxO
-            <$> inputs
-        , outputs = uncurry TxOut
-            <$> outputs
-        , ..
-        }
+  Selection
+    { collateral =
+        toExternalUTxO' TokenBundle.fromCoin
+          <$> collateral
+    , inputs =
+        toExternalUTxO
+          <$> inputs
+    , outputs =
+        uncurry TxOut
+          <$> outputs
+    , ..
+    }
 
 toInternalSelection
-    :: (change -> TokenBundle)
-    -> SelectionOf change
-    -> Internal.Selection WalletSelectionContext
+  :: (change -> TokenBundle)
+  -> SelectionOf change
+  -> Internal.Selection WalletSelectionContext
 toInternalSelection getChangeBundle Selection {..} =
-    Internal.Selection
-        { change = getChangeBundle
-            <$> change
-        , collateral = toInternalUTxO' TokenBundle.getCoin
-            <$> collateral
-        , inputs = toInternalUTxO
-            <$> inputs
-        , outputs = (view #address &&& view #tokens)
-            <$> outputs
-        , ..
-        }
+  Internal.Selection
+    { change =
+        getChangeBundle
+          <$> change
+    , collateral =
+        toInternalUTxO' TokenBundle.getCoin
+          <$> collateral
+    , inputs =
+        toInternalUTxO
+          <$> inputs
+    , outputs =
+        (view #address &&& view #tokens)
+          <$> outputs
+    , ..
+    }
 
 --------------------------------------------------------------------------------
 -- Performing a selection
@@ -441,31 +471,30 @@ toInternalSelection getChangeBundle Selection {..} =
 --  - balancing a selection to pay for the transaction fee.
 --
 -- See 'Internal.performSelection' for more details.
---
 performSelection
-    :: forall m. (HasCallStack, MonadRandom m)
-    => SelectionConstraints
-    -> SelectionParams
-    -> ExceptT (SelectionError WalletSelectionContext) m Selection
+  :: forall m
+   . (HasCallStack, MonadRandom m)
+  => SelectionConstraints
+  -> SelectionParams
+  -> ExceptT (SelectionError WalletSelectionContext) m Selection
 performSelection cs ps =
-    toExternalSelection <$>
-    Internal.performSelection @m @WalletSelectionContext
-        (toInternalSelectionConstraints cs)
-        (toInternalSelectionParams ps)
+  toExternalSelection
+    <$> Internal.performSelection @m @WalletSelectionContext
+      (toInternalSelectionConstraints cs)
+      (toInternalSelectionParams ps)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
 --------------------------------------------------------------------------------
 
 -- | Computes the ada surplus of a selection, assuming there is a surplus.
---
 selectionDelta
-    :: (change -> Coin)
-    -- ^ A function to extract the coin value from a change value.
-    -> SelectionOf change
-    -> Coin
-selectionDelta getChangeCoin
-    = Internal.selectionSurplusCoin
+  :: (change -> Coin)
+  -- ^ A function to extract the coin value from a change value.
+  -> SelectionOf change
+  -> Coin
+selectionDelta getChangeCoin =
+  Internal.selectionSurplusCoin
     . toInternalSelection (TokenBundle.fromCoin . getChangeCoin)
 
 --------------------------------------------------------------------------------
@@ -473,53 +502,53 @@ selectionDelta getChangeCoin
 --------------------------------------------------------------------------------
 
 -- | Includes both summarized and detailed information about a selection.
---
 data SelectionReport = SelectionReport
-    { summary :: SelectionReportSummarized
-    , detail :: SelectionReportDetailed
-    }
-    deriving (Eq, Generic, Show)
+  { summary :: SelectionReportSummarized
+  , detail :: SelectionReportDetailed
+  }
+  deriving (Eq, Generic, Show)
 
 -- | Includes summarized information about a selection.
 --
 -- Each data point can be serialized as a single line of text.
---
 data SelectionReportSummarized = SelectionReportSummarized
-    { computedFee :: Coin
-    , adaBalanceOfSelectedInputs :: Coin
-    , adaBalanceOfExtraCoinSource :: Coin
-    , adaBalanceOfExtraCoinSink :: Coin
-    , adaBalanceOfRequestedOutputs :: Coin
-    , adaBalanceOfGeneratedChangeOutputs :: Coin
-    , numberOfSelectedInputs :: Int
-    , numberOfSelectedCollateralInputs :: Int
-    , numberOfRequestedOutputs :: Int
-    , numberOfGeneratedChangeOutputs :: Int
-    , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
-    , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
-    , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
-    }
-    deriving (Eq, Generic, Show)
+  { computedFee :: Coin
+  , adaBalanceOfSelectedInputs :: Coin
+  , adaBalanceOfExtraCoinSource :: Coin
+  , adaBalanceOfExtraCoinSink :: Coin
+  , adaBalanceOfRequestedOutputs :: Coin
+  , adaBalanceOfGeneratedChangeOutputs :: Coin
+  , numberOfSelectedInputs :: Int
+  , numberOfSelectedCollateralInputs :: Int
+  , numberOfRequestedOutputs :: Int
+  , numberOfGeneratedChangeOutputs :: Int
+  , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
+  , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
+  , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
+  }
+  deriving (Eq, Generic, Show)
 
 -- | Includes detailed information about a selection.
---
 data SelectionReportDetailed = SelectionReportDetailed
-    { selectedInputs :: [(TxIn, TxOut)]
-    , selectedCollateral :: [(TxIn, TxOut)]
-    , requestedOutputs :: [TxOut]
-    , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
-    }
-    deriving (Eq, Generic, Show)
+  { selectedInputs :: [(TxIn, TxOut)]
+  , selectedCollateral :: [(TxIn, TxOut)]
+  , requestedOutputs :: [TxOut]
+  , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
+  }
+  deriving (Eq, Generic, Show)
 
 instance Buildable SelectionReport where
-    build = genericF
+  build = genericF
+
 instance Buildable SelectionReportSummarized where
-    build = genericF
+  build = genericF
+
 instance Buildable SelectionReportDetailed where
-    build = genericF
+  build = genericF
 
 makeSelectionReport :: Selection -> SelectionReport
-makeSelectionReport s = SelectionReport
+makeSelectionReport s =
+  SelectionReport
     { summary = makeSelectionReportSummarized s
     , detail = makeSelectionReportDetailed s
     }
@@ -527,59 +556,61 @@ makeSelectionReport s = SelectionReport
 makeSelectionReportSummarized :: Selection -> SelectionReportSummarized
 makeSelectionReportSummarized s = SelectionReportSummarized {..}
   where
-    computedFee
-        = selectionDelta TokenBundle.getCoin s
-    adaBalanceOfSelectedInputs
-        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputs s
-    adaBalanceOfExtraCoinSource
-        = view #extraCoinSource s
-    adaBalanceOfExtraCoinSink
-        = view #extraCoinSink s
-    adaBalanceOfGeneratedChangeOutputs
-        = F.foldMap (view #coin) $ view #change s
-    adaBalanceOfRequestedOutputs
-        = F.foldMap (view (#tokens . #coin)) $ view #outputs s
-    numberOfSelectedInputs
-        = length $ view #inputs s
-    numberOfSelectedCollateralInputs
-        = length $ view #collateral s
-    numberOfRequestedOutputs
-        = length $ view #outputs s
-    numberOfGeneratedChangeOutputs
-        = length $ view #change s
-    numberOfUniqueNonAdaAssetsInSelectedInputs
-        = Set.size
+    computedFee =
+      selectionDelta TokenBundle.getCoin s
+    adaBalanceOfSelectedInputs =
+      F.foldMap (view (#tokens . #coin) . snd) $ view #inputs s
+    adaBalanceOfExtraCoinSource =
+      view #extraCoinSource s
+    adaBalanceOfExtraCoinSink =
+      view #extraCoinSink s
+    adaBalanceOfGeneratedChangeOutputs =
+      F.foldMap (view #coin) $ view #change s
+    adaBalanceOfRequestedOutputs =
+      F.foldMap (view (#tokens . #coin)) $ view #outputs s
+    numberOfSelectedInputs =
+      length $ view #inputs s
+    numberOfSelectedCollateralInputs =
+      length $ view #collateral s
+    numberOfRequestedOutputs =
+      length $ view #outputs s
+    numberOfGeneratedChangeOutputs =
+      length $ view #change s
+    numberOfUniqueNonAdaAssetsInSelectedInputs =
+      Set.size
         $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
         $ view #inputs s
-    numberOfUniqueNonAdaAssetsInRequestedOutputs
-        = Set.size
+    numberOfUniqueNonAdaAssetsInRequestedOutputs =
+      Set.size
         $ F.foldMap (TokenBundle.getAssets . view #tokens)
         $ view #outputs s
-    numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs
-        = Set.size
+    numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs =
+      Set.size
         $ F.foldMap TokenBundle.getAssets
         $ view #change s
 
 makeSelectionReportDetailed :: Selection -> SelectionReportDetailed
-makeSelectionReportDetailed s = SelectionReportDetailed
-    { selectedInputs
-        = F.toList $ view #inputs s
-    , selectedCollateral
-        = F.toList $ view #collateral s
-    , requestedOutputs
-        = view #outputs s
-    , generatedChangeOutputs
-        = TokenBundle.Flat <$> view #change s
+makeSelectionReportDetailed s =
+  SelectionReportDetailed
+    { selectedInputs =
+        F.toList $ view #inputs s
+    , selectedCollateral =
+        F.toList $ view #collateral s
+    , requestedOutputs =
+        view #outputs s
+    , generatedChangeOutputs =
+        TokenBundle.Flat <$> view #change s
     }
 
 -- A convenience instance for 'Buildable' contexts that include a nested
 -- 'SelectionOf TokenBundle' value.
 instance Buildable (SelectionOf TokenBundle) where
-    build = build . makeSelectionReport
+  build = build . makeSelectionReport
 
 -- A convenience instance for 'Buildable' contexts that include a nested
 -- 'SelectionOf TxOut' value.
 instance Buildable (SelectionOf TxOut) where
-    build = build
-        . makeSelectionReport
-        . over #change (fmap $ view #tokens)
+  build =
+    build
+      . makeSelectionReport
+      . over #change (fmap $ view #tokens)

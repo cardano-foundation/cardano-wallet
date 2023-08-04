@@ -1,13 +1,13 @@
 module Main where
 
-import Prelude
-
 import Main.Utf8
-    ( withUtf8 )
+  ( withUtf8
+  )
+import Network.Wai.Middleware.LoggingSpec qualified as LoggingSpec
 import Test.Hspec.Extra
-    ( hspecMain )
-
-import qualified Network.Wai.Middleware.LoggingSpec as LoggingSpec
+  ( hspecMain
+  )
+import Prelude
 
 main :: IO ()
 main = withUtf8 $ hspecMain LoggingSpec.spec

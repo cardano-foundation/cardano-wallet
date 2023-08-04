@@ -1,21 +1,26 @@
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
---
 module Test.Utils.Env
   ( withEnv
   , withAddedEnv
   , clearEnv
-  ) where
-
-import Prelude
+  )
+where
 
 import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO (..) )
+  ( MonadIO
+  , MonadUnliftIO (..)
+  )
 import UnliftIO.Environment
-    ( getEnvironment, setEnv, unsetEnv )
+  ( getEnvironment
+  , setEnv
+  , unsetEnv
+  )
 import UnliftIO.Exception
-    ( bracket )
+  ( bracket
+  )
+import Prelude
 
 -- | Runs an IO action with exactly the given environment variables.
 -- After the action finishes, the original environment variables are restored.
@@ -36,14 +41,14 @@ withAddedEnv = withEnv' (const $ pure ())
 
 -- | Runs an action with the given environment variables set.
 withEnv'
-    :: MonadUnliftIO m
-    => ([(String, String)] -> m ())
-    -- ^ Prepare environment function - given the current environment.
-    -> [(String, String)]
-    -- ^ Environment variables to set.
-    -> m a
-    -- ^ Action to run with environment variables set.
-    -> m a
+  :: MonadUnliftIO m
+  => ([(String, String)] -> m ())
+  -- ^ Prepare environment function - given the current environment.
+  -> [(String, String)]
+  -- ^ Environment variables to set.
+  -> m a
+  -- ^ Action to run with environment variables set.
+  -> m a
 withEnv' prepare env = bracket getEnvironment resetEnvironment . run
   where
     resetEnvironment pre = clearEnv >> setEnvs pre

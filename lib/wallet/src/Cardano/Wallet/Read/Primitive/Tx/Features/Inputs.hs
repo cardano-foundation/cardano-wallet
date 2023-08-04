@@ -1,38 +1,47 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs
-    , fromByronTxIn
-    , fromShelleyTxIns
-    , fromShelleyTxIn
-    )
-    where
+  ( getInputs
+  , fromByronTxIn
+  , fromShelleyTxIns
+  , fromShelleyTxIn
+  )
+where
 
+import Cardano.Chain.UTxO qualified as BY
+import Cardano.Crypto.Hashing qualified as CC
+import Cardano.Ledger.BaseTypes qualified as SL
+import Cardano.Ledger.Shelley.API qualified as SH
+import Cardano.Ledger.TxIn qualified as SL
+import Cardano.Wallet.Primitive.Types.Hash qualified as W
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+  ( TxIn (..)
+  )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn qualified as W
+import Cardano.Wallet.Read.Eras
+  ( EraFun (..)
+  , K (..)
+  )
+import Cardano.Wallet.Read.Tx.Hash
+  ( fromShelleyTxId
+  )
+import Cardano.Wallet.Read.Tx.Inputs
+  ( Inputs (..)
+  , InputsType
+  )
+import Data.Foldable
+  ( toList
+  )
+import Data.Word
+  ( Word16
+  , Word32
+  , Word64
+  )
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
-import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
-import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId )
-import Cardano.Wallet.Read.Tx.Inputs
-    ( Inputs (..), InputsType )
-import Data.Foldable
-    ( toList )
-import Data.Word
-    ( Word16, Word32, Word64 )
-
-import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Crypto.Hashing as CC
-import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Shelley.API as SH
-import qualified Cardano.Ledger.TxIn as SL
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-
 getInputs :: EraFun Inputs (K [W.TxIn])
-getInputs = EraFun
+getInputs =
+  EraFun
     { byronFun = \(Inputs ins) -> K . fmap fromByronTxIn $ toList ins
     , shelleyFun = mkShelleyTxInputsIns
     , allegraFun = mkShelleyTxInputsIns
@@ -45,22 +54,24 @@ getInputs = EraFun
 fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> K [W.TxIn] b
 fromShelleyTxIns ins = K . fmap fromShelleyTxIn $ toList ins
 
-mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
-    => Inputs era -- ^
+mkShelleyTxInputsIns
+  :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
+  => Inputs era
   -> K [W.TxIn] b
 mkShelleyTxInputsIns (Inputs ins) = fromShelleyTxIns ins
 
 fromByronTxIn :: BY.TxIn -> W.TxIn
-fromByronTxIn (BY.TxInUtxo id_ ix) = W.TxIn
+fromByronTxIn (BY.TxInUtxo id_ ix) =
+  W.TxIn
     { inputId = W.Hash $ CC.hashToBytes id_
     , inputIx = fromIntegral ix
     }
 
 fromShelleyTxIn
-    :: SL.TxIn crypto
-    -> W.TxIn
+  :: SL.TxIn crypto
+  -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
-    W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
+  W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
   where
     -- During the Vasil hard-fork the cardano-ledger team moved from
     -- representing transaction indices with Word16s, to using Word64s (see
@@ -70,6 +81,6 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     -- reflect that here.
     unsafeCast :: Word64 -> Word32
     unsafeCast txIx =
-        if txIx > fromIntegral (maxBound :: Word16)
+      if txIx > fromIntegral (maxBound :: Word16)
         then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
         else fromIntegral txIx

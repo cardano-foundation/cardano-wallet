@@ -7,51 +7,71 @@
 --
 -- 'Store' for 'WalletState'.
 module Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet
-    )
-    where
-
-import Prelude
+  ( mkStoreWallet
+  )
+where
 
 import Cardano.Wallet.DB.Errors
-    ( ErrBadFormat (..) )
+  ( ErrBadFormat (..)
+  )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..), mkStoreCheckpoints )
+  ( PersistAddressBook (..)
+  , mkStoreCheckpoints
+  )
 import Cardano.Wallet.DB.Store.Delegations.Store
-    ( mkStoreDelegations )
+  ( mkStoreDelegations
+  )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( mkStoreInfo )
+  ( mkStoreInfo
+  )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( mkStorePrivateKey )
+  ( mkStorePrivateKey
+  )
 import Cardano.Wallet.DB.Store.Rewards.Store
-    ( mkStoreRewards )
+  ( mkStoreRewards
+  )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( mkStoreSubmissions )
+  ( mkStoreSubmissions
+  )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState, DeltaWalletState1 (..), WalletState (..) )
+  ( DeltaWalletState
+  , DeltaWalletState1 (..)
+  , WalletState (..)
+  )
 import Cardano.Wallet.Flavor
-    ( WalletFlavorS, keyOfWallet )
+  ( WalletFlavorS
+  , keyOfWallet
+  )
+import Cardano.Wallet.Primitive.Types qualified as W
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+  ( throwIO
+  )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+  ( (^.)
+  )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore, updateLoad, updateSequence )
+  ( Store (..)
+  , UpdateStore
+  , mkUpdateStore
+  , updateLoad
+  , updateSequence
+  )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+  ( SqlPersistT
+  )
 import UnliftIO.Exception
-    ( toException )
-
-import qualified Cardano.Wallet.Primitive.Types as W
+  ( toException
+  )
+import Prelude
 
 -- | Store for 'WalletState' of a single wallet. This is a composite store
 -- which stores all the sub-stores for the various components of the wallet.
 -- TODO: Remove the WalletId parameter as we are storing on a per-wallet basis.
 mkStoreWallet
-    :: PersistAddressBook s
-    => WalletFlavorS s
-    -> W.WalletId
-    -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
+  :: PersistAddressBook s
+  => WalletFlavorS s
+  -> W.WalletId
+  -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
 mkStoreWallet wF wid = mkUpdateStore load write update
   where
     checkpointsStore = mkStoreCheckpoints wid
@@ -62,49 +82,49 @@ mkStoreWallet wF wid = mkUpdateStore load write update
     rewardsStore = mkStoreRewards wid
 
     load = do
-        eprologue <-
-            maybe (Left $ toException ErrBadFormatAddressPrologue) Right
-                <$> loadPrologue wid
-        echeckpoints <- loadS checkpointsStore
-        esubmissions <- loadS submissionsStore
-        einfo <- loadS infoStore
-        ecredentials <- loadS pkStore
-        edelegations <- loadS delegationsStore
-        erewards <- loadS rewardsStore
-        pure
-            $ WalletState
-                <$> eprologue
-                <*> echeckpoints
-                <*> esubmissions
-                <*> einfo
-                <*> ecredentials
-                <*> edelegations
-                <*> erewards
+      eprologue <-
+        maybe (Left $ toException ErrBadFormatAddressPrologue) Right
+          <$> loadPrologue wid
+      echeckpoints <- loadS checkpointsStore
+      esubmissions <- loadS submissionsStore
+      einfo <- loadS infoStore
+      ecredentials <- loadS pkStore
+      edelegations <- loadS delegationsStore
+      erewards <- loadS rewardsStore
+      pure
+        $ WalletState
+          <$> eprologue
+          <*> echeckpoints
+          <*> esubmissions
+          <*> einfo
+          <*> ecredentials
+          <*> edelegations
+          <*> erewards
 
     write wallet = do
-        writeS infoStore (wallet ^. #info)
-        insertPrologue wid (wallet ^. #prologue)
-        writeS checkpointsStore (wallet ^. #checkpoints)
-        writeS submissionsStore (wallet ^. #submissions)
-        writeS pkStore (wallet ^. #credentials)
-        writeS delegationsStore (wallet ^. #delegations)
+      writeS infoStore (wallet ^. #info)
+      insertPrologue wid (wallet ^. #prologue)
+      writeS checkpointsStore (wallet ^. #checkpoints)
+      writeS submissionsStore (wallet ^. #submissions)
+      writeS pkStore (wallet ^. #credentials)
+      writeS delegationsStore (wallet ^. #delegations)
 
     update = updateLoad load throwIO $ updateSequence update1
       where
         update1 _ (ReplacePrologue prologue') = insertPrologue wid prologue'
         update1 s (UpdateCheckpoints delta) =
-            updateS checkpointsStore (Just $ checkpoints s) delta
+          updateS checkpointsStore (Just $ checkpoints s) delta
         update1 s (UpdateSubmissions deltas) =
-            updateSequence
-                (updateS submissionsStore . Just)
-                (submissions s)
-                deltas
+          updateSequence
+            (updateS submissionsStore . Just)
+            (submissions s)
+            deltas
         update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
         update1 _ (UpdateCredentials delta) = do
-            updateS pkStore Nothing delta
+          updateS pkStore Nothing delta
         update1 s (UpdateDelegations deltas) = do
-            updateSequence
-                (updateS delegationsStore . Just)
-                (delegations s)
-                deltas
+          updateSequence
+            (updateS delegationsStore . Just)
+            (delegations s)
+            deltas
         update1 _ (UpdateRewards delta) = updateS rewardsStore Nothing delta

@@ -1,17 +1,18 @@
 module Data.Text.Class.Extended
-    ( module Data.Text.Class
-    , fromText'
-    ) where
-
-import Data.Text.Class
-import Prelude
+  ( module Data.Text.Class
+  , fromText'
+  )
+where
 
 import Data.Bifunctor
-    ( first )
+  ( first
+  )
 import Data.Text
-    ( Text )
-
-import qualified Data.Text as T
+  ( Text
+  )
+import Data.Text qualified as T
+import Data.Text.Class
+import Prelude
 
 -- | 'fromText' but with a simpler error type.
 fromText' :: FromText a => Text -> Either Text a
