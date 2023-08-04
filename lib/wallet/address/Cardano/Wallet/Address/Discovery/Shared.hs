@@ -129,8 +129,6 @@ import Fmt
     ( Buildable (..), blockListF', indentF )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import Type.Reflection
     ( Typeable )
 
