@@ -6,36 +6,42 @@
 -- License: Apache-2.0
 --
 -- This module defines the 'TxIn' type.
---
 module Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..)
-    ) where
-
-import Prelude
+  ( TxIn (..)
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Control.DeepSeq
-    ( NFData (..) )
+  ( NFData (..)
+  )
 import Data.Word
-    ( Word32 )
+  ( Word32
+  )
 import Fmt
-    ( Buildable (..), ordinalF )
+  ( Buildable (..)
+  , ordinalF
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
+import Prelude
 
 data TxIn = TxIn
-    { inputId
-        :: !(Hash "Tx")
-    , inputIx
-        :: !Word32
-    }
-    deriving (Read, Show, Generic, Eq, Ord)
+  { inputId
+      :: !(Hash "Tx")
+  , inputIx
+      :: !Word32
+  }
+  deriving (Read, Show, Generic, Eq, Ord)
 
 instance NFData TxIn
 
 instance Buildable TxIn where
-    build txin = mempty
-        <> ordinalF (inputIx txin + 1)
-        <> " "
-        <> build (inputId txin)
+  build txin =
+    mempty
+      <> ordinalF (inputIx txin + 1)
+      <> " "
+      <> build (inputId txin)

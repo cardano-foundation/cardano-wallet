@@ -2,19 +2,18 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 -- Portability: Windows
---
-
 module Cardano.Startup.Windows
-    ( installSignalHandlers
-    , setDefaultFilePermissions
-    , restrictFileMode
-    , killProcess
-    ) where
-
-import Prelude
+  ( installSignalHandlers
+  , setDefaultFilePermissions
+  , restrictFileMode
+  , killProcess
+  )
+where
 
 import System.Process
-    ( Pid )
+  ( Pid
+  )
+import Prelude
 
 -- | Stub function for windows.
 installSignalHandlers :: IO () -> IO ()

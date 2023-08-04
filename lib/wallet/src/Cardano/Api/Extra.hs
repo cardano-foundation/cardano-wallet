@@ -8,21 +8,22 @@
 --
 -- Module containing extra 'Cardano.Api' functionality needed by the wallet.
 module Cardano.Api.Extra
-    ( inAnyCardanoEra
-    , unbundleLedgerShelleyBasedProtocolParams
-    ) where
+  ( inAnyCardanoEra
+  , unbundleLedgerShelleyBasedProtocolParams
+  )
+where
 
 import Cardano.Api
-    ( BundledProtocolParameters (..)
-    , InAnyCardanoEra (..)
-    , IsCardanoEra (cardanoEra)
-    , ShelleyBasedEra (..)
-    , Tx
-    )
+  ( BundledProtocolParameters (..)
+  , InAnyCardanoEra (..)
+  , IsCardanoEra (cardanoEra)
+  , ShelleyBasedEra (..)
+  , Tx
+  )
 import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
-
-import qualified Cardano.Ledger.Core as Ledger
+  ( ShelleyLedgerEra
+  )
+import Cardano.Ledger.Core qualified as Ledger
 
 -- | Helper function for more easily creating an existential
 -- @InAnyCardanoEra Tx@.

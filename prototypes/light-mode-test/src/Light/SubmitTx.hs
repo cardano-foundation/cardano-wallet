@@ -1,6 +1,6 @@
 module Light.SubmitTx where
 
-import qualified Blockfrost.Client as BF
+import Blockfrost.Client qualified as BF
 
 -- | yes
 type SealedTx = BF.CBORString

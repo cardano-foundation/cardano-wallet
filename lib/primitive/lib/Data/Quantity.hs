@@ -16,65 +16,85 @@
 -- Representation of values with an associated (free) unit of measure. Useful to
 -- disambiguate primitive types like 'Int' or 'String' which can be in different
 -- bases depending on the context.
-
 module Data.Quantity
-    ( -- * Polymorphic Quantity
-      Quantity(..)
+  ( -- * Polymorphic Quantity
+    Quantity (..)
 
-      -- * Percentage
-    , Percentage
-    , MkPercentageError(..)
-    , mkPercentage
-    , getPercentage
-    , clipToPercentage
-    , complementPercentage
-    , percentageToDouble
-    ) where
-
-import Prelude
+    -- * Percentage
+  , Percentage
+  , MkPercentageError (..)
+  , mkPercentage
+  , getPercentage
+  , clipToPercentage
+  , complementPercentage
+  , percentageToDouble
+  )
+where
 
 import Control.Arrow
-    ( left )
+  ( left
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Control.Monad
-    ( unless )
+  ( unless
+  )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , Value (String)
-    , object
-    , withObject
-    , withScientific
-    , (.:)
-    , (.=)
-    )
+  ( FromJSON (..)
+  , ToJSON (..)
+  , Value (String)
+  , object
+  , withObject
+  , withScientific
+  , (.:)
+  , (.=)
+  )
 import Data.Aeson.Types
-    ( Parser )
+  ( Parser
+  )
 import Data.Data
-    ( Data )
+  ( Data
+  )
 import Data.Hashable
-    ( Hashable )
+  ( Hashable
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import Data.Scientific
-    ( FPFormat (Fixed), Scientific (..), formatScientific )
+  ( FPFormat (Fixed)
+  , Scientific (..)
+  , formatScientific
+  )
+import Data.Text qualified as T
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+  ( FromText (..)
+  , TextDecodingError (..)
+  , ToText (..)
+  )
 import Data.Text.Read
-    ( rational )
+  ( rational
+  )
 import Fmt
-    ( Buildable (..), fmt )
+  ( Buildable (..)
+  , fmt
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+  ( KnownSymbol
+  , Symbol
+  , symbolVal
+  )
 import NoThunks.Class
-    ( NoThunks (..) )
+  ( NoThunks (..)
+  )
 import Quiet
-    ( Quiet (..) )
-
-import qualified Data.Text as T
+  ( Quiet (..)
+  )
+import Prelude
 
 -- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
 --
@@ -99,50 +119,55 @@ import qualified Data.Text as T
 --
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
-    deriving stock (Data, Generic, Eq, Ord)
-    deriving newtype (Bounded, Enum, Hashable)
-    deriving Show via (Quiet (Quantity unit a))
+newtype Quantity (unit :: Symbol) a = Quantity {getQuantity :: a}
+  deriving stock (Data, Generic, Eq, Ord)
+  deriving newtype (Bounded, Enum, Hashable)
+  deriving (Show) via (Quiet (Quantity unit a))
 
 instance NoThunks a => NoThunks (Quantity unit a)
 
 instance Functor (Quantity any) where
-    fmap f (Quantity a) = Quantity (f a)
+  fmap f (Quantity a) = Quantity (f a)
 
 instance NFData a => NFData (Quantity unit a)
 
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
-    toJSON (Quantity a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy unit)
-        , "quantity" .= toJSON a
-        ]
+  toJSON (Quantity a) =
+    object
+      [ "unit" .= symbolVal (Proxy :: Proxy unit)
+      , "quantity" .= toJSON a
+      ]
 
 instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
-    parseJSON = withObject "Quantity" $ \o -> do
-        verifyUnit (Proxy :: Proxy unit) =<< o .: "unit"
-        Quantity <$> o .: "quantity"
-      where
-        verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
-        verifyUnit proxy = \case
-            String u' | u' == T.pack u -> pure ()
-            _ -> fail $
-                "failed to parse quantified value. Expected value in '" <> u
-                <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ... })"
-                <> " but got something else."
-          where
-            u = symbolVal proxy
+  parseJSON = withObject "Quantity" $ \o -> do
+    verifyUnit (Proxy :: Proxy unit) =<< o .: "unit"
+    Quantity <$> o .: "quantity"
+    where
+      verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
+      verifyUnit proxy = \case
+        String u' | u' == T.pack u -> pure ()
+        _ ->
+          fail
+            $ "failed to parse quantified value. Expected value in '"
+              <> u
+              <> "' (e.g. { \"unit\": \""
+              <> u
+              <> "\", \"quantity\": ... })"
+              <> " but got something else."
+        where
+          u = symbolVal proxy
 
 instance FromText b => FromText (Quantity sym b) where
-    fromText = fmap Quantity . fromText
+  fromText = fmap Quantity . fromText
 
 instance ToText b => ToText (Quantity sym b) where
-    toText (Quantity b) = toText b
+  toText (Quantity b) = toText b
 
 -- Builds (Quantity "lovelace" Word64) as "42 lovelace"
 instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
-    build (Quantity a) = build a <> fmt " " <> build u
-      where
-        u = symbolVal (Proxy :: Proxy unit)
+  build (Quantity a) = build a <> fmt " " <> build u
+    where
+      u = symbolVal (Proxy :: Proxy unit)
 
 {-------------------------------------------------------------------------------
                                 Percentage
@@ -150,74 +175,76 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { getPercentage :: Rational }
-    deriving stock (Generic, Eq, Ord)
-    deriving Show via (Quiet Percentage)
+  {getPercentage :: Rational}
+  deriving stock (Generic, Eq, Ord)
+  deriving (Show) via (Quiet Percentage)
 
 instance NoThunks Percentage
 
 instance NFData Percentage
 
 instance Buildable Percentage where
-    build = build . toText
+  build = build . toText
 
 instance ToJSON Percentage where
-    toJSON =
-        toJSON
-        . rationalToToScientific percentageNumberOfFractionalDigits
-        . (* 100)
-        . getPercentage
+  toJSON =
+    toJSON
+      . rationalToToScientific percentageNumberOfFractionalDigits
+      . (* 100)
+      . getPercentage
 
 instance FromJSON Percentage where
-    parseJSON = withScientific "Percentage [0,100]" $ \s ->
-        either (fail . show) return
-        . mkPercentage
-        . toRational
-        $ (s / 100)
+  parseJSON = withScientific "Percentage [0,100]" $ \s ->
+    either (fail . show) return
+      . mkPercentage
+      . toRational
+      $ (s / 100)
 
 instance Bounded Percentage where
-    minBound = Percentage 0
-    maxBound = Percentage 1
+  minBound = Percentage 0
+  maxBound = Percentage 1
 
 instance ToText Percentage where
-    toText =
-        (<> "%")
-        . T.pack
-        . showS
-        . rationalToToScientific percentageNumberOfFractionalDigits
-        . (* 100)
-        . getPercentage
-      where
-        showS = formatScientific
-            Fixed
-            (Just percentageNumberOfFractionalDigits)
+  toText =
+    (<> "%")
+      . T.pack
+      . showS
+      . rationalToToScientific percentageNumberOfFractionalDigits
+      . (* 100)
+      . getPercentage
+    where
+      showS =
+        formatScientific
+          Fixed
+          (Just percentageNumberOfFractionalDigits)
 
 instance FromText Percentage where
-    fromText txt = do
-        (p, u) <- left (const err) $ rational txt
-        unless (u == "%") $ Left err
-        left (const err) . mkPercentage $ (p / 100)
-      where
-        err = TextDecodingError
-            "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
+  fromText txt = do
+    (p, u) <- left (const err) $ rational txt
+    unless (u == "%") $ Left err
+    left (const err) . mkPercentage $ (p / 100)
+    where
+      err =
+        TextDecodingError
+          "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 -- | Safe constructor for 'Percentage'
 --
 -- Takes an input in the range [0, 1].
 mkPercentage
-    :: Rational
-    -> Either MkPercentageError Percentage
+  :: Rational
+  -> Either MkPercentageError Percentage
 mkPercentage r
-    | r < 0 =
-        Left PercentageOutOfBoundsError
-    | r > 1 =
-        Left PercentageOutOfBoundsError
-    | otherwise =
-        pure . Percentage $ r
+  | r < 0 =
+      Left PercentageOutOfBoundsError
+  | r > 1 =
+      Left PercentageOutOfBoundsError
+  | otherwise =
+      pure . Percentage $ r
 
 data MkPercentageError
-    = PercentageOutOfBoundsError
-    deriving (Show, Eq)
+  = PercentageOutOfBoundsError
+  deriving (Show, Eq)
 
 -- | Safe way to make a 'Percentage' by clipping values that are
 -- out of bounds.
@@ -228,7 +255,7 @@ clipToPercentage = Percentage . min 1 . max 0
 --
 -- Example: The 'complementPercentage' of 0.7 is 0.3.
 complementPercentage :: Percentage -> Percentage
-complementPercentage (Percentage p) = Percentage (1-p)
+complementPercentage (Percentage p) = Percentage (1 - p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.

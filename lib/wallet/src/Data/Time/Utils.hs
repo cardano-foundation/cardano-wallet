@@ -3,16 +3,17 @@
 -- License: Apache-2.0
 --
 -- Utility functions for manipulating time values.
-
 module Data.Time.Utils
-    ( utcTimePred
-    , utcTimeSucc
-    ) where
-
-import Prelude
+  ( utcTimePred
+  , utcTimeSucc
+  )
+where
 
 import Data.Time
-    ( UTCTime, addUTCTime )
+  ( UTCTime
+  , addUTCTime
+  )
+import Prelude
 
 -- | For a given time 't0', get the closest representable time 't1' to 't0'
 --   for which 't0 < t1'.

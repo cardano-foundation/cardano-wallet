@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 -- |
@@ -6,32 +7,34 @@
 -- License: Apache-2.0
 --
 -- Computing minimum UTxO values: internal interface.
---
 module Cardano.Wallet.Shelley.MinimumUTxO.Internal
-    ( computeMinimumCoinForUTxO_CardanoLedger
-    ) where
+  ( computeMinimumCoinForUTxO_CardanoLedger
+  )
+where
 
-import Prelude
-
+import Cardano.Api.Shelley qualified as Cardano
 import Cardano.Ledger.Api
-    ( getMinCoinTxOut )
+  ( getMinCoinTxOut
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+  ( Coin
+  )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxOForShelleyBasedEra (..) )
+  ( MinimumUTxOForShelleyBasedEra (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+  ( TxOut
+  )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toAllegraTxOut
-    , toAlonzoTxOut
-    , toBabbageTxOut
-    , toConwayTxOut
-    , toMaryTxOut
-    , toShelleyTxOut
-    , toWalletCoin
-    )
-
-import qualified Cardano.Api.Shelley as Cardano
+  ( toAllegraTxOut
+  , toAlonzoTxOut
+  , toBabbageTxOut
+  , toConwayTxOut
+  , toMaryTxOut
+  , toShelleyTxOut
+  , toWalletCoin
+  )
+import Prelude
 
 -- | Computes a minimum UTxO value with Cardano Ledger.
 --
@@ -40,22 +43,22 @@ import qualified Cardano.Api.Shelley as Cardano
 -- This function does /not/ attempt to reach a fixed point before returning its
 -- result.
 computeMinimumCoinForUTxO_CardanoLedger
-    :: MinimumUTxOForShelleyBasedEra
-    -> TxOut
-    -> Coin
+  :: MinimumUTxOForShelleyBasedEra
+  -> TxOut
+  -> Coin
 computeMinimumCoinForUTxO_CardanoLedger
-    (MinimumUTxOForShelleyBasedEra era pp)
-    txOut =
-        toWalletCoin $ case era of
-            Cardano.ShelleyBasedEraShelley ->
-                getMinCoinTxOut pp $ toShelleyTxOut txOut
-            Cardano.ShelleyBasedEraAllegra ->
-                getMinCoinTxOut pp $ toAllegraTxOut txOut
-            Cardano.ShelleyBasedEraMary ->
-                getMinCoinTxOut pp $ toMaryTxOut txOut
-            Cardano.ShelleyBasedEraAlonzo ->
-                getMinCoinTxOut pp $ toAlonzoTxOut txOut
-            Cardano.ShelleyBasedEraBabbage ->
-                getMinCoinTxOut pp $ toBabbageTxOut txOut
-            Cardano.ShelleyBasedEraConway ->
-                getMinCoinTxOut pp $ toConwayTxOut txOut
+  (MinimumUTxOForShelleyBasedEra era pp)
+  txOut =
+    toWalletCoin $ case era of
+      Cardano.ShelleyBasedEraShelley ->
+        getMinCoinTxOut pp $ toShelleyTxOut txOut
+      Cardano.ShelleyBasedEraAllegra ->
+        getMinCoinTxOut pp $ toAllegraTxOut txOut
+      Cardano.ShelleyBasedEraMary ->
+        getMinCoinTxOut pp $ toMaryTxOut txOut
+      Cardano.ShelleyBasedEraAlonzo ->
+        getMinCoinTxOut pp $ toAlonzoTxOut txOut
+      Cardano.ShelleyBasedEraBabbage ->
+        getMinCoinTxOut pp $ toBabbageTxOut txOut
+      Cardano.ShelleyBasedEraConway ->
+        getMinCoinTxOut pp $ toConwayTxOut txOut

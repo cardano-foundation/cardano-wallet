@@ -6,31 +6,33 @@
 --
 -- Data types that represents a history of delegations and its changes.
 module Cardano.Wallet.Delegation.Model
-    ( Operation (..)
-    , slotOf
-    , Status (..)
-    , History
-    , status
-    ) where
-
-import Prelude
+  ( Operation (..)
+  , slotOf
+  , Status (..)
+  , History
+  , status
+  )
+where
 
 import Data.Delta
-    ( Delta (..) )
+  ( Delta (..)
+  )
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Map.Strict
-    ( Map )
-
-import qualified Data.Map.Strict as Map
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
+import Prelude
 
 -- | Delta type for the delegation 'History'.
 data Operation slot pool
-    = Register slot
-    | Deregister slot
-    | Delegate pool slot
-    | Rollback slot
-    deriving (Show)
+  = Register slot
+  | Deregister slot
+  | Delegate pool slot
+  | Rollback slot
+  deriving (Show)
 
 -- | Target slot of each 'Operation'.
 slotOf :: Operation slot pool -> slot
@@ -41,19 +43,19 @@ slotOf (Rollback x) = x
 
 -- | Valid state for the delegations, independent of time.
 data Status pool = Inactive | Registered | Active pool
-    deriving (Show, Eq)
+  deriving (Show, Eq)
 
 -- | Delegation history implementation.
 type History slot pool = Map slot (Status pool)
 
 instance (Ord slot, Eq pool) => Delta (Operation slot pool) where
-    type Base (Operation slot pool) = History slot pool
-    apply r hist = hist' & if miss == wanted then id else Map.insert slot wanted
-      where
-        slot = slotOf r
-        hist' = cut (< slot) hist
-        miss = status slot hist'
-        wanted = transition r $ status slot hist
+  type Base (Operation slot pool) = History slot pool
+  apply r hist = hist' & if miss == wanted then id else Map.insert slot wanted
+    where
+      slot = slotOf r
+      hist' = cut (< slot) hist
+      miss = status slot hist'
+      wanted = transition r $ status slot hist
 
 transition :: Operation slot pool -> Status pool -> Status pool
 transition (Register _) Inactive = Registered

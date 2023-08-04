@@ -6,26 +6,38 @@
 -- License: Apache-2.0
 --
 -- A helper function for using the bracket pattern in code.
---
-
 module Test.Utils.Resource
-    ( unBracket
-    ) where
-
-import Prelude
+  ( unBracket
+  )
+where
 
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+  ( MonadUnliftIO
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
 import UnliftIO.Async
-    ( async, race, waitCatch )
+  ( async
+  , race
+  , waitCatch
+  )
 import UnliftIO.Exception
-    ( finally, throwIO, throwString )
-import UnliftIO.Memoize
-    ( memoizeMVar, runMemoized )
+  ( finally
+  , throwIO
+  , throwString
+  )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+  ( MVar
+  , newEmptyMVar
+  , putMVar
+  , takeMVar
+  )
+import UnliftIO.Memoize
+  ( memoizeMVar
+  , runMemoized
+  )
+import Prelude
 
 -- | Decompose a bracket pattern resource acquisition function into two separate
 -- functions: "allocate" and "release".
@@ -68,33 +80,33 @@ import UnliftIO.MVar
 --          |                       Exit
 --          |
 --         Exit
---
 unBracket
-    :: forall m a. (HasCallStack, MonadUnliftIO m)
-    => ((a -> m ()) -> m ())
-    -> m (m a, m ())
+  :: forall m a
+   . (HasCallStack, MonadUnliftIO m)
+  => ((a -> m ()) -> m ())
+  -> m (m a, m ())
 unBracket withResource = do
-    allocated <- newEmptyMVar
-    released  <- newEmptyMVar
-    done      <- newEmptyMVar
+  allocated <- newEmptyMVar
+  released <- newEmptyMVar
+  done <- newEmptyMVar
 
-    let cont a = do
-            putMVar allocated a
-            await released
+  let
+    cont a = do
+      putMVar allocated a
+      await released
 
-    release <- memoizeMVar $ do
-        unlock released
-        await done
+  release <- memoizeMVar $ do
+    unlock released
+    await done
 
-    allocate <- memoizeMVar $ do
-        pid <- async $ withResource cont `finally` unlock done
-        race (waitCatch pid) (takeMVar allocated) >>= \case
-            Left (Left e) -> throwIO e
-            Left (Right ()) -> throwString "aroundAll: failed to setup"
-            Right a -> pure a
+  allocate <- memoizeMVar $ do
+    pid <- async $ withResource cont `finally` unlock done
+    race (waitCatch pid) (takeMVar allocated) >>= \case
+      Left (Left e) -> throwIO e
+      Left (Right ()) -> throwString "aroundAll: failed to setup"
+      Right a -> pure a
 
-    pure (runMemoized allocate, runMemoized release)
-
+  pure (runMemoized allocate, runMemoized release)
   where
     await :: MVar () -> m ()
     await = takeMVar

@@ -1,24 +1,29 @@
 {-# LANGUAGE DerivingVia #-}
 
 module Cardano.Wallet.Api.Aeson
-    ( eitherToParser
-    , toTextJSON
-    , fromTextJSON
-    )
-    where
-
-import Prelude
+  ( eitherToParser
+  , toTextJSON
+  , fromTextJSON
+  )
+where
 
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+  ( ShowFmt (..)
+  )
 import Data.Aeson
-    ( ToJSON (..), Value, withText )
+  ( ToJSON (..)
+  , Value
+  , withText
+  )
+import Data.Aeson.Types qualified as Aeson
 import Data.Bifunctor
-    ( Bifunctor (..) )
+  ( Bifunctor (..)
+  )
 import Data.Text.Class
-    ( FromText (..), ToText (toText) )
-
-import qualified Data.Aeson.Types as Aeson
+  ( FromText (..)
+  , ToText (toText)
+  )
+import Prelude
 
 eitherToParser :: Show s => Either s a -> Aeson.Parser a
 eitherToParser = either (fail . show) pure
@@ -27,4 +32,4 @@ toTextJSON :: ToText a => a -> Value
 toTextJSON = toJSON . toText
 
 fromTextJSON :: FromText a => String -> Value -> Aeson.Parser a
-fromTextJSON n = withText n (eitherToParser . first ShowFmt  . fromText)
+fromTextJSON n = withText n (eitherToParser . first ShowFmt . fromText)

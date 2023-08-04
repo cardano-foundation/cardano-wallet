@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+
 {- HLINT ignore "Use &&" -}
 
 -- |
@@ -21,130 +22,143 @@
 -- set.
 --
 -- See the documentation for 'UTxOIndex' for more details.
---
 module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-    (
-    ----------------------------------------------------------------------------
+  ( ----------------------------------------------------------------------------
     -- Public Interface
     ----------------------------------------------------------------------------
 
     -- * Type
 
-      -- Important:
-      --
-      -- The default data constructor for 'UTxOIndex' is not exported, by
-      -- design, as the internal data structure has an invariant that must
-      -- be preserved across all operations.
-      --
-      -- See the 'checkInvariant' function for more details.
-      --
-      UTxOIndex
+  -- Important:
+  --
+  -- The default data constructor for 'UTxOIndex' is not exported, by
+  -- design, as the internal data structure has an invariant that must
+  -- be preserved across all operations.
+  --
+  -- See the 'checkInvariant' function for more details.
+  --
+    UTxOIndex
 
     -- * Construction
-    , empty
-    , singleton
-    , fromSequence
-    , fromMap
+  , empty
+  , singleton
+  , fromSequence
+  , fromMap
 
     -- * Deconstruction
-    , toList
-    , toMap
+  , toList
+  , toMap
 
     -- * Folding
-    , fold
+  , fold
 
     -- * Modification
-    , insert
-    , insertMany
-    , delete
-    , deleteMany
+  , insert
+  , insertMany
+  , delete
+  , deleteMany
 
     -- * Filtering and partitioning
-    , filter
-    , partition
+  , filter
+  , partition
 
     -- * Queries
-    , assets
-    , balance
-    , lookup
-    , member
-    , null
-    , size
+  , assets
+  , balance
+  , lookup
+  , member
+  , null
+  , size
 
     -- * Set operations
-    , difference
-    , disjoint
+  , difference
+  , disjoint
 
     -- * Selection
-    , SelectionFilter (..)
-    , selectRandom
-    , selectRandomWithPriority
-
-    ----------------------------------------------------------------------------
-    -- Internal Interface
-    ----------------------------------------------------------------------------
+  , SelectionFilter (..)
+  , selectRandom
+  , selectRandomWithPriority
+  ----------------------------------------------------------------------------
+  -- Internal Interface
+  ----------------------------------------------------------------------------
 
     -- * Assets
-    , Asset (..)
-    , tokenBundleAssets
-    , tokenBundleAssetCount
-    , tokenBundleHasAsset
+  , Asset (..)
+  , tokenBundleAssets
+  , tokenBundleAssetCount
+  , tokenBundleHasAsset
 
     -- * Token bundle categorization
-    , BundleCategory (..)
-    , categorizeTokenBundle
+  , BundleCategory (..)
+  , categorizeTokenBundle
 
     -- * Utilities
-    , selectRandomSetMember
+  , selectRandomSetMember
 
     -- * Invariant
-    , InvariantStatus (..)
-    , checkInvariant
-
-    ) where
-
-import Prelude hiding
-    ( filter, lookup, null )
+  , InvariantStatus (..)
+  , checkInvariant
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+  ( TokenBundle
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+  ( AssetId
+  )
+import Cardano.Wallet.Primitive.Types.TokenMap qualified as TokenMap
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Control.Monad.Extra
-    ( firstJustM )
+  ( firstJustM
+  )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+  ( MonadRandom (..)
+  )
 import Data.Bifunctor
-    ( bimap )
+  ( bimap
+  )
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( over )
+  ( over
+  )
 import Data.Generics.Labels
-    ()
+  (
+  )
+import Data.List qualified as L
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict
-    ( Map )
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
 import Data.Maybe
-    ( isJust )
+  ( isJust
+  )
 import Data.MonoidMap
-    ( MonoidMap )
+  ( MonoidMap
+  )
+import Data.MonoidMap qualified as MonoidMap
 import Data.Set
-    ( Set )
+  ( Set
+  )
+import Data.Set qualified as Set
 import GHC.Generics
-    ( Generic )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Data.Foldable as F
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.MonoidMap as MonoidMap
-import qualified Data.Set as Set
+  ( Generic
+  )
+import Prelude hiding
+  ( filter
+  , lookup
+  , null
+  )
 
 --------------------------------------------------------------------------------
 -- Public Interface
@@ -172,27 +186,26 @@ import qualified Data.Set as Set
 --
 -- The UTxO index data structure has an invariant that can be checked with
 -- the 'checkInvariant' function.
---
 data UTxOIndex u = UTxOIndex
-    { indexAll
-        :: !(MonoidMap Asset (Set u))
-        -- An index of all entries that contain the given asset.
-    , indexSingletons
-        :: !(MonoidMap Asset (Set u))
-        -- An index of all entries that contain the given asset and no other
-        -- assets.
-    , indexPairs
-        :: !(MonoidMap Asset (Set u))
-        -- An index of all entries that contain the given asset and exactly
-        -- one other asset.
-    , balance
-        :: !TokenBundle
-        -- The total balance of all entries.
-    , universe
-        :: !(Map u TokenBundle)
-        -- The complete set of all entries.
-    }
-    deriving (Eq, Generic, Read, Show)
+  { indexAll
+      :: !(MonoidMap Asset (Set u))
+  , -- An index of all entries that contain the given asset.
+    indexSingletons
+      :: !(MonoidMap Asset (Set u))
+  , -- An index of all entries that contain the given asset and no other
+    -- assets.
+    indexPairs
+      :: !(MonoidMap Asset (Set u))
+  , -- An index of all entries that contain the given asset and exactly
+    -- one other asset.
+    balance
+      :: !TokenBundle
+  , -- The total balance of all entries.
+    universe
+      :: !(Map u TokenBundle)
+      -- The complete set of all entries.
+  }
+  deriving (Eq, Generic, Read, Show)
 
 instance NFData u => NFData (UTxOIndex u)
 
@@ -201,9 +214,9 @@ instance NFData u => NFData (UTxOIndex u)
 --------------------------------------------------------------------------------
 
 -- | An index with no entries.
---
 empty :: UTxOIndex u
-empty = UTxOIndex
+empty =
+  UTxOIndex
     { indexAll = MonoidMap.empty
     , indexSingletons = MonoidMap.empty
     , indexPairs = MonoidMap.empty
@@ -212,7 +225,6 @@ empty = UTxOIndex
     }
 
 -- | Creates a singleton index from the specified UTxO identifier and value.
---
 singleton :: Ord u => u -> TokenBundle -> UTxOIndex u
 singleton u b = insertUnsafe u b empty
 
@@ -224,7 +236,6 @@ singleton u b = insertUnsafe u b empty
 -- If the given sequence contains more than one mapping for the same UTxO
 -- identifier, the mapping that appears latest in the sequence will take
 -- precedence, and all others will be ignored.
---
 fromSequence :: (Foldable f, Ord u) => f (u, TokenBundle) -> UTxOIndex u
 fromSequence = flip insertMany empty
 
@@ -238,7 +249,6 @@ fromSequence = flip insertMany empty
 -- @
 -- 'fromMap' ≡ 'fromSequence' . 'Map.toList'
 -- @
---
 fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
 fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 
@@ -249,14 +259,12 @@ fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 -- | Converts an index to a list of its constituent entries.
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
---
 toList :: UTxOIndex u -> [(u, TokenBundle)]
 toList = fold (\ubs u b -> (u, b) : ubs) []
 
 -- | Converts an index into a map.
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
---
 toMap :: UTxOIndex u -> Map u TokenBundle
 toMap = universe
 
@@ -265,7 +273,6 @@ toMap = universe
 --------------------------------------------------------------------------------
 
 -- | Folds strictly over the constituent entries of an index.
---
 fold :: (a -> u -> TokenBundle -> a) -> a -> UTxOIndex u -> a
 fold f a = Map.foldlWithKey' f a . universe
 
@@ -278,61 +285,61 @@ fold f a = Map.foldlWithKey' f a . universe
 -- If the index has an existing value for the specified UTxO identifier, the
 -- value referred to by that identifier will be replaced with the specified
 -- value.
---
 insert :: Ord u => u -> TokenBundle -> UTxOIndex u -> UTxOIndex u
 insert u b = insertUnsafe u b . delete u
 
 -- | Inserts multiple entries into an index.
 --
 -- See 'insert'.
---
 insertMany
-    :: (Foldable f, Ord u)
-    => f (u, TokenBundle)
-    -> UTxOIndex u
-    -> UTxOIndex u
+  :: (Foldable f, Ord u)
+  => f (u, TokenBundle)
+  -> UTxOIndex u
+  -> UTxOIndex u
 insertMany = flip $ F.foldl' $ \i (u, b) -> insert u b i
 
 -- | Deletes the entry corresponding to the given UTxO identifier.
 --
 -- If the index has no existing entry for the specified identifier, the result
 -- of applying this function will be equivalent to the identity function.
---
 delete :: forall u. Ord u => u -> UTxOIndex u -> UTxOIndex u
 delete u i =
-    maybe i updateIndex $ Map.lookup u $ universe i
+  maybe i updateIndex $ Map.lookup u $ universe i
   where
     updateIndex :: TokenBundle -> UTxOIndex u
-    updateIndex b = i
+    updateIndex b =
+      i
         -- This operation is safe, since we have already determined that the
         -- entry is a member of the index, and therefore the balance must be
         -- greater than or equal to the value of this output:
         & over #balance (`TokenBundle.difference` b)
         & over #universe (Map.delete u)
         & case categorizeTokenBundle b of
-            BundleWithNoAssets -> id
-            BundleWithOneAsset a -> id
-                . over #indexAll (`deleteEntry` a)
-                . over #indexSingletons (`deleteEntry` a)
-            BundleWithTwoAssets (a1, a2) -> id
-                . over #indexAll (`deleteEntry` a1)
-                . over #indexAll (`deleteEntry` a2)
-                . over #indexPairs (`deleteEntry` a1)
-                . over #indexPairs (`deleteEntry` a2)
-            BundleWithMultipleAssets as -> id
-                . over #indexAll (flip (F.foldl' deleteEntry) as)
+          BundleWithNoAssets -> id
+          BundleWithOneAsset a ->
+            id
+              . over #indexAll (`deleteEntry` a)
+              . over #indexSingletons (`deleteEntry` a)
+          BundleWithTwoAssets (a1, a2) ->
+            id
+              . over #indexAll (`deleteEntry` a1)
+              . over #indexAll (`deleteEntry` a2)
+              . over #indexPairs (`deleteEntry` a1)
+              . over #indexPairs (`deleteEntry` a2)
+          BundleWithMultipleAssets as ->
+            id
+              . over #indexAll (flip (F.foldl' deleteEntry) as)
 
     deleteEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
+      :: Ord asset
+      => MonoidMap asset (Set u)
+      -> asset
+      -> MonoidMap asset (Set u)
     deleteEntry m a = MonoidMap.adjust (Set.delete u) a m
 
 -- | Deletes multiple entries from an index.
 --
 -- See 'delete'.
---
 deleteMany :: (Foldable f, Ord u) => f u -> UTxOIndex u -> UTxOIndex u
 deleteMany = flip $ F.foldl' $ \i u -> delete u i
 
@@ -341,12 +348,10 @@ deleteMany = flip $ F.foldl' $ \i u -> delete u i
 --------------------------------------------------------------------------------
 
 -- | Filters an index.
---
 filter :: Ord u => (u -> Bool) -> UTxOIndex u -> UTxOIndex u
 filter f = fromSequence . L.filter (f . fst) . toList
 
 -- | Partitions an index.
---
 partition :: Ord u => (u -> Bool) -> UTxOIndex u -> (UTxOIndex u, UTxOIndex u)
 partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 
@@ -355,30 +360,25 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 --------------------------------------------------------------------------------
 
 -- | Returns the complete set of all assets contained in an index.
---
 assets :: UTxOIndex u -> Set Asset
 assets = MonoidMap.nonNullKeys . indexAll
 
 -- | Returns the value corresponding to the given UTxO identifier.
 --
 -- If the index has no such identifier, this function returns 'Nothing'.
---
 lookup :: Ord u => u -> UTxOIndex u -> Maybe TokenBundle
 lookup u = Map.lookup u . universe
 
 -- | Returns 'True' if (and only if) the index has an entry for the given UTxO
 --   identifier.
---
 member :: Ord u => u -> UTxOIndex u -> Bool
 member u = isJust . lookup u
 
 -- | Returns 'True' if (and only if) the index is empty.
---
 null :: UTxOIndex u -> Bool
 null = (== 0) . size
 
 -- | Returns the total number of UTxO entries held within the index.
---
 size :: UTxOIndex u -> Int
 size = Map.size . universe
 
@@ -390,19 +390,17 @@ size = Map.size . universe
 --
 -- This operation is fast if the intersection of the first and second indices
 -- is small relative to the size of the first index.
---
 difference :: Ord u => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
 difference a b
-    | disjoint a b = a
-    | otherwise = deleteMany keysToDelete a
+  | disjoint a b = a
+  | otherwise = deleteMany keysToDelete a
   where
     keysToDelete =
-        Set.intersection
-            (Map.keysSet (universe a))
-            (Map.keysSet (universe b))
+      Set.intersection
+        (Map.keysSet (universe a))
+        (Map.keysSet (universe b))
 
 -- | Indicates whether a pair of UTxO indices are disjoint.
---
 disjoint :: Ord u => UTxOIndex u -> UTxOIndex u -> Bool
 disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 
@@ -411,48 +409,47 @@ disjoint i1 i2 = universe i1 `Map.disjoint` universe i2
 --------------------------------------------------------------------------------
 
 -- | Specifies a filter for selecting UTxO entries.
---
 data SelectionFilter asset
-    = SelectSingleton asset
-      -- ^ Matches UTxOs that contain only the given asset and no other assets.
-    | SelectPairWith asset
-      -- ^ Matches UTxOs that contain the given asset and exactly one other
-      -- asset.
-    | SelectAnyWith asset
-      -- ^ Matches UTxOs that contain the given asset and any number of other
-      -- assets.
-    | SelectAny
-      -- ^ Matches all UTxOs regardless of what assets they contain.
-    deriving (Eq, Foldable, Functor, Show, Traversable)
+  = -- | Matches UTxOs that contain only the given asset and no other assets.
+    SelectSingleton asset
+  | -- | Matches UTxOs that contain the given asset and exactly one other
+    -- asset.
+    SelectPairWith asset
+  | -- | Matches UTxOs that contain the given asset and any number of other
+    -- assets.
+    SelectAnyWith asset
+  | -- | Matches all UTxOs regardless of what assets they contain.
+    SelectAny
+  deriving (Eq, Foldable, Functor, Show, Traversable)
 
 -- | Selects an entry at random from the index according to the given filter.
 --
 -- Returns the selected entry and an updated index with the entry removed.
 --
 -- Returns 'Nothing' if there were no matching entries.
---
 selectRandom
-    :: forall m u. (MonadRandom m, Ord u)
-    => UTxOIndex u
-    -> SelectionFilter Asset
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+  :: forall m u
+   . (MonadRandom m, Ord u)
+  => UTxOIndex u
+  -> SelectionFilter Asset
+  -> m (Maybe ((u, TokenBundle), UTxOIndex u))
 selectRandom i selectionFilter =
-    (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
+  (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
   where
     lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
     lookupAndRemoveEntry u =
-        (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
+      (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
 
     selectionSet :: Set u
     selectionSet = case selectionFilter of
-        SelectSingleton a ->
-            a `lookupWith` indexSingletons
-        SelectPairWith a ->
-            a `lookupWith` indexPairs
-        SelectAnyWith a ->
-            a `lookupWith` indexAll
-        SelectAny ->
-            Map.keysSet (universe i)
+      SelectSingleton a ->
+        a `lookupWith` indexSingletons
+      SelectPairWith a ->
+        a `lookupWith` indexPairs
+      SelectAnyWith a ->
+        a `lookupWith` indexAll
+      SelectAny ->
+        Map.keysSet (universe i)
       where
         a `lookupWith` index = MonoidMap.get a $ index i
 
@@ -471,16 +468,15 @@ selectRandom i selectionFilter =
 --
 -- This function returns 'Nothing' if (and only if) it traverses the entire
 -- list of filters without successfully selecting a UTxO entry.
---
 selectRandomWithPriority
-    :: (MonadRandom m, Ord u)
-    => UTxOIndex u
-    -> NonEmpty (SelectionFilter Asset)
-    -- ^ A list of selection filters to be traversed in descending order of
-    -- priority, from left to right.
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+  :: (MonadRandom m, Ord u)
+  => UTxOIndex u
+  -> NonEmpty (SelectionFilter Asset)
+  -- ^ A list of selection filters to be traversed in descending order of
+  -- priority, from left to right.
+  -> m (Maybe ((u, TokenBundle), UTxOIndex u))
 selectRandomWithPriority i =
-    firstJustM (selectRandom i) . NE.toList
+  firstJustM (selectRandom i) . NE.toList
 
 --------------------------------------------------------------------------------
 -- Internal Interface
@@ -496,11 +492,10 @@ selectRandomWithPriority i =
 -- TODO: ADP-1449
 -- Move this type away from the 'UTxOIndex' module and replace all usages of it
 -- with a type parameter.
---
 data Asset
-    = AssetLovelace
-    | Asset AssetId
-    deriving (Eq, Generic, Ord, Read, Show)
+  = AssetLovelace
+  | Asset AssetId
+  deriving (Eq, Generic, Ord, Read, Show)
 
 deriving instance NFData Asset
 
@@ -511,9 +506,9 @@ deriving instance NFData Asset
 -- TODO: ADP-1449
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
---
 tokenBundleAssets :: TokenBundle -> Set Asset
-tokenBundleAssets b = Set.union
+tokenBundleAssets b =
+  Set.union
     (Set.fromList [AssetLovelace | TokenBundle.coin b /= mempty])
     (Set.map Asset (TokenBundle.getAssets b))
 
@@ -524,9 +519,9 @@ tokenBundleAssets b = Set.union
 -- TODO: ADP-1449
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
---
 tokenBundleAssetCount :: TokenBundle -> Int
-tokenBundleAssetCount b = (+)
+tokenBundleAssetCount b =
+  (+)
     (if TokenBundle.coin b /= mempty then 1 else 0)
     (TokenMap.size (TokenBundle.tokens b))
 
@@ -537,33 +532,30 @@ tokenBundleAssetCount b = (+)
 -- TODO: ADP-1449
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
---
 tokenBundleHasAsset :: TokenBundle -> Asset -> Bool
 tokenBundleHasAsset b = \case
-    AssetLovelace -> TokenBundle.coin b /= mempty
-    Asset assetId -> TokenBundle.hasQuantity b assetId
+  AssetLovelace -> TokenBundle.coin b /= mempty
+  Asset assetId -> TokenBundle.hasQuantity b assetId
 
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
 
 -- | Represents different categories of token bundles.
---
 data BundleCategory asset
-    = BundleWithNoAssets
-    | BundleWithOneAsset asset
-    | BundleWithTwoAssets (asset, asset)
-    | BundleWithMultipleAssets (Set asset)
-    deriving (Eq, Show)
+  = BundleWithNoAssets
+  | BundleWithOneAsset asset
+  | BundleWithTwoAssets (asset, asset)
+  | BundleWithMultipleAssets (Set asset)
+  deriving (Eq, Show)
 
 -- | Categorizes a token bundle by how many assets it contains.
---
 categorizeTokenBundle :: TokenBundle -> BundleCategory Asset
 categorizeTokenBundle b = case F.toList bundleAssets of
-    [      ] -> BundleWithNoAssets
-    [a     ] -> BundleWithOneAsset a
-    [a1, a2] -> BundleWithTwoAssets (a1, a2)
-    _        -> BundleWithMultipleAssets bundleAssets
+  [] -> BundleWithNoAssets
+  [a] -> BundleWithOneAsset a
+  [a1, a2] -> BundleWithTwoAssets (a1, a2)
+  _ -> BundleWithMultipleAssets bundleAssets
   where
     bundleAssets = tokenBundleAssets b
 
@@ -574,153 +566,153 @@ categorizeTokenBundle b = case F.toList bundleAssets of
 -- See 'insert' for a safe version of this function.
 --
 insertUnsafe
-    :: forall u. Ord u
-    => u
-    -> TokenBundle
-    -> UTxOIndex u
-    -> UTxOIndex u
-insertUnsafe u b i = i
+  :: forall u
+   . Ord u
+  => u
+  -> TokenBundle
+  -> UTxOIndex u
+  -> UTxOIndex u
+insertUnsafe u b i =
+  i
     & over #balance (`TokenBundle.add` b)
     & over #universe (Map.insert u b)
     & case categorizeTokenBundle b of
-        BundleWithNoAssets -> id
-        BundleWithOneAsset a -> id
-            . over #indexAll (`insertEntry` a)
-            . over #indexSingletons (`insertEntry` a)
-        BundleWithTwoAssets (a1, a2) -> id
-            . over #indexAll (`insertEntry` a1)
-            . over #indexAll (`insertEntry` a2)
-            . over #indexPairs (`insertEntry` a1)
-            . over #indexPairs (`insertEntry` a2)
-        BundleWithMultipleAssets as -> id
-            . over #indexAll (flip (F.foldl' insertEntry) as)
+      BundleWithNoAssets -> id
+      BundleWithOneAsset a ->
+        id
+          . over #indexAll (`insertEntry` a)
+          . over #indexSingletons (`insertEntry` a)
+      BundleWithTwoAssets (a1, a2) ->
+        id
+          . over #indexAll (`insertEntry` a1)
+          . over #indexAll (`insertEntry` a2)
+          . over #indexPairs (`insertEntry` a1)
+          . over #indexPairs (`insertEntry` a2)
+      BundleWithMultipleAssets as ->
+        id
+          . over #indexAll (flip (F.foldl' insertEntry) as)
   where
     insertEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
+      :: Ord asset
+      => MonoidMap asset (Set u)
+      -> asset
+      -> MonoidMap asset (Set u)
     insertEntry m a = MonoidMap.adjust (Set.insert u) a m
 
 -- | Selects an element at random from the given set.
 --
 -- Returns 'Nothing' if (and only if) the given set is empty.
---
 selectRandomSetMember
-    :: MonadRandom m
-    => Set a
-    -> m (Maybe a)
+  :: MonadRandom m
+  => Set a
+  -> m (Maybe a)
 selectRandomSetMember s
-    | Set.null s =
-        pure Nothing
-    | otherwise =
-        Just . flip Set.elemAt s <$> getRandomR (0, Set.size s - 1)
+  | Set.null s =
+      pure Nothing
+  | otherwise =
+      Just . flip Set.elemAt s <$> getRandomR (0, Set.size s - 1)
 
 --------------------------------------------------------------------------------
 -- Invariant
 --------------------------------------------------------------------------------
 
 -- | The result of checking the invariant with the 'checkInvariant' function.
---
 data InvariantStatus
-    = InvariantHolds
-      -- ^ Indicates a successful check of the invariant.
-    | InvariantBalanceError BalanceError
-      -- ^ Indicates that the cached 'balance' value is incorrect.
-    | InvariantIndexIncomplete
-      -- ^ Indicates that the 'index' is missing one or more entries.
-    | InvariantIndexNonMinimal
-      -- ^ Indicates that the 'index' has one or more unnecessary entries.
-    | InvariantIndexInconsistent
-      -- ^ Indicates that the index sets are not consistent.
-    | InvariantAssetsInconsistent
-      -- ^ Indicates that the 'index' and the cached 'balance' value disagree
-      --   about which assets are included.
-    deriving (Eq, Show)
+  = -- | Indicates a successful check of the invariant.
+    InvariantHolds
+  | -- | Indicates that the cached 'balance' value is incorrect.
+    InvariantBalanceError BalanceError
+  | -- | Indicates that the 'index' is missing one or more entries.
+    InvariantIndexIncomplete
+  | -- | Indicates that the 'index' has one or more unnecessary entries.
+    InvariantIndexNonMinimal
+  | -- | Indicates that the index sets are not consistent.
+    InvariantIndexInconsistent
+  | -- | Indicates that the 'index' and the cached 'balance' value disagree
+    --   about which assets are included.
+    InvariantAssetsInconsistent
+  deriving (Eq, Show)
 
 -- | Checks whether or not the invariant holds.
---
 checkInvariant :: Ord u => UTxOIndex u -> InvariantStatus
 checkInvariant i
-    | BalanceIncorrect balanceError <- checkBalance i =
-        InvariantBalanceError balanceError
-    | not (indexIsComplete i) =
-        InvariantIndexIncomplete
-    | not (indexIsMinimal i) =
-        InvariantIndexNonMinimal
-    | not (indexIsConsistent i) =
-        InvariantIndexInconsistent
-    | not (assetsConsistent i) =
-        InvariantAssetsInconsistent
-    | otherwise =
-        InvariantHolds
+  | BalanceIncorrect balanceError <- checkBalance i =
+      InvariantBalanceError balanceError
+  | not (indexIsComplete i) =
+      InvariantIndexIncomplete
+  | not (indexIsMinimal i) =
+      InvariantIndexNonMinimal
+  | not (indexIsConsistent i) =
+      InvariantIndexInconsistent
+  | not (assetsConsistent i) =
+      InvariantAssetsInconsistent
+  | otherwise =
+      InvariantHolds
 
 -- | Indicates whether on not the stored 'balance' value is correct.
---
 data BalanceStatus
-    = BalanceCorrect
-    | BalanceIncorrect BalanceError
-    deriving (Eq, Show)
+  = BalanceCorrect
+  | BalanceIncorrect BalanceError
+  deriving (Eq, Show)
 
 -- | Indicates that the stored 'balance' value is not correct.
---
 data BalanceError = BalanceError
-    { balanceComputed
-        :: TokenBundle
-    , balanceStored
-        :: TokenBundle
-    }
-    deriving (Eq, Show)
+  { balanceComputed
+      :: TokenBundle
+  , balanceStored
+      :: TokenBundle
+  }
+  deriving (Eq, Show)
 
 -- | Checks that calculating the balance from scratch gives a result that
 --   is equal to the stored 'balance' value.
---
 checkBalance :: UTxOIndex u -> BalanceStatus
 checkBalance i
-    | balanceComputed == balanceStored =
-        BalanceCorrect
-    | otherwise =
-        BalanceIncorrect $ BalanceError {balanceComputed, balanceStored}
+  | balanceComputed == balanceStored =
+      BalanceCorrect
+  | otherwise =
+      BalanceIncorrect $ BalanceError {balanceComputed, balanceStored}
   where
     balanceComputed = F.fold (universe i)
     balanceStored = balance i
 
 -- | Checks that every entry in the 'universe' map is properly indexed.
---
 indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete i =
-    F.all hasEntry $ Map.toList $ universe i
+  F.all hasEntry $ Map.toList $ universe i
   where
     hasEntry :: (u, TokenBundle) -> Bool
     hasEntry (u, b) = case categorizeTokenBundle b of
-        BundleWithNoAssets ->
-            True
-        BundleWithOneAsset a -> and
-            [ hasEntryForAsset a indexAll
-            , hasEntryForAsset a indexSingletons
-            ]
-        BundleWithTwoAssets (a1, a2) -> and
-            [ hasEntryForAsset a1 indexAll
-            , hasEntryForAsset a2 indexAll
-            , hasEntryForAsset a1 indexPairs
-            , hasEntryForAsset a2 indexPairs
-            ]
-        BundleWithMultipleAssets as ->
-            F.all (`hasEntryForAsset` indexAll) as
+      BundleWithNoAssets ->
+        True
+      BundleWithOneAsset a ->
+        and
+          [ hasEntryForAsset a indexAll
+          , hasEntryForAsset a indexSingletons
+          ]
+      BundleWithTwoAssets (a1, a2) ->
+        and
+          [ hasEntryForAsset a1 indexAll
+          , hasEntryForAsset a2 indexAll
+          , hasEntryForAsset a1 indexPairs
+          , hasEntryForAsset a2 indexPairs
+          ]
+      BundleWithMultipleAssets as ->
+        F.all (`hasEntryForAsset` indexAll) as
       where
         hasEntryForAsset
-            :: Ord asset
-            => asset
-            -> (UTxOIndex u -> MonoidMap asset (Set u))
-            -> Bool
+          :: Ord asset
+          => asset
+          -> (UTxOIndex u -> MonoidMap asset (Set u))
+          -> Bool
         hasEntryForAsset asset assetsMap =
-            Set.member u $ MonoidMap.get asset $ assetsMap i
+          Set.member u $ MonoidMap.get asset $ assetsMap i
 
 -- | Checks that every indexed entry is required by some entry in the 'universe'
 --   map.
---
 indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
-indexIsMinimal i = F.and
+indexIsMinimal i =
+  F.and
     [ indexAll i
         & MonoidMap.toList
         & F.all (\(a, u) -> F.all (entryHasAsset a) u)
@@ -736,13 +728,15 @@ indexIsMinimal i = F.and
     entryHasAsset a = entryMatches (`tokenBundleHasAsset` a)
 
     entryHasOneAsset :: Asset -> u -> Bool
-    entryHasOneAsset a = entryMatches $ \b -> and
+    entryHasOneAsset a = entryMatches $ \b ->
+      and
         [ b `tokenBundleHasAsset` a
         , tokenBundleAssetCount b == 1
         ]
 
     entryHasTwoAssetsWith :: Asset -> u -> Bool
-    entryHasTwoAssetsWith a = entryMatches $ \b -> and
+    entryHasTwoAssetsWith a = entryMatches $ \b ->
+      and
         [ b `tokenBundleHasAsset` a
         , tokenBundleAssetCount b == 2
         ]
@@ -751,9 +745,9 @@ indexIsMinimal i = F.and
     entryMatches test u = maybe False test $ Map.lookup u $ universe i
 
 -- | Checks that index set relationships are correct.
---
 indexIsConsistent :: Ord u => UTxOIndex u -> Bool
-indexIsConsistent i = F.and
+indexIsConsistent i =
+  F.and
     [ indexSingletons i
         `MonoidMap.disjoint` indexPairs i
     , indexSingletons i
@@ -769,9 +763,9 @@ indexIsConsistent i = F.and
 --    - equal to the set of assets in 'indexAll'
 --    - a superset of the set of assets in 'indexSingletons'.
 --    - a superset of the set of assets in 'indexPairs'.
---
 assetsConsistent :: UTxOIndex u -> Bool
-assetsConsistent i = and
+assetsConsistent i =
+  and
     [ MonoidMap.nonNullKeys (indexAll i)
         == balanceAssets
     , MonoidMap.nonNullKeys (indexSingletons i)

@@ -20,54 +20,66 @@
 --
 -- Where purpose' and coin_type' are fixed, and each new policy_ix' represents a
 -- different policy key.
-
 module Cardano.Wallet.Address.Derivation.MintBurn
-    ( -- * Constants
-      purposeCIP1855
-      -- * Helpers
-    , derivePolicyPrivateKey
-    , policyDerivationPath
-    , scriptSlotIntervals
-    , withinSlotInterval
-    ) where
+  ( -- * Constants
+    purposeCIP1855
 
-import Prelude
+    -- * Helpers
+  , derivePolicyPrivateKey
+  , policyDerivationPath
+  , scriptSlotIntervals
+  , withinSlotInterval
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.Address.Script
-    ( Script (..) )
+  ( Script (..)
+  )
 import Cardano.Crypto.Wallet
-    ( deriveXPrv )
+  ( deriveXPrv
+  )
 import Cardano.Crypto.Wallet.Types
-    ( DerivationScheme (DerivationScheme2) )
+  ( DerivationScheme (DerivationScheme2)
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , getIndex
-    )
+  ( Depth (..)
+  , DerivationIndex (..)
+  , DerivationType (..)
+  , Index (..)
+  , getIndex
+  )
 import Cardano.Wallet.Address.Discovery
-    ( coinTypeAda )
+  ( coinTypeAda
+  )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+  ( SlotNo (..)
+  )
 import Data.IntCast
-    ( intCast )
+  ( intCast
+  )
 import Data.Interval
-    ( Interval, (<=..<=) )
+  ( Interval
+  , (<=..<=)
+  )
+import Data.Interval qualified as I
+import Data.List qualified as L
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
+import Data.List.NonEmpty qualified as NE
 import Data.Word
-    ( Word64 )
+  ( Word64
+  )
 import Numeric.Natural
-    ( Natural )
-
-import qualified Data.Interval as I
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
+  ( Natural
+  )
+import Prelude
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -82,26 +94,30 @@ purposeCIP1855 = toEnum 0x8000073F
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts.
 derivePolicyPrivateKey
-    :: Passphrase purpose
-    -- ^ Passphrase for wallet
-    -> XPrv
-    -- ^ Root private key to derive policy private key from
-    -> Index 'Hardened 'PolicyK
-    -- ^ Index of policy script
-    -> XPrv
-    -- ^ Policy private key
+  :: Passphrase purpose
+  -- ^ Passphrase for wallet
+  -> XPrv
+  -- ^ Root private key to derive policy private key from
+  -> Index 'Hardened 'PolicyK
+  -- ^ Index of policy script
+  -> XPrv
+  -- ^ Policy private key
 derivePolicyPrivateKey (Passphrase pwd) rootXPrv (Index policyIx) =
-    let
-        purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
-            deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purposeCIP1855)
-        coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
-            deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
-     -- lvl3 derivation; hardened derivation of policy' index
-    in deriveXPrv DerivationScheme2 pwd coinTypeXPrv policyIx
+  let
+    purposeXPrv =
+      -- lvl1 derivation; hardened derivation of purpose'
+      deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purposeCIP1855)
+    coinTypeXPrv =
+      -- lvl2 derivation; hardened derivation of coin_type'
+      deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
+  in
+    -- lvl3 derivation; hardened derivation of policy' index
+    deriveXPrv DerivationScheme2 pwd coinTypeXPrv policyIx
 
 policyDerivationPath
-    :: NonEmpty DerivationIndex
-policyDerivationPath =  NE.fromList
+  :: NonEmpty DerivationIndex
+policyDerivationPath =
+  NE.fromList
     [ DerivationIndex $ getIndex purposeCIP1855
     , DerivationIndex $ getIndex coinTypeAda
     , DerivationIndex $ getIndex policyIx
@@ -111,52 +127,54 @@ policyDerivationPath =  NE.fromList
     policyIx = minBound
 
 scriptSlotIntervals
-    :: Script a
-    -> [Interval Natural]
+  :: Script a
+  -> [Interval Natural]
 scriptSlotIntervals = \case
-    RequireSignatureOf _ ->
-        [allSlots]
-    RequireAllOf xs ->
-        let (timelocks, rest) = L.partition isTimelockOrSig xs
-        in
-        trimAllSlots
-            $ I.intersections (concatMap scriptSlotIntervals timelocks)
-            : concatMap scriptSlotIntervals rest
-    RequireAnyOf xs ->
-        trimAllSlots $ concatMap scriptSlotIntervals xs
-    RequireSomeOf _ xs ->
-        trimAllSlots $ concatMap scriptSlotIntervals xs
-    ActiveFromSlot s ->
-        [I.Finite s <=..<= maxSlot]
-    ActiveUntilSlot s ->
-        [minSlot <=..<= I.Finite s]
+  RequireSignatureOf _ ->
+    [allSlots]
+  RequireAllOf xs ->
+    let
+      (timelocks, rest) = L.partition isTimelockOrSig xs
+    in
+      trimAllSlots
+        $ I.intersections (concatMap scriptSlotIntervals timelocks)
+          : concatMap scriptSlotIntervals rest
+  RequireAnyOf xs ->
+    trimAllSlots $ concatMap scriptSlotIntervals xs
+  RequireSomeOf _ xs ->
+    trimAllSlots $ concatMap scriptSlotIntervals xs
+  ActiveFromSlot s ->
+    [I.Finite s <=..<= maxSlot]
+  ActiveUntilSlot s ->
+    [minSlot <=..<= I.Finite s]
   where
     minSlot = I.Finite $ intCast $ minBound @Word64
     maxSlot = I.Finite $ intCast $ maxBound @Word64
     allSlots = minSlot <=..<= maxSlot
 
     isTimelockOrSig = \case
-        ActiveFromSlot _ -> True
-        ActiveUntilSlot _ -> True
-        RequireSignatureOf _ -> True
-        _ -> False
+      ActiveFromSlot _ -> True
+      ActiveUntilSlot _ -> True
+      RequireSignatureOf _ -> True
+      _ -> False
 
     trimAllSlots interval =
-        let notAllSlots = filter (/= allSlots) interval
-        in
+      let
+        notAllSlots = filter (/= allSlots) interval
+      in
         if L.null notAllSlots
-        then interval
-        else notAllSlots
+          then interval
+          else notAllSlots
 
 -- tx validity interval must be a subset of a interval from script's timelock
 -- tx validity interval is defined by specifying (from,to) slot interval
 withinSlotInterval
-    :: SlotNo
-    -> SlotNo
-    -> [Interval Natural]
-    -> Bool
+  :: SlotNo
+  -> SlotNo
+  -> [Interval Natural]
+  -> Bool
 withinSlotInterval (SlotNo from) (SlotNo to) =
-    L.any (txValidityInterval `I.isSubsetOf`)
+  L.any (txValidityInterval `I.isSubsetOf`)
   where
     txValidityInterval =
-        I.Finite (intCast from) <=..<= I.Finite (intCast to)
+      I.Finite (intCast from) <=..<= I.Finite (intCast to)

@@ -2,31 +2,35 @@
 {-# LANGUAGE StrictData #-}
 
 module Cardano.Wallet.Write.Tx.TimeTranslation
-    ( TimeTranslation
-    , timeTranslationFromEpochInfo
-    , systemStartTime
-    , epochInfo
-    ) where
-
-import Prelude
+  ( TimeTranslation
+  , timeTranslationFromEpochInfo
+  , systemStartTime
+  , epochInfo
+  )
+where
 
 import Cardano.Slotting.EpochInfo
-    ( EpochInfo )
+  ( EpochInfo
+  )
 import Cardano.Slotting.Time
-    ( SystemStart )
+  ( SystemStart
+  )
 import Ouroboros.Consensus.HardFork.History
-    ( PastHorizonException )
+  ( PastHorizonException
+  )
+import Prelude
 
-data TimeTranslation = TimeTranslation
-    (EpochInfo (Either PastHorizonException))
-    SystemStart
+data TimeTranslation
+  = TimeTranslation
+      (EpochInfo (Either PastHorizonException))
+      SystemStart
 
 timeTranslationFromEpochInfo
-    :: SystemStart
-    -> EpochInfo (Either PastHorizonException)
-    -> TimeTranslation
+  :: SystemStart
+  -> EpochInfo (Either PastHorizonException)
+  -> TimeTranslation
 timeTranslationFromEpochInfo systemStart info =
-    TimeTranslation info systemStart
+  TimeTranslation info systemStart
 
 systemStartTime :: TimeTranslation -> SystemStart
 systemStartTime (TimeTranslation _epochInfo systemStart) = systemStart

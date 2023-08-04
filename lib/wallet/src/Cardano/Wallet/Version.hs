@@ -14,52 +14,63 @@
 -- compiling. If the git revision has changed but the sources have
 -- not, then no haskell packages will be rebuilt, but the embedded git
 -- revision will be updated.
-
 module Cardano.Wallet.Version
-    ( -- * Values computed at compile-time
-      version
-    , gitRevision
-    , GitRevision
-    , Version
+  ( -- * Values computed at compile-time
+    version
+  , gitRevision
+  , GitRevision
+  , Version
 
-      -- * Displaying Versions
-    , showVersionAsDate
-    , showFullVersion
-    ) where
-
-import Prelude
+    -- * Displaying Versions
+  , showVersionAsDate
+  , showFullVersion
+  )
+where
 
 import Cardano.Wallet.Version.TH
-    ( gitRevFromGit )
+  ( gitRevFromGit
+  )
 import Data.FileEmbed
-    ( dummySpaceWith )
+  ( dummySpaceWith
+  )
 import Data.String
-    ( fromString )
+  ( fromString
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
+import Data.Text qualified as T
 import Data.Text.Encoding
-    ( decodeLatin1 )
+  ( decodeLatin1
+  )
 import Data.Version
-    ( Version (..), showVersion )
+  ( Version (..)
+  , showVersion
+  )
 import Fmt
-    ( build, fmt, padLeftF )
+  ( build
+  , fmt
+  , padLeftF
+  )
 import Paths_cardano_wallet
-    ( version )
-
-import qualified Data.Text as T
+  ( version
+  )
+import Prelude
 
 newtype GitRevision = GitRevision Text deriving (Show, Eq)
 
 -- | Like 'showVersionAsDate', but also show the git revision.
 showFullVersion :: Version -> GitRevision -> String
 showFullVersion v (GitRevision r) =
-    showVersionAsDate v <> " (git revision: " <> T.unpack r <> ")"
+  showVersionAsDate v <> " (git revision: " <> T.unpack r <> ")"
 
 -- | Format the Cabal version in the vYYYY-MM-DD style that we use for git tags.
 showVersionAsDate :: Version -> String
-showVersionAsDate (Version (y:m:d:vs) tags) = fmt . mconcat $
-    ["v", digits 4 y, "-", digits 2 m, "-", digits 2 d ] ++
-    map (("." <>) . build) vs ++ (map (("-" <>) . build) tags)
+showVersionAsDate (Version (y : m : d : vs) tags) =
+  fmt . mconcat
+    $ ["v", digits 4 y, "-", digits 2 m, "-", digits 2 d]
+      ++ map (("." <>) . build) vs
+      ++ (map (("-" <>) . build) tags)
   where
     digits n = padLeftF n '0'
 showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
@@ -71,9 +82,9 @@ showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
 -- "Data.FileEmbed.injectWith".
 gitRevision :: GitRevision
 gitRevision
-    | gitRevEmbed /= zeroRev = GitRevision gitRevEmbed
-    | T.null fromGit         = GitRevision zeroRev
-    | otherwise              = GitRevision fromGit
+  | gitRevEmbed /= zeroRev = GitRevision gitRevEmbed
+  | T.null fromGit = GitRevision zeroRev
+  | otherwise = GitRevision fromGit
   where
     -- Git revision embedded after compilation using
     -- Data.FileEmbed.injectWith. If nothing has been injected,

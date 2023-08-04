@@ -27,165 +27,201 @@
 --
 -- See documentation for the 'performSelection' function for more details on
 -- how to perform a selection.
---
 module Cardano.CoinSelection.Balance
-    (
-    -- * Performing a selection
-      PerformSelection
-    , performSelection
-    , performSelectionEmpty
-    , SelectionConstraints (..)
-    , SelectionParams
-    , SelectionParamsOf (..)
-    , SelectionSkeleton (..)
-    , SelectionResult
-    , SelectionResultOf (..)
-    , SelectionStrategy (..)
-    , SelectionBalanceError (..)
-    , BalanceInsufficientError (..)
-    , UnableToConstructChangeError (..)
+  ( -- * Performing a selection
+    PerformSelection
+  , performSelection
+  , performSelectionEmpty
+  , SelectionConstraints (..)
+  , SelectionParams
+  , SelectionParamsOf (..)
+  , SelectionSkeleton (..)
+  , SelectionResult
+  , SelectionResultOf (..)
+  , SelectionStrategy (..)
+  , SelectionBalanceError (..)
+  , BalanceInsufficientError (..)
+  , UnableToConstructChangeError (..)
 
     -- * Querying selections
-    , SelectionDelta (..)
-    , selectionDeltaAllAssets
-    , selectionDeltaCoin
-    , selectionHasValidSurplus
-    , selectionSurplusCoin
-    , selectionMinimumCost
-    , selectionMaximumCost
-    , selectionSkeleton
+  , SelectionDelta (..)
+  , selectionDeltaAllAssets
+  , selectionDeltaCoin
+  , selectionHasValidSurplus
+  , selectionSurplusCoin
+  , selectionMinimumCost
+  , selectionMaximumCost
+  , selectionSkeleton
 
     -- * Querying parameters
-    , UTxOBalanceSufficiency (..)
-    , UTxOBalanceSufficiencyInfo (..)
-    , computeBalanceInOut
-    , computeDeficitInOut
-    , computeUTxOBalanceAvailable
-    , computeUTxOBalanceRequired
-    , computeUTxOBalanceSufficiency
-    , computeUTxOBalanceSufficiencyInfo
-    , isUTxOBalanceSufficient
+  , UTxOBalanceSufficiency (..)
+  , UTxOBalanceSufficiencyInfo (..)
+  , computeBalanceInOut
+  , computeDeficitInOut
+  , computeUTxOBalanceAvailable
+  , computeUTxOBalanceRequired
+  , computeUTxOBalanceSufficiency
+  , computeUTxOBalanceSufficiencyInfo
+  , isUTxOBalanceSufficient
 
     -- * Running a selection (without making change)
-    , runSelection
-    , runSelectionNonEmpty
-    , runSelectionNonEmptyWith
-    , RunSelectionParams (..)
+  , runSelection
+  , runSelectionNonEmpty
+  , runSelectionNonEmptyWith
+  , RunSelectionParams (..)
 
     -- * Running a selection step
-    , runSelectionStep
-    , SelectionLens (..)
-    , assetSelectionLens
-    , coinSelectionLens
+  , runSelectionStep
+  , SelectionLens (..)
+  , assetSelectionLens
+  , coinSelectionLens
 
     -- * Making change
-    , MakeChangeCriteria (..)
-    , makeChange
-    , makeChangeForCoin
-    , makeChangeForUserSpecifiedAsset
-    , makeChangeForNonUserSpecifiedAsset
-    , makeChangeForNonUserSpecifiedAssets
-    , assignCoinsToChangeMaps
-    , collateNonUserSpecifiedAssetQuantities
-    , addMintValueToChangeMaps
-    , addMintValuesToChangeMaps
-    , removeBurnValueFromChangeMaps
-    , removeBurnValuesFromChangeMaps
-    , reduceTokenQuantities
+  , MakeChangeCriteria (..)
+  , makeChange
+  , makeChangeForCoin
+  , makeChangeForUserSpecifiedAsset
+  , makeChangeForNonUserSpecifiedAsset
+  , makeChangeForNonUserSpecifiedAssets
+  , assignCoinsToChangeMaps
+  , collateNonUserSpecifiedAssetQuantities
+  , addMintValueToChangeMaps
+  , addMintValuesToChangeMaps
+  , removeBurnValueFromChangeMaps
+  , removeBurnValuesFromChangeMaps
+  , reduceTokenQuantities
 
     -- * Splitting bundles
-    , splitBundleIfAssetCountExcessive
-    , splitBundlesWithExcessiveAssetCounts
-    , splitBundlesWithExcessiveTokenQuantities
+  , splitBundleIfAssetCountExcessive
+  , splitBundlesWithExcessiveAssetCounts
+  , splitBundlesWithExcessiveTokenQuantities
 
     -- * Grouping and ungrouping
-    , groupByKey
-    , ungroupByKey
+  , groupByKey
+  , ungroupByKey
 
     -- * Round-robin processing
-    , runRoundRobin
-    , runRoundRobinM
+  , runRoundRobin
+  , runRoundRobinM
 
     -- * Utility classes
-    , AssetCount (..)
+  , AssetCount (..)
 
     -- * Utility functions
-    , distance
-    , mapMaybe
-    ) where
-
-import Prelude
+  , distance
+  , mapMaybe
+  )
+where
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+  ( PartialOrd (..)
+  )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+  ( SelectionContext (..)
+  )
 import Cardano.Numeric.Util
-    ( padCoalesce )
+  ( padCoalesce
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
+import Cardano.Wallet.Primitive.Types.Coin qualified as Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+  ( TokenBundle (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Lexicographic (..), TokenMap )
+  ( AssetId
+  , Lexicographic (..)
+  , TokenMap
+  )
+import Cardano.Wallet.Primitive.Types.TokenMap qualified as TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+  ( TokenQuantity (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenQuantity qualified as TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+  ( TokenBundleSizeAssessment (..)
+  , TokenBundleSizeAssessor (..)
+  )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
+  ( Asset (..)
+  , SelectionFilter (..)
+  , UTxOIndex (..)
+  )
+import Cardano.Wallet.Primitive.Types.UTxOIndex qualified as UTxOIndex
 import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
+  ( IsUTxOSelection
+  , UTxOSelection
+  , UTxOSelectionNonEmpty
+  )
+import Cardano.Wallet.Primitive.Types.UTxOSelection qualified as UTxOSelection
 import Control.Monad.Extra
-    ( andM, (<=<) )
+  ( andM
+  , (<=<)
+  )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+  ( MonadRandom (..)
+  )
 import Data.Bifunctor
-    ( first )
+  ( first
+  )
 import Data.Either.Extra
-    ( maybeToEither )
+  ( maybeToEither
+  )
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Functor.Identity
-    ( Identity (..) )
+  ( Identity (..)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+  ( view
+  )
 import Data.Generics.Labels
-    ()
+  (
+  )
 import Data.IntCast
-    ( intCast )
+  ( intCast
+  )
+import Data.List qualified as L
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+  ( NonEmpty (..)
+  )
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict
-    ( Map )
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
 import Data.Maybe
-    ( fromMaybe )
+  ( fromMaybe
+  )
 import Data.Ord
-    ( comparing )
+  ( comparing
+  )
 import Data.Semigroup
-    ( mtimesDefault )
+  ( mtimesDefault
+  )
 import Data.Set
-    ( Set )
+  ( Set
+  )
+import Data.Set qualified as Set
 import Fmt
-    ( Buildable (..), Builder, blockMapF )
+  ( Buildable (..)
+  , Builder
+  , blockMapF
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
 import Numeric.Natural
-    ( Natural )
-
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import qualified Data.Foldable as F
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
+  ( Natural
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Performing a selection
@@ -201,82 +237,84 @@ import qualified Data.Set as Set
 --    - are dependent on the current set of protocol parameters.
 --
 --    - are not specific to a given selection.
---
 data SelectionConstraints ctx = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
-        -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
-    , computeMinimumAdaQuantity
-        :: Address ctx -> TokenMap -> Coin
-        -- ^ Computes the minimum ada quantity required for a given output.
-    , computeMinimumCost
-        :: SelectionSkeleton ctx -> Coin
-        -- ^ Computes the minimum cost of a given selection skeleton.
-    , maximumLengthChangeAddress
-        :: Address ctx
-    , maximumOutputAdaQuantity
-        :: Coin
-        -- ^ Specifies the largest ada quantity that can appear in the token
-        -- bundle of an output.
-    , maximumOutputTokenQuantity
-        :: TokenQuantity
-        -- ^ Specifies the largest non-ada quantity that can appear in the
-        -- token bundle of an output.
-    , nullAddress
-        :: Address ctx
-    }
-    deriving Generic
+  { assessTokenBundleSize
+      :: TokenBundle
+      -> TokenBundleSizeAssessment
+  -- ^ Assesses the size of a token bundle relative to the upper limit of
+  -- what can be included in a transaction output. See documentation for
+  -- the 'TokenBundleSizeAssessor' type to learn about the expected
+  -- properties of this field.
+  , computeMinimumAdaQuantity
+      :: Address ctx
+      -> TokenMap
+      -> Coin
+  -- ^ Computes the minimum ada quantity required for a given output.
+  , computeMinimumCost
+      :: SelectionSkeleton ctx
+      -> Coin
+  -- ^ Computes the minimum cost of a given selection skeleton.
+  , maximumLengthChangeAddress
+      :: Address ctx
+  , maximumOutputAdaQuantity
+      :: Coin
+  -- ^ Specifies the largest ada quantity that can appear in the token
+  -- bundle of an output.
+  , maximumOutputTokenQuantity
+      :: TokenQuantity
+  -- ^ Specifies the largest non-ada quantity that can appear in the
+  -- token bundle of an output.
+  , nullAddress
+      :: Address ctx
+  }
+  deriving (Generic)
 
 type SelectionParams = SelectionParamsOf []
 
 -- | Specifies all parameters that are specific to a given selection.
---
 data SelectionParamsOf f ctx = SelectionParams
-    { outputsToCover
-        :: !(f (Address ctx, TokenBundle))
-        -- ^ The complete set of outputs to be covered.
-    , utxoAvailable
-        :: !(UTxOSelection (UTxO ctx))
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- inputs and optionally, a subset that has already been selected.
-        --
-        -- Further entries from this set will be selected to cover any deficit.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Assets to mint: these provide input value to a transaction.
-        --
-        -- By minting tokens, we generally decrease the burden of the selection
-        -- algorithm, allowing it to select fewer UTxO entries in order to
-        -- cover the required outputs.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ Assets to burn: these consume output value from a transaction.
-        --
-        -- By burning tokens, we generally increase the burden of the selection
-        -- algorithm, requiring it to select more UTxO entries in order to
-        -- cover the burn.
-    , selectionStrategy
-        :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
-    }
-    deriving Generic
+  { outputsToCover
+      :: !(f (Address ctx, TokenBundle))
+  -- ^ The complete set of outputs to be covered.
+  , utxoAvailable
+      :: !(UTxOSelection (UTxO ctx))
+  -- ^ Specifies a set of UTxOs that are available for selection as
+  -- inputs and optionally, a subset that has already been selected.
+  --
+  -- Further entries from this set will be selected to cover any deficit.
+  , extraCoinSource
+      :: !Coin
+  -- ^ An extra source of ada.
+  , extraCoinSink
+      :: !Coin
+  -- ^ An extra sink for ada.
+  , assetsToMint
+      :: !TokenMap
+  -- ^ Assets to mint: these provide input value to a transaction.
+  --
+  -- By minting tokens, we generally decrease the burden of the selection
+  -- algorithm, allowing it to select fewer UTxO entries in order to
+  -- cover the required outputs.
+  , assetsToBurn
+      :: !TokenMap
+  -- ^ Assets to burn: these consume output value from a transaction.
+  --
+  -- By burning tokens, we generally increase the burden of the selection
+  -- algorithm, requiring it to select more UTxO entries in order to
+  -- cover the burn.
+  , selectionStrategy
+      :: SelectionStrategy
+  -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
+  }
+  deriving (Generic)
 
 deriving instance
-    (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx)) =>
-        Eq (SelectionParamsOf f ctx)
+  (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx))
+  => Eq (SelectionParamsOf f ctx)
 
 deriving instance
-    (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx)) =>
-        Show (SelectionParamsOf f ctx)
+  (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx))
+  => Show (SelectionParamsOf f ctx)
 
 -- | Indicates a choice of selection strategy.
 --
@@ -309,105 +347,95 @@ deriving instance
 -- the distribution no longer resembles the typical distribution of payments
 -- made by the user. This increases the likelihood that future selections will
 -- not succeed, and increases the amortized cost of future transactions.
---
 data SelectionStrategy
-    = SelectionStrategyMinimal
-    | SelectionStrategyOptimal
-    deriving (Bounded, Enum, Eq, Show)
+  = SelectionStrategyMinimal
+  | SelectionStrategyOptimal
+  deriving (Bounded, Enum, Eq, Show)
 
 -- | Indicates whether the balance of available UTxO entries is sufficient.
 --
 -- See 'computeUTxOBalanceSufficiency'.
---
 data UTxOBalanceSufficiency
-    = UTxOBalanceSufficient
-      -- ^ Indicates that the UTxO balance is sufficient.
-    | UTxOBalanceInsufficient
-      -- ^ Indicates that the UTxO balance is insufficient.
-    deriving (Eq, Show)
+  = -- | Indicates that the UTxO balance is sufficient.
+    UTxOBalanceSufficient
+  | -- | Indicates that the UTxO balance is insufficient.
+    UTxOBalanceInsufficient
+  deriving (Eq, Show)
 
 -- | Gives more information about UTxO balance sufficiency.
 --
 -- See 'computeUTxOBalanceSufficiencyInfo'.
---
 data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
-    { available :: TokenBundle
-      -- ^ See 'computeUTxOBalanceAvailable'.
-    , required :: TokenBundle
-      -- ^ See 'computeUTxOBalanceRequired'.
-    , difference :: TokenBundle
-      -- ^ The difference between 'available' and 'required'.
-    , sufficiency :: UTxOBalanceSufficiency
-      -- ^ Whether or not the balance is sufficient.
-    }
-    deriving (Eq, Generic, Show)
+  { available :: TokenBundle
+  -- ^ See 'computeUTxOBalanceAvailable'.
+  , required :: TokenBundle
+  -- ^ See 'computeUTxOBalanceRequired'.
+  , difference :: TokenBundle
+  -- ^ The difference between 'available' and 'required'.
+  , sufficiency :: UTxOBalanceSufficiency
+  -- ^ Whether or not the balance is sufficient.
+  }
+  deriving (Eq, Generic, Show)
 
 -- | Computes the balance of UTxO entries available for selection.
---
 computeUTxOBalanceAvailable
-    :: SelectionParamsOf f ctx -> TokenBundle
+  :: SelectionParamsOf f ctx -> TokenBundle
 computeUTxOBalanceAvailable =
-    UTxOSelection.availableBalance . view #utxoAvailable
+  UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
---
 computeUTxOBalanceRequired
-    :: Foldable f => SelectionParamsOf f ctx -> TokenBundle
+  :: Foldable f => SelectionParamsOf f ctx -> TokenBundle
 computeUTxOBalanceRequired = fst . computeDeficitInOut
 
 computeBalanceInOut
-    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
+  :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeBalanceInOut params =
-    (balanceIn, balanceOut)
+  (balanceIn, balanceOut)
   where
     balanceIn =
-        TokenBundle.fromTokenMap (view #assetsToMint params)
-        `TokenBundle.add`
-        TokenBundle.fromCoin (view #extraCoinSource params)
+      TokenBundle.fromTokenMap (view #assetsToMint params)
+        `TokenBundle.add` TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
-        TokenBundle.fromTokenMap (view #assetsToBurn params)
-        `TokenBundle.add`
-        TokenBundle.fromCoin (view #extraCoinSink params)
-        `TokenBundle.add`
-        F.foldMap snd (view #outputsToCover params)
+      TokenBundle.fromTokenMap (view #assetsToBurn params)
+        `TokenBundle.add` TokenBundle.fromCoin (view #extraCoinSink params)
+        `TokenBundle.add` F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
-    :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
+  :: Foldable f => SelectionParamsOf f ctx -> (TokenBundle, TokenBundle)
 computeDeficitInOut params =
-    (deficitIn, deficitOut)
+  (deficitIn, deficitOut)
   where
     deficitIn =
-        TokenBundle.difference balanceOut balanceIn
+      TokenBundle.difference balanceOut balanceIn
     deficitOut =
-        TokenBundle.difference balanceIn balanceOut
+      TokenBundle.difference balanceIn balanceOut
     (balanceIn, balanceOut) =
-        computeBalanceInOut params
+      computeBalanceInOut params
 
 -- | Computes the UTxO balance sufficiency.
 --
 -- See 'UTxOBalanceSufficiency'.
---
 computeUTxOBalanceSufficiency
-    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiency
+  :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
 --
 -- See 'UTxOBalanceSufficiencyInfo'.
---
 computeUTxOBalanceSufficiencyInfo
-    :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiencyInfo
+  :: Foldable f => SelectionParamsOf f ctx -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
-    UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
+  UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
   where
     available = computeUTxOBalanceAvailable params
     required = computeUTxOBalanceRequired params
     sufficiency =
-        if required `leq` available
+      if required `leq` available
         then UTxOBalanceSufficient
         else UTxOBalanceInsufficient
     difference =
-        if sufficiency == UTxOBalanceSufficient
+      if sufficiency == UTxOBalanceSufficient
         then TokenBundle.difference available required
         else TokenBundle.difference required available
 
@@ -415,13 +443,12 @@ computeUTxOBalanceSufficiencyInfo params =
 --
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
---
 isUTxOBalanceSufficient
-    :: Foldable f => SelectionParamsOf f ctx -> Bool
+  :: Foldable f => SelectionParamsOf f ctx -> Bool
 isUTxOBalanceSufficient params =
-    case computeUTxOBalanceSufficiency params of
-        UTxOBalanceSufficient   -> True
-        UTxOBalanceInsufficient -> False
+  case computeUTxOBalanceSufficiency params of
+    UTxOBalanceSufficient -> True
+    UTxOBalanceInsufficient -> False
 
 -- | A skeleton selection that can be used to estimate the cost of a final
 --   selection.
@@ -432,55 +459,55 @@ isUTxOBalanceSufficient params =
 --
 -- Increasing or decreasing the quantity of a particular asset in a change
 -- output must not change the estimated cost of a selection.
---
 data SelectionSkeleton ctx = SelectionSkeleton
-    { skeletonInputCount
-        :: !Int
-    , skeletonOutputs
-        :: ![(Address ctx, TokenBundle)]
-    , skeletonChange
-        :: ![Set AssetId]
-    }
-    deriving Generic
+  { skeletonInputCount
+      :: !Int
+  , skeletonOutputs
+      :: ![(Address ctx, TokenBundle)]
+  , skeletonChange
+      :: ![Set AssetId]
+  }
+  deriving (Generic)
 
 deriving instance SelectionContext ctx => Eq (SelectionSkeleton ctx)
+
 deriving instance SelectionContext ctx => Show (SelectionSkeleton ctx)
 
 type SelectionResult = SelectionResultOf []
 
 -- | The result of performing a successful selection.
---
 data SelectionResultOf f ctx = SelectionResult
-    { inputsSelected
-        :: !(NonEmpty (UTxO ctx, TokenBundle))
-        -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
-    , outputsCovered
-        :: !(f (Address ctx, TokenBundle))
-        -- ^ A list of outputs covered.
-    , changeGenerated
-        :: ![TokenBundle]
-        -- ^ A list of generated change outputs.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ The assets to mint.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ The assets to burn.
-    }
-    deriving Generic
+  { inputsSelected
+      :: !(NonEmpty (UTxO ctx, TokenBundle))
+  -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
+  , extraCoinSource
+      :: !Coin
+  -- ^ An extra source of ada.
+  , extraCoinSink
+      :: !Coin
+  -- ^ An extra sink for ada.
+  , outputsCovered
+      :: !(f (Address ctx, TokenBundle))
+  -- ^ A list of outputs covered.
+  , changeGenerated
+      :: ![TokenBundle]
+  -- ^ A list of generated change outputs.
+  , assetsToMint
+      :: !TokenMap
+  -- ^ The assets to mint.
+  , assetsToBurn
+      :: !TokenMap
+  -- ^ The assets to burn.
+  }
+  deriving (Generic)
 
 deriving instance
-    (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx)) =>
-        Eq (SelectionResultOf f ctx)
+  (Eq (f (Address ctx, TokenBundle)), Eq (UTxO ctx))
+  => Eq (SelectionResultOf f ctx)
+
 deriving instance
-    (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx)) =>
-        Show (SelectionResultOf f ctx)
+  (Show (f (Address ctx, TokenBundle)), Show (UTxO ctx))
+  => Show (SelectionResultOf f ctx)
 
 -- | Indicates the difference between total input value and total output value
 --   of a 'SelectionResult'.
@@ -496,75 +523,67 @@ deriving instance
 --
 --    Indicates a deficit, when the total input value is NOT greater than or
 --    equal to the total output value.
---
 data SelectionDelta a
-    = SelectionSurplus a
-    | SelectionDeficit a
-    deriving (Eq, Functor, Show)
+  = SelectionSurplus a
+  | SelectionDeficit a
+  deriving (Eq, Functor, Show)
 
 instance Buildable a => Buildable (SelectionDelta a) where
-    build d = case d of
-        SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
-        SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
-      where
-        buildMap :: [(String, Builder)] -> Builder
-        buildMap = blockMapF . fmap (first $ id @String)
+  build d = case d of
+    SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
+    SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
+    where
+      buildMap :: [(String, Builder)] -> Builder
+      buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Calculates the selection delta for all assets.
 --
 -- See 'SelectionDelta'.
---
 selectionDeltaAllAssets
-    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
+  :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
-    | balanceOut `leq` balanceIn =
-        SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
-    | otherwise =
-        SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
+  | balanceOut `leq` balanceIn =
+      SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
+  | otherwise =
+      SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
   where
     balanceIn =
-        TokenBundle.fromTokenMap assetsToMint
-        `TokenBundle.add`
-        TokenBundle.fromCoin extraCoinSource
-        `TokenBundle.add`
-        F.foldMap snd inputsSelected
+      TokenBundle.fromTokenMap assetsToMint
+        `TokenBundle.add` TokenBundle.fromCoin extraCoinSource
+        `TokenBundle.add` F.foldMap snd inputsSelected
     balanceOut =
-        TokenBundle.fromTokenMap assetsToBurn
-        `TokenBundle.add`
-        TokenBundle.fromCoin extraCoinSink
-        `TokenBundle.add`
-        F.foldMap snd outputsCovered
-        `TokenBundle.add`
-        F.fold changeGenerated
+      TokenBundle.fromTokenMap assetsToBurn
+        `TokenBundle.add` TokenBundle.fromCoin extraCoinSink
+        `TokenBundle.add` F.foldMap snd outputsCovered
+        `TokenBundle.add` F.fold changeGenerated
     SelectionResult
-        { assetsToMint
-        , assetsToBurn
-        , extraCoinSource
-        , extraCoinSink
-        , inputsSelected
-        , outputsCovered
-        , changeGenerated
-        } = result
+      { assetsToMint
+      , assetsToBurn
+      , extraCoinSource
+      , extraCoinSink
+      , inputsSelected
+      , outputsCovered
+      , changeGenerated
+      } = result
 
 -- | Calculates the ada selection delta.
 --
 -- See 'SelectionDelta'.
---
 selectionDeltaCoin
-    :: Foldable f => SelectionResultOf f ctx -> SelectionDelta Coin
+  :: Foldable f => SelectionResultOf f ctx -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
---
 selectionHasValidSurplus
-    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Bool
+  :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Bool
 selectionHasValidSurplus constraints selection =
-    case selectionDeltaAllAssets selection of
-        SelectionSurplus s -> surplusIsValid s
-        SelectionDeficit _ -> False
+  case selectionDeltaAllAssets selection of
+    SelectionSurplus s -> surplusIsValid s
+    SelectionDeficit _ -> False
   where
     surplusIsValid :: TokenBundle -> Bool
-    surplusIsValid = andM
+    surplusIsValid =
+      andM
         [ surplusHasNoNonAdaAssets
         , surplusNotBelowMinimumCost
         , surplusNotAboveMaximumCost
@@ -573,17 +592,17 @@ selectionHasValidSurplus constraints selection =
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
     surplusHasNoNonAdaAssets surplus =
-        view #tokens surplus == TokenMap.empty
+      view #tokens surplus == TokenMap.empty
 
     -- The surplus must not be less than the minimum cost.
     surplusNotBelowMinimumCost :: TokenBundle -> Bool
     surplusNotBelowMinimumCost surplus =
-        view #coin surplus >= selectionMinimumCost constraints selection
+      view #coin surplus >= selectionMinimumCost constraints selection
 
     -- The surplus must not be greater than the maximum cost.
     surplusNotAboveMaximumCost :: TokenBundle -> Bool
     surplusNotAboveMaximumCost surplus =
-        view #coin surplus <= selectionMaximumCost constraints selection
+      view #coin surplus <= selectionMaximumCost constraints selection
 
 -- | Calculates the ada selection surplus, assuming there is a surplus.
 --
@@ -592,27 +611,25 @@ selectionHasValidSurplus constraints selection =
 --
 -- Use 'selectionDeltaCoin' if you wish to handle the case where there is
 -- a deficit.
---
 selectionSurplusCoin :: Foldable f => SelectionResultOf f ctx -> Coin
 selectionSurplusCoin result =
-    case selectionDeltaCoin result of
-        SelectionSurplus surplus -> surplus
-        SelectionDeficit _       -> Coin 0
+  case selectionDeltaCoin result of
+    SelectionSurplus surplus -> surplus
+    SelectionDeficit _ -> Coin 0
 
 -- | Converts a selection into a skeleton.
---
 selectionSkeleton
-    :: Foldable f => SelectionResultOf f ctx -> SelectionSkeleton ctx
-selectionSkeleton s = SelectionSkeleton
+  :: Foldable f => SelectionResultOf f ctx -> SelectionSkeleton ctx
+selectionSkeleton s =
+  SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
     , skeletonOutputs = F.toList (view #outputsCovered s)
     , skeletonChange = TokenBundle.getAssets <$> view #changeGenerated s
     }
 
 -- | Computes the minimum required cost of a selection.
---
 selectionMinimumCost
-    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
+  :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
 -- | Computes the maximum acceptable cost of a selection.
@@ -628,82 +645,82 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 -- that we can reference from within property tests.
 --
 -- See 'selectionHasValidSurplus'.
---
 selectionMaximumCost
-    :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
+  :: Foldable f => SelectionConstraints ctx -> SelectionResultOf f ctx -> Coin
 selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
 -- | Represents the set of errors that may occur while performing a selection.
---
 data SelectionBalanceError ctx
-    = BalanceInsufficient
-        BalanceInsufficientError
-    | UnableToConstructChange
-        UnableToConstructChangeError
-    | EmptyUTxO
-    deriving Generic
+  = BalanceInsufficient
+      BalanceInsufficientError
+  | UnableToConstructChange
+      UnableToConstructChangeError
+  | EmptyUTxO
+  deriving (Generic)
 
 deriving instance SelectionContext ctx => Eq (SelectionBalanceError ctx)
+
 deriving instance SelectionContext ctx => Show (SelectionBalanceError ctx)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
 --   cover the balance required.
 --
 -- See 'computeUTxOBalanceSufficiency'.
---
 data BalanceInsufficientError = BalanceInsufficientError
-    { utxoBalanceAvailable
-        :: !TokenBundle
-      -- ^ The balance of 'utxoAvailable'.
-    , utxoBalanceRequired
-        :: !TokenBundle
-      -- ^ The balance of 'outputsToCover'.
-    , utxoBalanceShortfall
-        :: !TokenBundle
-        -- ^ The shortfall between 'utxoBalanceAvailable' and
-        -- 'utxoBalanceRequired'.
-        --
-        -- Equal to the /truncated subtraction/ of 'utxoBalanceAvailable' from
-        -- 'utxoBalanceRequired'.
-    } deriving (Generic, Eq, Show)
+  { utxoBalanceAvailable
+      :: !TokenBundle
+  -- ^ The balance of 'utxoAvailable'.
+  , utxoBalanceRequired
+      :: !TokenBundle
+  -- ^ The balance of 'outputsToCover'.
+  , utxoBalanceShortfall
+      :: !TokenBundle
+  -- ^ The shortfall between 'utxoBalanceAvailable' and
+  -- 'utxoBalanceRequired'.
+  --
+  -- Equal to the /truncated subtraction/ of 'utxoBalanceAvailable' from
+  -- 'utxoBalanceRequired'.
+  }
+  deriving (Generic, Eq, Show)
 
 mkBalanceInsufficientError
-    :: TokenBundle -> TokenBundle -> BalanceInsufficientError
+  :: TokenBundle -> TokenBundle -> BalanceInsufficientError
 mkBalanceInsufficientError utxoBalanceAvailable utxoBalanceRequired =
-    BalanceInsufficientError
-        { utxoBalanceAvailable
-        , utxoBalanceRequired
-        , utxoBalanceShortfall
-        }
+  BalanceInsufficientError
+    { utxoBalanceAvailable
+    , utxoBalanceRequired
+    , utxoBalanceShortfall
+    }
   where
     utxoBalanceShortfall =
-        TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
+      TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
 
 data UnableToConstructChangeError = UnableToConstructChangeError
-    { requiredCost
-        :: !Coin
-        -- ^ The minimal required cost needed for the transaction to be
-        -- considered valid. This does not include min Ada values.
-    , shortfall
-        :: !Coin
-        -- ^ The additional coin quantity that would be required to cover the
-        -- selection cost and minimum coin quantity of each change output.
-    } deriving (Generic, Eq, Show)
+  { requiredCost
+      :: !Coin
+  -- ^ The minimal required cost needed for the transaction to be
+  -- considered valid. This does not include min Ada values.
+  , shortfall
+      :: !Coin
+  -- ^ The additional coin quantity that would be required to cover the
+  -- selection cost and minimum coin quantity of each change output.
+  }
+  deriving (Generic, Eq, Show)
 
 type PerformSelection m f ctx =
-    SelectionConstraints ctx ->
-    SelectionParamsOf f ctx ->
-    m (Either (SelectionBalanceError ctx) (SelectionResultOf f ctx))
+  SelectionConstraints ctx
+  -> SelectionParamsOf f ctx
+  -> m (Either (SelectionBalanceError ctx) (SelectionResultOf f ctx))
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
 -- selection criteria, this function guarantees to return a 'SelectionResult'
 -- for which 'selectionHasValidSurplus' returns 'True'.
---
 performSelection
-    :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
-    => PerformSelection m [] ctx
+  :: forall m ctx
+   . (HasCallStack, MonadRandom m, SelectionContext ctx)
+  => PerformSelection m [] ctx
 performSelection = performSelectionEmpty performSelectionNonEmpty
 
 -- | Transforms a coin selection function that requires a non-empty list of
@@ -732,19 +749,20 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --
 --          selectionHasValidSurplus constraints result ==>
 --          selectionHasValidSurplus constraints (transformResult result)
---
 performSelectionEmpty
-    :: forall m ctx. (Functor m)
-    => PerformSelection m NonEmpty ctx
-    -> PerformSelection m []       ctx
+  :: forall m ctx
+   . (Functor m)
+  => PerformSelection m NonEmpty ctx
+  -> PerformSelection m [] ctx
 performSelectionEmpty performSelectionFn constraints params =
-    fmap transformResult <$>
-    performSelectionFn constraints (transformParams params)
+  fmap transformResult
+    <$> performSelectionFn constraints (transformParams params)
   where
     transformParams
-        :: SelectionParamsOf []       ctx
-        -> SelectionParamsOf NonEmpty ctx
-    transformParams p@SelectionParams {..} = p
+      :: SelectionParamsOf [] ctx
+      -> SelectionParamsOf NonEmpty ctx
+    transformParams p@SelectionParams {..} =
+      p
         { extraCoinSource =
             transform (`Coin.add` dummyCoin) (const id) extraCoinSource
         , outputsToCover =
@@ -752,9 +770,10 @@ performSelectionEmpty performSelectionFn constraints params =
         }
 
     transformResult
-        :: SelectionResultOf NonEmpty ctx
-        -> SelectionResultOf []       ctx
-    transformResult r@SelectionResult {..} = r
+      :: SelectionResultOf NonEmpty ctx
+      -> SelectionResultOf [] ctx
+    transformResult r@SelectionResult {..} =
+      r
         { extraCoinSource =
             transform (`Coin.difference` dummyCoin) (const id) extraCoinSource
         , outputsCovered =
@@ -794,50 +813,56 @@ performSelectionEmpty performSelectionFn constraints params =
     dummyCoin = Coin 1
 
 performSelectionNonEmpty
-    :: forall m ctx. (HasCallStack, MonadRandom m, SelectionContext ctx)
-    => PerformSelection m NonEmpty ctx
+  :: forall m ctx
+   . (HasCallStack, MonadRandom m, SelectionContext ctx)
+  => PerformSelection m NonEmpty ctx
 performSelectionNonEmpty constraints params
-    -- Is the total available UTXO balance sufficient?
-    | not utxoBalanceSufficient =
-        pure $ Left $ BalanceInsufficient $ mkBalanceInsufficientError
-            utxoBalanceAvailable utxoBalanceRequired
-
-    | otherwise = do
-        maybeSelection <- runSelectionNonEmpty RunSelectionParams
+  -- Is the total available UTXO balance sufficient?
+  | not utxoBalanceSufficient =
+      pure
+        $ Left
+        $ BalanceInsufficient
+        $ mkBalanceInsufficientError
+          utxoBalanceAvailable
+          utxoBalanceRequired
+  | otherwise = do
+      maybeSelection <-
+        runSelectionNonEmpty
+          RunSelectionParams
             { utxoAvailable
             , minimumBalance = utxoBalanceRequired
             , selectionStrategy
             }
-        case maybeSelection of
-            Nothing ->
-                -- If it was not possible to select even a single UTxO, it must
-                -- mean that there were no UTxOs available to select.
-                pure $ Left EmptyUTxO
-            Just selection ->
-                -- If we have a non-empty selection of UTxOs, we know that the
-                -- total balance of selected assets must be greater than or
-                -- equal to the minimum required amount, as we have already
-                -- ruled out the possibility that the available balance is
-                -- insufficient.
-                makeChangeRepeatedly selection
+      case maybeSelection of
+        Nothing ->
+          -- If it was not possible to select even a single UTxO, it must
+          -- mean that there were no UTxOs available to select.
+          pure $ Left EmptyUTxO
+        Just selection ->
+          -- If we have a non-empty selection of UTxOs, we know that the
+          -- total balance of selected assets must be greater than or
+          -- equal to the minimum required amount, as we have already
+          -- ruled out the possibility that the available balance is
+          -- insufficient.
+          makeChangeRepeatedly selection
   where
     SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
-        , computeMinimumCost
-        , maximumOutputAdaQuantity
-        , maximumOutputTokenQuantity
-        , maximumLengthChangeAddress
-        } = constraints
+      { assessTokenBundleSize
+      , computeMinimumAdaQuantity
+      , computeMinimumCost
+      , maximumOutputAdaQuantity
+      , maximumOutputTokenQuantity
+      , maximumLengthChangeAddress
+      } = constraints
     SelectionParams
-        { outputsToCover
-        , utxoAvailable
-        , extraCoinSource
-        , extraCoinSink
-        , assetsToMint
-        , assetsToBurn
-        , selectionStrategy
-        } = params
+      { outputsToCover
+      , utxoAvailable
+      , extraCoinSource
+      , extraCoinSink
+      , assetsToMint
+      , assetsToBurn
+      , selectionStrategy
+      } = params
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
@@ -877,22 +902,24 @@ performSelectionNonEmpty constraints params
     --     assets of the final resulting selection).
     --
     predictChange :: UTxOSelectionNonEmpty (UTxO ctx) -> [Set AssetId]
-    predictChange s = either
+    predictChange s =
+      either
         (const $ invariantResultWithNoCost $ UTxOSelection.selectedIndex s)
         (fmap (TokenMap.getAssets . view #tokens))
-        (makeChange MakeChangeCriteria
-            { minCoinFor = noMinimumCoin
-            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
-            , requiredCost = noCost
-            , extraCoinSource
-            , extraCoinSink
-            , inputBundles
-            , outputBundles
-            , assetsToMint
-            , assetsToBurn
-            , maximumOutputAdaQuantity
-            , maximumOutputTokenQuantity
-            }
+        ( makeChange
+            MakeChangeCriteria
+              { minCoinFor = noMinimumCoin
+              , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
+              , requiredCost = noCost
+              , extraCoinSource
+              , extraCoinSink
+              , inputBundles
+              , outputBundles
+              , assetsToMint
+              , assetsToBurn
+              , maximumOutputAdaQuantity
+              , maximumOutputTokenQuantity
+              }
         )
       where
         inputBundles = snd <$> UTxOSelection.selectedList s
@@ -919,13 +946,15 @@ performSelectionNonEmpty constraints params
     -- function won't make associated outputs for them.
     --
     makeChangeRepeatedly
-        :: UTxOSelectionNonEmpty (UTxO ctx)
-        -> m (Either
-                (SelectionBalanceError ctx)
-                (SelectionResultOf NonEmpty ctx))
+      :: UTxOSelectionNonEmpty (UTxO ctx)
+      -> m
+          ( Either
+              (SelectionBalanceError ctx)
+              (SelectionResultOf NonEmpty ctx)
+          )
     makeChangeRepeatedly s = case mChangeGenerated of
-
-        Right change | length change >= length outputsToCover ->
+      Right change
+        | length change >= length outputsToCover ->
             -- We've succeeded in making at least the optimal number of change
             -- outputs, and can terminate here.
             --
@@ -937,48 +966,49 @@ performSelectionNonEmpty constraints params
             -- outputs than the number of user-specified outputs.
             --
             pure $ Right $ mkSelectionResult change
-
-        Right change ->
-            -- We've succeeded in making change outputs, but the number of
-            -- change outputs is fewer than optimal, because the supply of ada
-            -- was insufficient. Try again with more ada to see if it leads to
-            -- an improvement:
-            selectOneEntry s >>= \case
-                Just s' ->
-                    makeChangeRepeatedly s'
-                Nothing ->
-                    -- There is no more ada available. Terminate with a
-                    -- less-than-optimal number of change outputs.
-                    pure $ Right $ mkSelectionResult change
-
-        Left changeErr ->
-            -- We've failed to make any change outputs, because the supply of
-            -- ada was insufficient. Try again with more ada.
-            selectOneEntry s >>= \case
-                Just s' ->
-                    makeChangeRepeatedly s'
-                Nothing ->
-                    -- There is no more ada available, and we were unable to
-                    -- make any change. At this point we must simply give up.
-                    pure $ Left $ UnableToConstructChange changeErr
+      Right change ->
+        -- We've succeeded in making change outputs, but the number of
+        -- change outputs is fewer than optimal, because the supply of ada
+        -- was insufficient. Try again with more ada to see if it leads to
+        -- an improvement:
+        selectOneEntry s >>= \case
+          Just s' ->
+            makeChangeRepeatedly s'
+          Nothing ->
+            -- There is no more ada available. Terminate with a
+            -- less-than-optimal number of change outputs.
+            pure $ Right $ mkSelectionResult change
+      Left changeErr ->
+        -- We've failed to make any change outputs, because the supply of
+        -- ada was insufficient. Try again with more ada.
+        selectOneEntry s >>= \case
+          Just s' ->
+            makeChangeRepeatedly s'
+          Nothing ->
+            -- There is no more ada available, and we were unable to
+            -- make any change. At this point we must simply give up.
+            pure $ Left $ UnableToConstructChange changeErr
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
-        mChangeGenerated = makeChange MakeChangeCriteria
-            { minCoinFor = computeMinimumAdaQuantity maximumLengthChangeAddress
-            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
-            , requiredCost
-            , extraCoinSource
-            , extraCoinSink
-            , inputBundles = snd <$> inputsSelected
-            , outputBundles = snd <$> outputsToCover
-            , assetsToMint
-            , assetsToBurn
-            , maximumOutputAdaQuantity
-            , maximumOutputTokenQuantity
-            }
+        mChangeGenerated =
+          makeChange
+            MakeChangeCriteria
+              { minCoinFor = computeMinimumAdaQuantity maximumLengthChangeAddress
+              , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
+              , requiredCost
+              , extraCoinSource
+              , extraCoinSink
+              , inputBundles = snd <$> inputsSelected
+              , outputBundles = snd <$> outputsToCover
+              , assetsToMint
+              , assetsToBurn
+              , maximumOutputAdaQuantity
+              , maximumOutputTokenQuantity
+              }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResultOf NonEmpty ctx
-        mkSelectionResult changeGenerated = SelectionResult
+        mkSelectionResult changeGenerated =
+          SelectionResult
             { inputsSelected
             , extraCoinSource
             , extraCoinSink
@@ -990,75 +1020,79 @@ performSelectionNonEmpty constraints params
 
         selectOneEntry = selectQuantityOf AssetLovelace
 
-        requiredCost = computeMinimumCost SelectionSkeleton
-            { skeletonInputCount = UTxOSelection.selectedSize s
-            , skeletonOutputs = NE.toList outputsToCover
-            , skeletonChange
-            }
+        requiredCost =
+          computeMinimumCost
+            SelectionSkeleton
+              { skeletonInputCount = UTxOSelection.selectedSize s
+              , skeletonOutputs = NE.toList outputsToCover
+              , skeletonChange
+              }
 
         skeletonChange = predictChange s
         inputsSelected = UTxOSelection.selectedList s
 
-    invariantResultWithNoCost inputs_ = error $ unlines
-        -- This should be impossible, as the 'makeChange' function should
-        -- always succeed if there's no extra cost or minimum value to assign.
-        -- This is because it is called with the result of 'runSelection',
-        -- which only terminates successfully if the target was satisfied.
-        [ "performSelection: couldn't construct change for a selection with no "
-        , "minimum coin value and no cost!"
-        , "inputs: " <> show inputs_
-        , "extra coin source: " <> show extraCoinSource
-        , "extra coin sink: " <> show extraCoinSink
-        , "outputs: " <> show outputsToCover
-        ]
+    invariantResultWithNoCost inputs_ =
+      error
+        $ unlines
+          -- This should be impossible, as the 'makeChange' function should
+          -- always succeed if there's no extra cost or minimum value to assign.
+          -- This is because it is called with the result of 'runSelection',
+          -- which only terminates successfully if the target was satisfied.
+          [ "performSelection: couldn't construct change for a selection with no "
+          , "minimum coin value and no cost!"
+          , "inputs: " <> show inputs_
+          , "extra coin source: " <> show extraCoinSource
+          , "extra coin sink: " <> show extraCoinSink
+          , "outputs: " <> show outputsToCover
+          ]
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
 -- | Parameters for 'runSelection'.
---
 data RunSelectionParams u = RunSelectionParams
-    { utxoAvailable :: (UTxOSelection u)
-        -- ^ UTxO entries available for selection.
-    , minimumBalance :: TokenBundle
-        -- ^ Minimum balance to cover.
-    , selectionStrategy :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
-    }
-    deriving (Eq, Generic, Show)
+  { utxoAvailable :: (UTxOSelection u)
+  -- ^ UTxO entries available for selection.
+  , minimumBalance :: TokenBundle
+  -- ^ Minimum balance to cover.
+  , selectionStrategy :: SelectionStrategy
+  -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
+  }
+  deriving (Eq, Generic, Show)
 
 runSelectionNonEmpty
-    :: (MonadRandom m, Ord u)
-    => RunSelectionParams u
-    -> m (Maybe (UTxOSelectionNonEmpty u))
+  :: (MonadRandom m, Ord u)
+  => RunSelectionParams u
+  -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty =
-    runSelectionNonEmptyWith (selectQuantityOf AssetLovelace)
-    <=<
-    runSelection
+  runSelectionNonEmptyWith (selectQuantityOf AssetLovelace)
+    <=< runSelection
 
 runSelectionNonEmptyWith
-    :: Monad m
-    => (UTxOSelection u -> m (Maybe (UTxOSelectionNonEmpty u)))
-    -> UTxOSelection u
-    -> m (Maybe (UTxOSelectionNonEmpty u))
+  :: Monad m
+  => (UTxOSelection u -> m (Maybe (UTxOSelectionNonEmpty u)))
+  -> UTxOSelection u
+  -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmptyWith selectSingleEntry result =
-    UTxOSelection.toNonEmpty result & maybe
-        (result & selectSingleEntry)
-        (pure . Just)
+  UTxOSelection.toNonEmpty result
+    & maybe
+      (result & selectSingleEntry)
+      (pure . Just)
 
 runSelection
-    :: forall m u. (MonadRandom m, Ord u)
-    => RunSelectionParams u
-    -> m (UTxOSelection u)
+  :: forall m u
+   . (MonadRandom m, Ord u)
+  => RunSelectionParams u
+  -> m (UTxOSelection u)
 runSelection params =
-    runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
+  runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
-        { utxoAvailable
-        , minimumBalance
-        , selectionStrategy
-        } = params
+      { utxoAvailable
+      , minimumBalance
+      , selectionStrategy
+      } = params
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
     -- necessarily has a non-zero ada amount. By running the other selectors
@@ -1066,23 +1100,27 @@ runSelection params =
     -- to terminate without needing to select an additional coin.
     selectors :: [UTxOSelection u -> m (Maybe (UTxOSelectionNonEmpty u))]
     selectors =
-        reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
+      reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
-        assetSelector = runSelectionStep .
-            assetSelectionLens selectionStrategy
-        coinSelector = runSelectionStep $
-            coinSelectionLens selectionStrategy
-            minimumCoinQuantity
+        assetSelector =
+          runSelectionStep
+            . assetSelectionLens selectionStrategy
+        coinSelector =
+          runSelectionStep
+            $ coinSelectionLens
+              selectionStrategy
+              minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
-        TokenBundle.toFlatList minimumBalance
+      TokenBundle.toFlatList minimumBalance
 
 assetSelectionLens
-    :: (MonadRandom m, Ord u)
-    => SelectionStrategy
-    -> (AssetId, TokenQuantity)
-    -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
+  :: (MonadRandom m, Ord u)
+  => SelectionStrategy
+  -> (AssetId, TokenQuantity)
+  -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
+assetSelectionLens strategy (asset, minimumAssetQuantity) =
+  SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
@@ -1091,26 +1129,28 @@ assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
     }
 
 coinSelectionLens
-    :: (MonadRandom m, Ord u)
-    => SelectionStrategy
-    -> Coin
-    -- ^ Minimum coin quantity.
-    -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens strategy minimumCoinQuantity = SelectionLens
+  :: (MonadRandom m, Ord u)
+  => SelectionStrategy
+  -> Coin
+  -- ^ Minimum coin quantity.
+  -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
+coinSelectionLens strategy minimumCoinQuantity =
+  SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace
+    , selectQuantity = selectQuantityOf AssetLovelace
     , selectionStrategy = strategy
     }
 
 selectQuantityOf
-    :: (MonadRandom m, Ord u)
-    => IsUTxOSelection utxoSelection u
-    => Asset
-    -> utxoSelection u
-    -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a = selectMatchingQuantity
+  :: (MonadRandom m, Ord u)
+  => IsUTxOSelection utxoSelection u
+  => Asset
+  -> utxoSelection u
+  -> m (Maybe (UTxOSelectionNonEmpty u))
+selectQuantityOf a =
+  selectMatchingQuantity
     [ SelectSingleton a
     , SelectPairWith a
     , SelectAnyWith a
@@ -1131,24 +1171,26 @@ selectQuantityOf a = selectMatchingQuantity
 --
 -- This function returns 'Nothing' if (and only if) it traverses the entire
 -- list of filters without successfully selecting a UTxO entry.
---
 selectMatchingQuantity
-    :: forall m utxoSelection u. (MonadRandom m, Ord u)
-    => IsUTxOSelection utxoSelection u
-    => NonEmpty (SelectionFilter Asset)
-        -- ^ A list of selection filters to be traversed from left-to-right,
-        -- in descending order of priority.
-    -> utxoSelection u
-        -- ^ The current selection state.
-    -> m (Maybe (UTxOSelectionNonEmpty u))
-        -- ^ An updated selection state that includes a matching UTxO entry,
-        -- or 'Nothing' if no such entry could be found.
+  :: forall m utxoSelection u
+   . (MonadRandom m, Ord u)
+  => IsUTxOSelection utxoSelection u
+  => NonEmpty (SelectionFilter Asset)
+  -- ^ A list of selection filters to be traversed from left-to-right,
+  -- in descending order of priority.
+  -> utxoSelection u
+  -- ^ The current selection state.
+  -> m (Maybe (UTxOSelectionNonEmpty u))
+  -- ^ An updated selection state that includes a matching UTxO entry,
+  -- or 'Nothing' if no such entry could be found.
 selectMatchingQuantity filters s =
-    (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
-        (UTxOSelection.leftoverIndex s) filters
+  (updateState =<<)
+    <$> UTxOIndex.selectRandomWithPriority
+      (UTxOSelection.leftoverIndex s)
+      filters
   where
     updateState
-        :: ((u, TokenBundle), UTxOIndex u) -> Maybe (UTxOSelectionNonEmpty u)
+      :: ((u, TokenBundle), UTxOIndex u) -> Maybe (UTxOSelectionNonEmpty u)
     updateState ((i, _b), _remaining) = UTxOSelection.select i s
 
 --------------------------------------------------------------------------------
@@ -1159,19 +1201,21 @@ selectMatchingQuantity filters s =
 --
 -- A 'SelectionLens' gives 'runSelectionStep' just the information it needs to
 -- make a decision, and no more.
---
 data SelectionLens m state state' = SelectionLens
-    { currentQuantity
-        :: state -> Natural
-    , updatedQuantity
-        :: state' -> Natural
-    , selectQuantity
-        :: state -> m (Maybe state')
-    , minimumQuantity
-        :: Natural
-    , selectionStrategy
-        :: SelectionStrategy
-    }
+  { currentQuantity
+      :: state
+      -> Natural
+  , updatedQuantity
+      :: state'
+      -> Natural
+  , selectQuantity
+      :: state
+      -> m (Maybe state')
+  , minimumQuantity
+      :: Natural
+  , selectionStrategy
+      :: SelectionStrategy
+  }
 
 -- | Runs just a single step of a coin selection.
 --
@@ -1189,30 +1233,30 @@ data SelectionLens m state state' = SelectionLens
 --      additional selection is considered to be an improvement if and only
 --      if it takens the total selected token quantity closer to the target
 --      token quantity, but not further away.
---
 runSelectionStep
-    :: forall m state state'. Monad m
-    => SelectionLens m state state'
-    -> state
-    -> m (Maybe state')
+  :: forall m state state'
+   . Monad m
+  => SelectionLens m state state'
+  -> state
+  -> m (Maybe state')
 runSelectionStep lens s
-    | currentQuantity s < minimumQuantity =
-        selectQuantity s
-    | otherwise =
-        (requireImprovement =<<) <$> selectQuantity s
+  | currentQuantity s < minimumQuantity =
+      selectQuantity s
+  | otherwise =
+      (requireImprovement =<<) <$> selectQuantity s
   where
     SelectionLens
-        { currentQuantity
-        , updatedQuantity
-        , minimumQuantity
-        , selectQuantity
-        , selectionStrategy
-        } = lens
+      { currentQuantity
+      , updatedQuantity
+      , minimumQuantity
+      , selectQuantity
+      , selectionStrategy
+      } = lens
 
     requireImprovement :: state' -> Maybe state'
     requireImprovement s'
-        | updatedDistanceFromTarget s' < currentDistanceFromTarget s = Just s'
-        | otherwise = Nothing
+      | updatedDistanceFromTarget s' < currentDistanceFromTarget s = Just s'
+      | otherwise = Nothing
 
     currentDistanceFromTarget :: state -> Natural
     currentDistanceFromTarget = distance targetQuantity . currentQuantity
@@ -1222,8 +1266,8 @@ runSelectionStep lens s
 
     targetMultiplier :: Natural
     targetMultiplier = case selectionStrategy of
-        SelectionStrategyMinimal -> 1
-        SelectionStrategyOptimal -> 2
+      SelectionStrategyMinimal -> 1
+      SelectionStrategyOptimal -> 2
 
     targetQuantity :: Natural
     targetQuantity = minimumQuantity * targetMultiplier
@@ -1233,55 +1277,54 @@ runSelectionStep lens s
 --------------------------------------------------------------------------------
 
 -- | Criteria for the 'makeChange' function.
---
 data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
-    { minCoinFor :: minCoinFor
-      -- ^ A function that computes the minimum required ada quantity for a
-      -- particular output.
-    , bundleSizeAssessor :: bundleSizeAssessor
-        -- ^ A function to assess the size of a token bundle.
-    , requiredCost :: Coin
-      -- ^ The minimal (and optimal) delta between the total ada balance
-      -- of all input bundles and the total ada balance of all output and
-      -- change bundles, where:
-      --
-      --    delta = getCoin (fold inputBundles)
-      --          - getCoin (fold outputBundles)
-      --          - getCoin (fold changeBundles)
-      --
-      -- This typically captures fees plus key deposits.
-    , extraCoinSource :: Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink :: Coin
-        -- ^ An extra sink for ada.
-    , inputBundles :: NonEmpty TokenBundle
-        -- ^ Token bundles of selected inputs.
-    , outputBundles :: NonEmpty TokenBundle
-        -- ^ Token bundles of original outputs.
-    , assetsToMint :: TokenMap
-        -- ^ Assets to mint: these provide input value to a transaction.
-    , assetsToBurn :: TokenMap
-        -- ^ Assets to burn: these consume output value from a transaction.
-    , maximumOutputAdaQuantity
-        :: Coin
-        -- ^ Specifies the largest ada quantity that can appear in the token
-        -- bundle of an output.
-    , maximumOutputTokenQuantity
-        :: TokenQuantity
-        -- ^ Specifies the largest non-ada quantity that can appear in the
-        -- token bundle of an output.
-    } deriving (Eq, Generic, Show)
+  { minCoinFor :: minCoinFor
+  -- ^ A function that computes the minimum required ada quantity for a
+  -- particular output.
+  , bundleSizeAssessor :: bundleSizeAssessor
+  -- ^ A function to assess the size of a token bundle.
+  , requiredCost :: Coin
+  -- ^ The minimal (and optimal) delta between the total ada balance
+  -- of all input bundles and the total ada balance of all output and
+  -- change bundles, where:
+  --
+  --    delta = getCoin (fold inputBundles)
+  --          - getCoin (fold outputBundles)
+  --          - getCoin (fold changeBundles)
+  --
+  -- This typically captures fees plus key deposits.
+  , extraCoinSource :: Coin
+  -- ^ An extra source of ada.
+  , extraCoinSink :: Coin
+  -- ^ An extra sink for ada.
+  , inputBundles :: NonEmpty TokenBundle
+  -- ^ Token bundles of selected inputs.
+  , outputBundles :: NonEmpty TokenBundle
+  -- ^ Token bundles of original outputs.
+  , assetsToMint :: TokenMap
+  -- ^ Assets to mint: these provide input value to a transaction.
+  , assetsToBurn :: TokenMap
+  -- ^ Assets to burn: these consume output value from a transaction.
+  , maximumOutputAdaQuantity
+      :: Coin
+  -- ^ Specifies the largest ada quantity that can appear in the token
+  -- bundle of an output.
+  , maximumOutputTokenQuantity
+      :: TokenQuantity
+  -- ^ Specifies the largest non-ada quantity that can appear in the
+  -- token bundle of an output.
+  }
+  deriving (Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
 --   that can be included in a transaction output.
---
 tokenBundleSizeExceedsLimit :: TokenBundleSizeAssessor -> TokenBundle -> Bool
 tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
-    case assess b of
-        TokenBundleSizeWithinLimit->
-            False
-        TokenBundleSizeExceedsLimit ->
-            True
+  case assess b of
+    TokenBundleSizeWithinLimit ->
+      False
+    TokenBundleSizeExceedsLimit ->
+      True
 
 -- | Constructs change bundles for a set of selected inputs and outputs.
 --
@@ -1301,38 +1344,40 @@ tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
 --
 -- Pre-condition (2) should be satisfied by assigning a minimum ada quantity
 -- to every output token bundle.
---
 makeChange
-    :: MakeChangeCriteria (TokenMap -> Coin) TokenBundleSizeAssessor
-        -- ^ Criteria for making change.
-    -> Either UnableToConstructChangeError [TokenBundle]
-        -- ^ Generated change bundles.
+  :: MakeChangeCriteria (TokenMap -> Coin) TokenBundleSizeAssessor
+  -- ^ Criteria for making change.
+  -> Either UnableToConstructChangeError [TokenBundle]
+  -- ^ Generated change bundles.
 makeChange criteria
-    | not (totalOutputValue `leq` totalInputValue) =
-        totalInputValueInsufficient
-    | TokenBundle.getCoin totalOutputValue == Coin 0 =
-        totalOutputCoinValueIsZero
-    | otherwise =
-        first mkUnableToConstructChangeError $ do
-            adaAvailable <- maybeToEither
-                (requiredCost `Coin.difference` excessCoin)
-                (excessCoin `Coin.subtract` requiredCost)
-            assignCoinsToChangeMaps
-                adaAvailable minCoinFor changeMapOutputCoinPairs
+  | not (totalOutputValue `leq` totalInputValue) =
+      totalInputValueInsufficient
+  | TokenBundle.getCoin totalOutputValue == Coin 0 =
+      totalOutputCoinValueIsZero
+  | otherwise =
+      first mkUnableToConstructChangeError $ do
+        adaAvailable <-
+          maybeToEither
+            (requiredCost `Coin.difference` excessCoin)
+            (excessCoin `Coin.subtract` requiredCost)
+        assignCoinsToChangeMaps
+          adaAvailable
+          minCoinFor
+          changeMapOutputCoinPairs
   where
     MakeChangeCriteria
-        { minCoinFor
-        , bundleSizeAssessor
-        , requiredCost
-        , extraCoinSource
-        , extraCoinSink
-        , inputBundles
-        , outputBundles
-        , assetsToMint
-        , assetsToBurn
-        , maximumOutputAdaQuantity
-        , maximumOutputTokenQuantity
-        } = criteria
+      { minCoinFor
+      , bundleSizeAssessor
+      , requiredCost
+      , extraCoinSource
+      , extraCoinSink
+      , inputBundles
+      , outputBundles
+      , assetsToMint
+      , assetsToBurn
+      , maximumOutputAdaQuantity
+      , maximumOutputTokenQuantity
+      } = criteria
 
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
@@ -1354,7 +1399,8 @@ makeChange criteria
     -- change maps are all located at the start of the list.
     --
     changeMapOutputCoinPairs :: NonEmpty (TokenMap, Coin)
-    changeMapOutputCoinPairs = outputCoins
+    changeMapOutputCoinPairs =
+      outputCoins
         -- First, combine the original output coins with the change maps for
         -- user-specified assets. We must pair these together right at the
         -- start in order to retain proportionality with the original outputs.
@@ -1365,27 +1411,31 @@ makeChange criteria
         -- Next, combine the existing list with the change maps for non-user
         -- specified assets, which are already sorted into ascending order of
         -- asset count:
-        & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
-            changeForNonUserSpecifiedAssets
+        & NE.zipWith
+          (\m1 (m2, c) -> (m1 <> m2, c))
+          changeForNonUserSpecifiedAssets
         -- Finally, if there are any maps that are oversized (in any way), then
         -- split these maps up along with their corresponding output coins:
         & splitOversizedMaps
       where
         splitOversizedMaps
-            :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
+          :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
         splitOversizedMaps =
-            -- For the sake of convenience when splitting up change maps and
-            -- output coins (which are treated as weights), treat each change
-            -- map and its corresponding output coin as a token bundle.
-            fmap unbundle . split . fmap bundle
+          -- For the sake of convenience when splitting up change maps and
+          -- output coins (which are treated as weights), treat each change
+          -- map and its corresponding output coin as a token bundle.
+          fmap unbundle . split . fmap bundle
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split b = b
-                & flip splitBundlesWithExcessiveAssetCounts
-                    (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
-                & flip splitBundlesWithExcessiveTokenQuantities
-                    maximumOutputTokenQuantity
+            split b =
+              b
+                & flip
+                  splitBundlesWithExcessiveAssetCounts
+                  (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
+                & flip
+                  splitBundlesWithExcessiveTokenQuantities
+                  maximumOutputTokenQuantity
 
             -- When assessing the size of a change map to determine if it is
             -- excessively large, we don't yet know how large the associated
@@ -1404,16 +1454,19 @@ makeChange criteria
             -- the resultant transaction to be rejected.
             --
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
-            assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
+            assessBundleSizeWithMaxCoin =
+              TokenBundleSizeAssessor
                 $ view #assessTokenBundleSize bundleSizeAssessor
-                . flip TokenBundle.setCoin maximumOutputAdaQuantity
+                  . flip TokenBundle.setCoin maximumOutputAdaQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
     changeForUserSpecifiedAssets :: NonEmpty TokenMap
-    changeForUserSpecifiedAssets = F.foldr
-        (NE.zipWith (<>)
-            . makeChangeForUserSpecifiedAsset outputMaps)
+    changeForUserSpecifiedAssets =
+      F.foldr
+        ( NE.zipWith (<>)
+            . makeChangeForUserSpecifiedAsset outputMaps
+        )
         (TokenMap.empty <$ outputMaps)
         excessAssets
 
@@ -1421,25 +1474,28 @@ makeChange criteria
     -- in the original set of user-specified outputs ('outputsToCover').
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
     changeForNonUserSpecifiedAssets =
-        makeChangeForNonUserSpecifiedAssets
-            outputMaps
-            nonUserSpecifiedAssetQuantities
+      makeChangeForNonUserSpecifiedAssets
+        outputMaps
+        nonUserSpecifiedAssetQuantities
         & addMintValuesToChangeMaps
-            (removeUserSpecifiedAssetIds assetsToMint)
+          (removeUserSpecifiedAssetIds assetsToMint)
         & removeBurnValuesFromChangeMaps
-            (removeUserSpecifiedAssetIds assetsToBurn)
+          (removeUserSpecifiedAssetIds assetsToBurn)
       where
         removeUserSpecifiedAssetIds :: TokenMap -> TokenMap
         removeUserSpecifiedAssetIds =
-            TokenMap.filter (`Set.notMember` userSpecifiedAssetIds)
+          TokenMap.filter (`Set.notMember` userSpecifiedAssetIds)
 
-    totalInputValueInsufficient = error
+    totalInputValueInsufficient =
+      error
         "makeChange: not (totalOutputValue <= totalInputValue)"
-    totalOutputCoinValueIsZero = error
+    totalOutputCoinValueIsZero =
+      error
         "makeChange: not (totalOutputCoinValue > 0)"
 
     mkUnableToConstructChangeError :: Coin -> UnableToConstructChangeError
-    mkUnableToConstructChangeError shortfall = UnableToConstructChangeError
+    mkUnableToConstructChangeError shortfall =
+      UnableToConstructChangeError
         { requiredCost
         , shortfall
         }
@@ -1452,17 +1508,17 @@ makeChange criteria
 
     totalInputValue :: TokenBundle
     totalInputValue =
-        F.fold inputBundles
-            <> TokenBundle.fromCoin extraCoinSource
-            -- Mints represent extra inputs from "the void"
-            <> TokenBundle.fromTokenMap assetsToMint
+      F.fold inputBundles
+        <> TokenBundle.fromCoin extraCoinSource
+        -- Mints represent extra inputs from "the void"
+        <> TokenBundle.fromTokenMap assetsToMint
 
     totalOutputValue :: TokenBundle
     totalOutputValue =
-        F.fold outputBundles
-            <> TokenBundle.fromCoin extraCoinSink
-            -- Burns represent extra outputs to "the void"
-            <> TokenBundle.fromTokenMap assetsToBurn
+      F.fold outputBundles
+        <> TokenBundle.fromCoin extraCoinSink
+        -- Burns represent extra outputs to "the void"
+        <> TokenBundle.fromTokenMap assetsToBurn
 
     -- Identifiers of all user-specified assets: assets that were included in
     -- the original set of outputs.
@@ -1477,8 +1533,9 @@ makeChange criteria
     -- present in the selected inputs.
     nonUserSpecifiedAssetQuantities :: Map AssetId (NonEmpty TokenQuantity)
     nonUserSpecifiedAssetQuantities =
-        collateNonUserSpecifiedAssetQuantities
-            (view #tokens <$> inputBundles) userSpecifiedAssetIds
+      collateNonUserSpecifiedAssetQuantities
+        (view #tokens <$> inputBundles)
+        userSpecifiedAssetIds
 
 -- | Generates a map of all non-user-specified assets and their quantities.
 --
@@ -1488,24 +1545,24 @@ makeChange criteria
 --
 -- The value associated with each key corresponds to the complete list of all
 -- discrete non-zero quantities of that asset present in the selected inputs.
---
 collateNonUserSpecifiedAssetQuantities
-    :: NonEmpty TokenMap
-      -- ^ Token maps of all selected inputs.
-    -> Set AssetId
-      -- ^ Set of all assets in user-specified outputs.
-    -> Map AssetId (NonEmpty TokenQuantity)
+  :: NonEmpty TokenMap
+  -- ^ Token maps of all selected inputs.
+  -> Set AssetId
+  -- ^ Set of all assets in user-specified outputs.
+  -> Map AssetId (NonEmpty TokenQuantity)
 collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
-    F.foldr discardUserSpecifiedAssets mempty inputMaps
+  F.foldr discardUserSpecifiedAssets mempty inputMaps
   where
     discardUserSpecifiedAssets
-        :: TokenMap
-        -> Map AssetId (NonEmpty TokenQuantity)
-        -> Map AssetId (NonEmpty TokenQuantity)
+      :: TokenMap
+      -> Map AssetId (NonEmpty TokenQuantity)
+      -> Map AssetId (NonEmpty TokenQuantity)
     discardUserSpecifiedAssets tokens m =
-        foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
+      foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
-        filtered = filter
+        filtered =
+          filter
             ((`Set.notMember` userSpecifiedAssetIds) . fst)
             (TokenMap.toFlatList tokens)
 
@@ -1536,72 +1593,76 @@ collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
 --
 --    - fails if (and only if) there was not enough ada available to assign the
 --      minimum ada quantity to all non-empty change maps.
---
 assignCoinsToChangeMaps
-    :: HasCallStack
-    => Coin
-    -- ^ The total quantity of ada available, including any extra source of ada.
-    -> (TokenMap -> Coin)
-    -- ^ A function to calculate the minimum required ada quantity for any
-    -- token map.
-    -> NonEmpty (TokenMap, Coin)
-    -- ^ A list of pre-computed asset change maps paired with original output
-    -- coins, sorted into an order that ensures all empty token maps are at the
-    -- start of the list.
-    -> Either Coin [TokenBundle]
-    -- ^ Resulting change bundles, or the shortfall quantity if there was not
-    -- enough ada available to assign a minimum ada quantity to all non-empty
-    -- token maps.
+  :: HasCallStack
+  => Coin
+  -- ^ The total quantity of ada available, including any extra source of ada.
+  -> (TokenMap -> Coin)
+  -- ^ A function to calculate the minimum required ada quantity for any
+  -- token map.
+  -> NonEmpty (TokenMap, Coin)
+  -- ^ A list of pre-computed asset change maps paired with original output
+  -- coins, sorted into an order that ensures all empty token maps are at the
+  -- start of the list.
+  -> Either Coin [TokenBundle]
+  -- ^ Resulting change bundles, or the shortfall quantity if there was not
+  -- enough ada available to assign a minimum ada quantity to all non-empty
+  -- token maps.
 assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
-    | not changeMapsCorrectlyOrdered =
-        changeMapsNotCorrectlyOrderedError
-    | otherwise =
-        loop adaRequiredAtStart pairsAtStart
+  | not changeMapsCorrectlyOrdered =
+      changeMapsNotCorrectlyOrderedError
+  | otherwise =
+      loop adaRequiredAtStart pairsAtStart
   where
     loop !adaRequired !pairsNonEmpty = case pairsNonEmpty of
-
-        pair :| pairs | adaAvailable >= adaRequired ->
+      pair :| pairs
+        | adaAvailable >= adaRequired ->
             -- We have enough ada available to pay for the minimum required
             -- amount of every asset map that remains in our list:
             let
-                assetMapsRemaining = fst <$> (pair :| pairs)
-                bundlesForAssetsWithMinimumCoins =
-                    assignMinimumCoin minCoinFor <$> assetMapsRemaining
-                -- Calculate the amount of ada that remains after assigning the
-                -- minimum amount to each map. This should be safe, as we have
-                -- already determined that we have enough ada available:
-                adaRemaining = adaAvailable `Coin.distance` adaRequired
-                -- Partition any remaining ada according to the weighted
-                -- distribution of output coins that remain in our list:
-                outputCoinsRemaining = snd <$> (pair :| pairs)
-                bundlesForOutputCoins = TokenBundle.fromCoin <$>
-                    makeChangeForCoin outputCoinsRemaining adaRemaining
+              assetMapsRemaining = fst <$> (pair :| pairs)
+              bundlesForAssetsWithMinimumCoins =
+                assignMinimumCoin minCoinFor <$> assetMapsRemaining
+              -- Calculate the amount of ada that remains after assigning the
+              -- minimum amount to each map. This should be safe, as we have
+              -- already determined that we have enough ada available:
+              adaRemaining = adaAvailable `Coin.distance` adaRequired
+              -- Partition any remaining ada according to the weighted
+              -- distribution of output coins that remain in our list:
+              outputCoinsRemaining = snd <$> (pair :| pairs)
+              bundlesForOutputCoins =
+                TokenBundle.fromCoin
+                  <$> makeChangeForCoin outputCoinsRemaining adaRemaining
             in
-                -- Finally, combine the minimal coin asset bundles with the
-                -- bundles obtained by partitioning the remaining ada amount:
-                Right $ NE.toList $ NE.zipWith (<>)
-                    bundlesForAssetsWithMinimumCoins
-                    bundlesForOutputCoins
-
-        (m, _) :| (p : ps) | TokenMap.isEmpty m && adaAvailable < adaRequired ->
+              -- Finally, combine the minimal coin asset bundles with the
+              -- bundles obtained by partitioning the remaining ada amount:
+              Right
+                $ NE.toList
+                $ NE.zipWith
+                  (<>)
+                  bundlesForAssetsWithMinimumCoins
+                  bundlesForOutputCoins
+      (m, _) :| (p : ps)
+        | TokenMap.isEmpty m && adaAvailable < adaRequired ->
             -- We don't have enough ada available to pay for the minimum
             -- required amount of every asset map, but we do have an empty
             -- asset map that is safe to drop. This will reduce the amount of
             -- ada required by a small amount:
-            let adaRequired' = adaRequired `Coin.distance` minCoinFor m in
-            loop adaRequired' (p :| ps)
-
-        (m, _) :| [] | TokenMap.isEmpty m && adaAvailable < adaRequired ->
+            let
+              adaRequired' = adaRequired `Coin.distance` minCoinFor m
+            in
+              loop adaRequired' (p :| ps)
+      (m, _) :| []
+        | TokenMap.isEmpty m && adaAvailable < adaRequired ->
             -- We didn't have any non-ada assets at all in our change, and we
             -- also don't have enough ada available to pay even for a single
             -- change output. We just burn the available ada amount (which
             -- will be small), returning no change.
             Right []
-
-        _ ->
-            -- We don't have enough ada available, and there are no empty token
-            -- maps available to drop. We have to give up at this point.
-            Left (adaRequired `Coin.difference` adaAvailable)
+      _ ->
+        -- We don't have enough ada available, and there are no empty token
+        -- maps available to drop. We have to give up at this point.
+        Left (adaRequired `Coin.difference` adaAvailable)
 
     adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
 
@@ -1609,19 +1670,20 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
 
     -- Indicates whether or not the given change maps are correctly ordered,
     -- so that all empty maps are located at the start of the list.
-    changeMapsCorrectlyOrdered = (==)
+    changeMapsCorrectlyOrdered =
+      (==)
         (NE.takeWhile TokenMap.isEmpty changeMaps)
         (NE.filter TokenMap.isEmpty changeMaps)
 
     changeMapsNotCorrectlyOrderedError =
-        error $ unwords
-            [ "assignCoinsToChangeMaps: pre-computed asset change maps must be"
-            , "arranged in an order where all empty maps are at the start of"
-            , "the list."
-            ]
+      error
+        $ unwords
+          [ "assignCoinsToChangeMaps: pre-computed asset change maps must be"
+          , "arranged in an order where all empty maps are at the start of"
+          , "the list."
+          ]
 
 -- | Assigns the minimum required ada quantity to a token map.
---
 assignMinimumCoin :: (TokenMap -> Coin) -> TokenMap -> TokenBundle
 assignMinimumCoin minCoinFor m = TokenBundle (minCoinFor m) m
 
@@ -1636,18 +1698,17 @@ assignMinimumCoin minCoinFor m = TokenBundle (minCoinFor m) m
 -- The length of the output list is always the same as the the length of the
 -- input list, and the sum of its quantities is either zero, or exactly equal
 -- to the token quantity in the second argument.
---
 makeChangeForUserSpecifiedAsset
-    :: NonEmpty TokenMap
-        -- ^ A list of weights for the distribution. Conveniently captures both
-        -- the weights, and the number of elements amongst which the quantity
-        -- should be distributed.
-    -> (AssetId, TokenQuantity)
-        -- ^ A surplus token quantity to distribute.
-    -> NonEmpty TokenMap
+  :: NonEmpty TokenMap
+  -- ^ A list of weights for the distribution. Conveniently captures both
+  -- the weights, and the number of elements amongst which the quantity
+  -- should be distributed.
+  -> (AssetId, TokenQuantity)
+  -- ^ A surplus token quantity to distribute.
+  -> NonEmpty TokenMap
 makeChangeForUserSpecifiedAsset targets (asset, excess) =
-    TokenMap.singleton asset <$>
-        fromMaybe zeros (TokenQuantity.partition excess weights)
+  TokenMap.singleton asset
+    <$> fromMaybe zeros (TokenQuantity.partition excess weights)
   where
     weights :: NonEmpty TokenQuantity
     weights = flip TokenMap.getQuantity asset <$> targets
@@ -1668,35 +1729,33 @@ makeChangeForUserSpecifiedAsset targets (asset, excess) =
 --
 -- The resultant list is sorted into ascending order when maps are compared
 -- with the `leq` function.
---
 makeChangeForNonUserSpecifiedAsset
-    :: NonEmpty a
-        -- ^ Determines the number of change maps to create.
-    -> (AssetId, NonEmpty TokenQuantity)
-        -- ^ An asset quantity to distribute.
-    -> NonEmpty TokenMap
-        -- ^ The resultant change maps.
+  :: NonEmpty a
+  -- ^ Determines the number of change maps to create.
+  -> (AssetId, NonEmpty TokenQuantity)
+  -- ^ An asset quantity to distribute.
+  -> NonEmpty TokenMap
+  -- ^ The resultant change maps.
 makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
-    TokenMap.singleton asset <$> padCoalesce quantities n
+  TokenMap.singleton asset <$> padCoalesce quantities n
 
 -- | Constructs change outputs for all non-user-specified assets: assets that
 --   were not present in the original set of outputs.
 --
 -- The resultant list is sorted into ascending order when maps are compared
 -- with the `leq` function.
---
 makeChangeForNonUserSpecifiedAssets
-    :: NonEmpty a
-        -- ^ Determines the number of change maps to create.
-    -> Map AssetId (NonEmpty TokenQuantity)
-        -- ^ A map of asset quantities to distribute.
-    -> NonEmpty TokenMap
-        -- ^ The resultant change maps.
+  :: NonEmpty a
+  -- ^ Determines the number of change maps to create.
+  -> Map AssetId (NonEmpty TokenQuantity)
+  -- ^ A map of asset quantities to distribute.
+  -> NonEmpty TokenMap
+  -- ^ The resultant change maps.
 makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
-    F.foldr
-        (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
-        (TokenMap.empty <$ n)
-        (Map.toList nonUserSpecifiedAssetQuantities)
+  F.foldr
+    (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
+    (TokenMap.empty <$ n)
+    (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
 --
@@ -1706,16 +1765,15 @@ makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
 -- The length of the output list is always the same as the length of the input
 -- list, and the sum of its quantities is always exactly equal to the 'Coin'
 -- value given as the second argument.
---
 makeChangeForCoin
-    :: HasCallStack
-    => NonEmpty Coin
-        -- ^ A list of weights for the distribution. Conveniently captures both
-        -- the weights, and the number of elements amongst which the surplus
-        -- ada quantity should be distributed.
-    -> Coin
-        -- ^ A surplus ada quantity to be distributed.
-    -> NonEmpty Coin
+  :: HasCallStack
+  => NonEmpty Coin
+  -- ^ A list of weights for the distribution. Conveniently captures both
+  -- the weights, and the number of elements amongst which the surplus
+  -- ada quantity should be distributed.
+  -> Coin
+  -- ^ A surplus ada quantity to be distributed.
+  -> NonEmpty Coin
 makeChangeForCoin = flip Coin.unsafePartition
 
 --------------------------------------------------------------------------------
@@ -1840,31 +1898,29 @@ makeChangeForCoin = flip Coin.unsafePartition
 -- partial order.
 --
 -- The length of the given list is preserved in the output list.
---
 addMintValueToChangeMaps
-    :: (AssetId, TokenQuantity)
-    -> NonEmpty TokenMap
-    -> NonEmpty TokenMap
+  :: (AssetId, TokenQuantity)
+  -> NonEmpty TokenMap
+  -> NonEmpty TokenMap
 addMintValueToChangeMaps (assetId, assetQty) =
-    -- The largest element is the last element in an ascending order list
-    modifyLast $ \m -> TokenMap.adjustQuantity m assetId (<> assetQty)
+  -- The largest element is the last element in an ascending order list
+  modifyLast $ \m -> TokenMap.adjustQuantity m assetId (<> assetQty)
   where
     modifyLast f xs = case NE.reverse xs of
-        (y :| ys) -> NE.reverse (f y :| ys)
+      (y :| ys) -> NE.reverse (f y :| ys)
 
 -- | Adds minted values for multiple assets to a list of change maps.
 --
 -- Plural of @addMintValueToChangeMaps@.
---
 addMintValuesToChangeMaps
-    :: TokenMap
-    -- ^ Map of minted values
-    -> NonEmpty TokenMap
-    -- ^ Change maps
-    -> NonEmpty TokenMap
-    -- ^ Change maps with minted values
+  :: TokenMap
+  -- ^ Map of minted values
+  -> NonEmpty TokenMap
+  -- ^ Change maps
+  -> NonEmpty TokenMap
+  -- ^ Change maps with minted values
 addMintValuesToChangeMaps =
-    flip (F.foldr addMintValueToChangeMaps) . TokenMap.toFlatList
+  flip (F.foldr addMintValueToChangeMaps) . TokenMap.toFlatList
 
 -- | Removes a burned asset quantity from a list of change maps.
 --
@@ -1912,15 +1968,15 @@ addMintValuesToChangeMaps =
 -- partial order.
 --
 -- The length of the given list is preserved in the output list.
---
 removeBurnValueFromChangeMaps
-    :: (AssetId, TokenQuantity)
-    -- ^ Asset quantity reduction target
-    -> NonEmpty TokenMap
-    -- ^ Change maps with quantities of the given asset to be reduced
-    -> NonEmpty TokenMap
-    -- ^ Change maps with reduced quantities of the given asset
-removeBurnValueFromChangeMaps (assetId, assetQty) maps = maps
+  :: (AssetId, TokenQuantity)
+  -- ^ Asset quantity reduction target
+  -> NonEmpty TokenMap
+  -- ^ Change maps with quantities of the given asset to be reduced
+  -> NonEmpty TokenMap
+  -- ^ Change maps with reduced quantities of the given asset
+removeBurnValueFromChangeMaps (assetId, assetQty) maps =
+  maps
     & fmap (`TokenMap.getQuantity` assetId)
     & reduceTokenQuantities assetQty
     & NE.zipWith (`TokenMap.setQuantity` assetId) maps
@@ -1947,21 +2003,20 @@ removeBurnValueFromChangeMaps (assetId, assetQty) maps = maps
 -- guaranteed to be in ascending order.
 --
 -- The length of the given list is preserved in the output.
---
 reduceTokenQuantities
-    :: TokenQuantity
-    -- ^ Reduction target
-    -> NonEmpty TokenQuantity
-    -- ^ List of quantities to reduce
-    -> NonEmpty TokenQuantity
-    -- ^ The list of reduced quantities
+  :: TokenQuantity
+  -- ^ Reduction target
+  -> NonEmpty TokenQuantity
+  -- ^ List of quantities to reduce
+  -> NonEmpty TokenQuantity
+  -- ^ The list of reduced quantities
 reduceTokenQuantities reductionTarget quantities =
-    NE.fromList $ burn reductionTarget (NE.toList quantities) []
+  NE.fromList $ burn reductionTarget (NE.toList quantities) []
   where
-    burn _ [      ] ys = reverse ys
+    burn _ [] ys = reverse ys
     burn b (x : xs) ys
-        | x >= b = reverse ys <> (x' : xs)
-        | otherwise = burn b' xs (x' : ys)
+      | x >= b = reverse ys <> (x' : xs)
+      | otherwise = burn b' xs (x' : ys)
       where
         b' = b `TokenQuantity.difference` x
         x' = x `TokenQuantity.difference` b
@@ -1969,16 +2024,15 @@ reduceTokenQuantities reductionTarget quantities =
 -- | Removes burned values for multiple assets from a list of change maps.
 --
 -- Plural of @removeBurnValueFromChangeMaps@.
---
 removeBurnValuesFromChangeMaps
-    :: TokenMap
-    -- ^ Map of burned values
-    -> NonEmpty TokenMap
-    -- ^ Change maps
-    -> NonEmpty TokenMap
-    -- ^ Change maps with burned values removed
+  :: TokenMap
+  -- ^ Map of burned values
+  -> NonEmpty TokenMap
+  -- ^ Change maps
+  -> NonEmpty TokenMap
+  -- ^ Change maps with burned values removed
 removeBurnValuesFromChangeMaps =
-    flip (F.foldr removeBurnValueFromChangeMaps) . TokenMap.toFlatList
+  flip (F.foldr removeBurnValueFromChangeMaps) . TokenMap.toFlatList
 
 --------------------------------------------------------------------------------
 -- Splitting bundles
@@ -1988,19 +2042,18 @@ removeBurnValuesFromChangeMaps =
 --   measured with the given 'isExcessive' indicator function.
 --
 -- Returns a list of smaller bundles for which 'isExcessive' returns 'False'.
---
 splitBundleIfAssetCountExcessive
-    :: TokenBundle
-    -- ^ The token bundle suspected to have an excessive number of assets.
-    -> (TokenBundle -> Bool)
-    -- ^ A function that returns 'True' if (and only if) the asset count of
-    -- the given bundle is excessive.
-    -> NonEmpty TokenBundle
+  :: TokenBundle
+  -- ^ The token bundle suspected to have an excessive number of assets.
+  -> (TokenBundle -> Bool)
+  -- ^ A function that returns 'True' if (and only if) the asset count of
+  -- the given bundle is excessive.
+  -> NonEmpty TokenBundle
 splitBundleIfAssetCountExcessive b isExcessive
-    | isExcessive b =
-        splitInHalf b >>= flip splitBundleIfAssetCountExcessive isExcessive
-    | otherwise =
-        pure b
+  | isExcessive b =
+      splitInHalf b >>= flip splitBundleIfAssetCountExcessive isExcessive
+  | otherwise =
+      pure b
   where
     splitInHalf = flip TokenBundle.equipartitionAssets (() :| [()])
 
@@ -2013,16 +2066,15 @@ splitBundleIfAssetCountExcessive b isExcessive
 --
 -- If none of the bundles in the given list has an excessive asset count,
 -- this function will return the original list.
---
 splitBundlesWithExcessiveAssetCounts
-    :: NonEmpty TokenBundle
-    -- ^ Token bundles.
-    -> (TokenBundle -> Bool)
-    -- ^ A function that returns 'True' if (and only if) the asset count of
-    -- the given bundle is excessive.
-    -> NonEmpty TokenBundle
+  :: NonEmpty TokenBundle
+  -- ^ Token bundles.
+  -> (TokenBundle -> Bool)
+  -- ^ A function that returns 'True' if (and only if) the asset count of
+  -- the given bundle is excessive.
+  -> NonEmpty TokenBundle
 splitBundlesWithExcessiveAssetCounts bs isExcessive =
-    (`splitBundleIfAssetCountExcessive` isExcessive) =<< bs
+  (`splitBundleIfAssetCountExcessive` isExcessive) =<< bs
 
 -- | Splits bundles with excessive token quantities into smaller bundles.
 --
@@ -2031,16 +2083,15 @@ splitBundlesWithExcessiveAssetCounts bs isExcessive =
 --
 -- If none of the bundles in the given list contain a quantity that exceeds
 -- the maximum token quantity, this function will return the original list.
---
 splitBundlesWithExcessiveTokenQuantities
-    :: NonEmpty TokenBundle
-    -- ^ Token bundles.
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity.
-    -> NonEmpty TokenBundle
-    -- ^ The partitioned bundles.
+  :: NonEmpty TokenBundle
+  -- ^ Token bundles.
+  -> TokenQuantity
+  -- ^ Maximum allowable token quantity.
+  -> NonEmpty TokenBundle
+  -- ^ The partitioned bundles.
 splitBundlesWithExcessiveTokenQuantities bs maxQuantity =
-    (`TokenBundle.equipartitionQuantitiesWithUpperBound` maxQuantity) =<< bs
+  (`TokenBundle.equipartitionQuantitiesWithUpperBound` maxQuantity) =<< bs
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -2061,31 +2112,32 @@ ungroupByKey m = [(k, v) | (k, vs) <- Map.toList m, v <- NE.toList vs]
 
 runRoundRobin :: s -> (s' -> s) -> [(s -> Maybe s')] -> s
 runRoundRobin state demote processors =
-    runIdentity $ runRoundRobinM state demote $ fmap Identity <$> processors
+  runIdentity $ runRoundRobinM state demote $ fmap Identity <$> processors
 
 runRoundRobinM :: Monad m => s -> (s' -> s) -> [(s -> m (Maybe s'))] -> m s
 runRoundRobinM state demote processors = go state processors []
   where
-    go !s []        [] = pure s
-    go !s []       !qs = go s (L.reverse qs) []
-    go !s (p : ps) !qs = p s >>=
-        \case
-            Nothing -> go         s   ps      qs
-            Just s' -> go (demote s') ps (p : qs)
+    go !s [] [] = pure s
+    go !s [] !qs = go s (L.reverse qs) []
+    go !s (p : ps) !qs =
+      p s
+        >>= \case
+          Nothing -> go s ps qs
+          Just s' -> go (demote s') ps (p : qs)
 
 --------------------------------------------------------------------------------
 -- Accessor functions
 --------------------------------------------------------------------------------
 
 selectedAssetQuantity :: IsUTxOSelection s u => AssetId -> s u -> Natural
-selectedAssetQuantity asset
-    = unTokenQuantity
+selectedAssetQuantity asset =
+  unTokenQuantity
     . flip TokenBundle.getQuantity asset
     . UTxOSelection.selectedBalance
 
 selectedCoinQuantity :: IsUTxOSelection s u => s u -> Natural
-selectedCoinQuantity
-    = intCast
+selectedCoinQuantity =
+  intCast
     . unCoin
     . TokenBundle.getCoin
     . UTxOSelection.selectedBalance
@@ -2098,15 +2150,14 @@ selectedCoinQuantity
 --
 -- If two maps have the same number of assets, then we fall back to ordinary
 -- lexicographic ordering as a tie-breaker.
---
 instance Ord (AssetCount TokenMap) where
-    compare = comparing projection
-      where
-        projection (AssetCount m) = (TokenMap.size m, Lexicographic m)
+  compare = comparing projection
+    where
+      projection (AssetCount m) = (TokenMap.size m, Lexicographic m)
 
 newtype AssetCount a = AssetCount
-    { unAssetCount :: a }
-    deriving (Eq, Show)
+  {unAssetCount :: a}
+  deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 -- Utility functions
@@ -2114,15 +2165,15 @@ newtype AssetCount a = AssetCount
 
 distance :: Natural -> Natural -> Natural
 distance a b
-    | a > b = a - b
-    | a < b = b - a
-    | otherwise = 0
+  | a > b = a - b
+  | a < b = b - a
+  | otherwise = 0
 
 mapMaybe :: (a -> Maybe b) -> NonEmpty a -> [b]
-mapMaybe predicate (x :| xs) = go (x:xs)
+mapMaybe predicate (x :| xs) = go (x : xs)
   where
-    go   []   = []
-    go (a:as) =
-        case predicate a of
-            Just b  -> b : go as
-            Nothing -> go as
+    go [] = []
+    go (a : as) =
+      case predicate a of
+        Just b -> b : go as
+        Nothing -> go as

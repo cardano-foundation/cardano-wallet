@@ -6,73 +6,97 @@
 -- License: Apache-2.0
 --
 -- DBLayer tests for SQLite implementation.
-
 module Cardano.Pool.DB.SqliteSpec
-    ( spec
-    ) where
-
-import Prelude
+  ( spec
+  )
+where
 
 import Cardano.BM.Trace
-    ( nullTracer )
+  ( nullTracer
+  )
 import Cardano.DB.Sqlite
-    ( DBLog (..) )
+  ( DBLog (..)
+  )
 import Cardano.Pool.DB
-    ( DBLayer (..) )
+  ( DBLayer (..)
+  )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog (..) )
+  ( PoolDbLog (..)
+  )
 import Cardano.Pool.DB.Properties
-    ( properties )
+  ( properties
+  )
 import Cardano.Pool.DB.Sqlite
-    ( withDBLayer )
+  ( withDBLayer
+  )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+  ( dummyTimeInterpreter
+  )
 import System.Directory
-    ( copyFile )
+  ( copyFile
+  )
 import System.FilePath
-    ( (</>) )
+  ( (</>)
+  )
 import Test.Hspec
-    ( Spec, around, describe, it, shouldBe )
+  ( Spec
+  , around
+  , describe
+  , it
+  , shouldBe
+  )
 import Test.Utils.Paths
-    ( getTestData )
+  ( getTestData
+  )
 import Test.Utils.Trace
-    ( captureLogging )
+  ( captureLogging
+  )
 import UnliftIO.Temporary
-    ( withSystemTempDirectory )
+  ( withSystemTempDirectory
+  )
+import Prelude
 
 withMemoryDBLayer
-    :: (DBLayer IO -> IO a)
-    -> IO a
+  :: (DBLayer IO -> IO a)
+  -> IO a
 withMemoryDBLayer = withDBLayer nullTracer Nothing dummyTimeInterpreter
 
 spec :: Spec
 spec = do
-    around withMemoryDBLayer $ do
-        describe "Sqlite" properties
+  around withMemoryDBLayer $ do
+    describe "Sqlite" properties
 
-    describe "Migration Regressions" $ do
-        test_migrationFromv20191216
+  describe "Migration Regressions" $ do
+    test_migrationFromv20191216
 
 test_migrationFromv20191216 :: Spec
 test_migrationFromv20191216 =
-    it "'migrate' an existing database from v2019-12-16 by\
-       \ creating it from scratch again. But only once." $ do
-        let orig = $(getTestData) </> "stake-pools-db" </> "v2019-12-16.sqlite"
-        withSystemTempDirectory "stake-pools-db" $ \dir -> do
-            let path = dir </> "stake-pools.sqlite"
-            copyFile orig path
-            let ti = dummyTimeInterpreter
-            (logs, _) <- captureLogging $ \tr -> do
-                withDBLayer tr (Just path) ti $ \_ -> pure ()
-                withDBLayer tr (Just path) ti $ \_ -> pure ()
+  it
+    "'migrate' an existing database from v2019-12-16 by\
+    \ creating it from scratch again. But only once."
+    $ do
+      let
+        orig = $(getTestData) </> "stake-pools-db" </> "v2019-12-16.sqlite"
+      withSystemTempDirectory "stake-pools-db" $ \dir -> do
+        let
+          path = dir </> "stake-pools.sqlite"
+        copyFile orig path
+        let
+          ti = dummyTimeInterpreter
+        (logs, _) <- captureLogging $ \tr -> do
+          withDBLayer tr (Just path) ti $ \_ -> pure ()
+          withDBLayer tr (Just path) ti $ \_ -> pure ()
 
-            let databaseConnMsg  = filter isMsgOpenDB logs
-            let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
-            let migrationErrMsg  = filter isMsgMigrationError logs
+        let
+          databaseConnMsg = filter isMsgOpenDB logs
+        let
+          databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
+        let
+          migrationErrMsg = filter isMsgMigrationError logs
 
-            length databaseConnMsg  `shouldBe` 8
-            length databaseResetMsg `shouldBe` 1
-            length migrationErrMsg  `shouldBe` 1
+        length databaseConnMsg `shouldBe` 8
+        length databaseResetMsg `shouldBe` 1
+        length migrationErrMsg `shouldBe` 1
 
 isMsgOpenDB :: PoolDbLog -> Bool
 isMsgOpenDB (MsgGeneric (MsgOpenSingleConnection _)) = True

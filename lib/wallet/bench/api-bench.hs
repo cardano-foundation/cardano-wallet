@@ -7,415 +7,548 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{- |
-Copyright: © 2023–2023 IOHK
 
-This benchmark measures the running time of various functions from
-the main module "Cardano.Wallet". The benchmark loads wallet states
-from database files inside a given directory. These wallets are not
-actively synchronized to the blockchain.
-
-This benchmark design is useful for the following tasks:
-
-* Compare the performance for wallet states with different ``shapes'',
-  e.g. wallets with many addresses and few UTxO, or vice-versa.
-* Detect performance regressions or improvements as the codebase changes.
-* Develop performance improvements, by enabling speedy testing of
-  hypotheses on the code. (In order to keep recompilation times
-  short, the benchmark exercises the "Cardano.Wallet" module,
-  but not the full HTTP endpoints.)
-
-This benchmark is not so useful for the following tasks:
-
-* Accurately measure the absolute running time for wallets of
-  realistic sizes. (Unless we generate a corresponding wallet state file.)
-* Accurately measure the absolute running time of all HTTP API endpoints,
-  as this is at odds with the goal of allowing speedy hypothesis testing.
-  (We want the "Cardano.Wallet" module to faithfully represent the API
-  and expect that only a small cost of serializing/deserializing to/from JSON
-  is incurred comparing to the HTTP API.)
-
--}
+-- |
+-- Copyright: © 2023–2023 IOHK
+--
+-- This benchmark measures the running time of various functions from
+-- the main module "Cardano.Wallet". The benchmark loads wallet states
+-- from database files inside a given directory. These wallets are not
+-- actively synchronized to the blockchain.
+--
+-- This benchmark design is useful for the following tasks:
+--
+-- * Compare the performance for wallet states with different ``shapes'',
+--   e.g. wallets with many addresses and few UTxO, or vice-versa.
+-- * Detect performance regressions or improvements as the codebase changes.
+-- * Develop performance improvements, by enabling speedy testing of
+--   hypotheses on the code. (In order to keep recompilation times
+--   short, the benchmark exercises the "Cardano.Wallet" module,
+--   but not the full HTTP endpoints.)
+--
+-- This benchmark is not so useful for the following tasks:
+--
+-- * Accurately measure the absolute running time for wallets of
+--   realistic sizes. (Unless we generate a corresponding wallet state file.)
+-- * Accurately measure the absolute running time of all HTTP API endpoints,
+--   as this is at odds with the goal of allowing speedy hypothesis testing.
+--   (We want the "Cardano.Wallet" module to faithfully represent the API
+--   and expect that only a small cost of serializing/deserializing to/from JSON
+--   is incurred comparing to the HTTP API.)
 module Main where
 
-import Prelude
-
+import Cardano.Api qualified as Cardano
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+  ( Severity (..)
+  )
 import Cardano.BM.Trace
-    ( Trace )
+  ( Trace
+  )
 import Cardano.Wallet
-    ( WalletLayer (..), readWalletMeta )
+  ( WalletLayer (..)
+  , readWalletMeta
+  )
+import Cardano.Wallet qualified as W
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..), Depth (..), delegationAddressS )
+  ( DelegationAddress (..)
+  , Depth (..)
+  , delegationAddressS
+  )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+  ( SharedKey
+  )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+  ( ShelleyKey
+  )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+  ( RndState (..)
+  )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+  ( SeqState (..)
+  )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState (..) )
+  ( SharedState (..)
+  )
 import Cardano.Wallet.BenchShared
-    ( Time, bench, initBenchmarkLogging, runBenchmarks )
+  ( Time
+  , bench
+  , initBenchmarkLogging
+  , runBenchmarks
+  )
 import Cardano.Wallet.DB
-    ( DBFresh (..) )
+  ( DBFresh (..)
+  )
+import Cardano.Wallet.DB qualified as DB
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook )
+  ( PersistAddressBook
+  )
+import Cardano.Wallet.DB.Layer qualified as DB
+import Cardano.Wallet.DB.Layer qualified as Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyNetworkLayer
-    , dummyProtocolParameters
-    , dummySlottingParameters
-    , dummyTimeInterpreter
-    )
+  ( dummyNetworkLayer
+  , dummyProtocolParameters
+  , dummySlottingParameters
+  , dummyTimeInterpreter
+  )
 import Cardano.Wallet.Flavor
-    ( KeyFlavor, KeyOf, WalletFlavor (..), keyFlavor )
+  ( KeyFlavor
+  , KeyOf
+  , WalletFlavor (..)
+  , keyFlavor
+  )
 import Cardano.Wallet.Logging
-    ( trMessageText )
+  ( trMessageText
+  )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+  ( NetworkLayer (..)
+  )
 import Cardano.Wallet.Primitive.Model
-    ( totalUTxO )
+  ( totalUTxO
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..)
-    , NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , networkIdVal
-    , withSNetworkId
-    )
+  ( HasSNetworkId (..)
+  , NetworkDiscriminant (..)
+  , NetworkId (..)
+  , SNetworkId (..)
+  , networkIdVal
+  , withSNetworkId
+  )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+  ( TimeInterpreter
+  , hoistTimeInterpreter
+  )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId, WalletMetadata (..) )
+  ( SortOrder (..)
+  , WalletId
+  , WalletMetadata (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..) )
+  ( HistogramBar (..)
+  , UTxOStatistics (..)
+  )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics qualified as UTxOStatistics
+import Cardano.Wallet.Read qualified as Read
 import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
+  ( newTransactionLayer
+  )
+import Cardano.Wallet.Transaction qualified as Tx
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+  ( unsafeRunExceptT
+  )
 import Control.Monad
-    ( forM )
+  ( forM
+  )
 import Control.Monad.IO.Class
-    ( liftIO )
+  ( liftIO
+  )
 import Data.Aeson
-    ( ToJSON (..), genericToJSON, (.=) )
+  ( ToJSON (..)
+  , genericToJSON
+  , (.=)
+  )
+import Data.Aeson qualified as Aeson
+import Data.Map.Strict qualified as Map
 import Data.Quantity
-    ( Quantity (..) )
+  ( Quantity (..)
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
+import Data.Text qualified as T
 import Fmt
-    ( Buildable, Builder, blockListF', build, genericF, nameF, pretty )
+  ( Buildable
+  , Builder
+  , blockListF'
+  , build
+  , genericF
+  , nameF
+  , pretty
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Main.Utf8
-    ( withUtf8 )
+  ( withUtf8
+  )
 import Numeric.Natural
-    ( Natural )
+  ( Natural
+  )
 import Say
-    ( sayErr )
-
-import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet as W
-import qualified Cardano.Wallet.DB as DB
-import qualified Cardano.Wallet.DB.Layer as DB
-import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
-import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Wallet.Transaction as Tx
-import qualified Data.Aeson as Aeson
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
-import qualified System.Environment as Sys
-import qualified System.Exit as Sys
+  ( sayErr
+  )
+import System.Environment qualified as Sys
+import System.Exit qualified as Sys
+import Prelude
 
 {-------------------------------------------------------------------------------
     Main function
 -------------------------------------------------------------------------------}
 main :: IO ()
 main = withUtf8 $ do
-    Sys.getArgs >>= \case
-        [] -> do
-            sayErr "expected 1 argument: directory with wallet database files"
-            Sys.exitFailure
-        (dir: _) -> benchmarkApi dir
+  Sys.getArgs >>= \case
+    [] -> do
+      sayErr "expected 1 argument: directory with wallet database files"
+      Sys.exitFailure
+    (dir : _) -> benchmarkApi dir
 
 benchmarkApi :: FilePath -> IO ()
 benchmarkApi dir = do
-    (_, tr) <- initBenchmarkLogging "wallet" Notice
-    withSNetworkId (NTestnet 0) $ \networkId ->
-        runBenchmarks
-            [ benchmarkWallets "sequential"
-                dir tr networkId benchmarksSeq
-            , benchmarkWallets "shared"
-                dir tr networkId benchmarksShared
-            , benchmarkWallets "random"
-                dir tr networkId benchmarksRnd
-            ]
+  (_, tr) <- initBenchmarkLogging "wallet" Notice
+  withSNetworkId (NTestnet 0) $ \networkId ->
+    runBenchmarks
+      [ benchmarkWallets
+          "sequential"
+          dir
+          tr
+          networkId
+          benchmarksSeq
+      , benchmarkWallets
+          "shared"
+          dir
+          tr
+          networkId
+          benchmarksShared
+      , benchmarkWallets
+          "random"
+          dir
+          tr
+          networkId
+          benchmarksRnd
+      ]
 
 {-------------------------------------------------------------------------------
     Wallet API benchmarks
 -------------------------------------------------------------------------------}
 data WalletOverview = WalletOverview
-    { utxo :: UTxOStatistics
-    , addresses :: Word
-    , transactions :: Word
-    } deriving (Show, Generic)
+  { utxo :: UTxOStatistics
+  , addresses :: Word
+  , transactions :: Word
+  }
+  deriving (Show, Generic)
 
 instance Buildable WalletOverview where
-    build WalletOverview{utxo,addresses,transactions} =
-        blockListF' "" id
-            [ nameF "number of addresses" (build addresses)
-            , nameF "number of transactions" (build transactions)
-            , build utxo
-            ]
+  build WalletOverview {utxo, addresses, transactions} =
+    blockListF'
+      ""
+      id
+      [ nameF "number of addresses" (build addresses)
+      , nameF "number of transactions" (build transactions)
+      , build utxo
+      ]
 
 instance ToJSON WalletOverview where
-    toJSON WalletOverview{utxo,addresses,transactions} = Aeson.object
-        [ "utxo" .= jsonFromUTxOStatistics utxo
-        , "addresses" .= addresses
-        , "transactions" .= transactions
-        ]
+  toJSON WalletOverview {utxo, addresses, transactions} =
+    Aeson.object
+      [ "utxo" .= jsonFromUTxOStatistics utxo
+      , "addresses" .= addresses
+      , "transactions" .= transactions
+      ]
 
 jsonFromUTxOStatistics :: UTxOStatistics -> Aeson.Value
-jsonFromUTxOStatistics UTxOStatistics{histogram,allStakes,boundType} =
-    Aeson.object
-        [ "total" .=
-            (Quantity (fromIntegral allStakes) :: Quantity "lovelace" Natural)
-        , "scale" .= genericToJSON Aeson.defaultOptions boundType
-        , "distribution" .=
-            Map.fromList (map (\(HistogramBar k v)-> (k,v)) histogram)
-        ]
+jsonFromUTxOStatistics UTxOStatistics {histogram, allStakes, boundType} =
+  Aeson.object
+    [ "total"
+        .= (Quantity (fromIntegral allStakes) :: Quantity "lovelace" Natural)
+    , "scale" .= genericToJSON Aeson.defaultOptions boundType
+    , "distribution"
+        .= Map.fromList (map (\(HistogramBar k v) -> (k, v)) histogram)
+    ]
 
 {-------------------------------------------------------------------------------
     Wallet API benchmarks
         SeqState
 -------------------------------------------------------------------------------}
 data BenchSeqResults = BenchSeqResults
-    { benchName :: Text
-    , walletOverview :: WalletOverview
-    , readWalletTime :: Time
-    , getWalletUtxoSnapshotTime :: Time
-    , listAddressesTime :: Time
-    , listAssetsTime :: Time
-    , listTransactionsTime :: Time
-    , listTransactionsLimitedTime :: Time
-    , createMigrationPlanTime :: Time
-    , delegationFeeTime :: Time
-    } deriving (Show, Generic)
+  { benchName :: Text
+  , walletOverview :: WalletOverview
+  , readWalletTime :: Time
+  , getWalletUtxoSnapshotTime :: Time
+  , listAddressesTime :: Time
+  , listAssetsTime :: Time
+  , listTransactionsTime :: Time
+  , listTransactionsLimitedTime :: Time
+  , createMigrationPlanTime :: Time
+  , delegationFeeTime :: Time
+  }
+  deriving (Show, Generic)
 
 instance Buildable BenchSeqResults where
-    build = genericF
+  build = genericF
 
 instance ToJSON BenchSeqResults where
-    toJSON = genericToJSON Aeson.defaultOptions
+  toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
-    :: forall n s .
-        ( s ~ SeqState n ShelleyKey
-        , HasSNetworkId n
-        , DelegationAddress ShelleyKey 'CredFromKeyK
-        )
-    => BenchmarkConfig n s
-    -> IO BenchSeqResults
-benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
-    ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet ctx
-        pure (cp, pending)
+  :: forall n s
+   . ( s ~ SeqState n ShelleyKey
+     , HasSNetworkId n
+     , DelegationAddress ShelleyKey 'CredFromKeyK
+     )
+  => BenchmarkConfig n s
+  -> IO BenchSeqResults
+benchmarksSeq BenchmarkConfig {benchmarkName, ctx} = do
+  ((cp, pending), readWalletTime) <- bench "readWallet" $ do
+    (cp, _, pending) <- W.readWallet ctx
+    pure (cp, pending)
 
-    (utxo, _) <- bench "utxo statistics" $
-        pure $ UTxOStatistics.compute (totalUTxO pending cp)
+  (utxo, _) <-
+    bench "utxo statistics"
+      $ pure
+      $ UTxOStatistics.compute (totalUTxO pending cp)
 
-    (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ length
+  (_, getWalletUtxoSnapshotTime) <-
+    bench "getWalletUtxoSnapshot"
+      $ length
         <$> W.getWalletUtxoSnapshot ctx
 
-    (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fromIntegral . length
+  (addresses, listAddressesTime) <-
+    bench "listAddresses"
+      $ fromIntegral . length
         <$> W.listAddresses ctx (const pure)
 
-    (_, listAssetsTime) <- bench "listAssets"
-        $ length
+  (_, listAssetsTime) <-
+    bench "listAssets"
+      $ length
         <$> W.listAssets @s ctx
 
-    (transactions, listTransactionsTime) <- bench "listTransactions"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing Nothing
+  (transactions, listTransactionsTime) <-
+    bench "listTransactions"
+      $ fmap (fromIntegral . length)
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        Nothing
+        Nothing
 
-    (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50) Nothing
+  (_, listTransactionsLimitedTime) <-
+    bench "listTransactions (max_count=50)"
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        (Just 50)
+        Nothing
 
-    (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan ctx Tx.NoWithdrawal
+  (_, createMigrationPlanTime) <-
+    bench "createMigrationPlan"
+      $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
-    (_, delegationFeeTime) <- bench "delegationFee" $ do
-        W.delegationFee
-            (W.dbLayer_ ctx) (W.networkLayer_ ctx) (W.transactionLayer_ ctx)
-            (W.defaultChangeAddressGen (delegationAddressS @n))
+  (_, delegationFeeTime) <- bench "delegationFee" $ do
+    W.delegationFee
+      (W.dbLayer_ ctx)
+      (W.networkLayer_ ctx)
+      (W.transactionLayer_ ctx)
+      (W.defaultChangeAddressGen (delegationAddressS @n))
 
-    pure BenchSeqResults
-        { benchName = benchmarkName
-        , walletOverview = WalletOverview{utxo,addresses,transactions}
-        , readWalletTime
-        , getWalletUtxoSnapshotTime
-        , listAddressesTime
-        , listAssetsTime
-        , listTransactionsTime
-        , listTransactionsLimitedTime
-        , createMigrationPlanTime
-        , delegationFeeTime
-        }
+  pure
+    BenchSeqResults
+      { benchName = benchmarkName
+      , walletOverview = WalletOverview {utxo, addresses, transactions}
+      , readWalletTime
+      , getWalletUtxoSnapshotTime
+      , listAddressesTime
+      , listAssetsTime
+      , listTransactionsTime
+      , listTransactionsLimitedTime
+      , createMigrationPlanTime
+      , delegationFeeTime
+      }
 
 {-------------------------------------------------------------------------------
     Wallet API benchmarks
         SharedState
 -------------------------------------------------------------------------------}
 data BenchSharedResults = BenchSharedResults
-    { benchName :: Text
-    , walletOverview :: WalletOverview
-    , readWalletTime :: Time
-    , getWalletUtxoSnapshotTime :: Time
-    , listAddressesTime :: Time
-    , listAssetsTime :: Time
-    , listTransactionsTime :: Time
-    , listTransactionsLimitedTime :: Time
-    } deriving (Show, Generic)
+  { benchName :: Text
+  , walletOverview :: WalletOverview
+  , readWalletTime :: Time
+  , getWalletUtxoSnapshotTime :: Time
+  , listAddressesTime :: Time
+  , listAssetsTime :: Time
+  , listTransactionsTime :: Time
+  , listTransactionsLimitedTime :: Time
+  }
+  deriving (Show, Generic)
 
 instance Buildable BenchSharedResults where
-    build = genericF
+  build = genericF
 
 instance ToJSON BenchSharedResults where
-    toJSON = genericToJSON Aeson.defaultOptions
+  toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksShared
-    :: forall n s
-     . ( s ~ SharedState n SharedKey
-       , HasSNetworkId n
-       )
-    => BenchmarkConfig n s
-    -> IO BenchSharedResults
-benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
-    ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet ctx
-        pure (cp, pending)
+  :: forall n s
+   . ( s ~ SharedState n SharedKey
+     , HasSNetworkId n
+     )
+  => BenchmarkConfig n s
+  -> IO BenchSharedResults
+benchmarksShared BenchmarkConfig {benchmarkName, ctx} = do
+  ((cp, pending), readWalletTime) <- bench "readWallet" $ do
+    (cp, _, pending) <- W.readWallet ctx
+    pure (cp, pending)
 
-    (utxo, _) <- bench "utxo statistics" $
-        pure $ UTxOStatistics.compute (totalUTxO pending cp)
+  (utxo, _) <-
+    bench "utxo statistics"
+      $ pure
+      $ UTxOStatistics.compute (totalUTxO pending cp)
 
-    (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ length
+  (_, getWalletUtxoSnapshotTime) <-
+    bench "getWalletUtxoSnapshot"
+      $ length
         <$> W.getWalletUtxoSnapshot ctx
 
-    (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fromIntegral . length
+  (addresses, listAddressesTime) <-
+    bench "listAddresses"
+      $ fromIntegral . length
         <$> W.listAddresses ctx (const pure)
 
-    (_, listAssetsTime) <- bench "listAssets"
-        $ length
+  (_, listAssetsTime) <-
+    bench "listAssets"
+      $ length
         <$> W.listAssets @s ctx
 
-    (transactions, listTransactionsTime) <- bench "listTransactions"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing Nothing
+  (transactions, listTransactionsTime) <-
+    bench "listTransactions"
+      $ fmap (fromIntegral . length)
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        Nothing
+        Nothing
 
-    (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50) Nothing
+  (_, listTransactionsLimitedTime) <-
+    bench "listTransactions (max_count=50)"
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        (Just 50)
+        Nothing
 
-    pure BenchSharedResults
-        { benchName = benchmarkName
-        , walletOverview = WalletOverview{utxo,addresses,transactions}
-        , readWalletTime
-        , getWalletUtxoSnapshotTime
-        , listAddressesTime
-        , listAssetsTime
-        , listTransactionsTime
-        , listTransactionsLimitedTime
-        }
+  pure
+    BenchSharedResults
+      { benchName = benchmarkName
+      , walletOverview = WalletOverview {utxo, addresses, transactions}
+      , readWalletTime
+      , getWalletUtxoSnapshotTime
+      , listAddressesTime
+      , listAssetsTime
+      , listTransactionsTime
+      , listTransactionsLimitedTime
+      }
 
 {-------------------------------------------------------------------------------
     Wallet API benchmarks
         RndState
 -------------------------------------------------------------------------------}
 data BenchRndResults = BenchRndResults
-    { benchName :: Text
-    , walletOverview :: WalletOverview
-    , readWalletTime :: Time
-    , getWalletUtxoSnapshotTime :: Time
-    , listAddressesTime :: Time
-    , listAssetsTime :: Time
-    , listTransactionsTime :: Time
-    , listTransactionsLimitedTime :: Time
-    , createMigrationPlanTime :: Time
-    } deriving (Show, Generic)
+  { benchName :: Text
+  , walletOverview :: WalletOverview
+  , readWalletTime :: Time
+  , getWalletUtxoSnapshotTime :: Time
+  , listAddressesTime :: Time
+  , listAssetsTime :: Time
+  , listTransactionsTime :: Time
+  , listTransactionsLimitedTime :: Time
+  , createMigrationPlanTime :: Time
+  }
+  deriving (Show, Generic)
 
 instance Buildable BenchRndResults where
-    build = genericF
+  build = genericF
 
 instance ToJSON BenchRndResults where
-    toJSON = genericToJSON Aeson.defaultOptions
+  toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall n s
-     . s ~ RndState n
-    => BenchmarkConfig n s
-    -> IO BenchRndResults
-benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
-    ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet ctx
-        pure (cp, pending)
+  :: forall n s
+   . s ~ RndState n
+  => BenchmarkConfig n s
+  -> IO BenchRndResults
+benchmarksRnd BenchmarkConfig {benchmarkName, ctx} = do
+  ((cp, pending), readWalletTime) <- bench "readWallet" $ do
+    (cp, _, pending) <- W.readWallet ctx
+    pure (cp, pending)
 
-    (utxo, _) <- bench "utxo statistics" $
-        pure $ UTxOStatistics.compute (totalUTxO pending cp)
+  (utxo, _) <-
+    bench "utxo statistics"
+      $ pure
+      $ UTxOStatistics.compute (totalUTxO pending cp)
 
-    (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ length
+  (_, getWalletUtxoSnapshotTime) <-
+    bench "getWalletUtxoSnapshot"
+      $ length
         <$> W.getWalletUtxoSnapshot ctx
 
-    (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fromIntegral . length
+  (addresses, listAddressesTime) <-
+    bench "listAddresses"
+      $ fromIntegral . length
         <$> W.listAddresses ctx (const pure)
 
-    (_, listAssetsTime) <- bench "listAssets"
-        $ length
+  (_, listAssetsTime) <-
+    bench "listAssets"
+      $ length
         <$> W.listAssets @s ctx
 
-    (transactions, listTransactionsTime) <- bench "listTransactions"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending Nothing Nothing
+  (transactions, listTransactionsTime) <-
+    bench "listTransactions"
+      $ fmap (fromIntegral . length)
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        Nothing
+        Nothing
 
-    (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
-        $ unsafeRunExceptT
-        $ W.listTransactions ctx
-            Nothing Nothing Nothing Descending (Just 50) Nothing
+  (_, listTransactionsLimitedTime) <-
+    bench "listTransactions (max_count=50)"
+      $ unsafeRunExceptT
+      $ W.listTransactions
+        ctx
+        Nothing
+        Nothing
+        Nothing
+        Descending
+        (Just 50)
+        Nothing
 
-    (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan ctx Tx.NoWithdrawal
+  (_, createMigrationPlanTime) <-
+    bench "createMigrationPlan"
+      $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
-    pure BenchRndResults
-        { benchName = benchmarkName
-        , walletOverview = WalletOverview{utxo,addresses,transactions}
-        , readWalletTime
-        , getWalletUtxoSnapshotTime
-        , listAddressesTime
-        , listAssetsTime
-        , listTransactionsTime
-        , listTransactionsLimitedTime
-        , createMigrationPlanTime
-        }
+  pure
+    BenchRndResults
+      { benchName = benchmarkName
+      , walletOverview = WalletOverview {utxo, addresses, transactions}
+      , readWalletTime
+      , getWalletUtxoSnapshotTime
+      , listAddressesTime
+      , listAssetsTime
+      , listTransactionsTime
+      , listTransactionsLimitedTime
+      , createMigrationPlanTime
+      }
 
 {-------------------------------------------------------------------------------
     Benchmark Harness
@@ -423,57 +556,59 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
 newtype SomeBenchmarkResults = SomeBenchmarkResults Builder
 
 instance Buildable SomeBenchmarkResults where
-    build (SomeBenchmarkResults x) = x
+  build (SomeBenchmarkResults x) = x
 
-data BenchmarkConfig (n :: NetworkDiscriminant) s =
-    BenchmarkConfig
-        { benchmarkName :: Text
-        , networkId :: SNetworkId n
-        , ctx :: WalletLayer IO s
-        , wid :: WalletId
-        }
+data BenchmarkConfig (n :: NetworkDiscriminant) s = BenchmarkConfig
+  { benchmarkName :: Text
+  , networkId :: SNetworkId n
+  , ctx :: WalletLayer IO s
+  , wid :: WalletId
+  }
 
 -- | Run benchmarks on all wallet databases in a given directory.
 benchmarkWallets
-    :: forall n s results
-     . ( PersistAddressBook s
-       , KeyFlavor (KeyOf s)
-       , Buildable results
-       , ToJSON results
-       , WalletFlavor s
-       )
-    => Text
-        -- ^ Benchmark name (used for naming resulting files)
-    -> FilePath
-        -- ^ Directory from which to load database files
-    -> Trace IO Text
-        -- ^ For wallet tracing
-    -> SNetworkId n
-    -> ( BenchmarkConfig n s -> IO results )
-        -- ^ Benchmark to run
-    -> IO [SomeBenchmarkResults]
+  :: forall n s results
+   . ( PersistAddressBook s
+     , KeyFlavor (KeyOf s)
+     , Buildable results
+     , ToJSON results
+     , WalletFlavor s
+     )
+  => Text
+  -- ^ Benchmark name (used for naming resulting files)
+  -> FilePath
+  -- ^ Directory from which to load database files
+  -> Trace IO Text
+  -- ^ For wallet tracing
+  -> SNetworkId n
+  -> (BenchmarkConfig n s -> IO results)
+  -- ^ Benchmark to run
+  -> IO [SomeBenchmarkResults]
 benchmarkWallets benchName dir walletTr networkId action = do
-    withWalletsFromDirectory dir walletTr networkId
-        $ \ctx@(WalletLayer{dbLayer_=DB.DBLayer{atomically,walletState}}) wid
-        -> do
-            WalletMetadata{name} <- atomically $ readWalletMeta walletState
-            let config = BenchmarkConfig
-                    { benchmarkName = benchName <> " " <> pretty name
-                    , networkId = networkId
-                    , ctx
-                    , wid
-                    }
-            sayErr $ "*** " <> benchmarkName config
-            results <- action config
-            saveBenchmarkPoints (benchmarkName config) results
-            pure $ SomeBenchmarkResults (build results)
+  withWalletsFromDirectory dir walletTr networkId
+    $ \ctx@(WalletLayer {dbLayer_ = DB.DBLayer {atomically, walletState}}) wid ->
+      do
+        WalletMetadata {name} <- atomically $ readWalletMeta walletState
+        let
+          config =
+            BenchmarkConfig
+              { benchmarkName = benchName <> " " <> pretty name
+              , networkId = networkId
+              , ctx
+              , wid
+              }
+        sayErr $ "*** " <> benchmarkName config
+        results <- action config
+        saveBenchmarkPoints (benchmarkName config) results
+        pure $ SomeBenchmarkResults (build results)
   where
     saveBenchmarkPoints :: ToJSON a => Text -> a -> IO ()
     saveBenchmarkPoints benchname =
-        Aeson.encodeFile (T.unpack benchname <> ".json")
+      Aeson.encodeFile (T.unpack benchname <> ".json")
 
 mockNetworkLayer :: NetworkLayer IO Read.Block
-mockNetworkLayer = dummyNetworkLayer
+mockNetworkLayer =
+  dummyNetworkLayer
     { timeInterpreter = hoistTimeInterpreter liftIO mockTimeInterpreter
     , currentSlottingParameters = pure dummySlottingParameters
     , currentProtocolParameters = pure dummyProtocolParameters
@@ -484,36 +619,43 @@ mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter
 
 withWalletsFromDirectory
-    :: forall n s k a
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       , k ~ KeyOf s
-       , KeyFlavor k
-       )
-    => FilePath
-        -- ^ Directory of database files
-    -> Trace IO Text
-    -> SNetworkId n
-    -> (WalletLayer IO s -> WalletId -> IO a)
-    -> IO [a]
+  :: forall n s k a
+   . ( PersistAddressBook s
+     , WalletFlavor s
+     , k ~ KeyOf s
+     , KeyFlavor k
+     )
+  => FilePath
+  -- ^ Directory of database files
+  -> Trace IO Text
+  -> SNetworkId n
+  -> (WalletLayer IO s -> WalletId -> IO a)
+  -> IO [a]
 withWalletsFromDirectory dir tr networkId action = do
-    DB.DBFactory{listDatabases,withDatabase}
-        <- DB.newDBFactory (walletFlavor @s)
-            tr' migrationDefaultValues ti (Just dir)
-    wids <- listDatabases
-    forM wids $ \wid ->
-        withDatabase wid $ \DBFresh{loadDBLayer} -> do
-            db <- unsafeRunExceptT loadDBLayer
-            (flip action wid . mkMockWalletLayer) db
+  DB.DBFactory {listDatabases, withDatabase} <-
+    DB.newDBFactory
+      (walletFlavor @s)
+      tr'
+      migrationDefaultValues
+      ti
+      (Just dir)
+  wids <- listDatabases
+  forM wids $ \wid ->
+    withDatabase wid $ \DBFresh {loadDBLayer} -> do
+      db <- unsafeRunExceptT loadDBLayer
+      (flip action wid . mkMockWalletLayer) db
   where
     mkMockWalletLayer =
-        WalletLayer (trMessageText tr) genesis mockNetworkLayer tl
+      WalletLayer (trMessageText tr) genesis mockNetworkLayer tl
     genesis = error "not implemented: genesis data"
     ti = mockTimeInterpreter
-    tl = newTransactionLayer
-            (keyFlavor @k) (networkIdVal networkId)
+    tl =
+      newTransactionLayer
+        (keyFlavor @k)
+        (networkIdVal networkId)
     tr' = trMessageText tr
-    migrationDefaultValues = Sqlite.DefaultFieldValues
+    migrationDefaultValues =
+      Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
         , Sqlite.defaultDesiredNumberOfPool = 0
         , Sqlite.defaultMinimumUTxOValue = Coin 1000

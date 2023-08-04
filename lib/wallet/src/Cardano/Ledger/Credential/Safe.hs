@@ -8,37 +8,44 @@
 --
 -- Re-exports functionality provided by module 'Cardano.Ledger.Credential',
 -- but with a safer interface.
---
 module Cardano.Ledger.Credential.Safe
-    (
-      -- * Safe 'Ptr' interface
-      Ptr
-    , safePtr
-    , safeUnwrapPtr
+  ( -- * Safe 'Ptr' interface
+    Ptr
+  , safePtr
+  , safeUnwrapPtr
 
-      -- * Conversions to and from 'Slot32'
-    , SlotNo32 (..)
-    , toSlotNo32
-    , fromSlotNo32
-    )
-    where
-
-import Prelude
+    -- * Conversions to and from 'Slot32'
+  , SlotNo32 (..)
+  , toSlotNo32
+  , fromSlotNo32
+  )
+where
 
 import Cardano.Api
-    ( SlotNo (..) )
+  ( SlotNo (..)
+  )
 import Cardano.Ledger.BaseTypes
-    ( CertIx, TxIx )
+  ( CertIx
+  , TxIx
+  )
 import Cardano.Ledger.Credential
-    ( Ptr (..) )
+  ( Ptr (..)
+  )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+  ( intCast
+  , intCastMaybe
+  )
 import Data.Maybe
-    ( fromMaybe )
+  ( fromMaybe
+  )
 import Data.Word
-    ( Word32, Word64 )
+  ( Word32
+  , Word64
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Safe public interface
@@ -51,7 +58,6 @@ import GHC.Stack
 -- This function should satisfy the following property:
 --
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
 safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
 safePtr = Ptr . fromSlotNo32
 
@@ -62,25 +68,21 @@ safePtr = Ptr . fromSlotNo32
 -- This function should satisfy the following property:
 --
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
 safeUnwrapPtr :: Ptr -> (SlotNo32, TxIx, CertIx)
 safeUnwrapPtr (Ptr s t c) = (unsafeToSlotNo32 s, t, c)
 
 -- | A 32-bit wide slot number.
---
 newtype SlotNo32 = SlotNo32 Word32
-    deriving newtype (Eq, Num, Ord)
-    deriving stock Show
+  deriving newtype (Eq, Num, Ord)
+  deriving stock (Show)
 
 -- | Converts an ordinary 'SlotNo' into a 'SlotNo32'.
 --
 -- Returns 'Nothing' if the slot number could not be converted safely.
---
 toSlotNo32 :: SlotNo -> Maybe SlotNo32
 toSlotNo32 (SlotNo n) = SlotNo32 <$> intCastMaybe @Word64 @Word32 n
 
 -- | Converts a 'SlotNo32' into an ordinary 'SlotNo'.
---
 fromSlotNo32 :: SlotNo32 -> SlotNo
 fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)
 
@@ -91,5 +93,6 @@ fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)
 unsafeToSlotNo32 :: HasCallStack => SlotNo -> SlotNo32
 unsafeToSlotNo32 = fromMaybe reportFailure . toSlotNo32
   where
-    reportFailure = error
+    reportFailure =
+      error
         "unsafeToSlotNo32: unable to convert SlotNo to SlotNo32"

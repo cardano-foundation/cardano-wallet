@@ -23,82 +23,96 @@
 -- For full documentation of the key derivation schemes,
 -- see the "Cardano.Crypto.Wallet" module, and the implementation in
 -- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
-
 module Cardano.Wallet.Address.Derivation.Byron
-    ( -- * Types
-      ByronKey(..)
-    , byronKey
-    , DerivationPathFrom
+  ( -- * Types
+    ByronKey (..)
+  , byronKey
+  , DerivationPathFrom
 
-      -- * Generation
-    , unsafeGenerateKeyFromSeed
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    , unsafeMkByronKeyFromMasterKey
-    , mkByronKeyFromMasterKey
-    , hdPassphrase
+    -- * Generation
+  , unsafeGenerateKeyFromSeed
+  , generateKeyFromSeed
+  , minSeedLengthBytes
+  , unsafeMkByronKeyFromMasterKey
+  , mkByronKeyFromMasterKey
+  , hdPassphrase
 
-      -- * Derivation
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
+    -- * Derivation
+  , deriveAccountPrivateKey
+  , deriveAddressPrivateKey
+  )
+where
 
-    ) where
-
-import Prelude
-
+import Cardano.Byron.Codec.Cbor qualified as CBOR
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1)
-    , XPrv
-    , XPub
-    , deriveXPrv
-    , generate
-    , toXPub
-    , unXPub
-    )
+  ( DerivationScheme (DerivationScheme1)
+  , XPrv
+  , XPub
+  , deriveXPrv
+  , generate
+  , toXPub
+  , unXPub
+  )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
+  ( SomeMnemonic (..)
+  , entropyToBytes
+  , mnemonicToEntropy
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
-    , Index (..)
-    , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    )
+  ( Depth (..)
+  , DerivationType (..)
+  , ErrMkKeyFingerprint (..)
+  , Index (..)
+  , KeyFingerprint (..)
+  , MkKeyFingerprint (..)
+  , PaymentAddress (..)
+  )
+import Cardano.Wallet.Address.Derivation qualified as W
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+  ( SNetworkId (..)
+  )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+  ( Address (..)
+  )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( magicSNetworkId )
+  ( magicSNetworkId
+  )
+import Codec.CBOR.Encoding qualified as CBOR
+import Codec.CBOR.Write qualified as CBOR
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Control.Lens
-    ( Lens, lens )
+  ( Lens
+  , lens
+  )
 import Crypto.Hash.Algorithms
-    ( SHA512 (..) )
+  ( SHA512 (..)
+  )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+  ( blake2b256
+  )
+import Crypto.KDF.PBKDF2 qualified as PBKDF2
 import Data.ByteArray
-    ( ScrubbedBytes )
+  ( ScrubbedBytes
+  )
+import Data.ByteArray qualified as BA
 import Data.ByteString
-    ( ByteString )
+  ( ByteString
+  )
 import Data.Kind
-    ( Type )
+  ( Type
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import GHC.Generics
-    ( Generic )
-
-import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Wallet.Address.Derivation as W
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.KDF.PBKDF2 as PBKDF2
-import qualified Data.ByteArray as BA
+  ( Generic
+  )
+import Prelude
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -107,57 +121,67 @@ import qualified Data.ByteArray as BA
 -- | Material for deriving HD random scheme keys, which can be used for making
 -- addresses.
 data ByronKey (depth :: Depth) key = ByronKey
-    { getKey :: key
-    -- ^ The raw private or public key.
-    , derivationPath :: DerivationPathFrom depth
-    -- ^ The address derivation indices for the level of this key.
-    , payloadPassphrase :: Passphrase "addr-derivation-payload"
-    -- ^ Used for encryption of payload containing address derivation path.
-    } deriving stock (Generic)
+  { getKey :: key
+  -- ^ The raw private or public key.
+  , derivationPath :: DerivationPathFrom depth
+  -- ^ The address derivation indices for the level of this key.
+  , payloadPassphrase :: Passphrase "addr-derivation-payload"
+  -- ^ Used for encryption of payload containing address derivation path.
+  }
+  deriving stock (Generic)
 
 byronKey :: Lens (ByronKey depth key) (ByronKey depth key') key key'
-byronKey = lens getKey (\x k -> x { getKey = k })
+byronKey = lens getKey (\x k -> x {getKey = k})
 
 instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
-deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
-deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
+
+deriving instance
+  (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
+
+deriving instance
+  (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
+
 -- | The hierarchical derivation indices for a given level/depth.
 type family DerivationPathFrom (depth :: Depth) :: Type where
-    -- The root key is generated from the seed.
-    DerivationPathFrom 'RootK =
-        ()
-    -- The account key is generated from the root key and account index.
-    DerivationPathFrom 'AccountK =
-        Index 'WholeDomain 'AccountK
-    -- The address key is generated from the account key and address index.
-    DerivationPathFrom 'CredFromKeyK =
-        (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
+  -- The root key is generated from the seed.
+  DerivationPathFrom 'RootK =
+    ()
+  -- The account key is generated from the root key and account index.
+  DerivationPathFrom 'AccountK =
+    Index 'WholeDomain 'AccountK
+  -- The address key is generated from the account key and address index.
+  DerivationPathFrom 'CredFromKeyK =
+    (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
 
 instance PaymentAddress ByronKey 'CredFromKeyK where
-    paymentAddress s@(STestnet _) k = Address
-            $ CBOR.toStrictByteString
-            $ CBOR.encodeAddress (getKey k)
-                [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
-                , CBOR.encodeProtocolMagicAttr (magicSNetworkId s)
-                ]
-        where
-            (acctIx, addrIx) = derivationPath k
-            pwd = payloadPassphrase k
-    paymentAddress SMainnet k = Address
-            $ CBOR.toStrictByteString
-            $ CBOR.encodeAddress (getKey k)
-                [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
-        where
-            (acctIx, addrIx) = derivationPath k
-            pwd = payloadPassphrase k
+  paymentAddress s@(STestnet _) k =
+    Address
+      $ CBOR.toStrictByteString
+      $ CBOR.encodeAddress
+        (getKey k)
+        [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
+        , CBOR.encodeProtocolMagicAttr (magicSNetworkId s)
+        ]
+    where
+      (acctIx, addrIx) = derivationPath k
+      pwd = payloadPassphrase k
+  paymentAddress SMainnet k =
+    Address
+      $ CBOR.toStrictByteString
+      $ CBOR.encodeAddress
+        (getKey k)
+        [CBOR.encodeDerivationPathAttr pwd acctIx addrIx]
+    where
+      (acctIx, addrIx) = derivationPath k
+      pwd = payloadPassphrase k
 
-    liftPaymentAddress _ (KeyFingerprint bytes) = Address bytes
+  liftPaymentAddress _ (KeyFingerprint bytes) = Address bytes
 
 instance MkKeyFingerprint ByronKey Address where
-    paymentKeyFingerprint addr@(Address bytes) =
-        case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
-            Just _  -> Right $ KeyFingerprint bytes
-            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
+  paymentKeyFingerprint addr@(Address bytes) =
+    case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
+      Just _ -> Right $ KeyFingerprint bytes
+      Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
 
 {-------------------------------------------------------------------------------
                                  Key generation
@@ -170,9 +194,9 @@ minSeedLengthBytes = 16
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
-    :: SomeMnemonic
-    -> Passphrase "encryption"
-    -> ByronKey 'RootK XPrv
+  :: SomeMnemonic
+  -> Passphrase "encryption"
+  -> ByronKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
@@ -180,27 +204,28 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: DerivationPathFrom depth
-    -> SomeMnemonic
-    -> Passphrase "encryption"
-    -> ByronKey depth XPrv
+  :: DerivationPathFrom depth
+  -> SomeMnemonic
+  -> Passphrase "encryption"
+  -> ByronKey depth XPrv
 unsafeGenerateKeyFromSeed derivationPath (SomeMnemonic mw) (Passphrase pwd) =
-    ByronKey
-        { getKey = masterKey
-        , derivationPath
-        , payloadPassphrase = hdPassphrase (toXPub masterKey)
-        }
+  ByronKey
+    { getKey = masterKey
+    , derivationPath
+    , payloadPassphrase = hdPassphrase (toXPub masterKey)
+    }
   where
     masterKey = generate (hashSeed validSeed) pwd
     seed = entropyToBytes $ mnemonicToEntropy mw
     validSeed =
-        if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
+      if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
         then seed
-        else error . Prelude.unwords $
-            [ "seed length:"
-            , show (BA.length seed)
-            , "in (Passphrase \"seed\") is not valid"
-            ]
+        else
+          error . Prelude.unwords
+            $ [ "seed length:"
+              , show (BA.length seed)
+              , "in (Passphrase \"seed\") is not valid"
+              ]
 
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
 -- wallet. This increases the key length to 34 bytes, selectKey is greater than the
@@ -225,28 +250,29 @@ hashSeed = BA.convert . cbor . blake2b256 . cbor . BA.convert
 -- derivation path. PBKDF2 encryption using HMAC with the hash algorithm SHA512
 -- is employed.
 hdPassphrase :: XPub -> Passphrase "addr-derivation-payload"
-hdPassphrase masterKey = Passphrase $
-    PBKDF2.generate
-    (PBKDF2.prfHMAC SHA512)
-    (PBKDF2.Parameters 500 32)
-    (unXPub masterKey)
-    ("address-hashing" :: ByteString)
+hdPassphrase masterKey =
+  Passphrase
+    $ PBKDF2.generate
+      (PBKDF2.prfHMAC SHA512)
+      (PBKDF2.Parameters 500 32)
+      (unXPub masterKey)
+      ("address-hashing" :: ByteString)
 
 mkByronKeyFromMasterKey
-    :: XPrv
-    -> ByronKey 'RootK XPrv
+  :: XPrv
+  -> ByronKey 'RootK XPrv
 mkByronKeyFromMasterKey = unsafeMkByronKeyFromMasterKey ()
 
 unsafeMkByronKeyFromMasterKey
-    :: DerivationPathFrom depth
-    -> XPrv
-    -> ByronKey depth XPrv
-unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
+  :: DerivationPathFrom depth
+  -> XPrv
+  -> ByronKey depth XPrv
+unsafeMkByronKeyFromMasterKey derivationPath masterKey =
+  ByronKey
     { getKey = masterKey
     , derivationPath
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
-
 
 {-------------------------------------------------------------------------------
                                  HD derivation
@@ -261,14 +287,16 @@ unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
 -- function shouldn't be evaluated (relying on laziness here). If they do, then
 -- we're doing something wrong.
 instance W.HardDerivation ByronKey where
-    type AddressIndexDerivationType ByronKey = 'WholeDomain
-    type AddressCredential ByronKey = 'CredFromKeyK
+  type AddressIndexDerivationType ByronKey = 'WholeDomain
+  type AddressCredential ByronKey = 'CredFromKeyK
 
-    deriveAccountPrivateKey _ _ _ = error
-        "unsound evaluation of 'deriveAccountPrivateKey' in the context of Byron key"
+  deriveAccountPrivateKey _ _ _ =
+    error
+      "unsound evaluation of 'deriveAccountPrivateKey' in the context of Byron key"
 
-    deriveAddressPrivateKey _ _ _ _ = error
-        "unsound evaluation of 'deriveAddressPrivateKey' in the context of Byron key"
+  deriveAddressPrivateKey _ _ _ _ =
+    error
+      "unsound evaluation of 'deriveAddressPrivateKey' in the context of Byron key"
 
 -- | Derives account private key from the given root private key, using
 -- derivation scheme 1.
@@ -278,11 +306,12 @@ instance W.HardDerivation ByronKey where
 -- not make the function fail but will instead, yield an incorrect new key that
 -- doesn't belong to the wallet.
 deriveAccountPrivateKey
-    :: Passphrase "encryption"
-    -> ByronKey 'RootK XPrv
-    -> Index 'WholeDomain 'AccountK
-    -> ByronKey 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
+  :: Passphrase "encryption"
+  -> ByronKey 'RootK XPrv
+  -> Index 'WholeDomain 'AccountK
+  -> ByronKey 'AccountK XPrv
+deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) =
+  ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey masterKey) accIx
     , derivationPath = idx
     , payloadPassphrase = payloadPassphrase masterKey
@@ -296,11 +325,12 @@ deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
 -- not make the function fail but will instead, yield an incorrect new key that
 -- doesn't belong to the wallet.
 deriveAddressPrivateKey
-    :: Passphrase "encryption"
-    -> ByronKey 'AccountK XPrv
-    -> Index 'WholeDomain 'CredFromKeyK
-    -> ByronKey 'CredFromKeyK XPrv
-deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKey
+  :: Passphrase "encryption"
+  -> ByronKey 'AccountK XPrv
+  -> Index 'WholeDomain 'CredFromKeyK
+  -> ByronKey 'CredFromKeyK XPrv
+deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) =
+  ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey accountKey) addrIx
     , derivationPath = (derivationPath accountKey, idx)
     , payloadPassphrase = payloadPassphrase accountKey

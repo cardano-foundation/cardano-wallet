@@ -1,13 +1,13 @@
 module Main where
 
-import Prelude
-
 import Cardano.Startup
-    ( withUtf8Encoding )
+  ( withUtf8Encoding
+  )
+import Spec qualified
 import Test.Hspec.Extra
-    ( hspecMain )
-
-import qualified Spec
+  ( hspecMain
+  )
+import Prelude
 
 main :: IO ()
 main = withUtf8Encoding $ hspecMain Spec.spec

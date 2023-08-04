@@ -1,18 +1,28 @@
 module Test.Utils.Startup
-    ( withLineBuffering
-    , withNoBuffering
-    ) where
-
-import Prelude
+  ( withLineBuffering
+  , withNoBuffering
+  )
+where
 
 import Control.Monad
-    ( void )
+  ( void
+  )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+  ( MonadUnliftIO
+  )
 import UnliftIO.Exception
-    ( IOException, bracket, tryJust )
+  ( IOException
+  , bracket
+  , tryJust
+  )
 import UnliftIO.IO
-    ( BufferMode (..), hGetBuffering, hSetBuffering, stderr, stdout )
+  ( BufferMode (..)
+  , hGetBuffering
+  , hSetBuffering
+  , stderr
+  , stdout
+  )
+import Prelude
 
 withLineBuffering, withNoBuffering :: MonadUnliftIO m => m a -> m a
 withLineBuffering = withBuffering LineBuffering
@@ -22,13 +32,13 @@ withBuffering :: MonadUnliftIO m => BufferMode -> m a -> m a
 withBuffering mode = bracket before after . const
   where
     before = do
-        prev <- (,) <$> getBuf stdout <*> getBuf stderr
-        setBuf stdout (Just mode)
-        setBuf stderr (Just mode)
-        pure prev
+      prev <- (,) <$> getBuf stdout <*> getBuf stderr
+      setBuf stdout (Just mode)
+      setBuf stderr (Just mode)
+      pure prev
     after (prevOut, prevErr) = do
-        setBuf stdout prevOut
-        setBuf stderr prevErr
+      setBuf stdout prevOut
+      setBuf stderr prevErr
 
     getBuf = tryErr . hGetBuffering
     setBuf h = maybe (pure ()) (void . tryErr . hSetBuffering h)

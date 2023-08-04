@@ -2,87 +2,102 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.CoinSelection.Balance.Gen
-    ( genSelectionSkeleton
-    , genSelectionStrategy
-    , shrinkSelectionSkeleton
-    , shrinkSelectionStrategy
-    )
-    where
-
-import Prelude
+  ( genSelectionSkeleton
+  , genSelectionStrategy
+  , shrinkSelectionSkeleton
+  , shrinkSelectionStrategy
+  )
+where
 
 import Cardano.CoinSelection.Balance
-    ( SelectionSkeleton (..), SelectionStrategy (..) )
+  ( SelectionSkeleton (..)
+  , SelectionStrategy (..)
+  )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+  ( SelectionContext (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+  ( TokenBundle
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+  ( genTokenBundleSmallRange
+  , shrinkTokenBundleSmallRange
+  )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+  ( genAssetId
+  , shrinkAssetId
+  )
+import Data.Set qualified as Set
 import Generics.SOP
-    ( NP (..) )
+  ( NP (..)
+  )
 import Test.QuickCheck
-    ( Gen
-    , NonNegative (..)
-    , arbitrary
-    , arbitraryBoundedEnum
-    , listOf
-    , shrink
-    , shrinkList
-    , shrinkMapBy
-    , suchThat
-    )
+  ( Gen
+  , NonNegative (..)
+  , arbitrary
+  , arbitraryBoundedEnum
+  , listOf
+  , shrink
+  , shrinkList
+  , shrinkMapBy
+  , suchThat
+  )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, (<:>), (<@>) )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Data.Set as Set
+  ( genericRoundRobinShrink
+  , (<:>)
+  , (<@>)
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Selection skeletons
 --------------------------------------------------------------------------------
 
 genSelectionSkeleton :: Gen (Address ctx) -> Gen (SelectionSkeleton ctx)
-genSelectionSkeleton genAddress = SelectionSkeleton
+genSelectionSkeleton genAddress =
+  SelectionSkeleton
     <$> genSkeletonInputCount
     <*> genSkeletonOutputs
     <*> genSkeletonChange
   where
     genSkeletonInputCount =
-        getNonNegative <$> arbitrary @(NonNegative Int)
+      getNonNegative <$> arbitrary @(NonNegative Int)
     genSkeletonOutputs =
-        listOf genSkeletonOutput
-    genSkeletonOutput = (,)
+      listOf genSkeletonOutput
+    genSkeletonOutput =
+      (,)
         <$> genAddress
         <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
     genSkeletonChange =
-        listOf (Set.fromList <$> listOf genAssetId)
+      listOf (Set.fromList <$> listOf genAssetId)
 
 shrinkSelectionSkeleton
-    :: (Address ctx -> [Address ctx])
-    -> (SelectionSkeleton ctx -> [SelectionSkeleton ctx])
-shrinkSelectionSkeleton shrinkAddress = genericRoundRobinShrink
+  :: (Address ctx -> [Address ctx])
+  -> (SelectionSkeleton ctx -> [SelectionSkeleton ctx])
+shrinkSelectionSkeleton shrinkAddress =
+  genericRoundRobinShrink
     <@> shrinkSkeletonInputCount
     <:> shrinkSkeletonOutputs
     <:> shrinkSkeletonChange
     <:> Nil
   where
     shrinkSkeletonInputCount =
-        shrink @Int
+      shrink @Int
     shrinkSkeletonOutputs =
-        shrinkList shrinkSkeletonOutput
+      shrinkList shrinkSkeletonOutput
     shrinkSkeletonOutput =
-        genericRoundRobinShrink
-            <@> shrinkAddress
-            <:> filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange
-            <:> Nil
+      genericRoundRobinShrink
+        <@> shrinkAddress
+        <:> filter tokenBundleHasNonZeroCoin
+        . shrinkTokenBundleSmallRange
+        <:> Nil
     shrinkSkeletonChange =
-        shrinkList $
-        shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
+      shrinkList
+        $ shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
@@ -96,8 +111,8 @@ genSelectionStrategy = arbitraryBoundedEnum
 
 shrinkSelectionStrategy :: SelectionStrategy -> [SelectionStrategy]
 shrinkSelectionStrategy = \case
-    -- Shrinking from "optimal" to "minimal" should increase the likelihood of
-    -- making a successful selection, as the "minimal" strategy is designed to
-    -- generate smaller selections.
-    SelectionStrategyMinimal -> []
-    SelectionStrategyOptimal -> [SelectionStrategyMinimal]
+  -- Shrinking from "optimal" to "minimal" should increase the likelihood of
+  -- making a successful selection, as the "minimal" strategy is designed to
+  -- generate smaller selections.
+  SelectionStrategyMinimal -> []
+  SelectionStrategyOptimal -> [SelectionStrategyMinimal]

@@ -35,161 +35,188 @@
 --
 -- >>> Link.getWallet @('Byron 'Icarus) myWallet
 -- ( "GET", "/v2/byron-wallets/2512a00e9653fe49a44a5886202e24d77eeb998f" )
-
 module Cardano.Wallet.Api.Link
-    ( -- * Wallets
-      deleteWallet
-    , getWallet
-    , listWallets
-    , postWallet
-    , putWallet
-    , putWalletPassphrase
-    , getWalletUtxoSnapshot
-    , getUTxOsStatistics
-    , createMigrationPlan
-    , migrateWallet
+  ( -- * Wallets
+    deleteWallet
+  , getWallet
+  , listWallets
+  , postWallet
+  , putWallet
+  , putWalletPassphrase
+  , getWalletUtxoSnapshot
+  , getUTxOsStatistics
+  , createMigrationPlan
+  , migrateWallet
 
-     -- * WalletKeys
-    , getWalletKey
-    , signMetadata
-    , postAccountKey
-    , getAccountKey
-    , getPolicyKey
-    , postPolicyKey
-    , postPolicyId
+    -- * WalletKeys
+  , getWalletKey
+  , signMetadata
+  , postAccountKey
+  , getAccountKey
+  , getPolicyKey
+  , postPolicyKey
+  , postPolicyId
 
-      -- * Addresses
-    , postRandomAddress
-    , putRandomAddresses
-    , listAddresses
-    , listAddresses'
-    , inspectAddress
-    , postAnyAddress
+    -- * Addresses
+  , postRandomAddress
+  , putRandomAddresses
+  , listAddresses
+  , listAddresses'
+  , inspectAddress
+  , postAnyAddress
 
-      -- * CoinSelections
-    , selectCoins
+    -- * CoinSelections
+  , selectCoins
 
-      -- * Assets
-    , listAssets
-    , getAsset
-    , listByronAssets
-    , getByronAsset
+    -- * Assets
+  , listAssets
+  , getAsset
+  , listByronAssets
+  , getByronAsset
 
-      -- * Transactions
-    , createTransactionOld
-    , listTransactions
-    , listTransactions'
-    , getTransactionFeeOld
-    , deleteTransaction
-    , getTransaction
-    , createUnsignedTransaction
-    , signTransaction
-    , balanceTransaction
-    , decodeTransaction
-    , submitTransaction
+    -- * Transactions
+  , createTransactionOld
+  , listTransactions
+  , listTransactions'
+  , getTransactionFeeOld
+  , deleteTransaction
+  , getTransaction
+  , createUnsignedTransaction
+  , signTransaction
+  , balanceTransaction
+  , decodeTransaction
+  , submitTransaction
 
-      -- * StakePools
-    , listStakePools
-    , listStakeKeys
-    , joinStakePool
-    , quitStakePool
-    , getDelegationFee
-    , postPoolMaintenance
-    , getPoolMaintenance
+    -- * StakePools
+  , listStakePools
+  , listStakeKeys
+  , joinStakePool
+  , quitStakePool
+  , getDelegationFee
+  , postPoolMaintenance
+  , getPoolMaintenance
 
-      -- * Network
-    , getNetworkInfo
-    , getNetworkParams
-    , getNetworkClock
-    , getNetworkClock'
-    , getBlocksLatestHeader
-      -- * Proxy
-    , postExternalTransaction
+    -- * Network
+  , getNetworkInfo
+  , getNetworkParams
+  , getNetworkClock
+  , getNetworkClock'
+  , getBlocksLatestHeader
 
-      -- * Settings
-    , putSettings
-    , getSettings
+    -- * Proxy
+  , postExternalTransaction
 
-      -- * Utils
+    -- * Settings
+  , putSettings
+  , getSettings
 
-    , getCurrentSMASHHealth
+    -- * Utils
+  , getCurrentSMASHHealth
 
-     -- * Shared Wallets
-    , patchSharedWallet
-
-    , PostWallet
-    , Discriminate
-    ) where
-
-import Prelude
+    -- * Shared Wallets
+  , patchSharedWallet
+  , PostWallet
+  , Discriminate
+  )
+where
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex, Role )
+  ( DerivationIndex
+  , Role
+  )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+  ( CredentialType (..)
+  )
+import Cardano.Wallet.Api qualified as Api
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
-    , ApiAddressInspectData (..)
-    , ApiPoolSpecifier
-    , ApiT (..)
-    , ApiTxId (ApiTxId)
-    , Iso8601Time
-    , KeyFormat
-    , MinWithdrawal (..)
-    , WalletStyle (..)
-    )
+  ( ApiAddress (..)
+  , ApiAddressInspectData (..)
+  , ApiPoolSpecifier
+  , ApiT (..)
+  , ApiTxId (ApiTxId)
+  , Iso8601Time
+  , KeyFormat
+  , MinWithdrawal (..)
+  , WalletStyle (..)
+  )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), toSimpleMetadataFlag )
+  ( TxMetadataSchema (..)
+  , toSimpleMetadataFlag
+  )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit )
+  ( ApiLimit
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+  ( NetworkDiscriminant (..)
+  )
 import Cardano.Wallet.Primitive.Types
-    ( SmashServer, SortOrder, WalletId (..) )
+  ( SmashServer
+  , SortOrder
+  , WalletId (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address, AddressState )
+  ( Address
+  , AddressState
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+  ( Hash
+  )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId, nullTokenName )
+  ( TokenName
+  , TokenPolicyId
+  , nullTokenName
+  )
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+  ( (^.)
+  )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+  ( HasType
+  , typed
+  )
 import Data.Proxy
-    ( Proxy (..) )
+  ( Proxy (..)
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
 import GHC.Stack
-    ( HasCallStack )
+  ( HasCallStack
+  )
 import GHC.TypeLits
-    ( Symbol )
+  ( Symbol
+  )
 import Network.HTTP.Types.Method
-    ( Method )
+  ( Method
+  )
 import Numeric.Natural
-    ( Natural )
+  ( Natural
+  )
 import Servant.API
-    ( (:>)
-    , Capture'
-    , Header'
-    , IsElem
-    , NoContentVerb
-    , QueryFlag
-    , QueryParam
-    , ReflectMethod (..)
-    , ReqBody
-    , Verb
-    )
+  ( Capture'
+  , Header'
+  , IsElem
+  , NoContentVerb
+  , QueryFlag
+  , QueryParam
+  , ReflectMethod (..)
+  , ReqBody
+  , Verb
+  , (:>)
+  )
 import Servant.Links
-    ( HasLink (..), safeLink' )
+  ( HasLink (..)
+  , safeLink'
+  )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
-
-import qualified Cardano.Wallet.Api as Api
+  ( ToHttpApiData (..)
+  )
+import Prelude
 
 --
 -- Wallets
@@ -198,25 +225,26 @@ import qualified Cardano.Wallet.Api as Api
 -- NOTE
 -- Type-class is necessary here to type-check 'IsElem endpoint Api' below.
 class PostWallet (style :: WalletStyle) where
-    postWallet :: (Method, Text)
+  postWallet :: (Method, Text)
 
 instance PostWallet 'Shelley where
-    postWallet = endpoint @Api.PostWallet id
+  postWallet = endpoint @Api.PostWallet id
 
 instance PostWallet 'Byron where
-    postWallet = endpoint @Api.PostByronWallet id
+  postWallet = endpoint @Api.PostByronWallet id
 
 instance PostWallet 'Shared where
-    postWallet = endpoint @Api.PostSharedWallet id
+  postWallet = endpoint @Api.PostSharedWallet id
 
 deleteWallet
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-deleteWallet w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+deleteWallet w =
+  discriminate @style
     (endpoint @Api.DeleteWallet (wid &))
     (endpoint @Api.DeleteByronWallet (wid &))
     (endpoint @Api.DeleteSharedWallet (wid &))
@@ -224,13 +252,14 @@ deleteWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getWallet
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getWallet w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+getWallet w =
+  discriminate @style
     (endpoint @Api.GetWallet (wid &))
     (endpoint @Api.GetByronWallet (wid &))
     (endpoint @Api.GetSharedWallet (wid &))
@@ -238,13 +267,14 @@ getWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getUTxOsStatistics
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getUTxOsStatistics w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+getUTxOsStatistics w =
+  discriminate @style
     (endpoint @Api.GetUTxOsStatistics (wid &))
     (endpoint @Api.GetByronUTxOsStatistics (wid &))
     (endpoint @Api.GetUTxOsStatisticsShared (wid &))
@@ -252,13 +282,14 @@ getUTxOsStatistics w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getWalletUtxoSnapshot
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getWalletUtxoSnapshot w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+getWalletUtxoSnapshot w =
+  discriminate @style
     (endpoint @Api.GetWalletUtxoSnapshot (wid &))
     (endpoint @Api.GetByronWalletUtxoSnapshot (wid &))
     (endpoint @Api.GetSharedWalletUtxoSnapshot (wid &))
@@ -266,24 +297,26 @@ getWalletUtxoSnapshot w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 listWallets
-    :: forall (style :: WalletStyle).
-        ( Discriminate style
-        )
-    => (Method, Text)
-listWallets = discriminate @style
+  :: forall (style :: WalletStyle)
+   . ( Discriminate style
+     )
+  => (Method, Text)
+listWallets =
+  discriminate @style
     (endpoint @Api.ListWallets id)
     (endpoint @Api.ListByronWallets id)
     (endpoint @Api.ListSharedWallets id)
 
 putWallet
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-putWallet w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+putWallet w =
+  discriminate @style
     (endpoint @Api.PutWallet (wid &))
     (endpoint @Api.PutByronWallet (wid &))
     (notSupported "Shared")
@@ -291,14 +324,15 @@ putWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 putWalletPassphrase
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-putWalletPassphrase w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+putWalletPassphrase w =
+  discriminate @style
     (endpoint @Api.PutWalletPassphrase (wid &))
     (endpoint @Api.PutByronWalletPassphrase (wid &))
     (notSupported "Shared")
@@ -306,14 +340,15 @@ putWalletPassphrase w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 migrateWallet
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-migrateWallet w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+migrateWallet w =
+  discriminate @style
     (endpoint @(Api.MigrateShelleyWallet Net) (wid &))
     (endpoint @(Api.MigrateByronWallet Net) (wid &))
     (notSupported "Shared")
@@ -321,14 +356,15 @@ migrateWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 createMigrationPlan
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-createMigrationPlan w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+createMigrationPlan w =
+  discriminate @style
     (endpoint @(Api.CreateShelleyWalletMigrationPlan Net) (wid &))
     (endpoint @(Api.CreateByronWalletMigrationPlan Net) (wid &))
     (notSupported "Shared")
@@ -340,46 +376,50 @@ createMigrationPlan w = discriminate @style
 --
 
 getWalletKey
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> Role
-    -> DerivationIndex
-    -> Maybe Bool
-    -> (Method, Text)
-getWalletKey w role_ index hashed = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> Role
+  -> DerivationIndex
+  -> Maybe Bool
+  -> (Method, Text)
+getWalletKey w role_ index hashed =
+  discriminate @style
     (endpoint @Api.GetWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
     (notSupported "Byron")
-    (endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
+    ( endpoint @Api.GetSharedWalletKey
+        (\mk -> mk wid (ApiT role_) (ApiT index) hashed)
+    )
   where
     wid = w ^. typed @(ApiT WalletId)
 
 signMetadata
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> Role
-    -> DerivationIndex
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> Role
+  -> DerivationIndex
+  -> (Method, Text)
 signMetadata w role_ index =
-    endpoint @Api.SignMetadata (\mk -> mk wid (ApiT role_) (ApiT index))
+  endpoint @Api.SignMetadata (\mk -> mk wid (ApiT role_) (ApiT index))
   where
     wid = w ^. typed @(ApiT WalletId)
 
 postAccountKey
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> DerivationIndex
-    -> (Method, Text)
-postAccountKey w index = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> DerivationIndex
+  -> (Method, Text)
+postAccountKey w index =
+  discriminate @style
     (endpoint @Api.PostAccountKey (\mk -> mk wid (ApiT index)))
     (notSupported "Byron")
     (endpoint @Api.PostAccountKeyShared (\mk -> mk wid (ApiT index)))
@@ -387,15 +427,16 @@ postAccountKey w index = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getAccountKey
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> Maybe KeyFormat
-    -> (Method, Text)
-getAccountKey w extended = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> Maybe KeyFormat
+  -> (Method, Text)
+getAccountKey w extended =
+  discriminate @style
     (endpoint @Api.GetAccountKey (\mk -> mk wid extended))
     (notSupported "Byron")
     (endpoint @Api.GetAccountKeyShared (\mk -> mk wid extended))
@@ -403,15 +444,16 @@ getAccountKey w extended = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getPolicyKey
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> Maybe Bool
-    -> (Method, Text)
-getPolicyKey w hashed = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> Maybe Bool
+  -> (Method, Text)
+getPolicyKey w hashed =
+  discriminate @style
     (endpoint @Api.GetPolicyKey (\mk -> mk wid hashed))
     (notSupported "Byron")
     (notSupported "Shared")
@@ -419,15 +461,16 @@ getPolicyKey w hashed = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 postPolicyKey
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> Maybe Bool
-    -> (Method, Text)
-postPolicyKey w hashed = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> Maybe Bool
+  -> (Method, Text)
+postPolicyKey w hashed =
+  discriminate @style
     (endpoint @Api.PostPolicyKey (\mk -> mk wid hashed))
     (notSupported "Byron")
     (notSupported "Shared")
@@ -435,14 +478,15 @@ postPolicyKey w hashed = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 postPolicyId
-    :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-postPolicyId w = discriminate @style
+  :: forall (style :: WalletStyle) w
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
+postPolicyId w =
+  discriminate @style
     (endpoint @Api.PostPolicyId (wid &))
     (notSupported "Byron")
     (notSupported "Shared")
@@ -454,46 +498,47 @@ postPolicyId w = discriminate @style
 --
 
 postRandomAddress
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
 postRandomAddress w =
-    endpoint @(Api.PostByronAddress Net) (wid &)
+  endpoint @(Api.PostByronAddress Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
 putRandomAddresses
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
 putRandomAddresses w =
-    endpoint @(Api.PutByronAddresses Net) (wid &)
+  endpoint @(Api.PutByronAddresses Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
 listAddresses
-    :: forall style w.
-        ( HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
+  :: forall style w
+   . ( HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
 listAddresses w =
-    listAddresses' @style w Nothing
+  listAddresses' @style w Nothing
 
 listAddresses'
-    :: forall style w.
-        ( HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> Maybe AddressState
-    -> (Method, Text)
-listAddresses' w mstate = discriminate @style
+  :: forall style w
+   . ( HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> Maybe AddressState
+  -> (Method, Text)
+listAddresses' w mstate =
+  discriminate @style
     (endpoint @(Api.ListAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
     (endpoint @(Api.ListByronAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
     (endpoint @(Api.ListSharedAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
@@ -501,29 +546,30 @@ listAddresses' w mstate = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 inspectAddress
-    :: ApiAddressInspectData
-    -> (Method, Text)
+  :: ApiAddressInspectData
+  -> (Method, Text)
 inspectAddress addr =
-    endpoint @Api.InspectAddress (addr &)
+  endpoint @Api.InspectAddress (addr &)
 
 postAnyAddress
-    :: (Method, Text)
+  :: (Method, Text)
 postAnyAddress =
-    endpoint @(Api.PostAnyAddress Net) id
+  endpoint @(Api.PostAnyAddress Net) id
 
 --
 -- Coin Selections
 --
 
 selectCoins
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-selectCoins w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+selectCoins w =
+  discriminate @style
     (endpoint @(Api.SelectCoins Net) (wid &))
     (endpoint @(Api.ByronSelectCoins Net) (wid &))
     (notSupported "Shared")
@@ -535,54 +581,54 @@ selectCoins w = discriminate @style
 --
 
 listAssets
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
 listAssets w =
-    endpoint @Api.ListAssets (wid &)
+  endpoint @Api.ListAssets (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
 getAsset
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> TokenPolicyId
-    -> TokenName
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> TokenPolicyId
+  -> TokenName
+  -> (Method, Text)
 getAsset w pid n
-    | n == nullTokenName = endpoint @Api.GetAssetDefault mkURLDefault
-    | otherwise = endpoint @Api.GetAsset mkURL
+  | n == nullTokenName = endpoint @Api.GetAssetDefault mkURLDefault
+  | otherwise = endpoint @Api.GetAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)
     mkURL mk = mk wid (ApiT pid) (ApiT n)
     mkURLDefault mk = mk wid (ApiT pid)
 
 listByronAssets
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
 listByronAssets w =
-    endpoint @Api.ListByronAssets (wid &)
+  endpoint @Api.ListByronAssets (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
 getByronAsset
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> TokenPolicyId
-    -> TokenName
-    -> (Method, Text)
+  :: forall w
+   . ( HasType (ApiT WalletId) w
+     )
+  => w
+  -> TokenPolicyId
+  -> TokenName
+  -> (Method, Text)
 getByronAsset w pid n
-    | n == nullTokenName = endpoint @Api.GetByronAssetDefault mkURLDefault
-    | otherwise = endpoint @Api.GetByronAsset mkURL
+  | n == nullTokenName = endpoint @Api.GetByronAssetDefault mkURLDefault
+  | otherwise = endpoint @Api.GetByronAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)
     mkURL mk = mk wid (ApiT pid) (ApiT n)
@@ -593,14 +639,15 @@ getByronAsset w pid n
 --
 
 createTransactionOld
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-createTransactionOld w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+createTransactionOld w =
+  discriminate @style
     (endpoint @(Api.CreateTransactionOld Net) (wid &))
     (endpoint @(Api.CreateByronTransactionOld Net) (wid &))
     (notSupported "Shared")
@@ -608,67 +655,72 @@ createTransactionOld w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 listTransactions
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> (Method, Text)
 listTransactions w =
-    listTransactions' @style w Nothing Nothing Nothing Nothing Nothing Nothing
+  listTransactions' @style w Nothing Nothing Nothing Nothing Nothing Nothing
 
 listTransactions'
-    :: forall (style :: WalletStyle) w.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        )
-    => w
-    -> Maybe Natural
-    -> Maybe Iso8601Time
-    -> Maybe Iso8601Time
-    -> Maybe SortOrder
-    -> Maybe ApiLimit
-    -> Maybe Address
-    -> (Method, Text)
-listTransactions' w minWithdrawal inf sup order limit address = discriminate @style
-    (endpoint @(Api.ListTransactions Net)
-        (\mk -> mk
-            wid
-            (MinWithdrawal <$> minWithdrawal)
-            inf
-            sup
-            (ApiT <$> order)
-            limit
-            (ApiAddress <$> address)
-            (toSimpleMetadataFlag TxMetadataDetailedSchema)
+  :: forall (style :: WalletStyle) w
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     )
+  => w
+  -> Maybe Natural
+  -> Maybe Iso8601Time
+  -> Maybe Iso8601Time
+  -> Maybe SortOrder
+  -> Maybe ApiLimit
+  -> Maybe Address
+  -> (Method, Text)
+listTransactions' w minWithdrawal inf sup order limit address =
+  discriminate @style
+    ( endpoint @(Api.ListTransactions Net)
+        ( \mk ->
+            mk
+              wid
+              (MinWithdrawal <$> minWithdrawal)
+              inf
+              sup
+              (ApiT <$> order)
+              limit
+              (ApiAddress <$> address)
+              (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
-    (endpoint @(Api.ListByronTransactions Net)
-        (\mk -> mk wid inf sup (ApiT <$> order) limit (ApiAddress <$> address)))
-    (endpoint @(Api.ListSharedTransactions Net)
-        (\mk -> mk
-            wid
-            (MinWithdrawal <$> minWithdrawal)
-            inf
-            sup
-            (ApiT <$> order)
-            limit
-            (ApiAddress <$> address)
-            (toSimpleMetadataFlag TxMetadataDetailedSchema)
+    ( endpoint @(Api.ListByronTransactions Net)
+        (\mk -> mk wid inf sup (ApiT <$> order) limit (ApiAddress <$> address))
+    )
+    ( endpoint @(Api.ListSharedTransactions Net)
+        ( \mk ->
+            mk
+              wid
+              (MinWithdrawal <$> minWithdrawal)
+              inf
+              sup
+              (ApiT <$> order)
+              limit
+              (ApiAddress <$> address)
+              (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
   where
     wid = w ^. typed @(ApiT WalletId)
 
 getTransactionFeeOld
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-getTransactionFeeOld w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+getTransactionFeeOld w =
+  discriminate @style
     (endpoint @(Api.PostTransactionFeeOld Net) (wid &))
     (endpoint @(Api.PostByronTransactionFeeOld Net) (wid &))
     (notSupported "Shared")
@@ -676,16 +728,17 @@ getTransactionFeeOld w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 deleteTransaction
-    :: forall (style :: WalletStyle) w t.
-        ( HasCallStack
-        , Discriminate style
-        , HasType (ApiT WalletId) w
-        , HasType (ApiT (Hash "Tx")) t
-        )
-    => w
-    -> t
-    -> (Method, Text)
-deleteTransaction w t = discriminate @style
+  :: forall (style :: WalletStyle) w t
+   . ( HasCallStack
+     , Discriminate style
+     , HasType (ApiT WalletId) w
+     , HasType (ApiT (Hash "Tx")) t
+     )
+  => w
+  -> t
+  -> (Method, Text)
+deleteTransaction w t =
+  discriminate @style
     (endpoint @Api.DeleteTransaction mkURL)
     (endpoint @Api.DeleteByronTransaction mkURL)
     (notSupported "Shared")
@@ -695,15 +748,16 @@ deleteTransaction w t = discriminate @style
     mkURL mk = mk wid tid
 
 getTransaction
-    :: forall (style :: WalletStyle) w t.
-        ( Discriminate style
-        , HasType (ApiT WalletId) w
-        , HasType (ApiT (Hash "Tx")) t
-        )
-    => w
-    -> t
-    -> (Method, Text)
-getTransaction w t = discriminate @style
+  :: forall (style :: WalletStyle) w t
+   . ( Discriminate style
+     , HasType (ApiT WalletId) w
+     , HasType (ApiT (Hash "Tx")) t
+     )
+  => w
+  -> t
+  -> (Method, Text)
+getTransaction w t =
+  discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
     (endpoint @(Api.GetSharedTransaction Net) mkShelleyURL)
@@ -714,16 +768,17 @@ getTransaction w t = discriminate @style
 
     mkShelleyURL :: (ApiT WalletId -> ApiTxId -> Bool -> Text) -> Text
     mkShelleyURL mk =
-        mk wid tid (toSimpleMetadataFlag TxMetadataDetailedSchema)
+      mk wid tid (toSimpleMetadataFlag TxMetadataDetailedSchema)
 
 createUnsignedTransaction
-    :: forall style w.
-        ( HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-createUnsignedTransaction w = discriminate @style
+  :: forall style w
+   . ( HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+createUnsignedTransaction w =
+  discriminate @style
     (endpoint @(Api.ConstructTransaction Net) (wid &))
     (notSupported "Byron")
     (endpoint @(Api.ConstructSharedTransaction Net) (wid &))
@@ -731,13 +786,14 @@ createUnsignedTransaction w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 signTransaction
-    :: forall style w.
-        ( HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-signTransaction w = discriminate @style
+  :: forall style w
+   . ( HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+signTransaction w =
+  discriminate @style
     (endpoint @(Api.SignTransaction Net) (wid &))
     (notSupported "Byron")
     (endpoint @(Api.SignSharedTransaction Net) (wid &))
@@ -745,14 +801,15 @@ signTransaction w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 balanceTransaction
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-balanceTransaction w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+balanceTransaction w =
+  discriminate @style
     (endpoint @(Api.BalanceTransaction Net) (wid &))
     (notSupported "Byron")
     (notSupported "Shared")
@@ -760,14 +817,15 @@ balanceTransaction w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 decodeTransaction
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-decodeTransaction w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+decodeTransaction w =
+  discriminate @style
     (endpoint @(Api.DecodeTransaction Net) (wid &))
     (notSupported "Byron")
     (endpoint @(Api.DecodeSharedTransaction Net) (wid &))
@@ -775,14 +833,15 @@ decodeTransaction w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 submitTransaction
-    :: forall style w.
-        ( HasCallStack
-        , HasType (ApiT WalletId) w
-        , Discriminate style
-        )
-    => w
-    -> (Method, Text)
-submitTransaction w = discriminate @style
+  :: forall style w
+   . ( HasCallStack
+     , HasType (ApiT WalletId) w
+     , Discriminate style
+     )
+  => w
+  -> (Method, Text)
+submitTransaction w =
+  discriminate @style
     (endpoint @Api.SubmitTransaction (wid &))
     (notSupported "Byron")
     (endpoint @Api.SubmitSharedTransaction (wid &))
@@ -802,16 +861,16 @@ listStakePools :: Maybe Coin -> (Method, Text)
 listStakePools stake = endpoint @Api.ListStakePools ($ ApiT <$> stake)
 
 listStakeKeys :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
-listStakeKeys w = endpoint @(Api.ListStakeKeys ()) ($ w^.typed @(ApiT WalletId))
+listStakeKeys w = endpoint @(Api.ListStakeKeys ()) ($ w ^. typed @(ApiT WalletId))
 
 joinStakePool
-    :: forall s w.
-        ( HasType ApiPoolSpecifier s
-        , HasType (ApiT WalletId) w
-        )
-    => s
-    -> w
-    -> (Method, Text)
+  :: forall s w
+   . ( HasType ApiPoolSpecifier s
+     , HasType (ApiT WalletId) w
+     )
+  => s
+  -> w
+  -> (Method, Text)
 joinStakePool s w = endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
   where
     sid = s ^. typed @ApiPoolSpecifier
@@ -841,8 +900,9 @@ getNetworkClock :: (Method, Text)
 getNetworkClock = endpoint @Api.GetNetworkClock (False &)
 
 getNetworkClock'
-    :: Bool -- ^ When 'True', block and force NTP check
-    -> (Method, Text)
+  :: Bool
+  -- ^ When 'True', block and force NTP check
+  -> (Method, Text)
 getNetworkClock' forceNtpCheck = endpoint @Api.GetNetworkClock (forceNtpCheck &)
 
 --
@@ -870,22 +930,23 @@ getCurrentSMASHHealth = getCurrentSMASHHealth' Nothing
 
 getCurrentSMASHHealth' :: Maybe SmashServer -> (Method, Text)
 getCurrentSMASHHealth' smash =
-    endpoint @Api.GetCurrentSMASHHealth (\mk -> mk (ApiT <$> smash))
+  endpoint @Api.GetCurrentSMASHHealth (\mk -> mk (ApiT <$> smash))
 
 --
 -- Shared Wallets
 --
 patchSharedWallet
-    :: forall w. HasType (ApiT WalletId) w
-    => w
-    -> CredentialType
-    -> (Method, Text)
+  :: forall w
+   . HasType (ApiT WalletId) w
+  => w
+  -> CredentialType
+  -> (Method, Text)
 patchSharedWallet w cred =
-    case cred of
-        Payment ->
-            endpoint @Api.PatchSharedWalletInPayment (wid &)
-        Delegation ->
-            endpoint @Api.PatchSharedWalletInDelegation (wid &)
+  case cred of
+    Payment ->
+      endpoint @Api.PatchSharedWalletInPayment (wid &)
+    Delegation ->
+      endpoint @Api.PatchSharedWalletInDelegation (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -895,7 +956,6 @@ patchSharedWallet w cred =
 
 getBlocksLatestHeader :: (Method, Text)
 getBlocksLatestHeader = endpoint @Api.GetBlocksLatestHeader id
-
 
 --
 -- Internals
@@ -931,30 +991,30 @@ getBlocksLatestHeader = endpoint @Api.GetBlocksLatestHeader id
 --   >>> endpoint @Api.GetWallet (wid &)
 --   ( "GET", "v2/wallets/2512a00e9653fe49a44a5886202e24d77eeb998f" )
 endpoint
-    :: forall endpoint.
-        ( HasLink endpoint
-        , IsElem endpoint endpoint
-        , HasVerb endpoint
-        )
-    => (MkLink endpoint Text -> Text)
-    -> (Method, Text)
+  :: forall endpoint
+   . ( HasLink endpoint
+     , IsElem endpoint endpoint
+     , HasVerb endpoint
+     )
+  => (MkLink endpoint Text -> Text)
+  -> (Method, Text)
 endpoint mk =
-    ( method (Proxy @endpoint)
-    , "v2/" <> mk (safeLink' toUrlPiece (Proxy @endpoint) (Proxy @endpoint))
-    )
+  ( method (Proxy @endpoint)
+  , "v2/" <> mk (safeLink' toUrlPiece (Proxy @endpoint) (Proxy @endpoint))
+  )
 
 -- Returns first argument for Shelley style wallet, second argument otherwise.
 class Discriminate (style :: WalletStyle) where
-    discriminate :: a -> a -> a -> a
+  discriminate :: a -> a -> a -> a
 
 instance Discriminate 'Shelley where
-    discriminate a _ _ = a
+  discriminate a _ _ = a
 
 instance Discriminate 'Byron where
-    discriminate _ a _ = a
+  discriminate _ a _ = a
 
 instance Discriminate 'Shared where
-    discriminate _ _ a = a
+  discriminate _ _ a = a
 
 notSupported :: HasCallStack => String -> a
 notSupported style = error $ "Endpoint not supported for " <> style <> " style"
@@ -969,28 +1029,28 @@ type Net = 'Mainnet
 
 -- | Extract the method from a given Api
 class HasVerb api where
-    method :: Proxy api -> Method
+  method :: Proxy api -> Method
 
 instance (ReflectMethod m) => HasVerb (NoContentVerb m) where
-    method _ = reflectMethod (Proxy @m)
+  method _ = reflectMethod (Proxy @m)
 
 instance (ReflectMethod m) => HasVerb (Verb m s ct a) where
-    method _ = reflectMethod (Proxy @m)
+  method _ = reflectMethod (Proxy @m)
 
 instance HasVerb sub => HasVerb ((path :: Symbol) :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (Capture' mods param t :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (ReqBody a b :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (QueryParam a b :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (QueryFlag sym :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (Header' opts name ty :> sub) where
-    method _ = method (Proxy @sub)
+  method _ = method (Proxy @sub)

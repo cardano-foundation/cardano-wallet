@@ -6,60 +6,87 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx
-    , genTxScriptValidity
-    , shrinkTx
-    , shrinkTxScriptValidity
-    , TxWithoutId (..)
-    , txWithoutIdToTx
-    )
-    where
-
-import Prelude
+  ( genTx
+  , genTxScriptValidity
+  , shrinkTx
+  , shrinkTxScriptValidity
+  , TxWithoutId (..)
+  , txWithoutIdToTx
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+  ( Coin (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive, shrinkCoinPositive )
+  ( genCoinPositive
+  , shrinkCoinPositive
+  )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( mockHash )
+  ( mockHash
+  )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+  ( RewardAccount (..)
+  )
 import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
-    ( genRewardAccount, shrinkRewardAccount )
+  ( genRewardAccount
+  , shrinkRewardAccount
+  )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxMetadata (..), TxScriptValidity (..) )
+  ( Tx (..)
+  , TxMetadata (..)
+  , TxScriptValidity (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, shrinkTxMetadata )
+  ( genNestedTxMetadata
+  , shrinkTxMetadata
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+  ( TxIn (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+  ( genTxIn
+  , shrinkTxIn
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+  ( TxOut (..)
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+  ( genTxOut
+  , shrinkTxOut
+  )
 import Data.Map.Strict
-    ( Map )
-import Generics.SOP
-    ( NP (..) )
+  ( Map
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
+import Generics.SOP
+  ( NP (..)
+  )
 import Test.QuickCheck
-    ( Gen
-    , liftArbitrary
-    , liftArbitrary2
-    , liftShrink
-    , liftShrink2
-    , listOf
-    , listOf1
-    , shrinkList
-    , shrinkMapBy
-    )
+  ( Gen
+  , liftArbitrary
+  , liftArbitrary2
+  , liftShrink
+  , liftShrink2
+  , listOf
+  , listOf1
+  , shrinkList
+  , shrinkMapBy
+  )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+  ( genericArbitrary
+  , genericShrink
+  )
 import Test.QuickCheck.Extra
-    ( genMapWith, genericRoundRobinShrink, shrinkMapWith, (<:>), (<@>) )
+  ( genMapWith
+  , genericRoundRobinShrink
+  , shrinkMapWith
+  , (<:>)
+  , (<@>)
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Transactions generated according to the size parameter
@@ -72,19 +99,20 @@ shrinkTx :: Tx -> [Tx]
 shrinkTx = shrinkMapBy txWithoutIdToTx txToTxWithoutId shrinkTxWithoutId
 
 data TxWithoutId = TxWithoutId
-    { fee :: !(Maybe Coin)
-    , resolvedInputs :: ![(TxIn, Maybe TxOut)]
-    , resolvedCollateralInputs :: ![(TxIn, Maybe TxOut)]
-    , outputs :: ![TxOut]
-    , collateralOutput :: !(Maybe TxOut)
-    , metadata :: !(Maybe TxMetadata)
-    , withdrawals :: !(Map RewardAccount Coin)
-    , scriptValidity :: !(Maybe TxScriptValidity)
-    }
-    deriving (Eq, Generic, Ord, Show)
+  { fee :: !(Maybe Coin)
+  , resolvedInputs :: ![(TxIn, Maybe TxOut)]
+  , resolvedCollateralInputs :: ![(TxIn, Maybe TxOut)]
+  , outputs :: ![TxOut]
+  , collateralOutput :: !(Maybe TxOut)
+  , metadata :: !(Maybe TxMetadata)
+  , withdrawals :: !(Map RewardAccount Coin)
+  , scriptValidity :: !(Maybe TxScriptValidity)
+  }
+  deriving (Eq, Generic, Ord, Show)
 
 genTxWithoutId :: Gen TxWithoutId
-genTxWithoutId = TxWithoutId
+genTxWithoutId =
+  TxWithoutId
     <$> liftArbitrary genCoinPositive
     <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
     <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
@@ -95,7 +123,8 @@ genTxWithoutId = TxWithoutId
     <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
-shrinkTxWithoutId = genericRoundRobinShrink
+shrinkTxWithoutId =
+  genericRoundRobinShrink
     <@> liftShrink shrinkCoinPositive
     <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
     <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
@@ -107,8 +136,8 @@ shrinkTxWithoutId = genericRoundRobinShrink
     <:> Nil
 
 txWithoutIdToTx :: TxWithoutId -> Tx
-txWithoutIdToTx tx@TxWithoutId {..}
-    = Tx {txId = mockHash tx, txCBOR = Nothing, ..}
+txWithoutIdToTx tx@TxWithoutId {..} =
+  Tx {txId = mockHash tx, txCBOR = Nothing, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}

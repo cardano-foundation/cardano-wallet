@@ -13,345 +13,394 @@
 -- |
 -- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
-
 module Cardano.Wallet.Api.Types.Transaction
-    ( AddressAmount (..)
-    , ApiAssetMintBurn
-    , ApiDecodedTransaction (..)
-    , ApiPostPolicyKeyData (..)
-    , ApiTxInputGeneral (..)
-    , ApiTxMetadata (..)
-    , ApiTxOutput
-    , ApiTxOutputGeneral (..)
-    , ApiValidityIntervalExplicit (..)
-    , ApiWalletInput (..)
-    , ApiWalletOutput (..)
-    , ApiWithdrawal (..)
-    , ApiWithdrawalGeneral (..)
-    , ApiWitnessCount (..)
-    , mkApiWitnessCount
-    , ResourceContext (..)
-    , ApiLimit(..)
-    , ApiAddress (..)
-    )
-    where
-
-import Prelude
+  ( AddressAmount (..)
+  , ApiAssetMintBurn
+  , ApiDecodedTransaction (..)
+  , ApiPostPolicyKeyData (..)
+  , ApiTxInputGeneral (..)
+  , ApiTxMetadata (..)
+  , ApiTxOutput
+  , ApiTxOutputGeneral (..)
+  , ApiValidityIntervalExplicit (..)
+  , ApiWalletInput (..)
+  , ApiWalletOutput (..)
+  , ApiWithdrawal (..)
+  , ApiWithdrawalGeneral (..)
+  , ApiWitnessCount (..)
+  , mkApiWitnessCount
+  , ResourceContext (..)
+  , ApiLimit (..)
+  , ApiAddress (..)
+  )
+where
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..) )
+  ( DerivationIndex (..)
+  )
 import Cardano.Wallet.Api.Aeson
-    ( eitherToParser )
+  ( eitherToParser
+  )
 import Cardano.Wallet.Api.Lib.ApiAsArray
-    ( ApiAsArray )
+  ( ApiAsArray
+  )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (ApiT) )
+  ( ApiT (ApiT)
+  )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (..) )
+  ( DefaultRecord (..)
+  )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiAnyCertificate, ApiRewardAccount )
+  ( ApiAnyCertificate
+  , ApiRewardAccount
+  )
 import Cardano.Wallet.Api.Types.MintBurn
-    ( ApiAssetMintBurn )
+  ( ApiAssetMintBurn
+  )
 import Cardano.Wallet.Api.Types.Primitive
-    ()
+  (
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+  ( HasSNetworkId (..)
+  , NetworkDiscriminant
+  )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+  ( Passphrase (..)
+  )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+  ( Address (..)
+  )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (unCoin) )
+  ( Coin (unCoin)
+  )
+import Cardano.Wallet.Primitive.Types.Coin qualified as Coin
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenMap qualified as W
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( coinIsValidForTxOut, txOutMaxCoin )
+  ( coinIsValidForTxOut
+  , txOutMaxCoin
+  )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxMetadata (..), TxScriptValidity, txMetadataIsNull )
+  ( TxMetadata (..)
+  , TxScriptValidity
+  , txMetadataIsNull
+  )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+  ( TxIn (..)
+  )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
+  ( decodeAddress
+  , encodeAddress
+  )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    )
+  ( AnyExplicitScript (..)
+  , ValidityIntervalExplicit (..)
+  , WitnessCount (..)
+  )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+  ( ShowFmt (..)
+  )
 import Control.DeepSeq
-    ( NFData )
+  ( NFData
+  )
 import Data.Aeson.Types
-    ( FromJSON (..)
-    , KeyValue (..)
-    , ToJSON (..)
-    , Value (..)
-    , object
-    , prependFailure
-    , withObject
-    , (.!=)
-    , (.:)
-    , (.:?)
-    )
+  ( FromJSON (..)
+  , KeyValue (..)
+  , ToJSON (..)
+  , Value (..)
+  , object
+  , prependFailure
+  , withObject
+  , (.!=)
+  , (.:)
+  , (.:?)
+  )
+import Data.Aeson.Types qualified as Aeson
 import Data.Bifunctor
-    ( first )
+  ( first
+  )
 import Data.Hashable
-    ( Hashable )
+  ( Hashable
+  )
 import Data.List.NonEmpty
-    ( NonEmpty )
+  ( NonEmpty
+  )
 import Data.Quantity
-    ( Quantity (..) )
+  ( Quantity (..)
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
 import Data.Text.Class
-    ( toText )
+  ( toText
+  )
 import Data.Typeable
-    ( Typeable )
+  ( Typeable
+  )
 import Data.Word
-    ( Word32, Word8 )
+  ( Word32
+  , Word8
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Numeric.Natural
-    ( Natural )
+  ( Natural
+  )
 import Quiet
-    ( Quiet (Quiet) )
+  ( Quiet (Quiet)
+  )
 import Servant
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+  ( FromHttpApiData (..)
+  , ToHttpApiData (..)
+  )
+import Prelude
 
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-import qualified Data.Aeson.Types as Aeson
+newtype ApiAddress (n :: NetworkDiscriminant) = ApiAddress {apiAddress :: Address}
+  deriving (Eq, Generic, Show, NFData, Ord, Hashable)
 
-newtype ApiAddress (n :: NetworkDiscriminant)
-    = ApiAddress {apiAddress :: Address}
-        deriving (Eq, Generic, Show, NFData, Ord, Hashable)
+instance HasSNetworkId n => FromJSON (ApiAddress n) where
+  parseJSON x = do
+    addr <-
+      parseJSON x
+        >>= eitherToParser
+          . first (\e -> ShowFmt $ show (x, e))
+          . decodeAddress (sNetworkId @n)
+    return $ ApiAddress addr
 
-instance HasSNetworkId n => FromJSON (ApiAddress n)
-  where
-    parseJSON x = do
-        addr <- parseJSON x >>= eitherToParser
-                    . first (\e -> ShowFmt $ show (x,e))
-                        . decodeAddress (sNetworkId @n)
-        return $ ApiAddress addr
-instance HasSNetworkId n => ToJSON (ApiAddress n)
-  where
-    toJSON (ApiAddress addr) = toJSON . encodeAddress (sNetworkId @n) $ addr
+instance HasSNetworkId n => ToJSON (ApiAddress n) where
+  toJSON (ApiAddress addr) = toJSON . encodeAddress (sNetworkId @n) $ addr
 
 newtype ApiTxMetadata = ApiTxMetadata
-    { getApiTxMetadata :: Maybe (ApiT TxMetadata)
-    }
-    deriving (Eq, Generic)
-    deriving anyclass NFData
-    deriving Show via (Quiet ApiTxMetadata)
+  { getApiTxMetadata :: Maybe (ApiT TxMetadata)
+  }
+  deriving (Eq, Generic)
+  deriving anyclass (NFData)
+  deriving (Show) via (Quiet ApiTxMetadata)
 
 instance FromJSON ApiTxMetadata where
-    parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing
-    parseJSON v = ApiTxMetadata . Just <$> parseJSON v
+  parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing
+  parseJSON v = ApiTxMetadata . Just <$> parseJSON v
+
 instance ToJSON ApiTxMetadata where
-    toJSON (ApiTxMetadata x) = case x of
-        Nothing -> Aeson.Null
-        Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
-        Just md -> toJSON md
+  toJSON (ApiTxMetadata x) = case x of
+    Nothing -> Aeson.Null
+    Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
+    Just md -> toJSON md
 
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
-    { id :: ApiT (Hash "Tx")
-    , fee :: Quantity "lovelace" Natural
-    , inputs :: [ApiTxInputGeneral n]
-    , outputs :: [ApiTxOutputGeneral n]
-    , collateral :: [ApiTxInputGeneral n]
-    , collateralOutputs ::
-        ApiAsArray "collateral_outputs" (Maybe (ApiTxOutputGeneral n))
-    , withdrawals :: [ApiWithdrawalGeneral n]
-    , mint :: ApiAssetMintBurn
-    , burn :: ApiAssetMintBurn
-    , certificates :: [ApiAnyCertificate n]
-    , depositsTaken :: [Quantity "lovelace" Natural]
-    , depositsReturned :: [Quantity "lovelace" Natural]
-    , metadata :: ApiTxMetadata
-    , scriptValidity :: Maybe (ApiT TxScriptValidity)
-    , validityInterval :: Maybe ApiValidityIntervalExplicit
-    , witnessCount :: ApiWitnessCount
-    }
-    deriving (Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
-    deriving anyclass NFData
+  { id :: ApiT (Hash "Tx")
+  , fee :: Quantity "lovelace" Natural
+  , inputs :: [ApiTxInputGeneral n]
+  , outputs :: [ApiTxOutputGeneral n]
+  , collateral :: [ApiTxInputGeneral n]
+  , collateralOutputs
+      :: ApiAsArray "collateral_outputs" (Maybe (ApiTxOutputGeneral n))
+  , withdrawals :: [ApiWithdrawalGeneral n]
+  , mint :: ApiAssetMintBurn
+  , burn :: ApiAssetMintBurn
+  , certificates :: [ApiAnyCertificate n]
+  , depositsTaken :: [Quantity "lovelace" Natural]
+  , depositsReturned :: [Quantity "lovelace" Natural]
+  , metadata :: ApiTxMetadata
+  , scriptValidity :: Maybe (ApiT TxScriptValidity)
+  , validityInterval :: Maybe ApiValidityIntervalExplicit
+  , witnessCount :: ApiWitnessCount
+  }
+  deriving (Eq, Generic, Show, Typeable)
+  deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
+  deriving anyclass (NFData)
 
-newtype ApiValidityIntervalExplicit =
-    ApiValidityIntervalExplicit ValidityIntervalExplicit
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ValidityIntervalExplicit
-    deriving anyclass NFData
+newtype ApiValidityIntervalExplicit
+  = ApiValidityIntervalExplicit ValidityIntervalExplicit
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON) via DefaultRecord ValidityIntervalExplicit
+  deriving anyclass (NFData)
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
-    { id :: ApiT (Hash "Tx")
-    , index :: Word32
-    , address :: ApiAddress n
-    , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
-    }
-    deriving (Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
-    deriving anyclass NFData
+  { id :: ApiT (Hash "Tx")
+  , index :: Word32
+  , address :: ApiAddress n
+  , derivationPath :: NonEmpty (ApiT DerivationIndex)
+  , amount :: Quantity "lovelace" Natural
+  , assets :: ApiT W.TokenMap
+  }
+  deriving (Eq, Generic, Show, Typeable)
+  deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
+  deriving anyclass (NFData)
 
 data ApiWitnessCount = ApiWitnessCount
-    { verificationKey :: Word8
-    , scripts :: [ApiT AnyExplicitScript]
-    , bootstrap :: Word8
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiWitnessCount
-    deriving anyclass NFData
+  { verificationKey :: Word8
+  , scripts :: [ApiT AnyExplicitScript]
+  , bootstrap :: Word8
+  }
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON) via DefaultRecord ApiWitnessCount
+  deriving anyclass (NFData)
 
 mkApiWitnessCount :: WitnessCount -> ApiWitnessCount
 mkApiWitnessCount WitnessCount {verificationKey, scripts, bootstrap} =
-    ApiWitnessCount
-        { verificationKey
-        , scripts = ApiT <$> scripts
-        , bootstrap
-        }
+  ApiWitnessCount
+    { verificationKey
+    , scripts = ApiT <$> scripts
+    , bootstrap
+    }
 
-data ApiTxInputGeneral (n :: NetworkDiscriminant) =
-      ExternalInput (ApiT TxIn)
-    | WalletInput (ApiWalletInput n)
-    deriving (Eq, Generic, Show, Typeable)
-    deriving anyclass NFData
+data ApiTxInputGeneral (n :: NetworkDiscriminant)
+  = ExternalInput (ApiT TxIn)
+  | WalletInput (ApiWalletInput n)
+  deriving (Eq, Generic, Show, Typeable)
+  deriving anyclass (NFData)
 
-instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n)
-  where
-    parseJSON obj = do
-        derPathM <-
-            (withObject "ApiTxInputGeneral" $
-             \o -> o .:? "derivation_path"
-                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
-        case derPathM of
-            Nothing -> do
-                xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)
-                pure $ ExternalInput xs
-            Just _ -> do
-                xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
-                pure $ WalletInput xs
+instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n) where
+  parseJSON obj = do
+    derPathM <-
+      ( withObject "ApiTxInputGeneral"
+          $ \o ->
+            o .:? "derivation_path"
+              :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))
+        )
+        obj
+    case derPathM of
+      Nothing -> do
+        xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)
+        pure $ ExternalInput xs
+      Just _ -> do
+        xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
+        pure $ WalletInput xs
 
 instance HasSNetworkId n => ToJSON (ApiTxInputGeneral n) where
-    toJSON (ExternalInput content) = toJSON content
-    toJSON (WalletInput content) = toJSON content
+  toJSON (ExternalInput content) = toJSON content
+  toJSON (WalletInput content) = toJSON content
 
 data ResourceContext = External | Our
-    deriving (Eq, Generic, Show, Typeable)
-    deriving anyclass NFData
+  deriving (Eq, Generic, Show, Typeable)
+  deriving anyclass (NFData)
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
-    { stakeAddress :: ApiRewardAccount n
-    , amount :: Quantity "lovelace" Natural
-    , context :: ResourceContext
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+  { stakeAddress :: ApiRewardAccount n
+  , amount :: Quantity "lovelace" Natural
+  , context :: ResourceContext
+  }
+  deriving (Eq, Generic, Show)
+  deriving anyclass (NFData)
 
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
-    { address :: ApiAddress n
-    , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
-    , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    }
-    deriving (Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletOutput n)
-    deriving anyclass NFData
+  { address :: ApiAddress n
+  , amount :: Quantity "lovelace" Natural
+  , assets :: ApiT W.TokenMap
+  , derivationPath :: NonEmpty (ApiT DerivationIndex)
+  }
+  deriving (Eq, Generic, Show, Typeable)
+  deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletOutput n)
+  deriving anyclass (NFData)
 
 data AddressAmount addr = AddressAmount
-    { address :: addr
-    , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
-    }
-    deriving (Eq, Generic, Show)
-    deriving ToJSON via DefaultRecord (AddressAmount addr)
-    deriving anyclass NFData
+  { address :: addr
+  , amount :: Quantity "lovelace" Natural
+  , assets :: ApiT W.TokenMap
+  }
+  deriving (Eq, Generic, Show)
+  deriving (ToJSON) via DefaultRecord (AddressAmount addr)
+  deriving anyclass (NFData)
 
 instance FromJSON a => FromJSON (AddressAmount a) where
-    parseJSON = withObject "AddressAmount " $ \v ->
-        prependFailure "parsing AddressAmount failed, " $
-        AddressAmount
-            <$> v .: "address"
-            <*> (v .: "amount" >>= validateCoin)
-            <*> v .:? "assets" .!= mempty
-      where
-        validateCoin q
-            | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
-            | otherwise = fail $
-                "invalid coin value: value has to be lower than or equal to "
-                <> show (unCoin txOutMaxCoin) <> " lovelace."
+  parseJSON = withObject "AddressAmount " $ \v ->
+    prependFailure "parsing AddressAmount failed, "
+      $ AddressAmount
+        <$> v .: "address"
+        <*> (v .: "amount" >>= validateCoin)
+        <*> v .:? "assets" .!= mempty
+    where
+      validateCoin q
+        | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
+        | otherwise =
+            fail
+              $ "invalid coin value: value has to be lower than or equal to "
+                <> show (unCoin txOutMaxCoin)
+                <> " lovelace."
 
 -- | A helper type to reduce the amount of repetition.
---
 type ApiTxOutput n = AddressAmount (ApiAddress n)
 
-data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
-      ExternalOutput (ApiTxOutput n)
-    | WalletOutput (ApiWalletOutput n)
-    deriving (Eq, Generic, Show, Typeable)
-    deriving anyclass NFData
+data ApiTxOutputGeneral (n :: NetworkDiscriminant)
+  = ExternalOutput (ApiTxOutput n)
+  | WalletOutput (ApiWalletOutput n)
+  deriving (Eq, Generic, Show, Typeable)
+  deriving anyclass (NFData)
 
-instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n)
-  where
-    parseJSON obj = do
-        derPathM <-
-            (withObject "ApiTxOutputGeneral" $
-             \o -> o .:? "derivation_path"
-                :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
-        case derPathM of
-            Nothing -> do
-                xs <- parseJSON obj
-                    :: Aeson.Parser (ApiTxOutput n)
-                pure $ ExternalOutput xs
-            Just _ -> do
-                xs <- parseJSON obj
-                    :: Aeson.Parser (ApiWalletOutput n)
-                pure $ WalletOutput xs
+instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n) where
+  parseJSON obj = do
+    derPathM <-
+      ( withObject "ApiTxOutputGeneral"
+          $ \o ->
+            o .:? "derivation_path"
+              :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))
+        )
+        obj
+    case derPathM of
+      Nothing -> do
+        xs <-
+          parseJSON obj
+            :: Aeson.Parser (ApiTxOutput n)
+        pure $ ExternalOutput xs
+      Just _ -> do
+        xs <-
+          parseJSON obj
+            :: Aeson.Parser (ApiWalletOutput n)
+        pure $ WalletOutput xs
 
 instance HasSNetworkId n => ToJSON (ApiTxOutputGeneral n) where
-    toJSON (ExternalOutput content) = toJSON content
-    toJSON (WalletOutput content) = toJSON content
+  toJSON (ExternalOutput content) = toJSON content
+  toJSON (WalletOutput content) = toJSON content
 
 newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
-    { passphrase :: ApiT (Passphrase "user")
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiPostPolicyKeyData
-    deriving anyclass NFData
+  { passphrase :: ApiT (Passphrase "user")
+  }
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON) via DefaultRecord ApiPostPolicyKeyData
+  deriving anyclass (NFData)
 
 data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
-    { stakeAddress :: !(ApiRewardAccount n)
-    , amount :: !(Quantity "lovelace" Natural)
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
-    deriving anyclass NFData
+  { stakeAddress :: !(ApiRewardAccount n)
+  , amount :: !(Quantity "lovelace" Natural)
+  }
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
+  deriving anyclass (NFData)
 
 instance HasSNetworkId n => FromJSON (ApiWithdrawalGeneral n) where
-    parseJSON obj = do
-        myResource <-
-            (withObject "ApiWithdrawalGeneral" $
-             \o -> o .:? "context" :: Aeson.Parser (Maybe Text)) obj
-        case myResource of
-            Nothing -> do
-                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
-                pure $ ApiWithdrawalGeneral addr amt External
-            _ -> do
-                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
-                pure $ ApiWithdrawalGeneral addr amt Our
+  parseJSON obj = do
+    myResource <-
+      ( withObject "ApiWithdrawalGeneral"
+          $ \o -> o .:? "context" :: Aeson.Parser (Maybe Text)
+        )
+        obj
+    case myResource of
+      Nothing -> do
+        (ApiWithdrawal addr amt) <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+        pure $ ApiWithdrawalGeneral addr amt External
+      _ -> do
+        (ApiWithdrawal addr amt) <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+        pure $ ApiWithdrawalGeneral addr amt Our
 
 instance HasSNetworkId n => ToJSON (ApiWithdrawalGeneral n) where
-    toJSON (ApiWithdrawalGeneral addr amt ctx) = do
-        let obj = [ "stake_address" .= toJSON addr
-                  , "amount" .= toJSON amt]
-        case ctx of
-            External -> object obj
-            Our -> object $ obj ++ ["context" .= String "ours"]
+  toJSON (ApiWithdrawalGeneral addr amt ctx) = do
+    let
+      obj =
+        [ "stake_address" .= toJSON addr
+        , "amount" .= toJSON amt
+        ]
+    case ctx of
+      External -> object obj
+      Our -> object $ obj ++ ["context" .= String "ours"]
 
 newtype ApiLimit = ApiLimit {fromApiLimit :: Natural}
 
 instance ToHttpApiData ApiLimit where
-    toUrlPiece (ApiLimit n) = toText n
+  toUrlPiece (ApiLimit n) = toText n
 
 instance FromHttpApiData ApiLimit where
-    parseUrlPiece n = ApiLimit <$> parseUrlPiece n
+  parseUrlPiece n = ApiLimit <$> parseUrlPiece n

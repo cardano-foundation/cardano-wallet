@@ -3,76 +3,89 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 -- GHC 8.10.7 cannot figure out the constraint is necessary in
 -- toWitnessCount, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Cardano.Wallet.Address.Keys.WitnessCount
-    ( toWitnessCountCtx)
-    where
-
-import Prelude
+module Cardano.Wallet.Address.Keys.WitnessCount (toWitnessCountCtx) where
 
 import Cardano.Address.Derivation
-    ( xpubToBytes )
+  ( xpubToBytes
+  )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), ScriptTemplate (..) )
+  ( KeyHash (..)
+  , KeyRole (..)
+  , ScriptTemplate (..)
+  )
+import Cardano.Address.Script qualified as CA
 import Cardano.Wallet.Address.Derivation
-    ( Role (MutableAccount), deriveAddressPublicKey )
+  ( Role (MutableAccount)
+  , deriveAddressPublicKey
+  )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey (..) )
+  ( SharedKey (..)
+  )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState, policyXPub )
+  ( SeqState
+  , policyXPub
+  )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( delegationTemplate )
+  ( delegationTemplate
+  )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, hashVerificationKey )
+  ( getRawKey
+  , hashVerificationKey
+  )
 import Cardano.Wallet.Flavor
-    ( FlavorOf
-    , IncludingStates
-    , KeyFlavorS (..)
-    , WalletFlavor
-    , WalletFlavorS (..)
-    , WalletFlavors (..)
-    , keyFlavorFromState
-    )
+  ( FlavorOf
+  , IncludingStates
+  , KeyFlavorS (..)
+  , WalletFlavor
+  , WalletFlavorS (..)
+  , WalletFlavors (..)
+  , keyFlavorFromState
+  )
 import Cardano.Wallet.Transaction
-    ( WitnessCountCtx (..) )
-
-import qualified Cardano.Address.Script as CA
-import qualified Data.Map as Map
+  ( WitnessCountCtx (..)
+  )
+import Data.Map qualified as Map
+import Prelude
 
 toWitnessCountCtx
-    :: IncludingStates '[ 'IcarusF, 'ShelleyF,  'SharedF] (FlavorOf s)
-    => WalletFlavorS s
-    -> s
-    -> WitnessCountCtx
+  :: IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
+  => WalletFlavorS s
+  -> s
+  -> WitnessCountCtx
 toWitnessCountCtx ShelleyWallet s = count s
 toWitnessCountCtx IcarusWallet s = count s
 toWitnessCountCtx SharedWallet s =
-    let delegationTemplateM = delegationTemplate s
-        stakingKeyHashes =
-            maybe [] allCosignerStakingKeys delegationTemplateM
-    in  SharedWalletCtx stakingKeyHashes
+  let
+    delegationTemplateM = delegationTemplate s
+    stakingKeyHashes =
+      maybe [] allCosignerStakingKeys delegationTemplateM
+  in
+    SharedWalletCtx stakingKeyHashes
 
-count :: forall s n k. (s ~ SeqState n k, WalletFlavor s)
-    => s -> WitnessCountCtx
+count
+  :: forall s n k
+   . (s ~ SeqState n k, WalletFlavor s)
+  => s
+  -> WitnessCountCtx
 count s = case policyXPub s of
-    Just key ->
-        ShelleyWalletCtx
-            $ KeyHash Policy
-            $ xpubToBytes
-            $ getRawKey (keyFlavorFromState @s) key
-    Nothing -> AnyWitnessCountCtx
+  Just key ->
+    ShelleyWalletCtx
+      $ KeyHash Policy
+      $ xpubToBytes
+      $ getRawKey (keyFlavorFromState @s) key
+  Nothing -> AnyWitnessCountCtx
 
 allCosignerStakingKeys
-    :: ScriptTemplate
-    -> [KeyHash]
+  :: ScriptTemplate
+  -> [KeyHash]
 allCosignerStakingKeys (ScriptTemplate xpubs _) =
-    map toKeyHash (Map.elems xpubs)
+  map toKeyHash (Map.elems xpubs)
   where
     stakingKey accXPub =
-        deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
+      deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
     toKeyHash =
-        hashVerificationKey SharedKeyS CA.Delegation . stakingKey
+      hashVerificationKey SharedKeyS CA.Delegation . stakingKey

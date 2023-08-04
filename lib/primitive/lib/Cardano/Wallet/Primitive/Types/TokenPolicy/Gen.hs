@@ -1,39 +1,45 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    (
-    -- * Generators and shrinkers
-      genTokenName
-    , genTokenNameLargeRange
-    , genTokenPolicyId
-    , genTokenPolicyIdLargeRange
-    , shrinkTokenName
-    , shrinkTokenPolicyId
+  ( -- * Generators and shrinkers
+    genTokenName
+  , genTokenNameLargeRange
+  , genTokenPolicyId
+  , genTokenPolicyIdLargeRange
+  , shrinkTokenName
+  , shrinkTokenPolicyId
 
     -- * Test values
-    , testTokenNames
-    , testTokenPolicyIds
+  , testTokenNames
+  , testTokenPolicyIds
 
     -- * Creation of test values
-    , mkTokenName
-    , mkTokenPolicyId
-
-    ) where
-
-import Prelude
+  , mkTokenName
+  , mkTokenPolicyId
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+  ( Hash (..)
+  )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+  ( TokenName (..)
+  , TokenPolicyId (..)
+  )
+import Data.ByteString qualified as BS
+import Data.ByteString.Char8 qualified as B8
 import Data.Either
-    ( fromRight )
+  ( fromRight
+  )
+import Data.Text qualified as T
 import Data.Text.Class
-    ( FromText (..) )
+  ( FromText (..)
+  )
 import Test.QuickCheck
-    ( Gen, elements, sized, vector )
-
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.Text as T
+  ( Gen
+  , elements
+  , sized
+  , vector
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a range that depends on the size parameter
@@ -44,8 +50,8 @@ genTokenName = sized $ \n -> elements $ take (max 1 n) testTokenNames
 
 shrinkTokenName :: TokenName -> [TokenName]
 shrinkTokenName i
-    | i == simplest = []
-    | otherwise = [simplest]
+  | i == simplest = []
+  | otherwise = [simplest]
   where
     simplest = head testTokenNames
 
@@ -66,8 +72,8 @@ genTokenPolicyId = sized $ \n -> elements $ take (max 1 n) testTokenPolicyIds
 
 shrinkTokenPolicyId :: TokenPolicyId -> [TokenPolicyId]
 shrinkTokenPolicyId i
-    | i == simplest = []
-    | otherwise = [simplest]
+  | i == simplest = []
+  | otherwise = [simplest]
   where
     simplest = head testTokenPolicyIds
 
@@ -100,14 +106,15 @@ mkTokenPolicyIdValidChars = ['0' .. '9'] <> ['A' .. 'F']
 -- The input must be a character in the range [0-9] or [A-F].
 --
 mkTokenPolicyId :: Char -> TokenPolicyId
-mkTokenPolicyId c
-    = fromRight reportError
+mkTokenPolicyId c =
+  fromRight reportError
     $ fromText
     $ T.pack
     $ replicate tokenPolicyIdHexStringLength c
   where
-    reportError = error $
-        "Unable to generate token policy id from character: " <> show c
+    reportError =
+      error
+        $ "Unable to generate token policy id from character: " <> show c
 
 tokenPolicyIdHexStringLength :: Int
 tokenPolicyIdHexStringLength = 56

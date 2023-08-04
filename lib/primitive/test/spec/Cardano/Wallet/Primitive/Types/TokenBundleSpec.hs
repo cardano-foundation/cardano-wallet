@@ -3,119 +3,147 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    ( spec
-    ) where
-
-import Prelude hiding
-    ( subtract )
+  ( spec
+  )
+where
 
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+  ( inAscendingPartialOrder
+  )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Lexicographic (..), TokenBundle (..) )
+  ( Lexicographic (..)
+  , TokenBundle (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenBundle qualified as TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundlePartition
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
+  ( genTokenBundlePartition
+  , genTokenBundleSmallRange
+  , shrinkTokenBundleSmallRange
+  )
+import Cardano.Wallet.Primitive.Types.TokenMap qualified as TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+  ( TokenQuantity (..)
+  )
+import Cardano.Wallet.Primitive.Types.TokenQuantity qualified as TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
+  ( genTokenQuantityPositive
+  , shrinkTokenQuantityPositive
+  )
+import Data.Foldable qualified as F
 import Data.Function
-    ( (&) )
+  ( (&)
+  )
 import Data.Ratio
-    ( (%) )
+  ( (%)
+  )
 import Test.Hspec
-    ( Spec, describe, it )
+  ( Spec
+  , describe
+  , it
+  )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+  ( modifyMaxSuccess
+  )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , checkCoverage
-    , cover
-    , forAll
-    , property
-    , (===)
-    , (==>)
-    )
+  ( Arbitrary (..)
+  , Property
+  , checkCoverage
+  , cover
+  , forAll
+  , property
+  , (===)
+  , (==>)
+  )
+import Test.QuickCheck qualified as QC
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+  ( eqLaws
+  , monoidLaws
+  , ordLaws
+  , semigroupLaws
+  , semigroupMonoidLaws
+  )
 import Test.QuickCheck.Classes.Monoid.GCD
-    ( gcdMonoidLaws
-    , leftGCDMonoidLaws
-    , overlappingGCDMonoidLaws
-    , rightGCDMonoidLaws
-    )
+  ( gcdMonoidLaws
+  , leftGCDMonoidLaws
+  , overlappingGCDMonoidLaws
+  , rightGCDMonoidLaws
+  )
 import Test.QuickCheck.Classes.Monoid.Monus
-    ( monusLaws )
+  ( monusLaws
+  )
 import Test.QuickCheck.Classes.Monoid.Null
-    ( monoidNullLaws )
+  ( monoidNullLaws
+  )
 import Test.QuickCheck.Classes.Semigroup.Cancellative
-    ( commutativeLaws, leftReductiveLaws, reductiveLaws, rightReductiveLaws )
+  ( commutativeLaws
+  , leftReductiveLaws
+  , reductiveLaws
+  , rightReductiveLaws
+  )
 import Test.Utils.Laws
-    ( testLawsMany )
+  ( testLawsMany
+  )
 import Test.Utils.Laws.PartialOrd
-    ( partialOrdLaws )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Data.Foldable as F
-import qualified Test.QuickCheck as QC
+  ( partialOrdLaws
+  )
+import Prelude hiding
+  ( subtract
+  )
 
 spec :: Spec
 spec =
-    describe "Token bundle properties" $
-    modifyMaxSuccess (const 1000) $ do
-
-    describe "Class instances obey laws" $ do
+  describe "Token bundle properties"
+    $ modifyMaxSuccess (const 1000)
+    $ do
+      describe "Class instances obey laws" $ do
         testLawsMany @TokenBundle
-            [ commutativeLaws
-            , eqLaws
-            , gcdMonoidLaws
-            , leftGCDMonoidLaws
-            , leftReductiveLaws
-            , monoidLaws
-            , monoidNullLaws
-            , monusLaws
-            , overlappingGCDMonoidLaws
-            , partialOrdLaws
-            , reductiveLaws
-            , rightGCDMonoidLaws
-            , rightReductiveLaws
-            , semigroupLaws
-            , semigroupMonoidLaws
-            ]
+          [ commutativeLaws
+          , eqLaws
+          , gcdMonoidLaws
+          , leftGCDMonoidLaws
+          , leftReductiveLaws
+          , monoidLaws
+          , monoidNullLaws
+          , monusLaws
+          , overlappingGCDMonoidLaws
+          , partialOrdLaws
+          , reductiveLaws
+          , rightGCDMonoidLaws
+          , rightReductiveLaws
+          , semigroupLaws
+          , semigroupMonoidLaws
+          ]
         testLawsMany @(Lexicographic TokenBundle)
-            [ eqLaws
-            , ordLaws
-            ]
+          [ eqLaws
+          , ordLaws
+          ]
 
-    describe "Partitioning quantities with an upper bound" $ do
-        it "prop_equipartitionQuantitiesWithUpperBound_length" $
-            property prop_equipartitionQuantitiesWithUpperBound_length
-        it "prop_equipartitionQuantitiesWithUpperBound_order" $
-            property prop_equipartitionQuantitiesWithUpperBound_order
-        it "prop_equipartitionQuantitiesWithUpperBound_sum" $
-            property prop_equipartitionQuantitiesWithUpperBound_sum
+      describe "Partitioning quantities with an upper bound" $ do
+        it "prop_equipartitionQuantitiesWithUpperBound_length"
+          $ property prop_equipartitionQuantitiesWithUpperBound_length
+        it "prop_equipartitionQuantitiesWithUpperBound_order"
+          $ property prop_equipartitionQuantitiesWithUpperBound_order
+        it "prop_equipartitionQuantitiesWithUpperBound_sum"
+          $ property prop_equipartitionQuantitiesWithUpperBound_sum
 
-    describe "Generating partitions" $ do
+      describe "Generating partitions" $ do
+        it "prop_genTokenBundlePartition_fold"
+          $ prop_genTokenBundlePartition_fold
+          & property
+        it "prop_genTokenBundlePartition_length"
+          $ prop_genTokenBundlePartition_length
+          & property
+        it "prop_genTokenBundlePartition_nonPositive"
+          $ prop_genTokenBundlePartition_nonPositive
+          & property
 
-        it "prop_genTokenBundlePartition_fold" $
-            prop_genTokenBundlePartition_fold & property
-        it "prop_genTokenBundlePartition_length" $
-            prop_genTokenBundlePartition_length & property
-        it "prop_genTokenBundlePartition_nonPositive" $
-            prop_genTokenBundlePartition_nonPositive & property
-
-    describe "Behaviour" $
-        it "toCoin only returns when token bundle has only ADA" $
-            property prop_toCoin_onlyAda
+      describe "Behaviour"
+        $ it "toCoin only returns when token bundle has only ADA"
+        $ property prop_toCoin_onlyAda
 
 --------------------------------------------------------------------------------
 -- Partitioning quantities according to an upper bound
@@ -123,55 +151,56 @@ spec =
 
 -- | Computes the number of parts that 'equipartitionQuantitiesWithUpperBound'
 --   should return.
---
 equipartitionQuantitiesWithUpperBound_expectedLength
-    :: TokenBundle -> TokenQuantity -> Int
+  :: TokenBundle -> TokenQuantity -> Int
 equipartitionQuantitiesWithUpperBound_expectedLength
-    (TokenBundle _ m) (TokenQuantity maxQuantity) =
-        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+  (TokenBundle _ m)
+  (TokenQuantity maxQuantity) =
+    max 1 $ ceiling $ currentMaxQuantity % maxQuantity
+    where
+      TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 
 prop_equipartitionQuantitiesWithUpperBound_length
-    :: TokenBundle -> TokenQuantity -> Property
+  :: TokenBundle -> TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_length m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        length (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
-            === equipartitionQuantitiesWithUpperBound_expectedLength
-                m maxQuantity
+  maxQuantity > TokenQuantity.zero ==>
+    length (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
+      === equipartitionQuantitiesWithUpperBound_expectedLength
+        m
+        maxQuantity
 
 prop_equipartitionQuantitiesWithUpperBound_order
-    :: TokenBundle -> TokenQuantity -> Property
+  :: TokenBundle -> TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_order m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        inAscendingPartialOrder
-            (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
+  maxQuantity > TokenQuantity.zero ==>
+    inAscendingPartialOrder
+      (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
 
 prop_equipartitionQuantitiesWithUpperBound_sum
-    :: TokenBundle -> TokenQuantity -> Property
+  :: TokenBundle -> TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_sum m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        F.fold (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
-            === m
+  maxQuantity > TokenQuantity.zero ==>
+    F.fold (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
+      === m
 
 --------------------------------------------------------------------------------
 -- Generating partitions
 --------------------------------------------------------------------------------
 
 prop_genTokenBundlePartition_fold
-    :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
+  :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
 prop_genTokenBundlePartition_fold m (QC.Positive (QC.Small i)) =
-    forAll (genTokenBundlePartition m i) $ (=== m) . F.fold
+  forAll (genTokenBundlePartition m i) $ (=== m) . F.fold
 
 prop_genTokenBundlePartition_length
-    :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
+  :: TokenBundle -> QC.Positive (QC.Small Int) -> Property
 prop_genTokenBundlePartition_length m (QC.Positive (QC.Small i)) =
-    forAll (genTokenBundlePartition m i) $ (=== i) . F.length
+  forAll (genTokenBundlePartition m i) $ (=== i) . F.length
 
 prop_genTokenBundlePartition_nonPositive
-    :: TokenBundle -> QC.NonPositive (QC.Small Int) -> Property
+  :: TokenBundle -> QC.NonPositive (QC.Small Int) -> Property
 prop_genTokenBundlePartition_nonPositive m (QC.NonPositive (QC.Small i)) =
-    forAll (genTokenBundlePartition m i) (=== pure m)
+  forAll (genTokenBundlePartition m i) (=== pure m)
 
 --------------------------------------------------------------------------------
 -- Behavioural properties
@@ -179,15 +208,19 @@ prop_genTokenBundlePartition_nonPositive m (QC.NonPositive (QC.Small i)) =
 
 prop_toCoin_onlyAda :: TokenBundle -> Property
 prop_toCoin_onlyAda bundle =
-    let
-        result = TokenBundle.toCoin bundle
-    in
-        checkCoverage $
-        cover 30 (not (TokenBundle.isCoin bundle))
-            "Token bundle has at least 1 non-ada asset" $
-        cover 30 (TokenBundle.isCoin bundle)
-            "Token bundle has no non-ada assets" $
-        if TokenBundle.isCoin bundle
+  let
+    result = TokenBundle.toCoin bundle
+  in
+    checkCoverage
+      $ cover
+        30
+        (not (TokenBundle.isCoin bundle))
+        "Token bundle has at least 1 non-ada asset"
+      $ cover
+        30
+        (TokenBundle.isCoin bundle)
+        "Token bundle has no non-ada assets"
+      $ if TokenBundle.isCoin bundle
         then result === Just (TokenBundle.coin bundle)
         else result === Nothing
 
@@ -196,11 +229,11 @@ prop_toCoin_onlyAda bundle =
 --------------------------------------------------------------------------------
 
 instance Arbitrary TokenBundle where
-    arbitrary = genTokenBundleSmallRange
-    shrink = shrinkTokenBundleSmallRange
+  arbitrary = genTokenBundleSmallRange
+  shrink = shrinkTokenBundleSmallRange
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantityPositive
-    shrink = shrinkTokenQuantityPositive
+  arbitrary = genTokenQuantityPositive
+  shrink = shrinkTokenQuantityPositive
 
 deriving instance Arbitrary (Lexicographic TokenBundle)

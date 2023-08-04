@@ -3,20 +3,26 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.DB.Store.Delegations.Model
-    ( Delegations
-    , DeltaDelegations
-    ) where
-
-import Prelude
+  ( Delegations
+  , DeltaDelegations
+  )
+where
 
 import Cardano.Pool.Types
-    ( PoolId )
+  ( PoolId
+  )
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..) )
+  ( History
+  , Operation (..)
+  )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo )
+  ( SlotNo
+  )
 import Fmt
-    ( Buildable (..), listF' )
+  ( Buildable (..)
+  , listF'
+  )
+import Prelude
 
 -- | Wallet delegation history
 type Delegations = History SlotNo PoolId
@@ -26,10 +32,10 @@ type Delegations = History SlotNo PoolId
 type DeltaDelegations = [Operation SlotNo PoolId]
 
 instance Buildable DeltaDelegations where
-    build = listF' build1
-      where
-        build1 = \case
-            Register slot -> "Register " <> build slot
-            Deregister slot -> "Deregister " <> build slot
-            Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
-            Rollback slot -> "Rollback " <> build slot
+  build = listF' build1
+    where
+      build1 = \case
+        Register slot -> "Register " <> build slot
+        Deregister slot -> "Deregister " <> build slot
+        Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
+        Rollback slot -> "Rollback " <> build slot

@@ -18,71 +18,92 @@
 -- there are more, it might be more convenient if windows goldens always are
 -- separate, as OVERWRITE_GOLDENS will never currently write the .win version.
 module Test.Hspec.Goldens
-    ( Settings (..)
-    , textGolden
-    )
-    where
-
-import Prelude
+  ( Settings (..)
+  , textGolden
+  )
+where
 
 import Data.Either.Combinators
-    ( rightToMaybe )
+  ( rightToMaybe
+  )
 import Data.Text
-    ( Text )
+  ( Text
+  )
+import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Fmt
-    ( Builder, fmt, (+|), (+||), (|+), (||+) )
+  ( Builder
+  , fmt
+  , (+|)
+  , (+||)
+  , (|+)
+  , (||+)
+  )
 import System.Environment
-    ( lookupEnv )
+  ( lookupEnv
+  )
 import System.FilePath
-    ( (<.>), (</>) )
+  ( (<.>)
+  , (</>)
+  )
 import System.IO.Error
-    ( ioeGetErrorType, isDoesNotExistErrorType )
+  ( ioeGetErrorType
+  , isDoesNotExistErrorType
+  )
 import Test.Hspec
-    ( Expectation, expectationFailure, shouldBe )
+  ( Expectation
+  , expectationFailure
+  , shouldBe
+  )
 import Test.Utils.Platform
-    ( isWindows )
+  ( isWindows
+  )
 import UnliftIO.Exception
-    ( IOException, try, tryJust )
-
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+  ( IOException
+  , try
+  , tryJust
+  )
+import Prelude
 
 data Settings = Settings
-    { goldenDirectory :: FilePath
-    , postProcess :: Text -> Text
-    }
+  { goldenDirectory :: FilePath
+  , postProcess :: Text -> Text
+  }
 
 -- | Wrapper for text which is easier to read in HSpec failure messages.
-newtype GoldenText = GoldenText { getGoldenText :: Text } deriving Eq
+newtype GoldenText = GoldenText {getGoldenText :: Text} deriving (Eq)
 
 instance Show GoldenText where
-    show = T.unpack . getGoldenText
+  show = T.unpack . getGoldenText
 
 textGolden
-    :: Settings
-    -> String -- ^ Filename for the test
-    -> Text  -- ^ Value to compare with the golden file
-    -> Expectation
+  :: Settings
+  -> String
+  -- ^ Filename for the test
+  -> Text
+  -- ^ Value to compare with the golden file
+  -> Expectation
 textGolden settings title value =
-    (,) <$> lookupEnv "OVERWRITE_GOLDENS" <*> readGolden >>= \case
-        (Nothing, (_, Just expected)) ->
-            GoldenText (postProcess settings value) `shouldBe` expected
-        (Just _overwrite, (f, Just _expected)) ->
-            writeGoldenAndFail f value "Overwriting goldens"
-        (_, (f, Nothing)) ->
-            writeGoldenAndFail f value "No existing golden file found"
-
+  (,) <$> lookupEnv "OVERWRITE_GOLDENS" <*> readGolden >>= \case
+    (Nothing, (_, Just expected)) ->
+      GoldenText (postProcess settings value) `shouldBe` expected
+    (Just _overwrite, (f, Just _expected)) ->
+      writeGoldenAndFail f value "Overwriting goldens"
+    (_, (f, Nothing)) ->
+      writeGoldenAndFail f value "No existing golden file found"
   where
     golden = goldenDirectory settings </> title
     -- If running on windows, we will use the windows-specific golden first,
     -- if it exists.
     goldenWin = if isWindows then Just (golden <.> "win") else Nothing
 
-    -- | Gets the contents of a golden text file, if it exists, and returns the
+    -- \| Gets the contents of a golden text file, if it exists, and returns the
     -- path of the actual file which was read.
     readGolden :: IO (FilePath, Maybe GoldenText)
-    readGolden = fmap (fmap GoldenText) <$> case goldenWin of
-        Just win -> readTextFile win >>= \case
+    readGolden =
+      fmap (fmap GoldenText) <$> case goldenWin of
+        Just win ->
+          readTextFile win >>= \case
             Just text -> pure (win, Just text)
             Nothing -> (golden,) <$> readTextFile golden
         Nothing -> (golden,) <$> readTextFile golden
@@ -91,22 +112,24 @@ textGolden settings title value =
     readTextFile = fmap rightToMaybe . tryJust handler . TIO.readFile
       where
         handler e
-            | isDoesNotExistErrorType (ioeGetErrorType e) = Just e
-            | otherwise = Nothing
+          | isDoesNotExistErrorType (ioeGetErrorType e) = Just e
+          | otherwise = Nothing
 
     writeGoldenAndFail
-        :: FilePath
-        -> Text
-        -> String -- ^ Error message prefix on failure
-        -> IO ()
+      :: FilePath
+      -> Text
+      -> String
+      -- \^ Error message prefix on failure
+      -> IO ()
     writeGoldenAndFail f text errMsg =
-        try (TIO.writeFile f text') >>= expectationFailure . fmt . msg
+      try (TIO.writeFile f text') >>= expectationFailure . fmt . msg
       where
         text' = postProcess settings text
 
         msg :: Either IOException () -> Builder
-        msg res = errMsg|+"... "+|case res of
+        msg res =
+          errMsg |+ "... " +| case res of
             Right () ->
-                "Now written to disk. Please check for correctness and commit."
+              "Now written to disk. Please check for correctness and commit."
             Left err ->
-                "Unable to write the new value to disk because of:\n"+||err||+""
+              "Unable to write the new value to disk because of:\n" +|| err ||+ ""

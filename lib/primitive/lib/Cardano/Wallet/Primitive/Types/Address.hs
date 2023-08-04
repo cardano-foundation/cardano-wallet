@@ -7,40 +7,50 @@
 -- License: Apache-2.0
 --
 -- This module provides the main 'Address' data type used by the wallet.
---
 module Cardano.Wallet.Primitive.Types.Address
-    ( Address (..)
-    , AddressState (..)
-    ) where
-
-import Prelude
+  ( Address (..)
+  , AddressState (..)
+  )
+where
 
 import Control.DeepSeq
-    ( NFData (..) )
+  ( NFData (..)
+  )
 import Data.Bifunctor
-    ( bimap )
+  ( bimap
+  )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+  ( Base (Base16)
+  , convertFromBase
+  , convertToBase
+  )
 import Data.ByteString
-    ( ByteString )
+  ( ByteString
+  )
 import Data.Hashable
-    ( Hashable )
+  ( Hashable
+  )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+  ( CaseStyle (..)
+  , FromText (..)
+  , TextDecodingError (..)
+  , ToText (..)
+  , fromTextToBoundedEnum
+  , toTextFromBoundedEnum
+  )
+import Data.Text.Encoding qualified as T
 import Fmt
-    ( Buildable (..), prefixF, suffixF )
+  ( Buildable (..)
+  , prefixF
+  , suffixF
+  )
 import GHC.Generics
-    ( Generic )
+  ( Generic
+  )
 import Quiet
-    ( Quiet (..) )
-
-import qualified Data.Text.Encoding as T
+  ( Quiet (..)
+  )
+import Prelude
 
 -- | Representation of Cardano addresses.
 --
@@ -87,46 +97,48 @@ import qualified Data.Text.Encoding as T
 -- makes it fairly clear that addresses are just an opaque string for the wallet
 -- layer and that the underlying encoding is rather agnostic to the underlying
 -- backend.
---
 newtype Address = Address
-    { unAddress :: ByteString
-    }
-    deriving (Generic, Eq, Ord)
-    deriving anyclass (NFData, Hashable)
-    deriving (Read, Show) via (Quiet Address)
+  { unAddress :: ByteString
+  }
+  deriving (Generic, Eq, Ord)
+  deriving anyclass (NFData, Hashable)
+  deriving (Read, Show) via (Quiet Address)
 
 instance Buildable Address where
-    build addr = mempty
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
-      where
-        addrF = build (toText addr)
+  build addr =
+    mempty
+      <> prefixF 8 addrF
+      <> "..."
+      <> suffixF 8 addrF
+    where
+      addrF = build (toText addr)
 
 instance ToText Address where
-    toText = T.decodeUtf8
-        . convertToBase Base16
-        . unAddress
+  toText =
+    T.decodeUtf8
+      . convertToBase Base16
+      . unAddress
 
 instance FromText Address where
-    fromText = bimap textDecodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        textDecodingError = TextDecodingError . show
+  fromText =
+    bimap textDecodingError Address
+      . convertFromBase Base16
+      . T.encodeUtf8
+    where
+      textDecodingError = TextDecodingError . show
 
 -- | Denotes if an address has been previously used or not... whether that be
 -- in the output of a transaction on the blockchain or one in our pending set.
 data AddressState = Used | Unused
-    deriving (Bounded, Enum, Eq, Generic, Show)
+  deriving (Bounded, Enum, Eq, Generic, Show)
 
 instance FromText AddressState where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
+  fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText AddressState where
-    toText = toTextFromBoundedEnum SnakeLowerCase
+  toText = toTextFromBoundedEnum SnakeLowerCase
 
 instance Buildable AddressState where
-    build = build . toText
+  build = build . toText
 
 instance NFData AddressState

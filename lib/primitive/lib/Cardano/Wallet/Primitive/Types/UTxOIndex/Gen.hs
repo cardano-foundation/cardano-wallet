@@ -1,30 +1,43 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex
-    , genUTxOIndexLarge
-    , genUTxOIndexLargeN
-    , shrinkUTxOIndex
-    ) where
-
-import Prelude
+  ( genUTxOIndex
+  , genUTxOIndexLarge
+  , genUTxOIndexLargeN
+  , shrinkUTxOIndex
+  )
+where
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+  ( TokenBundle
+  )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+  ( genTokenBundleSmallRangePositive
+  , shrinkTokenBundleSmallRangePositive
+  )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
+  ( UTxOIndex
+  )
+import Cardano.Wallet.Primitive.Types.UTxOIndex qualified as UTxOIndex
 import Control.Monad
-    ( replicateM )
+  ( replicateM
+  )
 import Generics.SOP
-    ( NP (..) )
+  ( NP (..)
+  )
 import Test.QuickCheck
-    ( Gen, choose, listOf, shrinkList, shrinkMapBy )
+  ( Gen
+  , choose
+  , listOf
+  , shrinkList
+  , shrinkMapBy
+  )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, (<:>), (<@>) )
-
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+  ( genericRoundRobinShrink
+  , (<:>)
+  , (<@>)
+  )
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Indices generated according to the size parameter
@@ -38,10 +51,11 @@ genUTxOIndex genUTxO = UTxOIndex.fromSequence <$> listOf genEntry
 
 shrinkUTxOIndex :: forall u. Ord u => (u -> [u]) -> UTxOIndex u -> [UTxOIndex u]
 shrinkUTxOIndex shrinkUTxO =
-    shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
+  shrinkMapBy UTxOIndex.fromSequence UTxOIndex.toList (shrinkList shrinkEntry)
   where
     shrinkEntry :: (u, TokenBundle) -> [(u, TokenBundle)]
-    shrinkEntry = genericRoundRobinShrink
+    shrinkEntry =
+      genericRoundRobinShrink
         <@> shrinkUTxO
         <:> shrinkTokenBundleSmallRangePositive
         <:> Nil
@@ -52,7 +66,7 @@ shrinkUTxOIndex shrinkUTxO =
 
 genUTxOIndexLarge :: Ord u => Gen u -> Gen (UTxOIndex u)
 genUTxOIndexLarge genUTxO =
-    genUTxOIndexLargeN genUTxO =<< choose (1024, 4096)
+  genUTxOIndexLargeN genUTxO =<< choose (1024, 4096)
 
 genUTxOIndexLargeN :: forall u. Ord u => Gen u -> Int -> Gen (UTxOIndex u)
 genUTxOIndexLargeN genUTxO n = UTxOIndex.fromSequence <$> replicateM n genEntry

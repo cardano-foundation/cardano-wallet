@@ -10,56 +10,65 @@
 --
 -- Data type that represents a collection of checkpoints.
 -- Each checkpoints is associated with a 'Slot'.
-
 module Cardano.Wallet.Checkpoints
-    ( -- * Checkpoints
-      Checkpoints
-    , checkpoints
-    , loadCheckpoints
-    , fromGenesis
-    , getLatest
-    , findNearestPoint
+  ( -- * Checkpoints
+    Checkpoints
+  , checkpoints
+  , loadCheckpoints
+  , fromGenesis
+  , getLatest
+  , findNearestPoint
 
     -- * Delta types
-    , DeltaCheckpoints (..)
-    , DeltasCheckpoints
+  , DeltaCheckpoints (..)
+  , DeltasCheckpoints
 
     -- * Checkpoint hygiene
-    , BlockHeight
-    , extendCheckpoints
-    , pruneCheckpoints
+  , BlockHeight
+  , extendCheckpoints
+  , pruneCheckpoints
 
     -- * Checkpoint creation
-    , SparseCheckpointsConfig (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
-    , gapSize
-    ) where
+  , SparseCheckpointsConfig (..)
+  , defaultSparseCheckpointsConfig
+  , sparseCheckpoints
+  , gapSize
+  )
+where
 
-import Prelude
-
+import Cardano.Wallet.Primitive.Types qualified as W
 import Data.Delta
-    ( Delta (..) )
+  ( Delta (..)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+  ( over
+  , view
+  )
+import Data.List qualified as L
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict
-    ( Map )
+  ( Map
+  )
+import Data.Map.Strict qualified as Map
 import Data.Maybe
-    ( fromMaybe )
+  ( fromMaybe
+  )
 import Data.Quantity
-    ( Quantity (..) )
+  ( Quantity (..)
+  )
+import Data.Set qualified as Set
 import Data.Word
-    ( Word32, Word8 )
+  ( Word32
+  , Word8
+  )
 import Fmt
-    ( Buildable (..), listF )
+  ( Buildable (..)
+  , listF
+  )
 import GHC.Generics
-    ( Generic )
-
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
+  ( Generic
+  )
+import Prelude
 
 {- NOTE [PointSlotNo]
 
@@ -96,11 +105,14 @@ is clear that the data cannot exist at the genesis point
 {-------------------------------------------------------------------------------
     Checkpoints
 -------------------------------------------------------------------------------}
+
 -- | Collection of checkpoints indexed by 'Slot'.
 newtype Checkpoints a = Checkpoints
-    { checkpoints :: Map W.Slot a
-    -- ^ Map of checkpoints. Always contains the genesis checkpoint.
-    } deriving (Eq,Show,Generic)
+  { checkpoints :: Map W.Slot a
+  -- ^ Map of checkpoints. Always contains the genesis checkpoint.
+  }
+  deriving (Eq, Show, Generic)
+
 -- FIXME LATER during ADP-1043:
 --  Use a more sophisticated 'Checkpoints' type that stores deltas.
 
@@ -122,7 +134,9 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 getLatest :: Checkpoints a -> (W.Slot, a)
 getLatest = from . Map.lookupMax . view #checkpoints
   where
-    from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
+    from =
+      fromMaybe
+        (error "getLatest: there should always be at least a genesis checkpoint")
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
@@ -134,27 +148,28 @@ findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
 type DeltasCheckpoints a = [DeltaCheckpoints a]
 
 data DeltaCheckpoints a
-    = PutCheckpoint W.Slot a
-        -- ^ Insert a checkpoint at a specified slot.
-    | RollbackTo W.Slot
-        -- ^ Rolls back to the latest checkpoint at or before this slot.
-    | RestrictTo [W.Slot]
-        -- ^ Restrict to the intersection of this list with
-        -- the checkpoints that are already present.
-        -- The genesis checkpoint will always be present.
+  = -- | Insert a checkpoint at a specified slot.
+    PutCheckpoint W.Slot a
+  | -- | Rolls back to the latest checkpoint at or before this slot.
+    RollbackTo W.Slot
+  | -- | Restrict to the intersection of this list with
+    -- the checkpoints that are already present.
+    -- The genesis checkpoint will always be present.
+    RestrictTo [W.Slot]
 
 instance Delta (DeltaCheckpoints a) where
-    type Base (DeltaCheckpoints a) = Checkpoints a
-    apply (PutCheckpoint pt a) = over #checkpoints $ Map.insert pt a
-    apply (RollbackTo pt) = over #checkpoints $
-        Map.filterWithKey (\k _ -> k <= pt)
-    apply (RestrictTo pts) = over #checkpoints $ \m ->
-        Map.restrictKeys m $ Set.fromList (W.Origin:pts)
+  type Base (DeltaCheckpoints a) = Checkpoints a
+  apply (PutCheckpoint pt a) = over #checkpoints $ Map.insert pt a
+  apply (RollbackTo pt) =
+    over #checkpoints
+      $ Map.filterWithKey (\k _ -> k <= pt)
+  apply (RestrictTo pts) = over #checkpoints $ \m ->
+    Map.restrictKeys m $ Set.fromList (W.Origin : pts)
 
 instance Buildable (DeltaCheckpoints a) where
-    build (PutCheckpoint slot _) = "PutCheckpoint " <> build slot
-    build (RollbackTo slot) = "RollbackTo " <> build slot
-    build (RestrictTo slots) = "RestrictTo " <> listF slots
+  build (PutCheckpoint slot _) = "PutCheckpoint " <> build slot
+  build (RollbackTo slot) = "RollbackTo " <> build slot
+  build (RestrictTo slots) = "RestrictTo " <> listF slots
 
 {-------------------------------------------------------------------------------
     Checkpoint hygiene
@@ -178,23 +193,23 @@ Another solution is to use 'nextCheckpoint' from the
 
 -- | Extend the known checkpoints.
 extendCheckpoints
-    :: (a -> W.Slot)
-        -- ^ Convert checkpoint to slot.
-    -> (a -> BlockHeight)
-        -- ^ Convert checkpoint to block height.
-    -> BlockHeight
-        -- ^ Epoch stability window = length of the deepest rollback.
-    -> BlockHeight
-        -- ^ Current tip of the blockchain,
-        -- which is *different* from block height of the latest checkpoint.
-    -> NE.NonEmpty a
-        -- ^ New checkpoints, ordered by increasing @Slot@.
-    -> DeltasCheckpoints a
+  :: (a -> W.Slot)
+  -- ^ Convert checkpoint to slot.
+  -> (a -> BlockHeight)
+  -- ^ Convert checkpoint to block height.
+  -> BlockHeight
+  -- ^ Epoch stability window = length of the deepest rollback.
+  -> BlockHeight
+  -- ^ Current tip of the blockchain,
+  -- which is *different* from block height of the latest checkpoint.
+  -> NE.NonEmpty a
+  -- ^ New checkpoints, ordered by increasing @Slot@.
+  -> DeltasCheckpoints a
 extendCheckpoints getSlot getBlockHeight epochStability nodeTip cps =
-    reverse
-        [ PutCheckpoint (getSlot wcp) wcp
-        | wcp <- cpsKeep
-        ]
+  reverse
+    [ PutCheckpoint (getSlot wcp) wcp
+    | wcp <- cpsKeep
+    ]
   where
     unstable = Set.map Quantity $ Set.fromList $ sparseCheckpoints cfg nodeTip
       where
@@ -211,33 +226,36 @@ extendCheckpoints getSlot getBlockHeight epochStability nodeTip cps =
         -- Rollback may still occur during this short period, but
         -- rolling back from a few hundred blocks is relatively fast
         -- anyway.
-        cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
+        cfg = (defaultSparseCheckpointsConfig epochStability) {edgeSize = 0}
     willKeep cp = getBlockHeight cp `Set.member` unstable
     cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
 
 -- | Compute a delta to prune the 'Checkpoints'
 -- according to 'defaultSparseCheckpointsConfig'.
 pruneCheckpoints
-    :: (a -> BlockHeight)
-        -- ^ Retrieve 'BlockHeight' from checkpoint data.
-    -> BlockHeight
-        -- ^ Epoch stability window = length of the deepest rollback.
-    -> BlockHeight
-        -- ^ Block height of the latest checkpoint.
-    -> Checkpoints a
-    -> DeltasCheckpoints a
+  :: (a -> BlockHeight)
+  -- ^ Retrieve 'BlockHeight' from checkpoint data.
+  -> BlockHeight
+  -- ^ Epoch stability window = length of the deepest rollback.
+  -> BlockHeight
+  -- ^ Block height of the latest checkpoint.
+  -> Checkpoints a
+  -> DeltasCheckpoints a
 pruneCheckpoints getHeight epochStability tip (Checkpoints cps) =
-    [ RestrictTo slots ]
+  [RestrictTo slots]
   where
     willKeep cp = getQuantity (getHeight cp) `Set.member` heights
     slots = Map.keys $ Map.filter willKeep cps
-    heights = Set.fromList $ sparseCheckpoints
-        (defaultSparseCheckpointsConfig epochStability)
-        tip
+    heights =
+      Set.fromList
+        $ sparseCheckpoints
+          (defaultSparseCheckpointsConfig epochStability)
+          tip
 
 {-------------------------------------------------------------------------------
     Checkpoint creation
 -------------------------------------------------------------------------------}
+
 -- | Storing EVERY checkpoints in the database is quite expensive and useless.
 -- We make the following assumptions:
 --
@@ -288,30 +306,33 @@ pruneCheckpoints getHeight epochStability tip (Checkpoints cps) =
 -- Therefore, we need to keep the very first checkpoint in the database, no
 -- matter what.
 sparseCheckpoints
-    :: SparseCheckpointsConfig
-        -- ^ Parameters for the function.
-    -> BlockHeight
-        -- ^ A given block height
-    -> [Word32]
-        -- ^ The list of checkpoint heights that should be kept in DB.
-sparseCheckpoints cfg blkH  =
-    let
-        SparseCheckpointsConfig{edgeSize,epochStability} = cfg
-        g = gapSize cfg
-        h = getQuantity blkH
-        e = fromIntegral edgeSize
+  :: SparseCheckpointsConfig
+  -- ^ Parameters for the function.
+  -> BlockHeight
+  -- ^ A given block height
+  -> [Word32]
+  -- ^ The list of checkpoint heights that should be kept in DB.
+sparseCheckpoints cfg blkH =
+  let
+    SparseCheckpointsConfig {edgeSize, epochStability} = cfg
+    g = gapSize cfg
+    h = getQuantity blkH
+    e = fromIntegral edgeSize
 
-        minH =
-            let x = if h < epochStability + g then 0 else h - epochStability - g
-            in g * (x `div` g)
+    minH =
+      let
+        x = if h < epochStability + g then 0 else h - epochStability - g
+      in
+        g * (x `div` g)
 
-        initial   = 0
-        longTerm  = [minH,minH+g..h]
-        shortTerm = if h < e
-            then [0..h]
-            else [h-e,h-e+1..h]
-    in
-        L.sort (L.nub $ initial : (longTerm ++ shortTerm))
+    initial = 0
+    longTerm = [minH, minH + g .. h]
+    shortTerm =
+      if h < e
+        then [0 .. h]
+        else [h - e, h - e + 1 .. h]
+  in
+    L.sort (L.nub $ initial : (longTerm ++ shortTerm))
 
 -- | Captures the configuration for the `sparseCheckpoints` function.
 --
@@ -320,17 +341,18 @@ sparseCheckpoints cfg blkH  =
 -- reasonable probability for small forks each a few blocks deep so it makes sense to
 -- maintain a small part that is denser near the edge.
 data SparseCheckpointsConfig = SparseCheckpointsConfig
-    { edgeSize :: Word8
-    , epochStability :: Word32
-    } deriving Show
+  { edgeSize :: Word8
+  , epochStability :: Word32
+  }
+  deriving (Show)
 
 -- | A sensible default to use in production. See also 'SparseCheckpointsConfig'
 defaultSparseCheckpointsConfig :: BlockHeight -> SparseCheckpointsConfig
 defaultSparseCheckpointsConfig (Quantity epochStability) =
-    SparseCheckpointsConfig
-        { edgeSize = 5
-        , epochStability
-        }
+  SparseCheckpointsConfig
+    { edgeSize = 5
+    , epochStability
+    }
 
 -- | A reasonable gap size used internally in 'sparseCheckpoints'.
 --
@@ -349,5 +371,5 @@ defaultSparseCheckpointsConfig (Quantity epochStability) =
 -- So, `k / 3` = 720, which should remain around a second of time needed to catch
 -- up in case of large rollbacks.
 gapSize :: SparseCheckpointsConfig -> Word32
-gapSize SparseCheckpointsConfig{epochStability} =
-    epochStability `div` 3
+gapSize SparseCheckpointsConfig {epochStability} =
+  epochStability `div` 3

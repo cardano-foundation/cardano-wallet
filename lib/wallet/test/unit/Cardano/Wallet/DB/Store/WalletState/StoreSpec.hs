@@ -5,104 +5,136 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-module Cardano.Wallet.DB.Store.WalletState.StoreSpec
-    ( spec
-    ) where
 
-import Prelude
+module Cardano.Wallet.DB.Store.WalletState.StoreSpec
+  ( spec
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext, runQuery )
+  ( ForeignKeysSetting (..)
+  , SqliteContext
+  , runQuery
+  )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+  ( Depth (..)
+  )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, InitialCheckpoint (..) )
+  ( GenState
+  , InitialCheckpoint (..)
+  )
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWalletTable, withDBInMemory )
+  ( initializeWalletTable
+  , withDBInMemory
+  )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..) )
+  ( PersistAddressBook (..)
+  )
 import Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
-    ( genDeltaCheckpoints )
+  ( genDeltaCheckpoints
+  )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (WalletInfo) )
+  ( WalletInfo (WalletInfo)
+  )
 import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet )
+  ( mkStoreWallet
+  )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , WalletState
-    , fromGenesis
-    , fromWallet
-    )
+  ( DeltaWalletState
+  , DeltaWalletState1 (..)
+  , WalletState
+  , fromGenesis
+  , fromWallet
+  )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+  ( dummyGenesisParameters
+  )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavorS (ShelleyWallet) )
+  ( KeyOf
+  , WalletFlavorS (ShelleyWallet)
+  )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+  ( NetworkDiscriminant (..)
+  )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+  ( WalletId (..)
+  )
 import Data.Generics.Internal.VL.Lens
-    ( over, (^.) )
+  ( over
+  , (^.)
+  )
 import Data.Maybe
-    ( fromJust )
+  ( fromJust
+  )
 import Test.Hspec
-    ( Spec, around, describe, it )
+  ( Spec
+  , around
+  , describe
+  , it
+  )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property )
+  ( Arbitrary (..)
+  , Property
+  , property
+  )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+  ( GenDelta
+  , prop_StoreUpdate
+  )
+import Prelude
 
 spec :: Spec
 spec = do
-    around (withDBInMemory ForeignKeysEnabled) $ do
-        describe "Update" $ do
-            it "mkStoreWallet" $
-                property . prop_StoreWallet (ShelleyWallet @'Mainnet)
+  around (withDBInMemory ForeignKeysEnabled) $ do
+    describe "Update" $ do
+      it "mkStoreWallet"
+        $ property . prop_StoreWallet (ShelleyWallet @'Mainnet)
 
 {-------------------------------------------------------------------------------
     Properties
 -------------------------------------------------------------------------------}
 prop_StoreWallet
-    :: forall s
-     . ( PersistAddressBook s
-       , GenState s, Eq (KeyOf s 'RootK XPrv)
-       )
-    => WalletFlavorS s
-    -> SqliteContext
-    -> (WalletId, InitialCheckpoint s)
-    -> Property
+  :: forall s
+   . ( PersistAddressBook s
+     , GenState s
+     , Eq (KeyOf s 'RootK XPrv)
+     )
+  => WalletFlavorS s
+  -> SqliteContext
+  -> (WalletId, InitialCheckpoint s)
+  -> Property
 prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
-    prop_StoreUpdate
-        (runQuery db)
-        setupStore
-        genState
-        genDeltaWalletState
+  prop_StoreUpdate
+    (runQuery db)
+    setupStore
+    genState
+    genDeltaWalletState
   where
     setupStore = do
-        initializeWalletTable wid
-        pure $ mkStoreWallet wF wid
+      initializeWalletTable wid
+      pure $ mkStoreWallet wF wid
     genState = do
-        wi <-
-            WalletInfo wid
-                <$> arbitrary
-                <*> pure dummyGenesisParameters
-        pure $ fromJust . fromGenesis cp0 $ wi
+      wi <-
+        WalletInfo wid
+          <$> arbitrary
+          <*> pure dummyGenesisParameters
+      pure $ fromJust . fromGenesis cp0 $ wi
 
 genDeltaWalletState
-    :: GenState s
-    => GenDelta (DeltaWalletState s)
+  :: GenState s
+  => GenDelta (DeltaWalletState s)
 genDeltaWalletState =
-    withCheckpoints $ genDeltaCheckpoints genCheckpoint
+  withCheckpoints $ genDeltaCheckpoints genCheckpoint
   where
     withCheckpoints f = fmap updateCheckpoints . f . (^. #checkpoints)
     updateCheckpoints x = [UpdateCheckpoints [x]]
 
     genCheckpoint slotNo = do
-        cp <- over (#currentTip . #slotNo) (const slotNo) <$> arbitrary
-        pure . snd $ fromWallet cp
+      cp <- over (#currentTip . #slotNo) (const slotNo) <$> arbitrary
+      pure . snd $ fromWallet cp
 
 instance Show (WalletState s) where
-    show _ = "WalletState{…}"
+  show _ = "WalletState{…}"

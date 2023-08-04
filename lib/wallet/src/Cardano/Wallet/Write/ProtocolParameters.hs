@@ -10,30 +10,29 @@
 -- License: Apache-2.0
 --
 -- Provides protocol parameters.
---
 module Cardano.Wallet.Write.ProtocolParameters
-    ( ProtocolParameters (..)
-    ) where
+  ( ProtocolParameters (..)
+  )
+where
 
-import Prelude
-
+import Cardano.Ledger.Core qualified as Ledger
+import Cardano.Wallet.Write.Tx qualified as Write
 import Data.Functor.Identity
-    ( Identity )
-
-import qualified Cardano.Ledger.Core as Ledger
-import qualified Cardano.Wallet.Write.Tx as Write
+  ( Identity
+  )
+import Prelude
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.
 --  - Replace this type with a re-exported 'Ledger.PParams era'.
 newtype ProtocolParameters era = ProtocolParameters
-    { pparamsLedger :: Ledger.PParams (Write.ShelleyLedgerEra era)
-    }
+  { pparamsLedger :: Ledger.PParams (Write.ShelleyLedgerEra era)
+  }
 
 deriving newtype instance
-    Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
-    Eq (ProtocolParameters era)
+  Eq (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era))
+  => Eq (ProtocolParameters era)
 
 deriving newtype instance
-    Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era)) =>
-    Show (ProtocolParameters era)
+  Show (Ledger.PParamsHKD Identity (Write.ShelleyLedgerEra era))
+  => Show (ProtocolParameters era)

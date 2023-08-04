@@ -3,200 +3,267 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfoFromRelation
-    , mkTransactionInfoFromReadTx
-    , mkTxCBOR
-    ) where
-
-import Prelude hiding
-    ( (.) )
+  ( mkTransactionInfoFromRelation
+  , mkTransactionInfoFromReadTx
+  , mkTxCBOR
+  )
+where
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+  ( SlotNo (..)
+  )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
+  ( TxCollateral (..)
+  , TxIn (..)
+  , TxMeta (..)
+  , TxWithdrawal (..)
+  )
+import Cardano.Wallet.DB.Sqlite.Schema qualified as DB
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+  ( TxId (..)
+  )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( mkTxMetaFromEntity )
+  ( mkTxMetaFromEntity
+  )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..) )
+  ( SubmissionMeta (..)
+  )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( DecoratedTxIns, TxOutKey, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
+  ( DecoratedTxIns
+  , TxOutKey
+  , lookupTxOut
+  , mkTxOutKey
+  , mkTxOutKeyCollateral
+  )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..), fromTxCollateralOut, fromTxOut, txCBORPrism )
+  ( TxRelation (..)
+  , fromTxCollateralOut
+  , fromTxOut
+  , txCBORPrism
+  )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, slotToUTCTime )
+  ( TimeInterpreter
+  , interpretQuery
+  , slotToUTCTime
+  )
+import Cardano.Wallet.Primitive.Types qualified as W
+import Cardano.Wallet.Primitive.Types.Coin qualified as WC
+import Cardano.Wallet.Primitive.Types.Hash qualified as W
+import Cardano.Wallet.Primitive.Types.Tx qualified as WT
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo qualified as WT
+import Cardano.Wallet.Primitive.Types.Tx.TxIn qualified as WT
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta qualified as W
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta qualified as WT
+import Cardano.Wallet.Primitive.Types.Tx.TxOut qualified as WT
 import Cardano.Wallet.Read.Eras
-    ( EraFun, EraValue, K, applyEraFun, extractEraValue )
+  ( EraFun
+  , EraValue
+  , K
+  , applyEraFun
+  , extractEraValue
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    ( getCollateralInputs )
+  ( getCollateralInputs
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
-    ( getCollateralOutputs )
+  ( getCollateralOutputs
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( getFee )
+  ( getFee
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs )
+  ( getInputs
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( getMetadata )
+  ( getMetadata
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( getOutputs )
+  ( getOutputs
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
-    ( getScriptValidity )
+  ( getScriptValidity
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( getValidity )
+  ( getValidity
+  )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( getWithdrawals )
+  ( getWithdrawals
+  )
+import Cardano.Wallet.Read.Tx qualified as Read
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, renderTxToCBOR )
+  ( TxCBOR
+  , renderTxToCBOR
+  )
 import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( getEraCollateralInputs )
+  ( getEraCollateralInputs
+  )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( getEraCollateralOutputs )
+  ( getEraCollateralOutputs
+  )
 import Cardano.Wallet.Read.Tx.Fee
-    ( getEraFee )
+  ( getEraFee
+  )
 import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash )
+  ( getEraTxHash
+  )
 import Cardano.Wallet.Read.Tx.Inputs
-    ( getEraInputs )
+  ( getEraInputs
+  )
 import Cardano.Wallet.Read.Tx.Metadata
-    ( getEraMetadata )
+  ( getEraMetadata
+  )
 import Cardano.Wallet.Read.Tx.Outputs
-    ( getEraOutputs )
+  ( getEraOutputs
+  )
 import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( getEraScriptValidity )
+  ( getEraScriptValidity
+  )
 import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity )
+  ( getEraValidity
+  )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( getEraWithdrawals )
+  ( getEraWithdrawals
+  )
 import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (invalidHereafter) )
+  ( ValidityIntervalExplicit (invalidHereafter)
+  )
 import Control.Category
-    ( (.) )
+  ( (.)
+  )
 import Data.Foldable
-    ( fold )
+  ( fold
+  )
 import Data.Functor
-    ( (<&>) )
+  ( (<&>)
+  )
 import Data.Generics.Internal.VL
-    ( (^.) )
+  ( (^.)
+  )
+import Data.Generics.Internal.VL qualified as L
+import Data.Map.Strict qualified as Map
 import Data.Quantity
-    ( Quantity (..) )
-
-import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as WC
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as WT
-import qualified Cardano.Wallet.Primitive.Types.Tx.TransactionInfo as WT
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WT
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as WT
-import qualified Cardano.Wallet.Read.Tx as Read
-import qualified Data.Generics.Internal.VL as L
-import qualified Data.Map.Strict as Map
+  ( Quantity (..)
+  )
+import Prelude hiding
+  ( (.)
+  )
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
-mkTransactionInfoFromRelation :: Monad m
-    => TimeInterpreter m
-    -> W.BlockHeader
-    -> TxRelation
-    -> DecoratedTxIns
-    -> DB.TxMeta
-    -> m WT.TransactionInfo
-mkTransactionInfoFromRelation ti tip TxRelation{..}
-        decor meta@DB.TxMeta{..} = do
+mkTransactionInfoFromRelation
+  :: Monad m
+  => TimeInterpreter m
+  -> W.BlockHeader
+  -> TxRelation
+  -> DecoratedTxIns
+  -> DB.TxMeta
+  -> m WT.TransactionInfo
+mkTransactionInfoFromRelation
+  ti
+  tip
+  TxRelation {..}
+  decor
+  meta@DB.TxMeta {..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
-        $ WT.TransactionInfo
+      $ WT.TransactionInfo
         { WT.txInfoId = getTxId txMetaTxId
         , WT.txInfoCBOR = cbor >>= mkTxCBOR
         , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
         , WT.txInfoOutputs = fromTxOut <$> outs
-        , WT.txInfoCollateralOutput
-            = fromTxCollateralOut <$> collateralOuts
-        , WT.txInfoWithdrawals
-            = Map.fromList $ map mkTxWithdrawal withdrawals
+        , WT.txInfoCollateralOutput =
+            fromTxCollateralOut <$> collateralOuts
+        , WT.txInfoWithdrawals =
+            Map.fromList $ map mkTxWithdrawal withdrawals
         , WT.txInfoMeta = mkTxMetaFromEntity meta
         , WT.txInfoMetadata = txMetadata
-        , WT.txInfoDepth = Quantity
+        , WT.txInfoDepth =
+            Quantity
               $ fromIntegral
               $ if tipH > txMetaBlockHeight
-                  then tipH - txMetaBlockHeight
-                  else 0
+                then tipH - txMetaBlockHeight
+                else 0
         , WT.txInfoTime = txTime
-        , WT.txInfoScriptValidity = txMetaScriptValidity <&> \case
+        , WT.txInfoScriptValidity =
+            txMetaScriptValidity <&> \case
               False -> WT.TxScriptInvalid
               True -> WT.TxScriptValid
         }
-  where
-    tipH = getQuantity $ tip ^. #blockHeight
-    mkTxIn tx =
+    where
+      tipH = getQuantity $ tip ^. #blockHeight
+      mkTxIn tx =
         ( WT.TxIn
-          { inputId = getTxId (txInputSourceTxId tx)
-          , inputIx = txInputSourceIndex tx
-          }
+            { inputId = getTxId (txInputSourceTxId tx)
+            , inputIx = txInputSourceIndex tx
+            }
         , lookupTxOut (mkTxOutKey tx) decor
         )
-    mkTxCollateral tx =
+      mkTxCollateral tx =
         ( WT.TxIn
-          { inputId = getTxId (txCollateralSourceTxId tx)
-          , inputIx = txCollateralSourceIndex tx
-          }
+            { inputId = getTxId (txCollateralSourceTxId tx)
+            , inputIx = txCollateralSourceIndex tx
+            }
         , lookupTxOut (mkTxOutKeyCollateral tx) decor
         )
-    mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
+      mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
 
 mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
 mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
 
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a CBOR and a slimmed down version of TxMeta
-mkTransactionInfoFromReadTx :: Monad m
-    => TimeInterpreter m
-    -> W.BlockHeader
-    -> EraValue Read.Tx
-    -> DecoratedTxIns
-    -> SubmissionMeta
-    -> W.TxStatus
-    -> m WT.TransactionInfo
-mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
-    txTime <- interpretQuery ti . slotToUTCTime $ submissionMetaSlot
-    return
-        $ WT.TransactionInfo
-        { WT.txInfoId = W.Hash $ value getEraTxHash
-        , WT.txInfoCBOR = Just $ renderTxToCBOR tx
-        , WT.txInfoFee = value $ getFee . getEraFee
-        , WT.txInfoInputs = mkTxIn <$> value (getInputs . getEraInputs)
-        , WT.txInfoCollateralInputs = mkTxIn
+mkTransactionInfoFromReadTx
+  :: Monad m
+  => TimeInterpreter m
+  -> W.BlockHeader
+  -> EraValue Read.Tx
+  -> DecoratedTxIns
+  -> SubmissionMeta
+  -> W.TxStatus
+  -> m WT.TransactionInfo
+mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta {..} status = do
+  txTime <- interpretQuery ti . slotToUTCTime $ submissionMetaSlot
+  return
+    $ WT.TransactionInfo
+      { WT.txInfoId = W.Hash $ value getEraTxHash
+      , WT.txInfoCBOR = Just $ renderTxToCBOR tx
+      , WT.txInfoFee = value $ getFee . getEraFee
+      , WT.txInfoInputs = mkTxIn <$> value (getInputs . getEraInputs)
+      , WT.txInfoCollateralInputs =
+          mkTxIn
             <$> value (getCollateralInputs . getEraCollateralInputs)
-        , WT.txInfoOutputs = value (getOutputs . getEraOutputs)
-        , WT.txInfoCollateralOutput
-            = value (getCollateralOutputs . getEraCollateralOutputs)
-        , WT.txInfoWithdrawals = fold
+      , WT.txInfoOutputs = value (getOutputs . getEraOutputs)
+      , WT.txInfoCollateralOutput =
+          value (getCollateralOutputs . getEraCollateralOutputs)
+      , WT.txInfoWithdrawals =
+          fold
             $ value (getWithdrawals . getEraWithdrawals)
-        , WT.txInfoMeta = WT.TxMeta
-              { WT.status = status
-              , WT.direction = submissionMetaDirection
-              , WT.slotNo = submissionMetaSlot
-              , WT.blockHeight = submissionMetaHeight
-              , W.amount = submissionMetaAmount
-              , WT.expiry = fmap (SlotNo . getQuantity . invalidHereafter)
-                    $ value $ getValidity . getEraValidity
-              }
-        , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
-        , WT.txInfoDepth = Quantity $ fromIntegral $
-            if tipH > height
-                  then tipH - height
-                  else 0
-        , WT.txInfoTime = txTime
-        , WT.txInfoScriptValidity
-            = value $ getScriptValidity . getEraScriptValidity
-        }
+      , WT.txInfoMeta =
+          WT.TxMeta
+            { WT.status = status
+            , WT.direction = submissionMetaDirection
+            , WT.slotNo = submissionMetaSlot
+            , WT.blockHeight = submissionMetaHeight
+            , W.amount = submissionMetaAmount
+            , WT.expiry =
+                fmap (SlotNo . getQuantity . invalidHereafter)
+                  $ value
+                  $ getValidity . getEraValidity
+            }
+      , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
+      , WT.txInfoDepth =
+          Quantity
+            $ fromIntegral
+            $ if tipH > height
+              then tipH - height
+              else 0
+      , WT.txInfoTime = txTime
+      , WT.txInfoScriptValidity =
+          value $ getScriptValidity . getEraScriptValidity
+      }
   where
     tipH = getQuantity $ tip ^. #blockHeight
 
@@ -207,12 +274,12 @@ mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
 
     mkTxIn :: WT.TxIn -> (WT.TxIn, Maybe WT.TxOut)
     mkTxIn txIn =
-        ( WT.TxIn
+      ( WT.TxIn
           { inputId = WT.inputId txIn
           , inputIx = WT.inputIx txIn
           }
-        , lookupTxOut (mkTxOutPrimitive txIn) decor
-        )
+      , lookupTxOut (mkTxOutPrimitive txIn) decor
+      )
 
 mkTxOutPrimitive :: WT.TxIn -> TxOutKey
 mkTxOutPrimitive (WT.TxIn transaction count) = (TxId transaction, count)

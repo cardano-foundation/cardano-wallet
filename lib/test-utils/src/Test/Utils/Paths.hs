@@ -3,25 +3,31 @@
 -- License: Apache-2.0
 --
 -- Utility function for finding the package test data directory.
-
 module Test.Utils.Paths
-    ( getTestData
-    , getTestDataPath
-    , inNixBuild
-    ) where
-
-import Prelude
+  ( getTestData
+  , getTestDataPath
+  , inNixBuild
+  )
+where
 
 import Control.Monad.IO.Class
-    ( liftIO )
+  ( liftIO
+  )
 import Data.FileEmbed
-    ( makeRelativeToProject )
+  ( makeRelativeToProject
+  )
 import Language.Haskell.TH.Syntax
-    ( Exp, Q, liftData )
+  ( Exp
+  , Q
+  , liftData
+  )
 import System.Environment
-    ( lookupEnv )
+  ( lookupEnv
+  )
 import System.FilePath
-    ( (</>) )
+  ( (</>)
+  )
+import Prelude
 
 -- | A TH function to get the test data directory.
 --
@@ -38,15 +44,16 @@ getTestData = getTestDataPath ("test" </> "data")
 -- relative to the package root directory.
 getTestDataPath :: FilePath -> Q Exp
 getTestDataPath relPath = do
-    absPath <- makeRelativeToProject relPath
-    useRel <- liftIO inNixBuild
-    liftData (if useRel then relPath else absPath)
+  absPath <- makeRelativeToProject relPath
+  useRel <- liftIO inNixBuild
+  liftData (if useRel then relPath else absPath)
 
 -- | Infer from environment variables whether we are running within a Nix build
 -- (and not just a nix-shell).
 inNixBuild :: IO Bool
 inNixBuild = do
-    let testEnv = fmap (maybe False (not . null)) . lookupEnv
-    haveNixBuildDir <- testEnv "NIX_BUILD_TOP"
-    inNixShell <- testEnv "IN_NIX_SHELL"
-    pure (haveNixBuildDir && not inNixShell)
+  let
+    testEnv = fmap (maybe False (not . null)) . lookupEnv
+  haveNixBuildDir <- testEnv "NIX_BUILD_TOP"
+  inNixShell <- testEnv "IN_NIX_SHELL"
+  pure (haveNixBuildDir && not inNixShell)

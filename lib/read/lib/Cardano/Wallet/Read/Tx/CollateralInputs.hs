@@ -1,71 +1,77 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 -- Raw collateral inputs data extraction from 'Tx'
---
-
 module Cardano.Wallet.Read.Tx.CollateralInputs
-    ( CollateralInputsType
-    , CollateralInputs (..)
-    , getEraCollateralInputs
-    )
-    where
-
-import Prelude
+  ( CollateralInputsType
+  , CollateralInputs (..)
+  , getEraCollateralInputs
+  )
+where
 
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
+  ( AllegraEra
+  , AlonzoEra
+  , BabbageEra
+  , ByronEra
+  , ConwayEra
+  , MaryEra
+  , ShelleyEra
+  )
 import Cardano.Ledger.Babbage.TxBody
-    ( collateralInputsTxBodyL )
+  ( collateralInputsTxBodyL
+  )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+  ( bodyTxL
+  )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
-import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
-import Control.Lens
-    ( (^.) )
-import Data.Set
-    ( Set )
-
+  ( StandardCrypto
+  )
 import qualified Cardano.Ledger.Shelley.API as SH
+import Cardano.Wallet.Read.Eras
+  ( EraFun (..)
+  )
+import Cardano.Wallet.Read.Tx
+  ( Tx (..)
+  )
+import Cardano.Wallet.Read.Tx.Eras
+  ( onTx
+  )
+import Control.Lens
+  ( (^.)
+  )
+import Data.Set
+  ( Set
+  )
+import Prelude
 
 type family CollateralInputsType era where
-    CollateralInputsType ByronEra = ()
-    CollateralInputsType ShelleyEra = ()
-    CollateralInputsType AllegraEra = ()
-    CollateralInputsType MaryEra = ()
-    CollateralInputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
+  CollateralInputsType ByronEra = ()
+  CollateralInputsType ShelleyEra = ()
+  CollateralInputsType AllegraEra = ()
+  CollateralInputsType MaryEra = ()
+  CollateralInputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
+  CollateralInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
+  CollateralInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
 
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 
 deriving instance Show (CollateralInputsType era) => Show (CollateralInputs era)
+
 deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
 -- | Extract the collateral inputs from a 'Tx' in any era.
 getEraCollateralInputs :: EraFun Tx CollateralInputs
-getEraCollateralInputs = EraFun
+getEraCollateralInputs =
+  EraFun
     { byronFun = \_ -> CollateralInputs ()
     , shelleyFun = \_ -> CollateralInputs ()
     , allegraFun = \_ -> CollateralInputs ()
@@ -74,5 +80,7 @@ getEraCollateralInputs = EraFun
     , babbageFun = mkCollateralInputs
     , conwayFun = mkCollateralInputs
     }
-    where mkCollateralInputs = onTx $ \tx -> CollateralInputs
-            $ tx ^. bodyTxL. collateralInputsTxBodyL
+  where
+    mkCollateralInputs = onTx $ \tx ->
+      CollateralInputs
+        $ tx ^. bodyTxL . collateralInputsTxBodyL

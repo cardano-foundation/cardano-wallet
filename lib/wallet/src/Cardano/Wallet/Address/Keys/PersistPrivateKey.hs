@@ -6,61 +6,75 @@
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded as hexadecimal strings.
 module Cardano.Wallet.Address.Keys.PersistPrivateKey
-    ( serializeXPrv
-    , unsafeDeserializeXPrv
-    ) where
-
-import Prelude
+  ( serializeXPrv
+  , unsafeDeserializeXPrv
+  )
+where
 
 import Cardano.Address.Derivation
-    ( XPrv )
+  ( XPrv
+  )
 import Cardano.Crypto.Wallet
-    ( unXPrv, xprv )
+  ( unXPrv
+  , xprv
+  )
+import Cardano.Crypto.Wallet qualified as CC
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK), fromHex, hex )
+  ( Depth (RootK)
+  , fromHex
+  , hex
+  )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+  ( ByronKey (..)
+  )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+  ( IcarusKey (..)
+  )
+import Cardano.Wallet.Address.Derivation.Icarus qualified as Icarus
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+  ( SharedKey (..)
+  )
+import Cardano.Wallet.Address.Derivation.SharedKey qualified as Shared
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+  ( ShelleyKey (..)
+  )
+import Cardano.Wallet.Address.Derivation.Shelley qualified as Shelley
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+  ( KeyFlavorS (..)
+  )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..) )
+  ( Passphrase (..)
+  , PassphraseHash (..)
+  )
 import Control.Monad
-    ( (<=<) )
+  ( (<=<)
+  )
+import Data.ByteArray qualified as BA
 import Data.ByteString
-    ( ByteString )
-
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
-import qualified Cardano.Wallet.Address.Derivation.SharedKey as Shared
-import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
-import qualified Data.ByteArray as BA
-import qualified Data.ByteString.Char8 as B8
+  ( ByteString
+  )
+import Data.ByteString.Char8 qualified as B8
+import Prelude
 
 -- | Convert a private key and its password hash into hexadecimal strings
 -- suitable for storing in a text file or database column.
 serializeXPrv
-    :: KeyFlavorS k
-    -- ^ The type of key to serialize.
-    -> (k 'RootK CC.XPrv, PassphraseHash)
-    -- ^ Private key and its password hash.
-    -> (ByteString, ByteString)
-    -- ^ Hexadecimal strings.
+  :: KeyFlavorS k
+  -- ^ The type of key to serialize.
+  -> (k 'RootK CC.XPrv, PassphraseHash)
+  -- ^ Private key and its password hash.
+  -> (ByteString, ByteString)
+  -- ^ Hexadecimal strings.
 serializeXPrv = \case
-    ByronKeyS -> f serializeXPrvByron
-    IcarusKeyS -> f serializeXPrvIcarus
-    ShelleyKeyS -> f serializeXPrvShelley
-    SharedKeyS -> f serializeXPrvShared
+  ByronKeyS -> f serializeXPrvByron
+  IcarusKeyS -> f serializeXPrvIcarus
+  ShelleyKeyS -> f serializeXPrvShelley
+  SharedKeyS -> f serializeXPrvShared
   where
     f g (k, h) = (g k, hex . getPassphraseHash $ h)
 
     serializeXPrvByron ((ByronKey k _ (Passphrase p))) =
-        hex (unXPrv k) <> ":" <> hex p
+      hex (unXPrv k) <> ":" <> hex p
     serializeXPrvIcarus = hex . unXPrv . Icarus.getKey
     serializeXPrvShelley = hex . unXPrv . Shelley.getKey
     serializeXPrvShared = hex . unXPrv . Shared.getKey
@@ -68,48 +82,48 @@ serializeXPrv = \case
 -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
 -- valid hexadecimal strings, or if the key is of the wrong length.
 unsafeDeserializeXPrv
-    :: KeyFlavorS k
-    -- ^ The type of key to deserialize.
-    -> (ByteString, ByteString)
-    -- ^ Hexadecimal strings.
-    -> (k 'RootK CC.XPrv, PassphraseHash)
-    -- ^ Private key and its password hash.
+  :: KeyFlavorS k
+  -- ^ The type of key to deserialize.
+  -> (ByteString, ByteString)
+  -- ^ Hexadecimal strings.
+  -> (k 'RootK CC.XPrv, PassphraseHash)
+  -- ^ Private key and its password hash.
 unsafeDeserializeXPrv = \case
-    ByronKeyS -> deserialize unsafeDeserializeXPrvByron "ByronKey"
-    IcarusKeyS -> deserialize (fmap IcarusKey . xprvFromText) "IcarusKey"
-    ShelleyKeyS -> deserialize (fmap ShelleyKey . xprvFromText) "ShelleyKey"
-    SharedKeyS -> deserialize (fmap SharedKey . xprvFromText) "SharedKey"
+  ByronKeyS -> deserialize unsafeDeserializeXPrvByron "ByronKey"
+  IcarusKeyS -> deserialize (fmap IcarusKey . xprvFromText) "IcarusKey"
+  ShelleyKeyS -> deserialize (fmap ShelleyKey . xprvFromText) "ShelleyKey"
+  SharedKeyS -> deserialize (fmap SharedKey . xprvFromText) "SharedKey"
   where
     deserialize deserializeKey errText (k, h) =
-        either err id
-            $ (,)
-                <$> deserializeKey k
-                <*> fmap PassphraseHash (fromHex h)
+      either err id
+        $ (,)
+          <$> deserializeKey k
+          <*> fmap PassphraseHash (fromHex h)
       where
         err _ =
-            error
-                $ "unsafeDeserializeXPrv: unable to deserialize " <> errText
+          error
+            $ "unsafeDeserializeXPrv: unable to deserialize " <> errText
 
     xprvFromText :: ByteString -> Either String XPrv
     xprvFromText = xprv <=< fromHex @ByteString
 
     unsafeDeserializeXPrvByron
-        :: ByteString
-        -> Either String (ByronKey 'RootK XPrv)
+      :: ByteString
+      -> Either String (ByronKey 'RootK XPrv)
     unsafeDeserializeXPrvByron = fmap mkKey . deserializeKey
       where
         mkKey (key, pwd) = ByronKey key () pwd
         deserializeKey
-            :: ByteString
-            -> Either
-                String
-                ( XPrv
-                , Passphrase "addr-derivation-payload"
-                )
+          :: ByteString
+          -> Either
+              String
+              ( XPrv
+              , Passphrase "addr-derivation-payload"
+              )
         deserializeKey b = case map (fromHex @ByteString) (B8.split ':' b) of
-            [Right rawK, Right p] ->
-                case xprv rawK of
-                    Right k' -> Right (k', Passphrase (BA.convert p))
-                    Left e -> Left e
-            _ ->
-                Left "Key input must be two hex strings separated by :"
+          [Right rawK, Right p] ->
+            case xprv rawK of
+              Right k' -> Right (k', Passphrase (BA.convert p))
+              Left e -> Left e
+          _ ->
+            Left "Key input must be two hex strings separated by :"

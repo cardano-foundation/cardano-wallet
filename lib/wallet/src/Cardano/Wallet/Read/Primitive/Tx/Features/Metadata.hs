@@ -1,66 +1,72 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( getMetadata
-    , fromShelleyMetadata
-    , fromAllegraMetadata
-    , fromMaryMetadata
-    , fromAlonzoMetadata
-    , fromBabbageMetadata
-    , fromConwayMetadata
-    )
-    where
+  ( getMetadata
+  , fromShelleyMetadata
+  , fromAllegraMetadata
+  , fromMaryMetadata
+  , fromAlonzoMetadata
+  , fromBabbageMetadata
+  , fromConwayMetadata
+  )
+where
 
-import Prelude
-
+import Cardano.Api.Shelley qualified as Cardano
+import Cardano.Api.Shelley qualified as CardanoAPI
 import Cardano.Ledger.Allegra.TxAuxData
-    ( AllegraTxAuxData (..) )
+  ( AllegraTxAuxData (..)
+  )
 import Cardano.Ledger.Alonzo.TxAuxData
-    ( AlonzoTxAuxData (..) )
+  ( AlonzoTxAuxData (..)
+  )
 import Cardano.Ledger.BaseTypes
-    ( strictMaybeToMaybe )
+  ( strictMaybeToMaybe
+  )
 import Cardano.Ledger.Shelley.TxAuxData
-    ( Metadatum, ShelleyTxAuxData (..) )
+  ( Metadatum
+  , ShelleyTxAuxData (..)
+  )
+import Cardano.Wallet.Primitive.Types.Tx.Tx qualified as W
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+  ( EraFun (..)
+  , K (..)
+  )
 import Cardano.Wallet.Read.Tx.Metadata
-    ( Metadata (..) )
+  ( Metadata (..)
+  )
 import Data.Map
-    ( Map )
+  ( Map
+  )
 import Data.Word
-    ( Word64 )
+  ( Word64
+  )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
-
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Api.Shelley as CardanoAPI
-import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+  ( StandardAllegra
+  , StandardAlonzo
+  , StandardBabbage
+  , StandardConway
+  , StandardMary
+  , StandardShelley
+  )
+import Prelude
 
 getMetadata :: EraFun Metadata (K (Maybe (W.TxMetadata)))
 getMetadata =
-    EraFun
-        { byronFun = noMetadatas
-        , shelleyFun = yesMetadata fromShelleyMetadata
-        , allegraFun = yesMetadata fromAllegraMetadata
-        , maryFun = yesMetadata fromMaryMetadata
-        , alonzoFun = yesMetadata fromAlonzoMetadata
-        , babbageFun = yesMetadata fromBabbageMetadata
-        , conwayFun = yesMetadata fromConwayMetadata
-        }
+  EraFun
+    { byronFun = noMetadatas
+    , shelleyFun = yesMetadata fromShelleyMetadata
+    , allegraFun = yesMetadata fromAllegraMetadata
+    , maryFun = yesMetadata fromMaryMetadata
+    , alonzoFun = yesMetadata fromAlonzoMetadata
+    , babbageFun = yesMetadata fromBabbageMetadata
+    , conwayFun = yesMetadata fromConwayMetadata
+    }
   where
     noMetadatas _ = K Nothing
     yesMetadata f (Metadata s) = K . fmap f $ strictMaybeToMaybe s
@@ -88,4 +94,4 @@ fromConwayMetadata (AlonzoTxAuxData md _timelock _plutus) = fromMetadata md
 
 fromMetadata :: Map Word64 Metadatum -> W.TxMetadata
 fromMetadata =
-    Cardano.makeTransactionMetadata . CardanoAPI.fromShelleyMetadata
+  Cardano.makeTransactionMetadata . CardanoAPI.fromShelleyMetadata
