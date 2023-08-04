@@ -633,6 +633,7 @@ spec = do
         jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiMaintenanceAction
         jsonTest @ApiMaintenanceActionPostData
+        jsonTest @(ApiMintBurnData T0)
         jsonTest @ApiMultiDelegationAction
         jsonTest @ApiNetworkClock
         jsonTest @ApiNetworkInformation
@@ -2850,6 +2851,9 @@ instance Typeable n => ToSchema (ApiConstructTransactionData n) where
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
+
+instance Typeable n => ToSchema (ApiMintBurnData n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMintBurnData"
 
 instance Typeable n => ToSchema (ApiConstructTransaction n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"

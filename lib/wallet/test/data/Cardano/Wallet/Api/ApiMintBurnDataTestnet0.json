@@ -1,0 +1,139 @@
+{
+    "samples": [
+        {
+            "asset_name": "546f6b656e4d",
+            "operation": {
+                "burn": {
+                    "quantity": 7
+                }
+            },
+            "reference_input": {
+                "id": "0f7a6c100d41352e416b2549520120d52a483539ed22315591108752085d425c",
+                "index": 0
+            }
+        },
+        {
+            "operation": {
+                "mint": {
+                    "quantity": 7
+                }
+            },
+            "reference_input": {
+                "id": "655a22276642634d474639793134467121032e1903264c1b38491272554d07a8",
+                "index": 0
+            }
+        },
+        {
+            "operation": {
+                "mint": {
+                    "quantity": 26,
+                    "receiving_address": "FHnt4NL7yPXtKMNKWpYBDKfarp5eFKr6JPdUZh8JnBXqd6V2vm7kbQBNzxfeKru"
+                }
+            },
+            "policy_script_template": {
+                "all": [
+                    "cosigner#0",
+                    {
+                        "active_from": 100
+                    },
+                    {
+                        "active_until": 150
+                    }
+                ]
+            }
+        },
+        {
+            "operation": {
+                "burn": {
+                    "quantity": 13
+                }
+            },
+            "policy_script_template": {
+                "all": [
+                    "cosigner#0",
+                    {
+                        "active_from": 100
+                    }
+                ]
+            }
+        },
+        {
+            "asset_name": "546f6b656e42",
+            "operation": {
+                "burn": {
+                    "quantity": 17
+                }
+            },
+            "reference_input": {
+                "id": "cf3350f420027389226b48ce4e1dd72859054756694b0b6c4573755a1e077552",
+                "index": 1
+            }
+        },
+        {
+            "operation": {
+                "mint": {
+                    "quantity": 17,
+                    "receiving_address": "addr_test1wqw2xldvx8wfj78gjenwumx2xv3m74n6qgdsr2fhsjxm8wcxs9rxv"
+                }
+            },
+            "reference_input": {
+                "id": "047c1a694929823f754926b7734d595215317d7b0f62007266485e32357308ee",
+                "index": 0
+            }
+        },
+        {
+            "operation": {
+                "mint": {
+                    "quantity": 19,
+                    "receiving_address": "FHnt4NL7yPY9cDvFzoXWntoM4SfuP1GNeNBp52cuNaF6GH9LVrqTgR1x63zGWUv"
+                }
+            },
+            "reference_input": {
+                "id": "20617129573a23071e171d1f431e9a2b0b593da60ec76b4342da56845d4c047a",
+                "index": 0
+            }
+        },
+        {
+            "asset_name": "546f6b656e53",
+            "operation": {
+                "burn": {
+                    "quantity": 27
+                }
+            },
+            "policy_script_template": "cosigner#0"
+        },
+        {
+            "asset_name": "546f6b656e48",
+            "operation": {
+                "mint": {
+                    "quantity": 0,
+                    "receiving_address": "addr_test1vzkhfr5w6xhkqyp5kyp8nkw7dpzqxs2fadrx5w55ngy4mecgn4r82"
+                }
+            },
+            "reference_input": {
+                "id": "3f69ea785425165e705d213414056f1b6b6163384a991a794bb63f0c50146461",
+                "index": 0
+            }
+        },
+        {
+            "asset_name": "546f6b656e4c",
+            "operation": {
+                "mint": {
+                    "quantity": 21
+                }
+            },
+            "policy_script_template": {
+                "all": [
+                    "cosigner#0",
+                    {
+                        "active_from": 100
+                    },
+                    {
+                        "active_until": 150
+                    }
+                ]
+            }
+        }
+    ],
+    "seed": -1584764791
+}

@@ -3096,7 +3096,7 @@ instance HasSNetworkId n =>  FromJSON (ApiMintBurnData n) where
     parseJSON obj = do
         refInp <-
             (withObject "mintBurnPostData" $
-             \o -> o .:? "referenceInput" :: Aeson.Parser (Maybe ReferenceInput)) obj
+             \o -> o .:? "reference_input" :: Aeson.Parser (Maybe ReferenceInput)) obj
         case refInp of
             Nothing -> do
                 xs <- parseJSON obj :: Aeson.Parser (ApiMintBurnDataFromScript n)
