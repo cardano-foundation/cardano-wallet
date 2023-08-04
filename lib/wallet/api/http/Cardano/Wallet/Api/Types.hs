@@ -96,6 +96,8 @@ module Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnDataFromScript (..)
+    , ApiMintBurnDataFromInput (..)
     , ApiMintBurnOperation (..)
     , ApiMintData(..)
     , ApiMultiDelegationAction (..)
@@ -3086,7 +3088,7 @@ instance ToJSON (ApiT SmashServer) where
 -- ix=0 is assumed to be used. The verification key derivation is performed
 -- according to CIP 1855.
 data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
-    { postData :: Either (ApiMintBurnDataFromScript n) (ApiMintBurnDataFromInput n) }
+    { mintBurnData :: Either (ApiMintBurnDataFromScript n) (ApiMintBurnDataFromInput n) }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
