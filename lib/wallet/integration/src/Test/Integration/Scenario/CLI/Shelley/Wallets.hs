@@ -404,38 +404,40 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                         \ or 24 words are expected."
 
   describe
-    "WALLETS_CREATE_06 - Can create wallet with different mnemonic snd factor sizes" $ do
-    forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> runResourceT $ do
-      let
-        name = "Wallet created via CLI"
-      Stdout m1 <- generateMnemonicsViaCLI []
-      Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
-      let
-        pwd = "Secure passphrase"
-      (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
-      c `shouldBe` ExitSuccess
-      T.unpack err `shouldContain` cmdOk
-      j <- expectValidJSON (Proxy @ApiWallet) out
-      expectCliField
-        (#name . #getApiT . #getWalletName)
-        (`shouldBe` T.pack name)
-        j
+    "WALLETS_CREATE_06 - Can create wallet with different mnemonic snd factor sizes"
+    $ do
+      forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> runResourceT $ do
+        let
+          name = "Wallet created via CLI"
+        Stdout m1 <- generateMnemonicsViaCLI []
+        Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
+        let
+          pwd = "Secure passphrase"
+        (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
+        c `shouldBe` ExitSuccess
+        T.unpack err `shouldContain` cmdOk
+        j <- expectValidJSON (Proxy @ApiWallet) out
+        expectCliField
+          (#name . #getApiT . #getWalletName)
+          (`shouldBe` T.pack name)
+          j
 
   describe
-    "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
-    forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> runResourceT $ do
-      let
-        name = "Wallet created via CLI"
-      Stdout m1 <- generateMnemonicsViaCLI ["--size", size]
-      Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
-      let
-        pwd = "Secure passphrase"
-      (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
-      c `shouldBe` (ExitFailure 1)
-      out `shouldBe` ""
-      T.unpack err
-        `shouldContain` "Invalid number of words: 9 or 12\
-                        \ words are expected."
+    "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor"
+    $ do
+      forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> runResourceT $ do
+        let
+          name = "Wallet created via CLI"
+        Stdout m1 <- generateMnemonicsViaCLI ["--size", size]
+        Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
+        let
+          pwd = "Secure passphrase"
+        (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
+        c `shouldBe` (ExitFailure 1)
+        out `shouldBe` ""
+        T.unpack err
+          `shouldContain` "Invalid number of words: 9 or 12\
+                          \ words are expected."
 
   describe "WALLETS_CREATE_07 - Passphrase is valid" $ do
     let

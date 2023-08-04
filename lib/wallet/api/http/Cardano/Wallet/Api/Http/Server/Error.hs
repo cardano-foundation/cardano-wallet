@@ -1003,10 +1003,10 @@ instance IsServerError ErrConstructSharedWallet where
   toServerError = \case
     ErrConstructSharedWalletWrongScriptTemplate
       (ErrScriptTemplateInvalid cred reason) ->
-      handleTemplateErr cred (toText reason)
+        handleTemplateErr cred (toText reason)
     ErrConstructSharedWalletWrongScriptTemplate
       (ErrScriptTemplateMissingKey cred reason) ->
-      handleTemplateErr cred reason
+        handleTemplateErr cred reason
     ErrConstructSharedWalletInvalidIndex e -> toServerError e
     where
       handleTemplateErr cred reason =

@@ -211,28 +211,29 @@ spec = describe "COMMON_CLI_PORTS" $ do
     err `shouldContain` errConnectionRefused
 
   it
-    "PORT_03 - Cannot omit --port when server uses random port (transaction create)" $ \_ -> do
-    let
-      addr =
-        "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
-        \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
-    let
-      args =
-        [ "transaction"
-        , "create"
-        , replicate 40 '0'
-        , "--payment"
-        , "14@" <> addr
-        ]
-    let
-      process = proc' commandName args
-    withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
-      hPutStr stdin (passphrase ++ "\n")
-      hFlush stdin
-      hClose stdin
-      void $ waitForProcess h
-      err <- T.unpack <$> TIO.hGetContents stderr
-      err `shouldContain` errConnectionRefused
+    "PORT_03 - Cannot omit --port when server uses random port (transaction create)"
+    $ \_ -> do
+      let
+        addr =
+          "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
+          \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
+      let
+        args =
+          [ "transaction"
+          , "create"
+          , replicate 40 '0'
+          , "--payment"
+          , "14@" <> addr
+          ]
+      let
+        process = proc' commandName args
+      withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
+        hPutStr stdin (passphrase ++ "\n")
+        hFlush stdin
+        hClose stdin
+        void $ waitForProcess h
+        err <- T.unpack <$> TIO.hGetContents stderr
+        err `shouldContain` errConnectionRefused
 
   it "PORT_03 - Cannot omit --port when server uses random port (address list)" $ \_ -> do
     let

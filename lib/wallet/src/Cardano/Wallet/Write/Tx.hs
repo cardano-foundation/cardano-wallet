@@ -813,7 +813,7 @@ fromCardanoTx = \case
   Cardano.ShelleyTx _era tx ->
     tx
   Cardano.ByronTx {} ->
-    case (recentEra @era) of
+    case (recentEra @era) of {}
 
 toCardanoTx
   :: forall era

@@ -1082,44 +1082,45 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     c2 `shouldBe` ExitFailure 1
 
   it
-    "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI" $ \ctx -> runResourceT $ do
-    wSrc <- fixtureWallet ctx
-    wDest <- emptyWallet ctx
-    let
-      wSrcId = T.unpack (wSrc ^. walletId)
+    "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI"
+    $ \ctx -> runResourceT $ do
+      wSrc <- fixtureWallet ctx
+      wDest <- emptyWallet ctx
+      let
+        wSrcId = T.unpack (wSrc ^. walletId)
 
-    -- post transaction
-    txJson <-
-      postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
-    verify
-      txJson
-      [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-      , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-      ]
-    let
-      txId = getTxId txJson
+      -- post transaction
+      txJson <-
+        postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
+      verify
+        txJson
+        [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+        , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+        ]
+      let
+        txId = getTxId txJson
 
-    eventually "Tx is in ledger" $ do
-      listTransactionsViaCLI ctx TxMetadataDetailedSchema [wSrcId]
-        >>= expectValidJSON (Proxy @([ApiTransaction n])) . fromStdout
-        >>= flip
-          verify
-          [ expectCliListField
-              0
-              (#direction . #getApiT)
-              (`shouldBe` Outgoing)
-          , expectCliListField
-              0
-              (#status . #getApiT)
-              (`shouldBe` InLedger)
-          ]
+      eventually "Tx is in ledger" $ do
+        listTransactionsViaCLI ctx TxMetadataDetailedSchema [wSrcId]
+          >>= expectValidJSON (Proxy @([ApiTransaction n])) . fromStdout
+          >>= flip
+            verify
+            [ expectCliListField
+                0
+                (#direction . #getApiT)
+                (`shouldBe` Outgoing)
+            , expectCliListField
+                0
+                (#status . #getApiT)
+                (`shouldBe` InLedger)
+            ]
 
-    -- Try Forget transaction once it's no longer pending
-    (Exit c2, Stdout out2, Stderr err2) <-
-      deleteTransactionViaCLI ctx wSrcId txId
-    err2 `shouldContain` errMsg403AlreadyInLedger (T.pack txId)
-    out2 `shouldBe` ""
-    c2 `shouldBe` ExitFailure 1
+      -- Try Forget transaction once it's no longer pending
+      (Exit c2, Stdout out2, Stderr err2) <-
+        deleteTransactionViaCLI ctx wSrcId txId
+      err2 `shouldContain` errMsg403AlreadyInLedger (T.pack txId)
+      out2 `shouldBe` ""
+      c2 `shouldBe` ExitFailure 1
 
   it "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI" $ \ctx -> runResourceT $ do
     wid <- fixtureWallet' ctx

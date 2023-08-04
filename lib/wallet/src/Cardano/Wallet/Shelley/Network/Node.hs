@@ -1428,7 +1428,8 @@ data Log where
   MsgDestroyCursor :: ThreadId -> Log
   MsgWillQueryRewardsForStake :: W.Coin -> Log
   MsgFetchStakePoolsData :: Maybe StakePoolsSummary -> Log
-  MsgFetchStakePoolsDataSummary :: Int
+  MsgFetchStakePoolsDataSummary
+    :: Int
     -> Int
     -> Log
     -- ^ Number of pools in stake distribution, and rewards map,

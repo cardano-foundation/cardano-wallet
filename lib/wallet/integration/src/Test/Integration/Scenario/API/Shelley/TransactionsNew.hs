@@ -2683,28 +2683,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         ]
 
   it
-    "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
-    -- constructing source wallet
-    let
-      initialAmt = 110_000_000_000
-    let
-      inpAmt = minUTxOValue (_mainEra ctx)
-    wa <- fixtureWalletWith @n ctx [initialAmt]
+    "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs"
+    $ \ctx -> runResourceT $ do
+      -- constructing source wallet
+      let
+        initialAmt = 110_000_000_000
+      let
+        inpAmt = minUTxOValue (_mainEra ctx)
+      wa <- fixtureWalletWith @n ctx [initialAmt]
 
-    let
-      serializedTx =
-        "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
-        \770e07fa22ba86480d0d800182825839010acce4f85ade867308f048fe4516\
-        \c0383b38cc04602ea6f7a6a1e75f29450899547b0e4bb194132452d45fea30\
-        \212aebeafc69bca8744ea61a002dc67e8258390110a9b4666ba80e4878491d\
-        \1ac20465c9893a8df5581dc705770626203d4d23fe6a7acdda5a1b41f56100\
-        \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
-        \8d280e80a0f5f6"
-          :: Text
-    let
-      balancePayload =
-        Json
-          [json|{
+      let
+        serializedTx =
+          "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+          \770e07fa22ba86480d0d800182825839010acce4f85ade867308f048fe4516\
+          \c0383b38cc04602ea6f7a6a1e75f29450899547b0e4bb194132452d45fea30\
+          \212aebeafc69bca8744ea61a002dc67e8258390110a9b4666ba80e4878491d\
+          \1ac20465c9893a8df5581dc705770626203d4d23fe6a7acdda5a1b41f56100\
+          \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
+          \8d280e80a0f5f6"
+            :: Text
+      let
+        balancePayload =
+          Json
+            [json|{
               "transaction": #{serializedTx},
               "redeemers": [],
               "inputs": [
@@ -2719,17 +2720,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   }
               ]
             }|]
-    rTx <-
-      request @ApiSerialisedTransaction
-        ctx
-        (Link.balanceTransaction @'Shelley wa)
-        Default
-        balancePayload
-    verify
-      rTx
-      [ expectSuccess
-      , expectResponseCode HTTP.status202
-      ]
+      rTx <-
+        request @ApiSerialisedTransaction
+          ctx
+          (Link.balanceTransaction @'Shelley wa)
+          Default
+          balancePayload
+      verify
+        rTx
+        [ expectSuccess
+        , expectResponseCode HTTP.status202
+        ]
 
   -- let apiTx = getFromResponse #transaction rTx
   --
@@ -2738,16 +2739,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
   -- void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
   it
-    "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
-    -- constructing source wallet
-    let
-      initialAmt = 110_000_000_000
-    wa <- fixtureWalletWith @n ctx [initialAmt]
+    "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds"
+    $ \ctx -> runResourceT $ do
+      -- constructing source wallet
+      let
+        initialAmt = 110_000_000_000
+      wa <- fixtureWalletWith @n ctx [initialAmt]
 
-    let
-      balancePayload =
-        Json
-          [json|{
+      let
+        balancePayload =
+          Json
+            [json|{
               "transaction": #{serializedPlutusTx},
               "redeemers": [],
               "inputs": [
@@ -2762,17 +2764,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   }
               ]
           }|]
-    rTx <-
-      request @ApiSerialisedTransaction
-        ctx
-        (Link.balanceTransaction @'Shelley wa)
-        Default
-        balancePayload
-    verify
-      rTx
-      [ expectSuccess
-      , expectResponseCode HTTP.status202
-      ]
+      rTx <-
+        request @ApiSerialisedTransaction
+          ctx
+          (Link.balanceTransaction @'Shelley wa)
+          Default
+          balancePayload
+      verify
+        rTx
+        [ expectSuccess
+        , expectResponseCode HTTP.status202
+        ]
 
   it "TRANS_NEW_BALANCE_02a - Cannot balance on empty wallet"
     $ \ctx -> runResourceT $ do
@@ -5220,37 +5222,38 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
   describe
-    "TRANS_NEW_CREATE_MINT_SCRIPTS_WRONG - I cannot mint with incorrect policy scripts" $ do
-    let
-      scenarios =
-        [ ("no cosigner", [json|{ "active_from": 0 }|])
-        , ("all, no cosigner", [json|{ "all": [ { "active_from": 120 } ] }|])
-        , ("any, no cosigner", [json|{ "any": [ { "active_until": 120 } ] }|])
-        ,
-          ( "some, no cosigner"
-          , [json|{ "some": { "at_least": 1, "from": [ { "active_from": 120 } ]} }|]
-          )
-        ,
-          ( "some, at least 2"
-          , [json|{ "some": { "at_least": 2, "from": [ "cosigner#0", { "active_from": 120 } ]} }|]
-          )
-        ,
-          ( "all, many cosigners"
-          , [json|{ "all": [ "cosigner#0", "cosigner#1", { "active_from": 120 } ] }|]
-          )
-        , ("any, many cosigners", [json|{ "any": [ "cosigner#0", "cosigner#1" ] }|])
-        , ("all, cosigner#1", [json|{ "all": [ "cosigner#1" ] }|])
-        ]
-    forM_ scenarios $ \(title, policyScriptTemplate) -> it title $ \ctx -> runResourceT $ do
-      wa <- emptyWallet ctx
-      addrs <- listAddresses @n ctx wa
+    "TRANS_NEW_CREATE_MINT_SCRIPTS_WRONG - I cannot mint with incorrect policy scripts"
+    $ do
       let
-        destination = (addrs !! 1) ^. #id
+        scenarios =
+          [ ("no cosigner", [json|{ "active_from": 0 }|])
+          , ("all, no cosigner", [json|{ "all": [ { "active_from": 120 } ] }|])
+          , ("any, no cosigner", [json|{ "any": [ { "active_until": 120 } ] }|])
+          ,
+            ( "some, no cosigner"
+            , [json|{ "some": { "at_least": 1, "from": [ { "active_from": 120 } ]} }|]
+            )
+          ,
+            ( "some, at least 2"
+            , [json|{ "some": { "at_least": 2, "from": [ "cosigner#0", { "active_from": 120 } ]} }|]
+            )
+          ,
+            ( "all, many cosigners"
+            , [json|{ "all": [ "cosigner#0", "cosigner#1", { "active_from": 120 } ] }|]
+            )
+          , ("any, many cosigners", [json|{ "any": [ "cosigner#0", "cosigner#1" ] }|])
+          , ("all, cosigner#1", [json|{ "all": [ "cosigner#1" ] }|])
+          ]
+      forM_ scenarios $ \(title, policyScriptTemplate) -> it title $ \ctx -> runResourceT $ do
+        wa <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wa
+        let
+          destination = (addrs !! 1) ^. #id
 
-      let
-        payload =
-          Json
-            [json|{
+        let
+          payload =
+            Json
+              [json|{
                     "mint_burn": [{
                         "policy_script_template": #{policyScriptTemplate},
                         "asset_name": "ab12",
@@ -5263,81 +5266,82 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }]
                 }|]
 
-      rTx <-
-        request @(ApiConstructTransaction n)
-          ctx
-          (Link.createUnsignedTransaction @'Shelley wa)
-          Default
-          payload
-      verify
-        rTx
-        [ expectResponseCode HTTP.status403
-        , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
-        ]
+        rTx <-
+          request @(ApiConstructTransaction n)
+            ctx
+            (Link.createUnsignedTransaction @'Shelley wa)
+            Default
+            payload
+        verify
+          rTx
+          [ expectResponseCode HTTP.status403
+          , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
+          ]
 
   describe
-    "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with correct policy scripts" $ do
-    let
-      scenarios =
-        [ ("all", [json|{ "all": [ "cosigner#0" ] }|], False)
-        , ("any", [json|{ "any": [ "cosigner#0" ] }|], False)
-        , ("some", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }|], False)
-        ,
-          ( "all, active_until 57297561"
-          , [json|{ "all": [ "cosigner#0",  { "active_until": 57297561 } ] }|]
-          , False
-          )
-        ,
-          ( "any, active_until 57297561"
-          , [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 } ] }|]
-          , False
-          )
-        ,
-          ( "some, active_until 57297561"
-          , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_until": 57297561 } ]} }|]
-          , False
-          )
-        ,
-          ( "all, active_from 10"
-          , [json|{ "all": [ "cosigner#0",  { "active_from": 10 } ] }|]
-          , True
-          )
-        ,
-          ( "any, active_from 10"
-          , [json|{ "any": [ "cosigner#0",  { "active_from": 10 } ] }|]
-          , True
-          )
-        ,
-          ( "some, active_from 10"
-          , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 } ]} }|]
-          , True
-          )
-        ,
-          ( "all, active_from 10, active_until 57297561"
-          , [json|{ "all": [ "cosigner#0",  { "active_from": 10 }, { "active_until": 57297561 } ] }|]
-          , True
-          )
-        ,
-          ( "any, active_until 57297561, active_from 58297561"
-          , [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 }, { "active_from": 58297561 } ] }|]
-          , False
-          )
-        ,
-          ( "some, active_from 10, active_until 57297561"
-          , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|]
-          , False
-          )
-        ]
-    forM_ scenarios $ \(title, policyScriptTemplate, addInvalidBefore) -> it title $ \ctx -> runResourceT $ do
-      w <- fixtureWallet ctx
-
-      -- Mint it!
+    "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with correct policy scripts"
+    $ do
       let
-        payloadMint =
-          if addInvalidBefore
-            then
-              Json
-                [json|{
+        scenarios =
+          [ ("all", [json|{ "all": [ "cosigner#0" ] }|], False)
+          , ("any", [json|{ "any": [ "cosigner#0" ] }|], False)
+          , ("some", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0" ]} }|], False)
+          ,
+            ( "all, active_until 57297561"
+            , [json|{ "all": [ "cosigner#0",  { "active_until": 57297561 } ] }|]
+            , False
+            )
+          ,
+            ( "any, active_until 57297561"
+            , [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 } ] }|]
+            , False
+            )
+          ,
+            ( "some, active_until 57297561"
+            , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_until": 57297561 } ]} }|]
+            , False
+            )
+          ,
+            ( "all, active_from 10"
+            , [json|{ "all": [ "cosigner#0",  { "active_from": 10 } ] }|]
+            , True
+            )
+          ,
+            ( "any, active_from 10"
+            , [json|{ "any": [ "cosigner#0",  { "active_from": 10 } ] }|]
+            , True
+            )
+          ,
+            ( "some, active_from 10"
+            , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 } ]} }|]
+            , True
+            )
+          ,
+            ( "all, active_from 10, active_until 57297561"
+            , [json|{ "all": [ "cosigner#0",  { "active_from": 10 }, { "active_until": 57297561 } ] }|]
+            , True
+            )
+          ,
+            ( "any, active_until 57297561, active_from 58297561"
+            , [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 }, { "active_from": 58297561 } ] }|]
+            , False
+            )
+          ,
+            ( "some, active_from 10, active_until 57297561"
+            , [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|]
+            , False
+            )
+          ]
+      forM_ scenarios $ \(title, policyScriptTemplate, addInvalidBefore) -> it title $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        -- Mint it!
+        let
+          payloadMint =
+            if addInvalidBefore
+              then
+                Json
+                  [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"
@@ -5351,9 +5355,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                           }
                       }
                 }|]
-            else
-              Json
-                [json|{
+              else
+                Json
+                  [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"
@@ -5362,53 +5366,53 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
                 }|]
 
-      rTx <-
-        request @(ApiConstructTransaction n)
-          ctx
-          (Link.createUnsignedTransaction @'Shelley w)
-          Default
-          payloadMint
-      verify rTx [expectResponseCode HTTP.status202]
-      let
-        (ApiSerialisedTransaction apiTx _) =
-          getFromResponse #transaction rTx
-      signedTx <- signTx ctx w apiTx [expectResponseCode HTTP.status202]
-      submittedTx <- submitTxWithWid ctx w signedTx
-      verify submittedTx [expectResponseCode HTTP.status202]
-
-      let
-        initialBalance = w ^. #balance . #available . #getQuantity
-      let
-        expectedFee = getFromResponse (#fee . #getQuantity) rTx
-
-      eventually "Assets are minted!" $ do
-        rW <-
-          request @ApiWallet
+        rTx <-
+          request @(ApiConstructTransaction n)
             ctx
-            (Link.getWallet @'Shelley w)
+            (Link.createUnsignedTransaction @'Shelley w)
             Default
-            Empty
-        verify
-          rW
-          [ expectSuccess
-          , expectField
-              (#balance . #available . #getQuantity)
-              (`shouldBe` initialBalance - fromIntegral expectedFee)
-          , expectField
-              (#assets . #available . #getApiT)
-              (`shouldNotBe` TokenMap.empty)
-          , expectField
-              (#assets . #total . #getApiT)
-              (`shouldNotBe` TokenMap.empty)
-          ]
+            payloadMint
+        verify rTx [expectResponseCode HTTP.status202]
+        let
+          (ApiSerialisedTransaction apiTx _) =
+            getFromResponse #transaction rTx
+        signedTx <- signTx ctx w apiTx [expectResponseCode HTTP.status202]
+        submittedTx <- submitTxWithWid ctx w signedTx
+        verify submittedTx [expectResponseCode HTTP.status202]
 
-      -- Burn it!
-      let
-        payloadBurn =
-          if addInvalidBefore
-            then
-              Json
-                [json|{
+        let
+          initialBalance = w ^. #balance . #available . #getQuantity
+        let
+          expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        eventually "Assets are minted!" $ do
+          rW <-
+            request @ApiWallet
+              ctx
+              (Link.getWallet @'Shelley w)
+              Default
+              Empty
+          verify
+            rW
+            [ expectSuccess
+            , expectField
+                (#balance . #available . #getQuantity)
+                (`shouldBe` initialBalance - fromIntegral expectedFee)
+            , expectField
+                (#assets . #available . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            , expectField
+                (#assets . #total . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            ]
+
+        -- Burn it!
+        let
+          payloadBurn =
+            if addInvalidBefore
+              then
+                Json
+                  [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"
@@ -5422,9 +5426,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                           }
                       }
                 }|]
-            else
-              Json
-                [json|{
+              else
+                Json
+                  [json|{
                     "mint_burn": [
                         { "policy_script_template": #{policyScriptTemplate}
                         , "asset_name": "1111"
@@ -5433,45 +5437,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
                 }|]
 
-      rTx2 <-
-        request @(ApiConstructTransaction n)
-          ctx
-          (Link.createUnsignedTransaction @'Shelley w)
-          Default
-          payloadBurn
-      verify rTx2 [expectResponseCode HTTP.status202]
-      let
-        (ApiSerialisedTransaction apiTx2 _) =
-          getFromResponse #transaction rTx2
-      signedTx2 <- signTx ctx w apiTx2 [expectResponseCode HTTP.status202]
-      submittedTx2 <- submitTxWithWid ctx w signedTx2
-      verify submittedTx2 [expectResponseCode HTTP.status202]
-
-      let
-        newBalance = initialBalance - fromIntegral expectedFee
-      let
-        expectedFeeBurn = getFromResponse (#fee . #getQuantity) rTx2
-
-      eventually "Assets are burned!" $ do
-        rW <-
-          request @ApiWallet
+        rTx2 <-
+          request @(ApiConstructTransaction n)
             ctx
-            (Link.getWallet @'Shelley w)
+            (Link.createUnsignedTransaction @'Shelley w)
             Default
-            Empty
-        verify
-          rW
-          [ expectSuccess
-          , expectField
-              (#balance . #available . #getQuantity)
-              (`shouldBe` newBalance - fromIntegral expectedFeeBurn)
-          , expectField
-              (#assets . #available . #getApiT)
-              (`shouldBe` TokenMap.empty)
-          , expectField
-              (#assets . #total . #getApiT)
-              (`shouldBe` TokenMap.empty)
-          ]
+            payloadBurn
+        verify rTx2 [expectResponseCode HTTP.status202]
+        let
+          (ApiSerialisedTransaction apiTx2 _) =
+            getFromResponse #transaction rTx2
+        signedTx2 <- signTx ctx w apiTx2 [expectResponseCode HTTP.status202]
+        submittedTx2 <- submitTxWithWid ctx w signedTx2
+        verify submittedTx2 [expectResponseCode HTTP.status202]
+
+        let
+          newBalance = initialBalance - fromIntegral expectedFee
+        let
+          expectedFeeBurn = getFromResponse (#fee . #getQuantity) rTx2
+
+        eventually "Assets are burned!" $ do
+          rW <-
+            request @ApiWallet
+              ctx
+              (Link.getWallet @'Shelley w)
+              Default
+              Empty
+          verify
+            rW
+            [ expectSuccess
+            , expectField
+                (#balance . #available . #getQuantity)
+                (`shouldBe` newBalance - fromIntegral expectedFeeBurn)
+            , expectField
+                (#assets . #available . #getApiT)
+                (`shouldBe` TokenMap.empty)
+            , expectField
+                (#assets . #total . #getApiT)
+                (`shouldBe` TokenMap.empty)
+            ]
 
   it
     "TRANS_NEW_CREATE_11 - Get policy id - incorrect template \
