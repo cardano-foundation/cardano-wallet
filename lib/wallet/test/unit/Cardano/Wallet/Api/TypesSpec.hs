@@ -143,6 +143,8 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnDataFromInput (..)
+    , ApiMintBurnDataFromScript (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
@@ -2053,6 +2055,13 @@ instance ToSchema ApiPostPolicyIdData where
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
+        <$> oneof
+            [ Left <$> arbitrary @(ApiMintBurnDataFromScript n)
+            , Right <$> arbitrary @(ApiMintBurnDataFromInput n)
+            ]
+
+instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
+    arbitrary = ApiMintBurnDataFromScript
         <$> elements
             [ ApiT $ RequireSignatureOf (Cosigner 0)
             , ApiT $ RequireAllOf
@@ -2065,6 +2074,15 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
                 , ActiveUntilSlot 150
                 ]
             ]
+        <*> oneof
+            [ Just . ApiT <$> genTokenName
+            , pure Nothing
+            ]
+        <*> arbitrary
+
+instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
+    arbitrary = ApiMintBurnDataFromInput
+        <$> (ReferenceInput <$> arbitrary)
         <*> oneof
             [ Just . ApiT <$> genTokenName
             , pure Nothing
