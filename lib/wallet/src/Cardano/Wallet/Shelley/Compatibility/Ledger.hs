@@ -20,6 +20,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toLedgerTokenPolicyId
     , toLedgerTokenName
     , toLedgerTokenQuantity
+    , toLedgerTimelockScript
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletCoin
@@ -114,6 +115,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence.Strict as StrictSeq
 import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
@@ -396,3 +398,40 @@ toWalletScriptFromShelley keyrole = fromLedgerScript'
         RequireAnyOf $ map fromLedgerScript' $ toList contents
     fromLedgerScript' (Ledger.RequireMOf num contents) =
         RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents
+
+toLedgerTimelockScript
+    :: LCore.Era era
+    => Script KeyHash
+    -> Scripts.Timelock era
+toLedgerTimelockScript s = case s of
+    RequireSignatureOf (KeyHash _ keyhash) ->
+        case hashFromBytes keyhash of
+            Just h -> Scripts.RequireSignature (Ledger.KeyHash h)
+            Nothing -> error "Hash key not valid"
+    RequireAllOf contents ->
+        Scripts.RequireAllOf
+        $ StrictSeq.fromList
+        $ map toLedgerTimelockScript contents
+    RequireAnyOf contents ->
+        Scripts.RequireAnyOf
+        $ StrictSeq.fromList
+        $ map toLedgerTimelockScript contents
+    RequireSomeOf num contents ->
+        Scripts.RequireMOf (intCast num)
+        $ StrictSeq.fromList
+        $ map toLedgerTimelockScript contents
+    ActiveUntilSlot slot ->
+        Scripts.RequireTimeExpire
+        (convertSlotNo slot)
+    ActiveFromSlot slot ->
+        Scripts.RequireTimeStart
+        (convertSlotNo slot)
+  where
+    convertSlotNo :: Natural -> O.SlotNo
+    convertSlotNo x = O.SlotNo $ fromMaybe err $ intCastMaybe x
+      where
+        err = error $ unwords
+            [ "toLedgerTimelockScript:"
+            , "Unexpected out of bounds SlotNo"
+            , show x
+            ]
