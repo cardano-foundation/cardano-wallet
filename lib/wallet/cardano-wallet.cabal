@@ -1174,3 +1174,62 @@ library address-derivation
     Cardano.Wallet.Primitive.Passphrase.Legacy
     Cardano.Wallet.Primitive.Passphrase.Types
     Crypto.Hash.Utils
+
+
+library cardano-wallet-local-cluster
+
+  import:          language, opts-lib
+  hs-source-dirs:  local-cluster
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  build-depends:
+    base
+    , address-derivation
+    , aeson
+    , aeson-qq
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-binary
+    , cardano-cli
+    , cardano-data
+    , cardano-ledger-api
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-wallet
+    , cardano-wallet-api-http
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , cborg
+    , containers
+    , contra-tracer
+    , directory
+    , filepath
+    , int-cast
+    , iohk-monitoring
+    , lens
+    , memory
+    , optparse-applicative
+    , ouroboros-network
+    , ouroboros-network-api
+    , retry
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , typed-process
+    , unliftio
+    , unliftio-core
+    , yaml
+
+
+  exposed-modules:
+    Cardano.Wallet.Faucet
+    Cardano.Wallet.Launch
+    Cardano.Wallet.Launch.Cluster
