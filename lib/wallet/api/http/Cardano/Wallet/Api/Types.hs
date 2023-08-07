@@ -3087,7 +3087,7 @@ instance ToJSON (ApiT SmashServer) where
 -- The used key derivation index is the same for all engaged derivation keys and
 -- ix=0 is assumed to be used. The verification key derivation is performed
 -- according to CIP 1855.
-data ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
+newtype ApiMintBurnData (n :: NetworkDiscriminant) = ApiMintBurnData
     { mintBurnData :: Either (ApiMintBurnDataFromScript n) (ApiMintBurnDataFromInput n) }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

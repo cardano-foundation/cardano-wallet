@@ -2633,9 +2633,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             Right mintBurnData
       where
         notAllFromScript = \case
-            Nothing -> True
+            Nothing -> False
             Just mintData ->
-                any isRight $ fmap mintBurnData $ NE.toList mintData
+                any isRight $ mintBurnData <$> NE.toList mintData
 
         -- we checked that only left are present in preceding line
         takeMintingFromScript (ApiMintBurnData mintData) =
