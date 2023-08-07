@@ -165,8 +165,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints

@@ -168,10 +168,6 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
-    ( testParameter_coinsPerUTxOByte_Babbage
-    , testParameter_coinsPerUTxOWord_Alonzo
-    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -448,9 +444,9 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Core as Babbage
+import qualified Cardano.Ledger.Babbage.Core as Ledger
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Val as Value
@@ -3663,6 +3659,14 @@ mockCardanoApiPParamsForBalancing = Cardano.ProtocolParameters
     , Cardano.protocolParamCollateralPercent = Just 150
     , Cardano.protocolParamMaxCollateralInputs = Just 3
     }
+
+testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
+testParameter_coinsPerUTxOWord_Alonzo
+    = Ledger.CoinPerWord $ Ledger.Coin 34_482
+
+testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
+testParameter_coinsPerUTxOByte_Babbage
+    = Ledger.CoinPerByte $ Ledger.Coin 4_310
 
 mockPParamsForBalancing
     :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
