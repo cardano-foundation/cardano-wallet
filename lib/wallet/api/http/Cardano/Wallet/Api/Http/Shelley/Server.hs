@@ -313,6 +313,7 @@ import Cardano.Wallet.Api.Types
     , ApiForeignStakeKey (..)
     , ApiIncompleteSharedWallet (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnDataFromScript (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
@@ -589,7 +590,7 @@ import Data.Coerce
 import Data.Either
     ( isLeft, isRight )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe, fromLeft' )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -2434,7 +2435,7 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction api argGenChange knownPools poolStatus apiWalletId body = do
-    body & \(ApiConstructTransactionData _ _ _ _ _ _ _) ->
+    body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
         case body of
@@ -2455,6 +2456,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
+
+    when (isJust $ body ^. #referencePolicyScriptTemplate) $
+        liftHandler $ throwE ErrConstructTxNotImplemented
 
     let metadata =
             body ^? #metadata . traverse . #txMetadataWithSchema_metadata
@@ -2499,10 +2503,10 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             if isJust mintBurnData then do
                 (policyXPub, _) <-
                     liftHandler $ W.readPolicyPublicKey wrk
-                let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
+                let isMinting (ApiMintBurnDataFromScript _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
-                        ApiMintBurnData
+                        ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt)) ->
@@ -2513,7 +2517,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                                 amt
                         _ -> error "getMinting should not be used in this way"
                 let getBurning = \case
-                        ApiMintBurnData
+                        ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt)) ->
@@ -2553,7 +2557,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 pure $ F.toList (addressAmountToTxOut <$> content)
 
         let mintWithAddress
-                (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
+                (ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData (Just _) _)))
                 = True
             mintWithAddress _ = False
         let mintingOuts = case mintBurnData of
@@ -2613,10 +2617,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     parseMintBurnData
         :: ApiConstructTransactionData n
         -> (SlotNo, SlotNo)
-        -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnData n)))
+        -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnDataFromScript n)))
     parseMintBurnData tx validity = do
-        let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnData n))
-            mbMintingBurning = fmap handleMissingAssetName <$> tx ^. #mintBurn
+        when (notAllFromScript (tx ^. #mintBurn)) $
+            Left ErrConstructTxNotImplemented
+        let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnDataFromScript n))
+            mbMintingBurning =
+                fmap (handleMissingAssetName . takeMintingFromScript)
+                <$> tx ^. #mintBurn
         for mbMintingBurning $ \mintBurnData -> do
             guardWrongMintingTemplate mintBurnData
             guardAssetNameTooLong mintBurnData
@@ -2624,18 +2632,27 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             guardOutsideValidityInterval validity mintBurnData
             Right mintBurnData
       where
-        handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        notAllFromScript = \case
+            Nothing -> False
+            Just mintData ->
+                any isRight $ mintBurnData <$> NE.toList mintData
+
+        -- we checked that only left are present in preceding line
+        takeMintingFromScript (ApiMintBurnData mintData) =
+            fromLeft' mintData
+
+        handleMissingAssetName :: ApiMintBurnDataFromScript n -> ApiMintBurnDataFromScript n
         handleMissingAssetName mb = case mb ^. #assetName of
             Nothing -> mb {assetName = Just (ApiT nullTokenName)}
             Just _ -> mb
 
         guardWrongMintingTemplate
-            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
         guardWrongMintingTemplate mintBurnData =
             when (any wrongMintingTemplate mintBurnData)
                 $ Left ErrConstructTxWrongMintingBurningTemplate
           where
-            wrongMintingTemplate (ApiMintBurnData (ApiT script) _ _) =
+            wrongMintingTemplate (ApiMintBurnDataFromScript (ApiT script) _ _) =
                 isLeft (validateScriptOfTemplate RecommendedValidation script)
                 || countCosigners script /= (1 :: Int)
                 || existsNonZeroCosigner script
@@ -2644,37 +2661,37 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
 
         guardAssetNameTooLong
-            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
         guardAssetNameTooLong mintBurnData =
             when (any assetNameTooLong mintBurnData)
                 $ Left ErrConstructTxAssetNameTooLong
           where
             assetNameTooLong = \case
-                ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _ ->
+                ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeTokenName bs))) _ ->
                     BS.length bs > tokenNameMaxLength
                 _ -> error "tokenName should be nonempty at this step"
 
         guardAssetQuantityOutOfBounds
-            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
         guardAssetQuantityOutOfBounds mintBurnData =
             when (any assetQuantityOutOfBounds mintBurnData)
                 $ Left ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
           where
             assetQuantityOutOfBounds = \case
-                ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt)) ->
+                ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData _ amt)) ->
                     amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
-                ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt)) ->
+                ApiMintBurnDataFromScript _ _ (ApiBurn (ApiBurnData amt)) ->
                     amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
 
         guardOutsideValidityInterval
             :: (SlotNo, SlotNo)
-            -> NonEmpty (ApiMintBurnData n)
+            -> NonEmpty (ApiMintBurnDataFromScript n)
             -> Either ErrConstructTx ()
         guardOutsideValidityInterval (before, hereafter) mintBurnData =
             when (any notWithinValidityInterval mintBurnData) $
                 Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
           where
-            notWithinValidityInterval (ApiMintBurnData (ApiT script) _ _) =
+            notWithinValidityInterval (ApiMintBurnDataFromScript (ApiT script) _ _) =
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
@@ -2700,7 +2717,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         }
 
     toMintTxOut policyXPub
-        (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
+        (ApiMintBurnDataFromScript (ApiT scriptT) (Just (ApiT tName))
             (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
                         toTokenMapAndScript ShelleyKeyS

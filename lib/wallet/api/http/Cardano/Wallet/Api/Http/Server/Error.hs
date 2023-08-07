@@ -452,6 +452,9 @@ instance IsServerError ErrConstructTx where
             [ "I cannot construct a delegating transaction for a shared wallet "
             , "that is lacking a delegation script template."
             ]
+        ErrConstructTxNotImplemented ->
+            apiError err501 NotImplemented
+                "This feature is not yet implemented."
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case

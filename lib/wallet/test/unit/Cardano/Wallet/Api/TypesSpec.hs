@@ -143,6 +143,8 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnDataFromInput (..)
+    , ApiMintBurnDataFromScript (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
     , ApiMnemonicT (..)
@@ -631,6 +633,7 @@ spec = do
         jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiMaintenanceAction
         jsonTest @ApiMaintenanceActionPostData
+        jsonTest @(ApiMintBurnData T0)
         jsonTest @ApiMultiDelegationAction
         jsonTest @ApiNetworkClock
         jsonTest @ApiNetworkInformation
@@ -1842,6 +1845,7 @@ instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> arbitrary
         <*> pure Nothing
+        <*> pure Nothing
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
 instance HasSNetworkId n => Arbitrary (ApiExternalInput n) where
@@ -2052,6 +2056,13 @@ instance ToSchema ApiPostPolicyIdData where
 
 instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
+        <$> oneof
+            [ Left <$> arbitrary @(ApiMintBurnDataFromScript n)
+            , Right <$> arbitrary @(ApiMintBurnDataFromInput n)
+            ]
+
+instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
+    arbitrary = ApiMintBurnDataFromScript
         <$> elements
             [ ApiT $ RequireSignatureOf (Cosigner 0)
             , ApiT $ RequireAllOf
@@ -2064,6 +2075,15 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
                 , ActiveUntilSlot 150
                 ]
             ]
+        <*> oneof
+            [ Just . ApiT <$> genTokenName
+            , pure Nothing
+            ]
+        <*> arbitrary
+
+instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
+    arbitrary = ApiMintBurnDataFromInput
+        <$> (ReferenceInput <$> arbitrary)
         <*> oneof
             [ Just . ApiT <$> genTokenName
             , pure Nothing
@@ -2831,6 +2851,9 @@ instance Typeable n => ToSchema (ApiConstructTransactionData n) where
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
+
+instance Typeable n => ToSchema (ApiMintBurnData n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMintBurnData"
 
 instance Typeable n => ToSchema (ApiConstructTransaction n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
