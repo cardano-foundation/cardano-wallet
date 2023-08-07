@@ -978,7 +978,6 @@ test-suite integration
     , unliftio
 
   build-tool-depends: cardano-wallet:cardano-wallet
-  other-modules:      Cardano.Wallet.Shelley.Faucet
 
 benchmark restore
   import:         language, opts-exe
@@ -1043,7 +1042,6 @@ benchmark latency
 
   other-modules:
     Cardano.Wallet.LatencyBenchShared
-    Cardano.Wallet.Shelley.Faucet
 
 benchmark db
   import:         language, opts-exe
@@ -1234,5 +1232,6 @@ library cardano-wallet-local-cluster
 
   exposed-modules:
     Cardano.Wallet.Faucet
+    Cardano.Wallet.Faucet.Shelley
     Cardano.Wallet.Launch
     Cardano.Wallet.Launch.Cluster

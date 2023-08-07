@@ -46,6 +46,8 @@ import Cardano.Wallet.Faucet
     , maryIntegrationTestAssets
     , shelleyIntegrationTestFunds
     )
+import Cardano.Wallet.Faucet.Shelley
+    ( initFaucet )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Launch
@@ -77,8 +79,6 @@ import Cardano.Wallet.Shelley
     ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
-import Cardano.Wallet.Shelley.Faucet
-    ( initFaucet )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad

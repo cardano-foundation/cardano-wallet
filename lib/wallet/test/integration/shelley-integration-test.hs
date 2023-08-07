@@ -48,6 +48,8 @@ import Cardano.Wallet.Faucet
     , seaHorseTestAssets
     , shelleyIntegrationTestFunds
     )
+import Cardano.Wallet.Faucet.Shelley
+    ( initFaucet )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
@@ -85,8 +87,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Faucet
-    ( initFaucet )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow
