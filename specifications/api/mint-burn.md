@@ -37,7 +37,7 @@ Specifically:
 
     In the `mint_burn` field, the array element contains `reference_input`. This field specifies a transaction input (pair of transaction ID and output index) which will be added as a reference input and is assumed to contain the minting script. (If the corresponding output was created using the method above, the appropriate output index is `0`).
 
-    Example `POST` data for the endpoint:
+    Example `POST` data for the endpoint with reference input:
 
     ```
     {
@@ -59,7 +59,7 @@ Specifically:
     }
     ```
 
-    in constrast to example `POST` data for the endpoint when script is defined
+    For contrast: Example `POST` data for the endpoint with script template:
 
     ```
     {
