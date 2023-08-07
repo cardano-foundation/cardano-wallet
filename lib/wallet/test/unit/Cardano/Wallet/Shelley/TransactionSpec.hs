@@ -21,6 +21,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {- HLINT ignore "Use null" -}
+{- HLINT ignore "Use camelCase" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
