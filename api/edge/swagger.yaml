@@ -3649,14 +3649,25 @@ components:
             burn: *ApiBurnData
 
     ApiMintBurnData: &ApiMintBurnData
-      type: object
-      required:
-        - operation
-        - policy_script_template
-      properties:
-        policy_script_template: *ScriptTemplateValue
-        asset_name: *assetName
-        operation: *ApiMintBurnOperation
+      oneOf:
+        - type: object
+          title: minting via script template
+          required:
+            - operation
+            - policy_script_template
+          properties:
+            policy_script_template: *ScriptTemplateValue
+            asset_name: *assetName
+            operation: *ApiMintBurnOperation
+        - type: object
+          title: minting via script reference
+          required:
+            - operation
+            - reference_input
+          properties:
+            reference_input: *referenceInput
+            asset_name: *assetName
+            operation: *ApiMintBurnOperation
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
@@ -3674,6 +3685,18 @@ components:
              containing helpful information.
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
+        reference_policy_script_template:
+          <<: *ScriptTemplateValue
+          description: |
+            Optional policy script template that could be used as a script reference
+            in another transaction.
+            In the current transaction, the script will be included as
+            the first output (`index = 0`).
+            The script is constructed by replacing the cosigner
+            with the policy public key of the wallet.
+            In future transactions, the reference script can be used
+            by any wallet multiple times
+            by referencing the current transaction `id` and `index = 0`.
         encoding:
           type: string
           enum: ["base16", "base64"]
@@ -7624,7 +7647,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Create
       description: |
-        <p align="right">status: <strong>⚠ under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Create a shared wallet from either an account public key and script
         templates or mnemonic and script templates.
 
@@ -7640,7 +7663,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: List
       description: |
-        <p align="right">status: <strong>⚠ under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known shared wallets, ordered from oldest to newest.
       responses: *responsesListSharedWallets
@@ -7651,7 +7674,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Get
       description: |
-        <p align="right">status: <strong>⚠ under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Get a shared wallet for a given wallet id.
 
       parameters:
@@ -7715,7 +7738,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Update Payment
       description: |
-        <p align="right">status: <strong>⚠ under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Update payment script template for a given shared wallet by
         updating/adding account public key for cosigner. Updating the
         shared wallet account key results in an error. Also updating is
@@ -7737,7 +7760,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Update Delegation
       description: |
-        <p align="right">status: <strong>⚠ under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Update delegation script template for a given shared wallet by
         updating/adding account public key for cosigner. Updating the
         shared wallet account key results in an error. Also updating is
@@ -7759,7 +7782,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a transaction to be signed from the shared wallet.
 
@@ -7782,7 +7805,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Decode
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Decode a serialized transaction, either freshly constructed,
         partially signed or fully-signed.
@@ -7801,7 +7824,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Sign
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Signs a serialised transaction, returning the modified
         transaction.
@@ -7824,7 +7847,7 @@ paths:
       tags: ["Shared Transactions"]
       summary: Submit
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Submit a transaction that was already created and fully signed.
         Fails for foreign transactions that is transactions which lack
         the wallet's inputs and withdrawals.
