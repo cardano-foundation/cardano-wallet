@@ -49,9 +49,13 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndAnyState, RndState (..) )
+    ( RndState (..) )
+import Cardano.Wallet.Address.Discovery.RandomAny
+    ( RndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAnyState, SeqState )
+    ( SeqState )
+import Cardano.Wallet.Address.Discovery.SequentialAny
+    ( SeqAnyState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Address.States.Families

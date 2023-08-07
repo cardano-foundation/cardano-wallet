@@ -62,9 +62,9 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Discovery
-    ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
+    ( GetPurpose (..), IsOurs (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
+    ( SeqState, coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant
@@ -379,11 +379,6 @@ instance HasSNetworkId n => MkKeyFingerprint IcarusKey
 
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
-
-instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
-  where
-    maybeDiscover = Just $ DiscoverTxs discoverSeq
-
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

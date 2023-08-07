@@ -95,7 +95,6 @@ import Cardano.Wallet.Address.Discovery
     , GetAccount (..)
     , IsOurs (..)
     , KnownAddresses (..)
-    , MaybeLight (..)
     , PendingIxs
     , nextChangeIndex
     , pendingIxsToList
@@ -508,9 +507,6 @@ instance HasSNetworkId n => KnownAddresses (SharedState n k) where
                 edgeChangeAddresses =
                     drop (length changeAddresses' - internalGap) changeAddresses'
             in take (length ixs) edgeChangeAddresses
-
-instance MaybeLight (SharedState n k) where
-    maybeDiscover = Nothing
 
 instance GenChange (SharedState n k) where
     type ArgGenChange (SharedState n k) =

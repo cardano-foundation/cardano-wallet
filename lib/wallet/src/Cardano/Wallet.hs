@@ -298,7 +298,6 @@ import Cardano.Wallet.Address.Discovery
     , GetPurpose (..)
     , IsOurs (..)
     , KnownAddresses (..)
-    , MaybeLight (..)
     )
 import Cardano.Wallet.Address.Discovery.Random
     ( ErrImportAddress (..), RndStateLike )
@@ -325,6 +324,8 @@ import Cardano.Wallet.Address.Keys.WalletKey
     , hashVerificationKey
     , liftRawKey
     )
+import Cardano.Wallet.Address.MaybeLight
+    ( MaybeLight (maybeDiscover) )
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Checkpoints

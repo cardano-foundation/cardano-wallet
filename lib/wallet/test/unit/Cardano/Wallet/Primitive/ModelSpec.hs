@@ -28,7 +28,9 @@ import Algebra.PartialOrd
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..) )
 import Cardano.Wallet.Address.Discovery
-    ( DiscoverTxs (..), IsOurs (..), MaybeLight (..) )
+    ( IsOurs (..) )
+import Cardano.Wallet.Address.MaybeLight
+    ( DiscoverTxs (..), MaybeLight (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Gen

@@ -79,18 +79,16 @@ import Cardano.Wallet.Address.Derivation
     , toAddressParts
     )
 import Cardano.Wallet.Address.Discovery
-    ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
+    ( GetPurpose (..), IsOurs (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
-    , discoverSeqWithRewards
     , purposeCIP1852
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant (..)
+    ( NetworkDiscriminant (..)
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
     , networkDiscriminantBits
@@ -398,10 +396,6 @@ instance ToRewardAccount ShelleyKey where
 
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = FromKeyHash . blake2b224 . xpubPublicKey
-
-instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey)
-  where
-    maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
 instance AccountIxForStaking (SeqState n ShelleyKey) where
     getAccountIx _ = Nothing

@@ -39,8 +39,8 @@ import Cardano.Wallet.Address.Derivation.Shared
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
-import Data.Generics.Internal.VL
+    ( Address, AddressState (..) )
+import Control.Lens
     ( Iso', iso, withIso )
 import Data.Kind
     ( Type )
@@ -78,27 +78,6 @@ getPrologue = withIso addressIso $ \from _ -> fst . from
 
 getDiscoveries :: AddressBookIso s => s -> Discoveries s
 getDiscoveries = withIso addressIso $ \from _ -> snd . from
-
-{-------------------------------------------------------------------------------
-    Sequential address book
--------------------------------------------------------------------------------}
--- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key))
-    => AddressBookIso (Seq.SeqAnyState n key p)
-  where
-    data Prologue (Seq.SeqAnyState n key p) = PS (Prologue (Seq.SeqState n key))
-    data Discoveries (Seq.SeqAnyState n key p) = DS (Discoveries (Seq.SeqState n key))
-
-    addressIso = withIso addressIso $ \from to ->
-        let from2 st = let (a,b) = from $ Seq.innerState st in (PS a, DS b)
-            to2 (PS a, DS b) = Seq.SeqAnyState $ to (a,b)
-        in  iso from2 to2
-
-instance Eq (Seq.SeqState n k) => Eq (Prologue (Seq.SeqAnyState n k p)) where
-    (PS a) == (PS b) = a == b
-
-instance Eq (Seq.SeqState n k) => Eq (Discoveries (Seq.SeqAnyState n k p)) where
-    (DS a) == (DS b) = a == b
 
 -- | Isomorphism for sequential address book.
 instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )
@@ -230,24 +209,6 @@ instance ( key ~ SharedKey ) => Eq (Prologue (Shared.SharedState n key)) where
 instance ( key ~ SharedKey ) => Eq (Discoveries (Shared.SharedState n key)) where
     SharedDiscoveries ext1 int1 == SharedDiscoveries ext2 int2 =
         ext1 == ext2 && int1 == int2
-
-{-------------------------------------------------------------------------------
-    HD Random address book
--------------------------------------------------------------------------------}
--- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance AddressBookIso (Rnd.RndAnyState n p)
-  where
-    data Prologue (Rnd.RndAnyState n p) = PR (Prologue (Rnd.RndState n))
-    data Discoveries (Rnd.RndAnyState n p) = DR (Discoveries (Rnd.RndState n))
-
-    addressIso = withIso addressIso $ \from to ->
-        let from2 st = let (a,b) = from $ Rnd.innerState st in (PR a, DR b)
-            to2 (PR a, DR b) = Rnd.RndAnyState $ to (a,b)
-        in  iso from2 to2
-
-instance Eq (Prologue (Rnd.RndAnyState n p)) where PR a == PR b = a == b
-
-instance Eq (Discoveries (Rnd.RndAnyState n p)) where DR a == DR b = a == b
 
 -- | Isomorphism for HD random address book.
 instance AddressBookIso (Rnd.RndState n) where

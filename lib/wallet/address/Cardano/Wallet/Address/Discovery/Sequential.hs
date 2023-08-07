@@ -60,12 +60,10 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     , coinTypeAda
     , mkSeqStateFromAccountXPub
-    , discoverSeq
-    , discoverSeqWithRewards
+    -- , discoverSeq
+    -- , discoverSeqWithRewards
     , isOwned
 
-    -- ** Benchmarking
-    , SeqAnyState (..)
     ) where
 
 import Prelude
@@ -78,7 +76,6 @@ import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
-    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -91,22 +88,17 @@ import Cardano.Wallet.Address.Derivation
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
-    , ToRewardAccount (..)
-    , liftDelegationAddressS
     , liftPaymentAddressS
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
     )
-import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
     , KnownAddresses (..)
-    , MaybeLight (..)
     , PendingIxs
     , coinTypeAda
     , dropLowerPendingIxs
@@ -114,20 +106,12 @@ import Cardano.Wallet.Address.Discovery
     , nextChangeIndex
     , pendingIxsToList
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger )
-import Cardano.Wallet.TypeLevel
-    ( Excluding )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative
@@ -137,9 +121,7 @@ import Control.DeepSeq
 import Control.Monad
     ( unless )
 import Data.Bifunctor
-    ( first, second )
-import Data.Digest.CRC32
-    ( crc32 )
+    ( first )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
@@ -158,13 +140,10 @@ import Fmt
     ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat, Nat, natVal )
 import Type.Reflection
     ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Cardano.Wallet.Write.UTxOAssumptions as UTxOAssumptions
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -428,7 +407,7 @@ purposeCIP1852 = toEnum 0x8000_073c
 mkSeqStateFromAccountXPub
     :: forall (n :: NetworkDiscriminant) k.
         ( SupportsDiscovery n k
-        , Excluding '[SharedKey] k
+        -- , Excluding '[SharedKey] k
         )
     => k 'AccountK XPub
     -> Maybe (k 'PolicyK XPub)
@@ -611,154 +590,3 @@ instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
 
 instance GetAccount (SeqState n k) k where
     getAccount = accountXPub
-
--- | Discover addresses and transactions using an
--- efficient query @addr -> m txs@.
--- Does /not/ take 'RewardAccount' into account.
-discoverSeq
-    :: forall n k m. (PaymentAddress k 'CredFromKeyK, Monad m, HasSNetworkId n)
-    => (Either Address RewardAccount -> m ChainEvents)
-    -> SeqState n k -> m (ChainEvents, SeqState n k)
-discoverSeq query state = do
-    (eventsInternal, internalPool') <- discover (internalPool state)
-    (eventsExternal, externalPool') <- discover (externalPool state)
-    let discoveredEvents = eventsInternal <> eventsExternal
-        state' = state
-            { internalPool = internalPool'
-            , externalPool = externalPool'
-            , pendingChangeIxs =
-                dropLowerPendingIxs
-                    (AddressPool.nextIndex (getPool internalPool'))
-                    (pendingChangeIxs state)
-            }
-    pure (discoveredEvents, state')
-  where
-    -- Only enterprise address (for legacy Icarus keys)
-    fromPayment = liftPaymentAddressS @n @k @'CredFromKeyK
-    discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
-    discover = fmap (second SeqAddressPool)
-        . AddressPool.discover (query . Left . fromPayment) . getPool
-
--- | Discover addresses and transactions using an
--- efficient query @addr -> m txs@.
--- Does take 'RewardAccount' into account.
-discoverSeqWithRewards
-    :: forall n k m
-     . ( DelegationAddress k 'CredFromKeyK
-       , ToRewardAccount k
-       , Monad m
-       , HasSNetworkId n
-       )
-    => (Either Address RewardAccount -> m ChainEvents)
-    -> SeqState n k
-    -> m (ChainEvents, SeqState n k)
-discoverSeqWithRewards query state = do
-    eventsReward <- query . Right $ toRewardAccount (rewardAccountKey state)
-    (eventsInternal, internalPool') <- discover (internalPool state)
-    (eventsExternal, externalPool') <- discover (externalPool state)
-    let discoveredEvents = eventsReward <> eventsInternal <> eventsExternal
-        state' = state
-            { internalPool = internalPool'
-            , externalPool = externalPool'
-            , pendingChangeIxs =
-                dropLowerPendingIxs
-                    (AddressPool.nextIndex (getPool internalPool'))
-                    (pendingChangeIxs state)
-            }
-    pure (discoveredEvents, state')
-  where
-    -- Every 'Address' is composed of a payment part and a staking part.
-    -- Ideally, we would want 'query' to give us all transactions
-    -- belonging to a given payment part, regardless of the staking parts
-    -- that are paired with that payment part.
-    -- Unfortunately, this is not possible at the moment.
-    -- However, fortunately, the staking part is always the same,
-    -- so we supply it here in order to obtain an 'Address' that we can query.
-    fromPayment hash = liftDelegationAddressS @n hash (rewardAccountKey state)
-
-    discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
-    discover = fmap (second SeqAddressPool)
-        . AddressPool.discover (query . Left . fromPayment) . getPool
-
-{-------------------------------------------------------------------------------
-    SeqAnyState
-
-    For benchmarking and testing arbitrary large sequential wallets.
--------------------------------------------------------------------------------}
-
--- | An "unsound" alternative that can be used for benchmarking and stress
--- testing. It re-uses the same underlying structure as the `SeqState` but
--- it discovers addresses based on an arbitrary ratio instead of respecting
--- BIP-44 discovery.
---
--- The proportion is stored as a type-level parameter so that we don't have to
--- alter the database schema to store it. It simply exists and depends on the
--- caller creating the wallet to define it.
-newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) =
-    SeqAnyState { innerState :: SeqState network key }
-    deriving (Generic)
-
-deriving instance
-    ( Show (k 'AccountK XPub)
-    , Show (k 'CredFromKeyK XPub)
-    , Show (k 'PolicyK XPub)
-    , Show (KeyFingerprint "payment" k)
-    )
-    => Show (SeqAnyState n k p)
-
-instance
-    ( NFData (k 'AccountK XPub)
-    , NFData (k 'CredFromKeyK XPub)
-    , NFData (k 'PolicyK XPub)
-    , NFData (KeyFingerprint "payment" k)
-    )
-    => NFData (SeqAnyState n k p)
-
-instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
-    isOurs (Address bytes) st@(SeqAnyState inner)
-        | crc32 bytes < p && correctAddressType =
-            let
-                pool = getPool $ externalPool inner
-                ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
-                addr = AddressPool.addressFromIx pool ix
-                pool' = AddressPool.update addr pool
-                path = DerivationIndex (getIndex ix) :| []
-            in
-                ( Just path
-                , SeqAnyState $ inner{externalPool = SeqAddressPool pool'}
-                )
-        | otherwise =
-            (Nothing, st)
-      where
-        p = floor (double sup * double (natVal (Proxy @p)) / 10_000)
-          where
-            sup = maxBound :: Word32
-
-        double :: Integral a => a -> Double
-        double = fromIntegral
-
-        correctAddressType =
-            UTxOAssumptions.validateAddress
-                UTxOAssumptions.AllKeyPaymentCredentials
-                (toLedger $ Address bytes)
-
-instance IsOurs (SeqAnyState n k p) RewardAccount where
-    isOurs _account state = (Nothing, state)
-
-instance
-    ( SoftDerivation k
-    , AddressCredential k ~ 'CredFromKeyK
-    ) => GenChange (SeqAnyState n k p)
-  where
-    type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
-    genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
-
-instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
-    compareDiscovery (SeqAnyState s) = compareDiscovery s
-
-instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
-    => KnownAddresses (SeqAnyState n k p) where
-    knownAddresses (SeqAnyState s) = knownAddresses s
-
-instance MaybeLight (SeqAnyState n k p) where
-    maybeDiscover = Nothing

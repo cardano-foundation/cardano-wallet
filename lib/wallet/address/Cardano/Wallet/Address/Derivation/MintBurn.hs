@@ -41,6 +41,8 @@ import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -52,8 +54,6 @@ import Cardano.Wallet.Address.Discovery
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
-import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
 import Data.IntCast
     ( intCast )
 import Data.Interval

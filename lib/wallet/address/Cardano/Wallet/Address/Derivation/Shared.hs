@@ -65,7 +65,7 @@ import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
