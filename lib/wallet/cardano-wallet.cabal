@@ -676,26 +676,6 @@ executable cardano-wallet
     , transformers
     , unliftio
 
-executable local-cluster
-  import:         language, opts-exe
-  hs-source-dirs: exe
-  main-is:        local-cluster.hs
-  build-depends:
-    , base
-    , cardano-wallet
-    , cardano-wallet-api-http
-    , cardano-wallet-integration
-    , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
-    , cardano-wallet-primitive
-    , contra-tracer
-    , directory
-    , filepath
-    , iohk-monitoring
-    , lobemo-backend-ekg
-    , text
-    , text-class
-
 -- Triggers this https://github.com/haskell/cabal/issues/6470
 -- if moved to an external library
 executable mock-token-metadata-server

@@ -44,8 +44,6 @@ executable local-cluster
     build-depends:
         base
         , local-cluster
-
-
     hs-source-dirs:   exe
     default-language: Haskell2010
 
@@ -53,7 +51,6 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
 
   exposed-modules:
     Service
