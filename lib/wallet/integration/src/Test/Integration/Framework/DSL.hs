@@ -317,6 +317,8 @@ import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..), ApiLimit (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
+import Cardano.Wallet.Faucet
+    ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
@@ -455,8 +457,6 @@ import Test.Hspec.Extra
     ( appendFailureReason, counterexample )
 import Test.HUnit.Lang
     ( HUnitFailure (..) )
-import Test.Integration.Faucet
-    ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
 import Test.Integration.Framework.Context
     ( Context (..), TxDescription (..) )
 import Test.Integration.Framework.Request

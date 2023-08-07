@@ -27,6 +27,14 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
+import Cardano.Wallet.Faucet
+    ( byronIntegrationTestFunds
+    , genRewardAccounts
+    , hwWalletFunds
+    , maryIntegrationTestAssets
+    , mirMnemonics
+    , shelleyIntegrationTestFunds
+    )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
@@ -72,14 +80,6 @@ import System.Directory
     ( createDirectory )
 import System.FilePath
     ( (</>) )
-import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genRewardAccounts
-    , hwWalletFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
-    , shelleyIntegrationTestFunds
-    )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T

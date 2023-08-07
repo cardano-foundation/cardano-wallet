@@ -40,6 +40,8 @@ import Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Faucet
+    ( preregKeyWallet )
 import Cardano.Wallet.Pools
     ( StakePool (..), StakePoolFlag (Delisted) )
 import Cardano.Wallet.Primitive.NetworkId
@@ -88,8 +90,6 @@ import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
-import Test.Integration.Faucet
-    ( preregKeyWallet )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL

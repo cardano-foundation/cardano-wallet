@@ -40,6 +40,12 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Faucet
+    ( byronIntegrationTestFunds
+    , genShelleyAddresses
+    , maryIntegrationTestAssets
+    , shelleyIntegrationTestFunds
+    )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Launch
@@ -108,12 +114,6 @@ import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( shouldBe )
-import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genShelleyAddresses
-    , maryIntegrationTestAssets
-    , shelleyIntegrationTestFunds
-    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
