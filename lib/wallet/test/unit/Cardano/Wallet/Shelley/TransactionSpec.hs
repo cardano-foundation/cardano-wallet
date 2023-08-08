@@ -3343,10 +3343,11 @@ prop_balanceTransactionValid
         -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
+        let era = recentEra @era
         let (TxSize size) =
-                estimateSignedTxSize ledgerPParams
+                estimateSignedTxSize era ledgerPParams
                     (estimateKeyWitnessCount utxo body)
-                    body
+                    (Write.fromCardanoTx tx)
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
@@ -3736,10 +3737,11 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> ByteString
         -> Cardano.Tx era
         -> IO ()
-    test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
+    test _name bs tx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             utxo = utxoPromisingInputsHaveVkPaymentCreds body
             witCount = estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body
+            era = recentEra @era
 
             ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
             ledgerTx = Write.fromCardanoTx @era tx
@@ -3753,7 +3755,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
 
         case (noScripts, noBootWits) of
                 (True, True) -> do
-                    estimateSignedTxSize pparams witCount body
+                    estimateSignedTxSize era pparams witCount ledgerTx
                         `shouldBe`
                         TxSize (fromIntegral (BS.length bs))
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
