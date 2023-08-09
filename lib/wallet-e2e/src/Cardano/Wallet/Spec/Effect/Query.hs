@@ -6,7 +6,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( TRACE, trace )
+    ( FxTrace, trace )
 import Cardano.Wallet.Spec.Types
     ( Mnemonic (..), Wallet (..) )
 import Effectful
@@ -20,14 +20,14 @@ import Effectful.TH
 import Prelude hiding
     ( evalState, get, gets, modify, trace )
 
-data QUERY :: Effect where
-    ListKnownWallets :: QUERY m (Set Wallet)
-    CreateWalletFromMnemonic :: Mnemonic -> QUERY m Wallet
-    DeleteWallet :: Wallet -> QUERY m ()
+data FxQuery :: Effect where
+    ListKnownWallets :: FxQuery m (Set Wallet)
+    CreateWalletFromMnemonic :: Mnemonic -> FxQuery m Wallet
+    DeleteWallet :: Wallet -> FxQuery m ()
 
-$(makeEffect ''QUERY)
+$(makeEffect ''FxQuery)
 
-runQueryMock :: (TRACE :> es) => Set Wallet -> Eff (QUERY : es) a -> Eff es a
+runQueryMock :: (FxTrace :> es) => Set Wallet -> Eff (FxQuery : es) a -> Eff es a
 runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
     ListKnownWallets -> do
         wallets <- get

@@ -22,12 +22,12 @@ import Path.IO
 import Prelude hiding
     ( modify, runState )
 
-data TRACE :: Effect where
-    Trace :: Text -> TRACE m ()
+data FxTrace :: Effect where
+    Trace :: Text -> FxTrace m ()
 
-$(makeEffect ''TRACE)
+$(makeEffect ''FxTrace)
 
-runTracePure :: Eff (TRACE : es) a -> Eff es (a, Seq Text)
+runTracePure :: Eff (FxTrace : es) a -> Eff es (a, Seq Text)
 runTracePure = reinterpret (runState Seq.empty) \_ (Trace msg) ->
     modify (|> msg)
 

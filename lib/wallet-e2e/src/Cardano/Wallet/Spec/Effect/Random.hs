@@ -3,7 +3,7 @@
 module Cardano.Wallet.Spec.Effect.Random where
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( TRACE, trace )
+    ( FxTrace, trace )
 import Cardano.Wallet.Spec.Types
     ( Mnemonic )
 import Effectful
@@ -15,12 +15,12 @@ import Effectful.TH
 import Prelude hiding
     ( trace )
 
-data RANDOM :: Effect where
-    RandomMnemonic :: RANDOM m Mnemonic
+data FxRandom :: Effect where
+    RandomMnemonic :: FxRandom m Mnemonic
 
-$(makeEffect ''RANDOM)
+$(makeEffect ''FxRandom)
 
-runRandomMock :: Mnemonic -> (TRACE :> es) => Eff (RANDOM : es) a -> Eff es a
+runRandomMock :: Mnemonic -> (FxTrace :> es) => Eff (FxRandom : es) a -> Eff es a
 runRandomMock mnemonic = interpret \_ RandomMnemonic -> do
     trace "Generating a random mnemonic"
     pure mnemonic

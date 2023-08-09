@@ -5,18 +5,18 @@ import qualified Cardano.Wallet.Spec.Effect.Assert as Assert
 import qualified Data.Set as Set
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( ASSERT, assert, runAssertError )
+    ( FxAssert, assert, runAssertError )
 import Cardano.Wallet.Spec.Effect.Query
-    ( QUERY
+    ( FxQuery
     , createWalletFromMnemonic
     , deleteWallet
     , listKnownWallets
     , runQueryMock
     )
 import Cardano.Wallet.Spec.Effect.Random
-    ( RANDOM, randomMnemonic, runRandomMock )
+    ( FxRandom, randomMnemonic, runRandomMock )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( TRACE, recordTraceLog, runTracePure )
+    ( FxTrace, recordTraceLog, runTracePure )
 import Cardano.Wallet.Spec.Types
     ( Mnemonic (..) )
 import Data.Set.Unicode
@@ -42,7 +42,7 @@ spec = do
 --------------------------------------------------------------------------------
 -- Helpers ---------------------------------------------------------------------
 
-type Story = Eff [QUERY, RANDOM, ASSERT, TRACE, Error Assert.Error] ()
+type Story = Eff [FxQuery, FxRandom, FxAssert, FxTrace, Error Assert.Error] ()
 
 pureStory :: String -> Story -> TestDefM outers () ()
 pureStory label story =
