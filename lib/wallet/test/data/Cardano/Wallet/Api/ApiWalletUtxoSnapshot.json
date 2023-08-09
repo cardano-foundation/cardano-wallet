@@ -7,19 +7,11 @@
                         "quantity": 22,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 18,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 },
                 {
                     "ada": {
                         "quantity": 24,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 14,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -69,10 +61,6 @@
                         "quantity": 12,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 5,
-                        "unit": "lovelace"
-                    },
                     "assets": [
                         {
                             "asset_name": "546f6b656e42",
@@ -119,10 +107,6 @@
                 {
                     "ada": {
                         "quantity": 18,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 3,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -193,19 +177,11 @@
                         "quantity": 29,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 },
                 {
                     "ada": {
                         "quantity": 23,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 11,
                         "unit": "lovelace"
                     },
                     "assets": []
@@ -219,10 +195,6 @@
                         "quantity": 7,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 }
             ]
@@ -234,10 +206,6 @@
                         "quantity": 22,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 10,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 }
             ]
@@ -247,10 +215,6 @@
                 {
                     "ada": {
                         "quantity": 23,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 21,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -321,10 +285,6 @@
                         "quantity": 24,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 12,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 }
             ]
@@ -336,19 +296,11 @@
                         "quantity": 16,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 8,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 },
                 {
                     "ada": {
                         "quantity": 6,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 1,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -384,10 +336,6 @@
                         "quantity": 13,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 8,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 }
             ]
@@ -402,19 +350,11 @@
                         "quantity": 16,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
                     "assets": []
                 },
                 {
                     "ada": {
                         "quantity": 29,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 26,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -430,10 +370,6 @@
                         "quantity": 25,
                         "unit": "lovelace"
                     },
-                    "ada_minimum": {
-                        "quantity": 12,
-                        "unit": "lovelace"
-                    },
                     "assets": [
                         {
                             "asset_name": "546f6b656e45",
@@ -445,10 +381,6 @@
                 {
                     "ada": {
                         "quantity": 17,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 12,
                         "unit": "lovelace"
                     },
                     "assets": []
@@ -463,10 +395,6 @@
                 {
                     "ada": {
                         "quantity": 28,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 18,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -490,10 +418,6 @@
                 {
                     "ada": {
                         "quantity": 19,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 11,
                         "unit": "lovelace"
                     },
                     "assets": [
@@ -567,10 +491,6 @@
                 {
                     "ada": {
                         "quantity": 16,
-                        "unit": "lovelace"
-                    },
-                    "ada_minimum": {
-                        "quantity": 14,
                         "unit": "lovelace"
                     },
                     "assets": [
