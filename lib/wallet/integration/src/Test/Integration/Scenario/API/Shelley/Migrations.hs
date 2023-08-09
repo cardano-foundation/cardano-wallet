@@ -29,6 +29,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
+import Cardano.Wallet.Faucet
+    ( bigDustWallet, onlyDustWallet )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -61,8 +63,6 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
-import Test.Integration.Faucet
-    ( bigDustWallet, onlyDustWallet )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

@@ -13,6 +13,8 @@ import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( ApiEra )
+import Cardano.Wallet.Faucet
+    ( Faucet )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
 import Cardano.Wallet.Primitive.Types.Address
@@ -33,8 +35,6 @@ import Network.HTTP.Client
     ( Manager )
 import Network.URI
     ( URI )
-import Test.Integration.Faucet
-    ( Faucet )
 
 -- | Context for integration tests.
 --

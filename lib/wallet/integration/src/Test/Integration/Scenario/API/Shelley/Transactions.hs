@@ -46,6 +46,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata )
+import Cardano.Wallet.Faucet
+    ( seaHorsePolicyId, seaHorseTokenName )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
@@ -98,8 +100,6 @@ import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
-import Test.Integration.Faucet
-    ( seaHorsePolicyId, seaHorseTokenName )
 import Test.Integration.Framework.DSL
     ( Context (_mainEra, _mintSeaHorseAssets)
     , Headers (..)

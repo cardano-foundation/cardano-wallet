@@ -498,8 +498,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types.Primitive
     Cardano.Wallet.Api.Types.SchemaMetadata
     Cardano.Wallet.Api.Types.Transaction
-    Cardano.Wallet.Launch
-    Cardano.Wallet.Launch.Cluster
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
 
@@ -525,6 +523,7 @@ library cardano-wallet-integration
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
@@ -567,7 +566,6 @@ library cardano-wallet-integration
     , unordered-containers
 
   exposed-modules:
-    Test.Integration.Faucet
     Test.Integration.Framework.Context
     Test.Integration.Framework.DSL
     Test.Integration.Framework.Request
@@ -666,6 +664,7 @@ executable cardano-wallet
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , contra-tracer
     , iohk-monitoring
     , lobemo-backend-ekg
@@ -686,6 +685,7 @@ executable local-cluster
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , contra-tracer
     , directory
@@ -748,6 +748,7 @@ test-suite unit
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -957,6 +958,7 @@ test-suite integration
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
@@ -976,7 +978,6 @@ test-suite integration
     , unliftio
 
   build-tool-depends: cardano-wallet:cardano-wallet
-  other-modules:      Cardano.Wallet.Shelley.Faucet
 
 benchmark restore
   import:         language, opts-exe
@@ -993,6 +994,7 @@ benchmark restore
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-bench
+    , cardano-wallet-local-cluster
     , cardano-wallet-integration
     , cardano-wallet-primitive
     , containers
@@ -1023,6 +1025,7 @@ benchmark latency
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , directory
     , filepath
@@ -1039,7 +1042,6 @@ benchmark latency
 
   other-modules:
     Cardano.Wallet.LatencyBenchShared
-    Cardano.Wallet.Shelley.Faucet
 
 benchmark db
   import:         language, opts-exe
@@ -1174,3 +1176,62 @@ library address-derivation
     Cardano.Wallet.Primitive.Passphrase.Legacy
     Cardano.Wallet.Primitive.Passphrase.Types
     Crypto.Hash.Utils
+
+
+library cardano-wallet-local-cluster
+
+  import:          language, opts-lib
+  hs-source-dirs:  local-cluster
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  build-depends:
+    base
+    , address-derivation
+    , aeson
+    , aeson-qq
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-binary
+    , cardano-cli
+    , cardano-data
+    , cardano-ledger-api
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-wallet
+    , cardano-wallet-api-http
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , cborg
+    , containers
+    , contra-tracer
+    , directory
+    , filepath
+    , int-cast
+    , iohk-monitoring
+    , lens
+    , memory
+    , optparse-applicative
+    , ouroboros-network
+    , ouroboros-network-api
+    , retry
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , typed-process
+    , unliftio
+    , unliftio-core
+    , yaml
+
+  exposed-modules:
+    Cardano.Wallet.Faucet
+    Cardano.Wallet.Faucet.Shelley
+    Cardano.Wallet.Launch
+    Cardano.Wallet.Launch.Cluster

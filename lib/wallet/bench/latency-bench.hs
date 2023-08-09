@@ -40,6 +40,14 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Faucet
+    ( byronIntegrationTestFunds
+    , genShelleyAddresses
+    , maryIntegrationTestAssets
+    , shelleyIntegrationTestFunds
+    )
+import Cardano.Wallet.Faucet.Shelley
+    ( initFaucet )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Launch
@@ -71,8 +79,6 @@ import Cardano.Wallet.Shelley
     ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
-import Cardano.Wallet.Shelley.Faucet
-    ( initFaucet )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
@@ -108,12 +114,6 @@ import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( shouldBe )
-import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genShelleyAddresses
-    , maryIntegrationTestAssets
-    , shelleyIntegrationTestFunds
-    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

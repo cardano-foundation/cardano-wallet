@@ -39,6 +39,17 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
+import Cardano.Wallet.Faucet
+    ( byronIntegrationTestFunds
+    , genRewardAccounts
+    , hwWalletFunds
+    , maryIntegrationTestAssets
+    , mirMnemonics
+    , seaHorseTestAssets
+    , shelleyIntegrationTestFunds
+    )
+import Cardano.Wallet.Faucet.Shelley
+    ( initFaucet )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
@@ -76,8 +87,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Faucet
-    ( initFaucet )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow
@@ -118,15 +127,6 @@ import Test.Hspec.Core.Spec
     ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra
     ( aroundAll, hspecMain )
-import Test.Integration.Faucet
-    ( byronIntegrationTestFunds
-    , genRewardAccounts
-    , hwWalletFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
-    , seaHorseTestAssets
-    , shelleyIntegrationTestFunds
-    )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths

@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Faucet
+module Cardano.Wallet.Faucet
     ( Faucet (..)
     , NextWallet
     , nextWallet

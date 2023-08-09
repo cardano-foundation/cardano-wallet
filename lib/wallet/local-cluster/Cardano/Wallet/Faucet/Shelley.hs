@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.Shelley.Faucet
+module Cardano.Wallet.Faucet.Shelley
     ( Faucet(..)
 
     , initFaucet
@@ -8,7 +8,7 @@ module Cardano.Wallet.Shelley.Faucet
 
 import Prelude
 
-import Test.Integration.Faucet
+import Cardano.Wallet.Faucet
     ( Faucet (..)
     , icaMnemonics
     , maMnemonics
