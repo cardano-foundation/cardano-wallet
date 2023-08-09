@@ -2469,9 +2469,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
-    when (isJust $ body ^. #referencePolicyScriptTemplate) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
-
     let metadata =
             body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
@@ -2563,13 +2560,17 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             else
                 pure (transactionCtx1, Nothing)
 
-        let referenceScript = case policyXPubM of
+        let referenceScriptM = case policyXPubM of
                 Just policyXPub ->
                     replaceCosigner
                     ShelleyKeyS
                     (Map.singleton (Cosigner 0) policyXPub)
                     <$> mintBurnReferenceScriptTemplate
                 Nothing -> Nothing
+
+        let transactionCtx3 = transactionCtx2
+                { txReferenceScript = referenceScriptM
+                }
 
         outs <- case body ^. #payments of
             Nothing -> pure []
@@ -2590,7 +2591,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK @era
-                txLayer db transactionCtx2
+                txLayer db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
@@ -2610,11 +2611,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
-        let deposits = case txDelegationAction transactionCtx2 of
+        let deposits = case txDelegationAction transactionCtx3 of
                 Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
-        let refunds = case txDelegationAction transactionCtx2 of
+        let refunds = case txDelegationAction transactionCtx3 of
                 Just Quit -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
@@ -2623,7 +2624,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , coinSelection = mkApiCoinSelection
                 deposits
                 refunds
-                ((,rewardPath) <$> transactionCtx2 ^. #txDelegationAction)
+                ((,rewardPath) <$> transactionCtx3 ^. #txDelegationAction)
                 metadata
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
             , fee = apiDecoded ^. #fee

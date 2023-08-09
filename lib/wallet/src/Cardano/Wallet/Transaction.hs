@@ -231,6 +231,10 @@ data TransactionCtx = TransactionCtx
     -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
+    , txCollateralRequirement :: SelectionCollateralRequirement
+    -- ^ The collateral requirement.
+    , txReferenceScript :: Maybe (Script KeyHash)
+    -- ^ The reference script.
     } deriving Generic
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
@@ -308,6 +312,8 @@ defaultTransactionCtx = TransactionCtx
     , txPaymentCredentialScriptTemplate = Nothing
     , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
+    , txCollateralRequirement = SelectionCollateralNotRequired
+    , txReferenceScript = Nothing
     }
 
 -- | User-requested action related to a delegation
