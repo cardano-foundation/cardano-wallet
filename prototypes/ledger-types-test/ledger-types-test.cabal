@@ -31,6 +31,7 @@ library
       , aeson ^>= 2.1.2
       , bytestring
       , containers
+      , haskell-src-exts ^>= 1.23.1
       , megaparsec ^>= 9.2.1
       , parser-combinators
       , text
@@ -41,6 +42,8 @@ library
         Demo.Export
         Elaborate
         Embedding
+        Export.Haskell
+        Export.Haskell.Language
         Export.OpenAPI
         Export.OpenAPI.Value
         Module
