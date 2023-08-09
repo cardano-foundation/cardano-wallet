@@ -3133,7 +3133,6 @@ balanceTransaction
         balancedTx <- liftHandler
             . fmap (Cardano.InAnyCardanoEra Write.cardanoEra . fst)
             $ Write.balanceTransaction
-                (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                 utxoAssumptions
                 pp
                 timeTranslation

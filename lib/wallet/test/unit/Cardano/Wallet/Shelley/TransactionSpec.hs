@@ -69,8 +69,6 @@ import Cardano.Api.Shelley
     ( fromShelleyLovelace )
 import Cardano.Binary
     ( ToCBOR, serialize', unsafeDeserialize' )
-import Cardano.BM.Data.Tracer
-    ( nullTracer )
 import Cardano.Ledger.Alonzo.Genesis
     ( AlonzoGenesis (..) )
 import Cardano.Ledger.Alonzo.TxInfo
@@ -3049,7 +3047,6 @@ balanceTx
     = (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
         (transactionInEra, _nextChangeState) <-
             balanceTransaction
-                nullTracer
                 utxoAssumptions
                 protocolParameters
                 timeTranslation
@@ -3070,7 +3067,6 @@ balanceTransactionWithDummyChangeState
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
         balanceTransaction
-            nullTracer
             utxoAssumptions
             mockPParamsForBalancing
             dummyTimeTranslation
