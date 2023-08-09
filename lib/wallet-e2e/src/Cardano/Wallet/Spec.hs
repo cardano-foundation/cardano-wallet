@@ -35,9 +35,11 @@ spec = do
             pureStory "Created wallet is known" do
                 mnemonic <- randomMnemonic
                 wallet <- createWalletFromMnemonic mnemonic
-                assert "the new wallet is known" . (wallet ∈) =<< listKnownWallets
+                wallets <- listKnownWallets
+                assert "the new wallet is known" (wallet ∈ wallets)
                 deleteWallet wallet
-                assert "the wallet is forgotten" . (wallet ∉) =<< listKnownWallets
+                wallets' <- listKnownWallets
+                assert "the wallet is forgotten" (wallet ∉ wallets')
 
 --------------------------------------------------------------------------------
 -- Helpers ---------------------------------------------------------------------
