@@ -538,7 +538,7 @@ import Cardano.Wallet.Write.Tx.SizeEstimation
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
-    ( first, (>>>) )
+    ( (>>>) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -1026,31 +1026,13 @@ updateWalletPassphraseWithMnemonic ctx (xprv, new) =
 
 getWalletUtxoSnapshot
     :: WalletLayer IO s
-    -> IO [(TokenBundle, Coin)]
+    -> IO [TokenBundle]
 getWalletUtxoSnapshot ctx = do
     (wallet, _, pending) <- readWallet ctx
-    pp <- currentProtocolParameters nl
     let txOuts = availableUTxO pending wallet
             & unUTxO
             & F.toList
-    pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity pp <$> txOuts
-  where
-    nl = ctx ^. networkLayer
-    tl = transactionLayer_ ctx
-
-    pairTxOutWithMinAdaQuantity
-        :: ProtocolParameters
-        -> TxOut
-        -> (TxOut, Coin)
-    pairTxOutWithMinAdaQuantity pp out =
-        (out, computeMinAdaQuantity out)
-      where
-        computeMinAdaQuantity :: TxOut -> Coin
-        computeMinAdaQuantity (TxOut addr bundle) =
-            view #txOutputMinimumAdaQuantity
-                (Write.txConstraints pp (transactionWitnessTag tl))
-                (addr)
-                (view #tokens bundle)
+    pure $ view #tokens <$> txOuts
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
