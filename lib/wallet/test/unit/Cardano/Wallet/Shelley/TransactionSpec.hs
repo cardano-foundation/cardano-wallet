@@ -2044,7 +2044,6 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
 
     it "increases zero-ada outputs to minimum" $ do
-        pendingWith "Needs correct mock PParams for Babbage"
         let era = Write.RecentEraBabbage
         let out = TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
         let out' = TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
