@@ -887,7 +887,6 @@ newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
 
 data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
     { ada :: !(Quantity "lovelace" Natural)
-    , adaMinimum :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     }
     deriving (Eq, Generic, Show)

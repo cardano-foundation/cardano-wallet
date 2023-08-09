@@ -2364,11 +2364,9 @@ instance Arbitrary ApiWalletUtxoSnapshot where
             -- The actual ada quantity of an output's token bundle must be
             -- greater than or equal to the minimum permissible ada quantity:
             let ada = Coin.toQuantity $ max adaValue1 adaValue2
-            let adaMinimum = Coin.toQuantity $ min adaValue1 adaValue2
             assets <- ApiT <$> genTokenMapSmallRange
             pure ApiWalletUtxoSnapshotEntry
                 { ada
-                , adaMinimum
                 , assets
                 }
 

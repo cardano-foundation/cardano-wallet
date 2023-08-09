@@ -3221,18 +3221,12 @@ components:
       type: object
       required:
         - ada
-        - ada_minimum
         - assets
       properties:
         ada:
           <<: *amount
           description: |
             The ada quantity associated with this UTxO entry.
-        ada_minimum:
-          <<: *amount
-          description: |
-            The minimum ada quantity permitted by the ledger for this UTxO
-            entry.
         assets:
           <<: *walletAssets
           description: |

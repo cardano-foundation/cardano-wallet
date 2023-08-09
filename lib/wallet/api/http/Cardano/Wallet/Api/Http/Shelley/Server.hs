@@ -1746,15 +1746,14 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
         W.getWalletUtxoSnapshot wrk
     return $ mkApiWalletUtxoSnapshot entries
   where
-    mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot
+    mkApiWalletUtxoSnapshot :: [TokenBundle] -> ApiWalletUtxoSnapshot
     mkApiWalletUtxoSnapshot bundleMinCoins = ApiWalletUtxoSnapshot
         { entries = mkApiWalletUtxoSnapshotEntry <$> bundleMinCoins }
 
     mkApiWalletUtxoSnapshotEntry
-        :: (TokenBundle, Coin) -> ApiWalletUtxoSnapshotEntry
-    mkApiWalletUtxoSnapshotEntry (bundle, minCoin) = ApiWalletUtxoSnapshotEntry
+        :: TokenBundle -> ApiWalletUtxoSnapshotEntry
+    mkApiWalletUtxoSnapshotEntry bundle = ApiWalletUtxoSnapshotEntry
         { ada = Coin.toQuantity $ view #coin bundle
-        , adaMinimum = Coin.toQuantity minCoin
         , assets = ApiT $ view #tokens bundle
         }
 
