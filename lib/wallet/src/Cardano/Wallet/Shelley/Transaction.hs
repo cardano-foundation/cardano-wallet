@@ -250,15 +250,17 @@ constructUnsignedTx
     -- ^ scripts for inputs
     -> Maybe (Script KeyHash)
     -- ^ Delegation script
+    -> Maybe (Script KeyHash)
+    -- ^ Reference script
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Cardano.TxBody era)
 constructUnsignedTx
     networkId (md, certs) ttl wdrl
-    cs fee toMint toBurn inpScripts stakingScriptM era =
+    cs fee toMint toBurn inpScripts stakingScriptM refScriptM era =
         mkUnsignedTx
             era ttl cs md wdrls certs (toCardanoLovelace fee)
             (fst toMint) (fst toBurn) mintingScripts inpScripts
-            stakingScriptM
+            stakingScriptM refScriptM
   where
     wdrls = mkWithdrawals networkId wdrl
     mintingScripts = Map.union (snd toMint) (snd toBurn)
@@ -291,7 +293,7 @@ mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees 
 
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
-        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
+        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
     let signed = signTransaction keyF networkId AnyWitnessCountCtx acctResolver
             (const Nothing) (const Nothing) addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
@@ -546,6 +548,7 @@ newTransactionLayer keyF networkId = TransactionLayer
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
         let inpsScripts = view #txNativeScriptInputs ctx
+        let refScriptM = view #txReferenceScript ctx
         let stakingScriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 view #txStakingCredentialScriptTemplate ctx
@@ -558,17 +561,17 @@ newTransactionLayer keyF networkId = TransactionLayer
                         if ourRewardAcctM == Just rewardAcct then
                             constructUnsignedTx networkId (md, []) ttl wdrl
                             selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                            stakingScriptM
+                            stakingScriptM refScriptM
                             (Write.shelleyBasedEraFromRecentEra Write.recentEra)
                         else
                             constructUnsignedTx networkId (md, []) ttl wdrl
                             selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                            Nothing
+                            Nothing refScriptM
                             (Write.shelleyBasedEraFromRecentEra Write.recentEra)
                     _ ->
                         constructUnsignedTx networkId (md, []) ttl wdrl
                         selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                        Nothing
+                        Nothing refScriptM
                         (Write.shelleyBasedEraFromRecentEra Write.recentEra)
             Just action -> do
                 let certs = case stakeCred of
@@ -582,7 +585,7 @@ newTransactionLayer keyF networkId = TransactionLayer
                 let payload = (view #txMetadata ctx, certs)
                 constructUnsignedTx networkId payload ttl wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    stakingScriptM
+                    stakingScriptM refScriptM
                     (Write.shelleyBasedEraFromRecentEra Write.recentEra)
 
     , decodeTx = _decodeSealedTx
@@ -659,6 +662,7 @@ mkUnsignedTx
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
     -> Maybe (Script KeyHash)
+    -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
 mkUnsignedTx
     era
@@ -672,7 +676,8 @@ mkUnsignedTx
     burnData
     mintingScripts
     inpsScripts
-    stakingScriptM = extractValidatedOutputs cs >>= \outs ->
+    stakingScriptM
+    refScriptM = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
