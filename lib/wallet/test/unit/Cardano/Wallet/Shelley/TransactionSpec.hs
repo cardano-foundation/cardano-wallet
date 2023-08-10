@@ -3808,6 +3808,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             [ (i
                , Compatibility.toCardanoTxOut
                      (shelleyBasedEra @era)
+                     Nothing
                      (TxOut addr mempty)
                )
             | i <- allTxIns body

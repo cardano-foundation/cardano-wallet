@@ -684,7 +684,16 @@ mkUnsignedTx
 
     , txInsReference = Cardano.TxInsReferenceNone
 
-    , Cardano.txOuts = map (toCardanoTxOut era) outs
+    , Cardano.txOuts = case refScriptM of
+            Nothing ->
+                map (toCardanoTxOut era Nothing) outs
+            Just _ -> case outs of
+                firstOut:rest ->
+                    let cardanoFirstTxOut = toCardanoTxOut era refScriptM firstOut
+                    in cardanoFirstTxOut:(map (toCardanoTxOut era Nothing) rest)
+                _ ->
+                    []
+
     , Cardano.txWithdrawals = case stakingScriptM of
         Nothing ->
             let ctx = Cardano.BuildTxWith

@@ -1297,13 +1297,17 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
 toCardanoUTxO :: ShelleyBasedEra era -> W.UTxO -> Cardano.UTxO era
 toCardanoUTxO era = Cardano.UTxO
     . Map.fromList
-    . map (bimap toCardanoTxIn (toCardanoTxOut era))
+    . map (bimap toCardanoTxIn (toCardanoTxOut era Nothing))
     . Map.toList
     . W.unUTxO
 
-toCardanoTxOut :: HasCallStack
-    => ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut ctx era
-toCardanoTxOut era = case era of
+toCardanoTxOut
+    :: HasCallStack
+    => ShelleyBasedEra era
+    -> Maybe (Script KeyHash)
+    -> W.TxOut
+    -> Cardano.TxOut ctx era
+toCardanoTxOut era refScriptM = case era of
     ShelleyBasedEraShelley -> toShelleyTxOut
     ShelleyBasedEraAllegra -> toAllegraTxOut
     ShelleyBasedEraMary    -> toMaryTxOut
