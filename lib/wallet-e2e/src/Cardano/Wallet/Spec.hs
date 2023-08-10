@@ -3,8 +3,8 @@ module Cardano.Wallet.Spec
     )
 where
 
-import Cardano.Wallet.Spec.Interpreters.Pure
-    ( pureStory )
+import Cardano.Wallet.Spec.Interpreters.Effectfully
+    ( story )
 import Cardano.Wallet.Spec.Stories.Wallet
     ( createdWallet )
 import Test.Syd
@@ -14,4 +14,4 @@ spec :: Spec
 spec = do
     describe "Wallet Backend API" do
         describe "Wallets" do
-            pureStory "Created wallet is known" createdWallet
+            story "Created wallet is known" createdWallet

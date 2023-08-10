@@ -11,22 +11,15 @@ import Cardano.Wallet.Spec.Effect.Random
     ( FxRandom, randomMnemonic )
 import Cardano.Wallet.Spec.Stories.Language
     ( FxStory )
-import Data.Set.Unicode
-    ( (∈), (∉) )
+import Data.Set
+    ( member, notMember )
 
-createdWallet
-    :: FxStory
-        es
-        '[ FxQuery
-         , FxRandom
-         , FxAssert
-         ]
-        ()
+createdWallet :: FxStory es '[FxQuery, FxRandom, FxAssert] ()
 createdWallet = do
     mnemonic <- randomMnemonic
     wallet <- createWalletFromMnemonic mnemonic
     wallets <- listKnownWallets
-    assert "the new wallet is known" (wallet ∈ wallets)
+    assert "the new wallet is known" (wallet `member` wallets)
     deleteWallet wallet
     wallets' <- listKnownWallets
-    assert "the wallet is forgotten" (wallet ∉ wallets')
+    assert "the wallet is forgotten" (wallet `notMember` wallets')

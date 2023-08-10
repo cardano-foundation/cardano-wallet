@@ -33,11 +33,10 @@ type PureStory a =
 
 pureStory :: String -> PureStory a -> TestDefM outers () ()
 pureStory label story =
-    it label
-        $ either
-            (expectationFailure . show)
-            do (recordTraceLog label) . snd
-            do interpretStoryPure story
+    it label do
+        interpretStoryPure story & \case
+            Left err -> expectationFailure (show err)
+            Right (_unit :: a, log) -> recordTraceLog label log
 
 interpretStoryPure :: PureStory a -> Either Error (a, Seq Text)
 interpretStoryPure =
