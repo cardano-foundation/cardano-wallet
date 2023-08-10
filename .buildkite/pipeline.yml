@@ -214,3 +214,16 @@ steps:
       system: ${linux}
     env:
       TMPDIR: "/cache"
+
+  - block: "Run E2E tests"
+    depends_on: linux-nix
+    key: trigger-e2e-tests
+
+  - label: "Run E2E tests"
+    depends_on: trigger-e2e-tests
+    key: run-e2e-tests
+    command: 'nix develop --command bash -c "cd lib/wallet-e2e && just run"'
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"

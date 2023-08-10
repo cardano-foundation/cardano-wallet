@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+E2E_DIR=$(realpath "$SCRIPT_DIR/..")
+
+fourmolu -i "$E2E_DIR" && LANG=C.UTF-8 stylish-haskell -ir "$E2E_DIR" 

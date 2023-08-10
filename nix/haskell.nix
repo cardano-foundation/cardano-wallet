@@ -131,6 +131,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           bech32.components.exes.bech32
           pretty-simple.components.exes.pretty-simple
         ] ++ (with pkgs.buildPackages.buildPackages; [
+          just
+          adrgen
           go-jira
           haskellPackages.ghcid
           pkgconfig

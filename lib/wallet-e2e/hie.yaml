@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:cardano-wallet-e2e"
+
+    - path: "exe/Main.hs"
+      component: "cardano-wallet-e2e:exe:wallet-e2e"

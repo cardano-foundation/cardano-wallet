@@ -1,0 +1,18 @@
+default:
+  just --list
+
+# format all haskell files in wallet-e2e with fourmolu and stylish-haskell
+format:
+  scripts/format
+
+# build wallet-e2e suite with cabal
+build:
+  cabal build -O0 -v0
+
+# run wallet-e2e suite with cabal
+run:
+  cabal run -O0 -v0
+
+# list  Architecture Decision Records
+adrs:
+  adrgen list

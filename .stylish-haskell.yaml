@@ -23,8 +23,21 @@ steps:
       style: vertical
 
 language_extensions:
+- BlockArguments
+# Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#103)
+- DataKinds
+- DerivingStrategies
 # Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#230)
 - FlexibleContexts
-# Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#103)
-- MultiParamTypeClasses
+- FlexibleInstances
+- GADTs
 - GeneralizedNewtypeDeriving
+- KindSignatures
+- LambdaCase
+- MultiParamTypeClasses
+- OverloadedStrings
+- RankNTypes
+- ScopedTypeVariables
+- TypeApplications
+- TypeFamilies
+- TypeOperators
