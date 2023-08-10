@@ -1,5 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -11,10 +14,11 @@
 module Cardano.Wallet.Write.Tx.Sign
     (
     -- * Signing transactions
-    -- TODO: Move signTx function here
+      signTx
+    , KeyStore (..)
 
     -- * Signing-related utilities required for balancing
-      estimateSignedTxSize
+    , estimateSignedTxSize
 
     , KeyWitnessCount (..)
     , estimateKeyWitnessCount
@@ -26,6 +30,10 @@ module Cardano.Wallet.Write.Tx.Sign
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPrv )
+import Cardano.Ledger.Alonzo.Tx
+    ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
     ( Addr (..)
     , addrTxOutL
@@ -35,8 +43,22 @@ import Cardano.Ledger.Api
     , sizeTxF
     , witsTxL
     )
+import Cardano.Ledger.Api
+    ( Addr (..)
+    , AlonzoEraTxBody
+    , Era (EraCrypto)
+    , EraTx
+    , addrTxOutL
+    , ppMinFeeAL
+    )
+import Cardano.Ledger.Api
+    ( StandardCrypto )
 import Cardano.Ledger.Credential
     ( Credential (..) )
+import Cardano.Ledger.Keys
+    ( GenDelegs, KeyHash )
+import Cardano.Ledger.Keys
+    ( KeyRole (Witness) )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -60,6 +82,8 @@ import Control.Lens
     ( view, (&), (.~), (^.) )
 import Data.Maybe
     ( mapMaybe )
+import Data.Set
+    ( Set )
 import Numeric.Natural
     ( Natural )
 
@@ -67,6 +91,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
@@ -75,6 +100,43 @@ import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+
+--------------------------------------------------------------------------------
+-- Signing transactions
+--------------------------------------------------------------------------------
+
+newtype KeyStore = KeyStore
+    { resolveKeyHash :: KeyHash 'Witness StandardCrypto -> Maybe XPrv
+    }
+
+signTx
+    :: RecentEra era
+    -> KeyStore
+    -> UTxO (ShelleyLedgerEra era)
+    -> Tx (ShelleyLedgerEra era)
+    -> Tx (ShelleyLedgerEra era)
+signTx era store utxo tx =
+    let
+        wits = witsVKeyNeeded utxo noGenDelegs tx
+    in
+
+
+
+  where
+    noGenDelegs = mempty
+
+-- | Re-exposed version of 'Alonzo.Rules.witsVKeyNeeded'
+witsVKeyNeeded
+    :: forall era. (EraTx era, AlonzoEraTxBody era)
+    => UTxO era
+    -> Tx era
+    -> GenDelegs (EraCrypto era)
+    -> Set (KeyHash 'Witness (EraCrypto era))
+witsVKeyNeeded = Alonzo.Rules.witsVKeyNeeded
+
+--------------------------------------------------------------------------------
+-- Other
+--------------------------------------------------------------------------------
 
 -- | Estimate the size of the transaction when fully signed.
 --

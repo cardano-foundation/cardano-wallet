@@ -45,6 +45,7 @@ library
     , cardano-addresses
     , cardano-api
     , cardano-coin-selection
+    , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
