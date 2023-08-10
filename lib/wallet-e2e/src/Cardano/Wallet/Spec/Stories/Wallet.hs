@@ -3,16 +3,16 @@ module Cardano.Wallet.Spec.Stories.Wallet
     )
 where
 
-import Cardano.Wallet.Spec.Effect.Assert (FxAssert, assert)
+import Cardano.Wallet.Spec.Effect.Assert
+    ( FxAssert, assert )
 import Cardano.Wallet.Spec.Effect.Query
-    ( FxQuery
-    , createWalletFromMnemonic
-    , deleteWallet
-    , listKnownWallets
-    )
-import Cardano.Wallet.Spec.Effect.Random (FxRandom, randomMnemonic)
-import Cardano.Wallet.Spec.Stories.Language (FxStory)
-import Data.Set.Unicode ((∈), (∉))
+    ( FxQuery, createWalletFromMnemonic, deleteWallet, listKnownWallets )
+import Cardano.Wallet.Spec.Effect.Random
+    ( FxRandom, randomMnemonic )
+import Cardano.Wallet.Spec.Stories.Language
+    ( FxStory )
+import Data.Set.Unicode
+    ( (∈), (∉) )
 
 createdWallet
     :: FxStory

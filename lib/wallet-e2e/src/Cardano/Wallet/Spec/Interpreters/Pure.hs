@@ -4,35 +4,19 @@ module Cardano.Wallet.Spec.Interpreters.Pure
     ) where
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( Error
-    , FxAssert
-    , runAssertError
-    )
+    ( Error, FxAssert, runAssertError )
 import Cardano.Wallet.Spec.Effect.Query
-    ( FxQuery
-    , runQueryMock
-    )
+    ( FxQuery, runQueryMock )
 import Cardano.Wallet.Spec.Effect.Random
-    ( FxRandom
-    , runRandomMock
-    )
+    ( FxRandom, runRandomMock )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace
-    , recordTraceLog
-    , runTracePure
-    )
+    ( FxTrace, recordTraceLog, runTracePure )
 import Cardano.Wallet.Spec.Types
-    ( Mnemonic (..)
-    )
+    ( Mnemonic (..) )
 import Effectful
-    ( Eff
-    , runPureEff
-    )
+    ( Eff, runPureEff )
 import Test.Syd
-    ( TestDefM
-    , expectationFailure
-    , it
-    )
+    ( TestDefM, expectationFailure, it )
 
 import qualified Data.Set as Set
 import qualified Effectful.Error.Dynamic as E

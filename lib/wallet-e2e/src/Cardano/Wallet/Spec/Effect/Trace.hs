@@ -6,36 +6,21 @@ module Cardano.Wallet.Spec.Effect.Trace where
 import qualified Data.Sequence as Seq
 
 import Data.Sequence
-    ( (|>)
-    )
+    ( (|>) )
 import Effectful
-    ( Eff
-    , Effect
-    )
+    ( Eff, Effect )
 import Effectful.Dispatch.Dynamic
-    ( reinterpret
-    )
+    ( reinterpret )
 import Effectful.State.Static.Local
-    ( modify
-    , runState
-    )
+    ( modify, runState )
 import Effectful.TH
-    ( makeEffect
-    )
+    ( makeEffect )
 import Path
-    ( parseRelFile
-    , reldir
-    , toFilePath
-    , (</>)
-    )
+    ( parseRelFile, reldir, toFilePath, (</>) )
 import Path.IO
-    ( ensureDir
-    , getCurrentDir
-    )
+    ( ensureDir, getCurrentDir )
 import Prelude hiding
-    ( modify
-    , runState
-    )
+    ( modify, runState )
 
 data FxTrace :: Effect where
     Trace :: Text -> FxTrace m ()

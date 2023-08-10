@@ -5,29 +5,19 @@ module Cardano.Wallet.Spec.Effect.Assert where
 import qualified Effectful.Error.Dynamic as Effect
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace
-    , trace
-    )
+    ( FxTrace, trace )
 import Effectful
-    ( Eff
-    , Effect
-    , (:>)
-    )
+    ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
-    ( interpret
-    )
+    ( interpret )
 import Effectful.Error.Dynamic
-    ( throwError
-    )
+    ( throwError )
 import Effectful.TH
-    ( makeEffect
-    )
-import Text.Show
-    ( show
-    )
+    ( makeEffect )
 import Prelude hiding
-    ( trace
-    )
+    ( trace )
+import Text.Show
+    ( show )
 
 newtype Error = Error Text
     deriving newtype (Eq)

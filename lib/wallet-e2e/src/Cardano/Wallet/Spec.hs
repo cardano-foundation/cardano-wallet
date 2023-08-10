@@ -3,12 +3,12 @@ module Cardano.Wallet.Spec
     )
 where
 
-import Cardano.Wallet.Spec.Interpreters.Pure (pureStory)
-import Cardano.Wallet.Spec.Stories.Wallet (createdWallet)
+import Cardano.Wallet.Spec.Interpreters.Pure
+    ( pureStory )
+import Cardano.Wallet.Spec.Stories.Wallet
+    ( createdWallet )
 import Test.Syd
-    ( Spec
-    , describe
-    )
+    ( Spec, describe )
 
 spec :: Spec
 spec = do
