@@ -19,3 +19,4 @@ let-style: auto
 newlines-between-decls: 1
 record-brace-space: false
 respectful: true
+single-constraint-parens: auto

@@ -5,19 +5,29 @@ module Cardano.Wallet.Spec.Effect.Assert where
 import qualified Effectful.Error.Dynamic as Effect
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( Eff
+    , Effect
+    , (:>)
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret )
+    ( interpret
+    )
 import Effectful.Error.Dynamic
-    ( throwError )
+    ( throwError
+    )
 import Effectful.TH
-    ( makeEffect )
-import Prelude hiding
-    ( trace )
+    ( makeEffect
+    )
 import Text.Show
-    ( show )
+    ( show
+    )
+import Prelude hiding
+    ( trace
+    )
 
 newtype Error = Error Text
     deriving newtype (Eq)
@@ -30,10 +40,10 @@ data FxAssert :: Effect where
 
 $(makeEffect ''FxAssert)
 
-runAssertError ::
-    (Effect.Error Error :> es, FxTrace :> es) =>
-    Eff (FxAssert : es) a ->
-    Eff es a
+runAssertError
+    :: (Effect.Error Error :> es, FxTrace :> es)
+    => Eff (FxAssert : es) a
+    -> Eff es a
 runAssertError = interpret \_ (Assert msg truth) -> do
     trace $ "Asserting that " <> msg
     unless truth $ throwError (Error msg)

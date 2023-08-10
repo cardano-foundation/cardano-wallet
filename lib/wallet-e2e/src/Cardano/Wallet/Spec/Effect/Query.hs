@@ -6,19 +6,36 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Cardano.Wallet.Spec.Types
-    ( Mnemonic (..), Wallet (..) )
+    ( Mnemonic (..)
+    , Wallet (..)
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( Eff
+    , Effect
+    , (:>)
+    )
 import Effectful.Dispatch.Dynamic
-    ( reinterpret )
+    ( reinterpret
+    )
 import Effectful.State.Static.Local
-    ( evalState, get, modify )
+    ( evalState
+    , get
+    , modify
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Prelude hiding
-    ( evalState, get, gets, modify, trace )
+    ( evalState
+    , get
+    , gets
+    , modify
+    , trace
+    )
 
 data FxQuery :: Effect where
     ListKnownWallets :: FxQuery m (Set Wallet)

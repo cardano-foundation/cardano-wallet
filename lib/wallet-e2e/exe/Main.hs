@@ -1,11 +1,14 @@
 module Main where
 
 import Cardano.Wallet.Spec
-    ( spec )
+    ( spec
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Test.Syd
-    ( sydTest )
+    ( sydTest
+    )
 
 main :: IO ()
 main = withUtf8 $ sydTest spec

@@ -69,6 +69,9 @@ library
     Cardano.Wallet.Spec.Effect.Query
     Cardano.Wallet.Spec.Effect.Random
     Cardano.Wallet.Spec.Effect.Trace
+    Cardano.Wallet.Spec.Interpreters.Pure
+    Cardano.Wallet.Spec.Stories.Language
+    Cardano.Wallet.Spec.Stories.Wallet
     Cardano.Wallet.Spec.Types
 
 executable wallet-e2e

@@ -3,17 +3,26 @@
 module Cardano.Wallet.Spec.Effect.Random where
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Cardano.Wallet.Spec.Types
-    ( Mnemonic )
+    ( Mnemonic
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( Eff
+    , Effect
+    , (:>)
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret )
+    ( interpret
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Prelude hiding
-    ( trace )
+    ( trace
+    )
 
 data FxRandom :: Effect where
     RandomMnemonic :: FxRandom m Mnemonic
