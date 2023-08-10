@@ -54,7 +54,7 @@ index-state: 2023-06-06T00:00:00Z
 
 index-state:
   , hackage.haskell.org 2023-06-06T00:00:00Z
-  , cardano-haskell-packages 2023-06-05T06:39:32Z
+  , cardano-haskell-packages 2023-06-13T03:50:18Z
 
 packages:
     lib/balance-tx/
@@ -71,6 +71,7 @@ packages:
   , lib/wai-middleware-logging/
   , lib/wallet/
   , lib/wallet-benchmarks/
+  , lib/wallet-e2e
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
@@ -125,7 +126,8 @@ source-repository-package
 -- 1. hjsonschema and hjsonpointer deps have overly strict bounds.
 -- 2. it has strict aeson < 1.5 dep - this will be fixed in the next release.
 allow-newer:
-    hjsonschema:*
+  , containers-unicode-symbols:containers
+  , hjsonschema:*
   , hjsonpointer:*
   , *:aeson
   , *:hashable
@@ -156,6 +158,7 @@ constraints:
 
   -- Cardano Node dependencies:
   , cardano-api ^>=8.2
+  , cardano-cli ^>=8.2
   , cardano-slotting >= 0.1
   , ouroboros-network ^>= 0.8.1.0
 
