@@ -66,15 +66,15 @@ spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
         ledgerRoundtrip $ Proxy @TokenQuantity
         ledgerRoundtrip $ Proxy @TxIn
 
-    describe "Timelock roundtrips" $ do
+    describe "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)" $ do
         let ledger = toLedgerTimelockScript @StandardBabbage
         let wallet = toWalletScript (const Unknown)
 
-        it "toWalletScript . toLedgerTimelockScript == id" $ property $ \s -> do
+        it "ledger . wallet . ledger == ledger" $ property $ \s -> do
             -- Ignore key role by doing one extra conversion
             ledger (wallet $ ledger s) === ledger s
 
-        it "toLedgerTimelockScript . toWalletScript == id" $ property $ \s -> do
+        it "ledger . wallet == id" $ property $ \s -> do
             ledger (wallet s) === s
 
 --------------------------------------------------------------------------------
