@@ -37,8 +37,10 @@ library
       , yaml
     exposed-modules:
         Demo
+        Demo.Embedding
         Demo.Export
         Elaborate
+        Embedding
         Export.OpenAPI
         Export.OpenAPI.Value
         Module
