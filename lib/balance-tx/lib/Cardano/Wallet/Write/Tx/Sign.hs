@@ -58,7 +58,7 @@ import Cardano.Ledger.Credential
 import Cardano.Ledger.Keys
     ( GenDelegs, KeyHash )
 import Cardano.Ledger.Keys
-    ( KeyRole (Witness) )
+    ( GenDelegs (GenDelegs), KeyRole (Witness) )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -76,6 +76,9 @@ import Cardano.Wallet.Write.Tx
     , Tx
     , TxIn
     , UTxO
+    , fromCardanoTx
+    , toCardanoTx
+    , txBody
     , withConstraints
     )
 import Control.Lens
@@ -91,15 +94,21 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import Cardano.Ledger.Api
+    ( WitVKey )
 import qualified Cardano.Ledger.Api as Ledger
+import Cardano.Ledger.Shelley.API
+    ( addKeyWitnesses )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 -- Signing transactions
@@ -110,29 +119,54 @@ newtype KeyStore = KeyStore
     }
 
 signTx
-    :: RecentEra era
+    :: forall era. RecentEra era
     -> KeyStore
     -> UTxO (ShelleyLedgerEra era)
     -> Tx (ShelleyLedgerEra era)
     -> Tx (ShelleyLedgerEra era)
-signTx era store utxo tx =
+signTx era keyStore utxo tx =
     let
-        wits = witsVKeyNeeded utxo noGenDelegs tx
+        needed = timelockVKeyNeeded
+            <> witsVKeyNeeded era utxo tx noGenDelegs
+        availibleKeys = mapMaybe (resolveKeyHash keyStore) $ Set.toList needed
+
+        wits = _
+
     in
-
-
-
+        addKeyWitnesses tx wits
   where
-    noGenDelegs = mempty
+    timelockVKeyNeeded = mempty -- TODO
+
+    -- We probably don't need this?
+    noGenDelegs = GenDelegs mempty
+
+    mkShelleyWitness
+        :: Tx (ShelleyLedgerEra era)
+        -> XPrv
+        -> WitVKey 'Witness StandardCrypto
+    mkShelleyWitness tx key = withConstraints era $
+        toLedgerWit $ Cardano.makeShelleyKeyWitness (toCardanoTxBody tx)
+            $ Cardano.WitnessPaymentExtendedKey
+            $ Cardano.PaymentExtendedSigningKey key
+      where
+        toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
+
+        toCardanoTxBody :: Tx (ShelleyLedgerEra era) -> Cardano.TxBody era
+        toCardanoTxBody tx = withConstraints era $
+            let
+                Cardano.Tx body _ = toCardanoTx tx
+            in
+                body
 
 -- | Re-exposed version of 'Alonzo.Rules.witsVKeyNeeded'
 witsVKeyNeeded
-    :: forall era. (EraTx era, AlonzoEraTxBody era)
-    => UTxO era
-    -> Tx era
-    -> GenDelegs (EraCrypto era)
-    -> Set (KeyHash 'Witness (EraCrypto era))
-witsVKeyNeeded = Alonzo.Rules.witsVKeyNeeded
+    :: RecentEra era
+    -> UTxO (ShelleyLedgerEra era)
+    -> Tx (ShelleyLedgerEra era)
+    -> GenDelegs StandardCrypto
+    -> Set (KeyHash 'Witness StandardCrypto)
+witsVKeyNeeded RecentEraBabbage = Alonzo.Rules.witsVKeyNeeded
+witsVKeyNeeded RecentEraConway  = Alonzo.Rules.witsVKeyNeeded
 
 --------------------------------------------------------------------------------
 -- Other
