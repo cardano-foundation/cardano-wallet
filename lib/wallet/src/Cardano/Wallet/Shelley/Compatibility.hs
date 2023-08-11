@@ -246,8 +246,6 @@ import Cardano.Wallet.Primitive.Types
     , TokenBundleMaxSize (..)
     , TxParameters (getTokenBundleMaxSize)
     )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
@@ -881,8 +879,6 @@ fromShelleyPParams eraInfo pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO =
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Shelley:
@@ -904,8 +900,6 @@ fromAllegraPParams eraInfo pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO =
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Allegra:
@@ -927,8 +921,6 @@ fromMaryPParams eraInfo pp =
                 maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO =
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraMary pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         -- Collateral inputs were not supported or required in Mary:
@@ -956,8 +948,6 @@ fromAlonzoPParams eraInfo pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO =
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount =
@@ -984,8 +974,6 @@ fromBabbagePParams eraInfo pp =
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO =
-            minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount =
@@ -1012,7 +1000,6 @@ fromConwayPParams eraInfo pp =
             (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
             pp
         , desiredNumberOfStakePools = desiredNumberOfStakePoolsFromPParams pp
-        , minimumUTxO = minimumUTxOForShelleyBasedEra ShelleyBasedEraConway pp
         , stakeKeyDeposit = stakeKeyDepositFromPParams pp
         , eras = fromBoundToEpochNo <$> eraInfo
         , maximumCollateralInputCount =

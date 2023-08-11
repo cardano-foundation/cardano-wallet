@@ -300,8 +300,6 @@ library
     Cardano.Wallet.Primitive.Types
     Cardano.Wallet.Primitive.Types.Address.Constants
     Cardano.Wallet.Primitive.Types.Credentials
-    Cardano.Wallet.Primitive.Types.MinimumUTxO
-    Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
@@ -334,8 +332,6 @@ library
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
     Cardano.Wallet.Shelley.Compatibility.Ledger
-    Cardano.Wallet.Shelley.MinimumUTxO
-    Cardano.Wallet.Shelley.MinimumUTxO.Internal
     Cardano.Wallet.Shelley.Network
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
@@ -927,7 +923,6 @@ test-suite unit
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Cardano.Wallet.Shelley.CompatibilitySpec
     Cardano.Wallet.Shelley.LaunchSpec
-    Cardano.Wallet.Shelley.MinimumUTxOSpec
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.Submissions.Gen

@@ -165,8 +165,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -856,9 +854,6 @@ data ProtocolParameters = ProtocolParameters
         :: Word16
         -- ^ The current desired number of stakepools in the network.
         -- Also known as k parameter.
-    , minimumUTxO
-        :: MinimumUTxO
-        -- ^ Represents a way of calculating minimum UTxO values.
     , stakeKeyDeposit
         :: Coin
         -- ^ Registering a stake key requires storage on the node and as such
@@ -896,7 +891,6 @@ instance NFData ProtocolParameters where
         [ rnf decentralizationLevel
         , rnf txParameters
         , rnf desiredNumberOfStakePools
-        , rnf minimumUTxO
         , rnf stakeKeyDeposit
         , rnf eras
         , rnf maximumCollateralInputCount
@@ -913,8 +907,6 @@ instance Buildable ProtocolParameters where
             <> build (pp ^. #txParameters)
         , "Desired number of pools: "
             <> build (pp ^. #desiredNumberOfStakePools)
-        , "Minimum UTxO: "
-            <> build (pp ^. #minimumUTxO)
         , "Eras:\n"
             <> indentF 2 (build (pp ^. #eras))
         , "Execution unit prices: "

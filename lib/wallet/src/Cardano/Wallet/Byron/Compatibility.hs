@@ -60,8 +60,6 @@ import Cardano.Chain.UTxO
     ( TxOut (..), unTxPayload )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
-import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( minimumUTxONone )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
     ( fromTxAux )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
@@ -144,7 +142,6 @@ mainnetNetworkParameters = W.NetworkParameters
             , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
         , desiredNumberOfStakePools = 0
-        , minimumUTxO = minimumUTxONone
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
         -- Collateral inputs were not supported or required in Byron:
@@ -326,7 +323,6 @@ protocolParametersFromPP eraInfo pp =
             , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
         , desiredNumberOfStakePools = 0
-        , minimumUTxO = minimumUTxONone
         , stakeKeyDeposit = W.Coin 0
         , eras = fromBound <$> eraInfo
         -- Collateral inputs were not supported or required in Byron:
