@@ -34,6 +34,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( LogOutput (..)
     , LoggingOptions
+    , Mode (..)
     , cli
     , cmdAddress
     , cmdKey
@@ -54,6 +55,7 @@ import Cardano.CLI
     , loggingOptions
     , loggingSeverityOrOffReader
     , loggingTracers
+    , modeOption
     , poolMetadataSourceOption
     , runCli
     , setupDirectory
@@ -78,10 +80,10 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Launch
-    ( Mode (Normal)
+    ( CardanoNodeConn
     , NetworkConfiguration (..)
-    , modeOption
     , networkConfigurationOption
+    , nodeSocketOption
     , parseGenesisData
     )
 import Cardano.Wallet.Logging
@@ -178,7 +180,7 @@ beforeMainLoop tr = logInfo tr . MsgListenAddress
 -- | Arguments for the 'serve' command
 data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
-    , _mode :: Mode
+    , _mode :: Mode CardanoNodeConn
     , _listen :: Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
@@ -197,7 +199,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
 
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
-        <*> modeOption
+        <*> modeOption nodeSocketOption
         <*> listenOption
         <*> optional tlsOption
         <*> networkConfigurationOption

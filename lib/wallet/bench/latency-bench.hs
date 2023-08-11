@@ -26,6 +26,8 @@ import Cardano.Mnemonic
     ( Mnemonic, SomeMnemonic (..), mnemonicToText )
 import Cardano.Startup
     ( withUtf8Encoding )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( Listen (ListenOnRandomPort) )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiAsset (..)
@@ -58,7 +60,6 @@ import Cardano.Wallet.Launch.Cluster
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
-    , walletListenFromEnv
     , withCluster
     )
 import Cardano.Wallet.Logging
@@ -506,7 +507,7 @@ withShelleyServer tracers action = do
         }
 
     onClusterStart act db (RunningNode conn block0 (np, vData) _) = do
-        listen <- walletListenFromEnv
+        let listen = ListenOnRandomPort
         serveWallet
             (NodeSource conn vData (SyncTolerance 10))
             np

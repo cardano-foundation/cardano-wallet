@@ -39,7 +39,6 @@ module Cardano.Wallet.Launch.Cluster
       -- * Cluster node launcher
     , defaultPoolConfigs
     , clusterEraFromEnv
-    , clusterToApiEra
     , clusterEraToString
     , withSMASH
 
@@ -51,7 +50,6 @@ module Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , testMinSeverityFromEnv
     , testLogDirFromEnv
-    , walletListenFromEnv
     , tokenMetadataServerFromEnv
 
       -- * Faucets
@@ -90,8 +88,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.CLI
-    ( parseLoggingSeverity )
 import Cardano.CLI.Shelley.Key
     ( VerificationKeyOrFile (..), readVerificationKeyOrFile )
 import Cardano.Launcher
@@ -143,10 +139,6 @@ import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Address.Derivation
     ( hex )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( Listen (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiEra (..), HealthStatusSMASH (..) )
 import Cardano.Wallet.Launch
     ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Logging
@@ -183,7 +175,7 @@ import Codec.Binary.Bech32.TH
 import Control.Arrow
     ( first )
 import Control.Lens
-    ( over, set, (&), (.~) )
+    ( over, set, (&), (.~), (<&>) )
 import Control.Monad
     ( forM, forM_, liftM2, replicateM, replicateM_, void, when, (>=>) )
 import Control.Retry
@@ -260,6 +252,7 @@ import UnliftIO.MVar
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
+import qualified Cardano.Pool.Metadata as SMASH
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
@@ -301,6 +294,16 @@ logFileConfigFromEnv subdir = LogFileConfig
     <*> (testLogDirFromEnv subdir)
     <*> pure Info
 
+-- | The lower-case names of all 'Severity' values.
+loggingSeverities :: [(String, Severity)]
+loggingSeverities = [(toLower <$> show s, s) | s <- [minBound .. maxBound]]
+
+parseLoggingSeverity :: String -> Either String Severity
+parseLoggingSeverity arg =
+    case lookup (map toLower arg) loggingSeverities of
+        Just sev -> pure sev
+        Nothing -> Left $ "unknown logging severity: " ++ arg
+
 minSeverityFromEnv :: Severity -> String -> IO Severity
 minSeverityFromEnv def var = lookupEnvNonEmpty var >>= \case
     Nothing -> pure def
@@ -324,13 +327,6 @@ testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
 
--- | Allow configuring which port the wallet server listen to in an integration
--- setup. Crashes if the variable is not a number.
-walletListenFromEnv :: IO Listen
-walletListenFromEnv = envFromText "CARDANO_WALLET_PORT" >>= \case
-    Nothing -> pure ListenOnRandomPort
-    Just (Right port) -> pure $ ListenOnPort port
-    Just (Left e) -> die $ show e
 
 tokenMetadataServerFromEnv :: IO (Maybe TokenMetadataServer)
 tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
@@ -837,15 +833,7 @@ data ClusterEra
     | BabbageHardFork
     deriving (Show, Read, Eq, Ord, Bounded, Enum)
 
--- | Convert @ClusterEra@ to a @ApiEra@.
-clusterToApiEra :: ClusterEra -> ApiEra
-clusterToApiEra = \case
-    ByronNoHardFork -> ApiByron
-    ShelleyHardFork -> ApiShelley
-    AllegraHardFork -> ApiAllegra
-    MaryHardFork -> ApiMary
-    AlonzoHardFork -> ApiAlonzo
-    BabbageHardFork -> ApiBabbage
+
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
@@ -1416,10 +1404,15 @@ withSMASH tr parentDir action = do
     let delistedPoolIds = poolId <$> NE.filter delisted defaultPoolConfigs
     BL8.writeFile
         (baseDir </> "delisted")
-        (Aeson.encode delistedPoolIds)
+        (Aeson.encode $ delistedPoolIds <&>
+            \p -> object [ "poolId" Aeson..= SMASH.poolId p]
+        )
 
     -- health check
-    let health = Aeson.encode (HealthStatusSMASH "OK" "1.2.0")
+    let health = Aeson.encode $ object
+            [   "status" Aeson..= ("OK" :: Text)
+            ,   "version" Aeson..= ("1.2.0" :: Text)
+            ]
     BL8.writeFile (baseDir </> "status") health
 
 

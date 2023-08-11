@@ -1180,7 +1180,6 @@ library cardano-wallet-local-cluster
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet
-    , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
