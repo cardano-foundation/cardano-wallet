@@ -3,28 +3,35 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
     , story
     ) where
 
+import qualified Effectful.Error.Dynamic as E
+
 import Cardano.Wallet.Spec.Effect.Assert
     ( Error, FxAssert, runAssertError )
+import Cardano.Wallet.Spec.Effect.Http
+    ( FxHttp, runHttpClient )
 import Cardano.Wallet.Spec.Effect.Query
-    ( FxQuery, runQueryMock )
+    ( FxQuery, runQuery )
 import Cardano.Wallet.Spec.Effect.Random
     ( FxRandom, runRandom )
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, recordTraceLog, runTracePure )
 import Effectful
     ( Eff, IOE, runEff )
-import Test.Syd
-    ( TestDefM, expectationFailure, it )
-
-import qualified Data.Set as Set
-import qualified Effectful.Error.Dynamic as E
+import Effectful.Fail
+    ( Fail, runFailIO )
+import Prelude hiding
+    ( State, evalState )
 import System.Random
     ( newStdGen )
+import Test.Syd
+    ( TestDefM, expectationFailure, it )
 
 type Story a =
     Eff
         [ FxQuery
+        , FxHttp
         , FxRandom
+        , Fail
         , FxAssert
         , FxTrace
         , E.Error Error
@@ -43,8 +50,10 @@ interpretStory :: Story a -> IO (Either Error (a, Seq Text))
 interpretStory story' = do
     stdGen <- newStdGen
     story'
-        & runQueryMock Set.empty
+        & runQuery
+        & runHttpClient
         & runRandom stdGen
+        & runFailIO
         & runAssertError
         & runTracePure
         & E.runErrorNoCallStack @Error

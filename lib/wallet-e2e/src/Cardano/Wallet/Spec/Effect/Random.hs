@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Spec.Effect.Random where
+
+import qualified Data.List.NonEmpty as NE
+import qualified Effectful.State.Static.Local as State
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, mnemonicToText )
@@ -8,25 +13,24 @@ import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
 import Cardano.Wallet.Spec.Types
     ( Mnemonic (..) )
-import Control.Exception
-    ( throwIO )
 import Crypto.Encoding.BIP39
     ( EntropyError, toEntropy )
-import Data.ByteArray
-    ( ScrubbedBytes )
 import Effectful
-    ( (:>), Eff, Effect, IOE )
+    ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
-    ( interpret )
+    ( interpret, reinterpret )
+import Effectful.Fail
+    ( Fail )
+import Effectful.State.Static.Local
+    ( State, evalState )
 import Effectful.TH
     ( makeEffect )
 import Prelude hiding
-    ( trace )
+    ( State, evalState, get, trace )
 import System.Random
-    ( StdGen, uniformR )
-
-import qualified Data.ByteArray as BA
-import qualified Data.List.NonEmpty as NE
+    ( StdGen )
+import System.Random.Stateful
+    ( StateGenM (..), uniformByteStringM )
 
 data FxRandom :: Effect where
     RandomMnemonic :: FxRandom m Mnemonic
@@ -42,17 +46,20 @@ runRandomMock mnemonic = interpret \_ RandomMnemonic -> do
     trace "Generating a [mock] random mnemonic"
     pure mnemonic
 
+instance (State StdGen :> es) => MonadState StdGen (Eff es) where
+    state = State.state
+
 runRandom
-    :: (FxTrace :> es, IOE :> es)
+    :: (FxTrace :> es, Fail :> es)
     => StdGen
     -> Eff (FxRandom : es) a
     -> Eff es a
-runRandom stdGen = interpret \_ RandomMnemonic -> do
+runRandom gen = reinterpret (evalState gen) \_ RandomMnemonic -> do
     trace "Generating a random mnemonic"
-    let randomBytes = unfoldr (Just . uniformR (minBound :: Word8, maxBound))
+    randomByteString <- uniformByteStringM 32 (StateGenM :: StateGenM StdGen)
     entropy <-
-        toEntropy @256 (BA.pack @ScrubbedBytes (take 32 (randomBytes stdGen)))
-            & either (liftIO . throwIO . FxRandomExceptionEntropy) pure
+        toEntropy @256 randomByteString
+            & either (fail . show . FxRandomExceptionEntropy) pure
     let phrase = NE.fromList $ mnemonicToText $ entropyToMnemonic entropy
     pure $ Mnemonic phrase
 

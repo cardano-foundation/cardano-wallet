@@ -1,11 +1,12 @@
-module Cardano.Wallet.Spec.Stories.Language (FxStory)
-where
+module Cardano.Wallet.Spec.Stories.Language (FxStory) where
 
 import Effectful
     ( (:>), Eff )
 
-type FxStory es fxs a = Fxs es fxs => Eff es a
+type FxStory otherEffects knownEffects a =
+    Fxs otherEffects knownEffects => Eff otherEffects a
 
-type family Fxs es as :: Constraint where
-    Fxs es '[] = ()
-    Fxs es (a ': as) = (a :> es, Fxs es as)
+type family Fxs otherEffects knownEffects :: Constraint where
+    Fxs otherEffects '[] = ()
+    Fxs otherEffects (knownEffect ': otherKnownEffects) =
+        (knownEffect :> otherEffects, Fxs otherEffects otherKnownEffects)

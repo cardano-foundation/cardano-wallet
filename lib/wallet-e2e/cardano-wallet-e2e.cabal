@@ -24,9 +24,13 @@ common options
     GeneralizedNewtypeDeriving
     KindSignatures
     LambdaCase
+    MultiParamTypeClasses
+    NamedFieldPuns
     OverloadedStrings
     RankNTypes
+    RecordWildCards
     ScopedTypeVariables
+    StandaloneDeriving
     TypeApplications
     TypeFamilies
     TypeOperators
@@ -55,18 +59,23 @@ library
   import:          options, dependencies
   hs-source-dirs:  src
   build-depends:
-    , cardano-addresses  ^>=3.12
-    , cardano-crypto     ^>=1.1.2
-    , effectful          ^>=2.2.2.0
-    , effectful-th       ^>=1.0.0.1
-    , memory             ^>=0.18
-    , path               ^>=0.9.2
-    , path-io            ^>=1.7.0
-    , random             ^>=1.2.1.1
+    , cardano-addresses      ^>=3.12
+    , cardano-crypto         ^>=1.1.2
+    , cardano-wallet-client  ^>=0.1
+    , effectful              ^>=2.2.2.0
+    , effectful-th           ^>=1.0.0.1
+    , http-client            ^>=0.7.13.1
+    , http-conduit           ^>=2.3.8.3
+    , http-types             ^>=0.12.3
+    , memory                 ^>=0.18
+    , path                   ^>=0.9.2
+    , path-io                ^>=1.7.0
+    , random                 ^>=1.2.1.1
 
   exposed-modules:
     Cardano.Wallet.Spec
     Cardano.Wallet.Spec.Effect.Assert
+    Cardano.Wallet.Spec.Effect.Http
     Cardano.Wallet.Spec.Effect.Query
     Cardano.Wallet.Spec.Effect.Random
     Cardano.Wallet.Spec.Effect.Trace

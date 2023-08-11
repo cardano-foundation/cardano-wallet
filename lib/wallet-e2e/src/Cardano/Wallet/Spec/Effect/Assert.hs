@@ -36,4 +36,4 @@ runAssertError
     -> Eff es a
 runAssertError = interpret \_ (Assert msg truth) -> do
     trace $ "Asserting that " <> msg
-    unless truth $ throwError (Error msg)
+    unless truth $ throwError $ Error msg

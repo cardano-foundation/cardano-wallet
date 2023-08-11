@@ -14,10 +14,10 @@ import Cardano.Wallet.Spec.Stories.Language
 import Data.Set
     ( member, notMember )
 
-createdWallet :: FxStory es '[FxQuery, FxRandom, FxAssert] ()
+createdWallet :: FxStory otherEffects '[FxQuery, FxRandom, FxAssert] ()
 createdWallet = do
     mnemonic <- randomMnemonic
-    wallet <- createWalletFromMnemonic mnemonic
+    wallet <- createWalletFromMnemonic "My Wallet" mnemonic
     wallets <- listKnownWallets
     assert "the new wallet is known" (wallet `member` wallets)
     deleteWallet wallet
