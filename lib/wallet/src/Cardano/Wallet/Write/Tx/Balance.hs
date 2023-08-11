@@ -49,6 +49,7 @@ module Cardano.Wallet.Write.Tx.Balance
 
     -- * Utilities
     , posAndNegFromCardanoValue
+    , fromWalletUTxO
 
     -- ** updateTx
     , TxUpdate (..)
@@ -71,8 +72,11 @@ import Prelude
 
 import Cardano.Ledger.Alonzo.Core
     ( ppCollateralPercentageL, ppMaxCollateralInputsL )
+import Cardano.Ledger.Alonzo.Scripts
+    ( AlonzoScript (..) )
 import Cardano.Ledger.Api
-    ( collateralInputsTxBodyL
+    ( bodyTxL
+    , collateralInputsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
@@ -80,6 +84,8 @@ import Cardano.Ledger.Api
     , ppMaxTxSizeL
     , ppMaxValSizeL
     )
+import Cardano.Ledger.UTxO
+    ( txinLookup )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -107,8 +113,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoSimpleScript, toCardanoUTxO )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -119,7 +123,9 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (..)
     , ShelleyLedgerEra
     , TxBody
+    , TxIn
     , TxOut
+    , UTxO (..)
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -298,15 +304,32 @@ instance Buildable (PartialTx era) where
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
-    , cardanoUTxO :: !(Cardano.UTxO era)
+    , ledgerUTxO :: !(UTxO (ShelleyLedgerEra era))
     }
 
-constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
+constructUTxOIndex :: forall era. IsRecentEra era => W.UTxO -> UTxOIndex era
 constructUTxOIndex walletUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex, cardanoUTxO}
+    UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
   where
+    era = recentEra @era
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-    cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+    ledgerUTxO = fromWalletUTxO era walletUTxO
+
+fromWalletUTxO
+    :: RecentEra era
+    -> W.UTxO
+    -> UTxO (ShelleyLedgerEra era)
+fromWalletUTxO era (W.UTxO m) = withConstraints era $ UTxO
+    $ Map.mapKeys W.toLedger
+    $ Map.map (toLedgerTxOut era) m
+
+toWalletUTxO
+    :: RecentEra era
+    -> UTxO (ShelleyLedgerEra era)
+    -> W.UTxO
+toWalletUTxO era (UTxO m) = withConstraints era $ W.UTxO
+    $ Map.mapKeys W.toWallet
+    $ Map.map (toWalletTxOut era) m
 
 balanceTransaction
     :: forall era m changeState.
@@ -453,7 +476,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
-    (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
+    (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
@@ -591,6 +614,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
+    era = recentEra @era
+
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
@@ -613,28 +638,29 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
-        let res = flip map txIns $ \(i, _) -> do
-                case Map.lookup i utxo of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = fromCardanoTxIn i
-                            W.TxOut addr bundle = fromCardanoTxOut o
-                        pure (WalletUTxO i' addr, bundle)
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
+        withConstraints era $ do
+            let res = flip map txIns $ \i-> do
+                    case txinLookup i combinedUTxO of
+                        Nothing ->
+                           Left i
+                        Just o -> do
+                            let i' = W.toWallet i
+                            let W.TxOut addr bundle = toWalletTxOut era o
+                            pure (WalletUTxO i' addr, bundle)
 
-        case partitionEithers res of
-            ([], resolved) ->
-                pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead:unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                . fmap fromCardanoTxIn
-                $ (unresolvedInsHead :| unresolvedInsTail)
+            case partitionEithers res of
+                ([], resolved) ->
+                    pure $ UTxOIndex.fromSequence resolved
+                (unresolvedInsHead:unresolvedInsTail, _) ->
+                    throwE
+                    . ErrBalanceTxUnresolvedInputs
+                    . fmap W.toWallet
+                    $ (unresolvedInsHead :| unresolvedInsTail)
       where
-        Cardano.UTxO utxo = combinedUTxO
-        Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
-            = tx
+        txIns :: [TxIn]
+        txIns = withConstraints (recentEra @era) $
+            Set.toList $ (fromCardanoTx tx) ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
@@ -657,8 +683,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
         = toCardanoValue @era
-        . evaluateTransactionBalance (recentEra @era) pp
-            (fromCardanoUTxO combinedUTxO)
+        . evaluateTransactionBalance (recentEra @era) pp combinedUTxO
         . txBody (recentEra @era)
         . fromCardanoTx
 
@@ -692,10 +717,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Cardano.UTxO era
         -> ExceptT ErrBalanceTx m ()
     guardWalletUTxOConsistencyWith u' = do
-        let u = Map.mapKeys fromCardanoTxIn
-                . Map.map fromCardanoTxOut
-                $ (unUTxO u')
-            conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
+        let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoUTxO u'
+        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
                     Nothing -> pure ()
@@ -703,25 +726,18 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         case conflicts of
             [] -> return ()
             (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-      where
-         unUTxO (Cardano.UTxO u) = u
 
-    combinedLedgerUTxO = fromCardanoUTxO combinedUTxO
-
-    combinedUTxO :: Cardano.UTxO era
-    combinedUTxO = Cardano.UTxO $ mconcat
+    combinedUTxO :: UTxO (ShelleyLedgerEra era)
+    combinedUTxO = withConstraints era $ mconcat
          -- The @Cardano.UTxO@ can contain strictly more information than
          -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
          -- precedence. This matters if a user is trying to balance a tx making
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ unUTxO inputUTxO
-         , unUTxO cardanoUTxO
+         [ fromCardanoUTxO inputUTxO
+         , walletLedgerUTxO
          ]
-
-      where
-         unUTxO (Cardano.UTxO u) = u
 
     extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
     extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
@@ -740,7 +756,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
-                pp timeTranslation combinedLedgerUTxO redeemers tx'
+                pp timeTranslation combinedUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
@@ -1074,15 +1090,10 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
         :: CA.Script CA.KeyHash
         -> RecentEra era
         -> Core.Script (ShelleyLedgerEra era)
-    toLedgerScript walletScript = \case
-        RecentEraBabbage ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInBabbage
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        RecentEraConway ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInConway
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
+    toLedgerScript s = \case
+        RecentEraBabbage -> TimelockScript $ W.toLedgerTimelockScript s
+        RecentEraConway -> TimelockScript $ W.toLedgerTimelockScript s
+
 
 modifyShelleyTxBody
     :: forall era. TxUpdate
@@ -1099,17 +1110,13 @@ modifyShelleyTxBody txUpdate era = withConstraints era $
         (<> extraCollateral')
   where
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
-    extraOutputs' = StrictSeq.fromList $ map toLedgerTxOut extraOutputs
+    extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.fromList (W.toLedger . fst <$> extraInputs)
     extraCollateral' = Set.fromList $ W.toLedger <$> extraCollateral
 
     modifyFee old = case feeUpdate of
         UseNewTxFee c -> W.toLedger c
         UseOldTxFee -> old
-    toLedgerTxOut :: W.TxOut -> TxOut (ShelleyLedgerEra era)
-    toLedgerTxOut = case era of
-        RecentEraBabbage -> W.toBabbageTxOut
-        RecentEraConway -> W.toConwayTxOut
 
 --------------------------------------------------------------------------------
 -- distributeSurplus
@@ -1326,3 +1333,20 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
     shortfall = costOfBurningSurplus `Coin.difference` surplus
+
+toLedgerTxOut
+    :: HasCallStack
+    => RecentEra era
+    -> W.TxOut
+    -> TxOut (ShelleyLedgerEra era)
+toLedgerTxOut txOutEra txOut =
+    case txOutEra of
+        RecentEraBabbage -> W.toBabbageTxOut txOut
+        RecentEraConway -> W.toConwayTxOut txOut
+
+toWalletTxOut
+    :: RecentEra era
+    -> TxOut (ShelleyLedgerEra era)
+    -> W.TxOut
+toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
+toWalletTxOut RecentEraConway = W.fromConwayTxOut

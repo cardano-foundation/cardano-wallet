@@ -9,6 +9,10 @@ module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), KeyRole (..), Script )
+import Cardano.Wallet.Gen
+    ( genScript )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -30,17 +34,23 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutCoin, shrinkTxOutCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..) )
+    ( Convert (..), toLedgerTimelockScript, toWalletScript )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Typeable
     ( Typeable, typeRep )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
+import Test.Cardano.Ledger.Allegra.Arbitrary
+    ()
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), property, (===) )
+    ( Arbitrary (..), elements, property, vectorOf, (===) )
+
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
@@ -55,6 +65,17 @@ spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
         ledgerRoundtrip $ Proxy @TokenPolicyId
         ledgerRoundtrip $ Proxy @TokenQuantity
         ledgerRoundtrip $ Proxy @TxIn
+
+    describe "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)" $ do
+        let ledger = toLedgerTimelockScript @StandardBabbage
+        let wallet = toWalletScript (const Unknown)
+
+        it "ledger . wallet . ledger == ledger" $ property $ \s -> do
+            -- Ignore key role by doing one extra conversion
+            ledger (wallet $ ledger s) === ledger s
+
+        it "ledger . wallet == id" $ property $ \s -> do
+            ledger (wallet s) === s
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -102,3 +123,13 @@ instance Arbitrary TokenQuantity where
 instance Arbitrary TxIn where
     arbitrary = genTxIn
     shrink = shrinkTxIn
+
+instance Arbitrary (Script KeyHash) where
+    arbitrary = do
+        keyHashes <- vectorOf 10 arbitrary
+        genScript keyHashes
+
+instance Arbitrary KeyHash where
+    arbitrary = do
+        cred <- elements [Payment, Delegation, Policy, Unknown]
+        KeyHash cred . BS.pack <$> vectorOf 28 arbitrary

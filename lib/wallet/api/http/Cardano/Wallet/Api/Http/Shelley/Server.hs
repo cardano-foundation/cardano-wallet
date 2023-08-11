@@ -704,6 +704,7 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
+import qualified Cardano.Wallet.Write.Tx.Sign as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -3468,12 +3469,12 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                     if numberStakingNativeScripts == 0 then
                         0
                     else if numberStakingNativeScripts == 1 then
-                        Shared.estimateMinWitnessRequiredPerInput scriptD
+                        Write.estimateMinWitnessRequiredPerInput scriptD
                     else
                         error "wallet supports transactions with 0 or 1 staking script"
 
         let (ScriptTemplate _ scriptP) = Shared.paymentTemplate $ getState cp
-        let pWitsPerInput = Shared.estimateMinWitnessRequiredPerInput scriptP
+        let pWitsPerInput = Write.estimateMinWitnessRequiredPerInput scriptP
         let witsRequiredForInputs =
                 length $ L.nubBy samePaymentKey $
                 filter isInpOurs $
