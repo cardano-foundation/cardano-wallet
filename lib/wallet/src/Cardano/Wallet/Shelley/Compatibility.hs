@@ -1406,7 +1406,14 @@ toCardanoTxOut era refScriptM = case era of
             datumHash
             refScript
       where
-        refScript = Cardano.ReferenceScriptNone
+        refScript = case refScriptM of
+            Nothing ->
+                Cardano.ReferenceScriptNone
+            Just script ->
+                let aux = Cardano.ReferenceTxInsScriptsInlineDatumsInBabbageEra
+                    scriptApi = Cardano.toScriptInAnyLang $ Cardano.SimpleScript $
+                        toCardanoSimpleScript script
+                in Cardano.ReferenceScript aux scriptApi
         datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
@@ -1427,7 +1434,14 @@ toCardanoTxOut era refScriptM = case era of
             datumHash
             refScript
       where
-        refScript = Cardano.ReferenceScriptNone
+        refScript = case refScriptM of
+            Nothing ->
+                Cardano.ReferenceScriptNone
+            Just script ->
+                let aux = Cardano.ReferenceTxInsScriptsInlineDatumsInConwayEra
+                    scriptApi = Cardano.toScriptInAnyLang $ Cardano.SimpleScript $
+                        toCardanoSimpleScript script
+                in Cardano.ReferenceScript aux scriptApi
         datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
