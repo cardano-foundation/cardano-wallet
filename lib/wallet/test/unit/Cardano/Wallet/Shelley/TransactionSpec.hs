@@ -3757,10 +3757,15 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                 (True, True) -> do
                     estimateSignedTxSize era pparams witCount ledgerTx
                         `shouldBe`
-                        TxSize (fromIntegral (BS.length bs))
+                        TxSize (fromIntegral (BS.length bs) - correction)
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) -> testDoesNotYetSupport "bootstrap wits"
                 (False, True) -> testDoesNotYetSupport "scripts"
+      where
+        -- Apparently the cbor encoding used by the ledger for size-checks
+        -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
+        -- serialized size for these goldens.
+        correction = 3
 
     forAllGoldens
         :: [(String, ByteString)]
