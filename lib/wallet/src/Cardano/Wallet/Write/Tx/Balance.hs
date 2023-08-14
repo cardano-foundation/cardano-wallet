@@ -372,10 +372,10 @@ balanceTransaction
     s
     partialTx
     = do
-    let adjustedPartialTx =
-            over #tx
-                (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
-                partialTx
+    let adjustedPartialTx = flip (over #tx) partialTx $
+            assignMinimalAdaQuantitiesToOutputsWithoutAda
+                (recentEra @era)
+                (pparamsLedger pp)
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -443,15 +443,21 @@ balanceTransaction
             _someOtherError ->
                 False
 
--- | Increases the ada value of any 0-ada outputs in the transaction to the
--- minimum according to 'computeMinimumCoinForTxOut'.
-increaseZeroAdaOutputs
+-- | Assigns minimal ada quantities to outputs without ada.
+--
+-- This function only modifies outputs with ada quantities of zero. Outputs
+-- that have non-zero ada quantities will not be modified.
+--
+-- Minimal ada quantities are computed with the 'computeMinimumCoinForTxOut'
+-- function.
+--
+assignMinimalAdaQuantitiesToOutputsWithoutAda
     :: forall era
      . RecentEra era
     -> PParams (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
     -> Cardano.Tx era
-increaseZeroAdaOutputs era pp = withConstraints era $
+assignMinimalAdaQuantitiesToOutputsWithoutAda era pp = withConstraints era $
     modifyLedgerBody $ over outputsTxBodyL $ fmap modifyTxOut
   where
     modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->

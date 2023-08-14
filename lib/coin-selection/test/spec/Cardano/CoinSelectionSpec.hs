@@ -31,7 +31,6 @@ import Cardano.CoinSelection
     , VerificationResult (..)
     , computeMinimumCollateral
     , performSelection
-    , prepareOutputsWith
     , selectionCollateralRequired
     , toBalanceConstraintsParams
     , verifySelection
@@ -146,7 +145,6 @@ import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import qualified Data.Foldable as F
 
 spec :: Spec
 spec = describe "Cardano.CoinSelectionSpec" $ do
@@ -160,17 +158,6 @@ spec = describe "Cardano.CoinSelectionSpec" $ do
 
         it "prop_toBalanceConstraintsParams_computeMinimumCost" $
             property prop_toBalanceConstraintsParams_computeMinimumCost
-
-    describe "Preparing outputs" $ do
-
-        it "prop_prepareOutputsWith_twice" $
-            property prop_prepareOutputsWith_twice
-        it "prop_prepareOutputsWith_length" $
-            property prop_prepareOutputsWith_length
-        it "prop_prepareOutputsWith_assetsUnchanged" $
-            property prop_prepareOutputsWith_assetsUnchanged
-        it "prop_prepareOutputsWith_preparedOrExistedBefore" $
-            property prop_prepareOutputsWith_preparedOrExistedBefore
 
     describe "Computing minimum collateral amounts" $ do
 
@@ -372,65 +359,6 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 
     costAdjusted :: Coin
     costAdjusted = computeMinimumCostAdjusted skeleton
-
---------------------------------------------------------------------------------
--- Preparing outputs
---------------------------------------------------------------------------------
-
-prop_prepareOutputsWith_twice
-    :: MockComputeMinimumAdaQuantity
-    -> [(TestAddress, TokenBundle)]
-    -> Property
-prop_prepareOutputsWith_twice minCoinValueDef outs =
-    once === twice
-  where
-    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
-    (once, twice) =
-        case iterate (prepareOutputsWith minCoinValueFor) outs of
-            (_:a:b:_) -> (a, b)
-            _else -> error "prop_prepareOutputsWith_twice"
-
-prop_prepareOutputsWith_length
-    :: MockComputeMinimumAdaQuantity
-    -> [(TestAddress, TokenBundle)]
-    -> Property
-prop_prepareOutputsWith_length minCoinValueDef outs =
-    F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
-  where
-    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
-
-prop_prepareOutputsWith_assetsUnchanged
-    :: MockComputeMinimumAdaQuantity
-    -> [(TestAddress, TokenBundle)]
-    -> Property
-prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
-    (outputAssets <$> (prepareOutputsWith minCoinValueFor outs))
-    ===
-    (outputAssets <$> outs)
-  where
-    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
-    outputAssets = TokenBundle.getAssets . snd
-
-prop_prepareOutputsWith_preparedOrExistedBefore
-    :: MockComputeMinimumAdaQuantity
-    -> [(TestAddress, TokenBundle)]
-    -> Property
-prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
-    property $ F.all isPreparedOrExistedBefore (zip outs outs')
-  where
-    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
-    outs' = prepareOutputsWith minCoinValueFor outs
-
-    isPreparedOrExistedBefore
-        :: ((TestAddress, TokenBundle), (TestAddress, TokenBundle)) -> Bool
-    isPreparedOrExistedBefore (before, after)
-        | outputCoin before /= Coin 0 =
-            outputCoin after == outputCoin before
-        | otherwise =
-            outputCoin after ==
-                uncurry minCoinValueFor (view #tokens <$> before)
-      where
-        outputCoin = view #coin . snd
 
 --------------------------------------------------------------------------------
 -- Computing minimum collateral amounts

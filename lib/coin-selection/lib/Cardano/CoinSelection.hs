@@ -25,7 +25,6 @@ module Cardano.CoinSelection
     , SelectionSkeleton (..)
 
     -- * Output preparation
-    , prepareOutputsWith
     , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
@@ -86,8 +85,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
-import Control.Monad
-    ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.NonRandom
@@ -99,7 +96,7 @@ import Data.Function
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( over, set, view, (^.) )
+    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -322,7 +319,9 @@ type PerformSelection m ctx a =
 performSelection
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
     => PerformSelection m ctx (Selection ctx)
-performSelection cs = performSelectionInner cs <=< prepareOutputs cs
+performSelection cs ps = do
+    validateOutputs cs ps
+    performSelectionInner cs ps
 
 performSelectionInner
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -332,11 +331,10 @@ performSelectionInner cs ps = do
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
 
-prepareOutputs :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
-prepareOutputs cs ps =
+validateOutputs :: Applicative m => PerformSelection m ctx ()
+validateOutputs cs ps =
     withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
-    prepareOutputsInternal cs (view #outputsToCover ps)
-        <&> \outputsToCover -> ps {outputsToCover}
+    validateOutputsInternal cs (view #outputsToCover ps)
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -1268,25 +1266,21 @@ computeMinimumCollateral params =
         (view #transactionFee params)
 
 --------------------------------------------------------------------------------
--- Preparing outputs
+-- Validating outputs
 --------------------------------------------------------------------------------
 
--- | Prepares the given user-specified outputs, ensuring that they are valid.
+-- | Ensures the given user-specified outputs are valid.
 --
-prepareOutputsInternal
+validateOutputsInternal
     :: forall ctx. SelectionConstraints ctx
     -> [(Address ctx, TokenBundle)]
-    -> Either (SelectionOutputError ctx) [(Address ctx, TokenBundle)]
-prepareOutputsInternal constraints outputsUnprepared =
+    -> Either (SelectionOutputError ctx) ()
+validateOutputsInternal constraints outputs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
-        []    -> pure outputs
+        []    -> pure ()
   where
-    SelectionConstraints
-        { computeMinimumAdaQuantity
-        } = constraints
-
     errors :: [SelectionOutputError ctx]
     errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
         [ (fmap . fmap) SelectionOutputSizeExceedsLimit
@@ -1298,28 +1292,6 @@ prepareOutputsInternal constraints outputsUnprepared =
         ]
       where
         withOutputsIndexed f = f $ zip [0 ..] outputs
-
-    outputs :: [(Address ctx, TokenBundle)]
-    outputs = prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
-
--- | Assigns minimal ada quantities to outputs without ada quantities.
---
--- This function only modifies outputs that have an ada quantity of zero.
--- Outputs that have non-zero ada quantities will not be modified.
---
-prepareOutputsWith
-    :: forall f address. Functor f
-    => (address -> TokenMap -> Coin)
-    -> f (address, TokenBundle)
-    -> f (address, TokenBundle)
-prepareOutputsWith minCoinValueFor =
-    fmap augmentBundle
-  where
-    augmentBundle :: (address, TokenBundle) -> (address, TokenBundle)
-    augmentBundle (addr, bundle) = (addr,) $
-        if TokenBundle.getCoin bundle == Coin 0
-        then bundle & set #coin (minCoinValueFor addr (view #tokens bundle))
-        else bundle
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
