@@ -187,8 +187,6 @@ steps:
       system: ${linux}
     env:
       TMPDIR: "/cache"
-    soft_fail:
-      - exit_status: '*'
 
   - block: "Build windows artifacts"
     depends_on: linux-nix
