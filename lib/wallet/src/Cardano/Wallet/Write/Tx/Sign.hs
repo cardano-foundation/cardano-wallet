@@ -29,7 +29,7 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
-    ( Addr (..), addrTxOutL, ppMinFeeAL )
+    ( Addr (..), addrTxOutL, ppMinFeeAL, witsTxL )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.UTxO
@@ -52,7 +52,7 @@ import Cardano.Wallet.Write.Tx
     , withConstraints
     )
 import Control.Lens
-    ( view, (^.) )
+    ( view, (&), (.~), (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Numeric.Natural
@@ -72,11 +72,13 @@ import qualified Data.List as L
 import qualified Data.Map as Map
 
 -- | Estimate the size of the transaction when fully signed.
+--
+-- NOTE: Existing key witnesses in the tx are ignored.
 estimateSignedTxSize
     :: forall era. RecentEra era
     -> PParams (ShelleyLedgerEra era)
     -> KeyWitnessCount
-    -> Tx (ShelleyLedgerEra era)
+    -> Tx (ShelleyLedgerEra era) -- ^ existing wits in tx are ignored
     -> TxSize
 estimateSignedTxSize era pparams nWits tx = withConstraints era $
     let
@@ -100,13 +102,16 @@ estimateSignedTxSize era pparams nWits tx = withConstraints era $
                     , show feePerByte
                     , "lovelace/byte"
                     ]
+
+        unsignedTx = tx & witsTxL .~ mempty
+
         -- When updating to a new era, check that the choice of encoding still
         -- seems right w.r.t the ledger. Types will /probably/ but not
         -- /necessarily/ protect against calling the wrong function.
         sizeOfTx :: TxSize
         sizeOfTx = fromIntegral @Integer @TxSize $ case era of
-            RecentEraBabbage -> tx ^. sizeAlonzoTxF
-            RecentEraConway -> tx ^. sizeAlonzoTxF
+            RecentEraBabbage -> unsignedTx ^. sizeAlonzoTxF
+            RecentEraConway -> unsignedTx ^. sizeAlonzoTxF
     in
         sizeOfTx <> sizeOfWits
   where
