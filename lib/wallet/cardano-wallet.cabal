@@ -377,6 +377,7 @@ library
 
 library cardano-wallet-api-http
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  api/http
   build-depends:
     , address-derivation
@@ -670,26 +671,6 @@ executable cardano-wallet
     , text-class
     , transformers
     , unliftio
-
-executable local-cluster
-  import:         language, opts-exe
-  hs-source-dirs: exe
-  main-is:        local-cluster.hs
-  build-depends:
-    , base
-    , cardano-wallet
-    , cardano-wallet-api-http
-    , cardano-wallet-integration
-    , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
-    , cardano-wallet-primitive
-    , contra-tracer
-    , directory
-    , filepath
-    , iohk-monitoring
-    , lobemo-backend-ekg
-    , text
-    , text-class
 
 -- Triggers this https://github.com/haskell/cabal/issues/6470
 -- if moved to an external library
@@ -1175,8 +1156,8 @@ library address-derivation
 
 
 library cardano-wallet-local-cluster
-
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  local-cluster
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
