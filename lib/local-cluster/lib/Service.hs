@@ -27,6 +27,8 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( walletListenFromEnv )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , genRewardAccounts
@@ -36,7 +38,7 @@ import Cardano.Wallet.Faucet
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Launch
-    ( withSystemTempDir )
+    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterLog (..)
     , Credential (..)
@@ -46,7 +48,6 @@ import Cardano.Wallet.Launch.Cluster
     , oneMillionAda
     , testMinSeverityFromEnv
     , tokenMetadataServerFromEnv
-    , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
     )
@@ -231,7 +232,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             let tracers = setupTracers (tracerSeverities (Just Debug)) tr
             let db = dir </> "wallets"
             createDirectory db
-            listen <- walletListenFromEnv
+            listen <- walletListenFromEnv envFromText
             tokenMetadataServer <- tokenMetadataServerFromEnv
 
             prometheusUrl <- (maybe "none"

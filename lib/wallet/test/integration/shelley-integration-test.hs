@@ -39,6 +39,10 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( walletListenFromEnv )
+import Cardano.Wallet.Api.Types
+    ( ApiEra (..) )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , genRewardAccounts
@@ -51,22 +55,21 @@ import Cardano.Wallet.Faucet
 import Cardano.Wallet.Faucet.Shelley
     ( initFaucet )
 import Cardano.Wallet.Launch
-    ( withSystemTempDir )
+    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterLog
+    ( ClusterEra (..)
+    , ClusterLog
     , Credential (..)
     , FaucetFunds (..)
     , RunningNode (..)
     , clusterEraFromEnv
     , clusterEraToString
-    , clusterToApiEra
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
     , sendFaucetAssetsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
-    , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
     , withSMASH
@@ -139,6 +142,7 @@ import UnliftIO.MVar
     ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
+import qualified Cardano.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Data.Text as T
@@ -240,6 +244,16 @@ withTestsSetup action = do
         withSystemTempDir stdoutTextTracer "test" $ \testDir ->
             withTracers testDir $ action testDir
 
+-- | Convert @ClusterEra@ to a @ApiEra@.
+clusterToApiEra :: ClusterEra -> ApiEra
+clusterToApiEra = \case
+    ByronNoHardFork -> ApiByron
+    ShelleyHardFork -> ApiShelley
+    AllegraHardFork -> ApiAllegra
+    MaryHardFork -> ApiMary
+    AlonzoHardFork -> ApiAlonzo
+    BabbageHardFork -> ApiBabbage
+
 specWithServer
     :: FilePath
     -> (Tracer IO TestsLog, Tracers IO)
@@ -270,7 +284,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
-                    , _walletPort = Port . fromIntegral $ portFromURL baseUrl
+                    , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
@@ -340,7 +354,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
         let db = testDir </> "wallets"
         createDirectory db
-        listen <- walletListenFromEnv
+        listen <- walletListenFromEnv envFromText
         let testMetadata = $(getTestData) </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet

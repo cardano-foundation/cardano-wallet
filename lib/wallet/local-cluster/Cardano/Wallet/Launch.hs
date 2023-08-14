@@ -33,9 +33,6 @@ module Cardano.Wallet.Launch
     -- * Logging
     , TempDirLog (..)
 
-    -- * Light Mode
-    , Mode (..)
-    , modeOption
     ) where
 
 import Prelude
@@ -46,8 +43,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
-import Cardano.CLI
-    ( optionT, syncToleranceOption )
 import Cardano.Launcher
     ( LauncherLog )
 import Cardano.Launcher.Node
@@ -56,10 +51,10 @@ import Cardano.Wallet.Logging
     ( BracketLog, BracketLog' (..), bracketTracer )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..) )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), NetworkParameters (..) )
+import Control.Arrow
+    ( left )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
@@ -73,9 +68,19 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError, ToText (..) )
+    ( FromText (..), TextDecodingError, ToText (..), getTextDecodingError )
 import "optparse-applicative" Options.Applicative
-    ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
+    ( Mod
+    , OptionFields
+    , Parser
+    , eitherReader
+    , flag'
+    , help
+    , long
+    , metavar
+    , option
+    , (<|>)
+    )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -95,6 +100,14 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
+
+-- | Helper for writing an option 'Parser' using a 'FromText' instance.
+optionT :: FromText a => Mod OptionFields a -> Parser a
+optionT = option (eitherReader fromTextS)
+
+-- | Like 'fromText', but stringly-typed.
+fromTextS :: FromText a => String -> Either String a
+fromTextS = left getTextDecodingError . fromText . T.pack
 
 -- | Shelley hard fork network configuration has two genesis data.
 -- As a special case for mainnet, we hardcode the byron genesis data.
@@ -333,16 +346,3 @@ instance HasSeverityAnnotation TempDirLog where
     getSeverityAnnotation = \case
         MsgNoCleanup _ BracketStart -> Debug
         MsgNoCleanup _ _ -> Notice
-
-{-------------------------------------------------------------------------------
-                                    Mode
--------------------------------------------------------------------------------}
-
-data Mode = Normal CardanoNodeConn SyncTolerance
-  deriving (Show)
-
-modeOption :: Parser Mode
-modeOption = normalMode
-  where
-    normalMode =
-        Normal <$> nodeSocketOption <*> syncToleranceOption

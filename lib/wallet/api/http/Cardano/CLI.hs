@@ -57,6 +57,7 @@ module Cardano.CLI
     , tokenMetadataSourceOption
     , metadataOption
     , timeToLiveOption
+    , modeOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -72,6 +73,7 @@ module Cardano.CLI
     , Service
     , TxId
     , Port (..)
+    , Mode (..)
 
     -- * Logging
     , withLogging
@@ -2054,3 +2056,12 @@ optionalE :: (Monoid m, Eq m) => (m -> Either e a) -> (m -> Either e (Maybe a))
 optionalE parse = \case
     m | m == mempty -> Right Nothing
     m  -> Just <$> parse m
+
+data Mode c = Normal c SyncTolerance
+  deriving (Show)
+
+modeOption :: Parser c -> Parser (Mode c)
+modeOption nodeSocketOption = normalMode
+  where
+    normalMode =
+        Normal <$> nodeSocketOption <*> syncToleranceOption

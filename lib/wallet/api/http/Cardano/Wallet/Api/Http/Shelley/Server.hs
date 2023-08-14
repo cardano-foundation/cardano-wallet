@@ -132,6 +132,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
 
     -- * Logging
     , WalletEngineLog (..)
+    , walletListenFromEnv
     )
     where
 
@@ -660,6 +661,8 @@ import Servant
     ( Application, NoContent (..), err400, err404, err500, serve )
 import Servant.Server
     ( Handler (..), runHandler )
+import System.Exit
+    ( die )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -716,6 +719,16 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+
+
+-- | Allow configuring which port the wallet server listen to in an integration
+-- setup. Crashes if the variable is not a number.
+walletListenFromEnv :: Show e
+    => (String -> IO (Maybe (Either e Port))) ->  IO Listen
+walletListenFromEnv envFromText = envFromText "CARDANO_WALLET_PORT" >>= \case
+    Nothing -> pure ListenOnRandomPort
+    Just (Right port) -> pure $ ListenOnPort port
+    Just (Left e) -> die $ show e
 
 -- | How the server should listen for incoming requests.
 data Listen
