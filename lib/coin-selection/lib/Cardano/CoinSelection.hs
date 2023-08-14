@@ -25,7 +25,6 @@ module Cardano.CoinSelection
     , SelectionSkeleton (..)
 
     -- * Output preparation
-    , prepareOutputsWith
     , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
@@ -99,7 +98,7 @@ import Data.Function
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( over, set, view, (^.) )
+    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -1294,25 +1293,6 @@ prepareOutputsInternal constraints outputs =
         ]
       where
         withOutputsIndexed f = f $ zip [0 ..] outputs
-
--- | Assigns minimal ada quantities to outputs without ada quantities.
---
--- This function only modifies outputs that have an ada quantity of zero.
--- Outputs that have non-zero ada quantities will not be modified.
---
-prepareOutputsWith
-    :: forall f address. Functor f
-    => (address -> TokenMap -> Coin)
-    -> f (address, TokenBundle)
-    -> f (address, TokenBundle)
-prepareOutputsWith minCoinValueFor =
-    fmap augmentBundle
-  where
-    augmentBundle :: (address, TokenBundle) -> (address, TokenBundle)
-    augmentBundle (addr, bundle) = (addr,) $
-        if TokenBundle.getCoin bundle == Coin 0
-        then bundle & set #coin (minCoinValueFor addr (view #tokens bundle))
-        else bundle
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
