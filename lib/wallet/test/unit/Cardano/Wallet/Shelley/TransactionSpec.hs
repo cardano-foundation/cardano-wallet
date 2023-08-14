@@ -1983,7 +1983,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         it "returns s' corresponding to which addresses were used" $ do
             s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
 
-    it "increases zero-ada outputs to minimum" $ do
+    it "assigns minimal ada quantities to outputs without ada" $ do
         let era = Write.RecentEraBabbage
         let out = TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
         let out' = TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
