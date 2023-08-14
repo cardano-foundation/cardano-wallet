@@ -85,8 +85,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
-import Control.Monad
-    ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.NonRandom
@@ -321,7 +319,9 @@ type PerformSelection m ctx a =
 performSelection
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
     => PerformSelection m ctx (Selection ctx)
-performSelection cs = performSelectionInner cs <=< validateOutputs cs
+performSelection cs ps = do
+    validateOutputs cs ps
+    performSelectionInner cs ps
 
 performSelectionInner
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -331,11 +331,10 @@ performSelectionInner cs ps = do
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
 
-validateOutputs :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
+validateOutputs :: Applicative m => PerformSelection m ctx ()
 validateOutputs cs ps =
     withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
     validateOutputsInternal cs (view #outputsToCover ps)
-        <&> \() -> ps
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
