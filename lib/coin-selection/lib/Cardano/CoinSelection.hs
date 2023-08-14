@@ -321,7 +321,7 @@ type PerformSelection m ctx a =
 performSelection
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
     => PerformSelection m ctx (Selection ctx)
-performSelection cs = performSelectionInner cs <=< prepareOutputs cs
+performSelection cs = performSelectionInner cs <=< validateOutputs cs
 
 performSelectionInner
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -331,10 +331,10 @@ performSelectionInner cs ps = do
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
 
-prepareOutputs :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
-prepareOutputs cs ps =
+validateOutputs :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
+validateOutputs cs ps =
     withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
-    prepareOutputsInternal cs (view #outputsToCover ps)
+    validateOutputsInternal cs (view #outputsToCover ps)
         <&> \outputsToCover -> ps {outputsToCover}
 
 performSelectionBalance
@@ -1267,16 +1267,16 @@ computeMinimumCollateral params =
         (view #transactionFee params)
 
 --------------------------------------------------------------------------------
--- Preparing outputs
+-- Validating outputs
 --------------------------------------------------------------------------------
 
--- | Prepares the given user-specified outputs, ensuring that they are valid.
+-- | Ensures the given user-specified outputs are valid.
 --
-prepareOutputsInternal
+validateOutputsInternal
     :: forall ctx. SelectionConstraints ctx
     -> [(Address ctx, TokenBundle)]
     -> Either (SelectionOutputError ctx) [(Address ctx, TokenBundle)]
-prepareOutputsInternal constraints outputs =
+validateOutputsInternal constraints outputs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
