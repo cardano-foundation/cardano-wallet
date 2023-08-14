@@ -662,7 +662,7 @@ genCoinMostly0 = frequency
     ]
 
 genExtraCoinIn :: Gen Coin
-genExtraCoinIn = genCoinMostly0
+genExtraCoinIn = genCoin
 
 genExtraCoinOut :: Gen Coin
 genExtraCoinOut = genCoinMostly0
@@ -756,7 +756,7 @@ genUTxOAvailableForCollateral = genMapWith (arbitrary @TestUTxO) genCoinPositive
 
 genUTxOAvailableForInputs :: Gen (UTxOSelection TestUTxO)
 genUTxOAvailableForInputs = frequency
-    [ (49, genUTxOSelection (arbitrary @TestUTxO))
+    [ (24, genUTxOSelection (arbitrary @TestUTxO))
     , (01, pure UTxOSelection.empty)
     ]
 
