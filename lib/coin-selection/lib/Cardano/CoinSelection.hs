@@ -1277,16 +1277,12 @@ prepareOutputsInternal
     :: forall ctx. SelectionConstraints ctx
     -> [(Address ctx, TokenBundle)]
     -> Either (SelectionOutputError ctx) [(Address ctx, TokenBundle)]
-prepareOutputsInternal constraints outputsUnprepared =
+prepareOutputsInternal constraints outputs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
         []    -> pure outputs
   where
-    SelectionConstraints
-        { computeMinimumAdaQuantity
-        } = constraints
-
     errors :: [SelectionOutputError ctx]
     errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
         [ (fmap . fmap) SelectionOutputSizeExceedsLimit
@@ -1298,9 +1294,6 @@ prepareOutputsInternal constraints outputsUnprepared =
         ]
       where
         withOutputsIndexed f = f $ zip [0 ..] outputs
-
-    outputs :: [(Address ctx, TokenBundle)]
-    outputs = prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
 -- | Assigns minimal ada quantities to outputs without ada quantities.
 --
