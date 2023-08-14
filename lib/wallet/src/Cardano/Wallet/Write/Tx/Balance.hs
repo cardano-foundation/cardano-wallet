@@ -443,8 +443,14 @@ balanceTransaction
             _someOtherError ->
                 False
 
--- | Increases the ada value of any 0-ada outputs in the transaction to the
--- minimum according to 'computeMinimumCoinForTxOut'.
+-- | Assigns minimal ada quantities to outputs without ada.
+--
+-- This function only modifies outputs with ada quantities of zero. Outputs
+-- that have non-zero ada quantities will not be modified.
+--
+-- Minimal ada quantities are computed with the 'computeMinimumCoinForTxOut'
+-- function.
+--
 increaseZeroAdaOutputs
     :: forall era
      . RecentEra era
