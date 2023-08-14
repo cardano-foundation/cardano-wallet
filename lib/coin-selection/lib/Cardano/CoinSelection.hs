@@ -335,7 +335,7 @@ validateOutputs :: Applicative m => PerformSelection m ctx (SelectionParams ctx)
 validateOutputs cs ps =
     withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
     validateOutputsInternal cs (view #outputsToCover ps)
-        <&> \outputsToCover -> ps {outputsToCover}
+        <&> \() -> ps
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -1275,12 +1275,12 @@ computeMinimumCollateral params =
 validateOutputsInternal
     :: forall ctx. SelectionConstraints ctx
     -> [(Address ctx, TokenBundle)]
-    -> Either (SelectionOutputError ctx) [(Address ctx, TokenBundle)]
+    -> Either (SelectionOutputError ctx) ()
 validateOutputsInternal constraints outputs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
-        []    -> pure outputs
+        []    -> pure ()
   where
     errors :: [SelectionOutputError ctx]
     errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
