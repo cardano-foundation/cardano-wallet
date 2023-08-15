@@ -95,6 +95,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOf (change)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
@@ -186,7 +187,7 @@ import Data.IntCast
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Fmt
@@ -1373,6 +1374,30 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs
 --------------------------------------------------------------------------------
+
+-- | Validates the given transaction outputs.
+--
+validateTxOutputs
+    :: SelectionConstraints
+    -> [(W.Address, TokenBundle)]
+    -> Either (SelectionOutputError WalletSelectionContext) ()
+validateTxOutputs constraints outs =
+    -- If we encounter an error, just report the first error we encounter:
+    case errors of
+        e : _ -> Left e
+        []    -> pure ()
+  where
+    errors :: [SelectionOutputError WalletSelectionContext]
+    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
+        [ (fmap . fmap) SelectionOutputSizeExceedsLimit
+            . mapMaybe (traverse (validateTxOutputSize constraints))
+        , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
+            . foldMap (traverse validateTxOutputTokenQuantities)
+        , (fmap . fmap) SelectionOutputCoinInsufficient
+            . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
+        ]
+      where
+        withOutputsIndexed f = f $ zip [0 ..] outs
 
 -- | Validates the size of a transaction output.
 --
