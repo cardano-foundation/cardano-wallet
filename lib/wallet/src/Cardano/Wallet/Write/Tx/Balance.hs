@@ -250,9 +250,7 @@ instance Buildable (BuildableInAnyEra a) where
     build (BuildableInAnyEra _ x) = build x
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError
-        (SelectionOutputError WalletSelectionContext)
-    | ErrSelectAssetsAlreadyWithdrawing W.Tx
+    = ErrSelectAssetsAlreadyWithdrawing W.Tx
     | ErrSelectAssetsSelectionError (SelectionError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 

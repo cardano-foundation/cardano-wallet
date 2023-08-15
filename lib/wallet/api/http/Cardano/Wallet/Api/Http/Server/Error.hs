@@ -974,7 +974,6 @@ instance IsServerError ErrCreateMigrationPlan where
 
 instance IsServerError ErrSelectAssets where
     toServerError = \case
-        ErrSelectAssetsPrepareOutputsError e -> toServerError e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
                 [ "I already know of a pending transaction with withdrawals: "
