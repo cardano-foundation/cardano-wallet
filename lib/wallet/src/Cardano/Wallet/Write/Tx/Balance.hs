@@ -1408,17 +1408,14 @@ validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, TokenBundle)
     -> Maybe (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
-validateTxOutputSize cs out
-    | withinLimit =
+validateTxOutputSize cs out = case sizeAssessment of
+    TokenBundleSizeWithinLimit ->
         Nothing
-    | otherwise =
+    TokenBundleSizeExceedsLimit ->
         Just $ SelectionOutputSizeExceedsLimitError out
   where
-    withinLimit :: Bool
-    withinLimit =
-        case (cs ^. #assessTokenBundleSize) (snd out) of
-            TokenBundleSizeWithinLimit -> True
-            TokenBundleSizeExceedsLimit -> False
+    sizeAssessment :: TokenBundleSizeAssessment
+    sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)
 
 -- | Validates the token quantities of a transaction output.
 --
