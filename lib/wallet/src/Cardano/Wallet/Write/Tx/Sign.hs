@@ -29,7 +29,7 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
-    ( Addr (..), addrTxOutL, ppMinFeeAL, witsTxL )
+    ( Addr (..), addrTxOutL, addrTxWitsL, ppMinFeeAL, witsTxL )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.UTxO
@@ -80,7 +80,7 @@ estimateSignedTxSize
     -> KeyWitnessCount
     -> Tx (ShelleyLedgerEra era) -- ^ existing wits in tx are ignored
     -> TxSize
-estimateSignedTxSize era pparams nWits tx = withConstraints era $
+estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     let
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -103,7 +103,6 @@ estimateSignedTxSize era pparams nWits tx = withConstraints era $
                     , "lovelace/byte"
                     ]
 
-        unsignedTx = tx & witsTxL .~ mempty
 
         -- When updating to a new era, check that the choice of encoding still
         -- seems right w.r.t the ledger. Types will /probably/ but not
@@ -115,12 +114,16 @@ estimateSignedTxSize era pparams nWits tx = withConstraints era $
     in
         sizeOfTx <> sizeOfWits
   where
+    unsignedTx :: Tx (ShelleyLedgerEra era)
+    unsignedTx = withConstraints era $
+        txWithWits & (witsTxL . addrTxWitsL) .~ mempty
+
     coinQuotRem :: W.Coin -> W.Coin -> (Natural, Natural)
     coinQuotRem (W.Coin p) (W.Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> W.Coin
     minfee witCount = toWalletCoin $ Write.evaluateMinimumFee
-        era pparams tx witCount
+        era pparams unsignedTx witCount
 
     feePerByte :: W.Coin
     feePerByte = Ledger.toWalletCoin $

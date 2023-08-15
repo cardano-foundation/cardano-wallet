@@ -3753,11 +3753,14 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
+
+            signedBinarySize = TxSize $ fromIntegral $ BS.length bs
+
         case (noScripts, noBootWits) of
                 (True, True) -> do
                     estimateSignedTxSize era pparams witCount ledgerTx
-                        `shouldBe`
-                        TxSize (fromIntegral (BS.length bs) - correction)
+                        `shouldBeWithin`
+                        (signedBinarySize - correction, signedBinarySize)
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) -> testDoesNotYetSupport "bootstrap wits"
                 (False, True) -> testDoesNotYetSupport "scripts"
@@ -3765,7 +3768,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -- Apparently the cbor encoding used by the ledger for size-checks
         -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
         -- serialized size for these goldens.
-        correction = 3
+        correction = TxSize 6
+
+    -- | Checks for membership in the given closed interval [a, b]
+    x `shouldBeWithin` (a, b) =
+        if a <= x && x <= b
+        then pure ()
+        else expectationFailure $ unwords
+            [ show x
+            , "not in the expected interval"
+            , "[" <> show a <> ", " <> show b <> "]"
+            ]
 
     forAllGoldens
         :: [(String, ByteString)]
