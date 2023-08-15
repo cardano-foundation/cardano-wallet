@@ -93,7 +93,11 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
+    , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
@@ -108,7 +112,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin )
+    ( TokenBundleSizeAssessment (..)
+    , TxSize (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -179,7 +187,7 @@ import Data.IntCast
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Fmt
@@ -205,6 +213,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -241,9 +250,7 @@ instance Buildable (BuildableInAnyEra a) where
     build (BuildableInAnyEra _ x) = build x
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError
-        (SelectionOutputError WalletSelectionContext)
-    | ErrSelectAssetsAlreadyWithdrawing W.Tx
+    = ErrSelectAssetsAlreadyWithdrawing W.Tx
     | ErrSelectAssetsSelectionError (SelectionError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 
@@ -765,6 +772,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 pp timeTranslation combinedUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
+        :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+    guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Use of withdrawals with different networks breaks balancing.
         --
@@ -786,6 +795,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         when conflictingWdrlNetworks $
             throwE ErrBalanceTxConflictingNetworks
 
+    guardExistingCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
@@ -797,12 +807,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Cardano.TxInsCollateral _ _ ->
                 throwE ErrBalanceTxExistingCollateral
 
+    guardExistingTotalCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txTotalCollateral body of
             Cardano.TxTotalCollateralNone -> return ()
             Cardano.TxTotalCollateral _ _ ->
                throwE ErrBalanceTxExistingTotalCollateral
 
+    guardExistingReturnCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txReturnCollateral body of
             Cardano.TxReturnCollateralNone -> return ()
@@ -835,10 +847,23 @@ selectAssets
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
 selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
-    utxoSelection balance fee0 seed changeGen selectionStrategy =
-        (`evalRand` stdGenFromSeed seed) . runExceptT
-            $ performSelection selectionConstraints selectionParams
+    utxoSelection balance fee0 seed changeGen selectionStrategy = do
+        validateTxOutputs'
+        performSelection'
   where
+    validateTxOutputs'
+        :: Either (SelectionError WalletSelectionContext) ()
+    validateTxOutputs'
+        = left SelectionOutputErrorOf
+        $ validateTxOutputs selectionConstraints
+            (outs <&> \out -> (view #address out, view #tokens out))
+
+    performSelection'
+        :: Either (SelectionError WalletSelectionContext) Selection
+    performSelection'
+        = (`evalRand` stdGenFromSeed seed) . runExceptT
+        $ performSelection selectionConstraints selectionParams
+
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
             withConstraints era $
@@ -1356,3 +1381,89 @@ toWalletTxOut
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
+
+--------------------------------------------------------------------------------
+-- Validation of transaction outputs
+--------------------------------------------------------------------------------
+
+-- | Validates the given transaction outputs.
+--
+validateTxOutputs
+    :: SelectionConstraints
+    -> [(W.Address, TokenBundle)]
+    -> Either (SelectionOutputError WalletSelectionContext) ()
+validateTxOutputs constraints outs =
+    -- If we encounter an error, just report the first error we encounter:
+    case errors of
+        e : _ -> Left e
+        []    -> pure ()
+  where
+    errors :: [SelectionOutputError WalletSelectionContext]
+    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
+        [ (fmap . fmap) SelectionOutputSizeExceedsLimit
+            . mapMaybe (traverse (validateTxOutputSize constraints))
+        , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
+            . foldMap (traverse validateTxOutputTokenQuantities)
+        , (fmap . fmap) SelectionOutputCoinInsufficient
+            . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
+        ]
+      where
+        withOutputsIndexed f = f $ zip [0 ..] outs
+
+-- | Validates the size of a transaction output.
+--
+-- Returns 'SelectionOutputSizeExceedsLimitError' if (and only if) the size
+-- exceeds the limit defined by the protocol.
+--
+validateTxOutputSize
+    :: SelectionConstraints
+    -> (W.Address, TokenBundle)
+    -> Maybe (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+validateTxOutputSize cs out = case sizeAssessment of
+    TokenBundleSizeWithinLimit ->
+        Nothing
+    TokenBundleSizeExceedsLimit ->
+        Just $ SelectionOutputSizeExceedsLimitError out
+  where
+    sizeAssessment :: TokenBundleSizeAssessment
+    sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)
+
+-- | Validates the token quantities of a transaction output.
+--
+-- Returns a list of token quantities that exceed the limit defined by the
+-- protocol.
+--
+validateTxOutputTokenQuantities
+    :: (W.Address, TokenBundle)
+    -> [SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext]
+validateTxOutputTokenQuantities out =
+    [ SelectionOutputTokenQuantityExceedsLimitError
+        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+    | let address = fst out
+    , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
+    , quantity > txOutMaxTokenQuantity
+    ]
+
+-- | Validates the ada quantity associated with a transaction output.
+--
+-- An output's ada quantity must be greater than or equal to the minimum
+-- required quantity for that output.
+--
+validateTxOutputAdaQuantity
+    :: SelectionConstraints
+    -> (W.Address, TokenBundle)
+    -> Maybe (SelectionOutputCoinInsufficientError WalletSelectionContext)
+validateTxOutputAdaQuantity constraints output
+    | isBelowMinimum =
+        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+    | otherwise =
+        Nothing
+  where
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
+
+    minimumExpectedCoin :: W.Coin
+    minimumExpectedCoin =
+        (constraints ^. #computeMinimumAdaQuantity)
+        (fst output)
+        (snd output ^. #tokens)
