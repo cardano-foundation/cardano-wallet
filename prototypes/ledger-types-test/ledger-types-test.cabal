@@ -25,6 +25,7 @@ library
         NoImplicitPrelude
     build-depends:
         base ^>= 4.14.3
+      , base16 ^>= 1.0
       , aeson ^>= 2.1.2
       , bytestring
       , containers
@@ -37,6 +38,7 @@ library
         Demo.Export
         Elaborate
         Export.OpenAPI
+        Export.OpenAPI.Value
         Module
         Parser
         Type
