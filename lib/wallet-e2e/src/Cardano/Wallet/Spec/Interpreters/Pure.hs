@@ -3,6 +3,10 @@ module Cardano.Wallet.Spec.Interpreters.Pure
     , PureStory
     ) where
 
+import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
+import qualified Data.Set as Set
+import qualified Effectful.Error.Dynamic as E
+
 import Cardano.Wallet.Spec.Effect.Assert
     ( Error, FxAssert, runAssertError )
 import Cardano.Wallet.Spec.Effect.Query
@@ -11,15 +15,10 @@ import Cardano.Wallet.Spec.Effect.Random
     ( FxRandom, runRandomMock )
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, recordTraceLog, runTracePure )
-import Cardano.Wallet.Spec.Types
-    ( Mnemonic (..) )
 import Effectful
     ( Eff, runPureEff )
 import Test.Syd
     ( TestDefM, expectationFailure, it )
-
-import qualified Data.Set as Set
-import qualified Effectful.Error.Dynamic as E
 
 type PureStory a =
     Eff
@@ -41,7 +40,7 @@ pureStory label story =
 interpretStoryPure :: PureStory a -> Either Error (a, Seq Text)
 interpretStoryPure =
     runQueryMock Set.empty
-        >>> runRandomMock (Mnemonic $ "foo" :| ["bar", "baz"])
+        >>> runRandomMock (Mnemonic.fromWords $ "foo" :| ["bar", "baz"])
         >>> runAssertError
         >>> runTracePure
         >>> E.runErrorNoCallStack @Error

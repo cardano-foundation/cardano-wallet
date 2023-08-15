@@ -59,6 +59,7 @@ library
   import:          options, dependencies
   hs-source-dirs:  src
   build-depends:
+    , base58-bytestring      ^>=0.1
     , cardano-addresses      ^>=3.12
     , cardano-crypto         ^>=1.1.2
     , cardano-wallet-client  ^>=0.1
@@ -71,9 +72,14 @@ library
     , path                   ^>=0.9.2
     , path-io                ^>=1.7.0
     , random                 ^>=1.2.1.1
+    , tagged                 ^>=0.8.7
 
   exposed-modules:
     Cardano.Wallet.Spec
+    Cardano.Wallet.Spec.Data.Mnemonic
+    Cardano.Wallet.Spec.Data.Wallet
+    Cardano.Wallet.Spec.Data.WalletId
+    Cardano.Wallet.Spec.Data.WalletName
     Cardano.Wallet.Spec.Effect.Assert
     Cardano.Wallet.Spec.Effect.Http
     Cardano.Wallet.Spec.Effect.Query
@@ -83,7 +89,6 @@ library
     Cardano.Wallet.Spec.Interpreters.Pure
     Cardano.Wallet.Spec.Stories.Language
     Cardano.Wallet.Spec.Stories.Wallet
-    Cardano.Wallet.Spec.Types
 
 executable wallet-e2e
   import:         options, dependencies
