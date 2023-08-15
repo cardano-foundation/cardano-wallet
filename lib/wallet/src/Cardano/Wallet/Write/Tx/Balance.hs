@@ -93,6 +93,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
+    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -1409,3 +1410,27 @@ validateTxOutputTokenQuantities out =
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
+
+-- | Validates the ada quantity associated with a transaction output.
+--
+-- An output's ada quantity must be greater than or equal to the minimum
+-- required quantity for that output.
+--
+validateTxOutputAdaQuantity
+    :: SelectionConstraints
+    -> (W.Address, TokenBundle)
+    -> Maybe (SelectionOutputCoinInsufficientError WalletSelectionContext)
+validateTxOutputAdaQuantity constraints output
+    | isBelowMinimum =
+        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+    | otherwise =
+        Nothing
+  where
+    isBelowMinimum :: Bool
+    isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
+
+    minimumExpectedCoin :: W.Coin
+    minimumExpectedCoin =
+        (constraints ^. #computeMinimumAdaQuantity)
+        (fst output)
+        (snd output ^. #tokens)
