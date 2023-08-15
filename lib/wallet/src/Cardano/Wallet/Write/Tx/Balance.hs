@@ -95,6 +95,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOf (change)
     , SelectionOutputError (..)
     , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
@@ -109,7 +110,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TxSize (..), txOutMaxCoin )
+    ( TokenBundleSizeAssessment (..)
+    , TxSize (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -206,6 +211,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -1387,3 +1393,19 @@ validateTxOutputSize cs out
         case (cs ^. #assessTokenBundleSize) (snd out) of
             TokenBundleSizeWithinLimit -> True
             TokenBundleSizeExceedsLimit -> False
+
+-- | Validates the token quantities of a transaction output.
+--
+-- Returns a list of token quantities that exceed the limit defined by the
+-- protocol.
+--
+validateTxOutputTokenQuantities
+    :: (W.Address, TokenBundle)
+    -> [SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext]
+validateTxOutputTokenQuantities out =
+    [ SelectionOutputTokenQuantityExceedsLimitError
+        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+    | let address = fst out
+    , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
+    , quantity > txOutMaxTokenQuantity
+    ]
