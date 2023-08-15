@@ -2,6 +2,7 @@ module Demo.Export where
 
 import Prelude
 
+import Export.Haskell
 import Export.OpenAPI
 import Module
 import Parser
@@ -18,12 +19,15 @@ import qualified Data.Yaml as Yaml
 ------------------------------------------------------------------------------}
 main :: IO ()
 main = do
-    Just elaborated <-
-        parseLedgerTypes <$> readFile "data/BabbageTxOut.txt"
+    Just json <-
+        parseLedgerTypes <$> readFile "data/json/UTxO_JSON.txt"
 
-    Yaml.encodeFile "data/gen/BabbageTxOut.yaml"
+    Yaml.encodeFile "data/gen/UTxO_JSON.yaml"
         $ getOpenAPISchema
         $ schemaFromModule
-        $ elaborated {
-            moduleDeclarations = convertToJSON (moduleDeclarations elaborated)
-          }
+        $ json
+
+    writeFile "data/gen/UTxO_JSON.hs"
+        $ prettyPrint
+        $ haskellFromModule
+        $ json
