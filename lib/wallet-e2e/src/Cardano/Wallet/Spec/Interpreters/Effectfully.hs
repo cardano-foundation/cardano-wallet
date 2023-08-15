@@ -3,7 +3,7 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
     , story
     ) where
 
-import qualified Effectful.Error.Dynamic as E
+import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
     ( Error, FxAssert, runAssertError )

@@ -5,7 +5,7 @@ module Cardano.Wallet.Spec.Interpreters.Pure
 
 import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
 import qualified Data.Set as Set
-import qualified Effectful.Error.Dynamic as E
+import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
     ( Error, FxAssert, runAssertError )

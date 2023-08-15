@@ -2,7 +2,7 @@
 
 module Cardano.Wallet.Spec.Effect.Assert where
 
-import qualified Effectful.Error.Dynamic as Effect
+import qualified Effectful.Error.Static as Effect
 
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
@@ -10,7 +10,7 @@ import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
     ( interpret )
-import Effectful.Error.Dynamic
+import Effectful.Error.Static
     ( throwError )
 import Effectful.TH
     ( makeEffect )
