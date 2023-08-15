@@ -94,6 +94,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     , SelectionOf (change)
     , SelectionOutputError (..)
+    , SelectionOutputSizeExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
@@ -108,7 +109,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin )
+    ( TokenBundleSizeAssessment (..), TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -1361,3 +1362,28 @@ toWalletTxOut
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
+
+--------------------------------------------------------------------------------
+-- Validation of transaction outputs
+--------------------------------------------------------------------------------
+
+-- | Validates the size of a transaction output.
+--
+-- Returns 'SelectionOutputSizeExceedsLimitError' if (and only if) the size
+-- exceeds the limit defined by the protocol.
+--
+validateTxOutputSize
+    :: SelectionConstraints
+    -> (W.Address, TokenBundle)
+    -> Maybe (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+validateTxOutputSize cs out
+    | withinLimit =
+        Nothing
+    | otherwise =
+        Just $ SelectionOutputSizeExceedsLimitError out
+  where
+    withinLimit :: Bool
+    withinLimit =
+        case (cs ^. #assessTokenBundleSize) (snd out) of
+            TokenBundleSizeWithinLimit -> True
+            TokenBundleSizeExceedsLimit -> False
