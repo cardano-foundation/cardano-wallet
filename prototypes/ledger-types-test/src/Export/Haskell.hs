@@ -9,6 +9,7 @@ module Export.Haskell
 import Prelude
 
 import Export.Haskell.Language
+import Export.Haskell.Value.Compiletime
 import Typ
 
 import qualified Data.Map as Map
@@ -44,27 +45,36 @@ haskellFromModule m =
             , "Data.Text"
             , "GHC.Generics"
             , "Numeric.Natural"
+            , "Export.Haskell.Value.Runtime"
             ]
     declarations =
-        [ declarationFromTyp name typ
-        | (name, typ) <- Map.toList (moduleDeclarations m)
-        ]
+        concat
+            [ declarationFromTyp name typ
+            | (name, typ) <- Map.toList (moduleDeclarations m)
+            ]
 
 {-----------------------------------------------------------------------------
     Convert Typ to Haskell declaration
 ------------------------------------------------------------------------------}
-declarationFromTyp :: TypName -> Typ -> Hs.Decl Annotation
+declarationFromTyp :: TypName -> Typ -> [Hs.Decl Annotation]
 declarationFromTyp name typ = case typ of
     Record fields ->
-        Hs.DataDecl l (Hs.DataType l) Nothing declaredName
+        [ Hs.DataDecl l (Hs.DataType l) Nothing declaredName
             (declareRecord name fields)
             derivingEqOrdGeneric
+        , declareInstanceToValue name
+            (declareToValueFunRecord name fields)
+        ]
     Union constructors ->
-        Hs.DataDecl l (Hs.DataType l) Nothing declaredName
+        [ Hs.DataDecl l (Hs.DataType l) Nothing declaredName
             (declareUnion name constructors)
             derivingEqOrdGeneric
+        , declareInstanceToValue name
+            (declareToValueFunUnion name constructors)
+        ]
     _ ->
-        Hs.TypeDecl l declaredName (typeFromTyp typ)
+        [ Hs.TypeDecl l declaredName (typeFromTyp typ)
+        ]
   where
     declaredName = Hs.DHead l $ Hs.Ident l name
 

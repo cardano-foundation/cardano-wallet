@@ -44,6 +44,8 @@ library
         Embedding
         Export.Haskell
         Export.Haskell.Language
+        Export.Haskell.Value.Compiletime
+        Export.Haskell.Value.Runtime
         Export.OpenAPI
         Export.OpenAPI.Value
         Module
