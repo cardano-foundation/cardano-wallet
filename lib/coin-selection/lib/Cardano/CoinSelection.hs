@@ -320,12 +320,6 @@ performSelection
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
     => PerformSelection m ctx (Selection ctx)
 performSelection cs ps = do
-    performSelectionInner cs ps
-
-performSelectionInner
-    :: (HasCallStack, MonadRandom m, SelectionContext ctx)
-    => PerformSelection m ctx (Selection ctx)
-performSelectionInner cs ps = do
     balanceResult <- performSelectionBalance cs ps
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
