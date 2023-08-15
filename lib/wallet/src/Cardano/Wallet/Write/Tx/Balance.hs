@@ -765,6 +765,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 pp timeTranslation combinedUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
+        :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+    guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Use of withdrawals with different networks breaks balancing.
         --
@@ -786,6 +788,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         when conflictingWdrlNetworks $
             throwE ErrBalanceTxConflictingNetworks
 
+    guardExistingCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
@@ -797,12 +800,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Cardano.TxInsCollateral _ _ ->
                 throwE ErrBalanceTxExistingCollateral
 
+    guardExistingTotalCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txTotalCollateral body of
             Cardano.TxTotalCollateralNone -> return ()
             Cardano.TxTotalCollateral _ _ ->
                throwE ErrBalanceTxExistingTotalCollateral
 
+    guardExistingReturnCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
     guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txReturnCollateral body of
             Cardano.TxReturnCollateralNone -> return ()
