@@ -849,10 +849,23 @@ selectAssets
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
 selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
-    utxoSelection balance fee0 seed changeGen selectionStrategy =
-        (`evalRand` stdGenFromSeed seed) . runExceptT
-            $ performSelection selectionConstraints selectionParams
+    utxoSelection balance fee0 seed changeGen selectionStrategy = do
+        validateTxOutputs'
+        performSelection'
   where
+    validateTxOutputs'
+        :: Either (SelectionError WalletSelectionContext) ()
+    validateTxOutputs'
+        = left SelectionOutputErrorOf
+        $ validateTxOutputs selectionConstraints
+            (outs <&> \out -> (view #address out, view #tokens out))
+
+    performSelection'
+        :: Either (SelectionError WalletSelectionContext) Selection
+    performSelection'
+        = (`evalRand` stdGenFromSeed seed) . runExceptT
+        $ performSelection selectionConstraints selectionParams
+
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
             withConstraints era $
