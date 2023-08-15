@@ -320,7 +320,6 @@ performSelection
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
     => PerformSelection m ctx (Selection ctx)
 performSelection cs ps = do
-    validateOutputs cs ps
     performSelectionInner cs ps
 
 performSelectionInner
@@ -330,11 +329,6 @@ performSelectionInner cs ps = do
     balanceResult <- performSelectionBalance cs ps
     collateralResult <- performSelectionCollateral balanceResult cs ps
     pure $ mkSelection ps balanceResult collateralResult
-
-validateOutputs :: Applicative m => PerformSelection m ctx ()
-validateOutputs cs ps =
-    withExceptT SelectionOutputErrorOf $ ExceptT $ pure $
-    validateOutputsInternal cs (view #outputsToCover ps)
 
 performSelectionBalance
     :: (HasCallStack, MonadRandom m, SelectionContext ctx)
@@ -1269,30 +1263,6 @@ computeMinimumCollateral params =
 -- Validating outputs
 --------------------------------------------------------------------------------
 
--- | Ensures the given user-specified outputs are valid.
---
-validateOutputsInternal
-    :: forall ctx. SelectionConstraints ctx
-    -> [(Address ctx, TokenBundle)]
-    -> Either (SelectionOutputError ctx) ()
-validateOutputsInternal constraints outputs =
-    -- If we encounter an error, just report the first error we encounter:
-    case errors of
-        e : _ -> Left e
-        []    -> pure ()
-  where
-    errors :: [SelectionOutputError ctx]
-    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
-        [ (fmap . fmap) SelectionOutputSizeExceedsLimit
-            . mapMaybe (traverse (verifyOutputSize constraints))
-        , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
-            . foldMap (traverse verifyOutputTokenQuantities)
-        , (fmap . fmap) SelectionOutputCoinInsufficient
-            . mapMaybe (traverse (verifyOutputCoinSufficient constraints))
-        ]
-      where
-        withOutputsIndexed f = f $ zip [0 ..] outputs
-
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
 data SelectionOutputError ctx = SelectionOutputError
@@ -1383,27 +1353,3 @@ verifyOutputTokenQuantities out =
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
-
--- | Verifies that an output's ada quantity is sufficient.
---
--- An output's ada quantity must be greater than or equal to the minimum
--- required quantity for that output.
---
-verifyOutputCoinSufficient
-    :: SelectionConstraints ctx
-    -> (Address ctx, TokenBundle)
-    -> Maybe (SelectionOutputCoinInsufficientError ctx)
-verifyOutputCoinSufficient constraints output
-    | isBelowMinimum =
-        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
-    | otherwise =
-        Nothing
-  where
-    isBelowMinimum :: Bool
-    isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
-
-    minimumExpectedCoin :: Coin
-    minimumExpectedCoin =
-        (constraints ^. #computeMinimumAdaQuantity)
-        (fst output)
-        (snd output ^. #tokens)
