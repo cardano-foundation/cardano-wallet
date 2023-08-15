@@ -350,18 +350,17 @@ performSelectionCollateral balanceResult cs ps
         SelectionCollateralErrorOf
         SelectionCollateralError {..}
 
--- | Returns a selection's ordinary outputs and change outputs in a single list.
+-- | Returns a selection's change outputs with dummy addresses.
 --
 -- Since change outputs do not have addresses at the point of generation,
 -- this function assigns all change outputs with a dummy change address
 -- of the maximum possible length.
 --
-selectionAllOutputs
+selectionChangeOutputsWithDummyAddresses
     :: SelectionConstraints ctx
     -> Selection ctx
     -> [(Address ctx, TokenBundle)]
-selectionAllOutputs constraints selection = (<>)
-    (selection ^. #outputs)
+selectionChangeOutputsWithDummyAddresses constraints selection =
     (selection ^. #change <&> (maximumLengthChangeAddress constraints, ))
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
@@ -736,7 +735,8 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
     errors :: [SelectionOutputCoinInsufficientError ctx]
-    errors = mapMaybe maybeError (selectionAllOutputs cs selection)
+    errors = mapMaybe maybeError
+        (selectionChangeOutputsWithDummyAddresses cs selection)
 
     maybeError
         :: (Address ctx, TokenBundle)
@@ -769,7 +769,8 @@ verifySelectionOutputSizesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
     errors :: [SelectionOutputSizeExceedsLimitError ctx]
-    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs cs selection)
+    errors = mapMaybe (verifyOutputSize cs)
+        (selectionChangeOutputsWithDummyAddresses cs selection)
 
 --------------------------------------------------------------------------------
 -- Selection verification: output token quantities
@@ -786,7 +787,8 @@ verifySelectionOutputTokenQuantitiesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
-    errors = verifyOutputTokenQuantities =<< selectionAllOutputs cs selection
+    errors = verifyOutputTokenQuantities =<<
+        selectionChangeOutputsWithDummyAddresses cs selection
 
 --------------------------------------------------------------------------------
 -- Selection error verification

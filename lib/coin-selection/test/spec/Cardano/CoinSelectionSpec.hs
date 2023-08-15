@@ -228,15 +228,6 @@ prop_performSelection_coverage params r innerProperty =
     cover 0.1
         (isSelectionCollateralError r)
         "isSelectionCollateralError" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputCoinInsufficient r)
-        "isSelectionOutputError_SelectionOutputCoinInsufficient" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
-        "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
-    cover 0.1
-        (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
-        "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit" $
     property innerProperty
   where
     isSelection = isRight
@@ -251,30 +242,6 @@ prop_performSelection_coverage params r innerProperty =
             -> True; _ -> False
     isSelectionCollateralError = \case
         Left (SelectionCollateralErrorOf _)
-            -> True; _ -> False
-    isSelectionOutputError_SelectionOutputCoinInsufficient = \case
-        Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputCoinInsufficient {}
-                )
-            )
-            -> True; _ -> False
-    isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
-        Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputSizeExceedsLimit {}
-                )
-            )
-            -> True; _ -> False
-    isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit = \case
-        Left
-            (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                    SelectionOutputTokenQuantityExceedsLimit {}
-                )
-            )
             -> True; _ -> False
 
     -- Provides an exhaustiveness check for all possible constructors of
