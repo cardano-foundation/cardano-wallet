@@ -34,7 +34,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
     )
@@ -118,6 +117,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrUpdateSealedTx (..)
     )
 import Cardano.Wallet.Write.Tx.Sign
@@ -363,9 +363,9 @@ instance IsServerError ErrMkTransaction where
                 , "Destination address: "
                 , pretty (view #address e)
                 , ". Token policy identifier: "
-                , pretty (view #tokenPolicyId $ asset e)
+                , pretty (view (#asset . #tokenPolicyId) e)
                 , ". Asset name: "
-                , pretty (view #tokenName $ asset e)
+                , pretty (view (#asset . #tokenName) e)
                 , ". Token quantity specified: "
                 , pretty (view #quantity e)
                 , ". Maximum allowable token quantity: "
@@ -941,8 +941,7 @@ instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
       where
         output = view #outputThatExceedsLimit e
 
-instance IsServerError
-    (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
+instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
   where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
@@ -951,9 +950,9 @@ instance IsServerError
         , "Destination address: "
         , pretty (view #address e)
         , ". Token policy identifier: "
-        , pretty (view #tokenPolicyId $ asset e)
+        , pretty (view (#asset . #tokenPolicyId) e)
         , ". Asset name: "
-        , pretty (view #tokenName $ asset e)
+        , pretty (view (#asset . #tokenName) e)
         , ". Token quantity specified: "
         , pretty (view #quantity e)
         , ". Maximum allowable token quantity: "

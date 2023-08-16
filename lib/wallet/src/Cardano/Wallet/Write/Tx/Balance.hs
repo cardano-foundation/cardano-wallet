@@ -32,6 +32,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -97,7 +98,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
@@ -1407,7 +1407,7 @@ data ErrBalanceTxOutputErrorInfo
     | ErrBalanceTxOutputSizeExceedsLimit
         ErrBalanceTxOutputSizeExceedsLimitError
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
-        (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
+        ErrBalanceTxOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
@@ -1485,9 +1485,9 @@ validateTxOutputSize cs out = case sizeAssessment of
 --
 validateTxOutputTokenQuantities
     :: (W.Address, TokenBundle)
-    -> [SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext]
+    -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
 validateTxOutputTokenQuantities out =
-    [ SelectionOutputTokenQuantityExceedsLimitError
+    [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
     | let address = fst out
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
