@@ -3739,8 +3739,9 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> IO ()
     test _name bs tx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
-            utxo = utxoPromisingInputsHaveVkPaymentCreds body
+            utxo = utxoPromisingInputsHaveAddress vkCredAddr body
             witCount = estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body
+            witCountBoot = estimateKeyWitnessCount (Write.fromCardanoUTxO $ utxoPromisingInputsHaveAddress bootAddr body) body
             era = recentEra @era
 
             ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
@@ -3762,7 +3763,16 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                         `shouldBeWithin`
                         (signedBinarySize - correction, signedBinarySize)
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
-                (True, False) -> testDoesNotYetSupport "bootstrap wits"
+                (True, False) ->
+                    estimateSignedTxSize era pparams witCountBoot ledgerTx
+                        `shouldBeWithin`
+                        ( signedBinarySize - correction
+                        , signedBinarySize + TxSize 45
+                        -- For txs with bootstrap witnesses we accept that the
+                        -- initial estimation might be much higher than the
+                        -- eventual signed tx. The bootstrap witnesses can vary
+                        -- in size.
+                        )
                 (False, True) -> testDoesNotYetSupport "scripts"
       where
         -- Apparently the cbor encoding used by the ledger for size-checks
@@ -3798,21 +3808,22 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             in
                 Hspec.counterexample msg $ f name bs tx
 
+
     -- estimateSignedTxSize now depends upon being able to resolve inputs. To
     -- keep tese tests working, we can create a UTxO with dummy values as long
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
     -- outputs with vk payment credentials.
-    utxoPromisingInputsHaveVkPaymentCreds
-        :: forall era. HasCallStack
-        => Cardano.IsShelleyBasedEra era
-        => Cardano.TxBody era
+    utxoPromisingInputsHaveAddress
+        :: forall era. (HasCallStack, Cardano.IsShelleyBasedEra era)
+        => Address
+        -> Cardano.TxBody era
         -> Cardano.UTxO era
-    utxoPromisingInputsHaveVkPaymentCreds (Cardano.TxBody body) =
+    utxoPromisingInputsHaveAddress addr (Cardano.TxBody body) =
         Cardano.UTxO $ Map.fromList $
             [ (i
                , Compatibility.toCardanoTxOut
                      (shelleyBasedEra @era)
-                     (TxOut paymentAddr mempty)
+                     (TxOut addr mempty)
                )
             | i <- allTxIns body
             ]
@@ -3825,8 +3836,13 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                 Cardano.TxInsCollateralNone -> []
             ins = Cardano.txIns body
 
-        paymentAddr = Address $ unsafeFromHex
-            "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
+
+
+    bootAddr = Address $ unsafeFromHex
+        "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
+
+    vkCredAddr = Address $ unsafeFromHex
+        "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a
