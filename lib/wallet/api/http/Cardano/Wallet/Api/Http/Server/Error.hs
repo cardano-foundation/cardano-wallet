@@ -899,7 +899,7 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
 
 instance IsServerError ErrBalanceTxOutputError where
     toServerError (ErrBalanceTxOutputErrorOf index info) = case info of
-        SelectionOutputCoinInsufficient e ->
+        ErrBalanceTxOutputAdaQuantityInsufficient e ->
             flip (apiError err403) selectionOutputCoinInsufficientMessage $
             UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
                 { txOutputIndex =

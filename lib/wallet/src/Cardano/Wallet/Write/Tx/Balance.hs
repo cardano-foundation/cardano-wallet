@@ -1398,7 +1398,7 @@ data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
     deriving (Eq, Show)
 
 data ErrBalanceTxOutputErrorInfo
-    = SelectionOutputCoinInsufficient
+    = ErrBalanceTxOutputAdaQuantityInsufficient
         (SelectionOutputCoinInsufficientError WalletSelectionContext)
     | SelectionOutputSizeExceedsLimit
         (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
@@ -1424,7 +1424,7 @@ validateTxOutputs constraints outs =
             . mapMaybe (traverse (validateTxOutputSize constraints))
         , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
             . foldMap (traverse validateTxOutputTokenQuantities)
-        , (fmap . fmap) SelectionOutputCoinInsufficient
+        , (fmap . fmap) ErrBalanceTxOutputAdaQuantityInsufficient
             . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
         ]
       where
