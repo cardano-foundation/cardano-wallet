@@ -102,7 +102,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionError (..)
     , SelectionOf (..)
-    , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , UnableToConstructChangeError (..)
     , selectionDelta
@@ -243,6 +242,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
     , ErrMoreSurplusNeeded (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
@@ -3313,11 +3313,9 @@ prop_balanceTransactionValid
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionOutputErrorOf
-                (SelectionOutputError _index
-                (SelectionOutputCoinInsufficient _e))))) ->
+                (ErrBalanceTxOutputError
+                (ErrBalanceTxOutputErrorOf _index
+                (SelectionOutputCoinInsufficient _e))) ->
                 label "output below minCoinValue" $ property True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True

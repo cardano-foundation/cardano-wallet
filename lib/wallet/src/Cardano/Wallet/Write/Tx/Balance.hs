@@ -28,6 +28,7 @@ module Cardano.Wallet.Write.Tx.Balance
       balanceTransaction
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -94,7 +95,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     , SelectionOf (change)
     , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -272,6 +272,7 @@ data ErrBalanceTx
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
+    | ErrBalanceTxOutputError ErrBalanceTxOutputError
     deriving (Show, Eq)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
@@ -852,11 +853,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     validateTxOutputs'
         :: Either ErrBalanceTx ()
     validateTxOutputs'
-        = left
-            ( ErrBalanceTxSelectAssets
-            . ErrSelectAssetsSelectionError
-            . SelectionOutputErrorOf
-            )
+        = left ErrBalanceTxOutputError
         $ validateTxOutputs selectionConstraints
             (outs <&> \out -> (view #address out, view #tokens out))
 
@@ -1392,20 +1389,28 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 -- Validation of transaction outputs
 --------------------------------------------------------------------------------
 
+-- | A validation error for a user-specified transaction output.
+--
+data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
+    { outputIndex :: Int
+    , outputErrorInfo :: SelectionOutputErrorInfo WalletSelectionContext
+    }
+    deriving (Eq, Show)
+
 -- | Validates the given transaction outputs.
 --
 validateTxOutputs
     :: SelectionConstraints
     -> [(W.Address, TokenBundle)]
-    -> Either (SelectionOutputError WalletSelectionContext) ()
+    -> Either ErrBalanceTxOutputError ()
 validateTxOutputs constraints outs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
         []    -> pure ()
   where
-    errors :: [SelectionOutputError WalletSelectionContext]
-    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
+    errors :: [ErrBalanceTxOutputError]
+    errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
         [ (fmap . fmap) SelectionOutputSizeExceedsLimit
             . mapMaybe (traverse (validateTxOutputSize constraints))
         , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit

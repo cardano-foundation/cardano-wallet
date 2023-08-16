@@ -25,7 +25,6 @@ module Cardano.CoinSelection
     , SelectionSkeleton (..)
 
     -- * Output preparation
-    , SelectionOutputError (..)
     , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -231,8 +230,6 @@ data SelectionError ctx
       (SelectionBalanceError ctx)
     | SelectionCollateralErrorOf
       (SelectionCollateralError ctx)
-    | SelectionOutputErrorOf
-      (SelectionOutputError ctx)
 
 deriving instance SelectionContext ctx => Eq (SelectionError ctx)
 deriving instance SelectionContext ctx => Show (SelectionError ctx)
@@ -812,8 +809,6 @@ verifySelectionError cs ps = \case
         verifySelectionBalanceError cs ps e
     SelectionCollateralErrorOf e ->
         verifySelectionCollateralError cs ps e
-    SelectionOutputErrorOf _e ->
-        VerificationSuccess
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance errors
@@ -1164,16 +1159,6 @@ computeMinimumCollateral params =
 --------------------------------------------------------------------------------
 -- Validating outputs
 --------------------------------------------------------------------------------
-
--- | Indicates a problem when preparing outputs for a coin selection.
---
-data SelectionOutputError ctx = SelectionOutputError
-    { outputIndex :: Int
-    , outputErrorInfo :: SelectionOutputErrorInfo ctx
-    }
-
-deriving instance SelectionContext ctx => Eq (SelectionOutputError ctx)
-deriving instance SelectionContext ctx => Show (SelectionOutputError ctx)
 
 data SelectionOutputErrorInfo ctx
     = SelectionOutputCoinInsufficient
