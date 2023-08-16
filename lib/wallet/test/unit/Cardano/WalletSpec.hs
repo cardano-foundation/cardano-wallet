@@ -1291,8 +1291,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: addVkWitnesses not implemented"
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , tokenBundleSizeAssessor =
-        error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , decodeTx = \_era _witCtx _sealed ->
         ( Tx
             { txId = Hash ""

@@ -82,7 +82,6 @@ import Cardano.Ledger.Api
     , outputsTxBodyL
     , outputsTxBodyL
     , ppMaxTxSizeL
-    , ppMaxValSizeL
     )
 import Cardano.Ledger.UTxO
     ( txinLookup )
@@ -105,8 +104,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toInternalUTxOMap
     )
-import Cardano.Wallet.Primitive.Types
-    ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -150,6 +147,8 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
+import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+    ( getTokenBundleMaxSize, tokenBundleSizeAssessor )
 import Cardano.Wallet.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.Sign
@@ -222,7 +221,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -866,10 +864,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
 
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
-            withConstraints era $
-                -- TODO (ADP-2967): avoid importing Compatibility.
-                Compatibility.tokenBundleSizeAssessor
-                    (TokenBundleMaxSize (TxSize (pp ^. ppMaxValSizeL)))
+                tokenBundleSizeAssessor
+                    (getTokenBundleMaxSize era pp)
                         ^. #assessTokenBundleSize
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut

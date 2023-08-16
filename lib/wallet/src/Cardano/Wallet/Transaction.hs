@@ -76,7 +76,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
+    ( Certificate, ProtocolParameters, SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -89,8 +89,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -187,10 +185,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- multisignature transactions, etc.
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
-
-    , tokenBundleSizeAssessor
-        :: TokenBundleMaxSize -> TokenBundleSizeAssessor
-        -- ^ A function to assess the size of a token bundle.
 
     , decodeTx
         :: AnyCardanoEra

@@ -134,8 +134,6 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, liftRawKey, publicKey )
-import Cardano.Wallet.Byron.Compatibility
-    ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Gen
@@ -158,7 +156,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), TokenBundleMaxSize (..) )
+    ( Block (..), BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -206,8 +204,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
 import Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx )
 import Cardano.Wallet.Shelley.Compatibility
-    ( computeTokenBundleSerializedLengthBytes
-    , fromCardanoLovelace
+    ( fromCardanoLovelace
     , fromCardanoValue
     , toCardanoLovelace
     , toCardanoTxIn
@@ -215,7 +212,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet )
-
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
@@ -382,7 +378,6 @@ import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Blind (..)
     , InfiniteList (..)
     , Property
     , Testable
@@ -414,7 +409,6 @@ import Test.QuickCheck
     , vectorOf
     , withMaxSuccess
     , (.||.)
-    , (=/=)
     , (===)
     , (==>)
     )
@@ -1423,8 +1417,6 @@ transactionConstraintsSpec = describe "Transaction constraints" $ do
     it "size of empty transaction" prop_txConstraints_txBaseSize
     it "size of non-empty transaction" $
         property prop_txConstraints_txSize
-    it "maximum size of output" $
-        property prop_txConstraints_txOutputMaximumSize
 
 --------------------------------------------------------------------------------
 -- Roundtrip tests for SealedTx
@@ -1729,63 +1721,6 @@ newtype Large a = Large { unLarge :: a }
 instance Arbitrary (Large TokenBundle) where
     arbitrary = fmap Large . genTxOutTokenBundle =<< choose (1, 128)
 
--- Tests that if a bundle is oversized (when serialized), then a comparison
--- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that
--- the bundle is oversized.
---
-prop_txConstraints_txOutputMaximumSize
-    :: Blind (Large TokenBundle)
-    -> Property
-prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
-    checkCoverage $
-    cover 10 (authenticComparison == LT)
-        "authentic bundle size is smaller than maximum" $
-    cover 10 (authenticComparison == GT)
-        "authentic bundle size is greater than maximum" $
-    counterexample
-        ("authentic size: " <> show authenticSize) $
-    counterexample
-        ("authentic size maximum: " <> show authenticSizeMax) $
-    counterexample
-        ("authentic comparison: " <> show authenticComparison) $
-    counterexample
-        ("simulated size: " <> show simulatedSize) $
-    counterexample
-        ("simulated size maximum: " <> show simulatedSizeMax) $
-    counterexample
-        ("simulated comparison: " <> show simulatedComparison) $
-    case authenticComparison of
-        LT ->
-            -- We can't really require anything of the simulated comparison
-            -- here, as the size given by 'estimateTxSize' is allowed to be
-            -- an overestimate.
-            property True
-        EQ ->
-            -- It's extremely hard to hit this case exactly. But if this case
-            -- does match, we only need to ensure that the simulated size is
-            -- not an underestimate.
-            simulatedComparison =/= LT
-        GT ->
-            -- This is the case we really care about. If the result of an
-            -- authentic comparison indicates that the bundle is oversized,
-            -- the simulated comparison MUST also indicate that the bundle
-            -- is oversized.
-            simulatedComparison === GT
-  where
-    authenticComparison = compare authenticSize authenticSizeMax
-    simulatedComparison = compare simulatedSize simulatedSizeMax
-
-    authenticSize :: TxSize
-    authenticSize = computeTokenBundleSerializedLengthBytes bundle
-
-    authenticSizeMax :: TxSize
-    authenticSizeMax = unTokenBundleMaxSize maryTokenBundleMaxSize
-
-    simulatedSize :: TxSize
-    simulatedSize = txOutputSize mockTxConstraints bundle
-    simulatedSizeMax :: TxSize
-    simulatedSizeMax = txOutputMaximumSize mockTxConstraints
-
 instance Arbitrary AssetId where
     arbitrary =
         TokenBundle.AssetId
@@ -1964,14 +1899,6 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         let address :: Babbage.BabbageTxOut StandardBabbage -> Address
             address (Babbage.BabbageTxOut addr _ _ _) = toWallet addr
 
-        let outputs
-                :: Cardano.Tx Cardano.BabbageEra
-                -> [Babbage.BabbageTxOut StandardBabbage]
-            outputs
-                (Cardano.Tx
-                    (Cardano.ShelleyTxBody _ body _ _ _ _ )
-                _) = Write.outputs RecentEraBabbage body
-
         let (tx, s') =
                 either (error . show) id $ balance' ptx
 
@@ -2121,6 +2048,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
   where
+    outputs
+        :: Cardano.Tx Cardano.BabbageEra
+        -> [Babbage.BabbageTxOut StandardBabbage]
+    outputs (Cardano.Tx (Cardano.ShelleyTxBody _ body _ _ _ _ ) _) =
+        Write.outputs RecentEraBabbage body
+
     mapFirst f (x:xs) = f x : xs
     mapFirst _ [] = error "mapFirst: empty list"
 
@@ -2145,11 +2078,13 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
-    utxo coins = UTxO $ Map.fromList $ zip ins outs
+    utxoWithBundles bundles = UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (TxIn dummyHash) [0..]
-        outs = map (TxOut dummyAddr . TokenBundle.fromCoin) coins
+        outs = map (TxOut dummyAddr) bundles
         dummyHash = Hash $ B8.replicate 32 '0'
+
+    utxo coins = utxoWithBundles $ map TokenBundle.fromCoin coins
 
     dummyAddr = Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
@@ -2203,6 +2138,7 @@ distributeSurplusSpec = do
     describe "costOfIncreasingCoin" $ do
         it "costs 176 lovelace to increase 4294.967295 ada (2^32 - 1 lovelace) \
            \by 1 lovelace on mainnet" $ do
+
             let expectedCostIncrease = Coin 176
             let mainnet = mainnetFeePerByte
             costOfIncreasingCoin mainnet (Coin $ 2 `power` 32 - 1) (Coin 1)
@@ -3191,6 +3127,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
+
             xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
             delegationAction = JoinRegisteringKey poolId
 

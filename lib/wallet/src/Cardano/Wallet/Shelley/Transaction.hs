@@ -587,9 +587,6 @@ newTransactionLayer keyF networkId = TransactionLayer
                     stakingScriptM
                     (Write.shelleyBasedEraFromRecentEra Write.recentEra)
 
-    , tokenBundleSizeAssessor =
-        Compatibility.tokenBundleSizeAssessor
-
     , decodeTx = _decodeSealedTx
 
     , transactionWitnessTag = txWitnessTagForKey keyF

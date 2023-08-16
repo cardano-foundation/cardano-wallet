@@ -352,6 +352,8 @@ library
     Cardano.Wallet.Write.ProtocolParameters
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
+    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize.Gen
     Cardano.Wallet.Write.Tx.Gen
     Cardano.Wallet.Write.Tx.Redeemers
     Cardano.Wallet.Write.Tx.Sign
@@ -911,6 +913,7 @@ test-suite unit
     Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
+    Cardano.Wallet.Write.Tx.Balance.TokenBundleSizeSpec
     Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
