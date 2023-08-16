@@ -28,9 +28,10 @@ module Cardano.Wallet.Write.Tx.Balance
       balanceTransaction
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -96,7 +97,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
-    , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
@@ -1401,7 +1401,7 @@ data ErrBalanceTxOutputErrorInfo
     = ErrBalanceTxOutputAdaQuantityInsufficient
         ErrBalanceTxOutputAdaQuantityInsufficientError
     | ErrBalanceTxOutputSizeExceedsLimit
-        (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+        ErrBalanceTxOutputSizeExceedsLimitError
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
     deriving (Eq, Show)
@@ -1445,18 +1445,18 @@ validateTxOutputs constraints outs =
 
 -- | Validates the size of a transaction output.
 --
--- Returns 'SelectionOutputSizeExceedsLimitError' if (and only if) the size
--- exceeds the limit defined by the protocol.
+-- Returns an error if (and only if) the size exceeds the limit defined by the
+-- protocol.
 --
 validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, TokenBundle)
-    -> Maybe (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+    -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
 validateTxOutputSize cs out = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
-        Just $ SelectionOutputSizeExceedsLimitError out
+        Just $ ErrBalanceTxOutputSizeExceedsLimitError out
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)

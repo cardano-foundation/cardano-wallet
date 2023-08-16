@@ -34,7 +34,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionError (..)
-    , SelectionOutputSizeExceedsLimitError
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
@@ -118,6 +117,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrUpdateSealedTx (..)
     )
 import Cardano.Wallet.Write.Tx.Sign
@@ -926,8 +926,7 @@ instance IsServerError ErrBalanceTxOutputError where
             , "minimum ada quantity to the output."
             ]
 
-instance IsServerError
-    (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
   where
     toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
         mconcat
