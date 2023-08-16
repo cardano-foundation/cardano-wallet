@@ -913,7 +913,7 @@ instance IsServerError ErrBalanceTxOutputError where
                 , txOutputLovelaceRequiredMinimum =
                     Coin.toQuantity $ view #minimumExpectedCoin e
                 }
-        SelectionOutputSizeExceedsLimit e ->
+        ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
