@@ -915,7 +915,7 @@ instance IsServerError ErrBalanceTxOutputError where
                 }
         ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
-        SelectionOutputTokenQuantityExceedsLimit e ->
+        ErrBalanceTxOutputTokenQuantityExceedsLimit e ->
             toServerError e
       where
         selectionOutputCoinInsufficientMessage = T.unwords
