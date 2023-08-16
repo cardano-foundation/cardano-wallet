@@ -29,6 +29,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -95,7 +96,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     , SelectionOf (change)
     , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
@@ -1393,8 +1393,17 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 --
 data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
     { outputIndex :: Int
-    , outputErrorInfo :: SelectionOutputErrorInfo WalletSelectionContext
+    , outputErrorInfo :: ErrBalanceTxOutputErrorInfo
     }
+    deriving (Eq, Show)
+
+data ErrBalanceTxOutputErrorInfo
+    = SelectionOutputCoinInsufficient
+        (SelectionOutputCoinInsufficientError WalletSelectionContext)
+    | SelectionOutputSizeExceedsLimit
+        (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+    | SelectionOutputTokenQuantityExceedsLimit
+        (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
     deriving (Eq, Show)
 
 -- | Validates the given transaction outputs.

@@ -57,7 +57,6 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     , BalanceInsufficientError (..)
     , SelectionBalanceError (..)
     , SelectionCollateralError
-    , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -79,7 +78,6 @@ import Cardano.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionError (..)
     , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     )

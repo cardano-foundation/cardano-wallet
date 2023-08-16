@@ -102,7 +102,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionError (..)
     , SelectionOf (..)
-    , SelectionOutputErrorInfo (..)
     , UnableToConstructChangeError (..)
     , selectionDelta
     )
@@ -243,6 +242,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
     , ErrMoreSurplusNeeded (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)

@@ -34,7 +34,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionError (..)
-    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
@@ -118,6 +117,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
     , ErrUpdateSealedTx (..)
     )
 import Cardano.Wallet.Write.Tx.Sign

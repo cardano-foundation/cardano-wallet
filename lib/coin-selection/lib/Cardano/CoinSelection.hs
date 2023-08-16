@@ -25,7 +25,6 @@ module Cardano.CoinSelection
     , SelectionSkeleton (..)
 
     -- * Output preparation
-    , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -1159,18 +1158,6 @@ computeMinimumCollateral params =
 --------------------------------------------------------------------------------
 -- Validating outputs
 --------------------------------------------------------------------------------
-
-data SelectionOutputErrorInfo ctx
-    = SelectionOutputCoinInsufficient
-        (SelectionOutputCoinInsufficientError ctx)
-    | SelectionOutputSizeExceedsLimit
-        (SelectionOutputSizeExceedsLimitError ctx)
-    | SelectionOutputTokenQuantityExceedsLimit
-        (SelectionOutputTokenQuantityExceedsLimitError ctx)
-    deriving Generic
-
-deriving instance SelectionContext ctx => Eq (SelectionOutputErrorInfo ctx)
-deriving instance SelectionContext ctx => Show (SelectionOutputErrorInfo ctx)
 
 newtype SelectionOutputSizeExceedsLimitError ctx =
     SelectionOutputSizeExceedsLimitError
