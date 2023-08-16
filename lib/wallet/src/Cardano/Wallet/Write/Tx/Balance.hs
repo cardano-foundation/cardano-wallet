@@ -1406,6 +1406,13 @@ data ErrBalanceTxOutputErrorInfo
         (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
     deriving (Eq, Show)
 
+data ErrBalanceTxOutputAdaQuantityInsufficientError =
+    ErrBalanceTxOutputAdaQuantityInsufficientError
+    { minimumExpectedCoin :: W.Coin
+    , output :: (W.Address, TokenBundle)
+    }
+    deriving (Eq, Generic, Show)
+
 -- | Validates the given transaction outputs.
 --
 validateTxOutputs
