@@ -1,0 +1,67 @@
+module UTxO_JSON where
+
+{-----------------------------------------------------------------------------
+    UTxO type in the Babbage era
+    JSON-friendly
+------------------------------------------------------------------------------}
+
+ByteString = Bytes;
+ScriptHash = Bytes;
+
+Addr     = Bytes;
+Script   = Bytes;
+Datum    = Bytes;
+DataHash = Bytes;
+
+{-----------------------------------------------------------------------------
+    Value and Token Algebra
+------------------------------------------------------------------------------}
+
+Quantity = ℤ;
+
+Value =
+  { ada    : Quantity
+  , assets : Asset*
+  };
+
+PolicyID   = ScriptHash;
+AssetName  = ByteString;
+
+Asset =
+  { policyId  : PolicyID
+  , assetName : AssetName
+  , quantity  : Quantity
+  };
+
+{-----------------------------------------------------------------------------
+    TxOut
+------------------------------------------------------------------------------}
+TxOut =
+  { address   : Addr
+  , value     : Value
+  , datum     : DatumOrHash?
+  , scriptRef : Script?
+  };
+
+DatumOrHash =
+  [+ datum    : Datum
+  ,  dataHash : DataHash
+  +];
+
+{-----------------------------------------------------------------------------
+    Transactions
+    Shelley spec, Figure 10, filtered, annotated
+------------------------------------------------------------------------------}
+TxId = Bytes;
+Ix = ℕ;
+
+UTxO_1 =
+  { id        : TxId
+  , index     : Ix
+  , address   : Addr
+  , value     : Value
+  , datum     : DatumOrHash?
+  , scriptRef : Script?
+  };
+
+UTxO = UTxO_1*;

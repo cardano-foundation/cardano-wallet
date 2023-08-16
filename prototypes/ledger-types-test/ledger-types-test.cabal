@@ -16,6 +16,8 @@ extra-source-files:
 data-files:
     data/Babbage.txt
     data/BabbageTxOut.txt
+    data/json/UTxO.txt
+    data/json/UTxO_JSON.txt
 
 library
     default-language:

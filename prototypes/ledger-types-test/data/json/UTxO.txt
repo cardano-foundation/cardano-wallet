@@ -1,0 +1,64 @@
+module UTxO where
+
+{-----------------------------------------------------------------------------
+    UTxO type in the Babbage era
+    close to the specification
+------------------------------------------------------------------------------}
+ByteString = Bytes;
+ScriptHash = Bytes;
+
+Addr     = Bytes;
+Script   = Bytes;
+Datum    = Bytes;
+DataHash = Bytes;
+
+{-----------------------------------------------------------------------------
+    Value and Token Algebra
+    Mary spec, Figure 3, filtered, annotated
+------------------------------------------------------------------------------}
+AssetName = ByteString;
+PolicyID  = ScriptHash;
+AdaIDType = Unit;
+
+AssetID =
+  [+ ada   : AdaIDType
+  ,  asset : AssetIDNonAda
+  +];
+
+AssetIDNonAda =
+  { policyId  : PolicyID
+  , assetName : AssetName
+  };
+
+Quantity  = ℤ;
+Value     = AssetID ↦0 Quantity;
+
+{-----------------------------------------------------------------------------
+    Transaction Body
+    Babbage spec, Figure 1, filtered, annotated
+------------------------------------------------------------------------------}
+TxOut =
+  { address   : Addr
+  , value     : Value
+  , datum     : DatumOrHash?
+  , scriptRef : Script?
+  };
+
+DatumOrHash =
+  [+ datum    : Datum
+  ,  dataHash : DataHash
+  +];
+
+{-----------------------------------------------------------------------------
+    Transactions
+    Shelley spec, Figure 10, filtered, annotated
+------------------------------------------------------------------------------}
+TxId = Bytes;
+Ix = ℕ;
+
+TxIn =
+  { id    : TxId
+  , index : Ix
+  };
+
+UTxO = TxIn ↦ TxOut;
