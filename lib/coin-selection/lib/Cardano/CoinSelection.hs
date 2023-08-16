@@ -25,7 +25,6 @@ module Cardano.CoinSelection
     , SelectionSkeleton (..)
 
     -- * Output preparation
-    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 

@@ -28,6 +28,7 @@ module Cardano.Wallet.Write.Tx.Balance
       balanceTransaction
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrSelectAssets (..)
@@ -95,7 +96,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
-    , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
@@ -1399,7 +1399,7 @@ data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
 
 data ErrBalanceTxOutputErrorInfo
     = ErrBalanceTxOutputAdaQuantityInsufficient
-        (SelectionOutputCoinInsufficientError WalletSelectionContext)
+        ErrBalanceTxOutputAdaQuantityInsufficientError
     | ErrBalanceTxOutputSizeExceedsLimit
         (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
@@ -1479,10 +1479,11 @@ validateTxOutputTokenQuantities out =
 validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, TokenBundle)
-    -> Maybe (SelectionOutputCoinInsufficientError WalletSelectionContext)
+    -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
 validateTxOutputAdaQuantity constraints output
     | isBelowMinimum =
-        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+        Just ErrBalanceTxOutputAdaQuantityInsufficientError
+            {minimumExpectedCoin, output}
     | otherwise =
         Nothing
   where
