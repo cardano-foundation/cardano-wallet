@@ -109,6 +109,10 @@ import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -1416,6 +1420,19 @@ data ErrBalanceTxOutputAdaQuantityInsufficientError =
 newtype ErrBalanceTxOutputSizeExceedsLimitError =
     ErrBalanceTxOutputSizeExceedsLimitError
     { outputThatExceedsLimit :: (W.Address, TokenBundle)
+    }
+    deriving (Eq, Generic, Show)
+
+data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
+    ErrBalanceTxOutputTokenQuantityExceedsLimitError
+    { address :: W.Address
+      -- ^ The address to which this token quantity was to be sent.
+    , asset :: AssetId
+      -- ^ The asset identifier to which this token quantity corresponds.
+    , quantity :: TokenQuantity
+      -- ^ The token quantity that exceeded the bound.
+    , quantityMaxBound :: TokenQuantity
+      -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
 
