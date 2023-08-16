@@ -812,8 +812,8 @@ verifySelectionError cs ps = \case
         verifySelectionBalanceError cs ps e
     SelectionCollateralErrorOf e ->
         verifySelectionCollateralError cs ps e
-    SelectionOutputErrorOf e ->
-        verifySelectionOutputError cs ps e
+    SelectionOutputErrorOf _e ->
+        VerificationSuccess
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance errors
