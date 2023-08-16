@@ -1413,6 +1413,12 @@ data ErrBalanceTxOutputAdaQuantityInsufficientError =
     }
     deriving (Eq, Generic, Show)
 
+newtype ErrBalanceTxOutputSizeExceedsLimitError =
+    ErrBalanceTxOutputSizeExceedsLimitError
+    { outputThatExceedsLimit :: (W.Address, TokenBundle)
+    }
+    deriving (Eq, Generic, Show)
+
 -- | Validates the given transaction outputs.
 --
 validateTxOutputs
