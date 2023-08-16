@@ -548,9 +548,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 genChange
                 selectionStrategy
 
-        withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
-            . except
-            $ transform <$> mSel
+        except $ transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -845,23 +843,31 @@ selectAssets
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either (SelectionError WalletSelectionContext) Selection
+    -> Either ErrBalanceTx Selection
 selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy = do
         validateTxOutputs'
         performSelection'
   where
     validateTxOutputs'
-        :: Either (SelectionError WalletSelectionContext) ()
+        :: Either ErrBalanceTx ()
     validateTxOutputs'
-        = left SelectionOutputErrorOf
+        = left
+            ( ErrBalanceTxSelectAssets
+            . ErrSelectAssetsSelectionError
+            . SelectionOutputErrorOf
+            )
         $ validateTxOutputs selectionConstraints
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: Either (SelectionError WalletSelectionContext) Selection
+        :: Either ErrBalanceTx Selection
     performSelection'
-        = (`evalRand` stdGenFromSeed seed) . runExceptT
+        = left
+            ( ErrBalanceTxSelectAssets
+            . ErrSelectAssetsSelectionError
+            )
+        $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
