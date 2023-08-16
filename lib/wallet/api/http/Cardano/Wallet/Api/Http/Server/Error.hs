@@ -34,10 +34,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
     )
@@ -118,6 +114,10 @@ import Cardano.Wallet.Write.Tx.Balance
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrUpdateSealedTx (..)
     )
 import Cardano.Wallet.Write.Tx.Sign
@@ -363,9 +363,9 @@ instance IsServerError ErrMkTransaction where
                 , "Destination address: "
                 , pretty (view #address e)
                 , ". Token policy identifier: "
-                , pretty (view #tokenPolicyId $ asset e)
+                , pretty (view (#asset . #tokenPolicyId) e)
                 , ". Asset name: "
-                , pretty (view #tokenName $ asset e)
+                , pretty (view (#asset . #tokenName) e)
                 , ". Token quantity specified: "
                 , pretty (view #quantity e)
                 , ". Maximum allowable token quantity: "
@@ -551,6 +551,7 @@ instance IsServerError ErrBalanceTx where
                 , "The conflict(s) are:\n"
                 , fmt $ blockListF' "-" conflictF conflicts
                 ]
+        ErrBalanceTxOutputError err -> toServerError err
 
 instance IsServerError ErrBalanceTxInternalError where
     toServerError = \case
@@ -896,9 +897,9 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError (SelectionOutputError WalletSelectionContext) where
-    toServerError (SelectionOutputError index info) = case info of
-        SelectionOutputCoinInsufficient e ->
+instance IsServerError ErrBalanceTxOutputError where
+    toServerError (ErrBalanceTxOutputErrorOf index info) = case info of
+        ErrBalanceTxOutputAdaQuantityInsufficient e ->
             flip (apiError err403) selectionOutputCoinInsufficientMessage $
             UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
                 { txOutputIndex =
@@ -912,9 +913,9 @@ instance IsServerError (SelectionOutputError WalletSelectionContext) where
                 , txOutputLovelaceRequiredMinimum =
                     Coin.toQuantity $ view #minimumExpectedCoin e
                 }
-        SelectionOutputSizeExceedsLimit e ->
+        ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
-        SelectionOutputTokenQuantityExceedsLimit e ->
+        ErrBalanceTxOutputTokenQuantityExceedsLimit e ->
             toServerError e
       where
         selectionOutputCoinInsufficientMessage = T.unwords
@@ -925,8 +926,7 @@ instance IsServerError (SelectionOutputError WalletSelectionContext) where
             , "minimum ada quantity to the output."
             ]
 
-instance IsServerError
-    (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
   where
     toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
         mconcat
@@ -941,8 +941,7 @@ instance IsServerError
       where
         output = view #outputThatExceedsLimit e
 
-instance IsServerError
-    (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
+instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
   where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
@@ -951,9 +950,9 @@ instance IsServerError
         , "Destination address: "
         , pretty (view #address e)
         , ". Token policy identifier: "
-        , pretty (view #tokenPolicyId $ asset e)
+        , pretty (view (#asset . #tokenPolicyId) e)
         , ". Asset name: "
-        , pretty (view #tokenName $ asset e)
+        , pretty (view (#asset . #tokenName) e)
         , ". Token quantity specified: "
         , pretty (view #quantity e)
         , ". Maximum allowable token quantity: "
@@ -987,8 +986,6 @@ instance IsServerError ErrSelectAssets where
         ErrSelectAssetsSelectionError (SelectionBalanceErrorOf e) ->
             toServerError e
         ErrSelectAssetsSelectionError (SelectionCollateralErrorOf e) ->
-            toServerError e
-        ErrSelectAssetsSelectionError (SelectionOutputErrorOf e) ->
             toServerError e
 
 instance IsServerError (SelectionBalanceError WalletSelectionContext) where

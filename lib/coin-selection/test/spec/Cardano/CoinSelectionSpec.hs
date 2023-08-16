@@ -25,8 +25,6 @@ import Cardano.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
     , SelectionParams (..)
     , VerificationResult (..)
     , computeMinimumCollateral
@@ -259,10 +257,6 @@ prop_performSelection_coverage params r innerProperty =
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of
             SelectionCollateralError {} -> ()
-        SelectionOutputErrorOf (SelectionOutputError _index e) -> case e of
-            SelectionOutputCoinInsufficient {} -> ()
-            SelectionOutputSizeExceedsLimit {} -> ()
-            SelectionOutputTokenQuantityExceedsLimit {} -> ()
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters

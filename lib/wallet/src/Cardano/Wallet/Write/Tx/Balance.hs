@@ -28,6 +28,11 @@ module Cardano.Wallet.Write.Tx.Balance
       balanceTransaction
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -92,11 +97,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (change)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , WalletSelectionContext
@@ -106,6 +106,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -270,6 +274,7 @@ data ErrBalanceTx
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
+    | ErrBalanceTxOutputError ErrBalanceTxOutputError
     deriving (Show, Eq)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
@@ -546,9 +551,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 genChange
                 selectionStrategy
 
-        withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
-            . except
-            $ transform <$> mSel
+        except $ transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -843,23 +846,27 @@ selectAssets
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either (SelectionError WalletSelectionContext) Selection
+    -> Either ErrBalanceTx Selection
 selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy = do
         validateTxOutputs'
         performSelection'
   where
     validateTxOutputs'
-        :: Either (SelectionError WalletSelectionContext) ()
+        :: Either ErrBalanceTx ()
     validateTxOutputs'
-        = left SelectionOutputErrorOf
+        = left ErrBalanceTxOutputError
         $ validateTxOutputs selectionConstraints
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: Either (SelectionError WalletSelectionContext) Selection
+        :: Either ErrBalanceTx Selection
     performSelection'
-        = (`evalRand` stdGenFromSeed seed) . runExceptT
+        = left
+            ( ErrBalanceTxSelectAssets
+            . ErrSelectAssetsSelectionError
+            )
+        $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
@@ -1382,25 +1389,68 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 -- Validation of transaction outputs
 --------------------------------------------------------------------------------
 
+-- | A validation error for a user-specified transaction output.
+--
+data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
+    { outputIndex :: Int
+    , outputErrorInfo :: ErrBalanceTxOutputErrorInfo
+    }
+    deriving (Eq, Show)
+
+data ErrBalanceTxOutputErrorInfo
+    = ErrBalanceTxOutputAdaQuantityInsufficient
+        ErrBalanceTxOutputAdaQuantityInsufficientError
+    | ErrBalanceTxOutputSizeExceedsLimit
+        ErrBalanceTxOutputSizeExceedsLimitError
+    | ErrBalanceTxOutputTokenQuantityExceedsLimit
+        ErrBalanceTxOutputTokenQuantityExceedsLimitError
+    deriving (Eq, Show)
+
+data ErrBalanceTxOutputAdaQuantityInsufficientError =
+    ErrBalanceTxOutputAdaQuantityInsufficientError
+    { minimumExpectedCoin :: W.Coin
+    , output :: (W.Address, TokenBundle)
+    }
+    deriving (Eq, Generic, Show)
+
+newtype ErrBalanceTxOutputSizeExceedsLimitError =
+    ErrBalanceTxOutputSizeExceedsLimitError
+    { outputThatExceedsLimit :: (W.Address, TokenBundle)
+    }
+    deriving (Eq, Generic, Show)
+
+data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
+    ErrBalanceTxOutputTokenQuantityExceedsLimitError
+    { address :: W.Address
+      -- ^ The address to which this token quantity was to be sent.
+    , asset :: AssetId
+      -- ^ The asset identifier to which this token quantity corresponds.
+    , quantity :: TokenQuantity
+      -- ^ The token quantity that exceeded the bound.
+    , quantityMaxBound :: TokenQuantity
+      -- ^ The maximum allowable token quantity.
+    }
+    deriving (Eq, Generic, Show)
+
 -- | Validates the given transaction outputs.
 --
 validateTxOutputs
     :: SelectionConstraints
     -> [(W.Address, TokenBundle)]
-    -> Either (SelectionOutputError WalletSelectionContext) ()
+    -> Either ErrBalanceTxOutputError ()
 validateTxOutputs constraints outs =
     -- If we encounter an error, just report the first error we encounter:
     case errors of
         e : _ -> Left e
         []    -> pure ()
   where
-    errors :: [SelectionOutputError WalletSelectionContext]
-    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
-        [ (fmap . fmap) SelectionOutputSizeExceedsLimit
+    errors :: [ErrBalanceTxOutputError]
+    errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
+        [ (fmap . fmap) ErrBalanceTxOutputSizeExceedsLimit
             . mapMaybe (traverse (validateTxOutputSize constraints))
-        , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
+        , (fmap . fmap) ErrBalanceTxOutputTokenQuantityExceedsLimit
             . foldMap (traverse validateTxOutputTokenQuantities)
-        , (fmap . fmap) SelectionOutputCoinInsufficient
+        , (fmap . fmap) ErrBalanceTxOutputAdaQuantityInsufficient
             . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
         ]
       where
@@ -1408,18 +1458,18 @@ validateTxOutputs constraints outs =
 
 -- | Validates the size of a transaction output.
 --
--- Returns 'SelectionOutputSizeExceedsLimitError' if (and only if) the size
--- exceeds the limit defined by the protocol.
+-- Returns an error if (and only if) the size exceeds the limit defined by the
+-- protocol.
 --
 validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, TokenBundle)
-    -> Maybe (SelectionOutputSizeExceedsLimitError WalletSelectionContext)
+    -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
 validateTxOutputSize cs out = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
-        Just $ SelectionOutputSizeExceedsLimitError out
+        Just $ ErrBalanceTxOutputSizeExceedsLimitError out
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)
@@ -1431,9 +1481,9 @@ validateTxOutputSize cs out = case sizeAssessment of
 --
 validateTxOutputTokenQuantities
     :: (W.Address, TokenBundle)
-    -> [SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext]
+    -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
 validateTxOutputTokenQuantities out =
-    [ SelectionOutputTokenQuantityExceedsLimitError
+    [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
     | let address = fst out
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
@@ -1448,10 +1498,11 @@ validateTxOutputTokenQuantities out =
 validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, TokenBundle)
-    -> Maybe (SelectionOutputCoinInsufficientError WalletSelectionContext)
+    -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
 validateTxOutputAdaQuantity constraints output
     | isBelowMinimum =
-        Just SelectionOutputCoinInsufficientError {minimumExpectedCoin, output}
+        Just ErrBalanceTxOutputAdaQuantityInsufficientError
+            {minimumExpectedCoin, output}
     | otherwise =
         Nothing
   where

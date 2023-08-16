@@ -57,12 +57,12 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     , BalanceInsufficientError (..)
     , SelectionBalanceError (..)
     , SelectionCollateralError
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputSizeExceedsLimitError (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
+
+    -- TODO: ADP-3129
+    -- Remove this export after redefining `ErrMkTransaction` to not depend on
+    -- this type:
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
 
     -- * Selection reports
     , makeSelectionReportDetailed
@@ -79,10 +79,6 @@ import Cardano.CoinSelection
     ( SelectionCollateralError
     , SelectionCollateralRequirement (..)
     , SelectionError (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     )
 import Cardano.CoinSelection.Balance

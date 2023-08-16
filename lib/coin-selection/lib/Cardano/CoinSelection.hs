@@ -24,11 +24,9 @@ module Cardano.CoinSelection
     , SelectionParams (..)
     , SelectionSkeleton (..)
 
-    -- * Output preparation
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputCoinInsufficientError (..)
-    , SelectionOutputSizeExceedsLimitError (..)
+    -- TODO: ADP-3129
+    -- Remove this export after redefining `ErrMkTransaction` to not depend on
+    -- this type:
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
     -- * Verification of post conditions
@@ -231,8 +229,6 @@ data SelectionError ctx
       (SelectionBalanceError ctx)
     | SelectionCollateralErrorOf
       (SelectionCollateralError ctx)
-    | SelectionOutputErrorOf
-      (SelectionOutputError ctx)
 
 deriving instance SelectionContext ctx => Eq (SelectionError ctx)
 deriving instance SelectionContext ctx => Show (SelectionError ctx)
@@ -812,8 +808,6 @@ verifySelectionError cs ps = \case
         verifySelectionBalanceError cs ps e
     SelectionCollateralErrorOf e ->
         verifySelectionCollateralError cs ps e
-    SelectionOutputErrorOf e ->
-        verifySelectionOutputError cs ps e
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance errors
@@ -867,39 +861,6 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
     verify
         (utxoAvailableForInputs == UTxOSelection.empty)
         (FailureToVerifyEmptyUTxOError {utxoAvailableForInputs})
-
---------------------------------------------------------------------------------
--- Selection error verification: insufficient minimum ada quantity errors
---------------------------------------------------------------------------------
-
-data FailureToVerifySelectionOutputCoinInsufficientError address =
-    FailureToVerifySelectionOutputCoinInsufficientError
-    { reportedOutput :: (address, TokenBundle)
-    , reportedMinCoinValue :: Coin
-    , verifiedMinCoinValue :: Coin
-    }
-    deriving (Eq, Show)
-
-verifySelectionOutputCoinInsufficientError
-    :: SelectionContext ctx
-    => VerifySelectionError (SelectionOutputCoinInsufficientError ctx) ctx
-verifySelectionOutputCoinInsufficientError cs _ps e =
-    verifyAll
-        [ isBelowMinimum
-        , reportedMinCoinValue == verifiedMinCoinValue
-        , reportedMinCoinValue > snd reportedOutput ^. #coin
-        ]
-        FailureToVerifySelectionOutputCoinInsufficientError {..}
-  where
-    isBelowMinimum :: Bool
-    isBelowMinimum = uncurry (cs ^. #isBelowMinimumAdaQuantity) reportedOutput
-
-    reportedOutput = e ^. #output
-    reportedMinCoinValue = e ^. #minimumExpectedCoin
-    verifiedMinCoinValue =
-        (cs ^. #computeMinimumAdaQuantity)
-        (fst reportedOutput)
-        (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: change construction errors
@@ -1056,67 +1017,6 @@ verifySelectionCollateralError cs ps e =
     minimumSelectionAmount = e ^. #minimumSelectionAmount
 
 --------------------------------------------------------------------------------
--- Selection error verification: output errors
---------------------------------------------------------------------------------
-
-verifySelectionOutputError
-    :: SelectionContext ctx
-    => VerifySelectionError (SelectionOutputError ctx) ctx
-verifySelectionOutputError cs ps (SelectionOutputError _index info) =
-    case info of
-        SelectionOutputCoinInsufficient e ->
-            verifySelectionOutputCoinInsufficientError cs ps e
-        SelectionOutputSizeExceedsLimit e ->
-            verifySelectionOutputSizeExceedsLimitError cs ps e
-        SelectionOutputTokenQuantityExceedsLimit e ->
-            verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
-
---------------------------------------------------------------------------------
--- Selection error verification: output size errors
---------------------------------------------------------------------------------
-
-newtype FailureToVerifySelectionOutputSizeExceedsLimitError address =
-    FailureToVerifySelectionOutputSizeExceedsLimitError
-        { outputReportedAsExceedingLimit :: (address, TokenBundle) }
-    deriving (Eq, Show)
-
-verifySelectionOutputSizeExceedsLimitError
-    :: SelectionContext ctx
-    => VerifySelectionError (SelectionOutputSizeExceedsLimitError ctx) ctx
-verifySelectionOutputSizeExceedsLimitError cs _ps e =
-    verify
-        (not isWithinLimit)
-        (FailureToVerifySelectionOutputSizeExceedsLimitError {..})
-  where
-    isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
-        TokenBundleSizeWithinLimit -> True
-        TokenBundleSizeExceedsLimit -> False
-      where
-        bundle = snd outputReportedAsExceedingLimit
-
-    outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
-
---------------------------------------------------------------------------------
--- Selection error verification: output token quantity errors
---------------------------------------------------------------------------------
-
-newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError ctx =
-    FailureToVerifySelectionOutputTokenQuantityExceedsLimitError
-        { reportedError
-            :: SelectionOutputTokenQuantityExceedsLimitError ctx
-        }
-    deriving (Eq, Show)
-
-verifySelectionOutputTokenQuantityExceedsLimitError
-    :: SelectionContext ctx
-    => VerifySelectionError
-        (SelectionOutputTokenQuantityExceedsLimitError ctx) ctx
-verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e =
-    verify
-        (e ^. #quantity > e ^. #quantityMaxBound)
-        (FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e)
-
---------------------------------------------------------------------------------
 -- Selection deltas
 --------------------------------------------------------------------------------
 
@@ -1258,28 +1158,6 @@ computeMinimumCollateral params =
 --------------------------------------------------------------------------------
 -- Validating outputs
 --------------------------------------------------------------------------------
-
--- | Indicates a problem when preparing outputs for a coin selection.
---
-data SelectionOutputError ctx = SelectionOutputError
-    { outputIndex :: Int
-    , outputErrorInfo :: SelectionOutputErrorInfo ctx
-    }
-
-deriving instance SelectionContext ctx => Eq (SelectionOutputError ctx)
-deriving instance SelectionContext ctx => Show (SelectionOutputError ctx)
-
-data SelectionOutputErrorInfo ctx
-    = SelectionOutputCoinInsufficient
-        (SelectionOutputCoinInsufficientError ctx)
-    | SelectionOutputSizeExceedsLimit
-        (SelectionOutputSizeExceedsLimitError ctx)
-    | SelectionOutputTokenQuantityExceedsLimit
-        (SelectionOutputTokenQuantityExceedsLimitError ctx)
-    deriving Generic
-
-deriving instance SelectionContext ctx => Eq (SelectionOutputErrorInfo ctx)
-deriving instance SelectionContext ctx => Show (SelectionOutputErrorInfo ctx)
 
 newtype SelectionOutputSizeExceedsLimitError ctx =
     SelectionOutputSizeExceedsLimitError
