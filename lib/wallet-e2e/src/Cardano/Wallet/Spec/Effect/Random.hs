@@ -44,7 +44,7 @@ data FxRandom :: Effect where
 
 $(makeEffect ''FxRandom)
 
-runRandomMock :: Mnemonic -> FxTrace :> es => Eff (FxRandom : es) a -> Eff es a
+runRandomMock :: Mnemonic -> (FxTrace :> es) => Eff (FxRandom : es) a -> Eff es a
 runRandomMock mnemonic = interpret \_ -> \case
     RandomMnemonic -> do
         trace "Generating a [mock] random mnemonic"

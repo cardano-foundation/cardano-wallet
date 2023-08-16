@@ -3,10 +3,15 @@
 module Cardano.Wallet.Spec.Effect.Query where
 
 import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
+import qualified Cardano.Wallet.Spec.Data.Network.NodeStatus as NodeStatus
 import qualified Cardano.Wallet.Spec.Data.WalletId as WalletId
 import qualified Cardano.Wallet.Spec.Data.WalletName as WalletName
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
+import qualified Effectful.Error.Static as Fx
+import qualified Network.HTTP.Types as Http
+import qualified Text.Show as TS
+import qualified Wallet as W
 import qualified Wallet.Common as WC
 import qualified Wallet.Operations.DeleteWallet as DW
 import qualified Wallet.Operations.ListWallets as LW
@@ -14,6 +19,10 @@ import qualified Wallet.Operations.PostWallet as PW
 
 import Cardano.Wallet.Spec.Data.Mnemonic
     ( Mnemonic )
+import Cardano.Wallet.Spec.Data.Network.Info
+    ( NetworkInfo (..) )
+import Cardano.Wallet.Spec.Data.Network.NodeStatus
+    ( NodeStatus (..) )
 import Cardano.Wallet.Spec.Data.Wallet
     ( Wallet (..) )
 import Cardano.Wallet.Spec.Data.WalletId
@@ -30,6 +39,8 @@ import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
     ( interpret, reinterpret )
+import Effectful.Error.Static
+    ( throwError, tryError )
 import Effectful.Fail
     ( Fail )
 import Effectful.State.Static.Local
@@ -47,6 +58,7 @@ data FxQuery :: Effect where
     ListKnownWallets :: FxQuery m (Set Wallet)
     CreateWalletFromMnemonic :: WalletName -> Mnemonic -> FxQuery m Wallet
     DeleteWallet :: Wallet -> FxQuery m ()
+    QueryNetworkInfo :: FxQuery m NetworkInfo
 
 $(makeEffect ''FxQuery)
 
@@ -76,9 +88,17 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
     DeleteWallet wallet -> do
         trace $ "Deleting a wallet " <> show wallet
         modify (Set.delete wallet)
+    QueryNetworkInfo -> do
+        trace "Querying network info ..."
+        pure NetworkInfo{nodeStatus = NodeIsSynced}
 
 runQuery
-    :: (FxHttp :> es, Fail :> es, FxAssert :> es, FxTrace :> es)
+    :: ( FxHttp :> es
+       , Fail :> es
+       , FxAssert :> es
+       , FxTrace :> es
+       , Fx.Error SomeException :> es
+       )
     => Eff (FxQuery : es) a
     -> Eff es a
 runQuery = interpret \_ -> \case
@@ -138,6 +158,43 @@ runQuery = interpret \_ -> \case
                     <> show wallet
                     <> "): unexpected response body: "
                     <> show respBody
+    QueryNetworkInfo -> do
+        trace "Querying network info ..."
+        W.getNetworkInformation
+            & WC.runWithConfiguration
+                WC.Configuration
+                    { WC.configBaseURL = "http://localhost:8090/v2"
+                    , WC.configSecurityScheme = WC.anonymousSecurityScheme
+                    , WC.configIncludeUserAgent = False
+                    , WC.configApplicationName = ""
+                    }
+            & tryError
+            >>= \case
+                Left (_callStack, e :: SomeException) ->
+                    environmentException $ WalletNetworkInfoException e
+                Right resp | status <- responseStatus resp -> do
+                    unless (status == ok200) do
+                        environmentException $ WalletNetworkInfoStatus status
+                    case responseBody resp of
+                        W.GetNetworkInformationResponseError err ->
+                            environmentException (WalletNetworkInfoError (toText err))
+                        W.GetNetworkInformationResponse406
+                            W.GetNetworkInformationResponseBody406{..} ->
+                                environmentException
+                                    $ WalletNetworkInfoError
+                                        getNetworkInformationResponseBody406Message
+                        W.GetNetworkInformationResponse200
+                            W.GetNetworkInformationResponseBody200{..} -> do
+                                nodeStatus <-
+                                    NodeStatus.fromClientResponse getNetworkInformationResponseBody200Sync_progress
+                                        & maybe (environmentException WalletNetworkInfoUnknownNodeStatus) pure
+                                pure NetworkInfo{nodeStatus}
+
+environmentException
+    :: (Fx.Error SomeException :> es)
+    => ExecutionEnvironmentException
+    -> Eff es a2
+environmentException = throwError . toException
 
 configuration :: WC.Configuration
 configuration =
@@ -147,3 +204,29 @@ configuration =
         , WC.configIncludeUserAgent = False
         , WC.configApplicationName = ""
         }
+
+data ExecutionEnvironmentException
+    = WalletNetworkInfoException SomeException
+    | WalletNetworkInfoStatus Http.Status
+    | WalletNetworkInfoError Text
+    | NodeIsNotReady
+    | WalletNetworkInfoUnknownNodeStatus
+    deriving anyclass (Exception)
+
+instance Show ExecutionEnvironmentException where
+    show = \case
+        WalletNetworkInfoException se ->
+            requirement
+                <> "However, an exception happened when trying to retrieve \n\
+                   \network information from the wallet backend: \n\n"
+                <> displayException se
+        WalletNetworkInfoUnknownNodeStatus -> requirement
+        WalletNetworkInfoStatus{} -> requirement
+        WalletNetworkInfoError{} -> requirement
+        NodeIsNotReady -> requirement
+      where
+        requirement =
+            "E2E test suite requires a running cardano-wallet instance \n\
+            \connected to a running cardano-node and listenting on "
+                <> show (WC.configBaseURL configuration)
+                <> "\n\n"

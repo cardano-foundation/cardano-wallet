@@ -1,17 +1,19 @@
 module Cardano.Wallet.Spec
-    ( spec
-    )
-where
+    ( environmentSpec
+    , walletSpec
+    ) where
 
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story )
 import Cardano.Wallet.Spec.Stories.Wallet
-    ( createdWallet )
+    ( createdWallet, testEnvironmentIsReady )
 import Test.Syd
-    ( Spec, describe )
+    ( Spec, describe, sequential )
 
-spec :: Spec
-spec = do
-    describe "Wallet Backend API" do
-        describe "Wallets" do
-            story "Created wallet is known" createdWallet
+environmentSpec :: Spec
+environmentSpec = describe "Test execution environment" do
+    story "Wallet serves network info" testEnvironmentIsReady
+
+walletSpec :: Spec
+walletSpec = describe "Wallet Backend API" $ sequential do
+    story "Created wallet is known" createdWallet

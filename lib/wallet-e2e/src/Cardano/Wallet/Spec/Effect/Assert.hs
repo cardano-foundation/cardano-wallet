@@ -6,6 +6,8 @@ import qualified Effectful.Error.Static as Effect
 
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
+import Control.Exception
+    ( AssertionFailed (..) )
 import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
@@ -16,14 +18,6 @@ import Effectful.TH
     ( makeEffect )
 import Prelude hiding
     ( trace )
-import Text.Show
-    ( show )
-
-newtype Error = Error Text
-    deriving newtype (Eq)
-
-instance Show Error where
-    show (Error msg) = "Assertion failed: " <> toString msg
 
 data FxAssert :: Effect where
     Assert :: Text -> Bool -> FxAssert m ()
@@ -31,9 +25,9 @@ data FxAssert :: Effect where
 $(makeEffect ''FxAssert)
 
 runAssertError
-    :: (Effect.Error Error :> es, FxTrace :> es)
+    :: (Effect.Error SomeException :> es, FxTrace :> es)
     => Eff (FxAssert : es) a
     -> Eff es a
 runAssertError = interpret \_ (Assert msg truth) -> do
     trace $ "Asserting that " <> msg
-    unless truth $ throwError $ Error msg
+    unless truth $ throwError $ toException $ AssertionFailed $ toString msg

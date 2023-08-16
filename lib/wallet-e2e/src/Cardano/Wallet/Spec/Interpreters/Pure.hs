@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( Error, FxAssert, runAssertError )
+    ( FxAssert, runAssertError )
 import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery, runQueryMock )
 import Cardano.Wallet.Spec.Effect.Random
@@ -26,7 +26,7 @@ type PureStory a =
         , FxRandom
         , FxAssert
         , FxTrace
-        , E.Error Error
+        , E.Error SomeException
         ]
         a
 
@@ -37,11 +37,11 @@ pureStory label story =
             Left err -> expectationFailure (show err)
             Right (_unit :: a, log) -> recordTraceLog label log
 
-interpretStoryPure :: PureStory a -> Either Error (a, Seq Text)
+interpretStoryPure :: PureStory a -> Either SomeException (a, Seq Text)
 interpretStoryPure =
     runQueryMock Set.empty
         >>> runRandomMock (Mnemonic.fromWords $ "foo" :| ["bar", "baz"])
         >>> runAssertError
         >>> runTracePure
-        >>> E.runErrorNoCallStack @Error
+        >>> E.runErrorNoCallStack
         >>> runPureEff

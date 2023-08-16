@@ -6,7 +6,7 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
 import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( Error, FxAssert, runAssertError )
+    ( FxAssert, runAssertError )
 import Cardano.Wallet.Spec.Effect.Http
     ( FxHttp, runHttpClient )
 import Cardano.Wallet.Spec.Effect.Query
@@ -20,11 +20,13 @@ import Effectful
 import Effectful.Fail
     ( Fail, runFailIO )
 import Prelude hiding
-    ( State, evalState )
+    ( Show, State, evalState, show )
 import System.Random
     ( newStdGen )
 import Test.Syd
     ( TestDefM, expectationFailure, it )
+import Text.Show
+    ( show )
 
 type Story a =
     Eff
@@ -34,7 +36,7 @@ type Story a =
         , Fail
         , FxAssert
         , FxTrace
-        , E.Error Error
+        , E.Error SomeException
         , IOE
         ]
         a
@@ -46,7 +48,7 @@ story label story' =
             Left err -> expectationFailure (show err)
             Right (_unit :: (), log) -> recordTraceLog label log
 
-interpretStory :: Story a -> IO (Either Error (a, Seq Text))
+interpretStory :: Story a -> IO (Either SomeException (a, Seq Text))
 interpretStory story' = do
     stdGen <- newStdGen
     story'
@@ -56,5 +58,5 @@ interpretStory story' = do
         & runFailIO
         & runAssertError
         & runTracePure
-        & E.runErrorNoCallStack @Error
+        & E.runErrorNoCallStack
         & runEff
