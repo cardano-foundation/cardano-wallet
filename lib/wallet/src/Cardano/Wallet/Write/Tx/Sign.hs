@@ -29,7 +29,13 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
-    ( Addr (..), addrTxOutL, addrTxWitsL, ppMinFeeAL, witsTxL )
+    ( Addr (..)
+    , addrTxOutL
+    , addrTxWitsL
+    , bootAddrTxWitsL
+    , ppMinFeeAL
+    , witsTxL
+    )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.UTxO
@@ -116,7 +122,9 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
   where
     unsignedTx :: Tx (ShelleyLedgerEra era)
     unsignedTx = withConstraints era $
-        txWithWits & (witsTxL . addrTxWitsL) .~ mempty
+        txWithWits
+            & (witsTxL . addrTxWitsL) .~ mempty
+            & (witsTxL . bootAddrTxWitsL) .~ mempty
 
     coinQuotRem :: W.Coin -> W.Coin -> (Natural, Natural)
     coinQuotRem (W.Coin p) (W.Coin q) = quotRem p q
