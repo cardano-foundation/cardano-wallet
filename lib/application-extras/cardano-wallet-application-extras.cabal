@@ -38,9 +38,11 @@ common dependencies
     , exceptions
     , fmt
     , iohk-monitoring
+    , optparse-applicative
     , text
     , text
     , text-class
+    , temporary
     , time
     , tracer-transformers
     , transformers
@@ -49,7 +51,9 @@ common dependencies
 
 library
     import:           options, dependencies
-    exposed-modules:  Cardano.Wallet.Logging
+    exposed-modules:
+        Cardano.Wallet.Logging
+        Cardano.Wallet.Options
     build-depends:    base ^>=4.14.3.0
     hs-source-dirs:   lib
     default-language: Haskell2010

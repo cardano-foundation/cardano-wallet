@@ -54,8 +54,6 @@ import Cardano.Wallet.Faucet
     )
 import Cardano.Wallet.Faucet.Shelley
     ( initFaucet )
-import Cardano.Wallet.Launch
-    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
@@ -78,6 +76,8 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
+import Cardano.Wallet.Options
+    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress

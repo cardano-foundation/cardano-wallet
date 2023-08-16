@@ -284,9 +284,11 @@ library
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
     Cardano.Wallet.Delegation.Properties
+    Cardano.Wallet.CLI
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Ports
     Cardano.Wallet.Pools
@@ -984,6 +986,7 @@ benchmark restore
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-bench
+    , cardano-wallet-launcher
     , cardano-wallet-local-cluster
     , cardano-wallet-integration
     , cardano-wallet-primitive
@@ -1226,5 +1229,4 @@ library cardano-wallet-local-cluster
   exposed-modules:
     Cardano.Wallet.Faucet
     Cardano.Wallet.Faucet.Shelley
-    Cardano.Wallet.Launch
     Cardano.Wallet.Launch.Cluster

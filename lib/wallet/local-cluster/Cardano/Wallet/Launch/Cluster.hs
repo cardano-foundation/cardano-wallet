@@ -139,12 +139,12 @@ import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Address.Derivation
     ( hex )
-import Cardano.Wallet.Launch
-    ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
+import Cardano.Wallet.Options
+    ( TempDirLog, envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types

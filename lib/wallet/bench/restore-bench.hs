@@ -50,6 +50,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
@@ -102,8 +104,6 @@ import Cardano.Wallet.Flavor
     , WalletFlavor (..)
     , keyFlavorFromState
     )
-import Cardano.Wallet.Launch
-    ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -112,6 +112,8 @@ import Cardano.Wallet.Network
     , ChainSyncLog (..)
     , NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Config
+    ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.NetworkId

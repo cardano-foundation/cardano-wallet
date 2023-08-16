@@ -12,8 +12,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer, traceInTVarIO )
-import Cardano.Wallet.Launch
-    ( CardanoNodeConn, withSystemTempDir )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
@@ -25,6 +25,8 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Options
+    ( withSystemTempDir )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types

@@ -37,8 +37,6 @@ import Cardano.Wallet.Faucet
     , mirMnemonics
     , shelleyIntegrationTestFunds
     )
-import Cardano.Wallet.Launch
-    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterLog (..)
     , Credential (..)
@@ -53,6 +51,8 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
+import Cardano.Wallet.Options
+    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress

@@ -52,8 +52,6 @@ import Cardano.Wallet.Faucet.Shelley
     ( initFaucet )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
-import Cardano.Wallet.Launch
-    ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
     , LocalClusterConfig (..)
@@ -66,6 +64,8 @@ import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
+import Cardano.Wallet.Options
+    ( withSystemTempDir )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.NetworkId
