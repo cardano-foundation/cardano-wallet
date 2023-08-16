@@ -58,6 +58,7 @@ library
     base
     , cardano-addresses
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet:cardano-wallet-api-http

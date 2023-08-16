@@ -94,6 +94,7 @@ library
     , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-strict-containers
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -285,7 +286,6 @@ library
     Cardano.Wallet.Delegation.Properties
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
-    Cardano.Wallet.Logging
     Cardano.Wallet.Network
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Ports
@@ -409,6 +409,7 @@ library cardano-wallet-api-http
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -611,6 +612,7 @@ library cardano-wallet-bench
     , aeson
     , base
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers
@@ -663,6 +665,7 @@ executable cardano-wallet
     , address-derivation
     , base
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -730,6 +733,7 @@ test-suite unit
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
     , cardano-wallet-primitive
@@ -940,6 +944,7 @@ test-suite integration
     , base
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -977,6 +982,7 @@ benchmark restore
     , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-local-cluster
     , cardano-wallet-integration
@@ -1007,6 +1013,7 @@ benchmark latency
     , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -1040,6 +1047,7 @@ benchmark db
     , cardano-api
     , cardano-crypto
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -1077,6 +1085,7 @@ benchmark api
     , cardano-api
     , cardano-balance-tx
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -1187,6 +1196,7 @@ library cardano-wallet-local-cluster
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils

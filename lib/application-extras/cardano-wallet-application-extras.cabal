@@ -15,38 +15,41 @@ extra-doc-files:    CHANGELOG.md
 common options
   default-language:   Haskell2010
   default-extensions:
-    BlockArguments
-    DataKinds
-    DerivingStrategies
-    FlexibleContexts
-    FlexibleInstances
-    GADTs
-    GeneralizedNewtypeDeriving
-    KindSignatures
-    LambdaCase
     OverloadedStrings
-    RankNTypes
-    ScopedTypeVariables
-    TypeApplications
-    TypeFamilies
-    TypeOperators
+    NoImplicitPrelude
+    DerivingStrategies
 
   ghc-options:
     -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
-    -Wmissing-deriving-strategies -Wunused-foralls -Wunused-foralls
+     -Wunused-foralls -Wunused-foralls
     -fprint-explicit-foralls -fprint-explicit-kinds -Wcompat
     -Widentities -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -Wpartial-fields -Wtabs  -fhelpful-errors
     -fprint-expanded-synonyms -fwarn-unused-do-bind
     -fwarn-incomplete-uni-patterns -freverse-errors
 
 common dependencies
   build-depends:
+    , aeson
     , base     ^>=4.14.3.0
+    , bytestring
+    , contra-tracer
+    , deepseq
+    , exceptions
+    , fmt
+    , iohk-monitoring
+    , text
+    , text
+    , text-class
+    , time
+    , tracer-transformers
+    , transformers
+    , unliftio
+    , unliftio-core
 
 library
     import:           options, dependencies
-    exposed-modules:  MyLib
+    exposed-modules:  Cardano.Wallet.Logging
     build-depends:    base ^>=4.14.3.0
     hs-source-dirs:   lib
     default-language: Haskell2010
