@@ -1,5 +1,6 @@
 module Type
-    ( TypName
+    ( -- * Types
+      TypName
     , ConstructorName
     , FieldName
     , Module (..)
@@ -7,12 +8,18 @@ module Type
     , Typ (..)
     , OpUnary (..)
     , OpBinary (..)
+    
+    -- * Traversals
+    , everywhere
+    , everything
     ) where
 
 import Prelude
 
 import Data.Map
     ( Map )
+
+import qualified Data.List as L
 
 {-----------------------------------------------------------------------------
     Mathematical types
@@ -63,3 +70,45 @@ data OpBinary
         -- ^ We use the notation
         -- f : A →∗ B to denote a finitely supported partial function.
     deriving (Eq, Show)
+
+{-----------------------------------------------------------------------------
+    Traversals
+
+    Terminology from "Scrap your boilerplate"
+    https://www.microsoft.com/en-us/research/wp-content/uploads/2003/01/hmap.pdf
+------------------------------------------------------------------------------}
+-- | Apply a transformation everywhere, bottom-up everywhere.
+everywhere :: (Typ -> Typ) -> Typ -> Typ
+everywhere f = every
+ where
+    every = f . recurse
+
+    recurse a@(Abstract) =
+        Abstract
+    recurse a@(Var _) =
+        a
+    recurse (Unary op a) =
+        Unary op (every a)
+    recurse (Binary op a b) =
+        Binary op (every a) (every b)
+    recurse (Record nas) =
+        Record [ (n,every a) | (n,a) <- nas ]
+    recurse (Union nas) =
+        Union [ (n,every a) | (n,a) <- nas ]
+
+-- | Summarise all nodes in top-down, left-to-right.
+everything :: (r -> r -> r) -> (Typ -> r) -> (Typ -> r)
+everything combine f = recurse
+  where
+    recurse x@(Abstract) =
+        f x
+    recurse x@(Var _) =
+        f x
+    recurse x@(Unary op a) =
+        f x `combine` (recurse a)
+    recurse x@(Binary op a b) =
+        f x `combine` (recurse a `combine` recurse b)
+    recurse x@(Record nas) =
+        L.foldl' combine (f x) [ recurse a | (_,a) <- nas ]
+    recurse x@(Union nas) =
+        L.foldl' combine (f x) [ recurse a | (_,a) <- nas ]

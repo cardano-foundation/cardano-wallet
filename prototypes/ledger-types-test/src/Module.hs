@@ -1,6 +1,7 @@
 -- | Module-level functions.
 module Module
     ( collectNotInScope
+    , resolveVars
     , globalConstants
     ) where
 
@@ -17,6 +18,18 @@ import qualified Data.Set as Set
 {-----------------------------------------------------------------------------
     Module
 ------------------------------------------------------------------------------}
+-- | Resolve all variables in a 'Typ' that can be resolved
+-- using the given declarations.
+--
+-- This function will loop in the case of recursive definitions.
+resolveVars :: Declarations -> Typ -> Typ
+resolveVars declarations = everywhere resolve
+  where
+    resolve (Var name) = case Map.lookup name declarations of
+        Nothing -> Var name
+        Just typ -> everywhere resolve typ
+    resolve a = a
+
 -- | Collect all type names that have not been defined in the 'Module'.
 collectNotInScope :: Module -> Set TypName
 collectNotInScope Module{moduleDeclarations=declarations} =
@@ -31,11 +44,7 @@ globalConstants = Set.fromList ["ℕ","ℤ","Bool","Bytes","Text","Unit"]
 
 -- | Collect all 'Var' in a type.
 collectVars :: Typ -> Set TypName
-collectVars = go
+collectVars = everything (<>) vars
   where
-    go Abstract = Set.empty
-    go (Var name) = Set.singleton name
-    go (Unary _ a) = go a
-    go (Binary _ a b) = go a <> go b
-    go (Record nameds) = mconcat $ map (go . snd) nameds
-    go (Union nameds) = mconcat $ map (go . snd) nameds
+    vars (Var name) = Set.singleton name
+    vars _ = Set.empty
