@@ -44,6 +44,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , deepseq
     , exact-combinatorics
     , extra
     , fmt
@@ -53,6 +54,7 @@ library
     , lattices
     , math-functions
     , MonadRandom
+    , monoidmap
     , QuickCheck
     , transformers
 
@@ -62,6 +64,11 @@ library
     Cardano.CoinSelection.Balance.Gen
     Cardano.CoinSelection.Collateral
     Cardano.CoinSelection.Context
+    Cardano.CoinSelection.UTxOIndex
+    Cardano.CoinSelection.UTxOIndex.Gen
+    Cardano.CoinSelection.UTxOIndex.Internal
+    Cardano.CoinSelection.UTxOSelection
+    Cardano.CoinSelection.UTxOSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -85,6 +92,7 @@ test-suite test
     , hspec-core
     , int-cast
     , lattices
+    , MonadRandom
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
@@ -97,6 +105,30 @@ test-suite test
   other-modules:
     Cardano.CoinSelection.BalanceSpec
     Cardano.CoinSelection.CollateralSpec
+    Cardano.CoinSelection.UTxOIndexSpec
+    Cardano.CoinSelection.UTxOSelectionSpec
     Cardano.CoinSelectionSpec
     Spec
     SpecHook
+
+benchmark utxo-index
+    default-language:
+        Haskell2010
+    type:
+        exitcode-stdio-1.0
+    hs-source-dirs:
+        bench
+    main-is:
+        UTxOIndexBench.hs
+    build-depends:
+      , base
+      , cardano-coin-selection
+      , cardano-wallet-primitive
+      , cardano-wallet-test-utils
+      , containers
+      , deepseq
+      , format-numbers
+      , QuickCheck
+      , tasty-bench
+      , tasty-hunit
+      , text

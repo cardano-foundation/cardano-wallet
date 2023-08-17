@@ -98,6 +98,14 @@ import Cardano.CoinSelection.Balance
     )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionStrategy, shrinkSelectionStrategy )
+import Cardano.CoinSelection.UTxOIndex
+    ( Asset (..), SelectionFilter (..), UTxOIndex )
+import Cardano.CoinSelection.UTxOIndex.Gen
+    ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
+import Cardano.CoinSelection.UTxOSelection
+    ( UTxOSelection, UTxOSelectionNonEmpty )
+import Cardano.CoinSelection.UTxOSelection.Gen
+    ( genUTxOSelection, shrinkUTxOSelection )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -132,14 +140,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection, UTxOSelectionNonEmpty )
-import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -232,12 +232,12 @@ import Test.Utils.Pretty
     ( Pretty (..) )
 
 import qualified Cardano.CoinSelection.Context as SC
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

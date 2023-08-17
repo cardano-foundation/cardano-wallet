@@ -87,6 +87,8 @@ import Cardano.CoinSelection.Balance
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     )
+import Cardano.CoinSelection.UTxOSelection
+    ( UTxOSelection )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Types.Address
@@ -105,8 +107,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
 import Control.Arrow
     ( (&&&) )
 import Control.DeepSeq

@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+module Cardano.CoinSelection.UTxOSelection.Gen
     ( genUTxOSelection
     , genUTxOSelectionNonEmpty
     , shrinkUTxOSelection
@@ -11,9 +11,9 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+import Cardano.CoinSelection.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
+import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
 import Data.Maybe
     ( mapMaybe )
@@ -22,7 +22,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( genFunction )
 
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 
 --------------------------------------------------------------------------------
 -- Selections that may be empty

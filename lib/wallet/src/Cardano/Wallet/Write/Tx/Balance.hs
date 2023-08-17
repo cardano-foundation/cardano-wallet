@@ -75,6 +75,8 @@ module Cardano.Wallet.Write.Tx.Balance
 
 import Prelude
 
+import Cardano.CoinSelection.UTxOSelection
+    ( UTxOSelection )
 import Cardano.Ledger.Alonzo.Core
     ( ppCollateralPercentageL, ppMaxCollateralInputsL )
 import Cardano.Ledger.Alonzo.Scripts
@@ -118,8 +120,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMaxCoin
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Write.ProtocolParameters
@@ -211,6 +211,8 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -223,8 +225,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
 import qualified Data.List as L

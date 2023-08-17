@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+module Cardano.CoinSelection.UTxOIndex.Gen
     ( genUTxOIndex
     , genUTxOIndexLarge
     , genUTxOIndexLargeN
@@ -9,12 +9,12 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 
 import Prelude
 
+import Cardano.CoinSelection.UTxOIndex
+    ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Control.Monad
     ( replicateM )
 import Generics.SOP
@@ -24,7 +24,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( genericRoundRobinShrink, (<:>), (<@>) )
 
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 
 --------------------------------------------------------------------------------
 -- Indices generated according to the size parameter

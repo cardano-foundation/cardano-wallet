@@ -120,6 +120,10 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
+import Cardano.CoinSelection.UTxOIndex
+    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
+import Cardano.CoinSelection.UTxOSelection
+    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.Numeric.Util
     ( padCoalesce )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -132,10 +136,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
     ( andM, (<=<) )
 import Control.Monad.Random.Class
@@ -175,12 +175,12 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

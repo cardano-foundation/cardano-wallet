@@ -59,6 +59,10 @@ import Cardano.CoinSelection.BalanceSpec
     , unMockComputeMinimumAdaQuantity
     , unMockComputeMinimumCost
     )
+import Cardano.CoinSelection.UTxOSelection
+    ( UTxOSelection )
+import Cardano.CoinSelection.UTxOSelection.Gen
+    ( genUTxOSelection, shrinkUTxOSelection )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -75,10 +79,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
-import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Except
@@ -140,9 +140,9 @@ import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
 import qualified Cardano.CoinSelection.Balance as Balance
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
 spec :: Spec
 spec = describe "Cardano.CoinSelectionSpec" $ do

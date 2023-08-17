@@ -11,23 +11,15 @@
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Hoist not" -}
 
-module Cardano.Wallet.Primitive.Types.UTxOIndexSpec
+module Cardano.CoinSelection.UTxOIndexSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
-import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+import Cardano.CoinSelection.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+import Cardano.CoinSelection.UTxOIndex.Internal
     ( Asset (..)
     , BundleCategory (..)
     , InvariantStatus (..)
@@ -36,6 +28,14 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , categorizeTokenBundle
     , checkInvariant
     )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetId, shrinkAssetId )
 import Control.Monad
     ( void )
 import Control.Monad.Random.Class
@@ -81,8 +81,8 @@ import Test.QuickCheck.Quid
 import Test.Utils.Laws
     ( testLawsMany )
 
+import qualified Cardano.CoinSelection.UTxOIndex.Internal as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -90,7 +90,7 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec =
-    describe "Cardano.Wallet.Primitive.Types.UTxOIndexSpec" $ do
+    describe "Cardano.CoinSelection.UTxOIndexSpec" $ do
 
     describe "Class instances obey laws" $ do
         testLawsMany @(UTxOIndex TestUTxO)

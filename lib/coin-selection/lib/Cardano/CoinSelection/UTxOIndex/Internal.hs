@@ -22,7 +22,7 @@
 --
 -- See the documentation for 'UTxOIndex' for more details.
 --
-module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+module Cardano.CoinSelection.UTxOIndex.Internal
     (
     ----------------------------------------------------------------------------
     -- Public Interface

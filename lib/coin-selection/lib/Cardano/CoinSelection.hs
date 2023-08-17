@@ -71,6 +71,8 @@ import Cardano.CoinSelection.Balance
     )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
+import Cardano.CoinSelection.UTxOSelection
+    ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -81,8 +83,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.NonRandom
@@ -116,9 +116,9 @@ import Numeric.Natural
 
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.CoinSelection.Collateral as Collateral
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
