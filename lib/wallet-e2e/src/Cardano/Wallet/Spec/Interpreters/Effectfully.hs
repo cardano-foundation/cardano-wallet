@@ -21,6 +21,9 @@ import Effectful
     ( Eff, IOE, runEff )
 import Effectful.Fail
     ( Fail, runFailIO )
+import Network.HTTP.Client
+    ( ManagerSettings (managerResponseTimeout) )
+import qualified Network.HTTP.Client as Http
 import Prelude hiding
     ( Show, State, evalState, show )
 import System.Random
@@ -53,10 +56,15 @@ story label story' =
 
 interpretStory :: Story a -> IO (Either SomeException (a, Seq Text))
 interpretStory story' = do
+    connectionManager <-
+        Http.newManager
+            Http.defaultManagerSettings
+                { managerResponseTimeout = Http.responseTimeoutNone
+                }
     stdGen <- newStdGen
     story'
         & runQuery
-        & runHttpClient
+        & runHttpClient connectionManager
         & runRandom stdGen
         & runFailIO
         & runAssertError

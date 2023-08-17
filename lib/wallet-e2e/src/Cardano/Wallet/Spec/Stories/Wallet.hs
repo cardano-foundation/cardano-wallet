@@ -39,6 +39,6 @@ createdWallet = do
     wallet <- createWalletFromMnemonic walletName mnemonic
     wallets <- listKnownWallets
     assert "the new wallet is known" (wallet `member` wallets)
-    within_ (minutes 1.0) do deleteWallet wallet
+    within_ (minutes 5.0) do deleteWallet wallet
     wallets' <- listKnownWallets
     assert "the wallet is forgotten" (wallet `notMember` wallets')

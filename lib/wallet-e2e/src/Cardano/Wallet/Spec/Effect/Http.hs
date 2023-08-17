@@ -5,7 +5,7 @@
 module Cardano.Wallet.Spec.Effect.Http where
 
 import qualified Effectful.Error.Static as Fx
-import qualified Network.HTTP.Simple as HS
+import qualified Network.HTTP.Client as HC
 
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
@@ -27,7 +27,7 @@ import Wallet.Common
     ( MonadHTTP (..) )
 
 data FxHttp :: Effect where
-    HttpQuery :: HS.Request -> FxHttp m (HS.Response ByteString)
+    HttpQuery :: HC.Request -> FxHttp m (HC.Response ByteString)
 
 $(makeEffect ''FxHttp)
 
@@ -36,13 +36,14 @@ instance (FxHttp :> es) => MonadHTTP (Eff es) where
 
 runHttpClient
     :: (FxTrace :> es, Fx.Error SomeException :> es, IOE :> es)
-    => Eff (FxHttp : es) a
+    => HC.Manager
+    -> Eff (FxHttp : es) a
     -> Eff es a
-runHttpClient = interpret \_ -> \case
-    HttpQuery req -> do
-        trace $ "HTTP request: " <> show req
-        resp <- liftIO $ try $ HS.httpBS req
-        trace $ "HTTP response: " <> show resp
-        case resp of
+runHttpClient connectionManager = interpret \_ -> \case
+    HttpQuery request -> do
+        trace $ "HTTP request: " <> show request
+        response <- liftIO $ try $ HC.httpLbs request connectionManager
+        trace $ "HTTP response: " <> show response
+        case response of
             Left (e :: SomeException) -> throwError e
-            Right r -> pure r
+            Right r -> pure $ fmap toStrict r
