@@ -13,9 +13,9 @@
 --
 -- This module is meant to be imported qualified. For example:
 --
--- >>> import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+-- >>> import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 --
-module Cardano.Wallet.Primitive.Types.UTxOIndex
+module Cardano.CoinSelection.UTxOIndex
     (
     -- * Type
       UTxOIndex
@@ -63,4 +63,4 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
 
     ) where
 
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+import Cardano.CoinSelection.UTxOIndex.Internal

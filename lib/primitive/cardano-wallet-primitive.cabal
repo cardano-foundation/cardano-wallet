@@ -122,9 +122,6 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     Cardano.Wallet.Primitive.Types.UTxO
     Cardano.Wallet.Primitive.Types.UTxO.Gen
-    Cardano.Wallet.Primitive.Types.UTxOIndex
-    Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
@@ -183,29 +180,7 @@ test-suite test
     Cardano.Wallet.Primitive.Types.TokenPolicySpec
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     Cardano.Wallet.Primitive.Types.TxSpec
-    Cardano.Wallet.Primitive.Types.UTxOIndexSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec
     Data.QuantitySpec
     Spec
     SpecHook
-
-benchmark utxo-index
-    default-language:
-        Haskell2010
-    type:
-        exitcode-stdio-1.0
-    hs-source-dirs:
-        bench
-    main-is:
-        UTxOIndexBench.hs
-    build-depends:
-      , base
-      , cardano-wallet-primitive
-      , cardano-wallet-test-utils
-      , containers
-      , deepseq
-      , format-numbers
-      , QuickCheck
-      , tasty-bench
-      , tasty-hunit
-      , text

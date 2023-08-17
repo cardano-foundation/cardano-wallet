@@ -42,9 +42,9 @@ import Test.QuickCheck.Gen
 import Test.Tasty.Bench
     ( Benchmark, bench, bgroup, defaultMain, nf )
 
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 

@@ -14,6 +14,10 @@ module Cardano.CoinSelection.UTxOSelectionSpec
 
 import Prelude
 
+import Cardano.CoinSelection.UTxOIndex
+    ( UTxOIndex )
+import Cardano.CoinSelection.UTxOIndex.Gen
+    ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.CoinSelection.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Cardano.CoinSelection.UTxOSelection.Gen
@@ -22,10 +26,6 @@ import Cardano.CoinSelection.UTxOSelection.Gen
     , shrinkUTxOSelection
     , shrinkUTxOSelectionNonEmpty
     )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -43,9 +43,9 @@ import Test.QuickCheck
 import Test.QuickCheck.Quid
     ( Hexadecimal (..), Quid, Size (..) )
 
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 

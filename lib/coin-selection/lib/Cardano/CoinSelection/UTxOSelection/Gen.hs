@@ -11,10 +11,10 @@ module Cardano.CoinSelection.UTxOSelection.Gen
 
 import Prelude
 
+import Cardano.CoinSelection.UTxOIndex.Gen
+    ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection, UTxOSelectionNonEmpty )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
 import Data.Maybe
     ( mapMaybe )
 import Test.QuickCheck

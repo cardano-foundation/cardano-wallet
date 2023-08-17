@@ -86,10 +86,10 @@ module Cardano.CoinSelection.UTxOSelection
 
 import Prelude
 
+import Cardano.CoinSelection.UTxOIndex
+    ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Control.Monad
     ( ap, (<=<) )
 import Data.Bool
@@ -111,7 +111,7 @@ import Data.Tuple
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
