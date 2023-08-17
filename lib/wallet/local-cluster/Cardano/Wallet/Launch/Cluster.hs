@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -131,10 +132,6 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
-import Cardano.Pool.Metadata
-    ( SMASHPoolId (..) )
-import Cardano.Pool.Types
-    ( PoolId (..) )
 import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Address.Derivation
@@ -216,10 +213,14 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Text.Encoding
+    ( decodeUtf8 )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+import GHC.Generics
+    ( Generic )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -252,7 +253,6 @@ import UnliftIO.MVar
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Cardano.Pool.Metadata as SMASH
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
@@ -274,6 +274,9 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 import qualified Data.Yaml as Yaml
+
+newtype PoolId = PoolId { getPoolId :: ByteString }
+    deriving (Generic, Eq, Show, Ord)
 
 -- | Returns the shelley test data path, which is usually relative to the
 -- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
@@ -1366,6 +1369,11 @@ _withRelayNode tr baseDir params act =
     dir = baseDir </> name
     NodeParams genesisFiles hardForks (port, peers) logCfg = params
 
+toTextPoolId :: PoolId -> Text
+toTextPoolId = decodeUtf8
+    . convertToBase Base16
+    . getPoolId
+
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH
     :: Tracer IO ClusterLog
@@ -1387,25 +1395,26 @@ withSMASH tr parentDir action = do
         let bytes = Aeson.encode metadata
 
         let metadataDir = baseDir </> "metadata"
-            poolDir = metadataDir </> T.unpack (toText poolId)
+            poolDir = metadataDir </> T.unpack (toTextPoolId poolId)
             hash = blake2b256S (BL.toStrict bytes)
             hashFile = poolDir </> hash
 
 
         traceWith tr $
-            MsgRegisteringPoolMetadataInSMASH (T.unpack $ toText poolId) hash
+            MsgRegisteringPoolMetadataInSMASH
+                (T.unpack $ toTextPoolId poolId) hash
 
         createDirectoryIfMissing True poolDir
         BL8.writeFile (poolDir </> hashFile) bytes
 
     -- Write delisted pools
-    let toSmashId (PoolId bytes) = SMASHPoolId . T.pack . B8.unpack . hex $ bytes
+    let toSmashId (PoolId bytes) = T.pack . B8.unpack . hex $ bytes
     let poolId (PoolRecipe _ _ _ _ (pid, _, _, _) _) = toSmashId pid
     let delistedPoolIds = poolId <$> NE.filter delisted defaultPoolConfigs
     BL8.writeFile
         (baseDir </> "delisted")
         (Aeson.encode $ delistedPoolIds <&>
-            \p -> object [ "poolId" Aeson..= SMASH.poolId p]
+            \p -> object [ "poolId" Aeson..= p]
         )
 
     -- health check
