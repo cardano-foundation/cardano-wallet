@@ -13,6 +13,8 @@ import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery, runQuery )
 import Cardano.Wallet.Spec.Effect.Random
     ( FxRandom, runRandom )
+import Cardano.Wallet.Spec.Effect.Timeout
+    ( FxTimeout, runTimeout )
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, recordTraceLog, runTracePure )
 import Effectful
@@ -27,7 +29,6 @@ import Test.Syd
     ( TestDefM, expectationFailure, it )
 import Text.Show
     ( show )
-import Cardano.Wallet.Spec.Effect.Timeout (FxTimeout, runTimeout)
 
 type Story a =
     Eff
