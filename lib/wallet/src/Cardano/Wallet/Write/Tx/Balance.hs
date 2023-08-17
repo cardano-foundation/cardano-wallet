@@ -106,12 +106,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toInternalUTxOMap
     )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -215,16 +209,28 @@ import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+    ( Address )
+import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+    ( Coin (..) )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle (..) )
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
+    ( AssetId )
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
+    ( TokenQuantity )
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+    ( Tx )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxIn )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (..) )
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+    ( UTxO (..) )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -581,7 +587,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     toInpScripts . view #address . snd <$>
                         extraInputs <> extraCollateral'
         extraCollateral = fst <$> extraCollateral'
-        unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+        unsafeFromLovelace (Cardano.Lovelace l) = W.Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
@@ -595,11 +601,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     surplus <- case Cardano.selectLovelace balance of
         (Cardano.Lovelace c)
             | c >= 0 ->
-                pure $ Coin.unsafeFromIntegral c
+                pure $ W.Coin.unsafeFromIntegral c
             | otherwise ->
                 throwE . ErrBalanceTxInternalError $
                 ErrUnderestimatedFee
-                    (Coin.unsafeFromIntegral (-c))
+                    (W.Coin.unsafeFromIntegral (-c))
                     (toSealed candidateTx)
                     witCount
 
@@ -733,7 +739,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardWalletUTxOConsistencyWith u' = do
         let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
-                case i `UTxO.lookup` walletUTxO of
+                case i `W.UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
                     Nothing -> pure ()
 
@@ -822,7 +828,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Cardano.TxReturnCollateral _ _ ->
                throwE ErrBalanceTxExistingReturnCollateral
 
-    fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+    fromCardanoLovelace (Cardano.Lovelace l) = W.Coin.unsafeFromIntegral l
 
 -- | Select assets to cover the specified balance and fee.
 --
@@ -878,7 +884,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
             computeMinimumCoinForTxOut
                 era
                 pp
-                (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
+                (mkLedgerTxOut era addr (W.TokenBundle txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
             isBelowMinimumCoinForTxOut
                 era
@@ -896,7 +902,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
                 , txPaymentTemplate = view #template <$>
                     assumedInputScriptTemplate utxoAssumptions
                 }
-            ] `Coin.difference` boringFee
+            ] `W.Coin.difference` boringFee
         , maximumCollateralInputCount = withConstraints era $
             unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
     , minimumCollateralPercentage =
@@ -911,7 +917,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         -- outputs + fee0@ where @balance0@ is the balance of the
         -- partial tx.
         { extraValueIn =
-            balancePositive <> valueOfOutputs <> TokenBundle.fromCoin fee0
+            balancePositive <> valueOfOutputs <> W.TokenBundle.fromCoin fee0
         , extraValueOut =
             balanceNegative <> valueOfInputs
         -- NOTE: It is important that coin selection has the correct
@@ -932,7 +938,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         :: HasCallStack
         => RecentEra era
         -> W.Address
-        -> TokenBundle
+        -> W.TokenBundle
         -> TxOut (ShelleyLedgerEra era)
     mkLedgerTxOut txOutEra address bundle =
         case txOutEra of
@@ -1006,21 +1012,21 @@ data ChangeAddressGen s = ChangeAddressGen
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
     :: ChangeAddressGen s
-    -> SelectionOf TokenBundle
+    -> SelectionOf W.TokenBundle
     -> s
     -> (SelectionOf W.TxOut, s)
 assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
         pure $ W.TxOut addr bundle
-    pure $ (sel :: SelectionOf TokenBundle) { change = changeOuts }
+    pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
 
 -- | Convert a 'Cardano.Value' into a positive and negative component. Useful
 -- to convert the potentially negative balance of a partial tx into
 -- TokenBundles.
 posAndNegFromCardanoValue
     :: Cardano.Value
-    -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
+    -> (W.TokenBundle, W.TokenBundle)
 posAndNegFromCardanoValue
     = bimap
         (fromCardanoValue . Cardano.valueFromList)
@@ -1201,7 +1207,7 @@ costOfIncreasingCoin
     -> W.Coin -- ^ Increment
     -> W.Coin
 costOfIncreasingCoin (FeePerByte perByte) from delta =
-    costOfCoin (from <> delta) `Coin.difference` costOfCoin from
+    costOfCoin (from <> delta) `W.Coin.difference` costOfCoin from
   where
     costOfCoin = W.Coin . (perByte *) . unTxSize . sizeOfCoin
 
@@ -1295,7 +1301,7 @@ distributeSurplusDeltaWithOneChangeCoin
         extraFee = findFixpointIncreasingFeeBy $
             costOfIncreasingCoin feePolicy change0 surplus
     in
-        case surplus `Coin.subtract` extraFee of
+        case surplus `W.Coin.subtract` extraFee of
             Just extraChange ->
                 Right $ TxFeeAndChange
                     { fee = extraFee
@@ -1366,7 +1372,7 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
         Right $ TxFeeAndChange surplus ()
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
-    shortfall = costOfBurningSurplus `Coin.difference` surplus
+    shortfall = costOfBurningSurplus `W.Coin.difference` surplus
 
 toLedgerTxOut
     :: HasCallStack
@@ -1409,13 +1415,13 @@ data ErrBalanceTxOutputErrorInfo
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
     { minimumExpectedCoin :: W.Coin
-    , output :: (W.Address, TokenBundle)
+    , output :: (W.Address, W.TokenBundle)
     }
     deriving (Eq, Generic, Show)
 
 newtype ErrBalanceTxOutputSizeExceedsLimitError =
     ErrBalanceTxOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: (W.Address, TokenBundle)
+    { outputThatExceedsLimit :: (W.Address, W.TokenBundle)
     }
     deriving (Eq, Generic, Show)
 
@@ -1423,11 +1429,11 @@ data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
     ErrBalanceTxOutputTokenQuantityExceedsLimitError
     { address :: W.Address
       -- ^ The address to which this token quantity was to be sent.
-    , asset :: AssetId
+    , asset :: W.AssetId
       -- ^ The asset identifier to which this token quantity corresponds.
-    , quantity :: TokenQuantity
+    , quantity :: W.TokenQuantity
       -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: TokenQuantity
+    , quantityMaxBound :: W.TokenQuantity
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
@@ -1436,7 +1442,7 @@ data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
 --
 validateTxOutputs
     :: SelectionConstraints
-    -> [(W.Address, TokenBundle)]
+    -> [(W.Address, W.TokenBundle)]
     -> Either ErrBalanceTxOutputError ()
 validateTxOutputs constraints outs =
     -- If we encounter an error, just report the first error we encounter:
@@ -1463,7 +1469,7 @@ validateTxOutputs constraints outs =
 --
 validateTxOutputSize
     :: SelectionConstraints
-    -> (W.Address, TokenBundle)
+    -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
 validateTxOutputSize cs out = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
@@ -1480,13 +1486,13 @@ validateTxOutputSize cs out = case sizeAssessment of
 -- protocol.
 --
 validateTxOutputTokenQuantities
-    :: (W.Address, TokenBundle)
+    :: (W.Address, W.TokenBundle)
     -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
 validateTxOutputTokenQuantities out =
     [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
     | let address = fst out
-    , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
+    , (asset, quantity) <- W.TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
 
@@ -1497,7 +1503,7 @@ validateTxOutputTokenQuantities out =
 --
 validateTxOutputAdaQuantity
     :: SelectionConstraints
-    -> (W.Address, TokenBundle)
+    -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
 validateTxOutputAdaQuantity constraints output
     | isBelowMinimum =
