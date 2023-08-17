@@ -73,6 +73,7 @@ library
     , path-io                ^>=1.7.0
     , random                 ^>=1.2.1.1
     , tagged                 ^>=0.8.7
+    , timespan               ^>=0.4
 
   exposed-modules:
     Cardano.Wallet.Spec
@@ -86,6 +87,7 @@ library
     Cardano.Wallet.Spec.Effect.Http
     Cardano.Wallet.Spec.Effect.Query
     Cardano.Wallet.Spec.Effect.Random
+    Cardano.Wallet.Spec.Effect.Timeout
     Cardano.Wallet.Spec.Effect.Trace
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure

@@ -24,6 +24,9 @@ data FxAssert :: Effect where
 
 $(makeEffect ''FxAssert)
 
+assertFail :: (FxAssert :> es) => Text -> Eff es ()
+assertFail label = assert label False
+
 runAssertError
     :: (Effect.Error SomeException :> es, FxTrace :> es)
     => Eff (FxAssert : es) a

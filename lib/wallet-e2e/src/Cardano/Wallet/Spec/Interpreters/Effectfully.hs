@@ -27,6 +27,7 @@ import Test.Syd
     ( TestDefM, expectationFailure, it )
 import Text.Show
     ( show )
+import Cardano.Wallet.Spec.Effect.Timeout (FxTimeout, runTimeout)
 
 type Story a =
     Eff
@@ -36,6 +37,7 @@ type Story a =
         , Fail
         , FxAssert
         , FxTrace
+        , FxTimeout
         , E.Error SomeException
         , IOE
         ]
@@ -58,5 +60,6 @@ interpretStory story' = do
         & runFailIO
         & runAssertError
         & runTracePure
+        & runTimeout
         & E.runErrorNoCallStack
         & runEff
