@@ -18,7 +18,6 @@ module Cardano.Wallet.Network.Config
     ( -- * Network
       NetworkConfiguration (..)
     , parseGenesisData
-
     ) where
 
 import Prelude

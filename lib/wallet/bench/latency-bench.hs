@@ -80,6 +80,8 @@ import Cardano.Wallet.Shelley
     ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( fromGenesisData )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
@@ -506,8 +508,9 @@ withShelleyServer tracers action = do
         , mirFunds = [] -- not needed
         }
 
-    onClusterStart act db (RunningNode conn block0 (np, vData) _) = do
-        let listen = ListenOnRandomPort
+    onClusterStart act db (RunningNode conn genesisData vData) = do
+        let (np, block0, _gp) = fromGenesisData genesisData
+            listen = ListenOnRandomPort
         serveWallet
             (NodeSource conn vData (SyncTolerance 10))
             np

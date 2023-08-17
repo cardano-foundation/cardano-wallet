@@ -57,6 +57,8 @@ import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
+import Cardano.Wallet.Primitive.Types
+    ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley
@@ -64,7 +66,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress )
+    ( decodeAddress, fromGenesisData )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -225,7 +227,9 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             <$> concatMap genRewardAccounts mirMnemonics
         }
 
-    whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData) _) =
+    whenReady dir trCluster logs (RunningNode socketPath genesisData vData) = do
+        let
+            (gp, block0, _gp) = fromGenesisData genesisData
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
@@ -257,7 +261,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 listen
                 Nothing
                 Nothing
-                tokenMetadataServer
+                (TokenMetadataServer <$> tokenMetadataServer)
                 block0
                 (\u -> traceWith trCluster $ MsgBaseUrl (T.pack . show $ u)
                     ekgUrl prometheusUrl)

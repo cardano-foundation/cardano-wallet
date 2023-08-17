@@ -89,7 +89,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
+    ( decodeAddress, encodeAddress, fromGenesisData )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow
@@ -351,7 +351,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
-    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
+    onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
+        let
+            (gp, block0, genesisPools) = fromGenesisData genesisData
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText
