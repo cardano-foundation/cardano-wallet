@@ -38,7 +38,12 @@ common dependencies
     , exceptions
     , fmt
     , iohk-monitoring
+    , network
+    , network-uri
     , optparse-applicative
+    , random-shuffle
+    , safe
+    , streaming-commons
     , text
     , text
     , text-class
@@ -54,6 +59,7 @@ library
     exposed-modules:
         Cardano.Wallet.Logging
         Cardano.Wallet.Options
+        Cardano.Wallet.Network.Ports
     build-depends:    base ^>=4.14.3.0
     hs-source-dirs:   lib
     default-language: Haskell2010
