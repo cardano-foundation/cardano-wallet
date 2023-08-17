@@ -1211,6 +1211,7 @@ library cardano-wallet-local-cluster
     , iohk-monitoring
     , lens
     , memory
+    , network-uri
     , optparse-applicative
     , ouroboros-network
     , ouroboros-network-api

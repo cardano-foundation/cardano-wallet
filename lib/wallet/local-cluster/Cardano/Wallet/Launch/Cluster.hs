@@ -141,16 +141,11 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Options
-    ( TempDirLog, envFromText, lookupEnvNonEmpty )
+    ( TempDirLog, lookupEnvNonEmpty )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , EpochNo (..)
-    , NetworkParameters (..)
-    , PoolCertificate
-    , TokenMetadataServer (..)
-    )
+    ( Block (..), EpochNo (..), NetworkParameters (..), PoolCertificate )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -221,6 +216,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.Generics
     ( Generic )
+import Network.URI
+    ( URI, parseURI )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -228,7 +225,7 @@ import Ouroboros.Network.NodeToClient
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
-    ( getEnvironment )
+    ( getEnvironment, lookupEnv )
 import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
@@ -330,12 +327,10 @@ testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
 
-
-tokenMetadataServerFromEnv :: IO (Maybe TokenMetadataServer)
-tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
-    Nothing -> pure Nothing
-    Just (Right s) -> pure (Just s)
-    Just (Left e) -> die $ show e
+tokenMetadataServerFromEnv :: IO (Maybe URI)
+tokenMetadataServerFromEnv = lookupEnv "TOKEN_METADATA_SERVER" <&> \case
+    Nothing -> Nothing
+    Just t  -> parseURI t
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
