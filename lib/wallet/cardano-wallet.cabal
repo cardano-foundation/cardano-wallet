@@ -71,6 +71,7 @@ library
     , cardano-balance-tx
     , cardano-binary
     , cardano-cli
+    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-test

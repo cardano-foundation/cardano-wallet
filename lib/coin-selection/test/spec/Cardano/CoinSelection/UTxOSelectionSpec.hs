@@ -8,24 +8,24 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
+module Cardano.CoinSelection.UTxOSelectionSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
+import Cardano.CoinSelection.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
-import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+import Cardano.CoinSelection.UTxOSelection.Gen
     ( genUTxOSelection
     , genUTxOSelectionNonEmpty
     , shrinkUTxOSelection
     , shrinkUTxOSelectionNonEmpty
     )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( UTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+    ( genUTxOIndex, shrinkUTxOIndex )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -43,15 +43,15 @@ import Test.QuickCheck
 import Test.QuickCheck.Quid
     ( Hexadecimal (..), Quid, Size (..) )
 
+import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec =
-    describe "Cardano.Wallet.Primitive.Types.UTxOSelectionSpec" $ do
+    describe "Cardano.CoinSelection.UTxOSelectionSpec" $ do
 
     describe "Generators and shrinkers" $ do
 

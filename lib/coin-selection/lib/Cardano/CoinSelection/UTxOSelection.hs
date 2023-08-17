@@ -34,7 +34,7 @@
 -- either use the 'toNonEmpty' function to assert that it is non-empty, or use
 -- the 'select' function to select a single entry.
 --
-module Cardano.Wallet.Primitive.Types.UTxOSelection
+module Cardano.CoinSelection.UTxOSelection
     (
       -- * Classes
       IsUTxOSelection

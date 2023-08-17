@@ -62,6 +62,8 @@ library
     Cardano.CoinSelection.Balance.Gen
     Cardano.CoinSelection.Collateral
     Cardano.CoinSelection.Context
+    Cardano.CoinSelection.UTxOSelection
+    Cardano.CoinSelection.UTxOSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -97,6 +99,7 @@ test-suite test
   other-modules:
     Cardano.CoinSelection.BalanceSpec
     Cardano.CoinSelection.CollateralSpec
+    Cardano.CoinSelection.UTxOSelectionSpec
     Cardano.CoinSelectionSpec
     Spec
     SpecHook
