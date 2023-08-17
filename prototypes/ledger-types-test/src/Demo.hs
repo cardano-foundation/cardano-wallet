@@ -19,5 +19,11 @@ main = do
     Just elaborated <-
         parseLedgerTypes <$> readFile "data/BabbageTxOut.txt"
 
+    let txout1 = moduleDeclarations babbage Map.! "TxOut"
+        txout1' = resolveVars (moduleDeclarations babbage) txout1
+        txout2 = moduleDeclarations elaborated Map.! "TxOut"
+        txout2' = resolveVars (moduleDeclarations elaborated) txout2
+
+    print $ txout2' `elaborates` txout1'
     print $ collectNotInScope babbage
     print $ collectNotInScope elaborated

@@ -31,6 +31,7 @@ library
       , parser-combinators
     exposed-modules:
         Demo
+        Elaborate
         Module
         Parser
         Type

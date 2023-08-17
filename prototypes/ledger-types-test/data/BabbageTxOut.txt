@@ -46,7 +46,7 @@ TxIn =
 TxOut =
   { address   : Addr
   , value     : Value
-  , datum     : (Datum ⊎ DataHash)?
+  , datum     : DatumOrHash?
   , scriptRef : Script?
   };
 
