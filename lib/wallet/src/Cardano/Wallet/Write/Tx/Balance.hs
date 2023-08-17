@@ -718,7 +718,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
-            minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
+            minfee' = Cardano.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
       where
         getBody (Cardano.Tx body _) = body
