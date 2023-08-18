@@ -14,6 +14,7 @@ import qualified Text.Show as TS
 import qualified Wallet as W
 import qualified Wallet.Common as WC
 import qualified Wallet.Operations.DeleteWallet as DW
+import qualified Wallet.Operations.GetWallet as GW
 import qualified Wallet.Operations.ListWallets as LW
 import qualified Wallet.Operations.PostWallet as PW
 
@@ -44,7 +45,7 @@ import Effectful.Error.Static
 import Effectful.Fail
     ( Fail )
 import Effectful.State.Static.Local
-    ( evalState, get, modify )
+    ( evalState, get, gets, modify )
 import Effectful.TH
     ( makeEffect )
 import Network.HTTP.Client
@@ -57,12 +58,17 @@ import Prelude hiding
 data FxQuery :: Effect where
     ListKnownWallets :: FxQuery m (Set Wallet)
     CreateWalletFromMnemonic :: WalletName -> Mnemonic -> FxQuery m Wallet
+    GetWallet :: WalletId -> FxQuery m Wallet
     DeleteWallet :: Wallet -> FxQuery m ()
     QueryNetworkInfo :: FxQuery m NetworkInfo
 
 $(makeEffect ''FxQuery)
 
-runQueryMock :: (FxTrace :> es) => Set Wallet -> Eff (FxQuery : es) a -> Eff es a
+runQueryMock
+    :: (FxTrace :> es, Fail :> es)
+    => Set Wallet
+    -> Eff (FxQuery : es) a
+    -> Eff es a
 runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
     ListKnownWallets -> do
         wallets <- get
@@ -85,6 +91,12 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
                 , show wallet
                 ]
         wallet <$ modify (Set.insert wallet)
+    GetWallet wid -> do
+        trace $ "Getting a wallet " <> show wid
+        gets (find ((== wid) . walletId) . Set.toList)
+            >>= maybe
+                (fail $ "GetWallet (" <> show wid <> ") not found by id")
+                pure
     DeleteWallet wallet -> do
         trace $ "Deleting a wallet " <> show wallet
         modify (Set.delete wallet)
@@ -116,8 +128,9 @@ runQuery = interpret \_ -> \case
         knownWallets <- case responseBody resp of
             LW.ListWalletsResponse200 lwrbs ->
                 pure $ Set.fromList $ map walletFromBody lwrbs
-            respBody -> fail do
-                "ListKnownWallets: unexpected response body: " <> show respBody
+            respBody ->
+                fail
+                    $ "ListKnownWallets: unexpected response body: " <> show respBody
         trace $ "Listing known wallets (" <> show (length knownWallets) <> ")"
         pure knownWallets
     CreateWalletFromMnemonic name mnemonic -> do
@@ -141,23 +154,47 @@ runQuery = interpret \_ -> \case
                         , walletName =
                             WalletName.mkUnsafe postWalletResponseBody201Name
                         }
-            respBody -> fail do
-                "CreateWalletFromMnemonic: unexpected response body: "
-                    <> show respBody
-    DeleteWallet wallet@(Wallet{walletId}) -> do
+            respBody ->
+                fail
+                    $ "CreateWalletFromMnemonic: unexpected response body: "
+                        <> show respBody
+    GetWallet wid -> do
+        trace $ "Getting a wallet " <> show wid
+        resp <-
+            WC.runWithConfiguration configuration
+                $ GW.getWallet (walletIdToText wid)
+        assert "GetWallet response status is 200 Ok"
+            $ responseStatus resp == ok200
+        case responseBody resp of
+            GW.GetWalletResponse200 GW.GetWalletResponseBody200{..} ->
+                pure
+                    Wallet
+                        { walletId =
+                            WalletId.mkUnsafe getWalletResponseBody200Id
+                        , walletName =
+                            WalletName.mkUnsafe getWalletResponseBody200Name
+                        }
+            respBody ->
+                fail
+                    $ "GetWallet ("
+                        <> show wid
+                        <> "): unexpected response body: "
+                        <> show respBody
+    DeleteWallet wallet -> do
         trace $ "Deleting a wallet " <> show wallet
         resp <-
             WC.runWithConfiguration configuration
-                $ DW.deleteWallet (walletIdToText walletId)
+                $ DW.deleteWallet (walletIdToText (walletId wallet))
         assert "DeleteWallet response status is 204 NoContent"
             $ responseStatus resp == noContent204
         case responseBody resp of
             DW.DeleteWalletResponse204 -> pass
-            respBody -> fail do
-                "DeleteWallet ("
-                    <> show wallet
-                    <> "): unexpected response body: "
-                    <> show respBody
+            respBody ->
+                fail
+                    $ "DeleteWallet ("
+                        <> show wallet
+                        <> "): unexpected response body: "
+                        <> show respBody
     QueryNetworkInfo -> do
         trace "Querying network info ..."
         W.getNetworkInformation

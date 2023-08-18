@@ -6,7 +6,7 @@ module Cardano.Wallet.Spec
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story )
 import Cardano.Wallet.Spec.Stories.Wallet
-    ( createdWallet, testEnvironmentIsReady )
+    ( createdWalletListed, createdWalletRetrievable, testEnvironmentIsReady )
 import Test.Syd
     ( Spec, describe, sequential )
 
@@ -16,4 +16,5 @@ environmentSpec = describe "Test execution environment" do
 
 walletSpec :: Spec
 walletSpec = describe "Wallet Backend API" $ sequential do
-    story "Created wallet is known" createdWallet
+    story "Created wallet is listed" createdWalletListed
+    story "Created wallet can be retrieved by id" createdWalletRetrievable

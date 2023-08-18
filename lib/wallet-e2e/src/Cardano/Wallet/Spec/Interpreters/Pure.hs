@@ -17,6 +17,8 @@ import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, recordTraceLog, runTracePure )
 import Effectful
     ( Eff, runPureEff )
+import Effectful.Fail
+    ( Fail, runFail )
 import Test.Syd
     ( TestDefM, expectationFailure, it )
 
@@ -26,6 +28,7 @@ type PureStory a =
         , FxRandom
         , FxAssert
         , FxTrace
+        , Fail
         , E.Error SomeException
         ]
         a
@@ -35,13 +38,17 @@ pureStory label story =
     it label do
         interpretStoryPure story & \case
             Left err -> expectationFailure (show err)
-            Right (_unit :: a, log) -> recordTraceLog label log
+            Right (Left err) -> expectationFailure err
+            Right (Right (_unit :: a, log)) -> recordTraceLog label log
 
-interpretStoryPure :: PureStory a -> Either SomeException (a, Seq Text)
+interpretStoryPure
+    :: PureStory a
+    -> (Either SomeException (Either String (a, Seq Text)))
 interpretStoryPure =
     runQueryMock Set.empty
         >>> runRandomMock (Mnemonic.fromWords $ "foo" :| ["bar", "baz"])
         >>> runAssertError
         >>> runTracePure
+        >>> runFail
         >>> E.runErrorNoCallStack
         >>> runPureEff
