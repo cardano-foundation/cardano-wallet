@@ -1,9 +1,12 @@
-module Cardano.Wallet.Spec.Stories.Wallet
-    ( testEnvironmentIsReady
-    , createdWalletListed
-    , createdWalletRetrievable
-    ) where
+module Cardano.Wallet.Spec.Stories.Wallet (
+    testEnvironmentIsReady,
+    createdWalletListed,
+    createdWalletRetrievable,
+    createdWalletHasZeroAda,
+) where
 
+import Cardano.Wallet.Spec.Data.AdaBalance
+    ( zeroAdaBalance )
 import Cardano.Wallet.Spec.Data.Network.Info
     ( NetworkInfo (..) )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
@@ -38,19 +41,30 @@ testEnvironmentIsReady = do
 
 createdWalletListed :: FxStory fxs '[FxQuery, FxRandom, FxTimeout, FxAssert] ()
 createdWalletListed = do
-    walletName <- randomWalletName "Test Wallet"
-    mnemonic <- randomMnemonic
-    wallet <- createWalletFromMnemonic walletName mnemonic
+    wallet <- createFreshWallet
     wallets <- listKnownWallets
     assert "the new wallet is known" (wallet `member` wallets)
-    within_ (minutes 5.0) do deleteWallet wallet
+    within_ (minutes 2.0) do deleteWallet wallet
     wallets' <- listKnownWallets
     assert "the wallet is forgotten" (wallet `notMember` wallets')
 
 createdWalletRetrievable :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 createdWalletRetrievable = do
-    name <- randomWalletName "Test Wallet"
-    mnemonic <- randomMnemonic
-    createdWallet <- createWalletFromMnemonic name mnemonic
+    createdWallet <- createFreshWallet
     retrievedWallet <- getWallet (walletId createdWallet)
     assert "same wallet retrieved by id" (createdWallet == retrievedWallet)
+
+createdWalletHasZeroAda :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
+createdWalletHasZeroAda = do
+    wallet <- createFreshWallet
+    assert "freshly created wallet has 0 ADA balance" $
+        walletBalance wallet == zeroAdaBalance
+
+--------------------------------------------------------------------------------
+-- Re-usable sequences of actions ----------------------------------------------
+
+createFreshWallet :: FxStory fxs '[FxQuery, FxRandom] Wallet
+createFreshWallet = do
+    name <- randomWalletName "Test Wallet"
+    mnemonic <- randomMnemonic
+    createWalletFromMnemonic name mnemonic

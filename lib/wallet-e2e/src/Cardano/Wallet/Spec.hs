@@ -6,7 +6,11 @@ module Cardano.Wallet.Spec
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story )
 import Cardano.Wallet.Spec.Stories.Wallet
-    ( createdWalletListed, createdWalletRetrievable, testEnvironmentIsReady )
+    ( createdWalletHasZeroAda
+    , createdWalletListed
+    , createdWalletRetrievable
+    , testEnvironmentIsReady
+    )
 import Test.Syd
     ( Spec, describe, sequential )
 
@@ -18,3 +22,4 @@ walletSpec :: Spec
 walletSpec = describe "Wallet Backend API" $ sequential do
     story "Created wallet is listed" createdWalletListed
     story "Created wallet can be retrieved by id" createdWalletRetrievable
+    story "Created wallet has zero ADA balance" createdWalletHasZeroAda

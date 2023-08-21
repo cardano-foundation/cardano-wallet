@@ -1,7 +1,0 @@
-Generating a random mnemonic
-Creating a wallet Wallet "foo.bar.baz"
-Listing known wallets (1)
-Asserting that the new wallet is known
-Deleting a wallet Wallet "foo.bar.baz"
-Listing known wallets (0)
-Asserting that the wallet is forgotten

@@ -76,6 +76,7 @@ library
 
   exposed-modules:
     Cardano.Wallet.Spec
+    Cardano.Wallet.Spec.Data.AdaBalance
     Cardano.Wallet.Spec.Data.Mnemonic
     Cardano.Wallet.Spec.Data.Network.Info
     Cardano.Wallet.Spec.Data.Network.NodeStatus

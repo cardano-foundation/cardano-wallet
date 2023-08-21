@@ -18,6 +18,8 @@ import qualified Wallet.Operations.GetWallet as GW
 import qualified Wallet.Operations.ListWallets as LW
 import qualified Wallet.Operations.PostWallet as PW
 
+import Cardano.Wallet.Spec.Data.AdaBalance
+    ( AdaBalance (..) )
 import Cardano.Wallet.Spec.Data.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Spec.Data.Network.Info
@@ -64,11 +66,11 @@ data FxQuery :: Effect where
 
 $(makeEffect ''FxQuery)
 
-runQueryMock
-    :: (FxTrace :> es, Fail :> es)
-    => Set Wallet
-    -> Eff (FxQuery : es) a
-    -> Eff es a
+runQueryMock ::
+    (FxTrace :> es, Fail :> es) =>
+    Set Wallet ->
+    Eff (FxQuery : es) a ->
+    Eff es a
 runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
     ListKnownWallets -> do
         wallets <- get
@@ -78,13 +80,19 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
         let wallet =
                 Wallet
                     { walletId =
-                        WalletId.fromNel
-                            $ NE.intersperse "."
-                            $ Mnemonic.toWords mnemonic
+                        WalletId.fromNel $
+                            NE.intersperse "." $
+                                Mnemonic.toWords mnemonic
                     , walletName = name
+                    , walletBalance =
+                        AdaBalance
+                            { adaAvailable = 0
+                            , adaInRewards = 0
+                            , adaTotal = 0
+                            }
                     }
-        trace
-            $ fold
+        trace $
+            fold
                 [ "Creating a wallet '"
                 , walletNameToText name
                 , "': "
@@ -104,47 +112,71 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
         trace "Querying network info ..."
         pure NetworkInfo{nodeStatus = NodeIsSynced}
 
-runQuery
-    :: ( FxHttp :> es
-       , Fail :> es
-       , FxAssert :> es
-       , FxTrace :> es
-       , Fx.Error SomeException :> es
-       )
-    => Eff (FxQuery : es) a
-    -> Eff es a
+runQuery ::
+    ( FxHttp :> es
+    , Fail :> es
+    , FxAssert :> es
+    , FxTrace :> es
+    , Fx.Error SomeException :> es
+    ) =>
+    Eff (FxQuery : es) a ->
+    Eff es a
 runQuery = interpret \_ -> \case
     ListKnownWallets -> do
         resp <- WC.runWithConfiguration configuration LW.listWallets
-        assert "ListKnownWallets response status"
-            $ responseStatus resp == ok200
+        assert "ListKnownWallets response status" $
+            responseStatus resp == ok200
         let walletFromBody (LW.ListWalletsResponseBody200{..}) =
                 Wallet
                     { walletId =
                         WalletId.mkUnsafe listWalletsResponseBody200Id
                     , walletName =
                         WalletName.mkUnsafe listWalletsResponseBody200Name
+                    , walletBalance =
+                            AdaBalance
+                                { adaAvailable =
+                                    fromIntegral
+                                        ( LW.listWalletsResponseBody200BalanceAvailableQuantity
+                                            ( LW.listWalletsResponseBody200BalanceAvailable
+                                                listWalletsResponseBody200Balance
+                                            )
+                                        )
+                                , adaInRewards =
+                                    fromIntegral
+                                        ( LW.listWalletsResponseBody200BalanceRewardQuantity
+                                            ( LW.listWalletsResponseBody200BalanceReward
+                                                listWalletsResponseBody200Balance
+                                            )
+                                        )
+                                , adaTotal =
+                                    fromIntegral
+                                        ( LW.listWalletsResponseBody200BalanceTotalQuantity
+                                            ( LW.listWalletsResponseBody200BalanceTotal
+                                                listWalletsResponseBody200Balance
+                                            )
+                                        )
+                                }
                     }
         knownWallets <- case responseBody resp of
             LW.ListWalletsResponse200 lwrbs ->
                 pure $ Set.fromList $ map walletFromBody lwrbs
             respBody ->
-                fail
-                    $ "ListKnownWallets: unexpected response body: " <> show respBody
+                fail $
+                    "ListKnownWallets: unexpected response body: " <> show respBody
         trace $ "Listing known wallets (" <> show (length knownWallets) <> ")"
         pure knownWallets
     CreateWalletFromMnemonic name mnemonic -> do
         trace $ "Creating a wallet from mnemonic " <> show mnemonic
         resp <-
-            WC.runWithConfiguration configuration
-                $ PW.postWallet
-                $ PW.PostWalletRequestBodyVariant1
-                $ PW.mkPostWalletRequestBodyOneOf1
-                    (toList (Mnemonic.toWords mnemonic))
-                    (walletNameToText name)
-                    "Secure Passphrase"
-        assert "PostWallet response status is 201 Created"
-            $ responseStatus resp == created201
+            WC.runWithConfiguration configuration $
+                PW.postWallet $
+                    PW.PostWalletRequestBodyVariant1 $
+                        PW.mkPostWalletRequestBodyOneOf1
+                            (toList (Mnemonic.toWords mnemonic))
+                            (walletNameToText name)
+                            "Secure Passphrase"
+        assert "PostWallet response status is 201 Created" $
+            responseStatus resp == created201
         case responseBody resp of
             PW.PostWalletResponse201 PW.PostWalletResponseBody201{..} -> do
                 pure
@@ -153,18 +185,42 @@ runQuery = interpret \_ -> \case
                             WalletId.mkUnsafe postWalletResponseBody201Id
                         , walletName =
                             WalletName.mkUnsafe postWalletResponseBody201Name
+                        , walletBalance =
+                            AdaBalance
+                                { adaAvailable =
+                                    fromIntegral
+                                        ( PW.postWalletResponseBody201BalanceAvailableQuantity
+                                            ( PW.postWalletResponseBody201BalanceAvailable
+                                                postWalletResponseBody201Balance
+                                            )
+                                        )
+                                , adaInRewards =
+                                    fromIntegral
+                                        ( PW.postWalletResponseBody201BalanceRewardQuantity
+                                            ( PW.postWalletResponseBody201BalanceReward
+                                                postWalletResponseBody201Balance
+                                            )
+                                        )
+                                , adaTotal =
+                                    fromIntegral
+                                        ( PW.postWalletResponseBody201BalanceTotalQuantity
+                                            ( PW.postWalletResponseBody201BalanceTotal
+                                                postWalletResponseBody201Balance
+                                            )
+                                        )
+                                }
                         }
             respBody ->
-                fail
-                    $ "CreateWalletFromMnemonic: unexpected response body: "
+                fail $
+                    "CreateWalletFromMnemonic: unexpected response body: "
                         <> show respBody
     GetWallet wid -> do
         trace $ "Getting a wallet " <> show wid
         resp <-
-            WC.runWithConfiguration configuration
-                $ GW.getWallet (walletIdToText wid)
-        assert "GetWallet response status is 200 Ok"
-            $ responseStatus resp == ok200
+            WC.runWithConfiguration configuration $
+                GW.getWallet (walletIdToText wid)
+        assert "GetWallet response status is 200 Ok" $
+            responseStatus resp == ok200
         case responseBody resp of
             GW.GetWalletResponse200 GW.GetWalletResponseBody200{..} ->
                 pure
@@ -173,25 +229,49 @@ runQuery = interpret \_ -> \case
                             WalletId.mkUnsafe getWalletResponseBody200Id
                         , walletName =
                             WalletName.mkUnsafe getWalletResponseBody200Name
+                        , walletBalance =
+                            AdaBalance
+                                { adaAvailable =
+                                    fromIntegral
+                                        ( GW.getWalletResponseBody200BalanceAvailableQuantity
+                                            ( GW.getWalletResponseBody200BalanceAvailable
+                                                getWalletResponseBody200Balance
+                                            )
+                                        )
+                                , adaInRewards =
+                                    fromIntegral
+                                        ( GW.getWalletResponseBody200BalanceRewardQuantity
+                                            ( GW.getWalletResponseBody200BalanceReward
+                                                getWalletResponseBody200Balance
+                                            )
+                                        )
+                                , adaTotal =
+                                    fromIntegral
+                                        ( GW.getWalletResponseBody200BalanceTotalQuantity
+                                            ( GW.getWalletResponseBody200BalanceTotal
+                                                getWalletResponseBody200Balance
+                                            )
+                                        )
+                                }
                         }
             respBody ->
-                fail
-                    $ "GetWallet ("
+                fail $
+                    "GetWallet ("
                         <> show wid
                         <> "): unexpected response body: "
                         <> show respBody
     DeleteWallet wallet -> do
         trace $ "Deleting a wallet " <> show wallet
         resp <-
-            WC.runWithConfiguration configuration
-                $ DW.deleteWallet (walletIdToText (walletId wallet))
-        assert "DeleteWallet response status is 204 NoContent"
-            $ responseStatus resp == noContent204
+            WC.runWithConfiguration configuration $
+                DW.deleteWallet (walletIdToText (walletId wallet))
+        assert "DeleteWallet response status is 204 NoContent" $
+            responseStatus resp == noContent204
         case responseBody resp of
             DW.DeleteWalletResponse204 -> pass
             respBody ->
-                fail
-                    $ "DeleteWallet ("
+                fail $
+                    "DeleteWallet ("
                         <> show wallet
                         <> "): unexpected response body: "
                         <> show respBody
@@ -217,8 +297,8 @@ runQuery = interpret \_ -> \case
                             environmentException (WalletNetworkInfoError (toText err))
                         W.GetNetworkInformationResponse406
                             W.GetNetworkInformationResponseBody406{..} ->
-                                environmentException
-                                    $ WalletNetworkInfoError
+                                environmentException $
+                                    WalletNetworkInfoError
                                         getNetworkInformationResponseBody406Message
                         W.GetNetworkInformationResponse200
                             W.GetNetworkInformationResponseBody200{..} -> do
@@ -227,10 +307,10 @@ runQuery = interpret \_ -> \case
                                         & maybe (environmentException WalletNetworkInfoUnknownNodeStatus) pure
                                 pure NetworkInfo{nodeStatus}
 
-environmentException
-    :: (Fx.Error SomeException :> es)
-    => ExecutionEnvironmentException
-    -> Eff es a2
+environmentException ::
+    (Fx.Error SomeException :> es) =>
+    ExecutionEnvironmentException ->
+    Eff es a2
 environmentException = throwError . toException
 
 configuration :: WC.Configuration
