@@ -8,4 +8,4 @@ data AdaBalance = AdaBalance
     deriving stock (Show, Eq, Ord)
 
 zeroAdaBalance :: AdaBalance
-zeroAdaBalance = AdaBalance { adaAvailable = 0, adaInRewards = 0, adaTotal = 0 }
+zeroAdaBalance = AdaBalance{adaAvailable = 0, adaInRewards = 0, adaTotal = 0}

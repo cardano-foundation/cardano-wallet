@@ -39,9 +39,9 @@ type Story a =
         , FxHttp
         , FxRandom
         , Fail
+        , FxTimeout
         , FxAssert
         , FxTrace
-        , FxTimeout
         , E.Error SomeException
         , IOE
         ]
@@ -67,8 +67,8 @@ interpretStory story' = do
         & runHttpClient connectionManager
         & runRandom stdGen
         & runFailIO
+        & runTimeout
         & runAssertError
         & runTracePure
-        & runTimeout
         & E.runErrorNoCallStack
         & runEff

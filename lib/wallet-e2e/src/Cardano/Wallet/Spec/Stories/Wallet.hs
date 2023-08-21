@@ -1,9 +1,9 @@
-module Cardano.Wallet.Spec.Stories.Wallet (
-    testEnvironmentIsReady,
-    createdWalletListed,
-    createdWalletRetrievable,
-    createdWalletHasZeroAda,
-) where
+module Cardano.Wallet.Spec.Stories.Wallet
+    ( testEnvironmentIsReady
+    , createdWalletListed
+    , createdWalletRetrievable
+    , createdWalletHasZeroAda
+    ) where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
     ( zeroAdaBalance )
@@ -26,7 +26,7 @@ import Cardano.Wallet.Spec.Effect.Query
 import Cardano.Wallet.Spec.Effect.Random
     ( FxRandom, randomMnemonic, randomWalletName )
 import Cardano.Wallet.Spec.Effect.Timeout
-    ( FxTimeout, within_ )
+    ( FxTimeout, within )
 import Cardano.Wallet.Spec.Stories.Language
     ( FxStory )
 import Data.Set
@@ -44,7 +44,7 @@ createdWalletListed = do
     wallet <- createFreshWallet
     wallets <- listKnownWallets
     assert "the new wallet is known" (wallet `member` wallets)
-    within_ (minutes 2.0) do deleteWallet wallet
+    within (minutes 2.0) do deleteWallet wallet
     wallets' <- listKnownWallets
     assert "the wallet is forgotten" (wallet `notMember` wallets')
 
@@ -57,8 +57,8 @@ createdWalletRetrievable = do
 createdWalletHasZeroAda :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 createdWalletHasZeroAda = do
     wallet <- createFreshWallet
-    assert "freshly created wallet has 0 ADA balance" $
-        walletBalance wallet == zeroAdaBalance
+    assert "freshly created wallet has 0 ADA balance"
+        $ walletBalance wallet == zeroAdaBalance
 
 --------------------------------------------------------------------------------
 -- Re-usable sequences of actions ----------------------------------------------

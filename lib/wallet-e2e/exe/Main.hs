@@ -1,7 +1,7 @@
 module Main where
 
 import Cardano.Wallet.Spec
-    ( environmentSpec, walletSpec )
+    ( effectsSpecs, environmentSpec, walletSpec )
 import Main.Utf8
     ( withUtf8 )
 import Test.Syd
@@ -9,5 +9,6 @@ import Test.Syd
 
 main :: IO ()
 main = withUtf8 do
+    sydTest effectsSpecs
     sydTest environmentSpec
     sydTest walletSpec
