@@ -23,7 +23,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidTokenQuantities
     , TxSize (..)
     , txSizeDistance
-    , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
     , txOutMinCoin
     , txOutMaxCoin
@@ -152,31 +151,6 @@ txSizeDistance (TxSize a) (TxSize b)
 --
 -- Transaction outputs have a maximum size, defined by the protocol.
 --------------------------------------------------------------------------------
-
--- | A function capable of assessing the size of a token bundle relative to the
---   upper limit of what can be included in a single transaction output.
---
--- In general, a token bundle size assessment function 'f' should satisfy the
--- following properties:
---
---    * Enlarging a bundle that exceeds the limit should also result in a
---      bundle that exceeds the limit:
---      @
---              f  b1           == TokenBundleSizeExceedsLimit
---          ==> f (b1 `add` b2) == TokenBundleSizeExceedsLimit
---      @
---
---    * Shrinking a bundle that's within the limit should also result in a
---      bundle that's within the limit:
---      @
---              f  b1                  == TokenBundleWithinLimit
---          ==> f (b1 `difference` b2) == TokenBundleWithinLimit
---      @
---
-newtype TokenBundleSizeAssessor = TokenBundleSizeAssessor
-    { assessTokenBundleSize :: TokenBundle -> TokenBundleSizeAssessment
-    }
-    deriving Generic
 
 -- | Indicates the size of a token bundle relative to the upper limit of what
 --   can be included in a single transaction output, defined by the protocol.

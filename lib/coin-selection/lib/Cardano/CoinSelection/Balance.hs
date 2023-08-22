@@ -120,6 +120,8 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessor (..) )
 import Cardano.CoinSelection.UTxOIndex
     ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
 import Cardano.CoinSelection.UTxOSelection
@@ -135,7 +137,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..) )
 import Control.Monad.Extra
     ( andM, (<=<) )
 import Control.Monad.Random.Class
