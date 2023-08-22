@@ -1174,18 +1174,13 @@ verifyOutputSize
     :: SelectionConstraints ctx
     -> (Address ctx, TokenBundle)
     -> Maybe (SelectionOutputSizeExceedsLimitError ctx)
-verifyOutputSize cs out
-    | withinLimit =
+verifyOutputSize cs out = case isWithinLimit (snd out) of
+    TokenBundleSizeWithinLimit ->
         Nothing
-    | otherwise =
+    TokenBundleSizeExceedsLimit ->
         Just $ SelectionOutputSizeExceedsLimitError out
   where
-    withinLimit :: Bool
-    withinLimit = case isWithinLimit (snd out) of
-        TokenBundleSizeWithinLimit -> True
-        TokenBundleSizeExceedsLimit -> False
-    isWithinLimit =
-        cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)
+    isWithinLimit = cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)
 
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
