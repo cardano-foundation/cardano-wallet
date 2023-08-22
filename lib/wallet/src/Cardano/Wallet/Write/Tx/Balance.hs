@@ -874,10 +874,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
-        { assessTokenBundleSize =
-            mkTokenBundleSizeAssessor
-                (getTokenBundleMaxSize era pp)
-                    ^. #assessTokenBundleSize
+        { tokenBundleSizeAssessor =
+            mkTokenBundleSizeAssessor (getTokenBundleMaxSize era pp)
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut
                 era
@@ -1476,7 +1474,8 @@ validateTxOutputSize cs out = case sizeAssessment of
         Just $ ErrBalanceTxOutputSizeExceedsLimitError out
   where
     sizeAssessment :: TokenBundleSizeAssessment
-    sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)
+    sizeAssessment =
+        (cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)) (snd out)
 
 -- | Validates the token quantities of a transaction output.
 --

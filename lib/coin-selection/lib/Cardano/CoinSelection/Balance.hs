@@ -203,12 +203,10 @@ import qualified Data.Set as Set
 --    - are not specific to a given selection.
 --
 data SelectionConstraints ctx = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
+    { tokenBundleSizeAssessor
+        :: TokenBundleSizeAssessor
         -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
+        -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
@@ -822,7 +820,7 @@ performSelectionNonEmpty constraints params
                 makeChangeRepeatedly selection
   where
     SelectionConstraints
-        { assessTokenBundleSize
+        { tokenBundleSizeAssessor
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , maximumOutputAdaQuantity
@@ -882,7 +880,7 @@ performSelectionNonEmpty constraints params
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
+            , bundleSizeAssessor = tokenBundleSizeAssessor
             , requiredCost = noCost
             , extraCoinSource
             , extraCoinSink
@@ -965,7 +963,7 @@ performSelectionNonEmpty constraints params
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor = computeMinimumAdaQuantity maximumLengthChangeAddress
-            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
+            , bundleSizeAssessor = tokenBundleSizeAssessor
             , requiredCost
             , extraCoinSource
             , extraCoinSink

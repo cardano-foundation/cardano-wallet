@@ -985,7 +985,7 @@ prop_performSelection mockConstraints params coverage =
         --
         let constraints' =
                 constraints
-                    { assessTokenBundleSize = unMockAssessTokenBundleSize
+                    { tokenBundleSizeAssessor = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
                     , computeMinimumAdaQuantity =
                         const computeMinimumAdaQuantityZero
@@ -1745,7 +1745,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = const computeMinimumAdaQuantityZero
         , computeMinimumCost = computeMinimumCostZero
-        , assessTokenBundleSize = unMockAssessTokenBundleSize $
+        , tokenBundleSizeAssessor = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
@@ -2367,7 +2367,7 @@ unMockSelectionConstraints
     :: MockSelectionConstraints
     -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
-    { assessTokenBundleSize =
+    { tokenBundleSizeAssessor =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
@@ -2514,8 +2514,8 @@ shrinkMockAssessTokenBundleSize = \case
             <$> shrink (Positive n)
 
 unMockAssessTokenBundleSize
-    :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
-unMockAssessTokenBundleSize = \case
+    :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
+unMockAssessTokenBundleSize = TokenBundleSizeAssessor . \case
     MockAssessTokenBundleSizeUnlimited ->
         const TokenBundleSizeWithinLimit
     MockAssessTokenBundleSizeUpperLimit upperLimit ->
@@ -2528,8 +2528,7 @@ unMockAssessTokenBundleSize = \case
 
 mkTokenBundleSizeAssessor
     :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
-mkTokenBundleSizeAssessor =
-    TokenBundleSizeAssessor . unMockAssessTokenBundleSize
+mkTokenBundleSizeAssessor = unMockAssessTokenBundleSize
 
 --------------------------------------------------------------------------------
 -- Making change

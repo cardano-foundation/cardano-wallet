@@ -67,7 +67,7 @@ import Cardano.CoinSelection.Balance
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..) )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -136,12 +136,10 @@ import qualified Data.Map.Strict as Map
 --      selections that are acceptable to the ledger.
 --
 data SelectionConstraints ctx = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
+    { tokenBundleSizeAssessor
+        :: TokenBundleSizeAssessor
         -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
+        -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
@@ -371,8 +369,8 @@ toBalanceConstraintsParams (constraints, params) =
         , computeMinimumCost =
             view #computeMinimumCost constraints
                 & adjustComputeMinimumCost
-        , assessTokenBundleSize =
-            view #assessTokenBundleSize constraints
+        , tokenBundleSizeAssessor =
+            view #tokenBundleSizeAssessor constraints
         , maximumOutputAdaQuantity =
             view #maximumOutputAdaQuantity constraints
         , maximumOutputTokenQuantity =
@@ -1183,10 +1181,11 @@ verifyOutputSize cs out
         Just $ SelectionOutputSizeExceedsLimitError out
   where
     withinLimit :: Bool
-    withinLimit =
-        case (cs ^. #assessTokenBundleSize) (snd out) of
-            TokenBundleSizeWithinLimit -> True
-            TokenBundleSizeExceedsLimit -> False
+    withinLimit = case isWithinLimit (snd out) of
+        TokenBundleSizeWithinLimit -> True
+        TokenBundleSizeExceedsLimit -> False
+    isWithinLimit =
+        cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)
 
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.

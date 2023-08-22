@@ -82,7 +82,7 @@ import Cardano.CoinSelection.Balance
     , UnableToConstructChangeError (..)
     )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment )
+    ( TokenBundleSizeAssessor (..) )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Collateral
@@ -203,12 +203,10 @@ toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
 --      selections that are acceptable to the ledger.
 --
 data SelectionConstraints = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
+    { tokenBundleSizeAssessor
+        :: TokenBundleSizeAssessor
         -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
+        -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
         :: Address -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
