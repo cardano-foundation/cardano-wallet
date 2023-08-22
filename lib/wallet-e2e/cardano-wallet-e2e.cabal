@@ -92,8 +92,8 @@ library
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
     Cardano.Wallet.Spec.Stories.Language
-    Cardano.Wallet.Spec.Stories.Timeouts
     Cardano.Wallet.Spec.Stories.Wallet
+    Cardano.Wallet.Spec.TimeoutSpec
 
 executable wallet-e2e
   import:         options, dependencies

@@ -4,9 +4,10 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
     ) where
 
 import qualified Effectful.Error.Static as E
+import qualified Network.HTTP.Client as Http
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, runAssertError )
+    ( FxAssert, runAssertFailsFast )
 import Cardano.Wallet.Spec.Effect.Http
     ( FxHttp, runHttpClient )
 import Cardano.Wallet.Spec.Effect.Query
@@ -23,7 +24,6 @@ import Effectful.Fail
     ( Fail, runFailIO )
 import Network.HTTP.Client
     ( ManagerSettings (managerResponseTimeout) )
-import qualified Network.HTTP.Client as Http
 import Prelude hiding
     ( Show, State, evalState, show )
 import System.Random
@@ -38,11 +38,11 @@ type Story a =
         [ FxQuery
         , FxHttp
         , FxRandom
-        , Fail
         , FxTimeout
         , FxAssert
         , FxTrace
         , E.Error SomeException
+        , Fail
         , IOE
         ]
         a
@@ -66,9 +66,9 @@ interpretStory story' = do
         & runQuery
         & runHttpClient connectionManager
         & runRandom stdGen
-        & runFailIO
         & runTimeout
-        & runAssertError
+        & runAssertFailsFast
         & runTracePure
         & E.runErrorNoCallStack
+        & runFailIO
         & runEff

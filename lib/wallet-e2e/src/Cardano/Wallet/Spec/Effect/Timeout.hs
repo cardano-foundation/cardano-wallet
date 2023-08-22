@@ -7,11 +7,10 @@ module Cardano.Wallet.Spec.Effect.Timeout
 
       -- ** Handlers
     , runTimeout
-    , TimeoutAssertion (..)
     ) where
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assertFailException )
+    ( FxAssert, assertFail )
 import Control.Exception
     ( catch )
 import Data.Time.TimeSpan
@@ -29,29 +28,18 @@ import System.Timeout
 data FxTimeout :: Effect where
     Within :: TimeSpan -> m a -> FxTimeout m a
 
-makeEffect ''FxTimeout
+$(makeEffect ''FxTimeout)
 
-data TimeoutAssertion = TimeoutAssertion
-    deriving stock (Show, Typeable)
-    deriving anyclass (Exception)
-
-runTimeout
-    :: (FxAssert :> es, IOE :> es)
-    => Eff (FxTimeout : es) a
-    -> Eff es a
-runTimeout =
-    interpret $ \env -> \case
-        Within ts action ->
-            localSeqLift env $ \localLift ->
-                localSeqUnliftIO env $ \unlift -> do
-                    result <- catch
-                        do timeoutTS ts $ unlift action
-                        do \(_ :: Timeout) -> pure Nothing
-                    case result of
-                        Nothing -> unlift do
-                            localLift $ assertFailException TimeoutAssertion
-                            -- next is what happens if the interpreter of the
-                            -- FxAssert effect is not bailing out of the
-                            -- computation
-                            within ts action
-                        Just a -> pure a
+runTimeout :: (FxAssert :> es, IOE :> es) => Eff (FxTimeout : es) a -> Eff es a
+runTimeout = interpret \env (Within timeSpan action) ->
+    localSeqLift env \toLocalEs ->
+        localSeqUnliftIO env \fromLocalEs -> do
+            result <-
+                timeoutTS timeSpan (fromLocalEs action)
+                    `catch` \(_ :: Timeout) -> pure Nothing
+            case result of
+                Just a -> pure a
+                Nothing -> do
+                    let msg = "Computation timed out (" <> show timeSpan <> ")"
+                    fromLocalEs $ toLocalEs $ assertFail msg
+                    fail $ toString msg

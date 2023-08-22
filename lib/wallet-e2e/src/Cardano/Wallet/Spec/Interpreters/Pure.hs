@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, runAssertError )
+    ( FxAssert, runAssertFailsFast )
 import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery, runQueryMock )
 import Cardano.Wallet.Spec.Effect.Random
@@ -47,7 +47,7 @@ interpretStoryPure
 interpretStoryPure =
     runQueryMock Set.empty
         >>> runRandomMock (Mnemonic.fromWords $ "foo" :| ["bar", "baz"])
-        >>> runAssertError
+        >>> runAssertFailsFast
         >>> runTracePure
         >>> runFail
         >>> E.runErrorNoCallStack
