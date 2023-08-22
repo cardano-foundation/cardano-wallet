@@ -26,6 +26,7 @@ language_extensions:
 - BlockArguments
 # Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#103)
 - DataKinds
+- DeriveAnyClass
 - DerivingStrategies
 # Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#230)
 - FlexibleContexts
@@ -35,8 +36,10 @@ language_extensions:
 - KindSignatures
 - LambdaCase
 - MultiParamTypeClasses
+- NamedFieldPuns
 - OverloadedStrings
 - RankNTypes
+- RecordWildCards
 - ScopedTypeVariables
 - TypeApplications
 - TypeFamilies

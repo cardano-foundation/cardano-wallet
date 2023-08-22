@@ -11,7 +11,7 @@ build:
 
 # run wallet-e2e suite with cabal
 run:
-  cabal run -O0 -v0
+  cabal run wallet-e2e -- --retries 0
 
 # list  Architecture Decision Records
 adrs:

@@ -1,17 +1,28 @@
 module Cardano.Wallet.Spec
-    ( spec
-    )
-where
+    ( walletSpec
+    , effectsSpec
+    ) where
 
-import Cardano.Wallet.Spec.Interpreters.Pure
-    ( pureStory )
+-- import qualified Cardano.Wallet.Spec.Network.Local as Local
+import qualified Cardano.Wallet.Spec.Network.Manual as Manual
+
+import Cardano.Wallet.Spec.Interpreters.Effectfully
+    ( story )
 import Cardano.Wallet.Spec.Stories.Wallet
-    ( createdWallet )
+    ( createdWalletHasZeroAda, createdWalletListed, createdWalletRetrievable )
+import Cardano.Wallet.Spec.TimeoutSpec
+    ( timeoutSpec )
 import Test.Syd
-    ( Spec, describe )
+    ( Spec, aroundAll, describe, sequential )
 
-spec :: Spec
-spec = do
-    describe "Wallet Backend API" do
-        describe "Wallets" do
-            pureStory "Created wallet is known" createdWallet
+walletSpec :: Spec
+walletSpec =
+    aroundAll Manual.nodeWalletSetup do
+        describe "Wallet Backend API" $ sequential do
+            story "Created wallet is listed" createdWalletListed
+            story "Created wallet can be retrieved by id" createdWalletRetrievable
+            story "Created wallet has zero ADA balance" createdWalletHasZeroAda
+
+effectsSpec :: Spec
+effectsSpec = describe "Effect interpreters" do
+    timeoutSpec

@@ -16,6 +16,7 @@ common options
   default-extensions:
     BlockArguments
     DataKinds
+    DeriveAnyClass
     DerivingStrategies
     FlexibleContexts
     FlexibleInstances
@@ -23,9 +24,13 @@ common options
     GeneralizedNewtypeDeriving
     KindSignatures
     LambdaCase
+    MultiParamTypeClasses
+    NamedFieldPuns
     OverloadedStrings
     RankNTypes
+    RecordWildCards
     ScopedTypeVariables
+    StandaloneDeriving
     TypeApplications
     TypeFamilies
     TypeOperators
@@ -48,40 +53,56 @@ common dependencies
   build-depends:
     , base     ^>=4.14.3.0
     , relude   ^>=1.2.0.0
-    , sydtest  ^>=0.15.0.0
+    , sydtest  ^>=0.15.1.0
 
 library
   import:          options, dependencies
-
-  -- other-modules:
-  -- other-extensions:
   hs-source-dirs:  src
   build-depends:
-    , containers-unicode-symbols  ^>=0.3.1.3
-    , effectful                   ^>=2.2.2.0
-    , effectful-th                ^>=1.0.0.1
-    , path                        ^>=0.9.2
-    , path-io                     ^>=1.7.0
+    , base58-bytestring      ^>=0.1
+    , cardano-addresses      ^>=3.12
+    , cardano-crypto         ^>=1.1.2
+    , cardano-wallet-client  ^>=0.1
+    , effectful              ^>=2.2.2.0
+    , effectful-th           ^>=1.0.0.1
+    , http-client            ^>=0.7.13.1
+    , http-types             ^>=0.12.3
+    , memory                 ^>=0.18
+    , path                   ^>=0.9.2
+    , path-io                ^>=1.7.0
+    , random                 ^>=1.2.1.1
+    , tagged                 ^>=0.8.7
+    , timespan               ^>=0.4
 
   exposed-modules:
     Cardano.Wallet.Spec
+    Cardano.Wallet.Spec.Data.AdaBalance
+    Cardano.Wallet.Spec.Data.Mnemonic
+    Cardano.Wallet.Spec.Data.Network.Info
+    Cardano.Wallet.Spec.Data.Network.NodeStatus
+    Cardano.Wallet.Spec.Data.Wallet
+    Cardano.Wallet.Spec.Data.WalletId
+    Cardano.Wallet.Spec.Data.WalletName
     Cardano.Wallet.Spec.Effect.Assert
+    Cardano.Wallet.Spec.Effect.Http
     Cardano.Wallet.Spec.Effect.Query
     Cardano.Wallet.Spec.Effect.Random
+    Cardano.Wallet.Spec.Effect.Timeout
     Cardano.Wallet.Spec.Effect.Trace
+    Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
+    Cardano.Wallet.Spec.Network.Config
+    Cardano.Wallet.Spec.Network.Local
+    Cardano.Wallet.Spec.Network.Manual
     Cardano.Wallet.Spec.Stories.Language
     Cardano.Wallet.Spec.Stories.Wallet
-    Cardano.Wallet.Spec.Types
+    Cardano.Wallet.Spec.TimeoutSpec
 
 executable wallet-e2e
   import:         options, dependencies
   hs-source-dirs: exe
   main-is:        Main.hs
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-
-  -- other-modules:
-  -- other-extensions:
   build-depends:
     , cardano-wallet-e2e
     , with-utf8
