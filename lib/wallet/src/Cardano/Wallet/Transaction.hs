@@ -47,6 +47,7 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrSignTx (..)
     , ErrMkTransaction (..)
+    , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     ) where
@@ -64,11 +65,7 @@ import Cardano.Api.Extra
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionCollateralRequirement (..)
-    , SelectionOf (..)
-    , SelectionOutputTokenQuantityExceedsLimitError
-    , WalletSelectionContext
-    )
+    ( SelectionCollateralRequirement (..), SelectionOf (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -397,7 +394,7 @@ data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
     | ErrMkTransactionTokenQuantityExceedsLimit
-        (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
+        ErrMkTransactionOutputTokenQuantityExceedsLimitError
     | ErrMkTransactionInvalidEra AnyCardanoEra
     -- ^ Should never happen, means that that we have programmatically provided
     -- an invalid era.

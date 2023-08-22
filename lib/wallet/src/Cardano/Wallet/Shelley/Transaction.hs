@@ -78,10 +78,7 @@ import Cardano.Ledger.Allegra.Core
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..)
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , selectionDelta
-    )
+    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), RewardAccount (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -143,6 +140,7 @@ import Cardano.Wallet.Transaction
     , AnyScript (..)
     , DelegationAction (..)
     , ErrMkTransaction (..)
+    , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
@@ -809,8 +807,9 @@ mkUnsignedTx
                     when (quantity > txOutMaxTokenQuantity) $
                         Left (mkErr asset quantity)
               where
-                mkErr aid q = ErrMkTransactionTokenQuantityExceedsLimit
-                    $ SelectionOutputTokenQuantityExceedsLimitError
+                mkErr aid q
+                    = ErrMkTransactionTokenQuantityExceedsLimit
+                    $ ErrMkTransactionOutputTokenQuantityExceedsLimitError
                         { address = addr
                         , asset = aid
                         , quantity = q
