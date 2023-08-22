@@ -24,11 +24,6 @@ module Cardano.CoinSelection
     , SelectionParams (..)
     , SelectionSkeleton (..)
 
-    -- TODO: ADP-3129
-    -- Remove this export after redefining `ErrMkTransaction` to not depend on
-    -- this type:
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-
     -- * Verification of post conditions
     , VerificationResult (..)
 
