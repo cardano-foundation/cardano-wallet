@@ -108,10 +108,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , unsafeLovelaceToWalletCoin
     , unsafeValueToLovelace
 
-      -- ** Assessing sizes of token bundles
-    , tokenBundleSizeAssessor
-    , computeTokenBundleSerializedLengthBytes
-
       -- ** Stake pools
     , fromPoolId
     , fromPoolDistr
@@ -199,8 +195,6 @@ import Cardano.Chain.Block
     ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
 import Cardano.Chain.UTxO
     ( unTxPayload )
-import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Launcher.Node
@@ -221,7 +215,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Binary
-    ( EncCBORGroup, serialize', shelleyProtVer )
+    ( EncCBORGroup )
 import Cardano.Ledger.Era
     ( Era (..), TxSeq )
 import Cardano.Ledger.PoolParams
@@ -245,7 +239,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolCertificate
     , PoolRegistrationCertificate (..)
     , ProtocolParameters (txParameters)
-    , TokenBundleMaxSize (..)
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
@@ -1782,42 +1775,6 @@ unsafeValueToLovelace v =
             , show v
             ]
         Just lovelace -> lovelace
-
-{-------------------------------------------------------------------------------
-                   Assessing sizes of token bundles
--------------------------------------------------------------------------------}
-
--- | Assesses a token bundle size in relation to the maximum size that can be
---   included in a transaction output.
---
--- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
---
-tokenBundleSizeAssessor :: TokenBundleMaxSize -> TokenBundleSizeAssessor
-tokenBundleSizeAssessor maxSize = TokenBundleSizeAssessor {..}
-  where
-    assessTokenBundleSize tb
-        | serializedLengthBytes <= maxSize' =
-            TokenBundleSizeWithinLimit
-        | otherwise =
-            TokenBundleSizeExceedsLimit
-      where
-        serializedLengthBytes :: W.TxSize
-        serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
-
-        maxSize' :: W.TxSize
-        maxSize' = W.unTokenBundleMaxSize maxSize
-
-computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> W.TxSize
-computeTokenBundleSerializedLengthBytes =
-    W.TxSize
-        . safeCast
-        . BS.length
-        . serialize' shelleyProtVer
-        . Cardano.toMaryValue
-        . toCardanoValue
-  where
-    safeCast :: Int -> Natural
-    safeCast = fromIntegral
 
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
