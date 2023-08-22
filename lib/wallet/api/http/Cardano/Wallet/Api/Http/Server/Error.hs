@@ -354,7 +354,7 @@ instance IsServerError ErrMkTransaction where
     toServerError = \case
         ErrMkTransactionTxBodyError hint ->
             apiError err500 CreatedInvalidTransaction hint
-        ErrMkTransactionTokenQuantityExceedsLimit e ->
+        ErrMkTransactionOutputTokenQuantityExceedsLimit e ->
             apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
                 [ "One of the token quantities you've specified is greater "
                 , "than the maximum quantity allowed in a single transaction "

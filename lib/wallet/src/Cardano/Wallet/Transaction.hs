@@ -47,6 +47,7 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrSignTx (..)
     , ErrMkTransaction (..)
+    , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     ) where
@@ -64,11 +65,7 @@ import Cardano.Api.Extra
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionCollateralRequirement (..)
-    , SelectionOf (..)
-    , SelectionOutputTokenQuantityExceedsLimitError
-    , WalletSelectionContext
-    )
+    ( SelectionCollateralRequirement (..), SelectionOf (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -89,6 +86,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -394,8 +393,8 @@ toKeyRole witCtx (Hash key) = case witCtx of
 data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
-    | ErrMkTransactionTokenQuantityExceedsLimit
-        (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
+    | ErrMkTransactionOutputTokenQuantityExceedsLimit
+        ErrMkTransactionOutputTokenQuantityExceedsLimitError
     | ErrMkTransactionInvalidEra AnyCardanoEra
     -- ^ Should never happen, means that that we have programmatically provided
     -- an invalid era.
@@ -403,6 +402,19 @@ data ErrMkTransaction
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
     deriving (Generic, Eq, Show)
+
+data ErrMkTransactionOutputTokenQuantityExceedsLimitError =
+    ErrMkTransactionOutputTokenQuantityExceedsLimitError
+    { address :: Address
+      -- ^ The address to which this token quantity was to be sent.
+    , asset :: AssetId
+      -- ^ The asset identifier to which this token quantity corresponds.
+    , quantity :: TokenQuantity
+      -- ^ The token quantity that exceeded the bound.
+    , quantityMaxBound :: TokenQuantity
+      -- ^ The maximum allowable token quantity.
+    }
+    deriving (Eq, Generic, Show)
 
 -- | Possible signing error
 data ErrSignTx
