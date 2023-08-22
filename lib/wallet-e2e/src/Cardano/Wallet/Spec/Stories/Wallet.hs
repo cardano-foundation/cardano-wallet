@@ -1,9 +1,9 @@
-module Cardano.Wallet.Spec.Stories.Wallet
-    ( testEnvironmentIsReady
-    , createdWalletListed
-    , createdWalletRetrievable
-    , createdWalletHasZeroAda
-    ) where
+module Cardano.Wallet.Spec.Stories.Wallet (
+    testEnvironmentIsReady,
+    createdWalletListed,
+    createdWalletRetrievable,
+    createdWalletHasZeroAda,
+) where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
     ( zeroAdaBalance )
@@ -14,7 +14,7 @@ import Cardano.Wallet.Spec.Data.Network.NodeStatus
 import Cardano.Wallet.Spec.Data.Wallet
     ( Wallet (..), walletId )
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assert )
+    ( FxAssert, assert, assertEq )
 import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery
     , createWalletFromMnemonic
@@ -37,7 +37,7 @@ import Data.Time.TimeSpan
 testEnvironmentIsReady :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 testEnvironmentIsReady = do
     NetworkInfo{nodeStatus} <- queryNetworkInfo
-    assert "the Cardano Node is running and synced" (nodeStatus == NodeIsSynced)
+    assertEq "the Cardano Node is running and synced" nodeStatus NodeIsSynced
 
 createdWalletListed :: FxStory fxs '[FxQuery, FxRandom, FxTimeout, FxAssert] ()
 createdWalletListed = do
@@ -52,13 +52,15 @@ createdWalletRetrievable :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 createdWalletRetrievable = do
     createdWallet <- createFreshWallet
     retrievedWallet <- getWallet (walletId createdWallet)
-    assert "same wallet retrieved by id" (createdWallet == retrievedWallet)
+    assertEq "same wallet retrieved by id" createdWallet retrievedWallet
 
 createdWalletHasZeroAda :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 createdWalletHasZeroAda = do
     wallet <- createFreshWallet
-    assert "freshly created wallet has 0 ADA balance"
-        $ walletBalance wallet == zeroAdaBalance
+    assertEq
+        "freshly created wallet has 0 ADA balance"
+        (walletBalance wallet)
+        zeroAdaBalance
 
 --------------------------------------------------------------------------------
 -- Re-usable sequences of actions ----------------------------------------------

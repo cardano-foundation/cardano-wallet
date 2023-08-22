@@ -2,7 +2,6 @@ module Cardano.Wallet.Spec.TimeoutSpec
     ( timeoutSpec
     ) where
 
-import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert, runAssertFailsFast )
@@ -18,6 +17,8 @@ import Data.Time.TimeSpan
     ( seconds )
 import Effectful
     ( Eff, IOE, runEff )
+import Effectful.Fail
+    ( Fail, runFail )
 import Effectful.State.Static.Local
     ( State, evalState, get, modify )
 import Prelude hiding
@@ -47,17 +48,17 @@ type Story a =
         [ FxTimeout
         , FxAssert
         , FxTrace
-        , E.Error SomeException
+        , Fail
         , IOE
         ]
         a
 
-run :: Story a -> IO (Either SomeException (a, Seq Text))
+run :: Story a -> IO (Either String (a, Seq Text))
 run =
     runTimeout
         >>> runAssertFailsFast
         >>> runTracePure
-        >>> E.runErrorNoCallStack
+        >>> runFail
         >>> runEff
 
 timeoutSpec :: Spec

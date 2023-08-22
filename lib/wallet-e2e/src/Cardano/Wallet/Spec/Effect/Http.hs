@@ -4,7 +4,6 @@
 
 module Cardano.Wallet.Spec.Effect.Http where
 
-import qualified Effectful.Error.Static as Fx
 import qualified Network.HTTP.Client as HC
 
 import Cardano.Wallet.Spec.Effect.Trace
@@ -15,8 +14,8 @@ import Effectful
     ( (:>), Eff, Effect, IOE )
 import Effectful.Dispatch.Dynamic
     ( interpret )
-import Effectful.Error.Static
-    ( throwError )
+import Effectful.Fail
+    ( Fail )
 import Effectful.TH
     ( makeEffect )
 import Prelude hiding
@@ -35,7 +34,7 @@ instance (FxHttp :> es) => MonadHTTP (Eff es) where
     httpBS = httpQuery
 
 runHttpClient
-    :: (FxTrace :> es, Fx.Error SomeException :> es, IOE :> es)
+    :: (FxTrace :> es, Fail :> es, IOE :> es)
     => HC.Manager
     -> Eff (FxHttp : es) a
     -> Eff es a
@@ -45,5 +44,5 @@ runHttpClient connectionManager = interpret \_ -> \case
         response <- liftIO $ try $ HC.httpLbs request connectionManager
         trace $ "HTTP response: " <> show response
         case response of
-            Left (e :: SomeException) -> throwError e
+            Left (e :: SomeException) -> fail $ displayException e
             Right r -> pure $ fmap toStrict r

@@ -8,7 +8,6 @@ import qualified Cardano.Wallet.Spec.Data.WalletId as WalletId
 import qualified Cardano.Wallet.Spec.Data.WalletName as WalletName
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
-import qualified Effectful.Error.Static as Fx
 import qualified Network.HTTP.Types as Http
 import qualified Text.Show as TS
 import qualified Wallet as W
@@ -31,9 +30,9 @@ import Cardano.Wallet.Spec.Data.Wallet
 import Cardano.Wallet.Spec.Data.WalletId
     ( WalletId (..) )
 import Cardano.Wallet.Spec.Data.WalletName
-    ( WalletName, walletNameToText )
+    ( WalletName )
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assert )
+    ( FxAssert, assert, assertEq )
 import Cardano.Wallet.Spec.Effect.Http
     ( FxHttp )
 import Cardano.Wallet.Spec.Effect.Trace
@@ -43,7 +42,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
     ( interpret, reinterpret )
 import Effectful.Error.Static
-    ( throwError, tryError )
+    ( runErrorNoCallStack )
 import Effectful.Fail
     ( Fail )
 import Effectful.State.Static.Local
@@ -94,7 +93,7 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
         trace
             $ fold
                 [ "Creating a wallet '"
-                , walletNameToText name
+                , WalletName.toText name
                 , "': "
                 , show wallet
                 ]
@@ -117,7 +116,6 @@ runQuery
        , Fail :> es
        , FxAssert :> es
        , FxTrace :> es
-       , Fx.Error SomeException :> es
        )
     => Eff (FxQuery : es) a
     -> Eff es a
@@ -166,17 +164,17 @@ runQuery = interpret \_ -> \case
         trace $ "Listing known wallets (" <> show (length knownWallets) <> ")"
         pure knownWallets
     CreateWalletFromMnemonic name mnemonic -> do
-        trace $ "Creating a wallet from mnemonic " <> show mnemonic
+        trace $ "Creating a wallet from mnemonic: " <> Mnemonic.toText mnemonic
         resp <-
             WC.runWithConfiguration configuration
                 $ PW.postWallet
                 $ PW.PostWalletRequestBodyVariant1
                 $ PW.mkPostWalletRequestBodyOneOf1
                     (toList (Mnemonic.toWords mnemonic))
-                    (walletNameToText name)
+                    (WalletName.toText name)
                     "Secure Passphrase"
-        assert "PostWallet response status is 201 Created"
-            $ responseStatus resp == created201
+        assertEq "PostWallet response status is 201 Created"
+            (responseStatus resp) created201
         case responseBody resp of
             PW.PostWalletResponse201 PW.PostWalletResponseBody201{..} -> do
                 pure
@@ -285,9 +283,9 @@ runQuery = interpret \_ -> \case
                     , WC.configIncludeUserAgent = False
                     , WC.configApplicationName = ""
                     }
-            & tryError
+            & runErrorNoCallStack
             >>= \case
-                Left (_callStack, e :: SomeException) ->
+                Left (e :: SomeException) ->
                     environmentException $ WalletNetworkInfoException e
                 Right resp | status <- responseStatus resp -> do
                     unless (status == ok200) do
@@ -307,11 +305,8 @@ runQuery = interpret \_ -> \case
                                         & maybe (environmentException WalletNetworkInfoUnknownNodeStatus) pure
                                 pure NetworkInfo{nodeStatus}
 
-environmentException
-    :: (Fx.Error SomeException :> es)
-    => ExecutionEnvironmentException
-    -> Eff es a2
-environmentException = throwError . toException
+environmentException :: (Fail :> es) => ExecutionEnvironmentException -> Eff es a
+environmentException = fail . displayException
 
 configuration :: WC.Configuration
 configuration =

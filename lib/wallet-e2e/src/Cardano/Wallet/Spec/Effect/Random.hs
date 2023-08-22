@@ -8,6 +8,7 @@ import qualified Cardano.Mnemonic as Cardano
 import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
 import qualified Cardano.Wallet.Spec.Data.WalletName as WalletName
 import qualified Data.ByteString.Base58 as Base58
+import qualified Data.Text as T
 import qualified Effectful.State.Static.Local as State
 
 import Cardano.Wallet.Spec.Data.Mnemonic
@@ -20,7 +21,6 @@ import Crypto.Encoding.BIP39
     ( toEntropy )
 import Data.Tagged
     ( Tagged (..) )
-import qualified Data.Text as T
 import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
@@ -38,6 +38,7 @@ import System.Random
 import System.Random.Stateful
     ( StateGenM (..), uniformByteStringM )
 
+
 data FxRandom :: Effect where
     RandomMnemonic :: FxRandom m Mnemonic
     RandomWalletName :: Tagged "Prefix" Text -> FxRandom m WalletName
@@ -47,37 +48,45 @@ $(makeEffect ''FxRandom)
 runRandomMock :: Mnemonic -> (FxTrace :> es) => Eff (FxRandom : es) a -> Eff es a
 runRandomMock mnemonic = interpret \_ -> \case
     RandomMnemonic -> do
-        trace "Generating a [mock] random mnemonic"
+        trace $ "Generated a [mock] random mnemonic: " <> Mnemonic.toText mnemonic
         pure mnemonic
     RandomWalletName (Tagged prefix) -> do
-        trace "Generating a random wallet name"
-        pure $ WalletName.mkUnsafe $ prefix <> "#12345"
+        let name = WalletName.mkUnsafe $ prefix <> "#12345"
+        trace $ "Generated a random wallet name: " <> WalletName.toText name
+        pure name
 
 instance (State StdGen :> es) => MonadState StdGen (Eff es) where
     state = State.state
 
-runRandom
-    :: (FxTrace :> es, Fail :> es)
-    => StdGen
-    -> Eff (FxRandom : es) a
-    -> Eff es a
+runRandom ::
+    (FxTrace :> es, Fail :> es) =>
+    StdGen ->
+    Eff (FxRandom : es) a ->
+    Eff es a
 runRandom gen = reinterpret (evalState gen) \_ -> \case
     RandomMnemonic -> do
-        trace "Generating a random mnemonic"
         randomByteString <- uniformByteStringM 32 stGen
-        Mnemonic.unsafeFromList
-            . Cardano.mnemonicToText
-            . Cardano.entropyToMnemonic
-            <$> toEntropy @256 randomByteString
-                & either (fail . show) pure
+        mnemonic <-
+            Mnemonic.unsafeFromList
+                . Cardano.mnemonicToText
+                . Cardano.entropyToMnemonic
+                <$> toEntropy @256 randomByteString
+                    & either (fail . show) pure
+        trace $ "Generated a random mnemonic: " <> Mnemonic.toText mnemonic
+        pure mnemonic
     RandomWalletName (Tagged prefix) -> do
-        trace "Generating a random wallet name"
         randomSuffix <- uniformByteStringM 10 stGen
-        pure . WalletName.mkUnsafe . fold
-            $ [ T.stripEnd prefix
-              , " #"
-              , decodeUtf8
-                    $ Base58.encodeBase58 Base58.bitcoinAlphabet randomSuffix
-              ]
+        let name =
+                WalletName.mkUnsafe $
+                    fold
+                        [ T.stripEnd prefix
+                        , " #"
+                        , decodeUtf8 $
+                            Base58.encodeBase58
+                                Base58.bitcoinAlphabet
+                                randomSuffix
+                        ]
+        trace $ "Generated a random wallet name: " <> WalletName.toText name
+        pure name
   where
     stGen :: StateGenM StdGen = StateGenM

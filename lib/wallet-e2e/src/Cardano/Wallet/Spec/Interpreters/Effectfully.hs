@@ -1,9 +1,8 @@
-module Cardano.Wallet.Spec.Interpreters.Effectfully
-    ( Story
-    , story
-    ) where
+module Cardano.Wallet.Spec.Interpreters.Effectfully (
+    Story,
+    story,
+) where
 
-import qualified Effectful.Error.Static as E
 import qualified Network.HTTP.Client as Http
 
 import Cardano.Wallet.Spec.Effect.Assert
@@ -18,10 +17,12 @@ import Cardano.Wallet.Spec.Effect.Timeout
     ( FxTimeout, runTimeout )
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, recordTraceLog, runTracePure )
+import Cardano.Wallet.Spec.Network.Config
+    ( NetworkConfig )
 import Effectful
     ( Eff, IOE, runEff )
 import Effectful.Fail
-    ( Fail, runFailIO )
+    ( Fail, runFail )
 import Network.HTTP.Client
     ( ManagerSettings (managerResponseTimeout) )
 import Prelude hiding
@@ -29,9 +30,7 @@ import Prelude hiding
 import System.Random
     ( newStdGen )
 import Test.Syd
-    ( TestDefM, expectationFailure, it )
-import Text.Show
-    ( show )
+    ( TestDefM, expectationFailure, itWithOuter )
 
 type Story a =
     Eff
@@ -40,22 +39,26 @@ type Story a =
         , FxRandom
         , FxTimeout
         , FxAssert
-        , FxTrace
-        , E.Error SomeException
         , Fail
+        , FxTrace
         , IOE
         ]
         a
 
-story :: String -> Story () -> TestDefM outers () ()
+story :: String -> Story () -> TestDefM '[NetworkConfig] () ()
 story label story' =
-    it label do
-        interpretStory story' >>= \case
-            Left err -> expectationFailure (show err)
-            Right (_unit :: (), log) -> recordTraceLog label log
+    itWithOuter label \network -> do
+        interpretStory network story' >>= \(result, log) -> do
+            recordTraceLog label log
+            case result of
+                Left err -> expectationFailure err
+                Right () -> pass
 
-interpretStory :: Story a -> IO (Either SomeException (a, Seq Text))
-interpretStory story' = do
+interpretStory ::
+    NetworkConfig ->
+    Story a ->
+    IO (Either String a, Seq Text)
+interpretStory _networkConfig story' = do
     connectionManager <-
         Http.newManager
             Http.defaultManagerSettings
@@ -68,7 +71,6 @@ interpretStory story' = do
         & runRandom stdGen
         & runTimeout
         & runAssertFailsFast
+        & runFail
         & runTracePure
-        & E.runErrorNoCallStack
-        & runFailIO
         & runEff

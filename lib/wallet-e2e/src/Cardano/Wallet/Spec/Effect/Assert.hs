@@ -1,27 +1,25 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cardano.Wallet.Spec.Effect.Assert
-    ( -- * Effect
-      FxAssert
-    , assert
-    , assertFail
+module Cardano.Wallet.Spec.Effect.Assert (
+    -- * Effect
+    FxAssert,
+    assert,
+    assertEq,
+    assertFail,
 
-      -- ** Handlers
-    , runAssertFailsFast
-    ) where
+    -- ** Handlers
+    runAssertFailsFast,
+) where
 
-import qualified Effectful.Error.Static as Effect
 
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
-import Control.Exception
-    ( AssertionFailed (..) )
 import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic
     ( interpret )
-import Effectful.Error.Static
-    ( throwError )
+import Effectful.Fail
+    ( Fail )
 import Effectful.TH
     ( makeEffect )
 import Prelude hiding
@@ -29,17 +27,22 @@ import Prelude hiding
 
 data FxAssert :: Effect where
     Assert :: Text -> Bool -> FxAssert m ()
+    AssertEq :: (Show a, Eq a) => Text -> a -> a -> FxAssert m ()
 
 $(makeEffect ''FxAssert)
 
 assertFail :: (FxAssert :> es) => Text -> Eff es ()
 assertFail label = assert label False
 
-runAssertFailsFast
-    :: (Effect.Error SomeException :> es, FxTrace :> es)
-    => Eff (FxAssert : es) a
-    -> Eff es a
+runAssertFailsFast ::
+    (Fail :> es, FxTrace :> es) =>
+    Eff (FxAssert : es) a ->
+    Eff es a
 runAssertFailsFast = interpret \_ -> \case
     Assert msg truth -> do
-        trace $ "Asserting that " <> msg
-        unless truth $ throwError $ toException $ AssertionFailed $ toString msg
+        trace $ "Asserting that " <> msg <> ": " <> show truth
+        unless truth $ fail $ toString msg
+    AssertEq msg x y -> do
+        let equality = x == y
+        trace $ "Asserting that " <> msg <> ": " <> show equality
+        unless equality . fail $ show x <> " == " <> show y
