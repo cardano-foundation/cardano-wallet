@@ -6,7 +6,7 @@ module Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleSizeAssessor (..)
     , TokenBundleMaxSize (..)
     , computeTokenBundleSerializedLengthBytes
-    , tokenBundleSizeAssessor
+    , mkTokenBundleSizeAssessor
     , getTokenBundleMaxSize
     )
     where
@@ -52,8 +52,8 @@ instance NFData TokenBundleMaxSize
 --
 -- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
 --
-tokenBundleSizeAssessor :: TokenBundleMaxSize -> TokenBundleSizeAssessor
-tokenBundleSizeAssessor maxSize =
+mkTokenBundleSizeAssessor :: TokenBundleMaxSize -> TokenBundleSizeAssessor
+mkTokenBundleSizeAssessor maxSize =
     TokenBundleSizeAssessor { assessTokenBundleSize }
   where
     assessTokenBundleSize tb

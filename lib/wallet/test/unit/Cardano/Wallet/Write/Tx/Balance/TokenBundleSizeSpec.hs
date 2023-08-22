@@ -16,7 +16,7 @@ import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleMaxSize (TokenBundleMaxSize)
     , assessTokenBundleSize
     , computeTokenBundleSerializedLengthBytes
-    , tokenBundleSizeAssessor
+    , mkTokenBundleSizeAssessor
     )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize.Gen
     ( genTokenBundleMaxSize, shrinkTokenBundleMaxSize )
@@ -72,7 +72,7 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
         ]
   where
     assess = assessTokenBundleSize
-        $ tokenBundleSizeAssessor maryTokenBundleMaxSize
+        $ mkTokenBundleSizeAssessor maryTokenBundleMaxSize
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -92,7 +92,7 @@ prop_assessTokenBundleSize_shrink b1' b2' maxSize =
             === TokenBundleSizeWithinLimit
         ]
   where
-    assess = assessTokenBundleSize (tokenBundleSizeAssessor maxSize)
+    assess = assessTokenBundleSize (mkTokenBundleSizeAssessor maxSize)
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -128,7 +128,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
             ]
   where
     actualAssessment = assessTokenBundleSize
-        (tokenBundleSizeAssessor maxSize)
+        (mkTokenBundleSizeAssessor maxSize)
         bundle
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines

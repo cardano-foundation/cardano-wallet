@@ -146,7 +146,7 @@ import Cardano.Wallet.Write.Tx
     , withConstraints
     )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
-    ( getTokenBundleMaxSize, tokenBundleSizeAssessor )
+    ( getTokenBundleMaxSize, mkTokenBundleSizeAssessor )
 import Cardano.Wallet.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.Sign
@@ -877,9 +877,9 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
 
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
-                tokenBundleSizeAssessor
-                    (getTokenBundleMaxSize era pp)
-                        ^. #assessTokenBundleSize
+            mkTokenBundleSizeAssessor
+                (getTokenBundleMaxSize era pp)
+                    ^. #assessTokenBundleSize
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut
                 era
