@@ -1,7 +1,7 @@
-module Cardano.Wallet.Spec.Interpreters.Effectfully (
-    Story,
-    story,
-) where
+module Cardano.Wallet.Spec.Interpreters.Effectfully
+    ( Story
+    , story
+    ) where
 
 import qualified Network.HTTP.Client as Http
 
@@ -54,10 +54,10 @@ story label story' =
                 Left err -> expectationFailure err
                 Right () -> pass
 
-interpretStory ::
-    NetworkConfig ->
-    Story a ->
-    IO (Either String a, Seq Text)
+interpretStory
+    :: NetworkConfig
+    -> Story a
+    -> IO (Either String a, Seq Text)
 interpretStory _networkConfig story' = do
     connectionManager <-
         Http.newManager

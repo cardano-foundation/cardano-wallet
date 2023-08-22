@@ -1,9 +1,9 @@
-module Cardano.Wallet.Spec.Stories.Wallet (
-    testEnvironmentIsReady,
-    createdWalletListed,
-    createdWalletRetrievable,
-    createdWalletHasZeroAda,
-) where
+module Cardano.Wallet.Spec.Stories.Wallet
+    ( testEnvironmentIsReady
+    , createdWalletListed
+    , createdWalletRetrievable
+    , createdWalletHasZeroAda
+    ) where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
     ( zeroAdaBalance )

@@ -1,16 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cardano.Wallet.Spec.Effect.Assert (
-    -- * Effect
-    FxAssert,
-    assert,
-    assertEq,
-    assertFail,
+module Cardano.Wallet.Spec.Effect.Assert
+    ( -- * Effect
+      FxAssert
+    , assert
+    , assertEq
+    , assertFail
 
-    -- ** Handlers
-    runAssertFailsFast,
-) where
-
+      -- ** Handlers
+    , runAssertFailsFast
+    ) where
 
 import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
@@ -34,10 +33,10 @@ $(makeEffect ''FxAssert)
 assertFail :: (FxAssert :> es) => Text -> Eff es ()
 assertFail label = assert label False
 
-runAssertFailsFast ::
-    (Fail :> es, FxTrace :> es) =>
-    Eff (FxAssert : es) a ->
-    Eff es a
+runAssertFailsFast
+    :: (Fail :> es, FxTrace :> es)
+    => Eff (FxAssert : es) a
+    -> Eff es a
 runAssertFailsFast = interpret \_ -> \case
     Assert msg truth -> do
         trace $ "Asserting that " <> msg <> ": " <> show truth

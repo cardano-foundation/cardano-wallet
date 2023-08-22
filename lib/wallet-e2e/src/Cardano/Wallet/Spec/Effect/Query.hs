@@ -173,8 +173,10 @@ runQuery = interpret \_ -> \case
                     (toList (Mnemonic.toWords mnemonic))
                     (WalletName.toText name)
                     "Secure Passphrase"
-        assertEq "PostWallet response status is 201 Created"
-            (responseStatus resp) created201
+        assertEq
+            "PostWallet response status is 201 Created"
+            (responseStatus resp)
+            created201
         case responseBody resp of
             PW.PostWalletResponse201 PW.PostWalletResponseBody201{..} -> do
                 pure

@@ -2,7 +2,6 @@ module Cardano.Wallet.Spec.TimeoutSpec
     ( timeoutSpec
     ) where
 
-
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert, runAssertFailsFast )
 import Cardano.Wallet.Spec.Effect.Timeout

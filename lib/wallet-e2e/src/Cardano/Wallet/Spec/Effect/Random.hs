@@ -38,7 +38,6 @@ import System.Random
 import System.Random.Stateful
     ( StateGenM (..), uniformByteStringM )
 
-
 data FxRandom :: Effect where
     RandomMnemonic :: FxRandom m Mnemonic
     RandomWalletName :: Tagged "Prefix" Text -> FxRandom m WalletName
@@ -58,11 +57,11 @@ runRandomMock mnemonic = interpret \_ -> \case
 instance (State StdGen :> es) => MonadState StdGen (Eff es) where
     state = State.state
 
-runRandom ::
-    (FxTrace :> es, Fail :> es) =>
-    StdGen ->
-    Eff (FxRandom : es) a ->
-    Eff es a
+runRandom
+    :: (FxTrace :> es, Fail :> es)
+    => StdGen
+    -> Eff (FxRandom : es) a
+    -> Eff es a
 runRandom gen = reinterpret (evalState gen) \_ -> \case
     RandomMnemonic -> do
         randomByteString <- uniformByteStringM 32 stGen
@@ -77,12 +76,12 @@ runRandom gen = reinterpret (evalState gen) \_ -> \case
     RandomWalletName (Tagged prefix) -> do
         randomSuffix <- uniformByteStringM 10 stGen
         let name =
-                WalletName.mkUnsafe $
-                    fold
+                WalletName.mkUnsafe
+                    $ fold
                         [ T.stripEnd prefix
                         , " #"
-                        , decodeUtf8 $
-                            Base58.encodeBase58
+                        , decodeUtf8
+                            $ Base58.encodeBase58
                                 Base58.bitcoinAlphabet
                                 randomSuffix
                         ]
