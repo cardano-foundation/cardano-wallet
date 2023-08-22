@@ -28,7 +28,7 @@ import Network.HTTP.Client
 import Prelude hiding
     ( Show, State, evalState, show )
 import System.Random
-    ( newStdGen )
+    ( initStdGen )
 import Test.Syd
     ( TestDefM, expectationFailure, itWithOuter )
 
@@ -64,7 +64,7 @@ interpretStory _networkConfig story' = do
             Http.defaultManagerSettings
                 { managerResponseTimeout = Http.responseTimeoutNone
                 }
-    stdGen <- newStdGen
+    stdGen <- initStdGen
     story'
         & runQuery
         & runHttpClient connectionManager
