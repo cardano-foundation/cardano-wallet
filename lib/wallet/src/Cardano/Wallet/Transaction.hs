@@ -89,6 +89,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -403,6 +405,19 @@ data ErrMkTransaction
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
     deriving (Generic, Eq, Show)
+
+data ErrMkTransactionOutputTokenQuantityExceedsLimitError =
+    ErrMkTransactionOutputTokenQuantityExceedsLimitError
+    { address :: Address
+      -- ^ The address to which this token quantity was to be sent.
+    , asset :: AssetId
+      -- ^ The asset identifier to which this token quantity corresponds.
+    , quantity :: TokenQuantity
+      -- ^ The token quantity that exceeded the bound.
+    , quantityMaxBound :: TokenQuantity
+      -- ^ The maximum allowable token quantity.
+    }
+    deriving (Eq, Generic, Show)
 
 -- | Possible signing error
 data ErrSignTx
