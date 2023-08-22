@@ -1148,6 +1148,49 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
+    it "TRANS_NEW_ASSETS_CREATE_02 - using reference script" $ \ctx -> runResourceT $ do
+
+        let initialAmt = 3 * minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+        wb <- emptyWallet ctx
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+        let (Just policyKeyHash) =
+                keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
+        let _scriptUsed = RequireAllOf
+                [ RequireSignatureOf policyKeyHash
+                ]
+
+        addrs <- listAddresses @n ctx wb
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "reference_policy_script_template":
+                    { "all": [ "cosigner#0" ] },
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        let expectedCreateTx =
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+                , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                ]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx expectedCreateTx
+
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
         \ctx -> runResourceT $ do
