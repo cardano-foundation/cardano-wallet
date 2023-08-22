@@ -808,7 +808,7 @@ mkUnsignedTx
                         Left (mkErr asset quantity)
               where
                 mkErr aid q
-                    = ErrMkTransactionTokenQuantityExceedsLimit
+                    = ErrMkTransactionOutputTokenQuantityExceedsLimit
                     $ ErrMkTransactionOutputTokenQuantityExceedsLimitError
                         { address = addr
                         , asset = aid

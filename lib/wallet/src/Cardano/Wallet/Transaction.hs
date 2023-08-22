@@ -393,7 +393,7 @@ toKeyRole witCtx (Hash key) = case witCtx of
 data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
-    | ErrMkTransactionTokenQuantityExceedsLimit
+    | ErrMkTransactionOutputTokenQuantityExceedsLimit
         ErrMkTransactionOutputTokenQuantityExceedsLimitError
     | ErrMkTransactionInvalidEra AnyCardanoEra
     -- ^ Should never happen, means that that we have programmatically provided
