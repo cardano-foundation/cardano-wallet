@@ -75,6 +75,8 @@ module Cardano.Wallet.Write.Tx.Balance
 
 import Prelude
 
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..) )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Ledger.Alonzo.Core
@@ -109,11 +111,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..)
-    , TxSize (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
+    ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Write.ProtocolParameters

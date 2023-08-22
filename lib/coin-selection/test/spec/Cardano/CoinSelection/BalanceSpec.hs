@@ -99,7 +99,7 @@ import Cardano.CoinSelection.Balance
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionStrategy, shrinkSelectionStrategy )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.CoinSelection.UTxOIndex
     ( Asset (..), SelectionFilter (..), UTxOIndex )
 import Cardano.CoinSelection.UTxOIndex.Gen
@@ -140,8 +140,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor

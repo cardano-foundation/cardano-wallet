@@ -9,15 +9,16 @@
 --
 module Cardano.CoinSelection.Size
     ( TokenBundleSizeAssessor (..)
+    , TokenBundleSizeAssessment (..)
     )
     where
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..) )
 import GHC.Generics
     ( Generic )
+
+import Prelude
 
 -- | A function capable of assessing the size of a token bundle relative to the
 --   upper limit of what can be included in a single transaction output.
@@ -43,3 +44,15 @@ newtype TokenBundleSizeAssessor = TokenBundleSizeAssessor
     { assessTokenBundleSize :: TokenBundle -> TokenBundleSizeAssessment
     }
     deriving Generic
+
+-- | Indicates the size of a token bundle relative to the upper limit of what
+--   can be included in a single transaction output.
+--
+data TokenBundleSizeAssessment
+    = TokenBundleSizeWithinLimit
+    -- ^ Indicates that the size of a token bundle does not exceed the maximum
+    -- size that can be included in a transaction output.
+    | TokenBundleSizeExceedsLimit
+    -- ^ Indicates that the size of a token bundle exceeds the maximum size
+    -- that can be included in a transaction output.
+    deriving (Eq, Generic, Show)

@@ -81,6 +81,8 @@ import Cardano.CoinSelection.Balance
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     )
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Collateral
@@ -94,7 +96,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment, txOutMaxCoin, txOutMaxTokenQuantity )
+    ( txOutMaxCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut

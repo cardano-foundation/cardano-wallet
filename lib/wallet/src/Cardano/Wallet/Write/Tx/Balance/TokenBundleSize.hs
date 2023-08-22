@@ -14,13 +14,13 @@ module Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
 import Prelude
 
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Ledger.Api
     ( ppMaxValSizeL )
 import Cardano.Ledger.Binary
     ( serialize', shelleyProtVer )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TxSize (..) )
+    ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoValue )
 import Cardano.Wallet.Write.Tx

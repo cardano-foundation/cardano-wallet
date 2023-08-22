@@ -4,12 +4,14 @@ module Cardano.Wallet.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Prelude
 
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TxSize (..), txOutMaxCoin, txOutMinCoin )
+    ( TxSize (..), txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize

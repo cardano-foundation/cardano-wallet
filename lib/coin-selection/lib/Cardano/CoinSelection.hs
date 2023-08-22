@@ -66,6 +66,8 @@ import Cardano.CoinSelection.Balance
     )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..) )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -77,7 +79,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), txOutMaxTokenQuantity )
+    ( txOutMaxTokenQuantity )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.NonRandom

@@ -708,6 +708,7 @@ test-suite unit
     , cardano-api
     , cardano-balance-tx
     , cardano-binary
+    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
