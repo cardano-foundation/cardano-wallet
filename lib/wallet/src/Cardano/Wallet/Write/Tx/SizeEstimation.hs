@@ -230,9 +230,8 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf skeleton =
-        Coin.distance
-            (estimateTxCost feePerByte empty)
-            (estimateTxCost feePerByte skeleton)
+        estimateTxCost feePerByte skeleton <\>
+        estimateTxCost feePerByte empty
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
