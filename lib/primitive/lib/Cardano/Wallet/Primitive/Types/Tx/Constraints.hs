@@ -22,7 +22,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     , TxSize (..)
-    , txSizeDistance
     , txOutMinCoin
     , txOutMaxCoin
     , txOutMinTokenQuantity
@@ -147,13 +146,6 @@ newtype TxSize = TxSize { unTxSize :: Natural }
     deriving (OverlappingGCDMonoid, Monus) via Sum Natural
 
 instance NFData TxSize
-
--- | Computes the absolute distance between two transaction size quantities.
---
-txSizeDistance :: TxSize -> TxSize -> TxSize
-txSizeDistance (TxSize a) (TxSize b)
-    | a >= b    = TxSize (a - b)
-    | otherwise = TxSize (b - a)
 
 --------------------------------------------------------------------------------
 -- Constants
