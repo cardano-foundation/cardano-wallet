@@ -50,7 +50,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputCoinSize
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
-    , txSizeDistance
     )
 import Control.Monad
     ( replicateM )
@@ -70,6 +69,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Semigroup
     ( mtimesDefault, stimes )
 import Data.Word
@@ -659,8 +660,8 @@ prop_txOutputSize_inner mockConstraints output =
               txOutputSize constraints outputWithMaxCoin )
             "all coins have a smaller size than the maximum ada quantity"
         . verify
-            ( txOutputSizeDifference     output outputWithLargerCoin ==
-              txOutputCoinSizeDifference output outputWithLargerCoin )
+            ( txOutputSizeDifference     outputWithLargerCoin output ==
+              txOutputCoinSizeDifference outputWithLargerCoin output )
             "size difference is independent of whether bundles are considered"
     makeReports
         = report mockConstraints
@@ -671,14 +672,14 @@ prop_txOutputSize_inner mockConstraints output =
             "outputWithLargerCoin"
 
     txOutputSizeDifference :: TokenBundle -> TokenBundle -> TxSize
-    txOutputSizeDifference out1 out2 = txSizeDistance
-        (txOutputSize constraints out1)
-        (txOutputSize constraints out2)
+    txOutputSizeDifference outGreater outSmaller =
+        txOutputSize constraints outGreater <\>
+        txOutputSize constraints outSmaller
 
     txOutputCoinSizeDifference :: TokenBundle -> TokenBundle -> TxSize
-    txOutputCoinSizeDifference out1 out2 = txSizeDistance
-        (txOutputCoinSize constraints (view #coin out1))
-        (txOutputCoinSize constraints (view #coin out2))
+    txOutputCoinSizeDifference outGreater outSmaller =
+        txOutputCoinSize constraints (view #coin outGreater) <\>
+        txOutputCoinSize constraints (view #coin outSmaller)
 
     constraints =
         unMockTxConstraints mockConstraints

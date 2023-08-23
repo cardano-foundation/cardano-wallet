@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txSizeDistance )
+    ( TxConstraints (..), TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
 import Cardano.Wallet.TxWitnessTag
@@ -88,6 +88,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Set
     ( Set )
 import Data.Word
@@ -228,15 +230,14 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf skeleton =
-        Coin.distance
-            (estimateTxCost feePerByte empty)
-            (estimateTxCost feePerByte skeleton)
+        estimateTxCost feePerByte skeleton <\>
+        estimateTxCost feePerByte empty
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalSizeOf :: TxSkeleton -> TxSize
     marginalSizeOf =
-        txSizeDistance txBaseSize . estimateTxSize
+        (<\> txBaseSize) . estimateTxSize
 
     -- Constructs a real transaction output from a token bundle.
     mkTxOut :: TokenBundle -> W.TxOut
