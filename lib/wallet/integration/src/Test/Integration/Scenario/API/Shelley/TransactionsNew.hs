@@ -125,6 +125,7 @@ import Cardano.Wallet.Transaction
     , ScriptReference (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
+    , changeRoleInAnyExplicitScript
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
@@ -228,6 +229,7 @@ import Test.Integration.Framework.TestData
 import UnliftIO.Exception
     ( fromEither )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -1150,17 +1152,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_ASSETS_CREATE_02 - using reference script" $ \ctx -> runResourceT $ do
 
-        let initialAmt = 3 * minUTxOValue (_mainEra ctx)
+        let initialAmt = 1_000_000_000
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
-        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+        let amt = 10_000_000 :: Natural
 
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
         let (Just policyKeyHash) =
                 keyHashFromBytes (Policy, getApiPolicyKey policyKeyHashPayload)
-        let _scriptUsed = RequireAllOf
+        let scriptUsed = RequireAllOf
                 [ RequireSignatureOf policyKeyHash
                 ]
 
@@ -1190,6 +1192,33 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx expectedCreateTx
+
+        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let (ApiT txId) = getFromResponse #id submittedTx
+        let refInp = ReferenceInput $ TxIn txId 0
+        let referenceScript = NativeExplicitScript scriptUsed (ViaReferenceInput refInp)
+        let witnessCountWithNativeScript = mkApiWitnessCount WitnessCount
+                { verificationKey = 1
+                , scripts = [changeRoleInAnyExplicitScript CA.Unknown referenceScript]
+                , bootstrap = 0
+                }
+
+        let decodePayload = Json (toJSON signedTx)
+        rTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rTx1
+            [ expectResponseCode HTTP.status202
+            , expectField (#witnessCount) (`shouldBe` witnessCountWithNativeScript)
+            ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $

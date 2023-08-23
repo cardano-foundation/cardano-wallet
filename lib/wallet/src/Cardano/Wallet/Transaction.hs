@@ -36,6 +36,7 @@ module Cardano.Wallet.Transaction
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     , AnyExplicitScript (..)
+    , changeRoleInAnyExplicitScript
     , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
@@ -60,7 +61,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script, ScriptHash, ScriptTemplate )
+    ( KeyHash (..), KeyRole (..), Script (..), ScriptHash, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -393,6 +394,28 @@ data AnyExplicitScript =
     | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+changeRoleInAnyExplicitScript
+    :: KeyRole
+    -> AnyExplicitScript
+    -> AnyExplicitScript
+changeRoleInAnyExplicitScript newrole = \case
+    NativeExplicitScript script scriptRole ->
+        let changeRole' = \case
+                RequireSignatureOf (KeyHash _ p) ->
+                   RequireSignatureOf $ KeyHash newrole p
+                RequireAllOf xs ->
+                   RequireAllOf (map changeRole' xs)
+                RequireAnyOf xs ->
+                   RequireAnyOf (map changeRole' xs)
+                RequireSomeOf m xs ->
+                   RequireSomeOf m (map changeRole' xs)
+                ActiveFromSlot s ->
+                   ActiveFromSlot s
+                ActiveUntilSlot s ->
+                   ActiveUntilSlot s
+        in NativeExplicitScript (changeRole' script) scriptRole
+    PlutusExplicitScript _ _  -> error "wrong usage"
 
 data WitnessCount = WitnessCount
     { verificationKey :: Word8

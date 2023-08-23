@@ -720,7 +720,6 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
 
-
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
 walletListenFromEnv :: Show e
@@ -2508,10 +2507,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     Just action ->
                         transactionCtx0 { txDelegationAction = Just action }
 
-        (transactionCtx2, policyXPubM) <-
+        (policyXPub, _) <-
+            liftHandler $ W.readPolicyPublicKey wrk
+
+        transactionCtx2 <-
             if isJust mintBurnData then do
-                (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey wrk
                 let isMinting (ApiMintBurnDataFromScript _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2552,21 +2552,18 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         map getBurning $
                         filter (not . isMinting) $
                         NE.toList $ fromJust mintBurnData
-                pure ( transactionCtx1
+                pure transactionCtx1
                     { txAssetsToMint = mintingData
                     , txAssetsToBurn = burningData
                     }
-                    , Just policyXPub)
             else
-                pure (transactionCtx1, Nothing)
+                pure transactionCtx1
 
-        let referenceScriptM = case policyXPubM of
-                Just policyXPub ->
-                    replaceCosigner
-                    ShelleyKeyS
-                    (Map.singleton (Cosigner 0) policyXPub)
-                    <$> mintBurnReferenceScriptTemplate
-                Nothing -> Nothing
+        let referenceScriptM =
+                replaceCosigner
+                ShelleyKeyS
+                (Map.singleton (Cosigner 0) policyXPub)
+                <$> mintBurnReferenceScriptTemplate
 
         let transactionCtx3 = transactionCtx2
                 { txReferenceScript = referenceScriptM
@@ -2584,7 +2581,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         let mintingOuts = case mintBurnData of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
-                    map (toMintTxOut (fromJust policyXPubM)) $
+                    map (toMintTxOut policyXPub) $
                     filter mintWithAddress $
                     NE.toList mintBurns
                 Nothing -> []
