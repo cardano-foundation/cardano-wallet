@@ -12,6 +12,7 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
+      queue: hal-mac
     if: 0 == 1 # Suspended until we have a macos build agent
 
   # ADP-2522 - Fix integration tests on MacOS
