@@ -26,14 +26,13 @@ module Cardano.Wallet.Write.Tx.Sign
 
 import Prelude
 
-import Cardano.Ledger.Alonzo.Tx
-    ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
     ( Addr (..)
     , addrTxOutL
     , addrTxWitsL
     , bootAddrTxWitsL
     , ppMinFeeAL
+    , sizeTxF
     , witsTxL
     )
 import Cardano.Ledger.Credential
@@ -113,8 +112,8 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
         -- /necessarily/ protect against calling the wrong function.
         sizeOfTx :: TxSize
         sizeOfTx = fromIntegral @Integer @TxSize $ case era of
-            RecentEraBabbage -> unsignedTx ^. sizeAlonzoTxF
-            RecentEraConway -> unsignedTx ^. sizeAlonzoTxF
+            RecentEraBabbage -> unsignedTx ^. sizeTxF
+            RecentEraConway -> unsignedTx ^. sizeTxF
     in
         sizeOfTx <> sizeOfWits
   where
