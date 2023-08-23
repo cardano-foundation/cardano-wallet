@@ -777,6 +777,7 @@ test-suite unit
     , memory
     , mock-token-metadata
     , MonadRandom
+    , monoid-subclasses
     , mtl
     , network
     , network-uri
