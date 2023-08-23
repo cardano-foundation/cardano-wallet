@@ -98,6 +98,8 @@ import Cardano.CoinSelection.Balance
     )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionStrategy, shrinkSelectionStrategy )
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.CoinSelection.UTxOIndex
     ( Asset (..), SelectionFilter (..), UTxOIndex )
 import Cardano.CoinSelection.UTxOIndex.Gen
@@ -138,8 +140,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -985,7 +985,7 @@ prop_performSelection mockConstraints params coverage =
         --
         let constraints' =
                 constraints
-                    { assessTokenBundleSize = unMockAssessTokenBundleSize
+                    { tokenBundleSizeAssessor = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
                     , computeMinimumAdaQuantity =
                         const computeMinimumAdaQuantityZero
@@ -1745,7 +1745,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = const computeMinimumAdaQuantityZero
         , computeMinimumCost = computeMinimumCostZero
-        , assessTokenBundleSize = unMockAssessTokenBundleSize $
+        , tokenBundleSizeAssessor = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
@@ -2367,7 +2367,7 @@ unMockSelectionConstraints
     :: MockSelectionConstraints
     -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
-    { assessTokenBundleSize =
+    { tokenBundleSizeAssessor =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
@@ -2514,8 +2514,8 @@ shrinkMockAssessTokenBundleSize = \case
             <$> shrink (Positive n)
 
 unMockAssessTokenBundleSize
-    :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
-unMockAssessTokenBundleSize = \case
+    :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
+unMockAssessTokenBundleSize = TokenBundleSizeAssessor . \case
     MockAssessTokenBundleSizeUnlimited ->
         const TokenBundleSizeWithinLimit
     MockAssessTokenBundleSizeUpperLimit upperLimit ->
@@ -2528,8 +2528,7 @@ unMockAssessTokenBundleSize = \case
 
 mkTokenBundleSizeAssessor
     :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
-mkTokenBundleSizeAssessor =
-    TokenBundleSizeAssessor . unMockAssessTokenBundleSize
+mkTokenBundleSizeAssessor = unMockAssessTokenBundleSize
 
 --------------------------------------------------------------------------------
 -- Making change

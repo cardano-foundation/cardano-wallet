@@ -4,19 +4,21 @@ module Cardano.Wallet.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Prelude
 
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TxSize (..), txOutMaxCoin, txOutMinCoin )
+    ( TxSize (..), txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleMaxSize (TokenBundleMaxSize)
     , assessTokenBundleSize
     , computeTokenBundleSerializedLengthBytes
-    , tokenBundleSizeAssessor
+    , mkTokenBundleSizeAssessor
     )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize.Gen
     ( genTokenBundleMaxSize, shrinkTokenBundleMaxSize )
@@ -72,7 +74,7 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
         ]
   where
     assess = assessTokenBundleSize
-        $ tokenBundleSizeAssessor maryTokenBundleMaxSize
+        $ mkTokenBundleSizeAssessor maryTokenBundleMaxSize
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -92,7 +94,7 @@ prop_assessTokenBundleSize_shrink b1' b2' maxSize =
             === TokenBundleSizeWithinLimit
         ]
   where
-    assess = assessTokenBundleSize (tokenBundleSizeAssessor maxSize)
+    assess = assessTokenBundleSize (mkTokenBundleSizeAssessor maxSize)
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -128,7 +130,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
             ]
   where
     actualAssessment = assessTokenBundleSize
-        (tokenBundleSizeAssessor maxSize)
+        (mkTokenBundleSizeAssessor maxSize)
         bundle
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines

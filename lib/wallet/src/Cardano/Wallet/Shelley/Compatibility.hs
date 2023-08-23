@@ -199,6 +199,8 @@ import Cardano.Chain.Block
     ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
 import Cardano.Chain.UTxO
     ( unTxPayload )
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Launcher.Node
@@ -246,8 +248,6 @@ import Cardano.Wallet.Primitive.Types
     , TokenBundleMaxSize (..)
     , TxParameters (getTokenBundleMaxSize)
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo

@@ -64,6 +64,7 @@ library
     Cardano.CoinSelection.Balance.Gen
     Cardano.CoinSelection.Collateral
     Cardano.CoinSelection.Context
+    Cardano.CoinSelection.Size
     Cardano.CoinSelection.UTxOIndex
     Cardano.CoinSelection.UTxOIndex.Gen
     Cardano.CoinSelection.UTxOIndex.Internal

@@ -408,7 +408,7 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
 unMockSelectionConstraints
     :: MockSelectionConstraints -> SelectionConstraints TestSelectionContext
 unMockSelectionConstraints m = SelectionConstraints
-    { assessTokenBundleSize =
+    { tokenBundleSizeAssessor =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m

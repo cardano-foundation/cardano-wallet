@@ -75,6 +75,8 @@ module Cardano.Wallet.Write.Tx.Balance
 
 import Prelude
 
+import Cardano.CoinSelection.Size
+    ( TokenBundleSizeAssessment (..) )
 import Cardano.CoinSelection.UTxOSelection
     ( UTxOSelection )
 import Cardano.Ledger.Alonzo.Core
@@ -109,11 +111,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessment (..)
-    , TxSize (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
+    ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromCardanoValue )
 import Cardano.Wallet.Write.ProtocolParameters
@@ -146,7 +144,7 @@ import Cardano.Wallet.Write.Tx
     , withConstraints
     )
 import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
-    ( getTokenBundleMaxSize, tokenBundleSizeAssessor )
+    ( getTokenBundleMaxSize, mkTokenBundleSizeAssessor )
 import Cardano.Wallet.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
 import Cardano.Wallet.Write.Tx.Sign
@@ -876,10 +874,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
-        { assessTokenBundleSize =
-                tokenBundleSizeAssessor
-                    (getTokenBundleMaxSize era pp)
-                        ^. #assessTokenBundleSize
+        { tokenBundleSizeAssessor =
+            mkTokenBundleSizeAssessor (getTokenBundleMaxSize era pp)
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut
                 era
@@ -1478,7 +1474,8 @@ validateTxOutputSize cs out = case sizeAssessment of
         Just $ ErrBalanceTxOutputSizeExceedsLimitError out
   where
     sizeAssessment :: TokenBundleSizeAssessment
-    sizeAssessment = (cs ^. #assessTokenBundleSize) (snd out)
+    sizeAssessment =
+        (cs ^. (#tokenBundleSizeAssessor . #assessTokenBundleSize)) (snd out)
 
 -- | Validates the token quantities of a transaction output.
 --
