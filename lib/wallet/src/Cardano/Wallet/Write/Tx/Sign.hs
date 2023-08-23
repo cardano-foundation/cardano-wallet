@@ -108,8 +108,6 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
                     , show feePerByte
                     , "lovelace/byte"
                     ]
-
-
         -- When updating to a new era, check that the choice of encoding still
         -- seems right w.r.t the ledger. Types will /probably/ but not
         -- /necessarily/ protect against calling the wrong function.

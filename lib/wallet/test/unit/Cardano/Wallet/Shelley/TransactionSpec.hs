@@ -3754,18 +3754,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
-
             signedBinarySize = TxSize $ fromIntegral $ BS.length bs
 
         case (noScripts, noBootWits) of
                 (True, True) -> do
-                    estimateSignedTxSize era pparams witCount ledgerTx
-                        `shouldBeWithin`
+                    estimateSignedTxSize era pparams (witCount vkCredAddr) tx
+                        `shouldBeInclusivelyWithin`
                         (signedBinarySize - correction, signedBinarySize)
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) ->
-                    estimateSignedTxSize era pparams witCountBoot ledgerTx
-                        `shouldBeWithin`
+                    estimateSignedTxSize era pparams (witCount bootAddr) tx
+                        `shouldBeInclusivelyWithin`
                         ( signedBinarySize - correction
                         , signedBinarySize + TxSize 45
                         -- For txs with bootstrap witnesses we accept that the
@@ -3781,7 +3780,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         correction = TxSize 6
 
     -- | Checks for membership in the given closed interval [a, b]
-    x `shouldBeWithin` (a, b) =
+    x `shouldBeInclusivelyWithin` (a, b) =
         if a <= x && x <= b
         then pure ()
         else expectationFailure $ unwords
