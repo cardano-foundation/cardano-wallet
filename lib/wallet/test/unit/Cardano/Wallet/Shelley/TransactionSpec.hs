@@ -3737,20 +3737,21 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> ByteString
         -> Cardano.Tx era
         -> IO ()
-    test _name bs tx@(Cardano.Tx body _) = do
+    test _name bs cardanoTx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
-            utxo = utxoPromisingInputsHaveAddress vkCredAddr body
-            witCount = estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body
-            witCountBoot = estimateKeyWitnessCount (Write.fromCardanoUTxO $ utxoPromisingInputsHaveAddress bootAddr body) body
+            witCount dummyAddr = estimateKeyWitnessCount
+                    (Write.fromCardanoUTxO
+                        $ utxoPromisingInputsHaveAddress dummyAddr body)
+                    body
             era = recentEra @era
 
-            ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
-            ledgerTx = Write.fromCardanoTx @era tx
+            tx :: Write.Tx (Write.ShelleyLedgerEra era)
+            tx = Write.fromCardanoTx @era cardanoTx
 
             noScripts = Write.withConstraints (recentEra @era) $
-                Map.null $ ledgerTx ^. witsTxL . scriptTxWitsL
+                Map.null $ tx ^. witsTxL . scriptTxWitsL
             noBootWits = Write.withConstraints (recentEra @era) $
-                Set.null $ ledgerTx ^. witsTxL . bootAddrTxWitsL
+                Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
