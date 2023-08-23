@@ -131,12 +131,9 @@ newtype TxSize = TxSize { unTxSize :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving Show via (Quiet TxSize)
     deriving Num via Natural
-    deriving Semigroup via Sum Natural
+    deriving (Semigroup, Monoid) via Sum Natural
 
 instance NFData TxSize
-
-instance Monoid TxSize where
-    mempty = TxSize 0
 
 -- | Computes the absolute distance between two transaction size quantities.
 --
