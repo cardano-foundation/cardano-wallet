@@ -47,6 +47,8 @@ import Control.DeepSeq
     ( NFData (..) )
 import Data.Int
     ( Int64 )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -129,11 +131,9 @@ newtype TxSize = TxSize { unTxSize :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving Show via (Quiet TxSize)
     deriving Num via Natural
+    deriving Semigroup via Sum Natural
 
 instance NFData TxSize
-
-instance Semigroup TxSize where
-    TxSize a <> TxSize b = TxSize (a + b)
 
 instance Monoid TxSize where
     mempty = TxSize 0
