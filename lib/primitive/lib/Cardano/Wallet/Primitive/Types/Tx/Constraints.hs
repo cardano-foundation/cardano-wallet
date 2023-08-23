@@ -49,6 +49,16 @@ import Data.Int
     ( Int64 )
 import Data.Monoid
     ( Sum (..) )
+import Data.Monoid.Cancellative
+    ( LeftReductive, Reductive, RightReductive )
+import Data.Monoid.GCD
+    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+import Data.Monoid.Monus
+    ( Monus, OverlappingGCDMonoid )
+import Data.Monoid.Null
+    ( MonoidNull )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -131,7 +141,10 @@ newtype TxSize = TxSize { unTxSize :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving Show via (Quiet TxSize)
     deriving Num via Natural
-    deriving (Semigroup, Monoid) via Sum Natural
+    deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
+    deriving (LeftReductive, RightReductive, Reductive) via Sum Natural
+    deriving (LeftGCDMonoid, RightGCDMonoid, GCDMonoid) via Sum Natural
+    deriving (OverlappingGCDMonoid, Monus) via Sum Natural
 
 instance NFData TxSize
 
