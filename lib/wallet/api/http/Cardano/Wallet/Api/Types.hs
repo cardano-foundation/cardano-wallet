@@ -3128,6 +3128,9 @@ data ApiMintBurnDataFromInput (n :: NetworkDiscriminant) = ApiMintBurnDataFromIn
     { referenceInput
         :: !ReferenceInput
         -- ^ A reference input that contains script regulating minting/burning policy.
+    , policyId
+        :: !(ApiT W.TokenPolicyId)
+        -- ^ A policy id of the script regulating minting/burning policy.
     , assetName
         :: !(Maybe (ApiT W.TokenName))
         -- ^ The name of the asset to mint/burn.
