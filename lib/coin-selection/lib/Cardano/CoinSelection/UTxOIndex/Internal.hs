@@ -106,8 +106,6 @@ module Cardano.CoinSelection.UTxOIndex.Internal
 import Prelude hiding
     ( filter, lookup, null )
 
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Control.DeepSeq
@@ -137,7 +135,9 @@ import Data.Set
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -186,10 +186,10 @@ data UTxOIndex u = UTxOIndex
         -- An index of all entries that contain the given asset and exactly
         -- one other asset.
     , balance
-        :: !TokenBundle
+        :: !W.TokenBundle
         -- The total balance of all entries.
     , universe
-        :: !(Map u TokenBundle)
+        :: !(Map u W.TokenBundle)
         -- The complete set of all entries.
     }
     deriving (Eq, Generic, Read, Show)
@@ -207,13 +207,13 @@ empty = UTxOIndex
     { indexAll = MonoidMap.empty
     , indexSingletons = MonoidMap.empty
     , indexPairs = MonoidMap.empty
-    , balance = TokenBundle.empty
+    , balance = W.TokenBundle.empty
     , universe = Map.empty
     }
 
 -- | Creates a singleton index from the specified UTxO identifier and value.
 --
-singleton :: Ord u => u -> TokenBundle -> UTxOIndex u
+singleton :: Ord u => u -> W.TokenBundle -> UTxOIndex u
 singleton u b = insertUnsafe u b empty
 
 -- | Constructs an index from a sequence of entries.
@@ -225,7 +225,7 @@ singleton u b = insertUnsafe u b empty
 -- identifier, the mapping that appears latest in the sequence will take
 -- precedence, and all others will be ignored.
 --
-fromSequence :: (Foldable f, Ord u) => f (u, TokenBundle) -> UTxOIndex u
+fromSequence :: (Foldable f, Ord u) => f (u, W.TokenBundle) -> UTxOIndex u
 fromSequence = flip insertMany empty
 
 -- | Constructs an index from a map.
@@ -239,7 +239,7 @@ fromSequence = flip insertMany empty
 -- 'fromMap' ≡ 'fromSequence' . 'Map.toList'
 -- @
 --
-fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
+fromMap :: Ord u => Map u W.TokenBundle -> UTxOIndex u
 fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 
 --------------------------------------------------------------------------------
@@ -250,14 +250,14 @@ fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
-toList :: UTxOIndex u -> [(u, TokenBundle)]
+toList :: UTxOIndex u -> [(u, W.TokenBundle)]
 toList = fold (\ubs u b -> (u, b) : ubs) []
 
 -- | Converts an index into a map.
 --
 -- Consider using 'fold' if your goal is to consume all entries in the output.
 --
-toMap :: UTxOIndex u -> Map u TokenBundle
+toMap :: UTxOIndex u -> Map u W.TokenBundle
 toMap = universe
 
 --------------------------------------------------------------------------------
@@ -266,7 +266,7 @@ toMap = universe
 
 -- | Folds strictly over the constituent entries of an index.
 --
-fold :: (a -> u -> TokenBundle -> a) -> a -> UTxOIndex u -> a
+fold :: (a -> u -> W.TokenBundle -> a) -> a -> UTxOIndex u -> a
 fold f a = Map.foldlWithKey' f a . universe
 
 --------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ fold f a = Map.foldlWithKey' f a . universe
 -- value referred to by that identifier will be replaced with the specified
 -- value.
 --
-insert :: Ord u => u -> TokenBundle -> UTxOIndex u -> UTxOIndex u
+insert :: Ord u => u -> W.TokenBundle -> UTxOIndex u -> UTxOIndex u
 insert u b = insertUnsafe u b . delete u
 
 -- | Inserts multiple entries into an index.
@@ -288,7 +288,7 @@ insert u b = insertUnsafe u b . delete u
 --
 insertMany
     :: (Foldable f, Ord u)
-    => f (u, TokenBundle)
+    => f (u, W.TokenBundle)
     -> UTxOIndex u
     -> UTxOIndex u
 insertMany = flip $ F.foldl' $ \i (u, b) -> insert u b i
@@ -302,12 +302,12 @@ delete :: forall u. Ord u => u -> UTxOIndex u -> UTxOIndex u
 delete u i =
     maybe i updateIndex $ Map.lookup u $ universe i
   where
-    updateIndex :: TokenBundle -> UTxOIndex u
+    updateIndex :: W.TokenBundle -> UTxOIndex u
     updateIndex b = i
         -- This operation is safe, since we have already determined that the
         -- entry is a member of the index, and therefore the balance must be
         -- greater than or equal to the value of this output:
-        & over #balance (`TokenBundle.difference` b)
+        & over #balance (`W.TokenBundle.difference` b)
         & over #universe (Map.delete u)
         & case categorizeTokenBundle b of
             BundleWithNoAssets -> id
@@ -363,7 +363,7 @@ assets = MonoidMap.nonNullKeys . indexAll
 --
 -- If the index has no such identifier, this function returns 'Nothing'.
 --
-lookup :: Ord u => u -> UTxOIndex u -> Maybe TokenBundle
+lookup :: Ord u => u -> UTxOIndex u -> Maybe W.TokenBundle
 lookup u = Map.lookup u . universe
 
 -- | Returns 'True' if (and only if) the index has an entry for the given UTxO
@@ -435,11 +435,11 @@ selectRandom
     :: forall m u. (MonadRandom m, Ord u)
     => UTxOIndex u
     -> SelectionFilter Asset
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+    -> m (Maybe ((u, W.TokenBundle), UTxOIndex u))
 selectRandom i selectionFilter =
     (lookupAndRemoveEntry =<<) <$> selectRandomSetMember selectionSet
   where
-    lookupAndRemoveEntry :: u -> Maybe ((u, TokenBundle), UTxOIndex u)
+    lookupAndRemoveEntry :: u -> Maybe ((u, W.TokenBundle), UTxOIndex u)
     lookupAndRemoveEntry u =
         (\b -> ((u, b), delete u i)) <$> Map.lookup u (universe i)
 
@@ -478,7 +478,7 @@ selectRandomWithPriority
     -> NonEmpty (SelectionFilter Asset)
     -- ^ A list of selection filters to be traversed in descending order of
     -- priority, from left to right.
-    -> m (Maybe ((u, TokenBundle), UTxOIndex u))
+    -> m (Maybe ((u, W.TokenBundle), UTxOIndex u))
 selectRandomWithPriority i =
     firstJustM (selectRandom i) . NE.toList
 
@@ -512,10 +512,10 @@ deriving instance NFData Asset
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
 --
-tokenBundleAssets :: TokenBundle -> Set Asset
+tokenBundleAssets :: W.TokenBundle -> Set Asset
 tokenBundleAssets b = Set.union
-    (Set.fromList [AssetLovelace | TokenBundle.coin b /= mempty])
-    (Set.map Asset (TokenBundle.getAssets b))
+    (Set.fromList [AssetLovelace | W.TokenBundle.coin b /= mempty])
+    (Set.map Asset (W.TokenBundle.getAssets b))
 
 -- | Returns the number of assets associated with a given 'TokenBundle'.
 --
@@ -525,10 +525,10 @@ tokenBundleAssets b = Set.union
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
 --
-tokenBundleAssetCount :: TokenBundle -> Int
+tokenBundleAssetCount :: W.TokenBundle -> Int
 tokenBundleAssetCount b = (+)
-    (if TokenBundle.coin b /= mempty then 1 else 0)
-    (TokenMap.size (TokenBundle.tokens b))
+    (if W.TokenBundle.coin b /= mempty then 1 else 0)
+    (TokenMap.size (W.TokenBundle.tokens b))
 
 -- | Indicates whether or not a given bundle includes a given asset.
 --
@@ -538,10 +538,10 @@ tokenBundleAssetCount b = (+)
 -- Move this function away from the 'UTxOIndex' module once the type of assets
 -- has been generalized.
 --
-tokenBundleHasAsset :: TokenBundle -> Asset -> Bool
+tokenBundleHasAsset :: W.TokenBundle -> Asset -> Bool
 tokenBundleHasAsset b = \case
-    AssetLovelace -> TokenBundle.coin b /= mempty
-    Asset assetId -> TokenBundle.hasQuantity b assetId
+    AssetLovelace -> W.TokenBundle.coin b /= mempty
+    Asset assetId -> W.TokenBundle.hasQuantity b assetId
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -558,7 +558,7 @@ data BundleCategory asset
 
 -- | Categorizes a token bundle by how many assets it contains.
 --
-categorizeTokenBundle :: TokenBundle -> BundleCategory Asset
+categorizeTokenBundle :: W.TokenBundle -> BundleCategory Asset
 categorizeTokenBundle b = case F.toList bundleAssets of
     [      ] -> BundleWithNoAssets
     [a     ] -> BundleWithOneAsset a
@@ -576,11 +576,11 @@ categorizeTokenBundle b = case F.toList bundleAssets of
 insertUnsafe
     :: forall u. Ord u
     => u
-    -> TokenBundle
+    -> W.TokenBundle
     -> UTxOIndex u
     -> UTxOIndex u
 insertUnsafe u b i = i
-    & over #balance (`TokenBundle.add` b)
+    & over #balance (`W.TokenBundle.add` b)
     & over #universe (Map.insert u b)
     & case categorizeTokenBundle b of
         BundleWithNoAssets -> id
@@ -666,9 +666,9 @@ data BalanceStatus
 --
 data BalanceError = BalanceError
     { balanceComputed
-        :: TokenBundle
+        :: W.TokenBundle
     , balanceStored
-        :: TokenBundle
+        :: W.TokenBundle
     }
     deriving (Eq, Show)
 
@@ -691,7 +691,7 @@ indexIsComplete :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsComplete i =
     F.all hasEntry $ Map.toList $ universe i
   where
-    hasEntry :: (u, TokenBundle) -> Bool
+    hasEntry :: (u, W.TokenBundle) -> Bool
     hasEntry (u, b) = case categorizeTokenBundle b of
         BundleWithNoAssets ->
             True
@@ -747,7 +747,7 @@ indexIsMinimal i = F.and
         , tokenBundleAssetCount b == 2
         ]
 
-    entryMatches :: (TokenBundle -> Bool) -> u -> Bool
+    entryMatches :: (W.TokenBundle -> Bool) -> u -> Bool
     entryMatches test u = maybe False test $ Map.lookup u $ universe i
 
 -- | Checks that index set relationships are correct.
