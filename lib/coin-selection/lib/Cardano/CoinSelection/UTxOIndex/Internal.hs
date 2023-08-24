@@ -106,8 +106,6 @@ module Cardano.CoinSelection.UTxOIndex.Internal
 import Prelude hiding
     ( filter, lookup, null )
 
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad.Extra
@@ -139,6 +137,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
+    ( AssetId )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -499,7 +499,7 @@ selectRandomWithPriority i =
 --
 data Asset
     = AssetLovelace
-    | Asset AssetId
+    | Asset W.AssetId
     deriving (Eq, Generic, Ord, Read, Show)
 
 deriving instance NFData Asset
