@@ -129,10 +129,8 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
         era pparams unsignedTx witCount
 
     feePerByte :: W.Coin
-    feePerByte = Ledger.toWalletCoin $
-        case era of
-            Write.RecentEraBabbage -> pparams ^. ppMinFeeAL
-            Write.RecentEraConway -> pparams ^. ppMinFeeAL
+    feePerByte = withConstraints era $ Ledger.toWalletCoin $
+        pparams ^. ppMinFeeAL
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
