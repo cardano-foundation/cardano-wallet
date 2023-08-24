@@ -107,13 +107,11 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
                     , show feePerByte
                     , "lovelace/byte"
                     ]
-        -- When updating to a new era, check that the choice of encoding still
-        -- seems right w.r.t the ledger. Types will /probably/ but not
-        -- /necessarily/ protect against calling the wrong function.
+
         sizeOfTx :: TxSize
-        sizeOfTx = fromIntegral @Integer @TxSize $ case era of
-            RecentEraBabbage -> unsignedTx ^. sizeTxF
-            RecentEraConway -> unsignedTx ^. sizeTxF
+        sizeOfTx = withConstraints era
+            $ fromIntegral @Integer @TxSize
+            $ unsignedTx ^. sizeTxF
     in
         sizeOfTx <> sizeOfWits
   where
