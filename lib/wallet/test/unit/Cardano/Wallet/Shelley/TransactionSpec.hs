@@ -3808,7 +3808,6 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             in
                 Hspec.counterexample msg $ f name bs tx
 
-
     -- estimateSignedTxSize now depends upon being able to resolve inputs. To
     -- keep tese tests working, we can create a UTxO with dummy values as long
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
