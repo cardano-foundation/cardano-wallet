@@ -136,7 +136,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId )
 import qualified Data.Foldable as F
@@ -528,7 +528,7 @@ tokenBundleAssets b = Set.union
 tokenBundleAssetCount :: W.TokenBundle -> Int
 tokenBundleAssetCount b = (+)
     (if W.TokenBundle.coin b /= mempty then 1 else 0)
-    (TokenMap.size (W.TokenBundle.tokens b))
+    (W.TokenMap.size (W.TokenBundle.tokens b))
 
 -- | Indicates whether or not a given bundle includes a given asset.
 --
