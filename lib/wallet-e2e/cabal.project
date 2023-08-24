@@ -1,4 +1,4 @@
-packages: cardano-wallet-e2e.cabal
+packages: .
 
 source-repository-package
   type: git

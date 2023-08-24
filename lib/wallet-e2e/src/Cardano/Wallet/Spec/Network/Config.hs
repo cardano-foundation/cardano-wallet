@@ -1,3 +1,6 @@
 module Cardano.Wallet.Spec.Network.Config where
 
-type NetworkConfig = ()
+import Cardano.Wallet.Spec.Network.Wallet
+    ( WalletApi )
+
+newtype NetworkConfig = NetworkConfig {networkConfigWallet :: WalletApi}

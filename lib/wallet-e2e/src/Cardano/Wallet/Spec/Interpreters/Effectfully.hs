@@ -58,7 +58,7 @@ interpretStory
     :: NetworkConfig
     -> Story a
     -> IO (Either String a, Seq Text)
-interpretStory _networkConfig story' = do
+interpretStory networkConfig story' = do
     connectionManager <-
         Http.newManager
             Http.defaultManagerSettings
@@ -66,7 +66,7 @@ interpretStory _networkConfig story' = do
                 }
     stdGen <- initStdGen
     story'
-        & runQuery
+        & runQuery networkConfig
         & runHttpClient connectionManager
         & runRandom stdGen
         & runTimeout

@@ -11,11 +11,15 @@ module Cardano.Launcher.Node
     , CardanoNodeConfig (..)
     , NodePort (..)
 
-      -- * cardano-node Snockets
+    -- * cardano-node Snockets
     , CardanoNodeConn
     , cardanoNodeConn
     , nodeSocketFile
     , isWindows
+
+    -- * Helpers
+    , nodeSocketPath
+    , cardanoNodeProcess
     ) where
 
 import Prelude
