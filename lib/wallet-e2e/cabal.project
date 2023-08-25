@@ -5,6 +5,3 @@ source-repository-package
   location: https://github.com/cardano-foundation/cardano-wallet-client.git
   tag: 353412ca621dc28af53e4a19795338b19bab1b7b
   subdir: generated
-
-constraints:
-  optparse-applicative ^>=0.17

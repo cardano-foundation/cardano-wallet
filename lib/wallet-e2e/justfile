@@ -9,9 +9,13 @@ format:
 build:
   cabal build -O0 -v0
 
-# run wallet-e2e suite with cabal
-run:
-  cabal run wallet-e2e -- --stateDir test-state
+# run wallet-e2e suite against the preprod network
+run-preprod:
+  cabal run wallet-e2e -- --state-dir test-state --network preprod
+
+# run wallet-e2e suite against the local test cluster
+run-local:
+  cabal run wallet-e2e -- --state-dir test-state --network local
 
 # list  Architecture Decision Records
 adrs:
