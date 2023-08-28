@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {- HLINT ignore "Use &&" -}
@@ -116,10 +115,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( over )
-import Data.Generics.Labels
-    ()
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -304,23 +299,34 @@ delete u i =
   where
     updateIndex :: W.TokenBundle -> UTxOIndex u
     updateIndex b = i
-        -- This operation is safe, since we have already determined that the
-        -- entry is a member of the index, and therefore the balance must be
-        -- greater than or equal to the value of this output:
-        & over #balance (`W.TokenBundle.difference` b)
-        & over #universe (Map.delete u)
-        & case bundleCategory of
-            BundleWithNoAssets -> id
-            BundleWithOneAsset a -> id
-                . over #indexAll (`deleteEntry` a)
-                . over #indexSingletons (`deleteEntry` a)
-            BundleWithTwoAssets (a1, a2) -> id
-                . over #indexAll (`deleteEntry` a1)
-                . over #indexAll (`deleteEntry` a2)
-                . over #indexPairs (`deleteEntry` a1)
-                . over #indexPairs (`deleteEntry` a2)
-            BundleWithMultipleAssets as -> id
-                . over #indexAll (flip (F.foldl' deleteEntry) as)
+        { balance = balance i `W.TokenBundle.difference` b
+        -- The above operation is safe, since we have already determined that
+        -- the entry is a member of the index, and therefore the balance must
+        -- be greater than or equal to the value of this output.
+        , universe = Map.delete u (universe i)
+        , indexAll = indexAll i &
+            case bundleCategory of
+                BundleWithOneAsset a ->
+                    (`deleteEntry` a)
+                BundleWithTwoAssets (a1, a2) ->
+                    (`deleteEntry` a1) . (`deleteEntry` a2)
+                BundleWithMultipleAssets as ->
+                    flip (F.foldl' deleteEntry) as
+                _otherwise ->
+                    id
+        , indexSingletons = indexSingletons i &
+            case bundleCategory of
+                BundleWithOneAsset a ->
+                    (`deleteEntry` a)
+                _otherwise ->
+                    id
+        , indexPairs = indexPairs i &
+            case bundleCategory of
+                BundleWithTwoAssets (a1, a2) ->
+                    (`deleteEntry` a1) . (`deleteEntry` a2)
+                _otherwise ->
+                    id
+        }
       where
         bundleCategory :: BundleCategory Asset
         bundleCategory = categorizeTokenBundle b
