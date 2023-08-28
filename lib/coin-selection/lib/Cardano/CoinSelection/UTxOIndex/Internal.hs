@@ -582,7 +582,7 @@ insertUnsafe
 insertUnsafe u b i = i
     & over #balance (`W.TokenBundle.add` b)
     & over #universe (Map.insert u b)
-    & case categorizeTokenBundle b of
+    & case bundleCategory of
         BundleWithNoAssets -> id
         BundleWithOneAsset a -> id
             . over #indexAll (`insertEntry` a)
@@ -595,6 +595,9 @@ insertUnsafe u b i = i
         BundleWithMultipleAssets as -> id
             . over #indexAll (flip (F.foldl' insertEntry) as)
   where
+    bundleCategory :: BundleCategory Asset
+    bundleCategory = categorizeTokenBundle b
+
     insertEntry
         :: Ord asset
         => MonoidMap asset (Set u)
