@@ -3775,7 +3775,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                         )
                 (False, True) -> testDoesNotYetSupport "scripts"
       where
-        -- Apparently the cbor encoding used by the ledger for size-checks
+        -- Apparently the cbor encoding used by the ledger for size checks
         -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
         -- serialized size for these goldens.
         correction = TxSize 6
