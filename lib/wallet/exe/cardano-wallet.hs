@@ -64,6 +64,8 @@ import Cardano.CLI
     , tokenMetadataSourceOption
     , withLogging
     )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Startup
     ( ShutdownHandlerLog
     , installSignalHandlers
@@ -79,15 +81,12 @@ import Cardano.Wallet.Api.Client
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
-import Cardano.Wallet.Launch
-    ( CardanoNodeConn
-    , NetworkConfiguration (..)
-    , networkConfigurationOption
-    , nodeSocketOption
-    , parseGenesisData
-    )
+import Cardano.Wallet.CLI
+    ( networkConfigurationOption, nodeSocketOption )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
+import Cardano.Wallet.Network.Config
+    ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
 import Cardano.Wallet.Shelley
@@ -123,7 +122,6 @@ import Data.Text.Class
     ( ToText (..) )
 import Network.URI
     ( URI )
--- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod
@@ -322,12 +320,6 @@ withTracers logOpt action =
         let logInterrupt UserInterrupt = logNotice trMain MsgSigInt
             logInterrupt _ = pure ()
         action trMain tracers `withException` logInterrupt
-
-
-{-------------------------------------------------------------------------------
-                                 Options
--------------------------------------------------------------------------------}
-
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers

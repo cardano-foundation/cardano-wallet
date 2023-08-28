@@ -27,6 +27,8 @@ import Cardano.Wallet.Address.Derivation
     ( HardDerivation (..), PersistPublicKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
 import Cardano.Wallet.Api.Types
@@ -46,8 +48,6 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class

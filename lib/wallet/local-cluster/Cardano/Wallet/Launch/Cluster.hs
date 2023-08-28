@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -131,29 +132,20 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
-import Cardano.Pool.Metadata
-    ( SMASHPoolId (..) )
-import Cardano.Pool.Types
-    ( PoolId (..) )
 import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Address.Derivation
     ( hex )
-import Cardano.Wallet.Launch
-    ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
+import Cardano.Wallet.Options
+    ( TempDirLog, lookupEnvNonEmpty )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..) )
-import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , EpochNo (..)
-    , NetworkParameters (..)
-    , PoolCertificate
-    , TokenMetadataServer (..)
-    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -164,8 +156,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress, fromGenesisData )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -216,10 +206,18 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Text.Encoding
+    ( decodeUtf8 )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+import Data.Word.Odd
+    ( Word31 )
+import GHC.Generics
+    ( Generic )
+import Network.URI
+    ( URI, parseURI )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -227,7 +225,7 @@ import Ouroboros.Network.NodeToClient
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
-    ( getEnvironment )
+    ( getEnvironment, lookupEnv )
 import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
@@ -252,7 +250,6 @@ import UnliftIO.MVar
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Cardano.Pool.Metadata as SMASH
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
@@ -274,6 +271,9 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 import qualified Data.Yaml as Yaml
+
+newtype PoolId = PoolId { getPoolId :: ByteString }
+    deriving (Generic, Eq, Show, Ord)
 
 -- | Returns the shelley test data path, which is usually relative to the
 -- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
@@ -327,12 +327,10 @@ testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
 
-
-tokenMetadataServerFromEnv :: IO (Maybe TokenMetadataServer)
-tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
-    Nothing -> pure Nothing
-    Just (Right s) -> pure (Just s)
-    Just (Left e) -> die $ show e
+tokenMetadataServerFromEnv :: IO (Maybe URI)
+tokenMetadataServerFromEnv = lookupEnv "TOKEN_METADATA_SERVER" <&> \case
+    Nothing -> Nothing
+    Just t  -> parseURI t
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
@@ -431,7 +429,7 @@ cliRetry tr msg processConfig = do
 data PoolRecipe = PoolRecipe
     { pledgeAmt :: Integer
     , index :: Int
-    , retirementEpoch :: Maybe EpochNo
+    , retirementEpoch :: Maybe Word31
       -- ^ An optional retirement epoch. If specified, then a pool retirement
       -- certificate will be published after the pool is initially registered.
     , poolMetadata :: Aeson.Value
@@ -543,7 +541,7 @@ configurePool tr baseDir era metadataServer recipe = do
             withStaticServer dir $ \url -> do
                 traceWith tr $ MsgStartedStaticServer dir url
 
-                (config, block0, bp, vd, genesisPools)
+                (config, genesisData, vd)
                     <- genNodeConfig
                         dir
                         ""
@@ -567,7 +565,7 @@ configurePool tr baseDir era metadataServer recipe = do
                         }
 
                 withCardanoNodeProcess tr name cfg $ \socket -> do
-                    action $ RunningNode socket block0 (bp, vd) genesisPools
+                    action $ RunningNode socket genesisData vd
 
         , registerViaShelleyGenesis = do
             poolId <- stakePoolIdFromOperatorVerKey opPub
@@ -607,7 +605,7 @@ configurePool tr baseDir era metadataServer recipe = do
                 $ over #sgInitialFunds (poolSpecificFunds <>)
                 . over #sgStaking updateStaking
 
-        , finalizeShelleyGenesisSetup = \(RunningNode socket _ _ _) -> do
+        , finalizeShelleyGenesisSetup = \(RunningNode socket _ _) -> do
             -- Here is our chance to respect the 'retirementEpoch' of
             -- the 'PoolRecipe'.
             --
@@ -622,7 +620,7 @@ configurePool tr baseDir era metadataServer recipe = do
                     submitTx tr socket "retirement cert" tx
 
             traverse_ retire mretirementEpoch
-        , registerViaTx = \(RunningNode socket _ _ _) -> do
+        , registerViaTx = \(RunningNode socket _ _) -> do
             stakeCert <- issueStakeVkCert tr dir "stake-pool" ownerPub
             let poolRegistrationCert = dir </> "pool.cert"
             cli tr
@@ -873,11 +871,9 @@ data LocalClusterConfig = LocalClusterConfig
 data RunningNode = RunningNode
     CardanoNodeConn
     -- ^ Socket path
-    Block
-    -- ^ Genesis block
-    (NetworkParameters, NodeToClientVersionData)
-    [PoolCertificate]
-    -- ^ Shelley genesis pools
+    (ShelleyGenesis StandardCrypto)
+    -- ^ Genesis data
+    NodeToClientVersionData
     deriving (Show, Eq)
 
 
@@ -1117,7 +1113,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
     extraClusterSetupUsingNode ::
         NonEmpty (ConfiguredPool) -> RunningNode -> IO ()
     extraClusterSetupUsingNode configuredPools runningNode = do
-        let RunningNode conn _ _ _ = runningNode
+        let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this
         -- first.
@@ -1292,7 +1288,7 @@ withBFTNode tr baseDir params action =
             ]
             copyKeyFile
 
-        (config, block0, networkParams, versionData, genesisPools)
+        (config, genesisData, versionData)
             <- genNodeConfig dir "-bft" genesisFiles hardForks (setLoggingName name logCfg)
         topology <- genTopology dir peers
 
@@ -1312,7 +1308,7 @@ withBFTNode tr baseDir params action =
                 }
 
         withCardanoNodeProcess tr name cfg $ \socket ->
-            action $ RunningNode socket block0 (networkParams, versionData) genesisPools
+            action $ RunningNode socket genesisData versionData
   where
     name = "bft"
     dir = baseDir </> name
@@ -1340,7 +1336,7 @@ _withRelayNode tr baseDir params act =
         createDirectory dir
 
         let logCfg' = setLoggingName name logCfg
-        (config, block0, bp, vd, _genesisPools)
+        (config, genesisData, vd)
             <- genNodeConfig dir "-relay" genesisFiles hardForks logCfg'
         topology <- genTopology dir peers
 
@@ -1359,12 +1355,17 @@ _withRelayNode tr baseDir params act =
                 , nodeExecutable = Nothing
                 }
 
-        let act' socket = act $ RunningNode socket block0 (bp, vd) []
+        let act' socket = act $ RunningNode socket genesisData vd
         withCardanoNodeProcess tr name cfg act'
   where
     name = "node"
     dir = baseDir </> name
     NodeParams genesisFiles hardForks (port, peers) logCfg = params
+
+toTextPoolId :: PoolId -> Text
+toTextPoolId = decodeUtf8
+    . convertToBase Base16
+    . getPoolId
 
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH
@@ -1387,25 +1388,26 @@ withSMASH tr parentDir action = do
         let bytes = Aeson.encode metadata
 
         let metadataDir = baseDir </> "metadata"
-            poolDir = metadataDir </> T.unpack (toText poolId)
+            poolDir = metadataDir </> T.unpack (toTextPoolId poolId)
             hash = blake2b256S (BL.toStrict bytes)
             hashFile = poolDir </> hash
 
 
         traceWith tr $
-            MsgRegisteringPoolMetadataInSMASH (T.unpack $ toText poolId) hash
+            MsgRegisteringPoolMetadataInSMASH
+                (T.unpack $ toTextPoolId poolId) hash
 
         createDirectoryIfMissing True poolDir
         BL8.writeFile (poolDir </> hashFile) bytes
 
     -- Write delisted pools
-    let toSmashId (PoolId bytes) = SMASHPoolId . T.pack . B8.unpack . hex $ bytes
+    let toSmashId (PoolId bytes) = T.pack . B8.unpack . hex $ bytes
     let poolId (PoolRecipe _ _ _ _ (pid, _, _, _) _) = toSmashId pid
     let delistedPoolIds = poolId <$> NE.filter delisted defaultPoolConfigs
     BL8.writeFile
         (baseDir </> "delisted")
         (Aeson.encode $ delistedPoolIds <&>
-            \p -> object [ "poolId" Aeson..= SMASH.poolId p]
+            \p -> object [ "poolId" Aeson..= p]
         )
 
     -- health check
@@ -1450,7 +1452,7 @@ genNodeConfig
     -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
-    -> IO (FilePath, Block, NetworkParameters, NodeToClientVersionData, [PoolCertificate])
+    -> IO (FilePath, ShelleyGenesis StandardCrypto , NodeToClientVersionData)
 genNodeConfig dir name genesisFiles clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles{byronGenesis,shelleyGenesis,alonzoGenesis,conwayGenesis}
@@ -1489,14 +1491,11 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
 
     -- Parameters
     genesisData <- Yaml.decodeFileThrow shelleyGenesis
-    let (networkParameters, block0, genesisPools) = fromGenesisData genesisData
     let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
         ( dir </> ("node" <> name <> ".config")
-        , block0
-        , networkParameters
+        , genesisData
         , NodeToClientVersionData { networkMagic, query = False }
-        , genesisPools
         )
   where
     withScribes scribes =
@@ -1677,14 +1676,14 @@ issuePoolRetirementCert
     :: Tracer IO ClusterLog
     -> FilePath
     -> FilePath
-    -> EpochNo
+    -> Word31
     -> IO FilePath
 issuePoolRetirementCert tr dir opPub retirementEpoch = do
     let file  = dir </> "pool-retirement.cert"
     cli tr
         [ "stake-pool", "deregistration-certificate"
         , "--cold-verification-key-file", opPub
-        , "--epoch", show (unEpochNo retirementEpoch)
+        , "--epoch", show retirementEpoch
         , "--out-file", file
         ]
     pure file

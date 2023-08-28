@@ -290,6 +290,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Aeson.Variant
@@ -392,8 +394,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction, TxStatus )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction

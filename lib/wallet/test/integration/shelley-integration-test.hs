@@ -39,6 +39,8 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Api.Types
@@ -54,8 +56,6 @@ import Cardano.Wallet.Faucet
     )
 import Cardano.Wallet.Faucet.Shelley
     ( initFaucet )
-import Cardano.Wallet.Launch
-    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
@@ -78,6 +78,8 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
+import Cardano.Wallet.Options
+    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -89,7 +91,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
+    ( fromGenesisData )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow
@@ -351,7 +353,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
-    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
+    onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
+        let
+            (gp, block0, genesisPools) = fromGenesisData genesisData
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText

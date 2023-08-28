@@ -94,6 +94,7 @@ library
     , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-strict-containers
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -283,12 +284,12 @@ library
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
     Cardano.Wallet.Delegation.Properties
+    Cardano.Wallet.CLI
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
-    Cardano.Wallet.Logging
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Light
-    Cardano.Wallet.Network.Ports
     Cardano.Wallet.Pools
     Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
@@ -409,6 +410,7 @@ library cardano-wallet-api-http
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -611,6 +613,7 @@ library cardano-wallet-bench
     , aeson
     , base
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers
@@ -663,6 +666,7 @@ executable cardano-wallet
     , address-derivation
     , base
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -730,6 +734,7 @@ test-suite unit
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
     , cardano-wallet-primitive
@@ -940,6 +945,7 @@ test-suite integration
     , base
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -977,7 +983,9 @@ benchmark restore
     , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
+    , cardano-wallet-launcher
     , cardano-wallet-local-cluster
     , cardano-wallet-integration
     , cardano-wallet-primitive
@@ -1007,6 +1015,7 @@ benchmark latency
     , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
@@ -1040,6 +1049,7 @@ benchmark db
     , cardano-api
     , cardano-crypto
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -1077,6 +1087,7 @@ benchmark api
     , cardano-api
     , cardano-balance-tx
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -1098,6 +1109,7 @@ benchmark api
 
 library address-derivation
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  address
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
@@ -1106,11 +1118,19 @@ library address-derivation
     build-depends: scrypt
 
   build-depends:
+    , aeson
     , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , binary
     , bytestring
     , cardano-addresses
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -1126,6 +1146,7 @@ library address-derivation
     , int-cast
     , lens
     , memory
+    , ouroboros-consensus-cardano
     , QuickCheck
     , quiet
     , random
@@ -1149,6 +1170,7 @@ library address-derivation
     Cardano.Wallet.Address.Discovery.Random
     Cardano.Wallet.Address.Discovery.Sequential
     Cardano.Wallet.Address.Discovery.Shared
+    Cardano.Wallet.Address.Encoding
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Address.States.Families
@@ -1186,7 +1208,7 @@ library cardano-wallet-local-cluster
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -1199,6 +1221,8 @@ library cardano-wallet-local-cluster
     , iohk-monitoring
     , lens
     , memory
+    , network-uri
+    , OddWord
     , optparse-applicative
     , ouroboros-network
     , ouroboros-network-api
@@ -1216,5 +1240,4 @@ library cardano-wallet-local-cluster
   exposed-modules:
     Cardano.Wallet.Faucet
     Cardano.Wallet.Faucet.Shelley
-    Cardano.Wallet.Launch
     Cardano.Wallet.Launch.Cluster

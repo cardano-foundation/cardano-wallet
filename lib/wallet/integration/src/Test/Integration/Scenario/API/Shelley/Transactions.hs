@@ -25,6 +25,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
@@ -62,8 +64,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad

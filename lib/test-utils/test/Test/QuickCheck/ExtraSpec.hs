@@ -462,7 +462,7 @@ shrinkPartitionListData
 shrinkPartitionListData = genericShrink
 
 prop_partitionList_coverage
-    :: (Eq a, Show a) => PartitionListData a -> Property
+    :: (Show a) => PartitionListData a -> Property
 prop_partitionList_coverage (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage $

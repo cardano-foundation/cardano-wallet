@@ -58,8 +58,10 @@ library
     base
     , cardano-addresses
     , cardano-wallet
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet:address-derivation
     , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet:cardano-wallet-local-cluster
     , contra-tracer

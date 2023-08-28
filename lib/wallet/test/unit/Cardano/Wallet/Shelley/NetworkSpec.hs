@@ -12,8 +12,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer, traceInTVarIO )
-import Cardano.Wallet.Launch
-    ( CardanoNodeConn, withSystemTempDir )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
@@ -25,10 +25,14 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Options
+    ( withSystemTempDir )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( fromGenesisData )
 import Cardano.Wallet.Shelley.Network.Node
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Monad
@@ -256,5 +260,6 @@ withTestNode tr action = do
             BabbageHardFork
             (LogFileConfig Info Nothing Info)
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
-        withCluster tr dir cfg mempty $ \(RunningNode sock _ (np, vData) _) ->
-            action np sock vData
+        withCluster tr dir cfg mempty $ \(RunningNode sock genesisData vData) ->
+            let (np, _, _ ) = fromGenesisData genesisData
+            in action np sock vData

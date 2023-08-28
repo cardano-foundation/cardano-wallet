@@ -34,6 +34,8 @@ import Cardano.Pool.Types
     ( PoolId (..), PoolOwner )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..) )
+import Cardano.Wallet.Address.Encoding
+    ( decodeStakeAddress, encodeStakeAddress )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Lib.ApiT
@@ -48,8 +50,6 @@ import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate )
 import Cardano.Wallet.Primitive.Types.Coin
     ( unCoin )
-import Cardano.Wallet.Shelley.Compatibility
-    ( decodeStakeAddress, encodeStakeAddress )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.DeepSeq

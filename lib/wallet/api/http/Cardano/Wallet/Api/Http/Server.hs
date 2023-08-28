@@ -57,6 +57,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..), SharedState )
+import Cardano.Wallet.Address.Encoding
+    ( inspectAddress )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
@@ -197,7 +199,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( inspectAddress, rewardAccountFromAddress )
+    ( rewardAccountFromAddress )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
