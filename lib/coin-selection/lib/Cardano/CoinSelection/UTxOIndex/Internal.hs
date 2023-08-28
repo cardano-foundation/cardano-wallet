@@ -583,20 +583,31 @@ insertUnsafe
     -> UTxOIndex u
     -> UTxOIndex u
 insertUnsafe u b i = i
-    & over #balance (`W.TokenBundle.add` b)
-    & over #universe (Map.insert u b)
-    & case bundleCategory of
-        BundleWithNoAssets -> id
-        BundleWithOneAsset a -> id
-            . over #indexAll (`insertEntry` a)
-            . over #indexSingletons (`insertEntry` a)
-        BundleWithTwoAssets (a1, a2) -> id
-            . over #indexAll (`insertEntry` a1)
-            . over #indexAll (`insertEntry` a2)
-            . over #indexPairs (`insertEntry` a1)
-            . over #indexPairs (`insertEntry` a2)
-        BundleWithMultipleAssets as -> id
-            . over #indexAll (flip (F.foldl' insertEntry) as)
+    { balance = balance i `W.TokenBundle.add` b
+    , universe = Map.insert u b (universe i)
+    , indexAll = indexAll i &
+        case bundleCategory of
+            BundleWithOneAsset a ->
+                (`insertEntry` a)
+            BundleWithTwoAssets (a1, a2) ->
+                (`insertEntry` a1) . (`insertEntry` a2)
+            BundleWithMultipleAssets as ->
+                flip (F.foldl' insertEntry) as
+            _otherwise ->
+                id
+    , indexSingletons = indexSingletons i &
+        case bundleCategory of
+            BundleWithOneAsset a ->
+                (`insertEntry` a)
+            _otherwise ->
+                id
+    , indexPairs = indexPairs i &
+        case bundleCategory of
+            BundleWithTwoAssets (a1, a2) ->
+                (`insertEntry` a1) . (`insertEntry` a2)
+            _otherwise ->
+                id
+    }
   where
     bundleCategory :: BundleCategory Asset
     bundleCategory = categorizeTokenBundle b
