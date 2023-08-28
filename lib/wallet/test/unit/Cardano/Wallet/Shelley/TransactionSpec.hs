@@ -3737,7 +3737,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> ByteString
         -> Cardano.Tx era
         -> IO ()
-    test _name bs cardanoTx@(Cardano.Tx body _) = do
+    test _name bs cTx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             witCount dummyAddr = estimateKeyWitnessCount
                     (Write.fromCardanoUTxO
@@ -3746,7 +3746,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             era = recentEra @era
 
             tx :: Write.Tx (Write.ShelleyLedgerEra era)
-            tx = Write.fromCardanoTx @era cardanoTx
+            tx = Write.fromCardanoTx @era cTx
 
             noScripts = Write.withConstraints (recentEra @era) $
                 Map.null $ tx ^. witsTxL . scriptTxWitsL
