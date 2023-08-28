@@ -579,39 +579,27 @@ insertUnsafe
 insertUnsafe u b i = i
     { balance = balance i `W.TokenBundle.add` b
     , universe = Map.insert u b (universe i)
-    , indexAll = indexAll i &
-        case bundleCategory of
-            BundleWithOneAsset a ->
-                (`insertEntry` a)
-            BundleWithTwoAssets (a1, a2) ->
-                (`insertEntry` a1) . (`insertEntry` a2)
-            BundleWithMultipleAssets as ->
-                flip (F.foldl' insertEntry) as
-            _otherwise ->
-                id
+    , indexAll = insertAssets (indexAll i)
     , indexSingletons = indexSingletons i &
         case bundleCategory of
-            BundleWithOneAsset a ->
-                (`insertEntry` a)
-            _otherwise ->
-                id
+            BundleWithOneAsset {} -> insertAssets
+            _otherwise -> id
     , indexPairs = indexPairs i &
         case bundleCategory of
-            BundleWithTwoAssets (a1, a2) ->
-                (`insertEntry` a1) . (`insertEntry` a2)
-            _otherwise ->
-                id
+            BundleWithTwoAssets {} -> insertAssets
+            _otherwise -> id
     }
   where
+    bundleAssets :: Set Asset
+    bundleAssets = tokenBundleAssets b
+
     bundleCategory :: BundleCategory Asset
     bundleCategory = categorizeTokenBundle b
 
-    insertEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
-    insertEntry m a = MonoidMap.adjust (Set.insert u) a m
+    insertAssets :: MonoidMap Asset (Set u) -> MonoidMap Asset (Set u)
+    insertAssets = flip (F.foldl' insertAsset) bundleAssets
+      where
+        insertAsset m a = MonoidMap.adjust (Set.insert u) a m
 
 -- | Selects an element at random from the given set.
 --
