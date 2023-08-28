@@ -304,39 +304,27 @@ delete u i =
         -- the entry is a member of the index, and therefore the balance must
         -- be greater than or equal to the value of this output.
         , universe = Map.delete u (universe i)
-        , indexAll = indexAll i &
-            case bundleCategory of
-                BundleWithOneAsset a ->
-                    (`deleteEntry` a)
-                BundleWithTwoAssets (a1, a2) ->
-                    (`deleteEntry` a1) . (`deleteEntry` a2)
-                BundleWithMultipleAssets as ->
-                    flip (F.foldl' deleteEntry) as
-                _otherwise ->
-                    id
+        , indexAll = deleteAssets (indexAll i)
         , indexSingletons = indexSingletons i &
             case bundleCategory of
-                BundleWithOneAsset a ->
-                    (`deleteEntry` a)
-                _otherwise ->
-                    id
+                BundleWithOneAsset {} -> deleteAssets
+                _otherwise -> id
         , indexPairs = indexPairs i &
             case bundleCategory of
-                BundleWithTwoAssets (a1, a2) ->
-                    (`deleteEntry` a1) . (`deleteEntry` a2)
-                _otherwise ->
-                    id
+                BundleWithTwoAssets {} -> deleteAssets
+                _otherwise -> id
         }
       where
+        bundleAssets :: Set Asset
+        bundleAssets = tokenBundleAssets b
+
         bundleCategory :: BundleCategory Asset
         bundleCategory = categorizeTokenBundle b
 
-    deleteEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
-    deleteEntry m a = MonoidMap.adjust (Set.delete u) a m
+        deleteAssets :: MonoidMap Asset (Set u) -> MonoidMap Asset (Set u)
+        deleteAssets = flip (F.foldl' deleteAsset) bundleAssets
+          where
+            deleteAsset m a = MonoidMap.adjust (Set.delete u) a m
 
 -- | Deletes multiple entries from an index.
 --
