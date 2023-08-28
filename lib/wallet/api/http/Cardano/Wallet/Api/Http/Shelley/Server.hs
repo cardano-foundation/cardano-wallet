@@ -313,6 +313,7 @@ import Cardano.Wallet.Api.Types
     , ApiForeignStakeKey (..)
     , ApiIncompleteSharedWallet (..)
     , ApiMintBurnData (..)
+    , ApiMintBurnDataFromInput (..)
     , ApiMintBurnDataFromScript (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
@@ -2648,14 +2649,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     parseMintBurnData
         :: ApiConstructTransactionData n
         -> (SlotNo, SlotNo)
-        -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnDataFromScript n)))
+        -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnData n)))
     parseMintBurnData tx validity = do
-        when (notAllFromScript (tx ^. #mintBurn)) $
-            Left ErrConstructTxNotImplemented
-        let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnDataFromScript n))
+        let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnData n))
             mbMintingBurning =
-                fmap (handleMissingAssetName . takeMintingFromScript)
-                <$> tx ^. #mintBurn
+                fmap handleMissingAssetName <$> tx ^. #mintBurn
         for mbMintingBurning $ \mintBurnData -> do
             guardWrongMintingTemplate mintBurnData
             guardAssetNameTooLong mintBurnData
@@ -2663,68 +2661,80 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             guardOutsideValidityInterval validity mintBurnData
             Right mintBurnData
       where
-        notAllFromScript = \case
-            Nothing -> False
-            Just mintData ->
-                any isRight $ mintBurnData <$> NE.toList mintData
-
-        -- we checked that only left are present in preceding line
-        takeMintingFromScript (ApiMintBurnData mintData) =
-            fromLeft' mintData
-
-        handleMissingAssetName :: ApiMintBurnDataFromScript n -> ApiMintBurnDataFromScript n
-        handleMissingAssetName mb = case mb ^. #assetName of
-            Nothing -> mb {assetName = Just (ApiT nullTokenName)}
-            Just _ -> mb
+        handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        handleMissingAssetName mb = case mb ^. #mintBurnData of
+            Left fromScript -> ApiMintBurnData $ Left $
+                    updateFromScript fromScript
+            Right fromInp -> ApiMintBurnData $ Right $
+                    updateFromInp fromInp
+          where
+            updateFromScript :: ApiMintBurnDataFromScript n -> ApiMintBurnDataFromScript n
+            updateFromScript mb = case mb ^. #assetName of
+                Nothing -> mb {assetName = Just (ApiT nullTokenName)}
+                Just _ -> mb
+            updateFromInp :: ApiMintBurnDataFromInput n -> ApiMintBurnDataFromInput n
+            updateFromInp mb = case mb ^. #assetName of
+                Nothing -> mb {assetName = Just (ApiT nullTokenName)}
+                Just _ -> mb
 
         guardWrongMintingTemplate
-            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
-        guardWrongMintingTemplate mintBurnData =
-            when (any wrongMintingTemplate mintBurnData)
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardWrongMintingTemplate mbs =
+            when (any wrongMintingTemplate mbs)
                 $ Left ErrConstructTxWrongMintingBurningTemplate
           where
-            wrongMintingTemplate (ApiMintBurnDataFromScript (ApiT script) _ _) =
-                isLeft (validateScriptOfTemplate RecommendedValidation script)
-                || countCosigners script /= (1 :: Int)
-                || existsNonZeroCosigner script
+            wrongMintingTemplate mb = case mb ^. #mintBurnData of
+                Left (ApiMintBurnDataFromScript (ApiT script) _ _) ->
+                    isLeft (validateScriptOfTemplate RecommendedValidation script)
+                    || countCosigners script /= (1 :: Int)
+                    || existsNonZeroCosigner script
+                Right (ApiMintBurnDataFromInput _ _ _ _) -> False
             countCosigners = foldScript (const (+ 1)) 0
             existsNonZeroCosigner =
                 foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
 
         guardAssetNameTooLong
-            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
-        guardAssetNameTooLong mintBurnData =
-            when (any assetNameTooLong mintBurnData)
-                $ Left ErrConstructTxAssetNameTooLong
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardAssetNameTooLong mbs =
+            when (any assetNameTooLong mbs)$ Left ErrConstructTxAssetNameTooLong
           where
-            assetNameTooLong = \case
-                ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeTokenName bs))) _ ->
+            assetNameTooLong mb = case mb ^. #mintBurnData of
+                Left (ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeTokenName bs))) _) ->
                     BS.length bs > tokenNameMaxLength
-                _ -> error "tokenName should be nonempty at this step"
+                Right (ApiMintBurnDataFromInput _ _ (Just (ApiT (UnsafeTokenName bs))) _) ->
+                    BS.length bs > tokenNameMaxLength
 
         guardAssetQuantityOutOfBounds
-            :: NonEmpty (ApiMintBurnDataFromScript n) -> Either ErrConstructTx ()
-        guardAssetQuantityOutOfBounds mintBurnData =
-            when (any assetQuantityOutOfBounds mintBurnData)
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardAssetQuantityOutOfBounds mbs =
+            when (any assetQuantityOutOfBounds mbs)
                 $ Left ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
           where
-            assetQuantityOutOfBounds = \case
-                ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData _ amt)) ->
-                    amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
-                ApiMintBurnDataFromScript _ _ (ApiBurn (ApiBurnData amt)) ->
-                    amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+            checkAmt amt =
+                amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+            assetQuantityOutOfBounds mb = case mb ^. #mintBurnData of
+                Left (ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData _ amt))) ->
+                    checkAmt amt
+                Left (ApiMintBurnDataFromScript _ _ (ApiBurn (ApiBurnData amt))) ->
+                    checkAmt amt
+                Right (ApiMintBurnDataFromInput _ _ _ (ApiMint (ApiMintData _ amt))) ->
+                    checkAmt amt
+                Right (ApiMintBurnDataFromInput _ _ _ (ApiBurn (ApiBurnData amt))) ->
+                    checkAmt amt
 
         guardOutsideValidityInterval
             :: (SlotNo, SlotNo)
-            -> NonEmpty (ApiMintBurnDataFromScript n)
+            -> NonEmpty (ApiMintBurnData n)
             -> Either ErrConstructTx ()
-        guardOutsideValidityInterval (before, hereafter) mintBurnData =
-            when (any notWithinValidityInterval mintBurnData) $
+        guardOutsideValidityInterval (before, hereafter) mbs =
+            when (any notWithinValidityInterval mbs) $
                 Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
           where
-            notWithinValidityInterval (ApiMintBurnDataFromScript (ApiT script) _ _) =
-                not $ withinSlotInterval before hereafter $
+            notWithinValidityInterval mb = case mb ^. #mintBurnData of
+                Left (ApiMintBurnDataFromScript (ApiT script) _ _) ->
+                    not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
+                Right _ -> False
 
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
