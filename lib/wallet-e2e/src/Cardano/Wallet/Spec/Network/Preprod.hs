@@ -5,15 +5,20 @@ module Cardano.Wallet.Spec.Network.Preprod
     ) where
 
 import qualified Cardano.Wallet.Spec.Network.Node as Node
-import qualified Cardano.Wallet.Spec.Network.Node.Cli as Cli
+import qualified Cardano.Wallet.Spec.Network.Node.Cli as NodeCli
 import qualified Cardano.Wallet.Spec.Network.Wallet as Wallet
+import qualified Cardano.Wallet.Spec.Network.Wallet.Cli as WalletCli
 
+import Cardano.Wallet.Spec.Data.Network.NodeStatus
+    ( NodeStatus (..) )
 import Cardano.Wallet.Spec.Network.Config
     ( NetworkConfig (..) )
 import Cardano.Wallet.Spec.Network.Node
-    ( NodeProcessConfig (..), nodeApiSocket )
+    ( NodeProcessConfig (..) )
+import Cardano.Wallet.Spec.Network.Wallet
+    ( WalletProcessConfig (..) )
 import Control.Monad.Trans.Resource
-    ( ResIO, allocate, runResourceT )
+    ( allocate, runResourceT )
 import Control.Retry
     ( capDelay, fibonacciBackoff, retrying )
 import Path
@@ -23,40 +28,64 @@ import Path.IO
 
 nodeWalletSetup :: Path Abs Dir -> (NetworkConfig -> IO ()) -> IO ()
 nodeWalletSetup stateDir withNetworkConfig = runResourceT do
-    nodeProcessConfig <- makeNodeProcessConfig stateDir
+    preprodDir <- makeAbsolute [reldir|config/cardano-node/preprod|]
+
+    -- Start node
+    let nodeDir = stateDir </> [reldir|node|]
+    let nodeProcessConfig =
+            NodeProcessConfig
+                { nodeDir
+                , nodeConfig = preprodDir </> [relfile|config.json|]
+                , nodeTopology = preprodDir </> [relfile|topology.json|]
+                , nodeDatabase = nodeDir </> [reldir|db|]
+                }
     (_nodeReleaseKey, (_nodeInstance, nodeApi)) <-
         allocate (Node.start nodeProcessConfig) (Node.stop . fst)
-    (_walletReleaseKey, (_walletInstance, networkConfigWallet)) <-
-        allocate Wallet.start (Wallet.stop . fst)
 
-    let expectedProgress :: Double = 99.0
-        policy = capDelay 10_000_000 (fibonacciBackoff 500_000)
-    _ <- retrying policy (\_rs -> pure . (< expectedProgress)) \_ -> liftIO do
-        Cli.queryTip (nodeApiSocket nodeApi) >>= \case
-            Left err ->
-                0.0 <$ putTextLn ("Waiting for node to start: " <> show err)
+    -- Start wallet
+    let walletDir = stateDir </> [reldir|wallet|]
+    let walletProcessConfig =
+            WalletProcessConfig
+                { walletDir
+                , walletDatabase = walletDir </> [reldir|db|]
+                , walletNodeApi = nodeApi
+                , walletListenHost = Nothing
+                , walletListenPort = Nothing
+                , walletByronGenesis =
+                    preprodDir </> [relfile|byron-genesis.json|]
+                }
+    (_walletReleaseKey, (_walletInstance, walletApi)) <-
+        allocate (Wallet.start walletProcessConfig) (Wallet.stop . fst)
+
+    -- Wait for the node to sync with the network
+    let policy = capDelay 10_000_000 (fibonacciBackoff 1_000_000)
+
+    _ <- retrying policy (\_rs -> pure . (< 99.99)) \_ -> liftIO do
+        NodeCli.queryTip nodeApi >>= \case
+            Left (NodeCli.CliErrorExitCode _code _out) ->
+                0.0 <$ putTextLn "Waiting for the node socket ..."
+            Left (NodeCli.CliErrorDecode e _out) -> do
+                putTextLn $ "Failed to decode cardano-cli response: " <> toText e
+                pure 100
             Right tip -> do
-                let progress = Cli.syncProgress tip
+                let progress = NodeCli.syncProgress tip
                 progress <$ putTextLn do
                     "Node sync progress: " <> show progress <> "%"
 
-    liftIO $ withNetworkConfig NetworkConfig{..}
+    -- Wait for the wallet to sync with the node
+    _ <- retrying policy (\_rs -> pure . (/= Just NodeIsSynced)) \_ -> liftIO do
+        WalletCli.queryNetworkInformation walletApi >>= \case
+            Left err -> do
+                putTextLn ("Waiting for wallet to start: " <> show err)
+                pure Nothing
+            Right networkInformation -> do
+                let nodeStatus = WalletCli.nodeStatus networkInformation
+                Just nodeStatus <$ putTextLn do
+                    "Node status as reported by Wallet: " <> show nodeStatus
 
-makeNodeProcessConfig :: Path Abs Dir -> ResIO NodeProcessConfig
-makeNodeProcessConfig temp = do
-    let nodeDir = temp </> [reldir|node|]
-    preprodDir <- makeAbsolute [reldir|config/cardano-node/preprod|]
-    pure
-        NodeProcessConfig
-            { nodeDir
-            , nodeConfig = preprodDir </> [relfile|config.json|]
-            , nodeTopology = preprodDir </> [relfile|topology.json|]
-            , nodeDatabase = nodeDir </> [reldir|db|]
-            }
-
-{-
-temporaryDirectory :: ResIO (Path Abs Dir)
-temporaryDirectory = do
-    temp <- getTempDir
-    snd <$> allocate (createTempDir temp "cardano-wallet-e2e") removeDirRecur
--}
+    liftIO
+        $ withNetworkConfig
+            NetworkConfig
+                { networkConfigWallet = walletApi
+                , ..
+                }

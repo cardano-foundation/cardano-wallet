@@ -10,5 +10,9 @@ nodeWalletSetup withNetworkConfig = do
     withNetworkConfig
         NetworkConfig
             { networkConfigWallet =
-                WalletApi{walletInstanceApiUrl = "http://localhost:8090/v2"}
+                WalletApi
+                    { walletInstanceApiUrl = "http://localhost:8090/v2"
+                    , walletInstanceApiHost = "localhost"
+                    , walletInstanceApiPort = 8090
+                    }
             }

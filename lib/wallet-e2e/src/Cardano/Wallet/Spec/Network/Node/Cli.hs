@@ -3,10 +3,12 @@ module Cardano.Wallet.Spec.Network.Node.Cli where
 import qualified Data.Aeson as Aeson
 import qualified Data.String as String
 
+import Cardano.Wallet.Spec.Network.Node
+    ( NodeApi, nodeApiSocket )
 import Data.Aeson
     ( FromJSON, withObject, (.:) )
 import Path
-    ( Abs, File, Path, toFilePath )
+    ( toFilePath )
 import Prelude hiding
     ( stderr, stdout )
 import System.Process.Typed
@@ -42,8 +44,8 @@ data CliError
     | CliErrorDecode String LByteString
     deriving stock (Eq, Show)
 
-queryTip :: Path Abs File -> IO (Either CliError NodeTip)
-queryTip nodeSocket = do
+queryTip :: NodeApi -> IO (Either CliError NodeTip)
+queryTip nodeApi = do
     (exitCode, stdout, stderr) <-
         readProcess . shell
             $ String.unwords
@@ -53,7 +55,7 @@ queryTip nodeSocket = do
                 , "--testnet-magic"
                 , "1"
                 , "--socket-path"
-                , toFilePath nodeSocket
+                , toFilePath (nodeApiSocket nodeApi)
                 ]
     case exitCode of
         ExitFailure code -> pure $ Left $ CliErrorExitCode code stderr

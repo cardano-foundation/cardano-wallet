@@ -5,6 +5,12 @@ import qualified Wallet as W
 data NodeStatus = NodeIsSynced | NodeIsSyncing | NodeIsNotResponding
     deriving stock (Eq, Show)
 
+fromString :: String -> Maybe NodeStatus
+fromString "ready" = Just NodeIsSynced
+fromString "syncing" = Just NodeIsSyncing
+fromString "not_responding" = Just NodeIsNotResponding
+fromString _ = Nothing
+
 fromClientResponse
     :: W.GetNetworkInformationResponseBody200Sync_progress -> Maybe NodeStatus
 fromClientResponse

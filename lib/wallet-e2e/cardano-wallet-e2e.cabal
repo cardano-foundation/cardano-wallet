@@ -80,7 +80,7 @@ library
     , retry                  ^>=0.9.3.1
     , scientific             ^>=0.3.7
     , tagged                 ^>=0.8.7
-    , temporary-resourcet    ^>=0.1.0.1
+    , time                   ^>=1.9.3
     , timespan               ^>=0.4
     , typed-process          ^>=0.2.11
 
@@ -109,6 +109,7 @@ library
     Cardano.Wallet.Spec.Network.Node.Cli
     Cardano.Wallet.Spec.Network.Preprod
     Cardano.Wallet.Spec.Network.Wallet
+    Cardano.Wallet.Spec.Network.Wallet.Cli
     Cardano.Wallet.Spec.Stories.Language
     Cardano.Wallet.Spec.Stories.Wallet
     Cardano.Wallet.Spec.TimeoutSpec
