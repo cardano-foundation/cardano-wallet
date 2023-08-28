@@ -3761,17 +3761,15 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                 (True, True) -> do
                     estimateSignedTxSize era pparams (witCount vkCredAddr) tx
                         `shouldBeInclusivelyWithin`
-                        (signedBinarySize - correction, signedBinarySize)
+                        ( signedBinarySize - correction
+                        , signedBinarySize
+                        )
                 (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) ->
                     estimateSignedTxSize era pparams (witCount bootAddr) tx
                         `shouldBeInclusivelyWithin`
                         ( signedBinarySize - correction
-                        , signedBinarySize + TxSize 45
-                        -- For txs with bootstrap witnesses we accept that the
-                        -- initial estimation might be much higher than the
-                        -- eventual signed tx. The bootstrap witnesses can vary
-                        -- in size.
+                        , signedBinarySize + bootWitsCanBeLongerBy
                         )
                 (False, True) -> testDoesNotYetSupport "scripts"
       where
@@ -3835,13 +3833,25 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                 Cardano.TxInsCollateralNone -> []
             ins = Cardano.txIns body
 
+    -- An address with a vk payment credential. For the test above, this is the
+    -- only aspect which matters.
+    vkCredAddr = Address $ unsafeFromHex
+        "6000000000000000000000000000000000000000000000000000000000"
 
-
+    -- This is a short bootstrap address retrieved from
+    -- "byron-address-format.md".
     bootAddr = Address $ unsafeFromHex
         "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
 
-    vkCredAddr = Address $ unsafeFromHex
-        "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
+    -- With more attributes, the address can be longer. This value was chosen
+    -- /experimentally/ to make the tests pass. The ledger has been validating
+    -- new outputs with bootstrap addresses have attributes not larger than 64
+    -- bytes. The ledger has done so since the middle of the Byron era.
+    -- Address attributes are included in the bootstrap witnesses.
+    --
+    -- NOTE: If we had access to the real UTxO set for the inputs of the test
+    -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
+    bootWitsCanBeLongerBy = 45
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a
