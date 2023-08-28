@@ -309,7 +309,7 @@ delete u i =
         -- greater than or equal to the value of this output:
         & over #balance (`W.TokenBundle.difference` b)
         & over #universe (Map.delete u)
-        & case categorizeTokenBundle b of
+        & case bundleCategory of
             BundleWithNoAssets -> id
             BundleWithOneAsset a -> id
                 . over #indexAll (`deleteEntry` a)
@@ -321,6 +321,9 @@ delete u i =
                 . over #indexPairs (`deleteEntry` a2)
             BundleWithMultipleAssets as -> id
                 . over #indexAll (flip (F.foldl' deleteEntry) as)
+      where
+        bundleCategory :: BundleCategory Asset
+        bundleCategory = categorizeTokenBundle b
 
     deleteEntry
         :: Ord asset
