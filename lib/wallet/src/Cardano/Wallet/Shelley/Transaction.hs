@@ -85,6 +85,8 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( toRewardAccountRaw )
+import Cardano.Wallet.Address.Encoding
+    ( toHDPayloadAddress )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey )
 import Cardano.Wallet.Flavor
@@ -128,7 +130,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoValue
-    , toHDPayloadAddress
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert

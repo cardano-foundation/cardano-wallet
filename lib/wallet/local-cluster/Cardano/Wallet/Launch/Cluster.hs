@@ -136,6 +136,8 @@ import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Address.Derivation
     ( hex )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -144,8 +146,6 @@ import Cardano.Wallet.Options
     ( TempDirLog, lookupEnvNonEmpty )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..) )
-import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -156,8 +156,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -214,6 +212,8 @@ import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+import Data.Word.Odd
+    ( Word31 )
 import GHC.Generics
     ( Generic )
 import Network.URI
@@ -429,7 +429,7 @@ cliRetry tr msg processConfig = do
 data PoolRecipe = PoolRecipe
     { pledgeAmt :: Integer
     , index :: Int
-    , retirementEpoch :: Maybe EpochNo
+    , retirementEpoch :: Maybe Word31
       -- ^ An optional retirement epoch. If specified, then a pool retirement
       -- certificate will be published after the pool is initially registered.
     , poolMetadata :: Aeson.Value
@@ -1676,14 +1676,14 @@ issuePoolRetirementCert
     :: Tracer IO ClusterLog
     -> FilePath
     -> FilePath
-    -> EpochNo
+    -> Word31
     -> IO FilePath
 issuePoolRetirementCert tr dir opPub retirementEpoch = do
     let file  = dir </> "pool-retirement.cert"
     cli tr
         [ "stake-pool", "deregistration-certificate"
         , "--cold-verification-key-file", opPub
-        , "--epoch", show (unEpochNo retirementEpoch)
+        , "--epoch", show retirementEpoch
         , "--out-file", file
         ]
     pure file

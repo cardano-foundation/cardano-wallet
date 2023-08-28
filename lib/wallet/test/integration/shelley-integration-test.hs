@@ -39,6 +39,8 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Api.Types
@@ -89,7 +91,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress, fromGenesisData )
+    ( fromGenesisData )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
 import Control.Arrow

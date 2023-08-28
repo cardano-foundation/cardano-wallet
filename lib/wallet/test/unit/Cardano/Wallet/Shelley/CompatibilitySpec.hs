@@ -45,6 +45,8 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, decodeStakeAddress, encodeStakeAddress, inspectAddress )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
 import Cardano.Wallet.Flavor
@@ -71,12 +73,8 @@ import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
     , decentralizationLevelFromPParams
-    , decodeAddress
-    , decodeStakeAddress
-    , encodeStakeAddress
     , fromCardanoValue
     , fromTip
-    , inspectAddress
     , interval0
     , interval1
     , invertUnitInterval

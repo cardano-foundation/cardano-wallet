@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
@@ -34,8 +36,6 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_, void, when )
 import Control.Monad.IO.Class

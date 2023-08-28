@@ -21,6 +21,8 @@ import Cardano.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeBIP44 )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressWithPath
@@ -33,8 +35,6 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource

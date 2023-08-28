@@ -18,6 +18,8 @@ import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( ApiTransaction
     , ApiUtxoStatistics
@@ -34,8 +36,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( getWalletName, walletNameMaxLength, walletNameMinLength )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift

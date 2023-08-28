@@ -15,6 +15,8 @@ import Prelude
 
 import Cardano.CLI
     ( Port )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( ApiFee (..), ApiTransaction, ApiWallet, apiAddress )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -27,8 +29,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_, join )
 import Control.Monad.IO.Class

@@ -1109,6 +1109,7 @@ benchmark api
 
 library address-derivation
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  address
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
@@ -1117,11 +1118,19 @@ library address-derivation
     build-depends: scrypt
 
   build-depends:
+    , aeson
     , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , binary
     , bytestring
     , cardano-addresses
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -1137,6 +1146,7 @@ library address-derivation
     , int-cast
     , lens
     , memory
+    , ouroboros-consensus-cardano
     , QuickCheck
     , quiet
     , random
@@ -1160,6 +1170,7 @@ library address-derivation
     Cardano.Wallet.Address.Discovery.Random
     Cardano.Wallet.Address.Discovery.Sequential
     Cardano.Wallet.Address.Discovery.Shared
+    Cardano.Wallet.Address.Encoding
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Address.States.Families
@@ -1197,7 +1208,6 @@ library cardano-wallet-local-cluster
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -1212,6 +1222,7 @@ library cardano-wallet-local-cluster
     , lens
     , memory
     , network-uri
+    , OddWord
     , optparse-applicative
     , ouroboros-network
     , ouroboros-network-api

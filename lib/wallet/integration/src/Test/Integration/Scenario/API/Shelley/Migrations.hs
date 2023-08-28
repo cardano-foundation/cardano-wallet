@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Cardano.Wallet.Address.Encoding
+    ( encodeAddress )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiEra (..)
@@ -39,8 +41,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
 import Control.Monad
     ( forM_, replicateM_, void, when )
 import Control.Monad.IO.Class

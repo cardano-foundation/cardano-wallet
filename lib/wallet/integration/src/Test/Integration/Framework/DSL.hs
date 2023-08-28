@@ -274,6 +274,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Api.Types
@@ -363,8 +365,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, encodeAddress )
 import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Arrow

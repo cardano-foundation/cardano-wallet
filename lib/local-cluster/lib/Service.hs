@@ -27,6 +27,8 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Faucet
@@ -66,7 +68,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( decodeAddress, fromGenesisData )
+    ( fromGenesisData )
 import Control.Arrow
     ( first )
 import Control.Monad
