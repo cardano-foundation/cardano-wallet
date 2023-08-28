@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {- HLINT ignore "Use &&" -}
@@ -116,10 +115,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( over )
-import Data.Generics.Labels
-    ()
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -304,30 +299,32 @@ delete u i =
   where
     updateIndex :: W.TokenBundle -> UTxOIndex u
     updateIndex b = i
-        -- This operation is safe, since we have already determined that the
-        -- entry is a member of the index, and therefore the balance must be
-        -- greater than or equal to the value of this output:
-        & over #balance (`W.TokenBundle.difference` b)
-        & over #universe (Map.delete u)
-        & case categorizeTokenBundle b of
-            BundleWithNoAssets -> id
-            BundleWithOneAsset a -> id
-                . over #indexAll (`deleteEntry` a)
-                . over #indexSingletons (`deleteEntry` a)
-            BundleWithTwoAssets (a1, a2) -> id
-                . over #indexAll (`deleteEntry` a1)
-                . over #indexAll (`deleteEntry` a2)
-                . over #indexPairs (`deleteEntry` a1)
-                . over #indexPairs (`deleteEntry` a2)
-            BundleWithMultipleAssets as -> id
-                . over #indexAll (flip (F.foldl' deleteEntry) as)
+        { balance = balance i `W.TokenBundle.difference` b
+        -- The above operation is safe, since we have already determined that
+        -- the entry is a member of the index, and therefore the balance must
+        -- be greater than or equal to the value of this output.
+        , universe = Map.delete u (universe i)
+        , indexAll = deleteAssets (indexAll i)
+        , indexSingletons = indexSingletons i &
+            case bundleCategory of
+                BundleWithOneAsset {} -> deleteAssets
+                _otherwise -> id
+        , indexPairs = indexPairs i &
+            case bundleCategory of
+                BundleWithTwoAssets {} -> deleteAssets
+                _otherwise -> id
+        }
+      where
+        bundleAssets :: Set Asset
+        bundleAssets = tokenBundleAssets b
 
-    deleteEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
-    deleteEntry m a = MonoidMap.adjust (Set.delete u) a m
+        bundleCategory :: BundleCategory Asset
+        bundleCategory = categorizeTokenBundle b
+
+        deleteAssets :: MonoidMap Asset (Set u) -> MonoidMap Asset (Set u)
+        deleteAssets = flip (F.foldl' deleteAsset) bundleAssets
+          where
+            deleteAsset m a = MonoidMap.adjust (Set.delete u) a m
 
 -- | Deletes multiple entries from an index.
 --
@@ -580,27 +577,29 @@ insertUnsafe
     -> UTxOIndex u
     -> UTxOIndex u
 insertUnsafe u b i = i
-    & over #balance (`W.TokenBundle.add` b)
-    & over #universe (Map.insert u b)
-    & case categorizeTokenBundle b of
-        BundleWithNoAssets -> id
-        BundleWithOneAsset a -> id
-            . over #indexAll (`insertEntry` a)
-            . over #indexSingletons (`insertEntry` a)
-        BundleWithTwoAssets (a1, a2) -> id
-            . over #indexAll (`insertEntry` a1)
-            . over #indexAll (`insertEntry` a2)
-            . over #indexPairs (`insertEntry` a1)
-            . over #indexPairs (`insertEntry` a2)
-        BundleWithMultipleAssets as -> id
-            . over #indexAll (flip (F.foldl' insertEntry) as)
+    { balance = balance i `W.TokenBundle.add` b
+    , universe = Map.insert u b (universe i)
+    , indexAll = insertAssets (indexAll i)
+    , indexSingletons = indexSingletons i &
+        case bundleCategory of
+            BundleWithOneAsset {} -> insertAssets
+            _otherwise -> id
+    , indexPairs = indexPairs i &
+        case bundleCategory of
+            BundleWithTwoAssets {} -> insertAssets
+            _otherwise -> id
+    }
   where
-    insertEntry
-        :: Ord asset
-        => MonoidMap asset (Set u)
-        -> asset
-        -> MonoidMap asset (Set u)
-    insertEntry m a = MonoidMap.adjust (Set.insert u) a m
+    bundleAssets :: Set Asset
+    bundleAssets = tokenBundleAssets b
+
+    bundleCategory :: BundleCategory Asset
+    bundleCategory = categorizeTokenBundle b
+
+    insertAssets :: MonoidMap Asset (Set u) -> MonoidMap Asset (Set u)
+    insertAssets = flip (F.foldl' insertAsset) bundleAssets
+      where
+        insertAsset m a = MonoidMap.adjust (Set.insert u) a m
 
 -- | Selects an element at random from the given set.
 --
