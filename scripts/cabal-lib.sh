@@ -89,6 +89,6 @@ EOF
 
 # List all modules for ghci command-line
 list_modules() {
-    list_sources | sed -e 's/^[^A-Z]*\(.*\)\.hs$/\1/' | grep / | sed 'y=/=.='
+    list_sources | sed -e 's/^[^A-Z]*\(.*\)\.hs$/\1/' | grep -v '^[[:space:]]*$' | sed 'y=/=.='
     list_packages | sed -e 'y/-/_/' -e 's/^/Paths_/'
 }
