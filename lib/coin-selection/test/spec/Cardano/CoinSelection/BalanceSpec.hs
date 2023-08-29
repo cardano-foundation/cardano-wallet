@@ -2930,7 +2930,7 @@ prop_makeChange_fail_minValueTooBig p =
         Right change ->
             conjoin
                 [ deltaCoin <
-                    totalMinCoinDeposit `Coin.add` view #requiredCost p
+                    totalMinCoinDeposit <> view #requiredCost p
                 , deltaCoin >=
                     view #requiredCost p
                 ]
@@ -2949,7 +2949,7 @@ prop_makeChange_fail_minValueTooBig p =
                 totalOutputValue
             minCoinValueFor =
                 unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
-            totalMinCoinDeposit = F.foldr Coin.add (Coin 0)
+            totalMinCoinDeposit = F.foldr (<>) (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue =
@@ -3279,7 +3279,7 @@ unit_assignCoinsToChangeMaps =
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
-          , (`Coin.add` Coin 1) . computeMinimumAdaQuantityLinear
+          , (<> Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
           , Right []
           )
@@ -3333,7 +3333,7 @@ unit_assignCoinsToChangeMaps =
 
 prop_makeChangeForCoin_sum :: NonEmpty Coin -> Coin -> Property
 prop_makeChangeForCoin_sum weights surplus =
-    surplus === F.foldr Coin.add (Coin 0) changes
+    surplus === F.foldr (<>) (Coin 0) changes
   where
     changes = makeChangeForCoin weights surplus
 

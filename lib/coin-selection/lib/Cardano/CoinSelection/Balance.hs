@@ -744,7 +744,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf NonEmpty ctx
     transformParams p@SelectionParams {..} = p
         { extraCoinSource =
-            transform (`Coin.add` dummyCoin) (const id) extraCoinSource
+            transform (<> dummyCoin) (const id) extraCoinSource
         , outputsToCover =
             transform (const (dummyOutput :| [])) (const . id) outputsToCover
         }
