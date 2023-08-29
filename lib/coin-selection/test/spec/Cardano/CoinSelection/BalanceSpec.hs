@@ -1197,11 +1197,11 @@ prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
     assertWith
-        "balanceSelected == TokenBundle.empty"
-        (balanceSelected == TokenBundle.empty)
+        "balanceSelected == mempty"
+        (balanceSelected == mempty)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
   where
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
@@ -1223,8 +1223,8 @@ prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
         "balanceSelected == balanceAvailable"
         (balanceSelected == balanceAvailable)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
   where
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
@@ -1244,12 +1244,12 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
     if utxoAvailable == UTxOSelection.empty then
         assertWith
-            "balanceSelected == TokenBundle.empty"
-            (balanceSelected == TokenBundle.empty)
+            "balanceSelected == mempty"
+            (balanceSelected == mempty)
     else
         assertWith
             "balanceSelected == balanceRequested"
@@ -2610,7 +2610,7 @@ prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
     (F.fold <$> makeChange criteria)
-    (Right TokenBundle.empty)
+    (Right mempty)
   where
     criteria = MakeChangeCriteria
         { minCoinFor = const (Coin 0)

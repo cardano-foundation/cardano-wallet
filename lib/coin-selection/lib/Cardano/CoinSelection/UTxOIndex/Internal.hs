@@ -204,7 +204,7 @@ empty = UTxOIndex
     { indexAll = MonoidMap.empty
     , indexSingletons = MonoidMap.empty
     , indexPairs = MonoidMap.empty
-    , balance = W.TokenBundle.empty
+    , balance = mempty
     , universe = Map.empty
     }
 
