@@ -65,7 +65,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Options
-    ( withSystemTempDir )
+    ( SkipCleanup (..), isEnvSet, withSystemTempDir )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.NetworkId
@@ -486,7 +486,9 @@ withShelleyServer tracers action = do
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 
   where
-    withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
+    withServer act = do
+        skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
+        withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error

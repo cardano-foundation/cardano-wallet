@@ -13,24 +13,21 @@
 -- License: Apache-2.0
 --
 -- Command-line option passing for cardano-wallet shelley.
---
-
 module Cardano.Wallet.Options
-    (
-      -- * Utils
-    withSystemTempDir
+    ( -- * Utils
+      withSystemTempDir
     , withTempDir
+    , SkipCleanup (..)
     , isEnvSet
     , envFromText
     , lookupEnvNonEmpty
 
-    -- * Options
+      -- * Options
     , optionT
     , fromTextS
 
-    -- * Logging
+      -- * Logging
     , TempDirLog (..)
-
     ) where
 
 import Prelude
@@ -46,7 +43,9 @@ import Control.Arrow
 import Control.Monad.IO.Unlift
     ( MonadIO (liftIO), MonadUnliftIO )
 import Control.Tracer
-    ( Contravariant (contramap), Tracer )
+    ( Tracer )
+import Data.Functor.Contravariant
+    ( (>$<) )
 import Data.Maybe
     ( isJust )
 import Data.Text.Class
@@ -97,38 +96,51 @@ envFromText = liftIO . fmap (fmap (fromText . T.pack)) . lookupEnv
                                      Utils
 -------------------------------------------------------------------------------}
 
--- | Create a temporary directory and remove it after the given IO action has
--- finished -- unless the @NO_CLEANUP@ environment variable has been set.
+newtype SkipCleanup = SkipCleanup Bool
+    deriving stock (Show, Eq)
+
+-- | Create a temporary directory
+-- and optionally remove it after the given IO action has finished
 withTempDir
     :: MonadUnliftIO m
     => Tracer m TempDirLog
-    -> FilePath -- ^ Parent directory
-    -> String -- ^ Directory name template
-    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> FilePath
+    -- ^ Parent directory
+    -> String
+    -- ^ Directory name template
+    -> SkipCleanup
+    -- ^ When true will not remove the directory after its usage.
+    -> (FilePath -> m a)
+    -- ^ Callback that can use the directory
     -> m a
-withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
-    True -> do
-        dir <- liftIO $ createTempDirectory parent name
-        let tr' = contramap (MsgNoCleanup dir) tr
-        bracketTracer tr' $ action dir
-    False -> withTempDirectory parent name action
+withTempDir tr parent name (SkipCleanup skipCleanup) action =
+    if skipCleanup
+        then do
+            dir <- liftIO $ createTempDirectory parent name
+            bracketTracer (MsgNoCleanup dir >$< tr) (action dir)
+        else withTempDirectory parent name action
 
 withSystemTempDir
     :: MonadUnliftIO m
     => Tracer m TempDirLog
-    -> String   -- ^ Directory name template
-    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> String
+    -- ^ Directory name template
+    -> SkipCleanup
+    -- ^ When true will not remove the directory after its usage.
+    -> (FilePath -> m a)
+    -- ^ Callback that can use the directory
     -> m a
-withSystemTempDir tr name action = do
+withSystemTempDir tr name skipCleanup action = do
     parent <- liftIO getCanonicalTemporaryDirectory
-    withTempDir tr parent name action
+    withTempDir tr parent name skipCleanup action
 
 data TempDirLog = MsgNoCleanup FilePath BracketLog deriving (Show)
 
 instance ToText TempDirLog where
     toText = \case
         MsgNoCleanup _ BracketStart -> ""
-        MsgNoCleanup dir _ -> "NO_CLEANUP of temporary directory " <> T.pack dir
+        MsgNoCleanup dir _ ->
+            "Not removing the temporary directory: " <> T.pack dir
 
 instance HasPrivacyAnnotation TempDirLog
 instance HasSeverityAnnotation TempDirLog where

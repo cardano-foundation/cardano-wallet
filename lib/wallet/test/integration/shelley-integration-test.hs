@@ -79,7 +79,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Options
-    ( envFromText, withSystemTempDir )
+    ( SkipCleanup (..), envFromText, isEnvSet, withSystemTempDir )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -238,12 +238,13 @@ withTestsSetup action = do
     -- deletion fails.
     setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
 
+    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
     withUtf8Encoding $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
-        withSystemTempDir stdoutTextTracer "test" $ \testDir ->
+        withSystemTempDir stdoutTextTracer "test" skipCleanup $ \testDir ->
             withTracers testDir $ action testDir
 
 -- | Convert @ClusterEra@ to a @ApiEra@.

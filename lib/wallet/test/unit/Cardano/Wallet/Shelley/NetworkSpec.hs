@@ -26,7 +26,7 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Options
-    ( withSystemTempDir )
+    ( SkipCleanup (..), isEnvSet, withSystemTempDir )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -259,7 +259,8 @@ withTestNode tr action = do
             defaultPoolConfigs
             BabbageHardFork
             (LogFileConfig Info Nothing Info)
-    withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
+    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
+    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $ \dir ->
         withCluster tr dir cfg mempty $ \(RunningNode sock genesisData vData) ->
             let (np, _, _ ) = fromGenesisData genesisData
             in action np sock vData
