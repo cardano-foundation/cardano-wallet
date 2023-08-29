@@ -592,7 +592,7 @@ import Data.Coerce
 import Data.Either
     ( isLeft, isRight )
 import Data.Either.Extra
-    ( eitherToMaybe, fromLeft' )
+    ( eitherToMaybe )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -2450,7 +2450,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
 
-    mintBurnData <-
+    mintBurnDatum <-
         liftHandler $ except $ parseMintBurnData body validityInterval
 
     mintBurnReferenceScriptTemplate <-
@@ -2502,25 +2502,27 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             liftHandler $ W.readPolicyPublicKey wrk
 
         transactionCtx2 <-
-            if isJust mintBurnData then do
-                let isMinting (ApiMintBurnDataFromScript _ _ (ApiMint _)) = True
-                    isMinting _ = False
-                let getMinting = \case
-                        ApiMintBurnDataFromScript
+            if isJust mintBurnDatum then do
+                let isMinting mb = case mb ^. #mintBurnData of
+                        Left (ApiMintBurnDataFromScript _ _ (ApiMint _)) -> True
+                        Right (ApiMintBurnDataFromInput _ _ _ (ApiMint _)) -> True
+                        _ -> False
+                let getMinting mb = case mb ^. #mintBurnData of
+                        Left (ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiMint (ApiMintData _ amt)) ->
+                            (ApiMint (ApiMintData _ amt))) ->
                             toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
                         _ -> error "getMinting should not be used in this way"
-                let getBurning = \case
-                        ApiMintBurnDataFromScript
+                let getBurning mb = case mb ^. #mintBurnData of
+                        Left (ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
-                            (ApiBurn (ApiBurnData amt)) ->
+                            (ApiBurn (ApiBurnData amt))) ->
                             toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
@@ -2537,12 +2539,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
-                        NE.toList $ fromJust mintBurnData
+                        NE.toList $ fromJust mintBurnDatum
                 let burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
-                        NE.toList $ fromJust mintBurnData
+                        NE.toList $ fromJust mintBurnDatum
                 pure transactionCtx1
                     { txAssetsToMint = mintingData
                     , txAssetsToBurn = burningData
@@ -2565,11 +2567,13 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             Just (ApiPaymentAddresses content) ->
                 pure $ F.toList (addressAmountToTxOut <$> content)
 
-        let mintWithAddress
-                (ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData (Just _) _)))
-                = True
-            mintWithAddress _ = False
-        let mintingOuts = case mintBurnData of
+        let mintWithAddress mb = case mb ^. #mintBurnData of
+                Left (ApiMintBurnDataFromScript _ _ (ApiMint (ApiMintData (Just _) _))) ->
+                    True
+                Right (ApiMintBurnDataFromInput _ _ _ (ApiMint (ApiMintData (Just _) _))) ->
+                    True
+                _ -> False
+        let mintingOuts = case mintBurnDatum of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
                     map (toMintTxOut policyXPub) $
@@ -2669,13 +2673,13 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     updateFromInp fromInp
           where
             updateFromScript :: ApiMintBurnDataFromScript n -> ApiMintBurnDataFromScript n
-            updateFromScript mb = case mb ^. #assetName of
-                Nothing -> mb {assetName = Just (ApiT nullTokenName)}
-                Just _ -> mb
+            updateFromScript mbd = case mbd ^. #assetName of
+                Nothing -> mbd {assetName = Just (ApiT nullTokenName)}
+                Just _ -> mbd
             updateFromInp :: ApiMintBurnDataFromInput n -> ApiMintBurnDataFromInput n
-            updateFromInp mb = case mb ^. #assetName of
-                Nothing -> mb {assetName = Just (ApiT nullTokenName)}
-                Just _ -> mb
+            updateFromInp mbd = case mbd ^. #assetName of
+                Nothing -> mbd {assetName = Just (ApiT nullTokenName)}
+                Just _ -> mbd
 
         guardWrongMintingTemplate
             :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
@@ -2703,6 +2707,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     BS.length bs > tokenNameMaxLength
                 Right (ApiMintBurnDataFromInput _ _ (Just (ApiT (UnsafeTokenName bs))) _) ->
                     BS.length bs > tokenNameMaxLength
+                _ -> error "at this moment there should be asset name attributed"
 
         guardAssetQuantityOutOfBounds
             :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
@@ -2757,9 +2762,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
-    toMintTxOut policyXPub
-        (ApiMintBurnDataFromScript (ApiT scriptT) (Just (ApiT tName))
-            (ApiMint (ApiMintData (Just addr) amt))) =
+    toMintTxOut policyXPub mb = case mb ^. #mintBurnData of
+        Left (ApiMintBurnDataFromScript (ApiT scriptT) (Just (ApiT tName))
+            (ApiMint (ApiMintData (Just addr) amt))) ->
                 let (assetId, tokenQuantity, _) =
                         toTokenMapAndScript ShelleyKeyS
                             scriptT (Map.singleton (Cosigner 0) policyXPub)
@@ -2767,10 +2772,10 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     assets = fromFlatList [(assetId, tokenQuantity)]
                 in
                 (addr, assets)
-    toMintTxOut _ _ = error $ unwords
-        [ "toMintTxOut can only be used in the minting context with addr"
-        , "specified"
-        ]
+        _ -> error $ unwords
+            [ "toMintTxOut can only be used in the minting context with addr"
+            , "specified"
+            ]
 
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
