@@ -33,7 +33,6 @@ import Cardano.Ledger.Alonzo.TxInfo
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
-    , SelectionError (..)
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
     )
@@ -983,9 +982,9 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsSelectionError (SelectionBalanceErrorOf e) ->
+        ErrSelectAssetsBalanceError e ->
             toServerError e
-        ErrSelectAssetsSelectionError (SelectionCollateralErrorOf e) ->
+        ErrSelectAssetsCollateralError e ->
             toServerError e
 
 instance IsServerError (SelectionBalanceError WalletSelectionContext) where

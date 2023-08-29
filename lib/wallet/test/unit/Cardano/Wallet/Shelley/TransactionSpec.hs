@@ -100,7 +100,6 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
-    , SelectionError (..)
     , SelectionOf (..)
     , UnableToConstructChangeError (..)
     , selectionDelta
@@ -1119,8 +1118,7 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
         let requiredCost = Fee (Coin.fromNatural 166_029)
         let estimateFee = except $ Left
-                $ ErrSelectAssetsSelectionError
-                $ SelectionBalanceErrorOf
+                $ ErrSelectAssetsBalanceError
                 $ UnableToConstructChange
                 $ UnableToConstructChangeError
                     { requiredCost = feeToCoin requiredCost
@@ -3230,8 +3228,8 @@ prop_balanceTransactionValid
                         ]
             Left
                 (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf (BalanceInsufficient err)))) -> do
+                (ErrSelectAssetsBalanceError
+                (BalanceInsufficient err))) -> do
                     let missing = view #utxoBalanceShortfall err
                     let missingCoin = view #coin missing == Coin 0
                     let missingTokens = view #tokens missing == mempty
@@ -3266,8 +3264,7 @@ prop_balanceTransactionValid
                 label "conflicting networks" $ property True
             Left
                 (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf EmptyUTxO))) ->
+                (ErrSelectAssetsBalanceError EmptyUTxO)) ->
                 label "empty UTxO" $ property True
             Left (ErrBalanceTxInternalError
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
@@ -3291,8 +3288,8 @@ prop_balanceTransactionValid
                 label "ReferenceScriptsNotSupported" $ property True
             Left
                 (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf (UnableToConstructChange _)))) ->
+                (ErrSelectAssetsBalanceError
+                (UnableToConstructChange _))) ->
                 label "unable to construct change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True

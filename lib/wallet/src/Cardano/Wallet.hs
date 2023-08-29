@@ -257,7 +257,6 @@ import Cardano.Slotting.Slot
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
-    , SelectionError (..)
     , SelectionOf (..)
     , UnableToConstructChangeError (..)
     )
@@ -2977,11 +2976,9 @@ calculateFeePercentiles
     -- to cover for these fees.
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Fee
     handleCannotCover = \case
-        ErrSelectAssetsSelectionError
-            ( SelectionBalanceErrorOf
-                ( UnableToConstructChange
-                    UnableToConstructChangeError{requiredCost}
-                )
+        ErrSelectAssetsBalanceError
+            ( UnableToConstructChange
+                UnableToConstructChangeError {requiredCost}
             ) -> pure $ Fee requiredCost
         e -> throwE e
 

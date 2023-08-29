@@ -97,6 +97,8 @@ import Cardano.Ledger.UTxO
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
+    , SelectionBalanceError (..)
+    , SelectionCollateralError
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
@@ -257,7 +259,10 @@ instance Buildable (BuildableInAnyEra a) where
 
 data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
-    | ErrSelectAssetsSelectionError (SelectionError WalletSelectionContext)
+    | ErrSelectAssetsBalanceError
+        (SelectionBalanceError WalletSelectionContext)
+    | ErrSelectAssetsCollateralError
+        (SelectionCollateralError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 
 data ErrBalanceTxInternalError
@@ -436,9 +441,8 @@ balanceTransaction
         -- generate change successfully.
         unableToConstructChange = case e of
             ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf
-                (UnableToConstructChange {}))) ->
+                (ErrSelectAssetsBalanceError
+                (UnableToConstructChange {})) ->
                 True
             _someOtherError ->
                 False
@@ -451,8 +455,7 @@ balanceTransaction
         -- satisfy the minimum.
         selectionCollateralError = case e of
             ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
-                (SelectionCollateralErrorOf {})) ->
+                (ErrSelectAssetsCollateralError {}) ->
                 True
             _someOtherError ->
                 False
@@ -867,12 +870,16 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     performSelection'
         :: Either ErrBalanceTx Selection
     performSelection'
-        = left
-            ( ErrBalanceTxSelectAssets
-            . ErrSelectAssetsSelectionError
-            )
+        = left mapErrors
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
+      where
+        mapErrors :: SelectionError WalletSelectionContext -> ErrBalanceTx
+        mapErrors = ErrBalanceTxSelectAssets . \case
+            SelectionBalanceErrorOf x ->
+                ErrSelectAssetsBalanceError x
+            SelectionCollateralErrorOf x ->
+                ErrSelectAssetsCollateralError x
 
     selectionConstraints = SelectionConstraints
         { tokenBundleSizeAssessor =
