@@ -58,9 +58,7 @@ nodeWalletSetup stateDir withNetworkConfig = runResourceT do
         allocate (Wallet.start walletProcessConfig) (Wallet.stop . fst)
 
     -- Wait for the node to sync with the network
-    let policy = capDelay 10_000_000 (fibonacciBackoff 1_000_000)
-
-    _ <- retrying policy (\_rs -> pure . (< 99.99)) \_ -> liftIO do
+    waitFor (>= 99.99) do
         NodeCli.queryTip nodeApi >>= \case
             Left (NodeCli.CliErrorExitCode _code _out) ->
                 0.0 <$ putTextLn "Waiting for the node socket ..."
@@ -73,7 +71,7 @@ nodeWalletSetup stateDir withNetworkConfig = runResourceT do
                     "Node sync progress: " <> show progress <> "%"
 
     -- Wait for the wallet to sync with the node
-    _ <- retrying policy (\_rs -> pure . (/= Just NodeIsSynced)) \_ -> liftIO do
+    waitFor (== Just NodeIsSynced) do
         WalletCli.queryNetworkInformation walletApi >>= \case
             Left err -> do
                 putTextLn ("Waiting for wallet to start: " <> show err)
@@ -89,3 +87,11 @@ nodeWalletSetup stateDir withNetworkConfig = runResourceT do
                 { networkConfigWallet = walletApi
                 , ..
                 }
+
+waitFor :: MonadIO m => (a -> Bool) -> IO a -> m ()
+waitFor condition action =
+    void
+        $ retrying
+            (capDelay 10_000_000 (fibonacciBackoff 1_000_000))
+            (\_retryStatus -> pure . not . condition)
+            (\_retryStatus -> liftIO action)
