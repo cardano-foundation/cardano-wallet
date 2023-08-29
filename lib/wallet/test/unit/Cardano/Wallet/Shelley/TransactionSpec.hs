@@ -3740,9 +3740,9 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     test _name bs cTx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             witCount dummyAddr = estimateKeyWitnessCount
-                    (Write.fromCardanoUTxO
-                        $ utxoPromisingInputsHaveAddress dummyAddr body)
-                    body
+                (Write.fromCardanoUTxO
+                    $ utxoPromisingInputsHaveAddress dummyAddr body)
+                body
             era = recentEra @era
 
             tx :: Write.Tx (Write.ShelleyLedgerEra era)
@@ -3764,7 +3764,8 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                         ( signedBinarySize - correction
                         , signedBinarySize
                         )
-                (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
+                (False, False) ->
+                    testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) ->
                     estimateSignedTxSize era pparams (witCount bootAddr) tx
                         `shouldBeInclusivelyWithin`
@@ -3851,7 +3852,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     --
     -- NOTE: If we had access to the real UTxO set for the inputs of the test
     -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
-    bootWitsCanBeLongerBy = 45
+    bootWitsCanBeLongerBy = TxSize 45
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a
