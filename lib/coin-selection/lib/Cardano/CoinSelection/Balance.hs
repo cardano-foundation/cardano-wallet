@@ -160,6 +160,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Ord
     ( comparing )
 import Data.Semigroup
@@ -375,9 +377,9 @@ computeDeficitInOut params =
     (deficitIn, deficitOut)
   where
     deficitIn =
-        TokenBundle.difference balanceOut balanceIn
+        balanceOut <\> balanceIn
     deficitOut =
-        TokenBundle.difference balanceIn balanceOut
+        balanceIn <\> balanceOut
     (balanceIn, balanceOut) =
         computeBalanceInOut params
 
@@ -406,8 +408,8 @@ computeUTxOBalanceSufficiencyInfo params =
         else UTxOBalanceInsufficient
     difference =
         if sufficiency == UTxOBalanceSufficient
-        then TokenBundle.difference available required
-        else TokenBundle.difference required available
+        then available <\> required
+        else required <\> available
 
 -- | Indicates whether or not the UTxO balance is sufficient.
 --
@@ -516,9 +518,9 @@ selectionDeltaAllAssets
     :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
-        SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
+        SelectionSurplus $ balanceIn <\> balanceOut
     | otherwise =
-        SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
+        SelectionDeficit $ balanceOut <\> balanceIn
   where
     balanceIn =
         TokenBundle.fromTokenMap assetsToMint
@@ -675,7 +677,7 @@ mkBalanceInsufficientError utxoBalanceAvailable utxoBalanceRequired =
         }
   where
     utxoBalanceShortfall =
-        TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
+        utxoBalanceRequired <\> utxoBalanceAvailable
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
@@ -1336,7 +1338,7 @@ makeChange criteria
     -- that the total input value is greater than the total output
     -- value:
     excess :: TokenBundle
-    excess = totalInputValue `TokenBundle.difference` totalOutputValue
+    excess = totalInputValue <\> totalOutputValue
 
     (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
