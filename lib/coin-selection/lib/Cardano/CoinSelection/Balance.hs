@@ -756,7 +756,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionResultOf []       ctx
     transformResult r@SelectionResult {..} = r
         { extraCoinSource =
-            transform (`Coin.difference` dummyCoin) (const id) extraCoinSource
+            transform (<\> dummyCoin) (const id) extraCoinSource
         , outputsCovered =
             transform (const []) (const . F.toList) outputsCovered
         }
@@ -1315,7 +1315,7 @@ makeChange criteria
     | otherwise =
         first mkUnableToConstructChangeError $ do
             adaAvailable <- maybeToEither
-                (requiredCost `Coin.difference` excessCoin)
+                (requiredCost <\> excessCoin)
                 (excessCoin `Coin.subtract` requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
@@ -1601,7 +1601,7 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
         _ ->
             -- We don't have enough ada available, and there are no empty token
             -- maps available to drop. We have to give up at this point.
-            Left (adaRequired `Coin.difference` adaAvailable)
+            Left (adaRequired <\> adaAvailable)
 
     adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
 
