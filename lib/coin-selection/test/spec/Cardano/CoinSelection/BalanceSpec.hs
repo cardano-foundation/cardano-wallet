@@ -703,13 +703,13 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "not nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
 
     -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint params /= TokenMap.empty)
+    cover 20 (view #assetsToMint params /= mempty)
         "Have some assets to mint" $
-    cover 20 (view #assetsToBurn params /= TokenMap.empty)
+    cover 20 (view #assetsToBurn params /= mempty)
         "Have some assets to burn" $
-    cover 2 (view #assetsToMint params == TokenMap.empty)
+    cover 2 (view #assetsToMint params == mempty)
         "Have no assets to mint" $
-    cover 2 (view #assetsToBurn params == TokenMap.empty)
+    cover 2 (view #assetsToBurn params == mempty)
         "Have no assets to burn" $
 
     -- Inspect the intersection between minted assets and burned assets:
@@ -1772,9 +1772,9 @@ encodeBoundaryTestCriteria c = SelectionParams
     , extraCoinSink =
         Coin 0
     , assetsToMint =
-        TokenMap.empty
+        mempty
     , assetsToBurn =
-        TokenMap.empty
+        mempty
     , selectionStrategy =
         boundaryTestSelectionStrategy c
     }
@@ -2621,8 +2621,8 @@ prop_makeChange_identity bundles = (===)
             mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
         , inputBundles = bundles
         , outputBundles = bundles
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
+        , assetsToMint = mempty
+        , assetsToBurn = mempty
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
@@ -2707,13 +2707,13 @@ prop_makeChange p =
     checkCoverage $
 
     -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint p /= TokenMap.empty)
+    cover 20 (view #assetsToMint p /= mempty)
         "Have some assets to mint" $
-    cover 20 (view #assetsToBurn p /= TokenMap.empty)
+    cover 20 (view #assetsToBurn p /= mempty)
         "Have some assets to burn" $
-    cover 2 (view #assetsToMint p == TokenMap.empty)
+    cover 2 (view #assetsToMint p == mempty)
         "Have no assets to mint" $
-    cover 2 (view #assetsToBurn p == TokenMap.empty)
+    cover 2 (view #assetsToBurn p == mempty)
         "Have no assets to burn" $
 
     -- Inspect the intersection between minted assets and burned assets:
@@ -2982,8 +2982,8 @@ unit_makeChange =
               , bundleSizeAssessor
               , inputBundles = i
               , outputBundles = o
-              , assetsToMint = TokenMap.empty
-              , assetsToBurn = TokenMap.empty
+              , assetsToMint = mempty
+              , assetsToBurn = mempty
               , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
               , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
               }
@@ -4070,7 +4070,7 @@ prop_addMintValueToChangeMaps_order mint changeMapDiffs =
         $ addMintValueToChangeMaps mint changeMaps
   where
     -- A list of change maps already in ascending partial order
-    changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
+    changeMaps = NE.scanl (<>) mempty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on
@@ -4118,7 +4118,7 @@ prop_removeBurnValueFromChangeMaps_order burn changeMapDiffs =
         $ removeBurnValueFromChangeMaps burn changeMaps
   where
     -- A list of change maps already in ascending partial order
-    changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
+    changeMaps = NE.scanl (<>) mempty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on

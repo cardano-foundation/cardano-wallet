@@ -575,7 +575,7 @@ selectionHasValidSurplus constraints selection =
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
     surplusHasNoNonAdaAssets surplus =
-        view #tokens surplus == TokenMap.empty
+        view #tokens surplus == mempty
 
     -- The surplus must not be less than the minimum cost.
     surplusNotBelowMinimumCost :: TokenBundle -> Bool
@@ -1416,7 +1416,7 @@ makeChange criteria
     changeForUserSpecifiedAssets = F.foldr
         (NE.zipWith (<>)
             . makeChangeForUserSpecifiedAsset outputMaps)
-        (TokenMap.empty <$ outputMaps)
+        (mempty <$ outputMaps)
         excessAssets
 
     -- Change for non-user-specified assets: assets that were not present
@@ -1697,7 +1697,7 @@ makeChangeForNonUserSpecifiedAssets
 makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
-        (TokenMap.empty <$ n)
+        (mempty <$ n)
         (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
