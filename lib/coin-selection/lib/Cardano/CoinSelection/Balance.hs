@@ -166,6 +166,8 @@ import Data.Ord
     ( comparing )
 import Data.Semigroup
     ( mtimesDefault )
+import Data.Semigroup.Cancellative
+    ( Reductive ((</>)) )
 import Data.Set
     ( Set )
 import Fmt
@@ -1316,7 +1318,7 @@ makeChange criteria
         first mkUnableToConstructChangeError $ do
             adaAvailable <- maybeToEither
                 (requiredCost <\> excessCoin)
-                (excessCoin `Coin.subtract` requiredCost)
+                (excessCoin </> requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
