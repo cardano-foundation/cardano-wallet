@@ -360,13 +360,13 @@ computeBalanceInOut params =
   where
     balanceIn =
         TokenBundle.fromTokenMap (view #assetsToMint params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
         TokenBundle.fromTokenMap (view #assetsToBurn params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSink params)
-        `TokenBundle.add`
+        <>
         F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
@@ -522,17 +522,17 @@ selectionDeltaAllAssets result
   where
     balanceIn =
         TokenBundle.fromTokenMap assetsToMint
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin extraCoinSource
-        `TokenBundle.add`
+        <>
         F.foldMap snd inputsSelected
     balanceOut =
         TokenBundle.fromTokenMap assetsToBurn
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin extraCoinSink
-        `TokenBundle.add`
+        <>
         F.foldMap snd outputsCovered
-        `TokenBundle.add`
+        <>
         F.fold changeGenerated
     SelectionResult
         { assetsToMint

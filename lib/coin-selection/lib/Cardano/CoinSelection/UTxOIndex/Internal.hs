@@ -577,7 +577,7 @@ insertUnsafe
     -> UTxOIndex u
     -> UTxOIndex u
 insertUnsafe u b i = i
-    { balance = balance i `W.TokenBundle.add` b
+    { balance = balance i <> b
     , universe = Map.insert u b (universe i)
     , indexAll = insertAssets (indexAll i)
     , indexSingletons = indexSingletons i &

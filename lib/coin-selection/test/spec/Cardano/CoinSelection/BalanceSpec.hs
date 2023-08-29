@@ -2802,9 +2802,7 @@ prop_makeChange_success_delta
     -> Property
 prop_makeChange_success_delta p change =
     let
-        totalOutputWithChange = TokenBundle.add
-            totalOutputValue
-            (F.fold change)
+        totalOutputWithChange = totalOutputValue <> F.fold change
 
         delta = TokenBundle.difference totalInputValue totalOutputWithChange
     in

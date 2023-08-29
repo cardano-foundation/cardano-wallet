@@ -314,7 +314,7 @@ prop_insert_balance u b i =
     checkCoverage_modify u i $
     UTxOIndex.balance (UTxOIndex.insert u b i) === expected
   where
-    expected = b `TokenBundle.add` case UTxOIndex.lookup u i of
+    expected = b <> case UTxOIndex.lookup u i of
         Nothing ->
             UTxOIndex.balance i
         Just b' ->
