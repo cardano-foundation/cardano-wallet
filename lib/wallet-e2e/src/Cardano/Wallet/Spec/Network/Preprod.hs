@@ -62,7 +62,7 @@ nodeWalletSetup stateDir withNetworkConfig = runResourceT do
         NodeCli.queryTip nodeApi >>= \case
             Left (NodeCli.CliErrorExitCode _code _out) ->
                 0.0 <$ putTextLn "Waiting for the node socket ..."
-            Left (NodeCli.CliErrorDecode e _out) -> do
+            Left (NodeCli.CliErrorDecode (_jsonPath, e) _out) -> do
                 putTextLn $ "Failed to decode cardano-cli response: " <> toText e
                 pure 100
             Right tip -> do

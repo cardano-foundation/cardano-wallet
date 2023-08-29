@@ -2,6 +2,8 @@ module Cardano.Wallet.Spec.Network.Wallet.Cli where
 
 import qualified Cardano.Wallet.Spec.Data.Network.NodeStatus as NodeStatus
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Parser as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
@@ -9,7 +11,9 @@ import Cardano.Wallet.Spec.Data.Network.NodeStatus
 import Cardano.Wallet.Spec.Network.Wallet
     ( WalletApi (..) )
 import Data.Aeson
-    ( FromJSON, withObject, (.:) )
+    ( withObject, (.:) )
+import Data.Aeson.Types
+    ( explicitParseField )
 import Data.Time
     ( UTCTime )
 import Prelude hiding
@@ -18,7 +22,7 @@ import System.Process.Typed
     ( ExitCode (..), readProcess, shell )
 
 data Error
-    = CliErrorDecode String LByteString
+    = CliErrorDecode (Aeson.JSONPath, String) LByteString
     | CliErrorExitCode Int LByteString
     deriving stock (Eq, Show)
 
@@ -35,9 +39,11 @@ queryNetworkInformation walletApi = do
                 ]
     case exitCode of
         ExitFailure code -> pure $ Left $ CliErrorExitCode code stderr
-        ExitSuccess -> case Aeson.eitherDecode stdout of
-            Left err -> pure $ Left $ CliErrorDecode err stdout
-            Right tip -> pure $ Right tip
+        ExitSuccess -> do
+            let parser = Aeson.iparse parseNetworkInformation
+            case Aeson.eitherDecodeWith Aeson.value parser stdout of
+                Left err -> pure $ Left $ CliErrorDecode err stdout
+                Right tip -> pure $ Right tip
 
 --------------------------------------------------------------------------------
 -- Data types ------------------------------------------------------------------
@@ -53,13 +59,14 @@ data NetworkInformation = NetworkInformation
     }
     deriving stock (Eq, Show)
 
-instance FromJSON NetworkInformation where
-    parseJSON = withObject "NetworkInformation" \o -> do
-        networkInfo <- o .: "network_info"
-        networkTip <- o .: "network_tip"
-        nextEpoch <- o .: "next_epoch"
+parseNetworkInformation :: Aeson.Value -> Aeson.Parser NetworkInformation
+parseNetworkInformation =
+    withObject "NetworkInformation" \o -> do
+        networkInfo <- explicitParseField parseNetworkInfo o "network_info"
+        networkTip <- explicitParseField parseNetworkTip o "network_tip"
+        nextEpoch <- explicitParseField parseNextEpoch o "next_epoch"
         nodeEra <- o .: "node_era"
-        nodeTip <- o .: "node_tip"
+        nodeTip <- explicitParseField parseNodeTip o "node_tip"
         syncProgress <- o .: "sync_progress"
         syncStatus <- withObject "sync_progress" (.: "status") syncProgress
         nodeStatus <-
@@ -75,11 +82,11 @@ data NetworkInfo = NetworkInfo
     }
     deriving stock (Eq, Show)
 
-instance FromJSON NetworkInfo where
-    parseJSON = withObject "NetworkInfo" \o -> do
-        networkId <- o .: "network_id"
-        protocolMagic <- o .: "protocol_magic"
-        pure NetworkInfo{..}
+parseNetworkInfo :: Aeson.Value -> Aeson.Parser NetworkInfo
+parseNetworkInfo = withObject "NetworkInfo" \o -> do
+    networkId <- o .: "network_id"
+    protocolMagic <- o .: "protocol_magic"
+    pure NetworkInfo{..}
 
 data NetworkTip = NetworkTip
     { absoluteSlotNumber :: Natural
@@ -89,13 +96,13 @@ data NetworkTip = NetworkTip
     }
     deriving stock (Eq, Show)
 
-instance FromJSON NetworkTip where
-    parseJSON = withObject "NetworkTip" \o -> do
-        absoluteSlotNumber <- o .: "absolute_slot_number"
-        epochNumber <- o .: "epoch_number"
-        slotNumber <- o .: "slot_number"
-        time <- o .: "time"
-        pure NetworkTip{..}
+parseNetworkTip :: Aeson.Value -> Aeson.Parser NetworkTip
+parseNetworkTip = withObject "NetworkTip" \o -> do
+    absoluteSlotNumber <- o .: "absolute_slot_number"
+    epochNumber <- o .: "epoch_number"
+    slotNumber <- o .: "slot_number"
+    time <- o .: "time"
+    pure NetworkTip{..}
 
 data NextEpoch = NextEpoch
     { nextEpochNumber :: Natural
@@ -103,11 +110,11 @@ data NextEpoch = NextEpoch
     }
     deriving stock (Eq, Show)
 
-instance FromJSON NextEpoch where
-    parseJSON = withObject "NextEpoch" \o -> do
-        nextEpochNumber <- o .: "epoch_number"
-        nextEpochStartTime <- o .: "epoch_start_time"
-        pure NextEpoch{..}
+parseNextEpoch :: Aeson.Value -> Aeson.Parser NextEpoch
+parseNextEpoch = withObject "NextEpoch" \o -> do
+    nextEpochNumber <- o .: "epoch_number"
+    nextEpochStartTime <- o .: "epoch_start_time"
+    pure NextEpoch{..}
 
 data NodeTip = NodeTip
     { nodeTipAbsoluteSlotNumber :: Natural
@@ -118,14 +125,14 @@ data NodeTip = NodeTip
     }
     deriving stock (Eq, Show)
 
-instance FromJSON NodeTip where
-    parseJSON = withObject "NodeTip" \o -> do
-        nodeTipAbsoluteSlotNumber <- o .: "absolute_slot_number"
-        nodeTipEpochNumber <- o .: "epoch_number"
-        nodeTipHeight <- o .: "height"
-        nodeTipSlotNumber <- o .: "slot_number"
-        nodeTipTime <- o .: "time"
-        pure NodeTip{..}
+parseNodeTip :: Aeson.Value -> Aeson.Parser NodeTip
+parseNodeTip = withObject "NodeTip" \o -> do
+    nodeTipAbsoluteSlotNumber <- o .: "absolute_slot_number"
+    nodeTipEpochNumber <- o .: "epoch_number"
+    nodeTipHeight <- explicitParseField parseTipHeight o "height"
+    nodeTipSlotNumber <- o .: "slot_number"
+    nodeTipTime <- o .: "time"
+    pure NodeTip{..}
 
 data TipHeight = TipHeight
     { tipHeightQuantity :: Natural
@@ -133,8 +140,8 @@ data TipHeight = TipHeight
     }
     deriving stock (Eq, Show)
 
-instance FromJSON TipHeight where
-    parseJSON = withObject "TipHeight" \o -> do
-        tipHeightQuantity <- o .: "quantity"
-        tipHeightUnit <- o .: "unit"
-        pure TipHeight{..}
+parseTipHeight :: Aeson.Value -> Aeson.Parser TipHeight
+parseTipHeight = withObject "TipHeight" \o -> do
+    tipHeightQuantity <- o .: "quantity"
+    tipHeightUnit <- o .: "unit"
+    pure TipHeight{..}

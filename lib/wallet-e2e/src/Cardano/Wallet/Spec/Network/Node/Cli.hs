@@ -1,12 +1,14 @@
 module Cardano.Wallet.Spec.Network.Node.Cli where
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Parser as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
 import Cardano.Wallet.Spec.Network.Node
     ( NodeApi, nodeApiSocket )
 import Data.Aeson
-    ( FromJSON, withObject, (.:) )
+    ( withObject, (.:) )
 import Path
     ( toFilePath )
 import Prelude hiding
@@ -26,22 +28,22 @@ data NodeTip = NodeTip
     }
     deriving stock (Eq, Show, Generic)
 
-instance FromJSON NodeTip where
-    parseJSON = withObject "NodeTip" \o -> do
-        block <- o .: "block"
-        epoch <- o .: "epoch"
-        era <- o .: "era"
-        hash <- o .: "hash"
-        slot <- o .: "slot"
-        slotInEpoch <- o .: "slotInEpoch"
-        slotsToEpochEnd <- o .: "slotsToEpochEnd"
-        syncProgress <-
-            o .: "syncProgress" >>= either (fail . toString) pure . readEither
-        pure NodeTip{..}
+parseNodeTip :: Aeson.Value -> Aeson.Parser NodeTip
+parseNodeTip = withObject "NodeTip" \o -> do
+    block <- o .: "block"
+    epoch <- o .: "epoch"
+    era <- o .: "era"
+    hash <- o .: "hash"
+    slot <- o .: "slot"
+    slotInEpoch <- o .: "slotInEpoch"
+    slotsToEpochEnd <- o .: "slotsToEpochEnd"
+    syncProgress <-
+        o .: "syncProgress" >>= either (fail . toString) pure . readEither
+    pure NodeTip{..}
 
 data CliError
     = CliErrorExitCode Int LByteString
-    | CliErrorDecode String LByteString
+    | CliErrorDecode (Aeson.JSONPath, String) LByteString
     deriving stock (Eq, Show)
 
 queryTip :: NodeApi -> IO (Either CliError NodeTip)
@@ -58,7 +60,10 @@ queryTip nodeApi = do
                 , toFilePath (nodeApiSocket nodeApi)
                 ]
     case exitCode of
-        ExitFailure code -> pure $ Left $ CliErrorExitCode code stderr
-        ExitSuccess -> case Aeson.eitherDecode stdout of
-            Left err -> pure $ Left $ CliErrorDecode err stdout
-            Right tip -> pure $ Right tip
+        ExitFailure code ->
+            pure $ Left $ CliErrorExitCode code stderr
+        ExitSuccess -> do
+            let parser = Aeson.iparse parseNodeTip
+            case Aeson.eitherDecodeWith Aeson.value parser stdout of
+                Left err -> pure $ Left $ CliErrorDecode err stdout
+                Right tip -> pure $ Right tip
