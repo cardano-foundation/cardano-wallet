@@ -2775,7 +2775,7 @@ prop_makeChange p =
 
     someAssetsAreMintedButNotSpentOrBurned :: Bool
         = TokenMap.isNotEmpty
-        $ assetsMinted `TokenMap.difference` assetsSpentOrBurned
+        $ assetsMinted <\> assetsSpentOrBurned
       where
         assetsMinted =
             view #assetsToMint p
@@ -4091,7 +4091,7 @@ prop_removeBurnValueFromChangeMaps_value
     -> NonEmpty TokenMap
     -> Property
 prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
-    F.fold changeMaps `TokenMap.difference` TokenMap.singleton assetId qty
+    F.fold changeMaps <\> TokenMap.singleton assetId qty
     ===
     F.fold (removeBurnValueFromChangeMaps (assetId, qty) changeMaps)
 
