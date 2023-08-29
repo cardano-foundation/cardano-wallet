@@ -3343,10 +3343,11 @@ prop_balanceTransactionValid
         -> Write.UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
+        let era = recentEra @era
         let (TxSize size) =
-                estimateSignedTxSize ledgerPParams
+                estimateSignedTxSize era ledgerPParams
                     (estimateKeyWitnessCount utxo body)
-                    body
+                    (Write.fromCardanoTx tx)
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
@@ -3736,29 +3737,57 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> ByteString
         -> Cardano.Tx era
         -> IO ()
-    test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
+    test _name bs cTx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
-            utxo = utxoPromisingInputsHaveVkPaymentCreds body
-            witCount = estimateKeyWitnessCount (Write.fromCardanoUTxO utxo) body
+            witCount dummyAddr = estimateKeyWitnessCount
+                (Write.fromCardanoUTxO
+                    $ utxoPromisingInputsHaveAddress dummyAddr body)
+                body
+            era = recentEra @era
 
-            ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
-            ledgerTx = Write.fromCardanoTx @era tx
+            tx :: Write.Tx (Write.ShelleyLedgerEra era)
+            tx = Write.fromCardanoTx @era cTx
 
             noScripts = Write.withConstraints (recentEra @era) $
-                Map.null $ ledgerTx ^. witsTxL . scriptTxWitsL
+                Map.null $ tx ^. witsTxL . scriptTxWitsL
             noBootWits = Write.withConstraints (recentEra @era) $
-                Set.null $ ledgerTx ^. witsTxL . bootAddrTxWitsL
+                Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
+            signedBinarySize = TxSize $ fromIntegral $ BS.length bs
+
         case (noScripts, noBootWits) of
                 (True, True) -> do
-                    estimateSignedTxSize pparams witCount body
-                        `shouldBe`
-                        TxSize (fromIntegral (BS.length bs))
-                (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
-                (True, False) -> testDoesNotYetSupport "bootstrap wits"
+                    estimateSignedTxSize era pparams (witCount vkCredAddr) tx
+                        `shouldBeInclusivelyWithin`
+                        ( signedBinarySize - correction
+                        , signedBinarySize
+                        )
+                (False, False) ->
+                    testDoesNotYetSupport "bootstrap wits + scripts"
+                (True, False) ->
+                    estimateSignedTxSize era pparams (witCount bootAddr) tx
+                        `shouldBeInclusivelyWithin`
+                        ( signedBinarySize - correction
+                        , signedBinarySize + bootWitsCanBeLongerBy
+                        )
                 (False, True) -> testDoesNotYetSupport "scripts"
+      where
+        -- Apparently the cbor encoding used by the ledger for size checks
+        -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
+        -- serialized size for these goldens.
+        correction = TxSize 6
+
+    -- | Checks for membership in the given closed interval [a, b]
+    x `shouldBeInclusivelyWithin` (a, b) =
+        if a <= x && x <= b
+        then pure ()
+        else expectationFailure $ unwords
+            [ show x
+            , "not in the expected interval"
+            , "[" <> show a <> ", " <> show b <> "]"
+            ]
 
     forAllGoldens
         :: [(String, ByteString)]
@@ -3782,17 +3811,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     -- keep tese tests working, we can create a UTxO with dummy values as long
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
     -- outputs with vk payment credentials.
-    utxoPromisingInputsHaveVkPaymentCreds
-        :: forall era. HasCallStack
-        => Cardano.IsShelleyBasedEra era
-        => Cardano.TxBody era
+    utxoPromisingInputsHaveAddress
+        :: forall era. (HasCallStack, Cardano.IsShelleyBasedEra era)
+        => Address
+        -> Cardano.TxBody era
         -> Cardano.UTxO era
-    utxoPromisingInputsHaveVkPaymentCreds (Cardano.TxBody body) =
+    utxoPromisingInputsHaveAddress addr (Cardano.TxBody body) =
         Cardano.UTxO $ Map.fromList $
             [ (i
                , Compatibility.toCardanoTxOut
                      (shelleyBasedEra @era)
-                     (TxOut paymentAddr mempty)
+                     (TxOut addr mempty)
                )
             | i <- allTxIns body
             ]
@@ -3805,8 +3834,25 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
                 Cardano.TxInsCollateralNone -> []
             ins = Cardano.txIns body
 
-        paymentAddr = Address $ unsafeFromHex
-            "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
+    -- An address with a vk payment credential. For the test above, this is the
+    -- only aspect which matters.
+    vkCredAddr = Address $ unsafeFromHex
+        "6000000000000000000000000000000000000000000000000000000000"
+
+    -- This is a short bootstrap address retrieved from
+    -- "byron-address-format.md".
+    bootAddr = Address $ unsafeFromHex
+        "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
+
+    -- With more attributes, the address can be longer. This value was chosen
+    -- /experimentally/ to make the tests pass. The ledger has been validating
+    -- new outputs with bootstrap addresses have attributes not larger than 64
+    -- bytes. The ledger has done so since the middle of the Byron era.
+    -- Address attributes are included in the bootstrap witnesses.
+    --
+    -- NOTE: If we had access to the real UTxO set for the inputs of the test
+    -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
+    bootWitsCanBeLongerBy = TxSize 45
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a

@@ -1,4 +1,3 @@
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -28,15 +27,20 @@ module Cardano.Wallet.Write.Tx.Sign
 import Prelude
 
 import Cardano.Ledger.Api
-    ( Addr (..), addrTxOutL, ppMinFeeAL )
+    ( Addr (..)
+    , addrTxOutL
+    , addrTxWitsL
+    , bootAddrTxWitsL
+    , ppMinFeeAL
+    , sizeTxF
+    , witsTxL
+    )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( sealedTxFromCardanoBody, serialisedTx )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -44,14 +48,16 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
+    , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
+    , Tx
     , TxIn
     , UTxO
     , withConstraints
     )
 import Control.Lens
-    ( view, (^.) )
+    ( view, (&), (.~), (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Numeric.Natural
@@ -66,19 +72,20 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
 
 -- | Estimate the size of the transaction when fully signed.
+--
+-- NOTE: Existing key witnesses in the tx are ignored.
 estimateSignedTxSize
-    :: forall era. Write.IsRecentEra era
-    => Write.PParams (Write.ShelleyLedgerEra era)
+    :: forall era. RecentEra era
+    -> PParams (ShelleyLedgerEra era)
     -> KeyWitnessCount
-    -> Cardano.TxBody era
+    -> Tx (ShelleyLedgerEra era) -- ^ existing wits in tx are ignored
     -> TxSize
-estimateSignedTxSize pparams nWits body =
+estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     let
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -100,32 +107,30 @@ estimateSignedTxSize pparams nWits body =
                     , show feePerByte
                     , "lovelace/byte"
                     ]
+
         sizeOfTx :: TxSize
-        sizeOfTx = TxSize
-            . fromIntegral
-            . BS.length
-            . serialisedTx
-            $ sealedTxFromCardanoBody body
+        sizeOfTx = withConstraints era
+            $ fromIntegral @Integer @TxSize
+            $ unsignedTx ^. sizeTxF
     in
         sizeOfTx <> sizeOfWits
   where
+    unsignedTx :: Tx (ShelleyLedgerEra era)
+    unsignedTx = withConstraints era $
+        txWithWits
+            & (witsTxL . addrTxWitsL) .~ mempty
+            & (witsTxL . bootAddrTxWitsL) .~ mempty
+
     coinQuotRem :: W.Coin -> W.Coin -> (Natural, Natural)
     coinQuotRem (W.Coin p) (W.Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> W.Coin
     minfee witCount = toWalletCoin $ Write.evaluateMinimumFee
-        (recentEra @era) pparams (toLedgerTx body) witCount
-
-    toLedgerTx :: Cardano.TxBody era -> Write.Tx (Write.ShelleyLedgerEra era)
-    toLedgerTx b = case Cardano.Tx b [] of
-        Byron.ByronTx {} -> case Write.recentEra @era of {}
-        Cardano.ShelleyTx _era ledgerTx -> ledgerTx
+        era pparams unsignedTx witCount
 
     feePerByte :: W.Coin
-    feePerByte = Ledger.toWalletCoin $
-        case Write.recentEra @era of
-            Write.RecentEraBabbage -> pparams ^. ppMinFeeAL
-            Write.RecentEraConway -> pparams ^. ppMinFeeAL
+    feePerByte = withConstraints era $ Ledger.toWalletCoin $
+        pparams ^. ppMinFeeAL
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0

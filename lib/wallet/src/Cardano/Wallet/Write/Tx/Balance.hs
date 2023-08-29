@@ -684,12 +684,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: KeyWitnessCount
         -> Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) =
-        withConstraints (recentEra @era) $ do
+    guardTxSize witCount cardanoTx =
+        withConstraints era $ do
+            let tx = fromCardanoTx cardanoTx
             let maxSize = TxSize (pp ^. ppMaxTxSizeL)
-            when (estimateSignedTxSize pp witCount body > maxSize) $
+            when (estimateSignedTxSize era pp witCount tx > maxSize) $
                 throwE ErrBalanceTxMaxSizeLimitExceeded
-            pure tx
+            pure cardanoTx
 
     guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxBalanced tx = do
@@ -701,8 +702,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
         = toCardanoValue @era
-        . evaluateTransactionBalance (recentEra @era) pp combinedUTxO
-        . txBody (recentEra @era)
+        . evaluateTransactionBalance era pp combinedUTxO
+        . txBody era
         . fromCardanoTx
 
     balanceAfterSettingMinFee
@@ -712,7 +713,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
             minfee = W.toWalletCoin $ evaluateMinimumFee
-                (recentEra @era) pp (fromCardanoTx tx) witCount
+                era pp (fromCardanoTx tx) witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
@@ -758,14 +759,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          ]
 
     extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
-    extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
+    extractOutputsFromTx (Cardano.ByronTx _) = case era of {}
     extractOutputsFromTx (Cardano.ShelleyTx _ tx) =
         map fromLedgerTxOut
-        $ outputs (recentEra @era)
-        $ txBody (recentEra @era) tx
+        $ outputs era
+        $ txBody era tx
       where
         fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
-        fromLedgerTxOut o = case recentEra @era of
+        fromLedgerTxOut o = case era of
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
