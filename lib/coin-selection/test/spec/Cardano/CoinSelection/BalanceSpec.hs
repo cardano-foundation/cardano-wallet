@@ -3846,7 +3846,7 @@ prop_splitBundlesWithExcessiveAssetCounts_sum
 prop_splitBundlesWithExcessiveTokenQuantities_length
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
 prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
-    maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
+    maxQuantityAllowed > mempty ==> checkCoverage $ property $
         cover 5 (lengthOutput > lengthInput)
             "length has increased" $
         cover 5 (lengthOutput == lengthInput)
@@ -3875,7 +3875,7 @@ prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
 prop_splitBundlesWithExcessiveTokenQuantities_sum
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
 prop_splitBundlesWithExcessiveTokenQuantities_sum ms maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
+    maxQuantity > mempty ==>
         F.fold (splitBundlesWithExcessiveTokenQuantities ms maxQuantity)
             === F.fold ms
 
@@ -4162,7 +4162,7 @@ prop_reduceTokenQuantities_order reduceQty qtyDiffs =
     inAscendingOrder xs = NE.sort xs == xs
 
     -- A list of quantities already in ascending order.
-    qtys = NE.scanl (<>) TokenQuantity.zero qtyDiffs
+    qtys = NE.scanl (<>) mempty qtyDiffs
 
 --------------------------------------------------------------------------------
 -- Utility functions
