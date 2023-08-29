@@ -1,8 +1,13 @@
-module Cardano.Wallet.Spec.Network.Local where
+module Cardano.Wallet.Spec.Network.Local
+    ( nodeWalletSetup
+    ) where
 
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig )
+    ( NetworkConfig (..) )
+import Path
+    ( Abs, Dir, Path )
 
-nodeWalletSetup :: (NetworkConfig -> IO ()) -> IO ()
-nodeWalletSetup f = do
-    f ()
+nodeWalletSetup :: Path Abs Dir -> (NetworkConfig -> IO ()) -> IO ()
+nodeWalletSetup _stateDir withNetworkConfig = do
+    putTextLn "TODO: implement nodeWalletSetup for a local test cluster"
+    withNetworkConfig NetworkConfig{networkConfigWallet = error "TODO"}
