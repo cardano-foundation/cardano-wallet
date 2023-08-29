@@ -20,6 +20,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.BM.Trace
@@ -74,12 +76,10 @@ import Cardano.Wallet.Launch.Cluster
     , withCluster
     , withSMASH
     )
-import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Options
-    ( SkipCleanup (..), envFromText, isEnvSet, withSystemTempDir )
+    ( envFromText, isEnvSet )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -128,6 +128,8 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec.Core.Spec
     ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra

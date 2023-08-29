@@ -27,6 +27,8 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Extra
+    ( trMessage, transformTextTrace )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.BM.Trace
@@ -83,8 +85,6 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.CLI
     ( networkConfigurationOption, nodeSocketOption )
-import Cardano.Wallet.Logging
-    ( trMessage, transformTextTrace )
 import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Primitive.Types

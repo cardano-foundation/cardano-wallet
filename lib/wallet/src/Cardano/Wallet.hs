@@ -248,6 +248,14 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( BracketLog
+    , BracketLog' (..)
+    , bracketTracer
+    , formatResultMsg
+    , resultSeverity
+    , traceResult
+    )
 import Cardano.Crypto.Wallet
     ( toXPub )
 import Cardano.Mnemonic
@@ -371,14 +379,6 @@ import Cardano.Wallet.Flavor
     , WalletFlavors (..)
     , keyFlavorFromState
     , keyOfWallet
-    )
-import Cardano.Wallet.Logging
-    ( BracketLog
-    , BracketLog' (..)
-    , bracketTracer
-    , formatResultMsg
-    , resultSeverity
-    , traceResult
     )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)

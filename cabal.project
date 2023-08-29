@@ -63,16 +63,18 @@ packages:
   , lib/delta-store/
   , lib/delta-table
   , lib/delta-types/
+  , lib/iohk-monitoring-extra/
   , lib/launcher/
   , lib/local-cluster/
   , lib/numeric/
   , lib/primitive/
   , lib/read
+  , lib/temporary-extra/
   , lib/test-utils/
   , lib/text-class/
   , lib/wai-middleware-logging/
-  , lib/wallet/
   , lib/wallet-benchmarks/
+  , lib/wallet/
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.

@@ -77,7 +77,7 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
-import Cardano.Wallet.Logging
+import Cardano.BM.Extra
     ( BracketLog
     , BracketLog' (..)
     , LoggedException (..)

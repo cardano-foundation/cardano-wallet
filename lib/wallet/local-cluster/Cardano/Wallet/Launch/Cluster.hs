@@ -89,6 +89,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( BracketLog, bracketTracer )
 import Cardano.CLI.Shelley.Key
     ( VerificationKeyOrFile (..), readVerificationKeyOrFile )
 import Cardano.Launcher
@@ -138,12 +140,10 @@ import Cardano.Wallet.Address.Derivation
     ( hex )
 import Cardano.Wallet.Address.Encoding
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Options
-    ( TempDirLog, lookupEnvNonEmpty )
+    ( lookupEnvNonEmpty )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -230,6 +230,8 @@ import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
     ( (<.>), (</>) )
+import System.IO.Temp.Extra
+    ( TempDirLog )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process.Typed

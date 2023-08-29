@@ -34,6 +34,8 @@ import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
@@ -47,8 +49,6 @@ import Cardano.Launcher.Node
     )
 import Cardano.Startup
     ( installSignalHandlers )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
 import Control.DeepSeq

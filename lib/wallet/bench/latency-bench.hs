@@ -18,6 +18,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( contramap, nullTracer )
+import Cardano.BM.Extra
+    ( trMessage )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.CLI
@@ -60,12 +62,10 @@ import Cardano.Wallet.Launch.Cluster
     , defaultPoolConfigs
     , withCluster
     )
-import Cardano.Wallet.Logging
-    ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Options
-    ( SkipCleanup (..), isEnvSet, withSystemTempDir )
+    ( isEnvSet )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.NetworkId
@@ -115,6 +115,8 @@ import System.Directory
     ( createDirectory )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Framework.DSL

@@ -40,10 +40,10 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( LoggedException (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
-import Cardano.Wallet.Logging
-    ( LoggedException (..) )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class

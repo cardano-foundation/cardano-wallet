@@ -16,7 +16,7 @@
 --
 -- This module contains utility functions for logging and mapping trace data.
 
-module Cardano.Wallet.Logging
+module Cardano.BM.Extra
     ( -- * Conversions from BM framework
       trMessage
     , trMessageText

@@ -48,6 +48,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Launcher.Node
@@ -104,8 +106,6 @@ import Cardano.Wallet.Flavor
     , WalletFlavor (..)
     , keyFlavorFromState
     )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower (..)

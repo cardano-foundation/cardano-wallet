@@ -15,6 +15,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( stdoutTextTracer, trMessageText )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.CLI
@@ -51,10 +53,8 @@ import Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , withCluster
     )
-import Cardano.Wallet.Logging
-    ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Options
-    ( SkipCleanup (..), envFromText, isEnvSet, withSystemTempDir )
+    ( envFromText, isEnvSet )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -85,6 +85,8 @@ import System.Directory
     ( createDirectory )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T

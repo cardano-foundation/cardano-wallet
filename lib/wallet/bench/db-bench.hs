@@ -58,6 +58,8 @@ import Cardano.BM.Data.Trace
     ( Trace )
 import Cardano.BM.Data.Tracer
     ( Tracer, filterSeverity )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
@@ -103,8 +105,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..), WalletFlavor (..) )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.NetworkId
