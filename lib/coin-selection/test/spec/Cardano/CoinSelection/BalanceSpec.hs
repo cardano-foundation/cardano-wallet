@@ -762,9 +762,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
-        view #assetsToMint params `leq` TokenMap.add
-            (view #assetsToBurn params)
-            (assetsSpentByUserSpecifiedOutputs)
+        view #assetsToMint params `leq`
+            (view #assetsToBurn params <> assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothMintedAndBurned :: Bool
     someAssetsAreBothMintedAndBurned
