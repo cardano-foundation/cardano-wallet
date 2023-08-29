@@ -4135,7 +4135,7 @@ prop_removeBurnValuesFromChangeMaps burns changeMaps =
 prop_reduceTokenQuantities_value
     :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_reduceTokenQuantities_value reduceQty qtys =
-    F.fold qtys `TokenQuantity.difference` reduceQty
+    F.fold qtys <\> reduceQty
     ===
     F.fold (reduceTokenQuantities reduceQty qtys)
 

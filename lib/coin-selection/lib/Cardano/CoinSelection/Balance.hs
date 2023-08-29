@@ -1963,8 +1963,8 @@ reduceTokenQuantities reductionTarget quantities =
         | x >= b = reverse ys <> (x' : xs)
         | otherwise = burn b' xs (x' : ys)
       where
-        b' = b `TokenQuantity.difference` x
-        x' = x `TokenQuantity.difference` b
+        b' = b <\> x
+        x' = x <\> b
 
 -- | Removes burned values for multiple assets from a list of change maps.
 --
