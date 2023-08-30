@@ -64,8 +64,6 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
-import Cardano.Wallet.Options
-    ( isEnvSet )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.NetworkId
@@ -113,6 +111,8 @@ import Ouroboros.Network.Client.Wallet
 import Prelude
 import System.Directory
     ( createDirectory )
+import System.Environment.Extended
+    ( isEnvSet )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp.Extra

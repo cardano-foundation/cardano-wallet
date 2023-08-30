@@ -27,7 +27,7 @@ library
 
   exposed-modules:
     Cardano.Wallet.Network.Ports
-    Cardano.Wallet.Options
+    System.Environment.Extended
 
   hs-source-dirs:     lib
   build-depends:

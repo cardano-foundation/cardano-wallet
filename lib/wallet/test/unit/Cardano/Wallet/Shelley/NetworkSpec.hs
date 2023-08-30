@@ -25,8 +25,6 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Options
-    ( isEnvSet )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +47,8 @@ import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
+import System.Environment.Extended
+    ( isEnvSet )
 import System.IO.Temp.Extra
     ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec

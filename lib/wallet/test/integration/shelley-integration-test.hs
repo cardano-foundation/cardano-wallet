@@ -78,8 +78,6 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
-import Cardano.Wallet.Options
-    ( envFromText, isEnvSet )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -126,6 +124,8 @@ import System.Directory
     ( createDirectory )
 import System.Environment
     ( setEnv )
+import System.Environment.Extended
+    ( envFromText, isEnvSet )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp.Extra

@@ -53,8 +53,6 @@ import Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , withCluster
     )
-import Cardano.Wallet.Options
-    ( envFromText, isEnvSet )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -83,6 +81,8 @@ import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import System.Directory
     ( createDirectory )
+import System.Environment.Extended
+    ( envFromText, isEnvSet )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp.Extra
