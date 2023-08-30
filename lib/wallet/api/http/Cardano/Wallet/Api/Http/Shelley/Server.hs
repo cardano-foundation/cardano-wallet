@@ -2520,6 +2520,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
+                        Right (ApiMintBurnDataFromInput
+                            refInp
+                            (ApiT policyId)
+                            (Just (ApiT tName))
+                            (ApiMint (ApiMintData _ amt))) ->
+                            (AssetId policyId tName, TokenQuantity amt, Right refInp)
                         _ -> error "getMinting should not be used in this way"
                     getBurning mb = case mb ^. #mintBurnData of
                         Left (ApiMintBurnDataFromScript
@@ -2532,6 +2538,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
+                        Right (ApiMintBurnDataFromInput
+                            refInp
+                            (ApiT policyId)
+                            (Just (ApiT tName))
+                            (ApiBurn (ApiBurnData amt))) ->
+                            (AssetId policyId tName, TokenQuantity amt, Right refInp)
                         _ -> error "getBurning should not be used in this way"
                     toTokenMap =
                         fromFlatList .
