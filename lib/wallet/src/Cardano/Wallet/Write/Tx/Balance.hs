@@ -273,7 +273,7 @@ data ErrBalanceTxInsufficientCollateralError =
     ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: W.UTxO
         -- ^ The largest available combination of pure ada UTxOs.
-    , minimumSelectionAmount :: W.Coin
+    , minimumCollateralAmount :: W.Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
     deriving (Eq, Generic, Show)
@@ -1419,7 +1419,8 @@ coinSelectionErrorToBalanceTxError = \case
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
-            , minimumSelectionAmount
+            , minimumCollateralAmount
+                = minimumSelectionAmount
             }
 
 --------------------------------------------------------------------------------
