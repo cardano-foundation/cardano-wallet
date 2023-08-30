@@ -2772,6 +2772,13 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     assets = fromFlatList [(assetId, tokenQuantity)]
                 in
                 (addr, assets)
+        Right (ApiMintBurnDataFromInput _ (ApiT policyId) (Just (ApiT tName))
+            (ApiMint (ApiMintData (Just addr) amt))) ->
+                let assetId = AssetId policyId tName
+                    tokenQuantity = TokenQuantity amt
+                    assets = fromFlatList [(assetId, tokenQuantity)]
+                in
+                (addr, assets)
         _ -> error $ unwords
             [ "toMintTxOut can only be used in the minting context with addr"
             , "specified"
