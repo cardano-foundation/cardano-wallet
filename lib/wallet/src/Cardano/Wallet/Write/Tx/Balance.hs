@@ -870,16 +870,9 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     performSelection'
         :: Either ErrBalanceTx Selection
     performSelection'
-        = left mapErrors
+        = left coinSelectionErrorToBalanceTxError
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
-      where
-        mapErrors :: SelectionError WalletSelectionContext -> ErrBalanceTx
-        mapErrors = ErrBalanceTxSelectAssets . \case
-            SelectionBalanceErrorOf x ->
-                ErrSelectAssetsBalanceError x
-            SelectionCollateralErrorOf x ->
-                ErrSelectAssetsCollateralError x
 
     selectionConstraints = SelectionConstraints
         { tokenBundleSizeAssessor =
@@ -1394,6 +1387,17 @@ toWalletTxOut
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
+
+-- | Maps an error from the coin selection API to a balanceTx error.
+--
+coinSelectionErrorToBalanceTxError
+    :: SelectionError WalletSelectionContext
+    -> ErrBalanceTx
+coinSelectionErrorToBalanceTxError = ErrBalanceTxSelectAssets . \case
+    SelectionBalanceErrorOf x ->
+        ErrSelectAssetsBalanceError x
+    SelectionCollateralErrorOf x ->
+        ErrSelectAssetsCollateralError x
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs
