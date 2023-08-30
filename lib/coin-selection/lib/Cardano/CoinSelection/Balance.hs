@@ -160,10 +160,14 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Ord
     ( comparing )
 import Data.Semigroup
     ( mtimesDefault )
+import Data.Semigroup.Cancellative
+    ( Reductive ((</>)) )
 import Data.Set
     ( Set )
 import Fmt
@@ -360,13 +364,13 @@ computeBalanceInOut params =
   where
     balanceIn =
         TokenBundle.fromTokenMap (view #assetsToMint params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
         TokenBundle.fromTokenMap (view #assetsToBurn params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSink params)
-        `TokenBundle.add`
+        <>
         F.foldMap snd (view #outputsToCover params)
 
 computeDeficitInOut
@@ -375,9 +379,9 @@ computeDeficitInOut params =
     (deficitIn, deficitOut)
   where
     deficitIn =
-        TokenBundle.difference balanceOut balanceIn
+        balanceOut <\> balanceIn
     deficitOut =
-        TokenBundle.difference balanceIn balanceOut
+        balanceIn <\> balanceOut
     (balanceIn, balanceOut) =
         computeBalanceInOut params
 
@@ -406,8 +410,8 @@ computeUTxOBalanceSufficiencyInfo params =
         else UTxOBalanceInsufficient
     difference =
         if sufficiency == UTxOBalanceSufficient
-        then TokenBundle.difference available required
-        else TokenBundle.difference required available
+        then available <\> required
+        else required <\> available
 
 -- | Indicates whether or not the UTxO balance is sufficient.
 --
@@ -516,23 +520,23 @@ selectionDeltaAllAssets
     :: Foldable f => SelectionResultOf f ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
-        SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
+        SelectionSurplus $ balanceIn <\> balanceOut
     | otherwise =
-        SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
+        SelectionDeficit $ balanceOut <\> balanceIn
   where
     balanceIn =
         TokenBundle.fromTokenMap assetsToMint
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin extraCoinSource
-        `TokenBundle.add`
+        <>
         F.foldMap snd inputsSelected
     balanceOut =
         TokenBundle.fromTokenMap assetsToBurn
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin extraCoinSink
-        `TokenBundle.add`
+        <>
         F.foldMap snd outputsCovered
-        `TokenBundle.add`
+        <>
         F.fold changeGenerated
     SelectionResult
         { assetsToMint
@@ -571,7 +575,7 @@ selectionHasValidSurplus constraints selection =
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
     surplusHasNoNonAdaAssets surplus =
-        view #tokens surplus == TokenMap.empty
+        view #tokens surplus == mempty
 
     -- The surplus must not be less than the minimum cost.
     surplusNotBelowMinimumCost :: TokenBundle -> Bool
@@ -675,7 +679,7 @@ mkBalanceInsufficientError utxoBalanceAvailable utxoBalanceRequired =
         }
   where
     utxoBalanceShortfall =
-        TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
+        utxoBalanceRequired <\> utxoBalanceAvailable
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
@@ -744,7 +748,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf NonEmpty ctx
     transformParams p@SelectionParams {..} = p
         { extraCoinSource =
-            transform (`Coin.add` dummyCoin) (const id) extraCoinSource
+            transform (<> dummyCoin) (const id) extraCoinSource
         , outputsToCover =
             transform (const (dummyOutput :| [])) (const . id) outputsToCover
         }
@@ -754,7 +758,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionResultOf []       ctx
     transformResult r@SelectionResult {..} = r
         { extraCoinSource =
-            transform (`Coin.difference` dummyCoin) (const id) extraCoinSource
+            transform (<\> dummyCoin) (const id) extraCoinSource
         , outputsCovered =
             transform (const []) (const . F.toList) outputsCovered
         }
@@ -1313,8 +1317,8 @@ makeChange criteria
     | otherwise =
         first mkUnableToConstructChangeError $ do
             adaAvailable <- maybeToEither
-                (requiredCost `Coin.difference` excessCoin)
-                (excessCoin `Coin.subtract` requiredCost)
+                (requiredCost <\> excessCoin)
+                (excessCoin </> requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
@@ -1336,7 +1340,7 @@ makeChange criteria
     -- that the total input value is greater than the total output
     -- value:
     excess :: TokenBundle
-    excess = totalInputValue `TokenBundle.difference` totalOutputValue
+    excess = totalInputValue <\> totalOutputValue
 
     (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
@@ -1412,7 +1416,7 @@ makeChange criteria
     changeForUserSpecifiedAssets = F.foldr
         (NE.zipWith (<>)
             . makeChangeForUserSpecifiedAsset outputMaps)
-        (TokenMap.empty <$ outputMaps)
+        (mempty <$ outputMaps)
         excessAssets
 
     -- Change for non-user-specified assets: assets that were not present
@@ -1599,7 +1603,7 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
         _ ->
             -- We don't have enough ada available, and there are no empty token
             -- maps available to drop. We have to give up at this point.
-            Left (adaRequired `Coin.difference` adaAvailable)
+            Left (adaRequired <\> adaAvailable)
 
     adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
 
@@ -1693,7 +1697,7 @@ makeChangeForNonUserSpecifiedAssets
 makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
-        (TokenMap.empty <$ n)
+        (mempty <$ n)
         (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
@@ -1961,8 +1965,8 @@ reduceTokenQuantities reductionTarget quantities =
         | x >= b = reverse ys <> (x' : xs)
         | otherwise = burn b' xs (x' : ys)
       where
-        b' = b `TokenQuantity.difference` x
-        x' = x `TokenQuantity.difference` b
+        b' = b <\> x
+        x' = x <\> b
 
 -- | Removes burned values for multiple assets from a list of change maps.
 --

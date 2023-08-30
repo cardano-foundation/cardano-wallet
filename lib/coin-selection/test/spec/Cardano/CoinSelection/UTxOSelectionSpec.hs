@@ -45,7 +45,6 @@ import Test.QuickCheck.Quid
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
@@ -288,7 +287,7 @@ prop_leftoverBalance_selectedBalance s =
     checkCoverage_UTxOSelection s $
     (UTxOSelection.leftoverBalance s <> UTxOSelection.selectedBalance s)
     ===
-    TokenBundle.add
+    (<>)
         (UTxOIndex.balance (UTxOSelection.leftoverIndex s))
         (UTxOIndex.balance (UTxOSelection.selectedIndex s))
 

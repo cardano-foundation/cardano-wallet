@@ -164,6 +164,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe, isJust, isNothing, listToMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -701,13 +703,13 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "not nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
 
     -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint params /= TokenMap.empty)
+    cover 20 (view #assetsToMint params /= mempty)
         "Have some assets to mint" $
-    cover 20 (view #assetsToBurn params /= TokenMap.empty)
+    cover 20 (view #assetsToBurn params /= mempty)
         "Have some assets to burn" $
-    cover 2 (view #assetsToMint params == TokenMap.empty)
+    cover 2 (view #assetsToMint params == mempty)
         "Have no assets to mint" $
-    cover 2 (view #assetsToBurn params == TokenMap.empty)
+    cover 2 (view #assetsToBurn params == mempty)
         "Have no assets to burn" $
 
     -- Inspect the intersection between minted assets and burned assets:
@@ -762,9 +764,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
-        view #assetsToMint params `leq` TokenMap.add
-            (view #assetsToBurn params)
-            (assetsSpentByUserSpecifiedOutputs)
+        view #assetsToMint params `leq`
+            (view #assetsToBurn params <> assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothMintedAndBurned :: Bool
     someAssetsAreBothMintedAndBurned
@@ -1196,11 +1197,11 @@ prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
     assertWith
-        "balanceSelected == TokenBundle.empty"
-        (balanceSelected == TokenBundle.empty)
+        "balanceSelected == mempty"
+        (balanceSelected == mempty)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
   where
     utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
 
@@ -1222,8 +1223,8 @@ prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
         "balanceSelected == balanceAvailable"
         (balanceSelected == balanceAvailable)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
   where
     balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
@@ -1243,12 +1244,12 @@ prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
         "utxoAvailable `UTxOSelection.isSubSelectionOf` result"
         (utxoAvailable `UTxOSelection.isSubSelectionOf` result)
     assertWith
-        "balanceLeftover == TokenBundle.empty"
-        (balanceLeftover == TokenBundle.empty)
+        "balanceLeftover == mempty"
+        (balanceLeftover == mempty)
     if utxoAvailable == UTxOSelection.empty then
         assertWith
-            "balanceSelected == TokenBundle.empty"
-            (balanceSelected == TokenBundle.empty)
+            "balanceSelected == mempty"
+            (balanceSelected == mempty)
     else
         assertWith
             "balanceSelected == balanceRequested"
@@ -1771,9 +1772,9 @@ encodeBoundaryTestCriteria c = SelectionParams
     , extraCoinSink =
         Coin 0
     , assetsToMint =
-        TokenMap.empty
+        mempty
     , assetsToBurn =
-        TokenMap.empty
+        mempty
     , selectionStrategy =
         boundaryTestSelectionStrategy c
     }
@@ -2609,7 +2610,7 @@ prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
     (F.fold <$> makeChange criteria)
-    (Right TokenBundle.empty)
+    (Right mempty)
   where
     criteria = MakeChangeCriteria
         { minCoinFor = const (Coin 0)
@@ -2620,8 +2621,8 @@ prop_makeChange_identity bundles = (===)
             mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
         , inputBundles = bundles
         , outputBundles = bundles
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
+        , assetsToMint = mempty
+        , assetsToBurn = mempty
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         }
@@ -2706,13 +2707,13 @@ prop_makeChange p =
     checkCoverage $
 
     -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint p /= TokenMap.empty)
+    cover 20 (view #assetsToMint p /= mempty)
         "Have some assets to mint" $
-    cover 20 (view #assetsToBurn p /= TokenMap.empty)
+    cover 20 (view #assetsToBurn p /= mempty)
         "Have some assets to burn" $
-    cover 2 (view #assetsToMint p == TokenMap.empty)
+    cover 2 (view #assetsToMint p == mempty)
         "Have no assets to mint" $
-    cover 2 (view #assetsToBurn p == TokenMap.empty)
+    cover 2 (view #assetsToBurn p == mempty)
         "Have no assets to burn" $
 
     -- Inspect the intersection between minted assets and burned assets:
@@ -2774,7 +2775,7 @@ prop_makeChange p =
 
     someAssetsAreMintedButNotSpentOrBurned :: Bool
         = TokenMap.isNotEmpty
-        $ assetsMinted `TokenMap.difference` assetsSpentOrBurned
+        $ assetsMinted <\> assetsSpentOrBurned
       where
         assetsMinted =
             view #assetsToMint p
@@ -2802,11 +2803,9 @@ prop_makeChange_success_delta
     -> Property
 prop_makeChange_success_delta p change =
     let
-        totalOutputWithChange = TokenBundle.add
-            totalOutputValue
-            (F.fold change)
+        totalOutputWithChange = totalOutputValue <> F.fold change
 
-        delta = TokenBundle.difference totalInputValue totalOutputWithChange
+        delta = totalInputValue <\> totalOutputWithChange
     in
         (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
@@ -2890,8 +2889,8 @@ prop_makeChange_fail_costTooBig
     -> Property
 prop_makeChange_fail_costTooBig p =
     let
-        deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
-            totalInputValue
+        deltaCoin = TokenBundle.getCoin $
+            totalInputValue <\>
             totalOutputValue
     in
         deltaCoin < view #requiredCost p
@@ -2933,7 +2932,7 @@ prop_makeChange_fail_minValueTooBig p =
         Right change ->
             conjoin
                 [ deltaCoin <
-                    totalMinCoinDeposit `Coin.add` view #requiredCost p
+                    totalMinCoinDeposit <> view #requiredCost p
                 , deltaCoin >=
                     view #requiredCost p
                 ]
@@ -2947,12 +2946,12 @@ prop_makeChange_fail_minValueTooBig p =
                 , "totalMinCoinDeposit:"
                 , pretty totalMinCoinDeposit
                 ]
-            deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
-                totalInputValue
+            deltaCoin = TokenBundle.getCoin $
+                totalInputValue <\>
                 totalOutputValue
             minCoinValueFor =
                 unMockComputeMinimumAdaQuantity (minCoinFor p) (TestAddress 0x0)
-            totalMinCoinDeposit = F.foldr Coin.add (Coin 0)
+            totalMinCoinDeposit = F.foldr (<>) (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue =
@@ -2983,8 +2982,8 @@ unit_makeChange =
               , bundleSizeAssessor
               , inputBundles = i
               , outputBundles = o
-              , assetsToMint = TokenMap.empty
-              , assetsToBurn = TokenMap.empty
+              , assetsToMint = mempty
+              , assetsToBurn = mempty
               , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
               , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
               }
@@ -3282,7 +3281,7 @@ unit_assignCoinsToChangeMaps =
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
-          , (`Coin.add` Coin 1) . computeMinimumAdaQuantityLinear
+          , (<> Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
           , Right []
           )
@@ -3336,7 +3335,7 @@ unit_assignCoinsToChangeMaps =
 
 prop_makeChangeForCoin_sum :: NonEmpty Coin -> Coin -> Property
 prop_makeChangeForCoin_sum weights surplus =
-    surplus === F.foldr Coin.add (Coin 0) changes
+    surplus === F.foldr (<>) (Coin 0) changes
   where
     changes = makeChangeForCoin weights surplus
 
@@ -3847,7 +3846,7 @@ prop_splitBundlesWithExcessiveAssetCounts_sum
 prop_splitBundlesWithExcessiveTokenQuantities_length
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
 prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
-    maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
+    maxQuantityAllowed > mempty ==> checkCoverage $ property $
         cover 5 (lengthOutput > lengthInput)
             "length has increased" $
         cover 5 (lengthOutput == lengthInput)
@@ -3876,7 +3875,7 @@ prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
 prop_splitBundlesWithExcessiveTokenQuantities_sum
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
 prop_splitBundlesWithExcessiveTokenQuantities_sum ms maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
+    maxQuantity > mempty ==>
         F.fold (splitBundlesWithExcessiveTokenQuantities ms maxQuantity)
             === F.fold ms
 
@@ -4071,7 +4070,7 @@ prop_addMintValueToChangeMaps_order mint changeMapDiffs =
         $ addMintValueToChangeMaps mint changeMaps
   where
     -- A list of change maps already in ascending partial order
-    changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
+    changeMaps = NE.scanl (<>) mempty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on
@@ -4092,7 +4091,7 @@ prop_removeBurnValueFromChangeMaps_value
     -> NonEmpty TokenMap
     -> Property
 prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
-    F.fold changeMaps `TokenMap.difference` TokenMap.singleton assetId qty
+    F.fold changeMaps <\> TokenMap.singleton assetId qty
     ===
     F.fold (removeBurnValueFromChangeMaps (assetId, qty) changeMaps)
 
@@ -4119,7 +4118,7 @@ prop_removeBurnValueFromChangeMaps_order burn changeMapDiffs =
         $ removeBurnValueFromChangeMaps burn changeMaps
   where
     -- A list of change maps already in ascending partial order
-    changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
+    changeMaps = NE.scanl (<>) mempty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on
@@ -4136,7 +4135,7 @@ prop_removeBurnValuesFromChangeMaps burns changeMaps =
 prop_reduceTokenQuantities_value
     :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_reduceTokenQuantities_value reduceQty qtys =
-    F.fold qtys `TokenQuantity.difference` reduceQty
+    F.fold qtys <\> reduceQty
     ===
     F.fold (reduceTokenQuantities reduceQty qtys)
 
@@ -4163,7 +4162,7 @@ prop_reduceTokenQuantities_order reduceQty qtyDiffs =
     inAscendingOrder xs = NE.sort xs == xs
 
     -- A list of quantities already in ascending order.
-    qtys = NE.scanl (<>) TokenQuantity.zero qtyDiffs
+    qtys = NE.scanl (<>) mempty qtyDiffs
 
 --------------------------------------------------------------------------------
 -- Utility functions

@@ -121,6 +121,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.MonoidMap
     ( MonoidMap )
 import Data.Set
@@ -202,7 +204,7 @@ empty = UTxOIndex
     { indexAll = MonoidMap.empty
     , indexSingletons = MonoidMap.empty
     , indexPairs = MonoidMap.empty
-    , balance = W.TokenBundle.empty
+    , balance = mempty
     , universe = Map.empty
     }
 
@@ -299,7 +301,7 @@ delete u i =
   where
     updateIndex :: W.TokenBundle -> UTxOIndex u
     updateIndex b = i
-        { balance = balance i `W.TokenBundle.difference` b
+        { balance = balance i <\> b
         -- The above operation is safe, since we have already determined that
         -- the entry is a member of the index, and therefore the balance must
         -- be greater than or equal to the value of this output.
@@ -577,7 +579,7 @@ insertUnsafe
     -> UTxOIndex u
     -> UTxOIndex u
 insertUnsafe u b i = i
-    { balance = balance i `W.TokenBundle.add` b
+    { balance = balance i <> b
     , universe = Map.insert u b (universe i)
     , indexAll = insertAssets (indexAll i)
     , indexSingletons = indexSingletons i &
