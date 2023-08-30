@@ -183,6 +183,8 @@ import Data.IntCast
     ( intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Type.Equality
@@ -264,6 +266,17 @@ data ErrSelectAssets
     | ErrSelectAssetsCollateralError
         (SelectionCollateralError WalletSelectionContext)
     deriving (Generic, Eq, Show)
+
+-- | Indicates a failure to select a sufficient amount of collateral.
+--
+data ErrBalanceTxInsufficientCollateralError =
+    ErrBalanceTxInsufficientCollateralError
+    { largestCombinationAvailable :: Map WalletUTxO W.Coin
+        -- ^ The largest available combination of pure ada UTxOs.
+    , minimumSelectionAmount :: W.Coin
+        -- ^ The minimum quantity of ada necessary for collateral.
+    }
+    deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
