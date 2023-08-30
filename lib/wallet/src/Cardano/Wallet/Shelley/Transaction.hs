@@ -141,6 +141,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
+    , ScriptSource
     , SelectionOf (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
@@ -242,9 +243,9 @@ constructUnsignedTx
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
-    -> (TokenMap, Map AssetId (Script KeyHash))
+    -> (TokenMap, Map AssetId ScriptSource)
     -- ^ Assets to be minted
-    -> (TokenMap, Map AssetId (Script KeyHash))
+    -> (TokenMap, Map AssetId ScriptSource)
     -- ^ Assets to be burned
     -> Map TxIn (Script KeyHash)
     -- ^ scripts for inputs
@@ -659,7 +660,7 @@ mkUnsignedTx
     -> Cardano.Lovelace
     -> TokenMap
     -> TokenMap
-    -> Map AssetId (Script KeyHash)
+    -> Map AssetId ScriptSource
     -> Map TxIn (Script KeyHash)
     -> Maybe (Script KeyHash)
     -> Maybe (Script KeyHash)
@@ -674,7 +675,7 @@ mkUnsignedTx
     fees
     mintData
     burnData
-    mintingScripts
+    mintingSource
     inpsScripts
     stakingScriptM
     refScriptM = extractValidatedOutputs cs >>= \outs ->
@@ -778,10 +779,16 @@ mkUnsignedTx
                     burnValue =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
+                    hasScript = \case
+                        Left _ -> True
+                        Right _ -> False
+                    toScriptWitnessIfScript = \case
+                        Left script -> toScriptWitness script
+                        Right _ -> error "should not happen after filtering"
                     witMap =
-                        Map.map toScriptWitness $
-                        Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
-                        mintingScripts
+                            Map.map toScriptWitnessIfScript $
+                            Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId) $
+                            Map.filter hasScript mintingSource
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
     }

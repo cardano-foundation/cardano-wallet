@@ -2507,40 +2507,44 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         Left (ApiMintBurnDataFromScript _ _ (ApiMint _)) -> True
                         Right (ApiMintBurnDataFromInput _ _ _ (ApiMint _)) -> True
                         _ -> False
-                let getMinting mb = case mb ^. #mintBurnData of
+
+                    makeLeft (a,t,s) = (a,t, Left s)
+                    getMinting mb = case mb ^. #mintBurnData of
                         Left (ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt))) ->
+                            makeLeft $
                             toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
                         _ -> error "getMinting should not be used in this way"
-                let getBurning mb = case mb ^. #mintBurnData of
+                    getBurning mb = case mb ^. #mintBurnData of
                         Left (ApiMintBurnDataFromScript
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt))) ->
+                            makeLeft $
                             toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
                                 amt
                         _ -> error "getBurning should not be used in this way"
-                let toTokenMap =
+                    toTokenMap =
                         fromFlatList .
                         map (\(a,q,_) -> (a,q))
-                let toScriptTemplateMap =
+                    toScriptTemplateMap =
                         Map.fromList .
                         map (\(a,_,s) -> (a,s))
-                let mintingData =
+                    mintingData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
                         NE.toList $ fromJust mintBurnDatum
-                let burningData =
+                    burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
