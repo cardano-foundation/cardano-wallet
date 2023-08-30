@@ -27,6 +27,7 @@ module Cardano.Wallet.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -98,7 +99,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
     , SelectionBalanceError (..)
-    , SelectionCollateralError
+    , SelectionCollateralError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
@@ -108,6 +109,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , WalletSelectionContext
     , WalletUTxO (..)
     , performSelection
+    , toExternalUTxOMap
     , toInternalUTxOMap
     )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -173,6 +175,8 @@ import Data.Bits
     ( Bits )
 import Data.Either
     ( lefts, partitionEithers )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -261,9 +265,18 @@ data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
     | ErrSelectAssetsBalanceError
         (SelectionBalanceError WalletSelectionContext)
-    | ErrSelectAssetsCollateralError
-        (SelectionCollateralError WalletSelectionContext)
     deriving (Generic, Eq, Show)
+
+-- | Indicates a failure to select a sufficient amount of collateral.
+--
+data ErrBalanceTxInsufficientCollateralError =
+    ErrBalanceTxInsufficientCollateralError
+    { largestCombinationAvailable :: W.UTxO
+        -- ^ The largest available combination of pure ada UTxOs.
+    , minimumCollateralAmount :: W.Coin
+        -- ^ The minimum quantity of ada necessary for collateral.
+    }
+    deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
@@ -278,6 +291,7 @@ data ErrBalanceTx
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
+    | ErrBalanceTxInsufficientCollateral ErrBalanceTxInsufficientCollateralError
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
@@ -454,8 +468,7 @@ balanceTransaction
         -- amount of collateral, and increase the chance of being able to
         -- satisfy the minimum.
         selectionCollateralError = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsCollateralError {}) ->
+            ErrBalanceTxInsufficientCollateral {} ->
                 True
             _someOtherError ->
                 False
@@ -870,16 +883,9 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     performSelection'
         :: Either ErrBalanceTx Selection
     performSelection'
-        = left mapErrors
+        = left coinSelectionErrorToBalanceTxError
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
-      where
-        mapErrors :: SelectionError WalletSelectionContext -> ErrBalanceTx
-        mapErrors = ErrBalanceTxSelectAssets . \case
-            SelectionBalanceErrorOf x ->
-                ErrSelectAssetsBalanceError x
-            SelectionCollateralErrorOf x ->
-                ErrSelectAssetsCollateralError x
 
     selectionConstraints = SelectionConstraints
         { tokenBundleSizeAssessor =
@@ -1394,6 +1400,28 @@ toWalletTxOut
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
+
+-- | Maps an error from the coin selection API to a balanceTx error.
+--
+coinSelectionErrorToBalanceTxError
+    :: SelectionError WalletSelectionContext
+    -> ErrBalanceTx
+coinSelectionErrorToBalanceTxError = \case
+    SelectionBalanceErrorOf x ->
+        ErrBalanceTxSelectAssets $ ErrSelectAssetsBalanceError x
+    SelectionCollateralErrorOf SelectionCollateralError
+        { largestCombinationAvailable
+        , minimumSelectionAmount
+        } ->
+        ErrBalanceTxInsufficientCollateral
+        ErrBalanceTxInsufficientCollateralError
+            { largestCombinationAvailable
+                = largestCombinationAvailable
+                & fmap W.TokenBundle.fromCoin
+                & toExternalUTxOMap
+            , minimumCollateralAmount
+                = minimumSelectionAmount
+            }
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs
