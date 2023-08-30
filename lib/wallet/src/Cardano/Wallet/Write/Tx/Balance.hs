@@ -27,6 +27,7 @@ module Cardano.Wallet.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -98,7 +99,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
     , SelectionBalanceError (..)
-    , SelectionCollateralError
+    , SelectionCollateralError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
@@ -263,8 +264,6 @@ data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
     | ErrSelectAssetsBalanceError
         (SelectionBalanceError WalletSelectionContext)
-    | ErrSelectAssetsCollateralError
-        (SelectionCollateralError WalletSelectionContext)
     deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -291,6 +290,7 @@ data ErrBalanceTx
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
+    | ErrBalanceTxInsufficientCollateral ErrBalanceTxInsufficientCollateralError
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
@@ -467,8 +467,7 @@ balanceTransaction
         -- amount of collateral, and increase the chance of being able to
         -- satisfy the minimum.
         selectionCollateralError = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsCollateralError {}) ->
+            ErrBalanceTxInsufficientCollateral {} ->
                 True
             _someOtherError ->
                 False
@@ -1409,8 +1408,15 @@ coinSelectionErrorToBalanceTxError
 coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf x ->
         ErrBalanceTxSelectAssets $ ErrSelectAssetsBalanceError x
-    SelectionCollateralErrorOf x ->
-        ErrBalanceTxSelectAssets $ ErrSelectAssetsCollateralError x
+    SelectionCollateralErrorOf SelectionCollateralError
+        { largestCombinationAvailable
+        , minimumSelectionAmount
+        } ->
+        ErrBalanceTxInsufficientCollateral
+        ErrBalanceTxInsufficientCollateralError
+            { largestCombinationAvailable
+            , minimumSelectionAmount
+            }
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs

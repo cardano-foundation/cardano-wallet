@@ -32,7 +32,6 @@ import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
-    , SelectionCollateralError
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
     )
@@ -112,6 +111,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Write.Tx.Balance
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -528,6 +528,8 @@ instance IsServerError ErrBalanceTx where
                 [ "Balancing transactions with pre-defined"
                 , "collateral return outputs is not yet supported."
                 ]
+        ErrBalanceTxInsufficientCollateral e ->
+            toServerError e
         ErrBalanceTxInternalError e -> toServerError e
         ErrBalanceTxMaxSizeLimitExceeded ->
             apiError err403 TransactionIsTooBig $ T.unwords
@@ -984,8 +986,6 @@ instance IsServerError ErrSelectAssets where
                 ]
         ErrSelectAssetsBalanceError e ->
             toServerError e
-        ErrSelectAssetsCollateralError e ->
-            toServerError e
 
 instance IsServerError (SelectionBalanceError WalletSelectionContext) where
     toServerError = \case
@@ -1012,7 +1012,7 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
                 , "required in order to create a transaction."
                 ]
 
-instance IsServerError (SelectionCollateralError WalletSelectionContext) where
+instance IsServerError ErrBalanceTxInsufficientCollateralError where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"

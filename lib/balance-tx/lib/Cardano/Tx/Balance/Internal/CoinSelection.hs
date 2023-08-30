@@ -56,7 +56,7 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     -- * Selection errors
     , BalanceInsufficientError (..)
     , SelectionBalanceError (..)
-    , SelectionCollateralError
+    , SelectionCollateralError (..)
     , UnableToConstructChangeError (..)
 
     -- * Selection reports
@@ -71,7 +71,7 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     where
 
 import Cardano.CoinSelection
-    ( SelectionCollateralError
+    ( SelectionCollateralError (..)
     , SelectionCollateralRequirement (..)
     , SelectionError (..)
     )
