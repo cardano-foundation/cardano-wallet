@@ -1393,11 +1393,11 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 coinSelectionErrorToBalanceTxError
     :: SelectionError WalletSelectionContext
     -> ErrBalanceTx
-coinSelectionErrorToBalanceTxError = ErrBalanceTxSelectAssets . \case
+coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf x ->
-        ErrSelectAssetsBalanceError x
+        ErrBalanceTxSelectAssets $ ErrSelectAssetsBalanceError x
     SelectionCollateralErrorOf x ->
-        ErrSelectAssetsCollateralError x
+        ErrBalanceTxSelectAssets $ ErrSelectAssetsCollateralError x
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs
