@@ -109,6 +109,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , WalletSelectionContext
     , WalletUTxO (..)
     , performSelection
+    , toExternalUTxOMap
     , toInternalUTxOMap
     )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -174,6 +175,8 @@ import Data.Bits
     ( Bits )
 import Data.Either
     ( lefts, partitionEithers )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -184,8 +187,6 @@ import Data.IntCast
     ( intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Type.Equality
@@ -270,7 +271,7 @@ data ErrSelectAssets
 --
 data ErrBalanceTxInsufficientCollateralError =
     ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: Map WalletUTxO W.Coin
+    { largestCombinationAvailable :: W.UTxO
         -- ^ The largest available combination of pure ada UTxOs.
     , minimumSelectionAmount :: W.Coin
         -- ^ The minimum quantity of ada necessary for collateral.
@@ -1415,6 +1416,9 @@ coinSelectionErrorToBalanceTxError = \case
         ErrBalanceTxInsufficientCollateral
         ErrBalanceTxInsufficientCollateralError
             { largestCombinationAvailable
+                = largestCombinationAvailable
+                & fmap W.TokenBundle.fromCoin
+                & toExternalUTxOMap
             , minimumSelectionAmount
             }
 

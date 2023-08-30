@@ -169,11 +169,11 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -1021,8 +1021,10 @@ instance IsServerError ErrBalanceTxInsufficientCollateralError where
             , "I need an ada amount of at least:"
             , pretty (view #minimumSelectionAmount e)
             , "The largest combination of pure ada UTxOs I could find is:"
-            , pretty $ listF $ L.sort $ F.toList $
-                view #largestCombinationAvailable e
+            , pretty $ listF $ L.sort
+                $ fmap (view #coin . view #tokens . snd)
+                $ UTxO.toList
+                $ view #largestCombinationAvailable e
             , "To fix this, you'll need to add one or more pure ada UTxOs"
             , "to your wallet that can cover the minimum amount required."
             ]
