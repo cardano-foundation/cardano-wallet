@@ -31,10 +31,7 @@ import Cardano.Address.Script
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionBalanceError (..)
-    , UnableToConstructChangeError (..)
-    , WalletSelectionContext
-    )
+    ( UnableToConstructChangeError (..) )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
@@ -984,18 +981,13 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsBalanceError e ->
-            toServerError e
-
-instance IsServerError (SelectionBalanceError WalletSelectionContext) where
-    toServerError = \case
-        BalanceInsufficient e ->
+        ErrSelectAssetsBalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
                 , "missing: ", pretty . Flat $ e ^. #utxoBalanceShortfall
                 ]
-        UnableToConstructChange e ->
+        ErrSelectAssetsUnableToConstructChange e ->
             apiError err403 CannotCoverFee $ T.unwords
                 [ "I am unable to finalize the transaction, as there"
                 , "is not enough ada available to pay for the fee and"
@@ -1005,7 +997,7 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
                 , "ada to proceed. Try increasing your wallet balance"
                 , "or sending a smaller amount."
                 ]
-        EmptyUTxO ->
+        ErrSelectAssetsEmptyUTxO ->
             apiError err403 NotEnoughMoney $ T.unwords
                 [ "Cannot create a transaction because the wallet"
                 , "has no UTxO entries. At least one UTxO entry is"

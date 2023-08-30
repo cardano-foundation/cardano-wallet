@@ -96,7 +96,8 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
+    ( BalanceInsufficientError (..)
+    , Selection
     , SelectionBalanceError (..)
     , SelectionBalanceError (..)
     , SelectionCollateralError (..)
@@ -106,6 +107,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOf (change)
     , SelectionParams (..)
     , SelectionStrategy (..)
+    , UnableToConstructChangeError (..)
     , WalletSelectionContext
     , WalletUTxO (..)
     , performSelection
@@ -263,8 +265,11 @@ instance Buildable (BuildableInAnyEra a) where
 
 data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
-    | ErrSelectAssetsBalanceError
-        (SelectionBalanceError WalletSelectionContext)
+    | ErrSelectAssetsBalanceInsufficient
+        BalanceInsufficientError
+    | ErrSelectAssetsUnableToConstructChange
+        UnableToConstructChangeError
+    | ErrSelectAssetsEmptyUTxO
     deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -455,8 +460,7 @@ balanceTransaction
         -- generate change successfully.
         unableToConstructChange = case e of
             ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceError
-                (UnableToConstructChange {})) ->
+                (ErrSelectAssetsUnableToConstructChange {}) ->
                 True
             _someOtherError ->
                 False
@@ -1407,8 +1411,14 @@ coinSelectionErrorToBalanceTxError
     :: SelectionError WalletSelectionContext
     -> ErrBalanceTx
 coinSelectionErrorToBalanceTxError = \case
-    SelectionBalanceErrorOf x ->
-        ErrBalanceTxSelectAssets $ ErrSelectAssetsBalanceError x
+    SelectionBalanceErrorOf balanceErr ->
+        ErrBalanceTxSelectAssets $ case balanceErr of
+            BalanceInsufficient e ->
+                ErrSelectAssetsBalanceInsufficient e
+            UnableToConstructChange e ->
+                ErrSelectAssetsUnableToConstructChange e
+            EmptyUTxO ->
+                ErrSelectAssetsEmptyUTxO
     SelectionCollateralErrorOf SelectionCollateralError
         { largestCombinationAvailable
         , minimumSelectionAmount

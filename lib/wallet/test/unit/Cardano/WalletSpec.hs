@@ -31,7 +31,7 @@ import Cardano.Api
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( BalanceInsufficientError (..), SelectionBalanceError (..) )
+    ( BalanceInsufficientError (..) )
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
@@ -152,6 +152,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( HasCallStack )
+import Cardano.Wallet.Write.Tx.Balance
+    ( ErrSelectAssets (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -658,8 +660,7 @@ prop_calculateFeePercentiles (NonEmpty coins) =
   where
     genericError :: W.ErrSelectAssets
     genericError
-        = W.ErrSelectAssetsBalanceError
-        $ BalanceInsufficient
+        = ErrSelectAssetsBalanceInsufficient
         $ BalanceInsufficientError
             TokenBundle.empty
             TokenBundle.empty
