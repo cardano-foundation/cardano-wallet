@@ -1220,6 +1220,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#witnessCount) (`shouldBe` witnessCountWithNativeScript)
             ]
 
+        let payloadPolicyId = Json [json|{
+                "policy_script_template":
+                    { "all":
+                       [ "cosigner#0"
+                       ]
+                    }
+                }|]
+        let postPolicyId = Link.postPolicyId @'Shelley wa
+        rGet <- request @ApiPolicyId ctx postPolicyId Default payloadPolicyId
+        verify rGet
+            [ expectResponseCode HTTP.status202
+            ]
+
+
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
         \ctx -> runResourceT $ do
