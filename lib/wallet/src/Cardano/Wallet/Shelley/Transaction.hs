@@ -141,6 +141,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
+    , ReferenceInput (..)
     , ScriptSource
     , SelectionOf (..)
     , TokenMapWithScripts
@@ -683,7 +684,24 @@ mkUnsignedTx
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
-    , txInsReference = Cardano.TxInsReferenceNone
+    , txInsReference =
+            let hasRefInp = \case
+                    Left _ -> False
+                    Right _ -> True
+                filteredRefInp =
+                    filter hasRefInp $
+                    Map.elems mintingSource
+                toNodeTxIn (Right (ReferenceInput txin)) =
+                    toCardanoTxIn txin
+                toNodeTxIn _ = error "at this moment we should have reference input"
+            in if null filteredRefInp then
+                Cardano.TxInsReferenceNone
+               else
+                case referenceInpsSupported of
+                    Nothing -> Cardano.TxInsReferenceNone
+                    Just support ->
+                        Cardano.TxInsReference support
+                        (toNodeTxIn <$> filteredRefInp)
 
     , Cardano.txOuts = case refScriptM of
             Nothing ->
@@ -903,6 +921,16 @@ mkUnsignedTx
         ShelleyBasedEraAlonzo -> Cardano.SimpleScriptInAlonzo
         ShelleyBasedEraBabbage -> Cardano.SimpleScriptInBabbage
         ShelleyBasedEraConway -> Cardano.SimpleScriptInConway
+
+    referenceInpsSupported
+        :: Maybe (Cardano.ReferenceTxInsScriptsInlineDatumsSupportedInEra era)
+    referenceInpsSupported = case era of
+        ShelleyBasedEraShelley -> Nothing
+        ShelleyBasedEraAllegra -> Nothing
+        ShelleyBasedEraMary -> Nothing
+        ShelleyBasedEraAlonzo -> Nothing
+        ShelleyBasedEraBabbage -> Just Cardano.ReferenceTxInsScriptsInlineDatumsInBabbageEra
+        ShelleyBasedEraConway -> Just Cardano.ReferenceTxInsScriptsInlineDatumsInConwayEra
 
     toScriptWitness :: Script KeyHash -> Cardano.ScriptWitness witctx era
     toScriptWitness script =
