@@ -134,6 +134,7 @@ library
     , int-cast
     , io-classes
     , iohk-monitoring
+    , iohk-monitoring-extra              ^>=0.1
     , iproute
     , lattices
     , lens
@@ -162,14 +163,14 @@ library
     , ouroboros-network-framework
     , ouroboros-network-protocols
     , path-pieces
-    , persistent                     ^>=2.13
-    , persistent-sqlite              ^>=2.13
-    , persistent-template            ^>=2.12
+    , persistent                         ^>=2.13
+    , persistent-sqlite                  ^>=2.13
+    , persistent-template                ^>=2.12
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
     , profunctors
-    , QuickCheck                     ^>=2.14.3
+    , QuickCheck                         ^>=2.14.3
     , quickcheck-instances
     , quiet
     , random
@@ -241,6 +242,7 @@ library
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
+    Cardano.Wallet.CLI
     Cardano.Wallet.Compat
     Cardano.Wallet.DB
     Cardano.Wallet.DB.Errors
@@ -284,7 +286,6 @@ library
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
     Cardano.Wallet.Delegation.Properties
-    Cardano.Wallet.CLI
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.Network
@@ -435,6 +436,7 @@ library cardano-wallet-api-http
     , http-types
     , int-cast
     , iohk-monitoring
+    , iohk-monitoring-extra              ^>=0.1
     , lens
     , memory
     , mtl
@@ -623,6 +625,7 @@ library cardano-wallet-bench
     , filepath
     , fmt
     , iohk-monitoring
+    , iohk-monitoring-extra
     , optparse-applicative
     , say
     , text
@@ -666,12 +669,13 @@ executable cardano-wallet
     , address-derivation
     , base
     , cardano-wallet
-    , cardano-wallet-application-extras
     , cardano-wallet-api-http
+    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
     , contra-tracer
     , iohk-monitoring
+    , iohk-monitoring-extra
     , lobemo-backend-ekg
     , network-uri
     , optparse-applicative
@@ -717,9 +721,9 @@ test-suite unit
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
+    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
-    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-byron
@@ -776,6 +780,7 @@ test-suite unit
     , io-classes
     , io-sim
     , iohk-monitoring
+    , iohk-monitoring-extra
     , lattices
     , lens
     , list-transformer
@@ -819,6 +824,7 @@ test-suite unit
     , string-interpolate
     , string-qq
     , temporary
+    , temporary-extra
     , text
     , text-class
     , time
@@ -959,10 +965,12 @@ test-suite integration
     , hspec-core
     , http-client
     , iohk-monitoring
+    , iohk-monitoring-extra
     , lobemo-backend-ekg
     , mock-token-metadata
     , network-uri
     , string-interpolate
+    , temporary-extra
     , text
     , text-class
     , unliftio
@@ -985,9 +993,9 @@ benchmark restore
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-bench
+    , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-local-cluster
-    , cardano-wallet-integration
     , cardano-wallet-primitive
     , containers
     , contra-tracer
@@ -996,6 +1004,7 @@ benchmark restore
     , fmt
     , generic-lens
     , iohk-monitoring
+    , iohk-monitoring-extra
     , say
     , string-interpolate
     , text
@@ -1028,13 +1037,14 @@ benchmark latency
     , http-client
     , http-types
     , iohk-monitoring
+    , iohk-monitoring-extra
+    , temporary-extra
     , text
     , time
     , unliftio
     , wai-middleware-logging
 
-  other-modules:
-    Cardano.Wallet.LatencyBenchShared
+  other-modules:  Cardano.Wallet.LatencyBenchShared
 
 benchmark db
   import:         language, opts-exe
@@ -1064,6 +1074,7 @@ benchmark db
     , filepath
     , fmt
     , iohk-monitoring
+    , iohk-monitoring-extra
     , memory
     , random
     , text
@@ -1097,6 +1108,7 @@ benchmark api
     , filepath
     , fmt
     , iohk-monitoring
+    , iohk-monitoring-extra
     , say
     , text
     , text-class
@@ -1183,18 +1195,16 @@ library address-derivation
     Cardano.Wallet.Primitive.Passphrase.Types
     Crypto.Hash.Utils
 
-
 library cardano-wallet-local-cluster
   import:          language, opts-lib
   visibility:      public
   hs-source-dirs:  local-cluster
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
   build-depends:
-    base
     , address-derivation
     , aeson
     , aeson-qq
+    , base
     , base58-bytestring
     , bech32
     , bech32-th
@@ -1219,6 +1229,7 @@ library cardano-wallet-local-cluster
     , filepath
     , int-cast
     , iohk-monitoring
+    , iohk-monitoring-extra
     , lens
     , memory
     , network-uri
@@ -1228,6 +1239,7 @@ library cardano-wallet-local-cluster
     , ouroboros-network-api
     , retry
     , temporary
+    , temporary-extra
     , text
     , text-class
     , time

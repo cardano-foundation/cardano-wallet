@@ -17,12 +17,12 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( BracketLog )
 import Cardano.DB.Sqlite
     ( DBLog (..) )
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Wallet.Logging
-    ( BracketLog )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, PoolRetirementCertificate )
 import Data.Text

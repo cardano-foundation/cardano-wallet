@@ -23,6 +23,8 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation, filterSeverity )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Tracing
     ( Severity (..), Trace, Tracer, appendName, nullTracer )
 import Cardano.Pool.DB.Log
@@ -33,8 +35,6 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     ( WalletEngineLog )
 import Cardano.Wallet.DB.Layer
     ( DBFactoryLog )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Pools
     ( StakePoolLog )
 import Cardano.Wallet.Shelley.Network

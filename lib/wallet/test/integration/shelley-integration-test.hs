@@ -20,6 +20,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Extra
+    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.BM.Trace
@@ -74,12 +76,8 @@ import Cardano.Wallet.Launch.Cluster
     , withCluster
     , withSMASH
     )
-import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
-import Cardano.Wallet.Options
-    ( envFromText, withSystemTempDir )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -126,8 +124,12 @@ import System.Directory
     ( createDirectory )
 import System.Environment
     ( setEnv )
+import System.Environment.Extended
+    ( envFromText, isEnvSet )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec.Core.Spec
     ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra
@@ -238,12 +240,13 @@ withTestsSetup action = do
     -- deletion fails.
     setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
 
+    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
     withUtf8Encoding $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
-        withSystemTempDir stdoutTextTracer "test" $ \testDir ->
+        withSystemTempDir stdoutTextTracer "test" skipCleanup $ \testDir ->
             withTracers testDir $ action testDir
 
 -- | Convert @ClusterEra@ to a @ApiEra@.

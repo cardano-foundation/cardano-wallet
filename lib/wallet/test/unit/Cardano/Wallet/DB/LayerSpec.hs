@@ -42,6 +42,8 @@ import Cardano.BM.Configuration.Static
     ( defaultConfigTesting )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
@@ -104,8 +106,6 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..), KeyOf, WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet

@@ -42,6 +42,8 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Extra
+    ( trMessageText )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.Wallet
@@ -72,8 +74,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavor, KeyOf, WalletFlavor (..), keyFlavor )
-import Cardano.Wallet.Logging
-    ( trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Model

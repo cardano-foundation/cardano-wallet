@@ -18,6 +18,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( contramap, nullTracer )
+import Cardano.BM.Extra
+    ( trMessage )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.CLI
@@ -60,12 +62,8 @@ import Cardano.Wallet.Launch.Cluster
     , defaultPoolConfigs
     , withCluster
     )
-import Cardano.Wallet.Logging
-    ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
-import Cardano.Wallet.Options
-    ( withSystemTempDir )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.NetworkId
@@ -113,8 +111,12 @@ import Ouroboros.Network.Client.Wallet
 import Prelude
 import System.Directory
     ( createDirectory )
+import System.Environment.Extended
+    ( isEnvSet )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -486,7 +488,9 @@ withShelleyServer tracers action = do
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 
   where
-    withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
+    withServer act = do
+        skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
+        withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error

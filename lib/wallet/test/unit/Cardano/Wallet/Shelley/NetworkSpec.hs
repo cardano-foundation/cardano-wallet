@@ -25,8 +25,6 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Options
-    ( withSystemTempDir )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +47,10 @@ import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
+import System.Environment.Extended
+    ( isEnvSet )
+import System.IO.Temp.Extra
+    ( SkipCleanup (..), withSystemTempDir )
 import Test.Hspec
     ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
 import Test.Hspec.Core.Spec
@@ -259,7 +261,8 @@ withTestNode tr action = do
             defaultPoolConfigs
             BabbageHardFork
             (LogFileConfig Info Nothing Info)
-    withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
+    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
+    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $ \dir ->
         withCluster tr dir cfg mempty $ \(RunningNode sock genesisData vData) ->
             let (np, _, _ ) = fromGenesisData genesisData
             in action np sock vData
