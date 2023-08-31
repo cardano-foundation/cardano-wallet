@@ -61,7 +61,7 @@ import Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
-    , ApiPolicyId
+    , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
@@ -1166,8 +1166,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        addrs <- listAddresses @n ctx wb
-        let destination = (addrs !! 1) ^. #id
+        addrsDest <- listAddresses @n ctx wb
+        let destination = (addrsDest !! 1) ^. #id
         let payload = Json [json|{
                 "reference_policy_script_template":
                     { "all": [ "cosigner#0" ] },
@@ -1230,6 +1230,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let postPolicyId = Link.postPolicyId @'Shelley wa
         rGet <- request @ApiPolicyId ctx postPolicyId Default payloadPolicyId
         verify rGet
+            [ expectResponseCode HTTP.status202
+            ]
+        let (ApiPolicyId (ApiT policyId')) = getFromResponse Prelude.id rGet
+
+        eventually "wb wallet has received funds" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley wb) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #available)
+                        (.> (Quantity 0))
+                    ]
+
+        addrsMint <- listAddresses @n ctx wa
+        let addrMint = (addrsMint !! 1) ^. #id
+        let payloadMint = Json [json|{
+                "mint_burn": [{
+                    "policy_id": #{toText policyId'},
+                    "reference_input": #{toJSON refInp},
+                    "asset_name": "ab12",
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{addrMint},
+                                 "quantity": 1000
+                              }
+                        }
+                }]
+            }|]
+
+        rTxMint <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadMint
+        verify rTxMint
             [ expectResponseCode HTTP.status202
             ]
 
