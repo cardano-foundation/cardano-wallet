@@ -1,9 +1,9 @@
 module Cardano.Wallet.Spec.Network.Manual where
 
+import Cardano.Wallet.Cli.Launcher
+    ( WalletApi (..) )
 import Cardano.Wallet.Spec.Network.Config
     ( NetworkConfig (..) )
-import Cardano.Wallet.Spec.Network.Wallet
-    ( WalletApi (..) )
 
 nodeWalletSetup :: (NetworkConfig -> IO ()) -> IO ()
 nodeWalletSetup withNetworkConfig = do

@@ -255,6 +255,8 @@
                   deployments = pkgs.cardano-node-deployments;
                 };
 
+                cardano-wallet-e2e = project.hsPkgs.cardano-wallet-e2e.components.exes.wallet-e2e;
+
                 # Provide db-converter, so daedalus can ship it without needing to
                 # pin an ouroborus-network rev.
                 inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;

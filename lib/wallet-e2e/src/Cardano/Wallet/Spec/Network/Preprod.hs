@@ -4,39 +4,39 @@ module Cardano.Wallet.Spec.Network.Preprod
     ( nodeWalletSetup
     ) where
 
-import qualified Cardano.Wallet.Spec.Network.Node as Node
+import qualified Cardano.Node.Cli.Launcher as Node
+import qualified Cardano.Wallet.Cli.Launcher as Wallet
 import qualified Cardano.Wallet.Spec.Network.Node.Cli as NodeCli
-import qualified Cardano.Wallet.Spec.Network.Wallet as Wallet
 import qualified Cardano.Wallet.Spec.Network.Wallet.Cli as WalletCli
 
+import Cardano.Node.Cli.Launcher
+    ( NodeProcessConfig (..) )
+import Cardano.Wallet.Cli.Launcher
+    ( WalletProcessConfig (..) )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
     ( NodeStatus (..) )
 import Cardano.Wallet.Spec.Network.Config
     ( NetworkConfig (..) )
-import Cardano.Wallet.Spec.Network.Node
-    ( NodeProcessConfig (..) )
-import Cardano.Wallet.Spec.Network.Wallet
-    ( WalletProcessConfig (..) )
 import Control.Monad.Trans.Resource
     ( allocate, runResourceT )
 import Control.Retry
     ( capDelay, fibonacciBackoff, retrying )
 import Path
     ( Abs, Dir, Path, reldir, relfile, (</>) )
-import Path.IO
-    ( makeAbsolute )
 
-nodeWalletSetup :: Path Abs Dir -> (NetworkConfig -> IO ()) -> IO ()
-nodeWalletSetup stateDir withNetworkConfig = runResourceT do
-    preprodDir <- makeAbsolute [reldir|config/cardano-node/preprod|]
-
+nodeWalletSetup
+    :: Path Abs Dir
+    -> Path Abs Dir
+    -> (NetworkConfig -> IO ())
+    -> IO ()
+nodeWalletSetup stateDir nodeConfigDir withNetworkConfig = runResourceT do
     -- Start node
     let nodeDir = stateDir </> [reldir|node|]
     let nodeProcessConfig =
             NodeProcessConfig
                 { nodeDir
-                , nodeConfig = preprodDir </> [relfile|config.json|]
-                , nodeTopology = preprodDir </> [relfile|topology.json|]
+                , nodeConfig = nodeConfigDir </> [relfile|config.json|]
+                , nodeTopology = nodeConfigDir </> [relfile|topology.json|]
                 , nodeDatabase = nodeDir </> [reldir|db|]
                 }
     (_nodeReleaseKey, (_nodeInstance, nodeApi)) <-
@@ -52,10 +52,23 @@ nodeWalletSetup stateDir withNetworkConfig = runResourceT do
                 , walletListenHost = Nothing
                 , walletListenPort = Nothing
                 , walletByronGenesis =
-                    preprodDir </> [relfile|byron-genesis.json|]
+                    nodeConfigDir </> [relfile|byron-genesis.json|]
                 }
     (_walletReleaseKey, (_walletInstance, walletApi)) <-
         allocate (Wallet.start walletProcessConfig) (Wallet.stop . fst)
+
+    -- Wait for the node to start and open the socket
+    void $ retrying
+        (capDelay 10_000 (fibonacciBackoff 1_000))
+        do \_retryStatus -> pure
+        do
+            \_retryStatus -> liftIO do
+                NodeCli.queryTip nodeApi >>= \case
+                    Left (NodeCli.CliErrorExitCode _code _out) ->
+                        False <$ putTextLn "Waiting for the node socket ..."
+                    _ -> do
+                        putTextLn "Node socket is ready"
+                        pure True
 
     -- Wait for the node to sync with the network
     waitFor (>= 99.99) do

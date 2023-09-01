@@ -17,6 +17,8 @@ import qualified Wallet.Operations.GetWallet as GW
 import qualified Wallet.Operations.ListWallets as LW
 import qualified Wallet.Operations.PostWallet as PW
 
+import Cardano.Wallet.Cli.Launcher
+    ( walletInstanceApiUrl )
 import Cardano.Wallet.Spec.Data.AdaBalance
     ( AdaBalance (..) )
 import Cardano.Wallet.Spec.Data.Mnemonic
@@ -39,8 +41,6 @@ import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace, trace )
 import Cardano.Wallet.Spec.Network.Config
     ( NetworkConfig (..) )
-import Cardano.Wallet.Spec.Network.Wallet
-    ( walletInstanceApiUrl )
 import Effectful
     ( (:>), Eff, Effect )
 import Effectful.Dispatch.Dynamic

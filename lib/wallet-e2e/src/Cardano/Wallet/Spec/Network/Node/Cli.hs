@@ -5,7 +5,7 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
-import Cardano.Wallet.Spec.Network.Node
+import Cardano.Node.Cli.Launcher
     ( NodeApi, nodeApiSocket )
 import Data.Aeson
     ( withObject, (.:) )

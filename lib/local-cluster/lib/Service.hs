@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -237,8 +238,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             }
 
     whenReady dir trCluster logs (RunningNode socketPath genesisData vData) = do
-        let
-            (gp, block0, _gp) = fromGenesisData genesisData
+        let (gp, block0, _gp) = fromGenesisData genesisData
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
@@ -322,7 +322,7 @@ data TestsLog
     = MsgBaseUrl Text Text Text -- wallet url, ekg url, prometheus url
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
-    deriving (Show)
+    deriving stock (Show)
 
 instance ToText TestsLog where
     toText = \case
