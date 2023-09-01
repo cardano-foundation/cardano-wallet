@@ -1263,7 +1263,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTxMint
             [ expectResponseCode HTTP.status202
             ]
+        let (ApiSerialisedTransaction apiTxMint _) = getFromResponse #transaction rTxMint
 
+        signedTxMint <- signTx ctx wa apiTxMint [ expectResponseCode HTTP.status202 ]
+
+        submittedTxMint <- submitTxWithWid ctx wa signedTxMint
+        verify submittedTxMint
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
