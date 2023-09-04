@@ -169,7 +169,7 @@ import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
     ( Tracer (..), contramap, traceWith )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b256 )
 import Data.Aeson
     ( object, toJSON, (.:), (.=) )

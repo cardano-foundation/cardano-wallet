@@ -80,7 +80,7 @@ import Control.Lens
     ( Lens, lens )
 import Crypto.Hash.Algorithms
     ( SHA512 (..) )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b256 )
 import Data.ByteArray
     ( ScrubbedBytes )

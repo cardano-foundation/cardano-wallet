@@ -379,7 +379,7 @@ import Control.Retry
     ( capDelay, constantDelay, retrying )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )

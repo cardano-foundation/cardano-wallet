@@ -184,7 +184,7 @@ import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
 import Control.Tracer
     ( Tracer (..), traceWith )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b256 )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )

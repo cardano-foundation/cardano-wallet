@@ -102,6 +102,7 @@ library
     , cborg
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , cryptonite
     , data-default
     , data-interval
@@ -419,6 +420,7 @@ library cardano-wallet-api-http
     , cborg
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , data-default
     , deepseq
     , directory
@@ -534,6 +536,7 @@ library cardano-wallet-integration
     , cborg
     , command
     , containers
+    , crypto-hash-extra
     , cryptonite
     , deepseq
     , directory
@@ -748,6 +751,7 @@ test-suite unit
     , connection
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , cryptonite
     , data-default
     , data-interval
@@ -999,6 +1003,7 @@ benchmark restore
     , cardano-wallet-primitive
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , deepseq
     , filepath
     , fmt
@@ -1148,6 +1153,7 @@ library address-derivation
     , cardano-wallet-read
     , cborg
     , containers
+    , crypto-hash-extra
     , cryptonite
     , data-interval
     , deepseq
@@ -1193,7 +1199,6 @@ library address-derivation
     Cardano.Wallet.Primitive.Passphrase.Gen
     Cardano.Wallet.Primitive.Passphrase.Legacy
     Cardano.Wallet.Primitive.Passphrase.Types
-    Crypto.Hash.Utils
 
 library cardano-wallet-local-cluster
   import:          language, opts-lib
@@ -1225,6 +1230,7 @@ library cardano-wallet-local-cluster
     , cborg
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , directory
     , filepath
     , int-cast

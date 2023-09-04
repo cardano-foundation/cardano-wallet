@@ -1,12 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
--- |
--- Copyright: © 2018-2020 IOHK
--- License: Apache-2.0
---
--- Common hashing functions used and re-used across the codebase.
-
-module Crypto.Hash.Utils
+module Crypto.Hash.Extra
     ( blake2b256
     , blake2b224
     ) where

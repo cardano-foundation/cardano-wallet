@@ -38,7 +38,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b256 )
 import Crypto.Random.Types
     ( MonadRandom (..) )

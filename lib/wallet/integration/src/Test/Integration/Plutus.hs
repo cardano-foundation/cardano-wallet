@@ -50,7 +50,7 @@ import Codec.Serialise
     ( serialise )
 import Control.Arrow
     ( left )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )

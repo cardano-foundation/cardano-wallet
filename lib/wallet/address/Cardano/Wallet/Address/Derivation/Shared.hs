@@ -73,10 +73,10 @@ import Control.Monad
     ( (<=<) )
 import Crypto.Hash.Algorithms
     ( Blake2b_224 (..) )
+import Crypto.Hash.Extra
+    ( blake2b224 )
 import Crypto.Hash.IO
     ( HashAlgorithm (hashDigestSize) )
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
