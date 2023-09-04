@@ -281,7 +281,7 @@ import Control.Monad.Trans.Except
     ( except, runExcept, runExceptT )
 import Control.Monad.Trans.State.Strict
     ( evalState, state )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )

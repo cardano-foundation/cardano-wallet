@@ -68,7 +68,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromByronTxOut )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b256 )
 import Data.Coerce
     ( coerce )

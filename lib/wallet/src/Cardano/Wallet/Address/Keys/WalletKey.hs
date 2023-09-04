@@ -49,7 +49,7 @@ import Control.Lens
     ( over, view, (^.) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 
 -- | Re-encrypt a private key using a different passphrase.

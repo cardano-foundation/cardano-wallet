@@ -248,7 +248,7 @@ import Control.Applicative
     ( Const (..) )
 import Control.Lens
     ( view, (&), (^.) )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.Array
     ( Array )

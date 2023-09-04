@@ -46,7 +46,7 @@ import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.DeepSeq
     ( NFData )
-import Crypto.Hash.Utils
+import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.Aeson.Types
     ( FromJSON (..), ToJSON (..) )

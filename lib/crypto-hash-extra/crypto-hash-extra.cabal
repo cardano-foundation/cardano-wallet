@@ -1,0 +1,32 @@
+cabal-version: 3.0
+name:          crypto-hash-extra
+version:       0.1.0.0
+synopsis:      Extra functionality for cryptographic hashing
+license:       Apache-2.0
+author:        HAL, Cardano Foundation
+maintainer:    hal@cardanofoundation.org
+build-type:    Simple
+
+library
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    DerivingStrategies
+    OverloadedStrings
+
+  ghc-options:
+    -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -fhelpful-errors -fprint-expanded-synonyms
+    -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
+    -freverse-errors
+
+  hs-source-dirs:     src
+  exposed-modules:    Crypto.Hash.Extra
+  build-depends:
+    , base                    ^>=4.14.3
+    , bytestring              ^>=0.10.12
+    , cryptonite              ^>=0.30
+    , memory                  ^>=0.18
