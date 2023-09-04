@@ -11,6 +11,11 @@ fromString "syncing" = Just NodeIsSyncing
 fromString "not_responding" = Just NodeIsNotResponding
 fromString _ = Nothing
 
+toString :: NodeStatus -> String
+toString NodeIsSynced = "ready"
+toString NodeIsSyncing = "syncing"
+toString NodeIsNotResponding = "not_responding"
+
 fromClientResponse
     :: W.GetNetworkInformationResponseBody200Sync_progress -> Maybe NodeStatus
 fromClientResponse

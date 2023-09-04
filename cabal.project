@@ -127,8 +127,8 @@ source-repository-package
     type: git
     location: https://github.com/cardano-foundation/cardano-wallet-client.git
     tag: 353412ca621dc28af53e4a19795338b19bab1b7b
-    subdir: generated
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
+    subdir: generated
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking

@@ -16,3 +16,7 @@ e2e-local:
   nix run '.#cardano-wallet-e2e' -- local \
     -s lib/wallet-e2e/test-state \
     -c lib/wallet-e2e/config/cardano-node/local
+
+# run wallet-e2e suite against the manually started node/wallet
+e2e-manual:
+  nix run '.#cardano-wallet-e2e' -- manual
