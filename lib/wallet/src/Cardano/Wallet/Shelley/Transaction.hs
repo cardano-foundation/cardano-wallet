@@ -203,6 +203,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+import qualified Debug.Trace as TR
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -401,6 +402,7 @@ signTransaction
             -- Note that we use 'nub' here because multiple scripts can share
             -- the same policyXPub. It's sufficient to have one witness for
             -- each.
+            TR.trace ("toMint:"<>show toMint) $
             L.nub $ getScriptsKeyHashes toMint <> getScriptsKeyHashes toBurn
 
         stakingScriptsKeyHashes =
@@ -506,6 +508,7 @@ newTransactionLayer keyF networkId = TransactionLayer
                 policyResolver keyhash = do
                     (keyhash', xprv, encP) <- policyCreds
                     guard (keyhash == keyhash') $> (xprv, encP)
+
             let stakingScriptResolver
                     :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
                 stakingScriptResolver keyhash = case scriptStakingCredM of
@@ -797,16 +800,16 @@ mkUnsignedTx
                     burnValue =
                         Cardano.negateValue $
                         toCardanoValue (TokenBundle (Coin 0) burnData)
-                    hasScript = \case
-                        Left _ -> True
-                        Right _ -> False
-                    toScriptWitnessIfScript = \case
+                    toScriptWitnessGeneral = \case
                         Left script -> toScriptWitness script
-                        Right _ -> error "should not happen after filtering"
+                        Right (ReferenceInput txin) ->
+                            Cardano.SimpleScriptWitness
+                            scriptWitsSupported
+                            (Cardano.SReferenceScript (toCardanoTxIn txin) Nothing)
                     witMap =
-                            Map.map toScriptWitnessIfScript $
-                            Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId) $
-                            Map.filter hasScript mintingSource
+                            Map.map toScriptWitnessGeneral $
+                            Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
+                            mintingSource
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
     }
