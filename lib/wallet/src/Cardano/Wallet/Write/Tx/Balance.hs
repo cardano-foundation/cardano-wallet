@@ -269,7 +269,6 @@ data ErrSelectAssets
         BalanceInsufficientError
     | ErrSelectAssetsUnableToConstructChange
         UnableToConstructChangeError
-    | ErrSelectAssetsEmptyUTxO
     deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -303,6 +302,11 @@ data ErrBalanceTx
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
+    | ErrBalanceTxUnableToCreateInput
+    -- ^ Returned when __both__ of the following conditions are true:
+    --   - the given partial transaction has no existing inputs; and
+    --   - the given UTxO index is empty.
+    -- A transaction must have at least one input in order to be valid.
     deriving (Show, Eq)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
@@ -1420,8 +1424,7 @@ coinSelectionErrorToBalanceTxError = \case
                 ErrBalanceTxSelectAssets $
                 ErrSelectAssetsUnableToConstructChange e
             EmptyUTxO ->
-                ErrBalanceTxSelectAssets
-                ErrSelectAssetsEmptyUTxO
+                ErrBalanceTxUnableToCreateInput
     SelectionCollateralErrorOf SelectionCollateralError
         { largestCombinationAvailable
         , minimumSelectionAmount

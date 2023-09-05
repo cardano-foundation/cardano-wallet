@@ -3256,9 +3256,8 @@ prop_balanceTransactionValid
                 label "maxTxSize limit exceeded" $ property True
             Left ErrBalanceTxConflictingNetworks ->
                 label "conflicting networks" $ property True
-            Left
-                (ErrBalanceTxSelectAssets ErrSelectAssetsEmptyUTxO) ->
-                label "empty UTxO" $ property True
+            Left ErrBalanceTxUnableToCreateInput ->
+                label "unable to create input" $ property True
             Left (ErrBalanceTxInternalError
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
                 let counterexampleText = unlines

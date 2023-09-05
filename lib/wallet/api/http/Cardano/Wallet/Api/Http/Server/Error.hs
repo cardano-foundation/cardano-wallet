@@ -550,6 +550,12 @@ instance IsServerError ErrBalanceTx where
                 , fmt $ blockListF' "-" conflictF conflicts
                 ]
         ErrBalanceTxOutputError err -> toServerError err
+        ErrBalanceTxUnableToCreateInput ->
+            apiError err403 NotEnoughMoney $ T.unwords
+                [ "Cannot create a transaction because the wallet"
+                , "has no UTxO entries. At least one UTxO entry is"
+                , "required in order to create a transaction."
+                ]
 
 instance IsServerError ErrBalanceTxInternalError where
     toServerError = \case
@@ -996,12 +1002,6 @@ instance IsServerError ErrSelectAssets where
                 , pretty (shortfall e)
                 , "ada to proceed. Try increasing your wallet balance"
                 , "or sending a smaller amount."
-                ]
-        ErrSelectAssetsEmptyUTxO ->
-            apiError err403 NotEnoughMoney $ T.unwords
-                [ "Cannot create a transaction because the wallet"
-                , "has no UTxO entries. At least one UTxO entry is"
-                , "required in order to create a transaction."
                 ]
 
 instance IsServerError ErrBalanceTxInsufficientCollateralError where
