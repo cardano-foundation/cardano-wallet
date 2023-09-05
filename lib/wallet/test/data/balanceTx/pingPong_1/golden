@@ -38,10 +38,10 @@
  1.850000,ErrBalanceTxSelectAssets (ErrSelectAssetsBalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1850000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}, utxoBalanceShortfall = TokenBundle {coin = Coin 150000, tokens = TokenMap (fromList [])}}))
  1.900000,ErrBalanceTxSelectAssets (ErrSelectAssetsBalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1900000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}, utxoBalanceShortfall = TokenBundle {coin = Coin 100000, tokens = TokenMap (fromList [])}}))
  1.950000,ErrBalanceTxSelectAssets (ErrSelectAssetsBalanceInsufficient (BalanceInsufficientError {utxoBalanceAvailable = TokenBundle {coin = Coin 1950000, tokens = TokenMap (fromList [])}, utxoBalanceRequired = TokenBundle {coin = Coin 2000000, tokens = TokenMap (fromList [])}, utxoBalanceShortfall = TokenBundle {coin = Coin 50000, tokens = TokenMap (fromList [])}}))
- 2.000000,ErrBalanceTxSelectAssets (ErrSelectAssetsUnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170781, shortfall = Coin 170781}))
- 2.050000,ErrBalanceTxSelectAssets (ErrSelectAssetsUnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170781, shortfall = Coin 120781}))
- 2.100000,ErrBalanceTxSelectAssets (ErrSelectAssetsUnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170781, shortfall = Coin 70781}))
- 2.150000,ErrBalanceTxSelectAssets (ErrSelectAssetsUnableToConstructChange (UnableToConstructChangeError {requiredCost = Coin 170781, shortfall = Coin 20781}))
+ 2.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 170781})
+ 2.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 120781})
+ 2.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 70781})
+ 2.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 20781})
  2.200000,0.200000,0.167217
  2.250000,0.250000,0.167217
  2.300000,0.300000,0.167217
