@@ -55,7 +55,6 @@ import Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
-    , ErrSelectAssets (..)
     , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
     , ErrStakePoolDelegation (..)
@@ -231,7 +230,6 @@ instance IsServerError WalletException where
         ExceptionGetTransaction e -> toServerError e
         ExceptionStartTimeLaterThanEndTime e -> toServerError e
         ExceptionCreateMigrationPlan e -> toServerError e
-        ExceptionSelectAssets e -> toServerError e
         ExceptionStakePoolDelegation e -> toServerError e
         ExceptionFetchRewards e -> toServerError e
         ExceptionWalletNotResponding e -> toServerError e
@@ -507,7 +505,6 @@ instance IsServerError ErrBalanceTx where
                 , "enough funds available in the wallet. I am "
                 , "missing: ", pretty . Flat $ e ^. #shortfall
                 ]
-        ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
             apiError err403 BalanceTxConflictingNetworks $ T.unwords
@@ -987,19 +984,6 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "amount of ada in your wallet is insufficient to pay for "
                 , "any of the funds to be migrated. Try adding some ada to "
                 , "your wallet before trying again."
-                ]
-
-instance IsServerError ErrSelectAssets where
-    toServerError = \case
-        ErrSelectAssetsAlreadyWithdrawing tx ->
-            apiError err403 AlreadyWithdrawing $ mconcat
-                [ "I already know of a pending transaction with withdrawals: "
-                , toText (tx ^. #txId)
-                , ". Note that when I withdraw rewards, I "
-                , "need to withdraw them fully for the Ledger to accept it. "
-                , "There's therefore no point creating another conflicting "
-                , "transaction; if, for some reason, you really want a new "
-                , "transaction, then cancel the previous one first."
                 ]
 
 instance IsServerError ErrBalanceTxInsufficientCollateralError where

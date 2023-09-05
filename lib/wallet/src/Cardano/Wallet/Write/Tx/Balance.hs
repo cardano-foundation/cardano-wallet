@@ -36,7 +36,6 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
 
@@ -228,8 +227,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity )
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-    ( Tx )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
@@ -263,10 +260,6 @@ instance Eq (BuildableInAnyEra a) where
 
 instance Buildable (BuildableInAnyEra a) where
     build (BuildableInAnyEra _ x) = build x
-
-data ErrSelectAssets
-    = ErrSelectAssetsAlreadyWithdrawing W.Tx
-    deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
@@ -329,7 +322,6 @@ data ErrBalanceTxInternalError
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
-    | ErrBalanceTxSelectAssets ErrSelectAssets
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral

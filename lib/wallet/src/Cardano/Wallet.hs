@@ -151,7 +151,6 @@ module Cardano.Wallet
     , signTransaction
     , constructTransaction
     , constructTxMeta
-    , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -521,7 +520,6 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrSelectAssets (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
     , assignChangeAddresses
@@ -3540,7 +3538,6 @@ data WalletException
     | ExceptionGetTransaction ErrGetTransaction
     | ExceptionStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     | ExceptionCreateMigrationPlan ErrCreateMigrationPlan
-    | ExceptionSelectAssets ErrSelectAssets
     | ExceptionStakePoolDelegation ErrStakePoolDelegation
     | ExceptionFetchRewards ErrFetchRewards
     | ExceptionWalletNotResponding ErrWalletNotResponding
