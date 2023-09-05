@@ -30,8 +30,6 @@ import Cardano.Address.Script
     ( Cosigner (..) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( UnableToConstructChangeError (..) )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
@@ -556,6 +554,16 @@ instance IsServerError ErrBalanceTx where
                 , "has no UTxO entries. At least one UTxO entry is"
                 , "required in order to create a transaction."
                 ]
+        ErrBalanceTxUnableToCreateChange e ->
+            apiError err403 CannotCoverFee $ T.unwords
+                [ "I am unable to finalize the transaction, as there"
+                , "is not enough ada available to pay for the fee and"
+                , "also pay for the minimum ada quantities of all"
+                , "change outputs. I need approximately"
+                , pretty (view #shortfall e)
+                , "ada to proceed. Try increasing your wallet balance"
+                , "or sending a smaller amount."
+                ]
 
 instance IsServerError ErrBalanceTxInternalError where
     toServerError = \case
@@ -992,16 +1000,6 @@ instance IsServerError ErrSelectAssets where
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
                 , "missing: ", pretty . Flat $ e ^. #utxoBalanceShortfall
-                ]
-        ErrSelectAssetsUnableToConstructChange e ->
-            apiError err403 CannotCoverFee $ T.unwords
-                [ "I am unable to finalize the transaction, as there"
-                , "is not enough ada available to pay for the fee and"
-                , "also pay for the minimum ada quantities of all"
-                , "change outputs. I need approximately"
-                , pretty (shortfall e)
-                , "ada to proceed. Try increasing your wallet balance"
-                , "or sending a smaller amount."
                 ]
 
 instance IsServerError ErrBalanceTxInsufficientCollateralError where

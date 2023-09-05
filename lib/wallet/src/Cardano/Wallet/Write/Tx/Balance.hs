@@ -34,6 +34,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
@@ -267,8 +268,6 @@ data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
     | ErrSelectAssetsBalanceInsufficient
         BalanceInsufficientError
-    | ErrSelectAssetsUnableToConstructChange
-        UnableToConstructChangeError
     deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -325,6 +324,7 @@ data ErrBalanceTx
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
+    | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
     | ErrBalanceTxUnableToCreateInput
     -- ^ Returned when __both__ of the following conditions are true:
     --   - the given partial transaction has no existing inputs; and
@@ -486,8 +486,7 @@ balanceTransaction
         -- pay for the change, and therefore increase the chance that we can
         -- generate change successfully.
         unableToConstructChange = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsUnableToConstructChange {}) ->
+            ErrBalanceTxUnableToCreateChange {} ->
                 True
             _someOtherError ->
                 False
@@ -1443,9 +1442,11 @@ coinSelectionErrorToBalanceTxError = \case
             BalanceInsufficient e ->
                 ErrBalanceTxSelectAssets $
                 ErrSelectAssetsBalanceInsufficient e
-            UnableToConstructChange e ->
-                ErrBalanceTxSelectAssets $
-                ErrSelectAssetsUnableToConstructChange e
+            UnableToConstructChange
+                UnableToConstructChangeError {shortfall, requiredCost} ->
+                    ErrBalanceTxUnableToCreateChange
+                    ErrBalanceTxUnableToCreateChangeError
+                        {shortfall, requiredCost}
             EmptyUTxO ->
                 ErrBalanceTxUnableToCreateInput
     SelectionCollateralErrorOf SelectionCollateralError

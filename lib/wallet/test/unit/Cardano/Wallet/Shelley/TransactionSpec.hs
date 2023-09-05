@@ -99,7 +99,7 @@ import Cardano.Numeric.Util
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..), UnableToConstructChangeError (..), selectionDelta )
+    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
@@ -234,6 +234,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrMoreSurplusNeeded (..)
     , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
@@ -1114,9 +1115,8 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
         let requiredCost = Fee (Coin.fromNatural 166_029)
         let estimateFee = except $ Left
-                $ ErrBalanceTxSelectAssets
-                $ ErrSelectAssetsUnableToConstructChange
-                $ UnableToConstructChangeError
+                $ ErrBalanceTxUnableToCreateChange
+                $ ErrBalanceTxUnableToCreateChangeError
                     { requiredCost = feeToCoin requiredCost
                     , shortfall = Coin 100_000
                     }
@@ -3279,10 +3279,8 @@ prop_balanceTransactionValid
                 (ReferenceScriptsNotSupported _))) ->
                 -- Possible with PlutusV1
                 label "ReferenceScriptsNotSupported" $ property True
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsUnableToConstructChange _)) ->
-                label "unable to construct change" $ property True
+            Left ErrBalanceTxUnableToCreateChange {} ->
+                label "unable to create change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True
             Left err -> label "other error" $

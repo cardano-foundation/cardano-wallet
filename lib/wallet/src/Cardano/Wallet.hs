@@ -263,7 +263,7 @@ import Cardano.Mnemonic
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection, SelectionOf (..), UnableToConstructChangeError (..) )
+    ( Selection, SelectionOf (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
@@ -520,6 +520,7 @@ import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
@@ -2970,10 +2971,9 @@ calculateFeePercentiles
     -- to cover for these fees.
     handleCannotCover :: ErrBalanceTx -> ExceptT ErrBalanceTx m Fee
     handleCannotCover = \case
-        ErrBalanceTxSelectAssets
-            (ErrSelectAssetsUnableToConstructChange
-                UnableToConstructChangeError {requiredCost}) ->
-                    pure $ Fee requiredCost
+        ErrBalanceTxUnableToCreateChange
+            ErrBalanceTxUnableToCreateChangeError {requiredCost} ->
+                pure $ Fee requiredCost
         e -> throwE e
 
 -- | Make a pair of fee estimation percentiles more imprecise.
