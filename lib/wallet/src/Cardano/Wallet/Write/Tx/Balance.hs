@@ -283,7 +283,7 @@ data ErrBalanceTxInternalError
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
--- | Errors that can occur when balancing transaction.
+-- | Errors that can occur when balancing transactions.
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
