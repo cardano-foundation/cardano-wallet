@@ -1245,11 +1245,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrsMint <- listAddresses @n ctx wa
         let addrMint = (addrsMint !! 1) ^. #id
+        let (Right tokenName') = mkTokenName "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_id": #{toText policyId'},
                     "reference_input": #{toJSON refInp},
-                    "asset_name": "ab12",
+                    "asset_name": #{toText tokenName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{addrMint},
@@ -1273,6 +1274,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash scriptUsed
+        let tokens' = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 1_000)
+
+        eventually "wallet holds minted assets" $ do
+            rWal <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWal
+                [ expectSuccess
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` tokens')
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` tokens')
+                ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
