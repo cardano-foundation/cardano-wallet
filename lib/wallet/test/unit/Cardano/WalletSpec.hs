@@ -153,7 +153,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( HasCallStack )
 import Cardano.Wallet.Write.Tx.Balance
-    ( ErrSelectAssets (..) )
+    ( ErrBalanceTx (..), ErrSelectAssets (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -658,15 +658,16 @@ prop_calculateFeePercentiles (NonEmpty coins) =
                     `closeTo` (1/10 :: Double)
                 ]
   where
-    genericError :: W.ErrSelectAssets
+    genericError :: ErrBalanceTx
     genericError
-        = ErrSelectAssetsBalanceInsufficient
+        = ErrBalanceTxSelectAssets
+        $ ErrSelectAssetsBalanceInsufficient
         $ BalanceInsufficientError
             TokenBundle.empty
             TokenBundle.empty
             TokenBundle.empty
 
-    estimateFee :: ExceptT W.ErrSelectAssets (State Int) W.Fee
+    estimateFee :: ExceptT ErrBalanceTx (State Int) W.Fee
     estimateFee = do
         i <- lift get
         lift $ put $ (i + 1) `mod` length coins

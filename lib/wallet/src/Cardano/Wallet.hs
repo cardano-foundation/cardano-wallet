@@ -2887,7 +2887,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                 , redeemers = []
                 }
 
-        wrapErrSelectAssets $ calculateFeePercentiles $ do
+        wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         (utxoAssumptionsForWallet (walletFlavor @s))
@@ -2904,12 +2904,10 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                             -> Fee (fromCardanoLovelace coin)
                         Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
                             -> case Write.recentEra @era of {}
-                Left (ErrBalanceTxSelectAssets errSelectAssets)
-                    -> throwE errSelectAssets
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
-    wrapErrSelectAssets
-        = throwWrappedErr ExceptionSelectAssets
+    wrapErrBalanceTx
+        = throwWrappedErr ExceptionBalanceTx
 
     wrapErrMkTransaction
         = throwWrappedErr (ExceptionConstructTx . ErrConstructTxBody)
@@ -2929,8 +2927,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
 calculateFeePercentiles
     :: forall m
      . Monad m
-    => ExceptT ErrSelectAssets m Fee
-    -> ExceptT ErrSelectAssets m (Percentile 10 Fee, Percentile 90 Fee)
+    => ExceptT ErrBalanceTx m Fee
+    -> ExceptT ErrBalanceTx m (Percentile 10 Fee, Percentile 90 Fee)
 calculateFeePercentiles
     = fmap deciles
     . handleErrors
@@ -2970,11 +2968,12 @@ calculateFeePercentiles
     -- Therefore, we convert "cannot cover" errors into the necessary
     -- fee amount, even though there isn't enough in the wallet
     -- to cover for these fees.
-    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Fee
+    handleCannotCover :: ErrBalanceTx -> ExceptT ErrBalanceTx m Fee
     handleCannotCover = \case
-        ErrSelectAssetsUnableToConstructChange
-            UnableToConstructChangeError {requiredCost} ->
-                pure $ Fee requiredCost
+        ErrBalanceTxSelectAssets
+            (ErrSelectAssetsUnableToConstructChange
+                UnableToConstructChangeError {requiredCost}) ->
+                    pure $ Fee requiredCost
         e -> throwE e
 
 -- | Make a pair of fee estimation percentiles more imprecise.

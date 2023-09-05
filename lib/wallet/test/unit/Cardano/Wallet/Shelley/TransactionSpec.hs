@@ -1114,6 +1114,7 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
         let requiredCost = Fee (Coin.fromNatural 166_029)
         let estimateFee = except $ Left
+                $ ErrBalanceTxSelectAssets
                 $ ErrSelectAssetsUnableToConstructChange
                 $ UnableToConstructChangeError
                     { requiredCost = feeToCoin requiredCost
