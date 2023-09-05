@@ -282,6 +282,29 @@ data ErrBalanceTxInsufficientCollateralError =
     }
     deriving (Eq, Generic, Show)
 
+-- | Indicates that there was not enough ada available to create change outputs.
+--
+-- When creating a change output, ada is required in order to pay for:
+--
+--  - the minimum ada quantity required for that change output; and
+--  - the marginal fee for including that output in the transaction.
+--
+data ErrBalanceTxUnableToCreateChangeError =
+    ErrBalanceTxUnableToCreateChangeError
+    { requiredCost :: !W.Coin
+        -- ^ An estimate of the minimal fee required for this transaction to
+        -- be considered valid.
+        --
+        -- TODO: ADP-2547
+        -- Investigate whether this field is really appropriate and necessary,
+        -- and if not, remove it.
+    , shortfall :: !W.Coin
+        -- ^ The total additional quantity of ada required to pay for the
+        -- minimum ada quantities of all change outputs as well as the
+        -- marginal fee for including these outputs in the transaction.
+    }
+    deriving (Eq, Generic, Show)
+
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
     | ErrFailedBalancing Cardano.Value
