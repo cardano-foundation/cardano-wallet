@@ -244,8 +244,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-import qualified Debug.Trace as TR
-
 
 spec
     :: forall n
@@ -1268,7 +1266,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let (ApiSerialisedTransaction apiTxMint _) = getFromResponse #transaction rTxMint
 
-        signedTxMint <- TR.trace ("----signing----") $ signTx ctx wa apiTxMint [ expectResponseCode HTTP.status202 ]
+        signedTxMint <- signTx ctx wa apiTxMint [ expectResponseCode HTTP.status202 ]
 
         submittedTxMint <- submitTxWithWid ctx wa signedTxMint
         verify submittedTxMint

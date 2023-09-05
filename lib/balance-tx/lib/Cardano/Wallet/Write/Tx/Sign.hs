@@ -188,12 +188,22 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
+        -- when wallets uses reference input it means script containing
+        -- its policy key was already published in previous tx
+        -- if so we need to add one witness that will stem from policy signing
+        -- key. As it is not allowed to publish and consume in the same transaction
+        -- we are not going to double count.
+        txRefInpsWit =
+            case Cardano.txInsReference txbodycontent of
+                Cardano.TxInsReferenceNone -> 0
+                Cardano.TxInsReference _ _ -> 1
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
             txUpdateProposal' +
             fromIntegral txCerts +
-            scriptVkWitsUpperBound
+            scriptVkWitsUpperBound +
+            txRefInpsWit
         inputWits = KeyWitnessCount
             { nKeyWits = fromIntegral
                 . length

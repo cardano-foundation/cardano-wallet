@@ -203,7 +203,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-import qualified Debug.Trace as TR
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -405,7 +404,6 @@ signTransaction
             -- Note that we use 'nub' here because multiple scripts can share
             -- the same policyXPub. It's sufficient to have one witness for
             -- each.
-            TR.trace ("toMint:"<>show toMint) $
             L.nub $ getScriptsKeyHashes toMint <> getScriptsKeyHashes toBurn
 
         stakingScriptsKeyHashes =
