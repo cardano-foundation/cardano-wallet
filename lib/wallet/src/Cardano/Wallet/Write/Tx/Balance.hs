@@ -1412,12 +1412,15 @@ coinSelectionErrorToBalanceTxError
     -> ErrBalanceTx
 coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
-        ErrBalanceTxSelectAssets $ case balanceErr of
+        case balanceErr of
             BalanceInsufficient e ->
+                ErrBalanceTxSelectAssets $
                 ErrSelectAssetsBalanceInsufficient e
             UnableToConstructChange e ->
+                ErrBalanceTxSelectAssets $
                 ErrSelectAssetsUnableToConstructChange e
             EmptyUTxO ->
+                ErrBalanceTxSelectAssets
                 ErrSelectAssetsEmptyUTxO
     SelectionCollateralErrorOf SelectionCollateralError
         { largestCombinationAvailable
