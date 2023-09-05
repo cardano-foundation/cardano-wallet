@@ -99,11 +99,7 @@ import Cardano.Numeric.Util
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionBalanceError (..)
-    , SelectionOf (..)
-    , UnableToConstructChangeError (..)
-    , selectionDelta
-    )
+    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
@@ -238,8 +234,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrMoreSurplusNeeded (..)
-    , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
     , Redeemer (..)
@@ -1118,9 +1114,8 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
         let requiredCost = Fee (Coin.fromNatural 166_029)
         let estimateFee = except $ Left
-                $ ErrSelectAssetsBalanceError
-                $ UnableToConstructChange
-                $ UnableToConstructChangeError
+                $ ErrBalanceTxUnableToCreateChange
+                $ ErrBalanceTxUnableToCreateChangeError
                     { requiredCost = feeToCoin requiredCost
                     , shortfall = Coin 100_000
                     }
@@ -3226,25 +3221,22 @@ prop_balanceTransactionValid
                         --
                         -- , prop_outputsSatisfyMinAdaRequirement tx
                         ]
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceError
-                (BalanceInsufficient err))) -> do
-                    let missing = view #utxoBalanceShortfall err
-                    let missingCoin = view #coin missing == Coin 0
-                    let missingTokens = view #tokens missing == mempty
-                    case (missingCoin, missingTokens) of
-                        (False, False) ->
-                            label "missing coin and tokens" $
-                            property True
-                        (False, True) ->
-                            label "missing coin" $
-                            property True
-                        (True, False) ->
-                            label "missing tokens" $
-                            counterexample (show err) $ property True
-                        (True, True) ->
-                            property False
+            Left (ErrBalanceTxAssetsInsufficient err) -> do
+                let missing = view #shortfall err
+                let missingCoin = view #coin missing == Coin 0
+                let missingTokens = view #tokens missing == mempty
+                case (missingCoin, missingTokens) of
+                    (False, False) ->
+                        label "missing coin and tokens" $
+                        property True
+                    (False, True) ->
+                        label "missing coin" $
+                        property True
+                    (True, False) ->
+                        label "missing tokens" $
+                        counterexample (show err) $ property True
+                    (True, True) ->
+                        property False
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
@@ -3262,10 +3254,8 @@ prop_balanceTransactionValid
                 label "maxTxSize limit exceeded" $ property True
             Left ErrBalanceTxConflictingNetworks ->
                 label "conflicting networks" $ property True
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceError EmptyUTxO)) ->
-                label "empty UTxO" $ property True
+            Left ErrBalanceTxUnableToCreateInput ->
+                label "unable to create input" $ property True
             Left (ErrBalanceTxInternalError
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
                 let counterexampleText = unlines
@@ -3286,11 +3276,8 @@ prop_balanceTransactionValid
                 (ReferenceScriptsNotSupported _))) ->
                 -- Possible with PlutusV1
                 label "ReferenceScriptsNotSupported" $ property True
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceError
-                (UnableToConstructChange _))) ->
-                label "unable to construct change" $ property True
+            Left ErrBalanceTxUnableToCreateChange {} ->
+                label "unable to create change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True
             Left err -> label "other error" $

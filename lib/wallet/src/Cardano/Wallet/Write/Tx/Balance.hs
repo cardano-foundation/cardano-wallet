@@ -27,6 +27,7 @@ module Cardano.Wallet.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
     , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
@@ -34,7 +35,7 @@ module Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
-    , ErrSelectAssets (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
 
@@ -106,6 +107,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOf (change)
     , SelectionParams (..)
     , SelectionStrategy (..)
+    , UnableToConstructChangeError (..)
     , WalletSelectionContext
     , WalletUTxO (..)
     , performSelection
@@ -225,8 +227,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity )
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-    ( Tx )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
@@ -261,12 +261,6 @@ instance Eq (BuildableInAnyEra a) where
 instance Buildable (BuildableInAnyEra a) where
     build (BuildableInAnyEra _ x) = build x
 
-data ErrSelectAssets
-    = ErrSelectAssetsAlreadyWithdrawing W.Tx
-    | ErrSelectAssetsBalanceError
-        (SelectionBalanceError WalletSelectionContext)
-    deriving (Generic, Eq, Show)
-
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
 data ErrBalanceTxInsufficientCollateralError =
@@ -278,15 +272,56 @@ data ErrBalanceTxInsufficientCollateralError =
     }
     deriving (Eq, Generic, Show)
 
+-- | Indicates that there was not enough ada available to create change outputs.
+--
+-- When creating a change output, ada is required in order to pay for:
+--
+--  - the minimum ada quantity required for that change output; and
+--  - the marginal fee for including that output in the transaction.
+--
+data ErrBalanceTxUnableToCreateChangeError =
+    ErrBalanceTxUnableToCreateChangeError
+    { requiredCost :: !W.Coin
+        -- ^ An estimate of the minimal fee required for this transaction to
+        -- be considered valid.
+        --
+        -- TODO: ADP-2547
+        -- Investigate whether this field is really appropriate and necessary,
+        -- and if not, remove it.
+    , shortfall :: !W.Coin
+        -- ^ The total additional quantity of ada required to pay for the
+        -- minimum ada quantities of all change outputs as well as the
+        -- marginal fee for including these outputs in the transaction.
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Indicates the insufficient availability of one or more assets.
+--
+-- This error is returned when the available quantity of one or more assets
+-- is insufficient to balance the transaction.
+--
+-- The 'shortfall' field indicates the minimum extra quantity of each asset
+-- that would be necessary to balance the transaction.
+--
+data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
+    { available :: W.TokenBundle
+        -- ^ The total sum of all assets available.
+    , required :: W.TokenBundle
+        -- ^ The total sum of all assets required.
+    , shortfall :: W.TokenBundle
+        -- ^ The total shortfall between available and required assets.
+    }
+    deriving (Eq, Generic, Show)
+
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
--- | Errors that can occur when balancing transaction.
+-- | Errors that can occur when balancing transactions.
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
-    | ErrBalanceTxSelectAssets ErrSelectAssets
+    | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
@@ -298,6 +333,12 @@ data ErrBalanceTx
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
+    | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
+    | ErrBalanceTxUnableToCreateInput
+    -- ^ Returned when __both__ of the following conditions are true:
+    --   - the given partial transaction has no existing inputs; and
+    --   - the given UTxO index is empty.
+    -- A transaction must have at least one input in order to be valid.
     deriving (Show, Eq)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
@@ -454,9 +495,7 @@ balanceTransaction
         -- pay for the change, and therefore increase the chance that we can
         -- generate change successfully.
         unableToConstructChange = case e of
-            ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceError
-                (UnableToConstructChange {})) ->
+            ErrBalanceTxUnableToCreateChange {} ->
                 True
             _someOtherError ->
                 False
@@ -1407,8 +1446,22 @@ coinSelectionErrorToBalanceTxError
     :: SelectionError WalletSelectionContext
     -> ErrBalanceTx
 coinSelectionErrorToBalanceTxError = \case
-    SelectionBalanceErrorOf x ->
-        ErrBalanceTxSelectAssets $ ErrSelectAssetsBalanceError x
+    SelectionBalanceErrorOf balanceErr ->
+        case balanceErr of
+            BalanceInsufficient e ->
+                ErrBalanceTxAssetsInsufficient $
+                ErrBalanceTxAssetsInsufficientError
+                    { available = view #utxoBalanceAvailable e
+                    , required = view #utxoBalanceRequired e
+                    , shortfall = view #utxoBalanceShortfall e
+                    }
+            UnableToConstructChange
+                UnableToConstructChangeError {shortfall, requiredCost} ->
+                    ErrBalanceTxUnableToCreateChange
+                    ErrBalanceTxUnableToCreateChangeError
+                        {shortfall, requiredCost}
+            EmptyUTxO ->
+                ErrBalanceTxUnableToCreateInput
     SelectionCollateralErrorOf SelectionCollateralError
         { largestCombinationAvailable
         , minimumSelectionAmount

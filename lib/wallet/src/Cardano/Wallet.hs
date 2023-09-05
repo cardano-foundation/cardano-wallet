@@ -151,7 +151,6 @@ module Cardano.Wallet
     , signTransaction
     , constructTransaction
     , constructTxMeta
-    , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -263,11 +262,7 @@ import Cardano.Mnemonic
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
-    , SelectionOf (..)
-    , UnableToConstructChangeError (..)
-    )
+    ( Selection, SelectionOf (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
@@ -524,7 +519,7 @@ import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
-    , ErrSelectAssets (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
     , assignChangeAddresses
@@ -2891,7 +2886,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                 , redeemers = []
                 }
 
-        wrapErrSelectAssets $ calculateFeePercentiles $ do
+        wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         (utxoAssumptionsForWallet (walletFlavor @s))
@@ -2908,12 +2903,12 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                             -> Fee (fromCardanoLovelace coin)
                         Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
                             -> case Write.recentEra @era of {}
-                Left (ErrBalanceTxSelectAssets errSelectAssets)
-                    -> throwE errSelectAssets
+                Left (e@(ErrBalanceTxUnableToCreateChange _))
+                    -> throwE e
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
-    wrapErrSelectAssets
-        = throwWrappedErr ExceptionSelectAssets
+    wrapErrBalanceTx
+        = throwWrappedErr ExceptionBalanceTx
 
     wrapErrMkTransaction
         = throwWrappedErr (ExceptionConstructTx . ErrConstructTxBody)
@@ -2933,8 +2928,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
 calculateFeePercentiles
     :: forall m
      . Monad m
-    => ExceptT ErrSelectAssets m Fee
-    -> ExceptT ErrSelectAssets m (Percentile 10 Fee, Percentile 90 Fee)
+    => ExceptT ErrBalanceTx m Fee
+    -> ExceptT ErrBalanceTx m (Percentile 10 Fee, Percentile 90 Fee)
 calculateFeePercentiles
     = fmap deciles
     . handleErrors
@@ -2974,12 +2969,11 @@ calculateFeePercentiles
     -- Therefore, we convert "cannot cover" errors into the necessary
     -- fee amount, even though there isn't enough in the wallet
     -- to cover for these fees.
-    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Fee
+    handleCannotCover :: ErrBalanceTx -> ExceptT ErrBalanceTx m Fee
     handleCannotCover = \case
-        ErrSelectAssetsBalanceError
-            ( UnableToConstructChange
-                UnableToConstructChangeError {requiredCost}
-            ) -> pure $ Fee requiredCost
+        ErrBalanceTxUnableToCreateChange
+            ErrBalanceTxUnableToCreateChangeError {requiredCost} ->
+                pure $ Fee requiredCost
         e -> throwE e
 
 -- | Make a pair of fee estimation percentiles more imprecise.
@@ -3546,7 +3540,6 @@ data WalletException
     | ExceptionGetTransaction ErrGetTransaction
     | ExceptionStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     | ExceptionCreateMigrationPlan ErrCreateMigrationPlan
-    | ExceptionSelectAssets ErrSelectAssets
     | ExceptionStakePoolDelegation ErrStakePoolDelegation
     | ExceptionFetchRewards ErrFetchRewards
     | ExceptionWalletNotResponding ErrWalletNotResponding

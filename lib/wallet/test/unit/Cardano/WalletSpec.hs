@@ -30,8 +30,6 @@ import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( BalanceInsufficientError (..), SelectionBalanceError (..) )
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
@@ -152,6 +150,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( HasCallStack )
+import Cardano.Wallet.Write.Tx.Balance
+    ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -656,16 +656,15 @@ prop_calculateFeePercentiles (NonEmpty coins) =
                     `closeTo` (1/10 :: Double)
                 ]
   where
-    genericError :: W.ErrSelectAssets
+    genericError :: ErrBalanceTx
     genericError
-        = W.ErrSelectAssetsBalanceError
-        $ BalanceInsufficient
-        $ BalanceInsufficientError
+        = ErrBalanceTxAssetsInsufficient
+        $ ErrBalanceTxAssetsInsufficientError
             TokenBundle.empty
             TokenBundle.empty
             TokenBundle.empty
 
-    estimateFee :: ExceptT W.ErrSelectAssets (State Int) W.Fee
+    estimateFee :: ExceptT ErrBalanceTx (State Int) W.Fee
     estimateFee = do
         i <- lift get
         lift $ put $ (i + 1) `mod` length coins
