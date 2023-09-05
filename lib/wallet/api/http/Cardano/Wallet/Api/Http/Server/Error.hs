@@ -501,6 +501,12 @@ instance IsServerError ErrBalanceTx where
                 , "the transaction body is modified. "
                 , "Please sign the transaction after it is balanced instead."
                 ]
+        ErrBalanceTxAssetsInsufficient e ->
+            apiError err403 NotEnoughMoney $ mconcat
+                [ "I can't process this payment as there are not "
+                , "enough funds available in the wallet. I am "
+                , "missing: ", pretty . Flat $ e ^. #shortfall
+                ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
@@ -994,12 +1000,6 @@ instance IsServerError ErrSelectAssets where
                 , "There's therefore no point creating another conflicting "
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
-                ]
-        ErrSelectAssetsBalanceInsufficient e ->
-            apiError err403 NotEnoughMoney $ mconcat
-                [ "I can't process this payment as there are not "
-                , "enough funds available in the wallet. I am "
-                , "missing: ", pretty . Flat $ e ^. #utxoBalanceShortfall
                 ]
 
 instance IsServerError ErrBalanceTxInsufficientCollateralError where

@@ -236,7 +236,6 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrMoreSurplusNeeded (..)
-    , ErrSelectAssets (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
     , Redeemer (..)
@@ -3222,24 +3221,22 @@ prop_balanceTransactionValid
                         --
                         -- , prop_outputsSatisfyMinAdaRequirement tx
                         ]
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsBalanceInsufficient err)) -> do
-                    let missing = view #utxoBalanceShortfall err
-                    let missingCoin = view #coin missing == Coin 0
-                    let missingTokens = view #tokens missing == mempty
-                    case (missingCoin, missingTokens) of
-                        (False, False) ->
-                            label "missing coin and tokens" $
-                            property True
-                        (False, True) ->
-                            label "missing coin" $
-                            property True
-                        (True, False) ->
-                            label "missing tokens" $
-                            counterexample (show err) $ property True
-                        (True, True) ->
-                            property False
+            Left (ErrBalanceTxAssetsInsufficient err) -> do
+                let missing = view #shortfall err
+                let missingCoin = view #coin missing == Coin 0
+                let missingTokens = view #tokens missing == mempty
+                case (missingCoin, missingTokens) of
+                    (False, False) ->
+                        label "missing coin and tokens" $
+                        property True
+                    (False, True) ->
+                        label "missing coin" $
+                        property True
+                    (True, False) ->
+                        label "missing tokens" $
+                        counterexample (show err) $ property True
+                    (True, True) ->
+                        property False
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left

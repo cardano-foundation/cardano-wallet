@@ -27,6 +27,7 @@ module Cardano.Wallet.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
     , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
@@ -97,8 +98,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( BalanceInsufficientError (..)
-    , Selection
+    ( Selection
     , SelectionBalanceError (..)
     , SelectionBalanceError (..)
     , SelectionCollateralError (..)
@@ -266,8 +266,6 @@ instance Buildable (BuildableInAnyEra a) where
 
 data ErrSelectAssets
     = ErrSelectAssetsAlreadyWithdrawing W.Tx
-    | ErrSelectAssetsBalanceInsufficient
-        BalanceInsufficientError
     deriving (Generic, Eq, Show)
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -330,6 +328,7 @@ data ErrBalanceTxInternalError
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
+    | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxSelectAssets ErrSelectAssets
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
@@ -1458,8 +1457,12 @@ coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
-                ErrBalanceTxSelectAssets $
-                ErrSelectAssetsBalanceInsufficient e
+                ErrBalanceTxAssetsInsufficient $
+                ErrBalanceTxAssetsInsufficientError
+                    { available = view #utxoBalanceAvailable e
+                    , required = view #utxoBalanceRequired e
+                    , shortfall = view #utxoBalanceShortfall e
+                    }
             UnableToConstructChange
                 UnableToConstructChangeError {shortfall, requiredCost} ->
                     ErrBalanceTxUnableToCreateChange
