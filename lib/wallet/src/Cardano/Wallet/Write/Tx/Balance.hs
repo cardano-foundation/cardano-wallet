@@ -304,6 +304,24 @@ data ErrBalanceTxUnableToCreateChangeError =
     }
     deriving (Eq, Generic, Show)
 
+-- | Indicates the insufficient availability of one or more assets.
+--
+-- This error is returned when the available quantity of one or more assets
+-- is insufficient to balance the transaction.
+--
+-- The 'shortfall' field indicates the minimum extra quantity of each asset
+-- that would be necessary to balance the transaction.
+--
+data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
+    { available :: W.TokenBundle
+        -- ^ The total sum of all assets available.
+    , required :: W.TokenBundle
+        -- ^ The total sum of all assets required.
+    , shortfall :: W.TokenBundle
+        -- ^ The total shortfall between available and required assets.
+    }
+    deriving (Eq, Generic, Show)
+
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
     | ErrFailedBalancing Cardano.Value
