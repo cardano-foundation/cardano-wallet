@@ -298,7 +298,7 @@ mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees 
         (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
     let signed = signTransaction keyF networkId AnyWitnessCountCtx acctResolver
-            (const Nothing) (const Nothing) addrResolver inputResolver
+            (const Nothing) Nothing (const Nothing) addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
@@ -336,6 +336,8 @@ signTransaction
     -- ^ Stake key store / reward account resolution
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Policy key resolution
+    -> Maybe KeyHash
+    -- ^ Optional policy key
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Staking script key resolution
     -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
@@ -351,6 +353,7 @@ signTransaction
     witCountCtx
     resolveRewardAcct
     resolvePolicyKey
+    policyKeyM
     resolveStakingKeyInScript
     resolveAddress
     resolveInput
@@ -425,13 +428,21 @@ signTransaction
     retrieveAllKeyHashes (NativeScript s _) = foldScript (:) [] s
     retrieveAllKeyHashes _ = []
 
-    isTimelock (NativeScript _ _) = True
-    isTimelock _ = False
+    isTimelockOrRef (NativeScript _ _) = True
+    isTimelockOrRef (AnyScriptReference _ _) = True
+    isTimelockOrRef _ = False
 
     getScriptsKeyHashes :: TokenMapWithScripts -> [KeyHash]
     getScriptsKeyHashes scripts =
-        concatMap retrieveAllKeyHashes $
-        filter isTimelock $
+        let getKeyHash script@(NativeScript _ _) =
+                retrieveAllKeyHashes script
+            getKeyHash (AnyScriptReference _ _) = case policyKeyM of
+                Just policyKey -> [policyKey]
+                Nothing -> []
+            getKeyHash _ = error "getKeyHash: this should be filtered at at this stage"
+        in
+        concatMap getKeyHash $
+        filter isTimelockOrRef $
         Map.elems $ scripts ^. #txScripts
 
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
@@ -516,32 +527,38 @@ newTransactionLayer keyF networkId = TransactionLayer
                         let (keyhash', xprv, encP) = scriptStakingCred
                         guard (keyhash == keyhash') $> (xprv, encP)
                     Nothing -> Nothing
+
+            let policyKeyM :: Maybe KeyHash
+                policyKeyM = do
+                    (keyhash', _, _) <- policyCreds
+                    pure keyhash'
+
             case cardanoTxIdeallyNoLaterThan era sealedTx of
                 InAnyCardanoEra ByronEra _ ->
                     sealedTx
                 InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
-                    (const Nothing) addressResolver inputResolver (body, wits)
+                    Nothing (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
-                    (const Nothing) addressResolver inputResolver (body, wits)
+                    Nothing (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    stakingScriptResolver addressResolver inputResolver (body, wits)
+                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    stakingScriptResolver addressResolver inputResolver (body, wits)
+                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    stakingScriptResolver addressResolver inputResolver (body, wits)
+                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra ConwayEra (Cardano.Tx body wits) ->
                     signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    stakingScriptResolver addressResolver inputResolver (body, wits)
+                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \stakeCred ctx selection -> do
