@@ -2903,6 +2903,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                             -> Fee (fromCardanoLovelace coin)
                         Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
                             -> case Write.recentEra @era of {}
+                Left (e@(ErrBalanceTxUnableToCreateChange _))
+                    -> throwE e
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
     wrapErrBalanceTx
