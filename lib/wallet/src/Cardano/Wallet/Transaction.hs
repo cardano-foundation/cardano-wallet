@@ -7,6 +7,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -27,6 +29,7 @@ module Cardano.Wallet.Transaction
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
+    , selectionDelta
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
@@ -96,10 +99,14 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
+import Data.Monoid.Monus
+    ( (<\>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -117,6 +124,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -233,6 +241,31 @@ data TransactionCtx = TransactionCtx
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
     deriving stock (Generic, Show)
     deriving newtype (Eq)
+
+-- | Computes the ada surplus of a selection, assuming there is a surplus.
+--
+-- If there is no surplus, this function returns 'Coin 0'.
+--
+selectionDelta
+    :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change value.
+    -> CS.Internal.SelectionOf change
+    -> Coin
+selectionDelta getChangeCoin selection =
+    balanceIn <\> balanceOut
+  where
+    balanceIn =
+        F.foldMap (view (#tokens . #coin) . snd) inputs
+        <>
+        extraCoinSource
+    balanceOut =
+        F.foldMap (view (#tokens . #coin)) outputs
+        <>
+        F.foldMap getChangeCoin change
+        <>
+        extraCoinSink
+    CS.Internal.Selection
+        {inputs, outputs, change, extraCoinSource, extraCoinSink} = selection
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
