@@ -141,6 +141,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , PreSelection (..)
+    , SelectionOf (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -190,7 +191,6 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Write.Tx as Write
@@ -238,7 +238,7 @@ constructUnsignedTx
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
-    -> Either PreSelection (CS.Internal.SelectionOf TxOut)
+    -> Either PreSelection (SelectionOf TxOut)
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -277,7 +277,7 @@ mkTx
     -- ^ Key store
     -> Withdrawal
     -- ^ An optional withdrawal
-    -> CS.Internal.SelectionOf TxOut
+    -> SelectionOf TxOut
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -649,7 +649,7 @@ mkUnsignedTx
     :: forall era. Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> (Maybe SlotNo, SlotNo)
-    -> Either PreSelection (CS.Internal.SelectionOf TxOut)
+    -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
@@ -789,7 +789,7 @@ mkUnsignedTx
     --     duplicating.
     -- - Remove validation from coin-selection itself
     extractValidatedOutputs
-        :: Either PreSelection (CS.Internal.SelectionOf TxOut)
+        :: Either PreSelection (SelectionOf TxOut)
         -> Either ErrMkTransaction [TxOut]
     extractValidatedOutputs sel =
         mapM validateOut $ case sel of

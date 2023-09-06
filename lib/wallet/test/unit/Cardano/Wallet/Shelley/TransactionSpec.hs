@@ -215,6 +215,7 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , SelectionOf (..)
     , TransactionLayer (..)
     , WitnessCountCtx (..)
     , selectionDelta
@@ -446,7 +447,6 @@ import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1396,7 +1396,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
-          cs = CS.Internal.Selection
+          cs = Selection
             { inputs = NE.fromList inps
             , collateral = []
             , extraCoinSource = Coin 0
@@ -1452,7 +1452,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     addrWits = map (mkShelleyWitness unsigned) pairs
-    cs = CS.Internal.Selection
+    cs = Selection
         { inputs = NE.fromList inps
         , collateral = []
         , extraCoinSource = Coin 0
