@@ -148,6 +148,7 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
+    , selectionDelta
     )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..) )
@@ -471,7 +472,7 @@ newTransactionLayer keyF networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl = view #txWithdrawal ctx
-        let delta = CS.Internal.selectionDelta TxOut.coin selection
+        let delta = selectionDelta TxOut.coin selection
         case view #txDelegationAction ctx of
             Nothing -> withShelleyBasedEra era $ do
                 let payload = TxPayload (view #txMetadata ctx) mempty mempty
@@ -541,7 +542,7 @@ newTransactionLayer keyF networkId = TransactionLayer
         let ttl   = txValidityInterval ctx
         let wdrl  = view #txWithdrawal ctx
         let delta = case selection of
-                Right selOf -> CS.Internal.selectionDelta TxOut.coin selOf
+                Right selOf -> selectionDelta TxOut.coin selOf
                 Left _preSel -> Coin 0
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx

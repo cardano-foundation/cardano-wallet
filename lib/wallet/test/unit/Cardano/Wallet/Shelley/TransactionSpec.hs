@@ -214,7 +214,11 @@ import Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), TransactionLayer (..), WitnessCountCtx (..) )
+    ( DelegationAction (..)
+    , TransactionLayer (..)
+    , WitnessCountCtx (..)
+    , selectionDelta
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
@@ -1387,7 +1391,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-          fee = toCardanoLovelace $ CS.Internal.selectionDelta TxOut.coin cs
+          fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
           unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
@@ -1443,7 +1447,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ CS.Internal.selectionDelta TxOut.coin cs
+    fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
     unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
