@@ -192,7 +192,6 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.ByteString as BS
@@ -472,7 +471,7 @@ newTransactionLayer keyF networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl = view #txWithdrawal ctx
-        let delta = selectionDelta TxOut.coin selection
+        let delta = selectionDelta selection
         case view #txDelegationAction ctx of
             Nothing -> withShelleyBasedEra era $ do
                 let payload = TxPayload (view #txMetadata ctx) mempty mempty
@@ -542,7 +541,7 @@ newTransactionLayer keyF networkId = TransactionLayer
         let ttl   = txValidityInterval ctx
         let wdrl  = view #txWithdrawal ctx
         let delta = case selection of
-                Right selOf -> selectionDelta TxOut.coin selOf
+                Right selOf -> selectionDelta selOf
                 Left _preSel -> Coin 0
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx

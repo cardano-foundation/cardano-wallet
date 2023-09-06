@@ -123,6 +123,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -246,12 +247,8 @@ newtype PreSelection = PreSelection { outputs :: [TxOut] }
 --
 -- If there is no surplus, this function returns 'Coin 0'.
 --
-selectionDelta
-    :: (change -> Coin)
-    -- ^ A function to extract the coin value from a change value.
-    -> CS.Internal.SelectionOf change
-    -> Coin
-selectionDelta getChangeCoin selection =
+selectionDelta :: CS.Internal.SelectionOf TxOut -> Coin
+selectionDelta selection =
     balanceIn <\> balanceOut
   where
     balanceIn =
@@ -261,7 +258,7 @@ selectionDelta getChangeCoin selection =
     balanceOut =
         F.foldMap (view (#tokens . #coin)) outputs
         <>
-        F.foldMap getChangeCoin change
+        F.foldMap TxOut.coin change
         <>
         extraCoinSink
     CS.Internal.Selection
