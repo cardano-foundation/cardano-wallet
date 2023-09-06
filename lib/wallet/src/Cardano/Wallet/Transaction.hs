@@ -122,7 +122,6 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Write.Tx as Write
@@ -235,8 +234,6 @@ data TransactionCtx = TransactionCtx
     -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
-    , txCollateralRequirement :: CS.Internal.SelectionCollateralRequirement
-    -- ^ The collateral requirement.
     } deriving Generic
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
@@ -318,7 +315,6 @@ defaultTransactionCtx = TransactionCtx
     , txPaymentCredentialScriptTemplate = Nothing
     , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
-    , txCollateralRequirement = CS.Internal.SelectionCollateralNotRequired
     }
 
 -- | User-requested action related to a delegation
