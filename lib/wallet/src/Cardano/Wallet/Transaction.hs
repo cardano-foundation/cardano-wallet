@@ -29,6 +29,7 @@ module Cardano.Wallet.Transaction
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
+    , SelectionOf (..)
     , selectionDelta
     , defaultTransactionCtx
     , Withdrawal (..)
@@ -242,6 +243,30 @@ data TransactionCtx = TransactionCtx
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
     deriving stock (Generic, Show)
     deriving newtype (Eq)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs :: ![TxOut]
+        -- ^ User-specified outputs
+    , change :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Eq, Generic, Show)
+
+instance NFData change => NFData (SelectionOf change)
 
 -- | Computes the ada surplus of a selection, assuming there is a surplus.
 --
