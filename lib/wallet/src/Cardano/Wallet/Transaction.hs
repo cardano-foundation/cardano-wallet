@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -27,6 +28,8 @@ module Cardano.Wallet.Transaction
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
+    , SelectionOf (..)
+    , selectionDelta
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
@@ -64,8 +67,6 @@ import Cardano.Api.Extra
     ()
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionCollateralRequirement (..), SelectionOf (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -102,6 +103,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
+import Data.Monoid.Monus
+    ( (<\>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -117,7 +120,9 @@ import GHC.Generics
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -226,14 +231,53 @@ data TransactionCtx = TransactionCtx
     -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
-    , txCollateralRequirement :: SelectionCollateralRequirement
-    -- ^ The collateral requirement.
     } deriving Generic
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
     deriving stock (Generic, Show)
     deriving newtype (Eq)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs :: ![TxOut]
+        -- ^ User-specified outputs
+    , change :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Eq, Generic, Show)
+
+instance NFData change => NFData (SelectionOf change)
+
+-- | Computes the ada surplus of a selection, assuming there is a surplus.
+--
+-- If there is no surplus, this function returns 'Coin 0'.
+--
+selectionDelta :: SelectionOf TxOut -> Coin
+selectionDelta selection = balanceIn <\> balanceOut
+  where
+    balanceIn =
+        extraCoinSource
+        <> F.foldMap (TxOut.coin . snd) inputs
+    balanceOut =
+        extraCoinSink
+        <> F.foldMap TxOut.coin outputs
+        <> F.foldMap TxOut.coin change
+    Selection
+        {inputs, outputs, change, extraCoinSource, extraCoinSink} = selection
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
@@ -264,7 +308,6 @@ defaultTransactionCtx = TransactionCtx
     , txPaymentCredentialScriptTemplate = Nothing
     , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
-    , txCollateralRequirement = SelectionCollateralNotRequired
     }
 
 -- | User-requested action related to a delegation

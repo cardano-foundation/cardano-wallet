@@ -138,8 +138,6 @@ module Cardano.Wallet
     , readWalletUTxO
     , defaultChangeAddressGen
     , dummyChangeAddressGen
-    , assignChangeAddressesAndUpdateDb
-    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , readNodeTipStateForTxWrite
     , buildSignSubmitTransaction
@@ -261,8 +259,6 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection, SelectionOf (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
@@ -501,6 +497,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrSignTx (..)
     , PreSelection (..)
+    , SelectionOf (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxValidityInterval
@@ -522,7 +519,6 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxUnableToCreateChangeError (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
-    , assignChangeAddresses
     , balanceTransaction
     , constructUTxOIndex
     )
@@ -1652,51 +1648,6 @@ normalizeDelegationAddress s addr = do
     pure
         $ liftDelegationAddressS @n fingerprint
         $ Seq.rewardAccountKey s
-
-assignChangeAddressesAndUpdateDb
-    :: ( GenChange s
-       , AddressBookIso s
-       , WalletFlavor s
-       )
-    => WalletLayer IO s
-    -> ArgGenChange s
-    -> Selection
-    -> IO (SelectionOf TxOut)
-assignChangeAddressesAndUpdateDb ctx argGenChange selection =
-    onWalletState ctx . Delta.updateWithResult
-        $ assignChangeAddressesAndUpdateDb'
-  where
-    assignChangeAddressesAndUpdateDb' wallet =
-        -- Newly generated change addresses only change the Prologue
-        ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
-      where
-        s = getState $ getLatest wallet
-        (selectionUpdated, stateUpdated) =
-            assignChangeAddresses
-                (defaultChangeAddressGen argGenChange )
-                selection
-                s
-
-assignChangeAddressesWithoutDbUpdate
-    :: forall s
-     . ( GenChange s
-       , WalletFlavor s
-       )
-    => WalletLayer IO s
-    -> ArgGenChange s
-    -> Selection
-    -> IO (SelectionOf TxOut)
-assignChangeAddressesWithoutDbUpdate ctx argGenChange selection =
-    db & \DBLayer{..} -> atomically $ do
-        cp <- readCheckpoint
-        let (selectionUpdated, _) =
-                assignChangeAddresses
-                    (defaultChangeAddressGen argGenChange)
-                    selection
-                    (getState cp)
-        pure selectionUpdated
-  where
-    db = ctx ^. dbLayer
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.

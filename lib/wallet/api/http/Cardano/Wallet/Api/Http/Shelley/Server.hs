@@ -157,8 +157,6 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..) )
 import Cardano.Wallet
     ( BuiltTx (..)
     , DelegationFee (feePercentiles)
@@ -549,6 +547,7 @@ import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , DelegationAction (..)
     , PreSelection (..)
+    , SelectionOf (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
