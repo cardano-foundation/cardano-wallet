@@ -1142,11 +1142,14 @@ selectQuantityOf
     -> SelectionStrategy
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a _strategy = selectMatchingQuantity
-    [ SelectSingleton a
-    , SelectPairWith a
-    , SelectAnyWith a
-    ]
+selectQuantityOf a = selectMatchingQuantity . \case
+    SelectionStrategyMinimal ->
+        [ SelectSingleton a
+        , SelectPairWith a
+        , SelectAnyWith a
+        ]
+    SelectionStrategyOptimal ->
+        [ SelectAnyWith a ]
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
