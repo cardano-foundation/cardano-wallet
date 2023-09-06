@@ -139,7 +139,6 @@ module Cardano.Wallet
     , defaultChangeAddressGen
     , dummyChangeAddressGen
     , assignChangeAddressesAndUpdateDb
-    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , readNodeTipStateForTxWrite
     , buildSignSubmitTransaction
@@ -1676,27 +1675,6 @@ assignChangeAddressesAndUpdateDb ctx argGenChange selection =
                 (defaultChangeAddressGen argGenChange )
                 selection
                 s
-
-assignChangeAddressesWithoutDbUpdate
-    :: forall s
-     . ( GenChange s
-       , WalletFlavor s
-       )
-    => WalletLayer IO s
-    -> ArgGenChange s
-    -> Selection
-    -> IO (SelectionOf TxOut)
-assignChangeAddressesWithoutDbUpdate ctx argGenChange selection =
-    db & \DBLayer{..} -> atomically $ do
-        cp <- readCheckpoint
-        let (selectionUpdated, _) =
-                assignChangeAddresses
-                    (defaultChangeAddressGen argGenChange)
-                    selection
-                    (getState cp)
-        pure selectionUpdated
-  where
-    db = ctx ^. dbLayer
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
