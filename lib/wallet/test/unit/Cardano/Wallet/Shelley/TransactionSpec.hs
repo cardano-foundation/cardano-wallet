@@ -98,8 +98,6 @@ import Cardano.Numeric.Util
     ( power )
 import Cardano.Pool.Types
     ( PoolId (..) )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
@@ -444,6 +442,7 @@ import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1388,12 +1387,12 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-          fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
+          fee = toCardanoLovelace $ CS.Internal.selectionDelta TxOut.coin cs
           unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
-          cs = Selection
+          cs = CS.Internal.Selection
             { inputs = NE.fromList inps
             , collateral = []
             , extraCoinSource = Coin 0
@@ -1444,12 +1443,12 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
+    fee = toCardanoLovelace $ CS.Internal.selectionDelta TxOut.coin cs
     unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     addrWits = map (mkShelleyWitness unsigned) pairs
-    cs = Selection
+    cs = CS.Internal.Selection
         { inputs = NE.fromList inps
         , collateral = []
         , extraCoinSource = Coin 0

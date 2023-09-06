@@ -64,8 +64,6 @@ import Cardano.Api.Extra
     ()
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionCollateralRequirement (..), SelectionOf (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -116,6 +114,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.List as L
@@ -133,7 +132,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
-        -> SelectionOf TxOut
+        -> CS.Internal.SelectionOf TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction (Tx, tx)
@@ -174,7 +173,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Reward account public key or optional script hash
         -> TransactionCtx
             -- An additional context about the transaction
-        -> Either PreSelection (SelectionOf TxOut)
+        -> Either PreSelection (CS.Internal.SelectionOf TxOut)
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction (Cardano.TxBody era)
@@ -226,7 +225,7 @@ data TransactionCtx = TransactionCtx
     -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
-    , txCollateralRequirement :: SelectionCollateralRequirement
+    , txCollateralRequirement :: CS.Internal.SelectionCollateralRequirement
     -- ^ The collateral requirement.
     } deriving Generic
 
@@ -264,7 +263,7 @@ defaultTransactionCtx = TransactionCtx
     , txPaymentCredentialScriptTemplate = Nothing
     , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
-    , txCollateralRequirement = SelectionCollateralNotRequired
+    , txCollateralRequirement = CS.Internal.SelectionCollateralNotRequired
     }
 
 -- | User-requested action related to a delegation

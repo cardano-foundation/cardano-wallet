@@ -259,8 +259,6 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
@@ -637,6 +635,7 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
@@ -1659,7 +1658,7 @@ selectionToUnsignedTx
         , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
         )
     => Withdrawal
-    -> SelectionOf TxOut
+    -> CS.Internal.SelectionOf TxOut
     -> s
     -> (UnsignedTx input output change withdrawal)
 selectionToUnsignedTx wdrl sel s =
@@ -2253,7 +2252,7 @@ buildAndSignTransaction
     -> MakeRewardAccountBuilder k
     -> Passphrase "user"
     -> TransactionCtx
-    -> SelectionOf TxOut
+    -> CS.Internal.SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
     withRootKey db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
@@ -2660,7 +2659,7 @@ createMigrationPlan ctx rewardWithdrawal = do
     nl = ctx ^. networkLayer
     tl = transactionLayer_ ctx
 
-type SelectionWithoutChange = SelectionOf Void
+type SelectionWithoutChange = CS.Internal.SelectionOf Void
 
 migrationPlanToSelectionWithdrawals
     :: MigrationPlan
@@ -2685,7 +2684,7 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
         , outputAddressesRemaining
         )
       where
-        selection = Selection
+        selection = CS.Internal.Selection
             { inputs = view #inputIds migrationSelection
             , collateral = []
             , outputs

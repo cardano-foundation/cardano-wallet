@@ -157,8 +157,6 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..) )
 import Cardano.Wallet
     ( BuiltTx (..)
     , DelegationFee (feePercentiles)
@@ -682,6 +680,7 @@ import UnliftIO.Exception
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -3837,7 +3836,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     maybeUnsignedTxs = fmap mkUnsignedTx <$> maybeSelectionWithdrawals
       where
         mkUnsignedTx (selection, withdrawal) = W.selectionToUnsignedTx
-            withdrawal (selection {change = []}) s
+            withdrawal (selection {CS.Internal.change = []}) s
 
     totalFee :: Quantity "lovelace" Natural
     totalFee = Coin.toQuantity $ view #totalFee plan
@@ -3924,7 +3923,7 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
                     mkRewardAccount
                     pwd
                     txContext
-                    (selection {change = []})
+                    (selection {CS.Internal.change = []})
 
             liftHandler $ W.submitTx tr db netLayer
                 BuiltTx

@@ -77,8 +77,6 @@ import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL )
 import Cardano.Ledger.Crypto
     ( DSIGN )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), RewardAccount (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -191,6 +189,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS.Internal
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -239,7 +238,7 @@ constructUnsignedTx
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
-    -> Either PreSelection (SelectionOf TxOut)
+    -> Either PreSelection (CS.Internal.SelectionOf TxOut)
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -278,7 +277,7 @@ mkTx
     -- ^ Key store
     -> Withdrawal
     -- ^ An optional withdrawal
-    -> SelectionOf TxOut
+    -> CS.Internal.SelectionOf TxOut
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -472,7 +471,7 @@ newTransactionLayer keyF networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl = view #txWithdrawal ctx
-        let delta = selectionDelta TxOut.coin selection
+        let delta = CS.Internal.selectionDelta TxOut.coin selection
         case view #txDelegationAction ctx of
             Nothing -> withShelleyBasedEra era $ do
                 let payload = TxPayload (view #txMetadata ctx) mempty mempty
@@ -542,7 +541,7 @@ newTransactionLayer keyF networkId = TransactionLayer
         let ttl   = txValidityInterval ctx
         let wdrl  = view #txWithdrawal ctx
         let delta = case selection of
-                Right selOf -> selectionDelta TxOut.coin selOf
+                Right selOf -> CS.Internal.selectionDelta TxOut.coin selOf
                 Left _preSel -> Coin 0
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
@@ -650,7 +649,7 @@ mkUnsignedTx
     :: forall era. Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> (Maybe SlotNo, SlotNo)
-    -> Either PreSelection (SelectionOf TxOut)
+    -> Either PreSelection (CS.Internal.SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
@@ -790,7 +789,7 @@ mkUnsignedTx
     --     duplicating.
     -- - Remove validation from coin-selection itself
     extractValidatedOutputs
-        :: Either PreSelection (SelectionOf TxOut)
+        :: Either PreSelection (CS.Internal.SelectionOf TxOut)
         -> Either ErrMkTransaction [TxOut]
     extractValidatedOutputs sel =
         mapM validateOut $ case sel of
