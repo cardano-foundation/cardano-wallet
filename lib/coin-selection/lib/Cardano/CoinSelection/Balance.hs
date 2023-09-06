@@ -1018,7 +1018,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectQuantityOf AssetLovelace
+        selectOneEntry = selectQuantityOf AssetLovelace SelectionStrategyMinimal
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
@@ -1063,7 +1063,8 @@ runSelectionNonEmpty
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty =
-    runSelectionNonEmptyWith (selectQuantityOf AssetLovelace)
+    runSelectionNonEmptyWith
+        (selectQuantityOf AssetLovelace SelectionStrategyMinimal)
     <=<
     runSelection
 
@@ -1116,7 +1117,7 @@ assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectQuantityOf (Asset asset)
+    , selectQuantity = selectQuantityOf (Asset asset) strategy
     , selectionStrategy = strategy
     }
 
@@ -1130,7 +1131,7 @@ coinSelectionLens strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace
+    , selectQuantity  = selectQuantityOf AssetLovelace strategy
     , selectionStrategy = strategy
     }
 
@@ -1138,9 +1139,10 @@ selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
     => Asset
+    -> SelectionStrategy
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a = selectMatchingQuantity
+selectQuantityOf a _strategy = selectMatchingQuantity
     [ SelectSingleton a
     , SelectPairWith a
     , SelectAnyWith a
