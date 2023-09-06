@@ -8,7 +8,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -100,8 +99,6 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -270,19 +267,15 @@ instance NFData change => NFData (SelectionOf change)
 -- If there is no surplus, this function returns 'Coin 0'.
 --
 selectionDelta :: SelectionOf TxOut -> Coin
-selectionDelta selection =
-    balanceIn <\> balanceOut
+selectionDelta selection = balanceIn <\> balanceOut
   where
     balanceIn =
-        F.foldMap (view (#tokens . #coin) . snd) inputs
-        <>
         extraCoinSource
+        <> F.foldMap (TxOut.coin . snd) inputs
     balanceOut =
-        F.foldMap (view (#tokens . #coin)) outputs
-        <>
-        F.foldMap TxOut.coin change
-        <>
         extraCoinSink
+        <> F.foldMap TxOut.coin outputs
+        <> F.foldMap TxOut.coin change
     Selection
         {inputs, outputs, change, extraCoinSource, extraCoinSink} = selection
 
