@@ -58,9 +58,6 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionBalanceError (..)
     , SelectionCollateralError (..)
     , UnableToConstructChangeError (..)
-
-    -- * Selection deltas
-    , selectionDelta
     )
     where
 
@@ -434,18 +431,3 @@ performSelection cs ps =
     Internal.performSelection @m @WalletSelectionContext
         (toInternalSelectionConstraints cs)
         (toInternalSelectionParams ps)
-
---------------------------------------------------------------------------------
--- Selection deltas
---------------------------------------------------------------------------------
-
--- | Computes the ada surplus of a selection, assuming there is a surplus.
---
-selectionDelta
-    :: (change -> Coin)
-    -- ^ A function to extract the coin value from a change value.
-    -> SelectionOf change
-    -> Coin
-selectionDelta getChangeCoin
-    = Internal.selectionSurplusCoin
-    . toInternalSelection (TokenBundle.fromCoin . getChangeCoin)
