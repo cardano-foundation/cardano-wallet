@@ -1572,7 +1572,7 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
                 -- Calculate the amount of ada that remains after assigning the
                 -- minimum amount to each map. This should be safe, as we have
                 -- already determined that we have enough ada available:
-                adaRemaining = adaAvailable `Coin.distance` adaRequired
+                adaRemaining = adaAvailable <\> adaRequired
                 -- Partition any remaining ada according to the weighted
                 -- distribution of output coins that remain in our list:
                 outputCoinsRemaining = snd <$> (pair :| pairs)
@@ -1590,7 +1590,7 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
             -- required amount of every asset map, but we do have an empty
             -- asset map that is safe to drop. This will reduce the amount of
             -- ada required by a small amount:
-            let adaRequired' = adaRequired `Coin.distance` minCoinFor m in
+            let adaRequired' = adaRequired <\> minCoinFor m in
             loop adaRequired' (p :| ps)
 
         (m, _) :| [] | TokenMap.isEmpty m && adaAvailable < adaRequired ->
