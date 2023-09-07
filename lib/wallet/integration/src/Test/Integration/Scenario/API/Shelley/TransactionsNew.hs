@@ -1294,6 +1294,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` tokens')
                 ]
 
+        let payloadBurn = Json [json|{
+                "mint_burn": [{
+                    "policy_id": #{toText policyId'},
+                    "reference_input": #{toJSON refInp},
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "burn" :
+                              { "quantity": 1000
+                              }
+                        }
+                }]
+            }|]
+
+        rTxBurn <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadBurn
+        verify rTxBurn
+            [ expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTxBurn _) = getFromResponse #transaction rTxBurn
+
+        signedTxBurn <- signTx ctx wa apiTxBurn [ expectResponseCode HTTP.status202 ]
+
+        submittedTxBurn <- submitTxWithWid ctx wa signedTxBurn
+        verify submittedTxBurn
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "wallet does not hold minted assets anymore" $ do
+            rWal <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWal
+                [ expectSuccess
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                ]
+
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
         \ctx -> runResourceT $ do
