@@ -16,7 +16,7 @@ Specifically:
 
 1. Creation of a transaction output that contains a minting script and is suitable for use as reference input.
 
-    In the `reference_policy_script_template` field, you can optionally add a script template. The HTTP endpoint will map this script template into a script using the wallet's policy public key, and this script will be included in the first transaction output (i.e. at index `0`) of the transaction.
+    In the `reference_policy_script_template` field, you can optionally add a script template. The HTTP endpoint will map this script template into a script using the wallet's policy public key, and this script will be included in the first transaction output (i.e. at index `0`) of the transaction. It is worth mentioning that for shelley wallets script template needs to include one cosigner only.
 
     Example `POST` data for the endpoint:
 
