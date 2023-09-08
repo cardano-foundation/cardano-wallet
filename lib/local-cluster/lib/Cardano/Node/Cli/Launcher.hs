@@ -1,18 +1,19 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.Spec.Network.Node where
+module Cardano.Node.Cli.Launcher where
 
-import qualified Data.String as String
+import Prelude
 
 import Path
     ( Abs, Dir, File, Path, relfile, toFilePath, (</>) )
 import System.IO
-    ( openFile )
+    ( IOMode (AppendMode), openFile )
 import System.Process.Typed
     ( Process
+    , proc
     , setStderr
     , setStdout
-    , shell
     , startProcess
     , stopProcess
     , useHandleClose
@@ -23,15 +24,14 @@ start NodeProcessConfig{..} = do
     let nodeSocket = nodeDir </> [relfile|node.sock|]
     let nodeLog = nodeDir </> [relfile|node.log|]
     handle <- openFile (toFilePath nodeLog) AppendMode
-    putTextLn $ "Writing node logs to " <> toText (toFilePath nodeLog)
+    putStrLn $ "Writing node logs to " <> toFilePath nodeLog
     nodeProcess <-
         startProcess
             $ setStderr (useHandleClose handle)
             $ setStdout (useHandleClose handle)
-            $ shell
-            $ String.unwords
-                [ "cardano-node"
-                , "run"
+            $ proc
+                "cardano-node"
+                [ "run"
                 , "--config"
                 , toFilePath nodeConfig
                 , "--topology"

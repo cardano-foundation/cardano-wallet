@@ -1,6 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.Spec.Network.Wallet
+module Cardano.Wallet.Cli.Launcher
     ( start
     , stop
     , WalletInstance (..)
@@ -8,19 +9,25 @@ module Cardano.Wallet.Spec.Network.Wallet
     , WalletProcessConfig (..)
     ) where
 
-import qualified Data.String as String
+import Prelude
 
-import Cardano.Wallet.Spec.Network.Node
+import qualified Data.Text as T
+
+import Cardano.Node.Cli.Launcher
     ( NodeApi, nodeApiSocket )
+import Data.Maybe
+    ( fromMaybe )
+import Data.Text
+    ( Text )
 import Path
     ( Abs, Dir, File, Path, relfile, toFilePath, (</>) )
 import System.IO
-    ( openFile )
+    ( IOMode (AppendMode), openFile )
 import System.Process.Typed
     ( Process
+    , proc
     , setStderr
     , setStdout
-    , shell
     , startProcess
     , stopProcess
     , useHandleClose
@@ -50,21 +57,20 @@ start WalletProcessConfig{..} = do
     let config =
             WalletApi
                 { walletInstanceApiUrl =
-                    "http://" <> host <> ":" <> show port <> "/v2"
+                    "http://" <> host <> ":" <> T.pack (show port) <> "/v2"
                 , walletInstanceApiHost = host
                 , walletInstanceApiPort = port
                 }
     let walletLog = walletDir </> [relfile|wallet.log|]
     handle <- openFile (toFilePath walletLog) AppendMode
-    putTextLn $ "Writing wallet logs to " <> toText (toFilePath walletLog)
+    putStrLn $ "Writing wallet logs to " <> toFilePath walletLog
     process <-
         startProcess
             $ setStderr (useHandleClose handle)
             $ setStdout (useHandleClose handle)
-            $ shell
-            $ String.unwords
-                [ "cardano-wallet"
-                , "serve"
+            $ proc
+                "cardano-wallet"
+                [ "serve"
                 , "--testnet"
                 , toFilePath walletByronGenesis
                 , "--node-socket"
@@ -72,7 +78,7 @@ start WalletProcessConfig{..} = do
                 , "--database"
                 , toFilePath walletDatabase
                 , "--listen-address"
-                , toString host
+                , T.unpack host
                 , "--port"
                 , show port
                 , "--log-level"

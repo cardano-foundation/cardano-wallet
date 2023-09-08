@@ -1,1 +1,1 @@
-[ "cardano-balance-tx" "cardano-coin-selection" "cardano-numeric" "cardano-wallet" "cardano-wallet-benchmarks" "cardano-wallet-launcher" "cardano-wallet-primitive" "cardano-wallet-test-utils" "delta-store" "delta-table" "delta-types" "text-class" "wai-middleware-logging" ]
+[ "cardano-balance-tx" "cardano-coin-selection" "cardano-numeric" "cardano-wallet" "cardano-wallet-benchmarks" "cardano-wallet-launcher" "cardano-wallet-primitive" "cardano-wallet-test-utils" "delta-store" "delta-table" "delta-types" "local-cluster" "text-class" "wai-middleware-logging" ]

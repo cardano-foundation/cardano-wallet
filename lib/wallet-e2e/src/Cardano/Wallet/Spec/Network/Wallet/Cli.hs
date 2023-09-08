@@ -6,10 +6,10 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
+import Cardano.Wallet.Cli.Launcher
+    ( WalletApi (..) )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
     ( NodeStatus )
-import Cardano.Wallet.Spec.Network.Wallet
-    ( WalletApi (..) )
 import Data.Aeson
     ( withObject, (.:) )
 import Data.Aeson.Types

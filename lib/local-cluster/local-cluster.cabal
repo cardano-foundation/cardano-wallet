@@ -1,20 +1,15 @@
-cabal-version:   3.0
-name:            local-cluster
-version:         0.1.0.0
-synopsis:        Local cluster of cardano nodes
-
--- description:
-homepage:        https://github.com/cardano-foundation/cardano-wallet
-license:         Apache-2.0
-license-file:    LICENSE
-author:          HAL, Cardano Foundation
-maintainer:      hal@cardanofoundation.org
-copyright:       2023 Cardano Foundation
-category:        Web
-build-type:      Simple
-extra-doc-files: CHANGELOG.md
-
--- extra-source-files:
+cabal-version: 3.0
+name:          local-cluster
+version:       0.1.0.0
+synopsis:      Local cluster of cardano nodes
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+license:       Apache-2.0
+license-file:  LICENSE
+author:        HAL, Cardano Foundation
+maintainer:    hal@cardanofoundation.org
+copyright:     2023 Cardano Foundation
+category:      Web
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -23,37 +18,36 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wmissing-deriving-strategies
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -fprint-expanded-synonyms -fwarn-unused-do-bind
+    -fwarn-incomplete-uni-patterns -freverse-errors
 
   if flag(release)
     ghc-options: -O2 -Werror
 
 common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
-
-  if flag(release)
-    ghc-options: -O2 -Werror
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
 
 flag release
   description: Enable optimization and `-Werror`
   default:     False
   manual:      True
 
-executable local-cluster
-  import:         language, opts-exe
-  main-is:        Main.hs
-  ghc-options:    -Wincomplete-uni-patterns -Wincomplete-record-updates
-  build-depends:
-    , base
-    , local-cluster
-
-  hs-source-dirs: exe
-
 library
   import:          language, opts-lib
+  exposed-modules:
+    Cardano.Node.Cli.Launcher
+    Cardano.Wallet.Cli.Launcher
+    Service
+
   hs-source-dirs:  lib
-  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-  exposed-modules: Service
   build-depends:
     , base
     , cardano-addresses
@@ -67,6 +61,16 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , lobemo-backend-ekg
+    , path                                                                                                        ^>=0.9.2
+    , temporary-extra
     , text
     , text-class
-    , temporary-extra
+    , typed-process                                                                                               ^>=0.2.11
+
+executable local-cluster
+  import:         language, opts-exe
+  main-is:        Main.hs
+  hs-source-dirs: exe
+  build-depends:
+    , base
+    , local-cluster

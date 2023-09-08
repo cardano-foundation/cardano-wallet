@@ -1,12 +1,10 @@
 module Main where
 
-import qualified Cardano.Wallet.Spec.Data.TestNetwork as TestNetwork
+import qualified Options.Applicative as OptParse
 import qualified Test.Syd.OptParse as SydTest
 
 import Cardano.Wallet.Spec
-    ( effectsSpec, walletSpec )
-import Cardano.Wallet.Spec.Data.TestNetwork
-    ( TestNetwork )
+    ( TestNetworkConfig (..), effectsSpec, walletSpec )
 import Main.Utf8
     ( withUtf8 )
 import Options.Applicative
@@ -15,7 +13,6 @@ import Options.Applicative
     , execParser
     , fullDesc
     , help
-    , helpDoc
     , helper
     , info
     , long
@@ -28,61 +25,91 @@ import Path
     ( Dir, SomeBase (..), parseSomeDir )
 import Path.IO
     ( AnyPath (makeAbsolute) )
-import Prettyprinter
-    ( annotate, vsep, (<+>) )
-import Prettyprinter.Render.Terminal
-    ( underlined )
 import Test.Syd
     ( sydTestWith )
 
-data Options = Options
-    { stateDir :: SomeBase Dir
-    , testNetwork :: TestNetwork
-    }
-
 main :: IO ()
 main = withUtf8 do
-    Options{stateDir, testNetwork} <-
+    testNetworkOptions <-
         execParser
             $ info
                 (parser <**> helper)
                 (fullDesc <> progDesc "E2E Wallet test suite")
-    stateDirectory <-
-        case stateDir of
-            Abs absDir -> pure absDir
-            Rel relDir -> makeAbsolute relDir
+    testNetwork <- testNetworkOptionsToConfig testNetworkOptions
     sydTestWith SydTest.defaultSettings{SydTest.settingRetries = 1} do
         effectsSpec
-        walletSpec stateDirectory testNetwork
+        walletSpec testNetwork
 
-parser :: Parser Options
-parser =
-    Options
-        <$> option
+--------------------------------------------------------------------------------
+-- Command line options --------------------------------------------------------
+
+data TestNetworkOptions
+    = TestNetworkOptionManual
+    | TestNetworkOptionLocal !(SomeBase Dir)
+    | TestNetworkOptionPreprod !(SomeBase Dir) !(SomeBase Dir)
+
+testNetworkOptionsToConfig :: TestNetworkOptions -> IO TestNetworkConfig
+testNetworkOptionsToConfig = \case
+    TestNetworkOptionManual ->
+        pure TestNetworkManual
+    TestNetworkOptionLocal stateDir -> do
+        absStateDir <- makeDirAbsolute stateDir
+        pure (TestNetworkLocal absStateDir)
+    TestNetworkOptionPreprod stateDir nodeConfigsDir -> do
+        absStateDir <- makeDirAbsolute stateDir
+        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
+        pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
+  where
+    makeDirAbsolute = \case
+        Abs absDir -> pure absDir
+        Rel relDir -> makeAbsolute relDir
+
+parser :: Parser TestNetworkOptions
+parser = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
+  where
+    cmdManual =
+        OptParse.command
+            "manual"
+            ( OptParse.info
+                (pure TestNetworkOptionManual)
+                ( OptParse.progDesc
+                    "Relies on a node and wallet started manually."
+                )
+            )
+    cmdLocal =
+        OptParse.command
+            "local"
+            ( OptParse.info
+                (TestNetworkOptionLocal <$> stateDirOption)
+                (OptParse.progDesc "Automatically starts a local test cluster.")
+            )
+    cmdPreprod =
+        OptParse.command
+            "preprod"
+            ( OptParse.info
+                ( TestNetworkOptionPreprod
+                    <$> stateDirOption
+                    <*> option
+                        (eitherReader (first show . parseSomeDir))
+                        ( long "node-configs-dir"
+                            <> short 'c'
+                            <> metavar "NODE_CONFIGS_DIR"
+                            <> help
+                                "Absolute or relative directory path \
+                                \ to a directory with node configs"
+                        )
+                )
+                ( OptParse.progDesc
+                    "Automatically starts a preprod node and wallet."
+                )
+            )
+    stateDirOption =
+        option
             (eitherReader (first show . parseSomeDir))
             ( long "state-dir"
                 <> short 's'
                 <> metavar "STATE_DIR"
                 <> help
-                    "Absolute or relative directory path to save \
-                    \node and wallet state"
+                    "Absolute or relative directory path \
+                    \ to save node and wallet state"
             )
-        <*> option
-            (eitherReader (TestNetwork.fromText . toText))
-            ( long "network"
-                <> short 'n'
-                <> metavar "NETWORK"
-                <> helpDoc (Just networkDoc)
-            )
-  where
-    enum = annotate underlined
-    networkDoc =
-        vsep
-            [ "Which network to run the tests against:"
-            , enum "local"
-                <+> "- Automatically starts a local test cluster."
-            , enum "preprod"
-                <+> "- Automatically starts a preprod node and wallet."
-            , enum "manual"
-                <+> "- Relies on a node and wallet started manually."
-            ]

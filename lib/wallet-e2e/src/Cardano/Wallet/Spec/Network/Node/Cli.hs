@@ -5,7 +5,7 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
-import Cardano.Wallet.Spec.Network.Node
+import Cardano.Node.Cli.Launcher
     ( NodeApi, nodeApiSocket )
 import Data.Aeson
     ( withObject, (.:) )
@@ -67,3 +67,21 @@ queryTip nodeApi = do
             case Aeson.eitherDecodeWith Aeson.value parser stdout of
                 Left err -> pure $ Left $ CliErrorDecode err stdout
                 Right tip -> pure $ Right tip
+
+checkSocket :: NodeApi -> IO Bool
+checkSocket nodeApi = do
+    (exitCode, _stdout, _stderr) <-
+        readProcess . shell
+            $ String.unwords
+                [ "cardano-cli"
+                , "query"
+                , "tip"
+                , "--testnet-magic"
+                , "1"
+                , "--socket-path"
+                , toFilePath (nodeApiSocket nodeApi)
+                ]
+    case exitCode of
+        ExitSuccess -> pure True
+        ExitFailure _code -> pure False
+
