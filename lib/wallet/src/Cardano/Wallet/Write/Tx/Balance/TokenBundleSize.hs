@@ -26,8 +26,8 @@ import Cardano.Wallet.Write.Tx
     ( PParams, RecentEra, ShelleyLedgerEra, Value, Version, withConstraints )
 import Control.Lens
     ( (^.) )
-import Data.Int
-    ( Int64 )
+import Data.IntCast
+    ( intCastMaybe )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Lazy as BL
@@ -61,7 +61,9 @@ computeTokenBundleSerializedLengthBytes
 computeTokenBundleSerializedLengthBytes tb ver = serSize (toLedger tb)
   where
     serSize :: Value StandardCrypto -> TxSize
-    serSize = fromIntegral @Int64 @TxSize
+    serSize v = maybe err TxSize $ intCastMaybe
         . BL.length
-        . serialize ver
+        $ serialize ver v
+      where
+        err = error $ "negative serialized size of value: " <> show v
 
