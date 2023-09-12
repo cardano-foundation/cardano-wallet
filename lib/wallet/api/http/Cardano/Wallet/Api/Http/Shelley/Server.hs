@@ -144,6 +144,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (KeyHash)
     , KeyRole (..)
+    , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -243,7 +244,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Address.Keys.MintBurn
-    ( toTokenMapAndScript, toTokenPolicyId )
+    ( replaceCosigner, toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.Shared
@@ -717,7 +718,6 @@ import qualified Data.Set as Set
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-
 
 
 -- | Allow configuring which port the wallet server listen to in an integration
@@ -2462,11 +2462,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     mintBurnData <-
         liftHandler $ except $ parseMintBurnData body validityInterval
 
+    mintBurnReferenceScriptTemplate <-
+        liftHandler $ except $ parseReferenceScript body
+
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
-
-    when (isJust $ body ^. #referencePolicyScriptTemplate) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
 
     let metadata =
             body ^? #metadata . traverse . #txMetadataWithSchema_metadata
@@ -2507,10 +2507,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     Just action ->
                         transactionCtx0 { txDelegationAction = Just action }
 
-        (transactionCtx2, policyXPubM) <-
+        (policyXPub, _) <-
+            liftHandler $ W.readPolicyPublicKey wrk
+
+        transactionCtx2 <-
             if isJust mintBurnData then do
-                (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey wrk
                 let isMinting (ApiMintBurnDataFromScript _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2551,13 +2552,22 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         map getBurning $
                         filter (not . isMinting) $
                         NE.toList $ fromJust mintBurnData
-                pure ( transactionCtx1
+                pure transactionCtx1
                     { txAssetsToMint = mintingData
                     , txAssetsToBurn = burningData
                     }
-                    , Just policyXPub)
             else
-                pure (transactionCtx1, Nothing)
+                pure transactionCtx1
+
+        let referenceScriptM =
+                replaceCosigner
+                ShelleyKeyS
+                (Map.singleton (Cosigner 0) policyXPub)
+                <$> mintBurnReferenceScriptTemplate
+
+        let transactionCtx3 = transactionCtx2
+                { txReferenceScript = referenceScriptM
+                }
 
         outs <- case body ^. #payments of
             Nothing -> pure []
@@ -2571,14 +2581,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         let mintingOuts = case mintBurnData of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
-                    map (toMintTxOut (fromJust policyXPubM)) $
+                    map (toMintTxOut policyXPub) $
                     filter mintWithAddress $
                     NE.toList mintBurns
                 Nothing -> []
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK @era
-                txLayer db transactionCtx2
+                txLayer db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
@@ -2598,11 +2608,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
-        let deposits = case txDelegationAction transactionCtx2 of
+        let deposits = case txDelegationAction transactionCtx3 of
                 Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
-        let refunds = case txDelegationAction transactionCtx2 of
+        let refunds = case txDelegationAction transactionCtx3 of
                 Just Quit -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
@@ -2611,7 +2621,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , coinSelection = mkApiCoinSelection
                 deposits
                 refunds
-                ((,rewardPath) <$> transactionCtx2 ^. #txDelegationAction)
+                ((,rewardPath) <$> transactionCtx3 ^. #txDelegationAction)
                 metadata
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
             , fee = apiDecoded ^. #fee
@@ -2621,6 +2631,29 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     ti = timeInterpreter (api ^. networkLayer)
 
     walletId = getApiT apiWalletId
+
+    parseReferenceScript
+        :: ApiConstructTransactionData n
+        -> Either ErrConstructTx (Maybe (Script Cosigner))
+    parseReferenceScript tx = do
+        let mbRefScript = tx ^. #referencePolicyScriptTemplate
+        for mbRefScript $ \(ApiT refScript) -> do
+            guardWrongScriptTemplate refScript
+            Right refScript
+      where
+        guardWrongScriptTemplate
+            :: Script Cosigner -> Either ErrConstructTx ()
+        guardWrongScriptTemplate apiScript =
+            when (wrongMintingTemplate apiScript)
+                $ Left ErrConstructTxWrongMintingBurningTemplate
+          where
+            wrongMintingTemplate script =
+                isLeft (validateScriptOfTemplate RecommendedValidation script)
+                || countCosigners script /= (1 :: Int)
+                || existsNonZeroCosigner script
+            countCosigners = foldScript (const (+ 1)) 0
+            existsNonZeroCosigner =
+                foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
 
     parseMintBurnData
         :: ApiConstructTransactionData n

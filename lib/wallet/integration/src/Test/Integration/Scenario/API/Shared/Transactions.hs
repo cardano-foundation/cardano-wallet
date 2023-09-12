@@ -21,8 +21,6 @@ module Test.Integration.Scenario.API.Shared.Transactions
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
@@ -78,7 +76,11 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..), ScriptReference (..), WitnessCount (..) )
+    ( AnyExplicitScript (..)
+    , ScriptReference (..)
+    , WitnessCount (..)
+    , changeRoleInAnyExplicitScript
+    )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift
@@ -926,7 +928,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- it only is aware of its policy verification key
         let noVerKeyWitnessHex = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
-                , scripts = [changeRole CA.Unknown paymentScript]
+                , scripts = [changeRoleInAnyExplicitScript CA.Unknown paymentScript]
                 , bootstrap = 0
                 }
         let witsExp1hex =
@@ -964,7 +966,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- it only is aware of its policy verification key
         let oneVerKeyWitnessHex = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
-                , scripts = [changeRole CA.Unknown paymentScript]
+                , scripts = [changeRoleInAnyExplicitScript CA.Unknown paymentScript]
                 , bootstrap = 0
                 }
         let witsExp2hex =
@@ -3301,22 +3303,3 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
                 ]
-
-     changeRole :: CA.KeyRole -> AnyExplicitScript -> AnyExplicitScript
-     changeRole role = \case
-         NativeExplicitScript script scriptRole ->
-             let changeRole' = \case
-                     RequireSignatureOf (KeyHash _ p) ->
-                        RequireSignatureOf $ KeyHash role p
-                     RequireAllOf xs ->
-                        RequireAllOf (map changeRole' xs)
-                     RequireAnyOf xs ->
-                        RequireAnyOf (map changeRole' xs)
-                     RequireSomeOf m xs ->
-                        RequireSomeOf m (map changeRole' xs)
-                     ActiveFromSlot s ->
-                        ActiveFromSlot s
-                     ActiveUntilSlot s ->
-                        ActiveUntilSlot s
-             in NativeExplicitScript (changeRole' script) scriptRole
-         PlutusExplicitScript _ _  -> error "wrong usage"
