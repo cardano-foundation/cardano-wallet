@@ -2463,7 +2463,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         liftHandler $ except $ parseMintBurnData body validityInterval
 
     mintBurnReferenceScriptTemplate <-
-        liftHandler $ except $ parseReferenceScript body validityInterval
+        liftHandler $ except $ parseReferenceScript body
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
@@ -2634,13 +2634,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     parseReferenceScript
         :: ApiConstructTransactionData n
-        -> (SlotNo, SlotNo)
         -> Either ErrConstructTx (Maybe (Script Cosigner))
-    parseReferenceScript tx validity = do
+    parseReferenceScript tx = do
         let mbRefScript = tx ^. #referencePolicyScriptTemplate
         for mbRefScript $ \(ApiT refScript) -> do
             guardWrongScriptTemplate refScript
-            guardOutsideValidityInterval validity refScript
             Right refScript
       where
         guardWrongScriptTemplate
@@ -2656,18 +2654,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             countCosigners = foldScript (const (+ 1)) 0
             existsNonZeroCosigner =
                 foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
-
-        guardOutsideValidityInterval
-            :: (SlotNo, SlotNo)
-            -> Script Cosigner
-            -> Either ErrConstructTx ()
-        guardOutsideValidityInterval (before, hereafter) script =
-            when notWithinValidityInterval $
-                Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
-          where
-            notWithinValidityInterval =
-                not $ withinSlotInterval before hereafter $
-                    scriptSlotIntervals script
 
     parseMintBurnData
         :: ApiConstructTransactionData n
