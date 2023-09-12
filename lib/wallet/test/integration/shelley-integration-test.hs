@@ -42,7 +42,7 @@ import Cardano.Startup
     , withUtf8Encoding
     )
 import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, encodeAddress )
+    ( encodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Api.Types
@@ -50,7 +50,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , genRewardAccounts
-    , hwWalletFunds
+    , hwLedgerTestFunds
     , maryIntegrationTestAssets
     , mirMnemonics
     , seaHorseTestAssets
@@ -344,8 +344,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     faucetFunds = FaucetFunds
         { pureAdaFunds =
             shelleyIntegrationTestFunds
-             <> byronIntegrationTestFunds
-             <> map (first unsafeDecodeAddr) hwWalletFunds
+                <> byronIntegrationTestFunds
+                <> hwLedgerTestFunds
         , maFunds =
             maryIntegrationTestAssets (Coin 10_000_000)
         , mirFunds =
@@ -353,8 +353,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             . (,Coin $ fromIntegral oneMillionAda)
             <$> concatMap genRewardAccounts mirMnemonics
         }
-
-    unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
     onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
         let
