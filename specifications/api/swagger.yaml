@@ -2657,7 +2657,6 @@ components:
         coin_selection: *ApiCoinSelection
         fee: *amount
 
-
     ApiInputsGeneral: &ApiInputsGeneral
       <<: *transactionInputsGeneral
       description: |
@@ -3658,8 +3657,10 @@ components:
           required:
             - operation
             - reference_input
+            - policy_id
           properties:
             reference_input: *referenceInput
+            policy_id: *assetPolicyId
             asset_name: *assetName
             operation: *ApiMintBurnOperation
 
@@ -3691,6 +3692,7 @@ components:
             In future transactions, the reference script can be used
             by any wallet multiple times
             by referencing the current transaction `id` and `index = 0`.
+            The script template must contain a single cosigner only, but it may include time locks.
         encoding:
           type: string
           enum: ["base16", "base64"]
