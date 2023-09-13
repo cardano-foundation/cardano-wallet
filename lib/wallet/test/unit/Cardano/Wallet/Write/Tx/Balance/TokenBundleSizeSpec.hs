@@ -154,7 +154,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
             ]
   where
     actualAssessment = assessTokenBundleSize assessor bundle
-    v = eraProtVerLow @StandardBabbage -- FIXME!
+    v = eraProtVerLow @StandardBabbage
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle v
     counterexampleText = unlines
         [ "Expected min length bytes:"
