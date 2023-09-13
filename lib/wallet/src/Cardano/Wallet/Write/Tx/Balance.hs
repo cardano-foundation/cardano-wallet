@@ -91,14 +91,12 @@ import Cardano.Ledger.Api
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
-    , outputsTxBodyL
     , ppMaxTxSizeL
     )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
-    , SelectionBalanceError (..)
     , SelectionBalanceError (..)
     , SelectionCollateralError (..)
     , SelectionCollateralRequirement (..)
