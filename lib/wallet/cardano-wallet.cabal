@@ -376,7 +376,6 @@ library
     Database.Persist.PersistValue.Extended
     Network.Ntp
     Ouroboros.Network.Client.Wallet
-    System.Random.StdGenSeed
     UnliftIO.Compat
 
   other-modules:   Paths_cardano_wallet
@@ -794,6 +793,7 @@ test-suite unit
     , mtl
     , network
     , network-uri
+    , std-gen-seed
     , nothunks
     , OddWord
     , openapi3                                                  ==3.2.2
@@ -942,7 +942,6 @@ test-suite unit
     Data.Vector.ShuffleSpec
     Spec
     SpecHook
-    System.Random.StdGenSeedSpec
 
 test-suite integration
   import:             language, opts-exe
