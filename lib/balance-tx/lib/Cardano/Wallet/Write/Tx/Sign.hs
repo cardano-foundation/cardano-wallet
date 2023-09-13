@@ -196,6 +196,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         txRefInpsWit =
             case Cardano.txInsReference txbodycontent of
                 Cardano.TxInsReferenceNone -> 0
+                Cardano.TxInsReference _ [] -> 0
                 Cardano.TxInsReference _ _ -> 1
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
