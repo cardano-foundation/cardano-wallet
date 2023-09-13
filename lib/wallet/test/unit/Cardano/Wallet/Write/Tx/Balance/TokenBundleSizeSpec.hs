@@ -108,8 +108,9 @@ prop_assessTokenBundleSize_enlarge b1' b2' pp =
 prop_assessTokenBundleSize_shrink
     :: Blind (VariableSize1024 TokenBundle)
     -> Blind (VariableSize16 TokenBundle)
+    -> PParamsInRecentEra
     -> Property
-prop_assessTokenBundleSize_shrink b1' b2' =
+prop_assessTokenBundleSize_shrink b1' b2' pp =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
         [ assess (b1 `TokenBundle.difference` b2)
             === TokenBundleSizeWithinLimit
@@ -117,7 +118,7 @@ prop_assessTokenBundleSize_shrink b1' b2' =
             === TokenBundleSizeWithinLimit
         ]
   where
-    assess = assessTokenBundleSize babbageTokenBundleSizeAssessor
+    assess = assessTokenBundleSize $ mkAssessorFromPParamsInRecentEra pp
     b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
