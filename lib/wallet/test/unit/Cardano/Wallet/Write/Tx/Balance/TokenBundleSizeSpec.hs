@@ -39,6 +39,8 @@ import Control.Lens
     ( (&), (.~) )
 import Data.Default
     ( def )
+import Data.Word
+    ( Word64 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -47,7 +49,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
     , Gen
-    , NonNegative (getNonNegative)
     , Property
     , arbitraryBoundedEnum
     , conjoin
@@ -265,11 +266,21 @@ instance Arbitrary PParamsInRecentEra where
             -> Gen (PParams (ShelleyLedgerEra era))
         genPParams era = withConstraints era $ do
             ver <- arbitrary
-            (maxSize :: Natural) <- fromIntegral . getNonNegative
-                <$> arbitrary @(NonNegative Int)
+            maxSize <- genMaxSize
             return $ def
                 & ppProtocolVersionL .~ (ProtVer ver 0) -- minor ver doesn't matter
                 & ppMaxValSizeL .~ maxSize
+          where
+            genMaxSize :: Gen Natural
+            genMaxSize =
+                oneof
+                -- Generate values close to the mainnet value of 4000 (and guard
+                -- against underflow)
+                [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
+
+                -- Generate more extreme values (both small and large)
+                , fromIntegral <$> arbitrary @Word64
+                ]
 
 babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
 babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor RecentEraBabbage
