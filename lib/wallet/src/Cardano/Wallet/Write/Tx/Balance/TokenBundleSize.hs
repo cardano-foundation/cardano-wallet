@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
-
 -- | Assessing sizes of token bundles
 module Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleSizeAssessor (..)
@@ -35,18 +33,16 @@ import qualified Data.ByteString.Lazy as BL
 -- | Assesses a token bundle size in relation to the maximum size that can be
 --   included in a transaction output.
 --
--- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
+-- See 'TokenBundleSizeAssessor' for the expected properties of this function.
 --
 mkTokenBundleSizeAssessor
     :: RecentEra era
     -> PParams (ShelleyLedgerEra era)
     -> TokenBundleSizeAssessor
 mkTokenBundleSizeAssessor era pp = TokenBundleSizeAssessor $ \tb ->
-    let
-    in
-        if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
-        then TokenBundleSizeExceedsLimit
-        else TokenBundleSizeWithinLimit
+    if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
+    then TokenBundleSizeExceedsLimit
+    else TokenBundleSizeWithinLimit
   where
     maxValSize :: TxSize
     maxValSize = TxSize $ withConstraints era $ pp ^. ppMaxValSizeL
@@ -61,9 +57,9 @@ computeTokenBundleSerializedLengthBytes
 computeTokenBundleSerializedLengthBytes tb ver = serSize (toLedger tb)
   where
     serSize :: Value StandardCrypto -> TxSize
-    serSize v = maybe err TxSize $ intCastMaybe
+    serSize v = maybe err TxSize
+        . intCastMaybe
         . BL.length
         $ serialize ver v
       where
         err = error $ "negative serialized size of value: " <> show v
-

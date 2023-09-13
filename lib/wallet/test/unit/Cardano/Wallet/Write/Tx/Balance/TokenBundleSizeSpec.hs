@@ -269,7 +269,8 @@ instance Arbitrary PParamsInRecentEra where
             ver <- arbitrary
             maxSize <- genMaxSize
             return $ def
-                & ppProtocolVersionL .~ (ProtVer ver 0) -- minor ver doesn't matter
+                & ppProtocolVersionL .~ (ProtVer ver 0)
+                    -- minor version doesn't matter
                 & ppMaxValSizeL .~ maxSize
           where
             genMaxSize :: Gen Natural
@@ -287,7 +288,7 @@ babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
 babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor RecentEraBabbage
     $ def
         & ppProtocolVersionL .~ (ProtVer (eraProtVerLow @StandardBabbage) 0)
-        & ppMaxValSizeL  .~ maryTokenBundleMaxSize
+        & ppMaxValSizeL .~ maryTokenBundleMaxSize
   where
     maryTokenBundleMaxSize = 4000
 
@@ -298,4 +299,3 @@ mkAssessorFromPParamsInRecentEra (PParamsInBabbage pp) =
     mkTokenBundleSizeAssessor RecentEraBabbage pp
 mkAssessorFromPParamsInRecentEra (PParamsInConway pp) =
     mkTokenBundleSizeAssessor RecentEraConway pp
-
