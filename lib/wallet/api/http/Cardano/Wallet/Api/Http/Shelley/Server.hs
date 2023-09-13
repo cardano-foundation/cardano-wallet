@@ -1487,17 +1487,7 @@ postTrezorWallet
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
     -> Handler ApiByronWallet
-postTrezorWallet ctx body = do
-    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
-        W.createIcarusWallet @s genesisParams wrk wid wName
-            (RootCredentials rootXPrv pwdP)
-  where
-    wName    = body ^. #name . #getApiT
-    seed     = body ^. #mnemonicSentence . #getApiMnemonicT
-    pwd      = body ^. #passphrase . #getApiT
-    pwdP     = preparePassphrase currentPassphraseScheme pwd
-    rootXPrv = Icarus.generateKeyFromSeed seed pwdP
-    genesisParams = ctx ^. #netParams
+postTrezorWallet = postIcarusWallet
 
 postLedgerWallet
     :: forall ctx s k n.
