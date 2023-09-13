@@ -144,14 +144,14 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (TxWitnessShelleyUTxO) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( HasCallStack )
 import Cardano.Wallet.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
+import Cardano.Wallet.Write.Tx.SizeEstimation
+    ( TxWitnessTag (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

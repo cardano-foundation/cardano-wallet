@@ -151,10 +151,10 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , selectionDelta
     )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
+import Cardano.Wallet.Write.Tx.SizeEstimation
+    ( TxWitnessTag (..) )
 import Control.Arrow
     ( left, second )
 import Control.Lens

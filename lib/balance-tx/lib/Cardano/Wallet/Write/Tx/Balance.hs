@@ -116,8 +116,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromCardanoValue )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -154,11 +152,11 @@ import Cardano.Wallet.Write.Tx.Redeemers
 import Cardano.Wallet.Write.Tx.Sign
     ( estimateKeyWitnessCount, estimateSignedTxSize )
 import Cardano.Wallet.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), estimateTxCost )
+    ( TxSkeleton (..), assumedTxWitnessTag, estimateTxCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Cardano.Wallet.Write.UTxOAssumptions
-    ( UTxOAssumptions (..), assumedInputScriptTemplate, assumedTxWitnessTag )
+    ( UTxOAssumptions (..), assumedInputScriptTemplate )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -1604,3 +1602,6 @@ validateTxOutputAdaQuantity constraints output
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)
+
+fromCardanoValue :: Cardano.Value -> W.TokenBundle
+fromCardanoValue = W.toWalletTokenBundle . Cardano.toMaryValue

@@ -40,7 +40,33 @@ library
   build-depends:
     , base
     , cardano-coin-selection
+    , cardano-slotting
+    , ouroboros-consensus
     , cardano-wallet-primitive
+    , cardano-strict-containers
+    , cardano-ledger-shelley
+    , cardano-ledger-core
+    , cardano-api
+    , cardano-ledger-conway
+    , cardano-ledger-binary
+    , cardano-ledger-api
+    , text
+    , lens
+    , serialise
+    , cborg
+    , monoid-subclasses
+    , pretty-simple
+    , random
+    , std-gen-seed
+    , cardano-ledger-mary
+    , cardano-ledger-babbage
+    , cardano-ledger-alonzo
+    , cardano-ledger-allegra
+    , cardano-crypto-class
+    , ouroboros-consensus-cardano
+    , int-cast
+    , cardano-addresses
+    , bytestring
     , cardano-wallet-test-utils
     , containers
     , deepseq
@@ -54,6 +80,17 @@ library
     Cardano.Tx.Balance
     Cardano.Tx.Balance.Internal.CoinSelection
     Cardano.Tx.Balance.Internal.CoinSelection.Gen
+    Cardano.Wallet.Write.ProtocolParameters
+    Cardano.Wallet.Write.Tx
+    Cardano.Wallet.Write.Tx.Balance
+    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+    Cardano.Wallet.Write.Tx.Gen
+    Cardano.Wallet.Write.Tx.Redeemers
+    Cardano.Wallet.Write.Tx.Sign
+    Cardano.Wallet.Write.Tx.SizeEstimation
+    Cardano.Wallet.Write.Tx.TimeTranslation
+    Cardano.Wallet.Write.UTxOAssumptions
+    Cardano.Wallet.Shelley.Compatibility.Ledger
 
 test-suite test
   import:             language, opts-exe

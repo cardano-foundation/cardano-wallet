@@ -508,8 +508,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.Tx
     ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance
@@ -523,7 +521,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , constructUTxOIndex
     )
 import Cardano.Wallet.Write.Tx.SizeEstimation
-    ( _txRewardWithdrawalCost )
+    ( TxWitnessTag (..), _txRewardWithdrawalCost )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow

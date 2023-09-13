@@ -52,6 +52,8 @@ import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -116,7 +118,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
-import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
 -- Roundtrip conversion between wallet types and ledger specification types
@@ -378,9 +379,9 @@ toWalletScript tokeyrole = fromLedgerScript
         RequireAnyOf $ map fromLedgerScript $ toList contents
     fromLedgerScript (Scripts.RequireMOf num contents) =
         RequireSomeOf (fromIntegral num) $ fromLedgerScript <$> toList contents
-    fromLedgerScript (Scripts.RequireTimeExpire (O.SlotNo slot)) =
+    fromLedgerScript (Scripts.RequireTimeExpire (SlotNo slot)) =
         ActiveUntilSlot $ fromIntegral slot
-    fromLedgerScript (Scripts.RequireTimeStart (O.SlotNo slot)) =
+    fromLedgerScript (Scripts.RequireTimeStart (SlotNo slot)) =
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
@@ -427,8 +428,8 @@ toLedgerTimelockScript s = case s of
         Scripts.RequireTimeStart
         (convertSlotNo slot)
   where
-    convertSlotNo :: Natural -> O.SlotNo
-    convertSlotNo x = O.SlotNo $ fromMaybe err $ intCastMaybe x
+    convertSlotNo :: Natural -> SlotNo
+    convertSlotNo x = SlotNo $ fromMaybe err $ intCastMaybe x
       where
         err = error $ unwords
             [ "toLedgerTimelockScript:"
