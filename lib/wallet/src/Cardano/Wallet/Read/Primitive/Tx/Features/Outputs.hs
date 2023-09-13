@@ -28,6 +28,8 @@ import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..) )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletTokenBundle )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
@@ -89,22 +91,19 @@ fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
 
 fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> W.TxOut
 fromMaryTxOut (SL.ShelleyTxOut addr value) =
-    W.TxOut (fromShelleyAddress addr) $
-    fromCardanoValue $ Cardano.fromMaryValue value
+    W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromAlonzoTxOut
     :: Alonzo.AlonzoTxOut StandardAlonzo
     -> W.TxOut
 fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
-    W.TxOut (fromShelleyAddress addr) $
-    fromCardanoValue $ Cardano.fromMaryValue value
+    W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
     -> (W.TxOut, Maybe (AlonzoScript (Babbage.BabbageEra SL.StandardCrypto)))
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
-    ( W.TxOut (fromShelleyAddress addr) $
-      fromCardanoValue $ Cardano.fromMaryValue value
+    ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
           SJust s -> Just s
           SNothing -> Nothing
@@ -114,8 +113,7 @@ fromConwayTxOut
     :: Babbage.BabbageTxOut StandardConway
     -> (W.TxOut, Maybe (AlonzoScript (Conway.ConwayEra SL.StandardCrypto)))
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
-    ( W.TxOut (fromShelleyAddress addr) $
-      fromCardanoValue $ Cardano.fromMaryValue value
+    ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
           SJust s -> Just s
           SNothing -> Nothing
