@@ -70,7 +70,7 @@ packages:
   , lib/numeric/
   , lib/primitive/
   , lib/read
-  , lib/std-gen-seed
+  , lib/std-gen-seed/
   , lib/temporary-extra/
   , lib/test-utils/
   , lib/text-class/

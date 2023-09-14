@@ -1,32 +1,40 @@
 cabal-version:   3.0
 name:            std-gen-seed
-version:         0.1.0.0
-synopsis:        modules to support applications for the cardano wallet
+version:         0.0.0.0
+synopsis:        Support for standard random number generator seeds
 license:         Apache-2.0
 author:          HAL, Cardano Foundation
 maintainer:      hal@cardanofoundation.org
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
-library
+common language
   default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
-    DerivingStrategies
     OverloadedStrings
 
-  ghc-options:
-    -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
-    -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -fhelpful-errors -fprint-expanded-synonyms
-    -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
-    -freverse-errors
+common opts-lib
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
 
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
   exposed-modules:
     System.Random.StdGenSeed
-
   hs-source-dirs:     src
   build-depends:
     , base
@@ -37,14 +45,8 @@ library
     , splitmix
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall -O2 -Werror
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   build-depends:
       base
     , hspec

@@ -96,6 +96,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.Write.Tx.SizeEstimation
+    ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.List.NonEmpty
@@ -121,8 +123,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Write.Tx as Write
-import Cardano.Wallet.Write.Tx.SizeEstimation
-    ( TxWitnessTag )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map

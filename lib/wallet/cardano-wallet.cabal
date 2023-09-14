@@ -781,7 +781,6 @@ test-suite unit
     , mtl
     , network
     , network-uri
-    , std-gen-seed
     , nothunks
     , OddWord
     , openapi3                                                  ==3.2.2
@@ -812,6 +811,7 @@ test-suite unit
     , si-timers
     , sop-core
     , splitmix
+    , std-gen-seed
     , string-interpolate
     , string-qq
     , temporary
@@ -1048,6 +1048,7 @@ benchmark db
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-balance-tx
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-application-extras
@@ -1056,7 +1057,6 @@ benchmark db
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
-    , cardano-balance-tx
     , containers
     , contra-tracer
     , criterion
