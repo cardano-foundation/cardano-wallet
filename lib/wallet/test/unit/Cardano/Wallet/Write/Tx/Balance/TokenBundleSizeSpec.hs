@@ -267,17 +267,17 @@ instance Arbitrary PParamsInRecentEra where
             -> Gen (PParams (ShelleyLedgerEra era))
         genPParams era = withConstraints era $ do
             ver <- arbitrary
-            maxSize <- genMaxSize
+            maxSize <- genMaxSizeBytes
             return $ def
                 & ppProtocolVersionL .~ (ProtVer ver 0)
                     -- minor version doesn't matter
                 & ppMaxValSizeL .~ maxSize
           where
-            genMaxSize :: Gen Natural
-            genMaxSize =
+            genMaxSizeBytes :: Gen Natural
+            genMaxSizeBytes =
                 oneof
-                -- Generate values close to the mainnet value of 4000 (and guard
-                -- against underflow)
+                -- Generate values close to the mainnet value of 4000 bytes
+                -- (and guard against underflow)
                 [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
 
                 -- Generate more extreme values (both small and large)
@@ -288,9 +288,9 @@ babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
 babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor RecentEraBabbage
     $ def
         & ppProtocolVersionL .~ (ProtVer (eraProtVerLow @StandardBabbage) 0)
-        & ppMaxValSizeL .~ maryTokenBundleMaxSize
+        & ppMaxValSizeL .~ maryTokenBundleMaxSizeBytes
   where
-    maryTokenBundleMaxSize = 4000
+    maryTokenBundleMaxSizeBytes = 4000
 
 mkAssessorFromPParamsInRecentEra
     :: PParamsInRecentEra
