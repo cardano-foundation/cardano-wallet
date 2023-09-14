@@ -3001,6 +3001,10 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
+        one_change_address:
+          schema:
+            type: boolean
+            default: false
 
     ApiAccountPostData: &ApiAccountPostData
       type: object

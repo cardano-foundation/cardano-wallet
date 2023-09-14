@@ -1049,6 +1049,7 @@ data WalletPostData = WalletPostData
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "user"))
+    , oneChangeAddress :: !(Maybe Bool)
     }
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPostData
     deriving (Eq, Generic, Show)
