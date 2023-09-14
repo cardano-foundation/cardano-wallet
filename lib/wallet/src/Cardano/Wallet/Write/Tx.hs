@@ -79,6 +79,8 @@ module Cardano.Wallet.Write.Tx
     , feeOfBytes
     , maxScriptExecutionCost
     , stakeKeyDeposit
+    , ProtVer (..)
+    , Version
 
     -- * Tx
     , Core.Tx
@@ -169,7 +171,7 @@ import Cardano.Ledger.Api.UTxO
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..) )
 import Cardano.Ledger.BaseTypes
-    ( maybeToStrictMaybe )
+    ( ProtVer (..), Version, maybeToStrictMaybe )
 import Cardano.Ledger.Binary
     ( Sized (..) )
 import Cardano.Ledger.Coin
