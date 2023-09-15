@@ -193,11 +193,12 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         -- if so we need to add one witness that will stem from policy signing
         -- key. As it is not allowed to publish and consume in the same transaction
         -- we are not going to double count.
-        txRefInpsWit =
-            case Cardano.txInsReference txbodycontent of
-                Cardano.TxInsReferenceNone -> 0
-                Cardano.TxInsReference _ [] -> 0
-                Cardano.TxInsReference _ _ -> 1
+        txRefInpsWit = case Cardano.txInsReference txbodycontent of
+            Cardano.TxInsReferenceNone -> 0
+            Cardano.TxInsReference{} ->
+                case Cardano.txMintValue txbodycontent of
+                    Cardano.TxMintNone -> 0
+                    Cardano.TxMintValue{} -> 1
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
