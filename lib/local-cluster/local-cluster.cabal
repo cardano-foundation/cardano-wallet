@@ -65,7 +65,10 @@ library
     , temporary-extra
     , text
     , text-class
+    , time                                                                                                        ^>=1.9.3
     , typed-process                                                                                               ^>=0.2.11
+    , unliftio                                                                                                    ^>=0.2
+    , yaml                                                                                                        ^>=0.11.11
 
 executable local-cluster
   import:         language, opts-exe

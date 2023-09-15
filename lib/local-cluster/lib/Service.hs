@@ -4,7 +4,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -29,7 +28,9 @@ import Cardano.CLI
     , withLoggingNamed
     )
 import Cardano.Startup
-    ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
+    ( installSignalHandlers, setDefaultFilePermissions )
+import Cardano.Wallet.Address.Encoding
+    ( decodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Faucet
@@ -80,12 +81,14 @@ import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import System.Directory
     ( createDirectory )
+import Main.Utf8
+    ( withUtf8 )
 import System.Environment.Extended
     ( envFromText, isEnvSet )
-import System.FilePath
-    ( (</>) )
 import System.IO.Temp.Extra
     ( SkipCleanup (..), withSystemTempDir )
+import Text.Show.Pretty
+    ( pPrint )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T
@@ -208,86 +211,7 @@ import qualified Data.Text as T
 --     If set, the temporary directory used as a state directory for
 --     nodes and wallet data won't be cleaned up.
 main :: IO ()
-main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
-    withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
-        let tr' = contramap MsgCluster $ trMessageText trCluster
-        clusterCfg <- localClusterConfigFromEnv
-        withCluster
-            tr'
-            dir
-            clusterCfg
-            faucetFunds
-            (whenReady dir (trMessageText trCluster) walletLogs)
-  where
-    faucetFunds =
-        FaucetFunds
-            { pureAdaFunds =
-                shelleyIntegrationTestFunds
-                    <> byronIntegrationTestFunds
-                    <> hwLedgerTestFunds
-            , maFunds =
-                maryIntegrationTestAssets (Coin 10_000_000)
-            , mirFunds =
-                first KeyCredential
-                    . (,Coin $ fromIntegral oneMillionAda)
-                    <$> concatMap genRewardAccounts mirMnemonics
-            }
-
-    whenReady dir trCluster logs (RunningNode socketPath genesisData vData) = do
-        let (gp, block0, _gp) = fromGenesisData genesisData
-        withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
-            ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
-
-            let tracers = setupTracers (tracerSeverities (Just Debug)) tr
-            let db = dir </> "wallets"
-            createDirectory db
-            listen <- walletListenFromEnv envFromText
-            tokenMetadataServer <- tokenMetadataServerFromEnv
-
-            prometheusUrl <-
-                ( maybe
-                        "none"
-                        (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)
-                    )
-                    <$> getPrometheusURL
-            ekgUrl <-
-                ( maybe
-                        "none"
-                        (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)
-                    )
-                    <$> getEKGURL
-
-            void
-                $ serveWallet
-                    (NodeSource socketPath vData (SyncTolerance 10))
-                    gp
-                    tunedForMainnetPipeliningStrategy
-                    NMainnet
-                    []
-                    tracers
-                    (Just db)
-                    Nothing
-                    "127.0.0.1"
-                    listen
-                    Nothing
-                    Nothing
-                    (TokenMetadataServer <$> tokenMetadataServer)
-                    block0
-                    ( \u ->
-                        traceWith trCluster
-                            $ MsgBaseUrl
-                                (T.pack . show $ u)
-                                ekgUrl
-                                prometheusUrl
-                    )
-
--- Do all the program setup required for running the local cluster, create a
--- temporary directory, log output configurations, and pass these to the given
--- main action.
-withLocalClusterSetup
-    :: (FilePath -> [LogOutput] -> [LogOutput] -> IO a)
-    -> IO a
-withLocalClusterSetup action = do
+main = withUtf8 $ do
     -- Handle SIGTERM properly
     installSignalHandlers (putStrLn "Terminated")
 
@@ -295,24 +219,59 @@ withLocalClusterSetup action = do
     setDefaultFilePermissions
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    -- Set UTF-8, regardless of user locale
-    withUtf8Encoding
-        $
-        -- This temporary directory will contain logs, and all other data
-        -- produced by the local test cluster.
-        withSystemTempDir stdoutTextTracer "test-cluster" skipCleanup
-        $ \dir -> do
-            let logOutputs name minSev =
-                    [ LogToFile (dir </> name) (min minSev Info)
-                    , LogToStdStreams minSev
-                    ]
+    withSystemTempDir stdoutTextTracer "test-cluster" skipCleanup $ \dir -> do
+        clusterCfg <- localClusterConfigFromEnv
+        withCluster stdoutTextTracer dir clusterCfg faucetFunds $
+            \(RunningNode socketPath genesisData vData) -> do
+                putStrLn $ "Socket: " <> show socketPath
+                putStrLn $ "Genesis data: " <> show genesisData
+                putStrLn $ "VData: " <> show vData
 
-            clusterLogs <- logOutputs "cluster.log" <$> testMinSeverityFromEnv
-            walletLogs <- logOutputs "wallet.log" <$> walletMinSeverityFromEnv
-
-            action dir clusterLogs walletLogs
+{-         let (gp, block0, _gp) = fromGenesisData genesisData
+        let db = dir </> "wallets"
+        createDirectory db
+        tokenMetadataServer <- tokenMetadataServerFromEnv
+        void
+            $ serveWallet
+                (NodeSource socketPath vData (SyncTolerance 10))
+                gp
+                tunedForMainnetPipeliningStrategy
+                NMainnet
+                []
+                tracers
+                (Just db)
+                Nothing
+                "127.0.0.1"
+                listen
+                Nothing
+                Nothing
+                tokenMetadataServer
+                block0
+ -}
+  where
+    faucetFunds =
+        FaucetFunds
+            { pureAdaFunds =
+                shelleyIntegrationTestFunds <> byronIntegrationTestFunds
+            , maFunds =
+                maryIntegrationTestFunds (Coin 10_000_000)
+            , mirFunds =
+                [ (KeyCredential xpub, Coin (fromIntegral oneMillionAda))
+                | m <- Mnemonics.mir
+                , let (xpub, _prv) = deriveShelleyRewardAccount (SomeMnemonic m)
+                ]
+            }
 
 -- Logging
+
+data LogOutput
+    = LogToStdStreams Severity
+    -- ^ Log to console, with the given minimum 'Severity'.
+    --
+    -- Logs of Warning or higher severity will be output to stderr. Notice or
+    -- lower severity logs will be output to stdout.
+    | LogToFile FilePath Severity
+    deriving stock (Eq, Show)
 
 data TestsLog
     = MsgBaseUrl Text Text Text -- wallet url, ekg url, prometheus url
