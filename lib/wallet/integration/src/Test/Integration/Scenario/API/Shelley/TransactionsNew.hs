@@ -1234,14 +1234,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
         let (ApiPolicyId (ApiT policyId')) = getFromResponse Prelude.id rGet
-
-        eventually "wb wallet has received funds" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley wb) Default Empty
-                >>= flip verify
-                    [ expectField
-                        (#balance . #available)
-                        (.> (Quantity 0))
-                    ]
+        eventually "transaction is in ledger" $ do
+            let ep = Link.listTransactions @'Shelley wb
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
         addrsMint <- listAddresses @n ctx wa
         let addrMint = (addrsMint !! 1) ^. #id
