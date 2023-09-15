@@ -1,8 +1,6 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- |
--- Copyright: © 2020 IOHK
--- License: Apache-2.0
---
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
@@ -17,7 +15,6 @@ import Cardano.Launcher.Node
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
-    , LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
@@ -41,6 +38,8 @@ import Data.Map
     ( Map )
 import Data.Set
     ( Set )
+import Data.Tagged
+    ( Tagged (..) )
 import Fmt
     ( build, fmt, indentF )
 import Ouroboros.Network.Client.Wallet
@@ -68,8 +67,10 @@ import UnliftIO.MVar
 import UnliftIO.STM
     ( TVar, atomically, newTVarIO, readTVar, writeTVar )
 
+import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Service as ClusterService
 
 {-------------------------------------------------------------------------------
                                       Spec
@@ -257,12 +258,18 @@ withTestNode
     -> (NetworkParameters -> CardanoNodeConn -> NodeToClientVersionData -> IO a)
     -> IO a
 withTestNode tr action = do
-    let cfg = LocalClusterConfig
-            defaultPoolConfigs
-            BabbageHardFork
-            (LogFileConfig Info Nothing Info)
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $ \dir ->
-        withCluster tr dir cfg mempty $ \(RunningNode sock genesisData vData) ->
-            let (np, _, _ ) = fromGenesisData genesisData
-            in action np sock vData
+    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $
+        \dir -> do
+            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            let clusterConfig = Cluster.Config
+                    { Cluster.cfgStakePools = defaultPoolConfigs
+                    , Cluster.cfgLastHardFork = BabbageHardFork
+                    , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , Cluster.cfgClusterDir = Tagged @"cluster" dir
+                    , Cluster.cfgSetupDir = cfgSetupDir
+                    }
+            withCluster tr clusterConfig mempty $
+                \(RunningNode sock genesisData vData) -> do
+                    let (np, _, _ ) = fromGenesisData genesisData
+                    action np sock vData

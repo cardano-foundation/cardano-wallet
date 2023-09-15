@@ -134,7 +134,6 @@ module Test.Integration.Framework.DSL
     , listTransactions
     , listAllTransactions
     , deleteAllWallets
-    , fixtureRawTx
     , fixtureRandomWallet
     , fixtureRandomWalletMws
     , fixtureRandomWalletAddrs
@@ -320,7 +319,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Faucet
-    ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
+    ( NextWallet, nextWallet )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
@@ -490,6 +489,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1991,14 +1991,6 @@ patchSharedWallet ctx wal cred payload =
           let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
           in request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
 
-fixtureRawTx
-    :: Context
-    -> (Address, Natural)
-    -> IO BL.ByteString
-fixtureRawTx ctx (addr, amt) =
-    nextTxBuilder (_faucet ctx) >>= \build ->
-        BL.fromStrict <$> build (addr, Coin $ fromIntegral amt)
-
 -- | Default passphrase used for fixture wallets
 fixturePassphrase :: Text
 fixturePassphrase =
@@ -2276,7 +2268,7 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
   where
     payload = Json [aesonQQ| {
             "name": "Fixed empty spec wallet",
-            "mnemonic_sentence": #{mnemonicToText (head seqMnemonics)},
+            "mnemonic_sentence": #{mnemonicToText (head Mnemonics.sequential)},
             "passphrase": #{fixturePassphrase}
         } |]
     create = do

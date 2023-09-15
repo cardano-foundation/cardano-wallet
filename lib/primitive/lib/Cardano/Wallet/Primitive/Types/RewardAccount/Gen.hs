@@ -19,7 +19,7 @@ import qualified Data.ByteString.Char8 as B8
 -- Reward accounts generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genRewardAccount :: Gen (RewardAccount)
+genRewardAccount :: Gen RewardAccount
 genRewardAccount = sized $ \size -> elements $ take (max 1 size) addresses
 
 shrinkRewardAccount :: RewardAccount -> [RewardAccount]

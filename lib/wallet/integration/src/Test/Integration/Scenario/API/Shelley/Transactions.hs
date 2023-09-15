@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..) )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
+import Cardano.Wallet.Primitive.Types.Address
+    ( unAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -174,6 +176,7 @@ import Test.Integration.Framework.TestData
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
@@ -826,7 +829,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             sourceWallets <- forM assetsPerAddrScenarios $ \nAssetsPerAddr -> do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
-                    map (apiAddress . view #id) <$> listAddresses @n ctx wSrc
+                    map (CA.unsafeMkAddress . unAddress . apiAddress . view #id)
+                        <$> listAddresses @n ctx wSrc
                 let batchSize = 1
                 let coinPerAddr = Coin 1000_000_000
                 liftIO $ _mintSeaHorseAssets ctx

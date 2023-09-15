@@ -1,11 +1,14 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Service where
 
@@ -16,82 +19,53 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Extra
-    ( stdoutTextTracer, trMessageText )
-import Cardano.BM.Plugin
-    ( loadPlugin )
-import Cardano.CLI
-    ( LogOutput (..)
-    , Port
-    , ekgEnabled
-    , getEKGURL
-    , getPrometheusURL
-    , withLoggingNamed
-    )
+    ( stdoutTextTracer )
+import Cardano.Launcher.Node
+    ( nodeSocketFile )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions )
-import Cardano.Wallet.Address.Encoding
-    ( decodeAddress )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( walletListenFromEnv )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , genRewardAccounts
-    , hwLedgerTestFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
+    , deriveShelleyRewardAccount
+    , maryIntegrationTestFunds
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterLog (..)
-    , Credential (..)
-    , FaucetFunds (..)
-    , RunningNode (..)
-    , localClusterConfigFromEnv
-    , oneMillionAda
-    , testMinSeverityFromEnv
-    , tokenMetadataServerFromEnv
-    , walletMinSeverityFromEnv
-    , withCluster
-    )
-import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkId (..) )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
-import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServer (..) )
+    ( FaucetFunds (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Shelley
-    ( serveWallet, setupTracers, tracerSeverities )
-import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData )
-import Control.Arrow
-    ( first )
-import Control.Monad
-    ( void, when )
-import Control.Tracer
-    ( contramap, traceWith )
+import Control.Monad.Trans.Resource
+    ( allocate, runResourceT )
+import Data.Functor
+    ( (<&>) )
+import Data.Tagged
+    ( Tagged (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
-import System.Directory
-    ( createDirectory )
 import Main.Utf8
     ( withUtf8 )
 import System.Environment.Extended
-    ( envFromText, isEnvSet )
+    ( isEnvSet, lookupEnvNonEmpty )
+import System.FilePath
+    ( (</>) )
 import System.IO.Temp.Extra
     ( SkipCleanup (..), withSystemTempDir )
-import Text.Show.Pretty
-    ( pPrint )
+import Test.Utils.Paths
+    ( getTestData )
+import UnliftIO.Concurrent
+    ( threadDelay )
 
-import qualified Cardano.BM.Backend.EKGView as EKG
-import qualified Data.Text as T
+import qualified Cardano.Address.Style.Shelley as Shelley
+import qualified Cardano.Node.Cli.Launcher as NC
+import qualified Cardano.Wallet.Cli.Launcher as WC
+import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Path
+import qualified Path.IO as PathIO
 
 -- |
 -- # OVERVIEW
@@ -219,48 +193,71 @@ main = withUtf8 $ do
     setDefaultFilePermissions
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    withSystemTempDir stdoutTextTracer "test-cluster" skipCleanup $ \dir -> do
-        clusterCfg <- localClusterConfigFromEnv
-        withCluster stdoutTextTracer dir clusterCfg faucetFunds $
-            \(RunningNode socketPath genesisData vData) -> do
-                putStrLn $ "Socket: " <> show socketPath
-                putStrLn $ "Genesis data: " <> show genesisData
-                putStrLn $ "VData: " <> show vData
+    let tr = stdoutTextTracer
+    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath -> do
+        clusterEra <- Cluster.clusterEraFromEnv
+        cfgNodeLogging <-
+            Cluster.logFileConfigFromEnv
+                (Just (Cluster.clusterEraToString clusterEra))
+        cfgSetupDir <- getShelleyTestDataPath
+        let clusterCfg = Cluster.Config
+                { cfgStakePools = Cluster.defaultPoolConfigs
+                , cfgLastHardFork = clusterEra
+                , cfgNodeLogging
+                , cfgClusterDir = Tagged clusterPath
+                , cfgSetupDir
+                }
+        Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
+            _tokenMetadataServer <- Cluster.tokenMetadataServerFromEnv
+            clusterDir <- Path.parseAbsDir clusterPath
+            let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
+            PathIO.createDirIfMissing False walletDir
+            nodeSocket <-
+                Path.parseAbsFile . nodeSocketFile
+                    $ Cluster.runningNodeSocketPath node
 
-{-         let (gp, block0, _gp) = fromGenesisData genesisData
-        let db = dir </> "wallets"
-        createDirectory db
-        tokenMetadataServer <- tokenMetadataServerFromEnv
-        void
-            $ serveWallet
-                (NodeSource socketPath vData (SyncTolerance 10))
-                gp
-                tunedForMainnetPipeliningStrategy
-                NMainnet
-                []
-                tracers
-                (Just db)
-                Nothing
-                "127.0.0.1"
-                listen
-                Nothing
-                Nothing
-                tokenMetadataServer
-                block0
- -}
+            runResourceT do
+                (_releaseKey, (_walletInstance, _walletApi)) <- allocate
+                    ( WC.start WC.WalletProcessConfig
+                        { WC.walletDir =
+                            walletDir
+                        , WC.walletNodeApi =
+                            NC.NodeApi nodeSocket
+                        , WC.walletDatabase =
+                            clusterDir Path.</> [Path.reldir|db|]
+                        , WC.walletListenHost =
+                            Nothing
+                        , WC.walletListenPort =
+                            Nothing
+                        , WC.walletByronGenesis =
+                            clusterDir Path.</> [Path.relfile|genesis.byron.json|]
+                        }
+                    )
+                    (WC.stop . fst)
+                threadDelay maxBound -- wait for Ctrl+C
   where
     faucetFunds =
-        FaucetFunds
+        Cluster.FaucetFunds
             { pureAdaFunds =
                 shelleyIntegrationTestFunds <> byronIntegrationTestFunds
             , maFunds =
                 maryIntegrationTestFunds (Coin 10_000_000)
             , mirFunds =
-                [ (KeyCredential xpub, Coin (fromIntegral oneMillionAda))
+                [ ( Cluster.KeyCredential $ Shelley.getKey xPub
+                  , Coin (fromIntegral Cluster.oneMillionAda)
+                  )
                 | m <- Mnemonics.mir
-                , let (xpub, _prv) = deriveShelleyRewardAccount (SomeMnemonic m)
+                , let (xPub, _xPrv) = deriveShelleyRewardAccount (SomeMnemonic m)
                 ]
             }
+-- | Returns the shelley test data path, which is usually relative to the
+-- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
+-- variable.
+getShelleyTestDataPath :: IO (Tagged "setup" FilePath)
+getShelleyTestDataPath =
+    lookupEnvNonEmpty "SHELLEY_TEST_DATA" <&> Tagged . \case
+        Nothing -> $(getTestData) </> "cardano-node-shelley"
+        Just fp -> fp
 
 -- Logging
 
@@ -276,7 +273,7 @@ data LogOutput
 data TestsLog
     = MsgBaseUrl Text Text Text -- wallet url, ekg url, prometheus url
     | MsgSettingUpFaucet
-    | MsgCluster ClusterLog
+    | MsgCluster Cluster.ClusterLog
     deriving stock (Show)
 
 instance ToText TestsLog where

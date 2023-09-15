@@ -9,6 +9,8 @@ module Test.Integration.Framework.Context
 
 import Prelude
 
+import Cardano.Address
+    ( Address )
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
@@ -17,8 +19,6 @@ import Cardano.Wallet.Faucet
     ( Faucet )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Transaction

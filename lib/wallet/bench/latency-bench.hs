@@ -12,6 +12,10 @@
 
 module Main where
 
+import Prelude
+
+import Cardano.Address
+    ( Address )
 import Cardano.BM.Data.LogItem
     ( LogObject )
 import Cardano.BM.Data.Severity
@@ -46,8 +50,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , genShelleyAddresses
-    , maryIntegrationTestAssets
+    , deriveShelleyAddresses
+    , maryIntegrationTestFunds
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Faucet.Shelley
@@ -56,7 +60,6 @@ import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
-    , LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
@@ -70,8 +73,6 @@ import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..), NetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley
@@ -94,6 +95,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Tagged
+    ( Tagged (..) )
 import Fmt
     ( build )
 import Network.HTTP.Client
@@ -108,7 +111,6 @@ import Numeric.Natural
     ( Natural )
 import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
-import Prelude
 import System.Directory
     ( createDirectory )
 import System.Environment.Extended
@@ -152,9 +154,11 @@ import UnliftIO.STM
     ( TVar )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Service as ClusterService
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $
@@ -493,14 +497,16 @@ withShelleyServer tracers action = do
         withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            let logCfg = LogFileConfig Error Nothing Error
-            let poolConfig = NE.head defaultPoolConfigs :| []
+            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            let clusterConfig = Cluster.Config
+                    { Cluster.cfgStakePools = NE.head defaultPoolConfigs :| []
+                    , Cluster.cfgLastHardFork = maxBound
+                    , Cluster.cfgNodeLogging = LogFileConfig Error Nothing Error
+                    , Cluster.cfgClusterDir = Tagged @"cluster" dir
+                    , Cluster.cfgSetupDir = cfgSetupDir
+                    }
             withCluster
-                nullTracer
-                dir
-                (LocalClusterConfig poolConfig maxBound logCfg)
-                faucetFunds
-                (onClusterStart act db)
+                nullTracer clusterConfig faucetFunds (onClusterStart act db)
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =
@@ -508,7 +514,7 @@ withShelleyServer tracers action = do
              <> byronIntegrationTestFunds
              <> massiveWalletFunds
         , maFunds =
-            maryIntegrationTestAssets (Coin 10_000_000)
+            maryIntegrationTestFunds (Coin 10_000_000)
         , mirFunds = [] -- not needed
         }
 
@@ -545,9 +551,8 @@ massiveWalletFunds :: [(Address, Coin)]
 massiveWalletFunds =
     take massiveWalletUTxOSize
     . map (, massiveWalletAmt)
-    . genShelleyAddresses
-    . SomeMnemonic
-    $ massiveWallet
+    . deriveShelleyAddresses
+    $ SomeMnemonic massiveWallet
 
 massiveWalletAmt :: Coin
 massiveWalletAmt = ada 1_000

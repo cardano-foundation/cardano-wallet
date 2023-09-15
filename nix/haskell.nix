@@ -185,6 +185,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           ({ config, pkgs, ... }:
             let
               cardanoNodeExes = [ nodePkgs.cardano-cli nodePkgs.cardano-node ];
+              shelleyTestData = src + /lib/local-cluster/test/data/cardano-node-shelley;
             in
             {
               reinstallableLibGhc = true;
@@ -224,6 +225,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   # Variables picked up by integration tests
                   export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
                   export TESTS_RETRY_FAILED=yes
+                  export SHELLEY_TEST_DATA=${shelleyTestData}
 
                   # Integration tests will place logs here
                   export TESTS_LOGDIR=$(mktemp -d)/logs
@@ -273,19 +275,16 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
 
 
               packages.cardano-wallet.components.exes.local-cluster =
-                let
-                  testData = src + /lib/wallet/test/data/cardano-node-shelley;
-                in
                 if (stdenv.hostPlatform.isWindows) then {
                   postInstall = ''
                     mkdir -p $out/bin/test/data
-                    cp -Rv ${testData} $out/bin/test/data
+                    cp -Rv ${shelleyTestData} $out/bin/test/data
                   '';
                 } else {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
                     wrapProgram $out/bin/local-cluster \
-                      --set SHELLEY_TEST_DATA ${testData} \
+                      --set SHELLEY_TEST_DATA ${shelleyTestData} \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };

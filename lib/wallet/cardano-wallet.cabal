@@ -516,7 +516,6 @@ library cardano-wallet-integration
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
@@ -541,6 +540,7 @@ library cardano-wallet-integration
     , HUnit
     , iohk-monitoring
     , lens-aeson
+    , local-cluster
     , memory
     , microstache
     , network-uri
@@ -661,11 +661,11 @@ executable cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , contra-tracer
     , iohk-monitoring
     , iohk-monitoring-extra
     , lobemo-backend-ekg
+    , local-cluster
     , network-uri
     , optparse-applicative
     , text
@@ -729,7 +729,6 @@ test-suite unit
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -774,6 +773,7 @@ test-suite unit
     , lattices
     , lens
     , list-transformer
+    , local-cluster
     , memory
     , mock-token-metadata
     , MonadRandom
@@ -814,6 +814,7 @@ test-suite unit
     , std-gen-seed
     , string-interpolate
     , string-qq
+    , tagged                                                    ^>=0.8.7
     , temporary
     , temporary-extra
     , text
@@ -919,8 +920,8 @@ test-suite unit
     Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Wallet.Write.TxSpec
     Cardano.Wallet.Write.Tx.Balance.TokenBundleSizeSpec
+    Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
@@ -939,12 +940,12 @@ test-suite integration
   build-depends:
     , address-derivation
     , base
+    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
@@ -957,9 +958,11 @@ test-suite integration
     , iohk-monitoring
     , iohk-monitoring-extra
     , lobemo-backend-ekg
+    , local-cluster
     , mock-token-metadata
     , network-uri
     , string-interpolate
+    , tagged                             ^>=0.8.7
     , temporary-extra
     , text
     , text-class
@@ -985,7 +988,6 @@ benchmark restore
     , cardano-wallet-bench
     , cardano-wallet-integration
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , containers
     , contra-tracer
@@ -996,6 +998,7 @@ benchmark restore
     , generic-lens
     , iohk-monitoring
     , iohk-monitoring-extra
+    , local-cluster
     , say
     , string-interpolate
     , text
@@ -1018,7 +1021,6 @@ benchmark latency
     , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
-    , cardano-wallet-local-cluster
     , cardano-wallet-primitive
     , directory
     , filepath
@@ -1029,6 +1031,8 @@ benchmark latency
     , http-types
     , iohk-monitoring
     , iohk-monitoring-extra
+    , local-cluster
+    , tagged                             ^>=0.8.7
     , temporary-extra
     , text
     , time
@@ -1186,63 +1190,3 @@ library address-derivation
     Cardano.Wallet.Primitive.Passphrase.Gen
     Cardano.Wallet.Primitive.Passphrase.Legacy
     Cardano.Wallet.Primitive.Passphrase.Types
-
-library cardano-wallet-local-cluster
-  import:          language, opts-lib
-  visibility:      public
-  hs-source-dirs:  local-cluster
-  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-  build-depends:
-    , address-derivation
-    , aeson
-    , aeson-qq
-    , base
-    , base58-bytestring
-    , bech32
-    , bech32-th
-    , bytestring
-    , cardano-addresses
-    , cardano-api
-    , cardano-binary
-    , cardano-cli
-    , cardano-data
-    , cardano-ledger-api
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-wallet-application-extras
-    , cardano-wallet-launcher
-    , cardano-wallet-primitive
-    , cardano-wallet-test-utils
-    , cborg
-    , containers
-    , contra-tracer
-    , crypto-hash-extra
-    , directory
-    , filepath
-    , int-cast
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , lens
-    , memory
-    , network-uri
-    , OddWord
-    , optparse-applicative
-    , ouroboros-network
-    , ouroboros-network-api
-    , retry
-    , temporary
-    , temporary-extra
-    , text
-    , text-class
-    , time
-    , transformers
-    , typed-process
-    , unliftio
-    , unliftio-core
-    , yaml
-
-  exposed-modules:
-    Cardano.Wallet.Faucet
-    Cardano.Wallet.Faucet.Shelley
-    Cardano.Wallet.Launch.Cluster
