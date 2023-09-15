@@ -336,7 +336,6 @@ library
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
-    Cardano.Wallet.Shelley.Compatibility.Ledger
     Cardano.Wallet.Shelley.Network
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
@@ -350,20 +349,9 @@ library
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
     Cardano.Wallet.Transaction.Built
-    Cardano.Wallet.TxWitnessTag
     Cardano.Wallet.TypeLevel
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
-    Cardano.Wallet.Write.ProtocolParameters
-    Cardano.Wallet.Write.Tx
-    Cardano.Wallet.Write.Tx.Balance
-    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
-    Cardano.Wallet.Write.Tx.Gen
-    Cardano.Wallet.Write.Tx.Redeemers
-    Cardano.Wallet.Write.Tx.Sign
-    Cardano.Wallet.Write.Tx.SizeEstimation
-    Cardano.Wallet.Write.Tx.TimeTranslation
-    Cardano.Wallet.Write.UTxOAssumptions
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Fail.Extended
@@ -376,7 +364,6 @@ library
     Database.Persist.PersistValue.Extended
     Network.Ntp
     Ouroboros.Network.Client.Wallet
-    System.Random.StdGenSeed
     UnliftIO.Compat
 
   other-modules:   Paths_cardano_wallet
@@ -824,6 +811,7 @@ test-suite unit
     , si-timers
     , sop-core
     , splitmix
+    , std-gen-seed
     , string-interpolate
     , string-qq
     , temporary
@@ -942,7 +930,6 @@ test-suite unit
     Data.Vector.ShuffleSpec
     Spec
     SpecHook
-    System.Random.StdGenSeedSpec
 
 test-suite integration
   import:             language, opts-exe
@@ -1061,6 +1048,7 @@ benchmark db
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-balance-tx
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-application-extras

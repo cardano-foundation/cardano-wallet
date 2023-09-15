@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.TxWitnessTag
+import Cardano.Wallet.Write.Tx.SizeEstimation
     ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )

@@ -1,0 +1,66 @@
+cabal-version:   3.0
+name:            std-gen-seed
+version:         0.0.0.0
+synopsis:        Support for standard random number generator seeds
+license:         Apache-2.0
+author:          HAL, Cardano Foundation
+maintainer:      hal@cardanofoundation.org
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  exposed-modules:
+    System.Random.StdGenSeed
+  hs-source-dirs:     src
+  build-depends:
+    , base
+    , random
+    , MonadRandom
+    , OddWord
+    , quiet
+    , splitmix
+
+test-suite unit
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  build-depends:
+      base
+    , hspec
+    , QuickCheck
+    , std-gen-seed
+    , random
+  build-tool-depends:
+      hspec-discover:hspec-discover
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/unit
+  main-is:
+      std-gen-seed-unit-test.hs
+  other-modules:
+      System.Random.StdGenSeedSpec
+

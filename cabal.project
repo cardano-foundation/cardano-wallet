@@ -70,6 +70,7 @@ packages:
   , lib/numeric/
   , lib/primitive/
   , lib/read
+  , lib/std-gen-seed/
   , lib/temporary-extra/
   , lib/test-utils/
   , lib/text-class/
@@ -243,6 +244,10 @@ package cardano-wallet-integration
   ghc-options: -fwrite-ide-info
 
 package cardano-wallet-test-utils
+  tests: True
+  ghc-options: -fwrite-ide-info
+
+package std-gen-seed
   tests: True
   ghc-options: -fwrite-ide-info
 

@@ -31,13 +31,17 @@ module Cardano.Wallet.Write.Tx.SizeEstimation
     , estimateTxCost
     , TxSkeleton (..)
 
-     -- ** Needed for balance migration
+     -- ** TxWitnessTag
+    , TxWitnessTag (..)
+    , assumedTxWitnessTag
+
+     -- * Needed for balance migration
     , txConstraints
 
-     -- ** Needed for estimateSignedTxSize
+     -- * Needed for estimateSignedTxSize
     , sizeOf_BootstrapWitnesses
 
-      -- ** For the wallet
+      -- * For the wallet
     , _txRewardWithdrawalCost
     )
 
@@ -65,8 +69,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -82,6 +84,8 @@ import Cardano.Wallet.Write.Tx
     )
 import Cardano.Wallet.Write.Tx.Sign
     ( estimateMaxWitnessRequiredPerInput )
+import Cardano.Wallet.Write.UTxOAssumptions
+    ( UTxOAssumptions (..) )
 import Control.Lens
     ( (^.) )
 import Data.Generics.Internal.VL.Lens
@@ -697,3 +701,14 @@ mkLedgerTxOut txOutEra address bundle =
         RecentEraConway -> W.toConwayTxOut txOut
       where
         txOut = W.TxOut address bundle
+
+data TxWitnessTag
+    = TxWitnessByronUTxO
+    | TxWitnessShelleyUTxO
+    deriving (Show, Eq)
+
+assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
+assumedTxWitnessTag = \case
+    AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
+    AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
+    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO

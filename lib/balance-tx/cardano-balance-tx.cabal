@@ -38,22 +38,59 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   build-depends:
+    , MonadRandom
+    , QuickCheck
     , base
+    , bytestring
+    , cardano-addresses
+    , cardano-api
     , cardano-coin-selection
+    , cardano-crypto-class
+    , cardano-ledger-allegra
+    , cardano-ledger-alonzo
+    , cardano-ledger-api
+    , cardano-ledger-babbage
+    , cardano-ledger-binary
+    , cardano-ledger-conway
+    , cardano-ledger-core
+    , cardano-ledger-mary
+    , cardano-ledger-shelley
+    , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , cborg
     , containers
     , deepseq
     , fmt
     , generic-lens
     , generics-sop
-    , MonadRandom
-    , QuickCheck
+    , int-cast
+    , lens
+    , monoid-subclasses
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , pretty-simple
+    , random
+    , serialise
+    , std-gen-seed
+    , text
     , transformers
   exposed-modules:
     Cardano.Tx.Balance
     Cardano.Tx.Balance.Internal.CoinSelection
     Cardano.Tx.Balance.Internal.CoinSelection.Gen
+    Cardano.Wallet.Shelley.Compatibility.Ledger
+    Cardano.Wallet.Write.ProtocolParameters
+    Cardano.Wallet.Write.Tx
+    Cardano.Wallet.Write.Tx.Balance
+    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+    Cardano.Wallet.Write.Tx.Gen
+    Cardano.Wallet.Write.Tx.Redeemers
+    Cardano.Wallet.Write.Tx.Sign
+    Cardano.Wallet.Write.Tx.SizeEstimation
+    Cardano.Wallet.Write.Tx.TimeTranslation
+    Cardano.Wallet.Write.UTxOAssumptions
 
 test-suite test
   import:             language, opts-exe
@@ -62,6 +99,7 @@ test-suite test
   hs-source-dirs:     test/data test/spec
   main-is:            run-test-suite.hs
   build-depends:
+    , QuickCheck
     , base
     , cardano-balance-tx
     , cardano-wallet-launcher
@@ -70,7 +108,6 @@ test-suite test
     , generics-sop
     , hspec
     , hspec-core
-    , QuickCheck
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Tx.Balance.Internal.CoinSelectionSpec

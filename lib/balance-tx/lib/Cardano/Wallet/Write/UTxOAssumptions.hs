@@ -10,7 +10,6 @@ module Cardano.Wallet.Write.UTxOAssumptions
     -- * UTxOAssumptions
       UTxOAssumptions (..)
     , assumedInputScriptTemplate
-    , assumedTxWitnessTag
 
     -- * Validation
     , validateAddress
@@ -21,8 +20,6 @@ import Prelude
 
 import Cardano.Ledger.Shelley.API
     ( Addr (..), Credential (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.Tx
     ( Address )
 
@@ -49,12 +46,6 @@ assumedInputScriptTemplate = \case
     AllKeyPaymentCredentials -> Nothing
     AllByronKeyPaymentCredentials -> Nothing
     AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
-
-assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
-assumedTxWitnessTag = \case
-    AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
-    AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
-    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
 
 validateAddress :: UTxOAssumptions -> Address -> Bool
 validateAddress = valid
