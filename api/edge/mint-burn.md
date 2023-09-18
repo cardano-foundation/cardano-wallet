@@ -33,9 +33,22 @@ Specifically:
     }
     ```
 
-2. Using a refence input that contains a minting script.
+2. Getting policy id using the same script template as in point 1. It is realized by calling `POST` on `/wallets/{walletId}/policy-id` endpoint with `POST` data:
 
-    In the `mint_burn` field, the array element contains `reference_input`. This field specifies a transaction input (pair of transaction ID and output index) which will be added as a reference input and is assumed to contain the minting script. (If the corresponding output was created using the method above, the appropriate output index is `0`).
+    ```
+    {
+      "policy_script_template":
+          { "all":
+             [ "cosigner#0",
+               { "active_from": 120 }
+             ]
+          }
+    }
+    ```
+
+3. Using a refence input that contains a minting script.
+
+    In the `mint_burn` field, the array element contains `reference_input` and `policy_id`. The first field specifies a transaction input (pair of transaction ID and output index) which will be added as a reference input and is assumed to contain the minting script. (If the corresponding output was created using the method above, the appropriate output index is `0`). The `policy_id` field is obtained from the response of request realized in point 2.
 
     Example `POST` data for the endpoint with reference input:
 
@@ -47,6 +60,7 @@ Specifically:
             { "id": "464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9",
               "index": 0
             },
+        "policy_id": "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb",
         "asset_name": "ab12",
         "operation":
             { "mint" :
