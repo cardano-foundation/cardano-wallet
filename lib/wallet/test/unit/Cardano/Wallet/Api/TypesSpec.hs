@@ -2084,6 +2084,7 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
 instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
     arbitrary = ApiMintBurnDataFromInput
         <$> (ReferenceInput <$> arbitrary)
+        <*> arbitrary
         <*> oneof
             [ Just . ApiT <$> genTokenName
             , pure Nothing

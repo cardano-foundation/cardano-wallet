@@ -47,6 +47,7 @@ module Cardano.Wallet.Transaction
     , emptyWitnessCount
     , WitnessCountCtx (..)
     , toKeyRole
+    , ScriptSource
 
     -- * Errors
     , ErrSignTx (..)
@@ -209,6 +210,8 @@ data TransactionLayer k ktype tx = TransactionLayer
 
 type TxValidityInterval = (Maybe SlotNo, SlotNo)
 
+type ScriptSource = Either (Script KeyHash) ReferenceInput
+
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to
 -- construct it from inputs selected from the wallet's UTxO.
@@ -222,9 +225,9 @@ data TransactionCtx = TransactionCtx
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
-    , txAssetsToMint :: (TokenMap, Map AssetId (Script KeyHash))
+    , txAssetsToMint :: (TokenMap, Map AssetId ScriptSource)
     -- ^ The assets to mint.
-    , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
+    , txAssetsToBurn :: (TokenMap, Map AssetId ScriptSource)
     -- ^ The assets to burn.
     , txPaymentCredentialScriptTemplate :: Maybe ScriptTemplate
     -- ^ Script template regulating payment credentials

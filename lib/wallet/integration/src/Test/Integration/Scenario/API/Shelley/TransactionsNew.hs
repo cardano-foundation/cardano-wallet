@@ -61,7 +61,7 @@ import Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
-    , ApiPolicyId
+    , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
@@ -243,6 +243,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
+
 
 spec
     :: forall n
@@ -1166,8 +1167,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        addrs <- listAddresses @n ctx wb
-        let destination = (addrs !! 1) ^. #id
+        addrsDest <- listAddresses @n ctx wb
+        let destination = (addrsDest !! 1) ^. #id
         let payload = Json [json|{
                 "reference_policy_script_template":
                     { "all": [ "cosigner#0" ] },
@@ -1219,6 +1220,118 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#witnessCount) (`shouldBe` witnessCountWithNativeScript)
             ]
+
+        let payloadPolicyId = Json [json|{
+                "policy_script_template":
+                    { "all":
+                       [ "cosigner#0"
+                       ]
+                    }
+                }|]
+        let postPolicyId = Link.postPolicyId @'Shelley wa
+        rGet <- request @ApiPolicyId ctx postPolicyId Default payloadPolicyId
+        verify rGet
+            [ expectResponseCode HTTP.status202
+            ]
+        let (ApiPolicyId (ApiT policyId')) = getFromResponse Prelude.id rGet
+        eventually "transaction is in ledger" $ do
+            let ep = Link.listTransactions @'Shelley wb
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        addrsMint <- listAddresses @n ctx wa
+        let addrMint = (addrsMint !! 1) ^. #id
+        let (Right tokenName') = mkTokenName "ab12"
+        let payloadMint = Json [json|{
+                "mint_burn": [{
+                    "policy_id": #{toText policyId'},
+                    "reference_input": #{toJSON refInp},
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "mint" :
+                              { "receiving_address": #{addrMint},
+                                 "quantity": 1000
+                              }
+                        }
+                }]
+            }|]
+
+        rTxMint <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadMint
+        verify rTxMint
+            [ expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTxMint _) = getFromResponse #transaction rTxMint
+
+        signedTxMint <- signTx ctx wa apiTxMint [ expectResponseCode HTTP.status202 ]
+
+        submittedTxMint <- submitTxWithWid ctx wa signedTxMint
+        verify submittedTxMint
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId . Hash $
+                unScriptHash $
+                toScriptHash scriptUsed
+        let tokens' = TokenMap.singleton
+                (AssetId tokenPolicyId' tokenName')
+                (TokenQuantity 1_000)
+
+        eventually "wallet holds minted assets" $ do
+            rWal <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWal
+                [ expectSuccess
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` tokens')
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` tokens')
+                ]
+
+        let payloadBurn = Json [json|{
+                "mint_burn": [{
+                    "policy_id": #{toText policyId'},
+                    "reference_input": #{toJSON refInp},
+                    "asset_name": #{toText tokenName'},
+                    "operation":
+                        { "burn" :
+                              { "quantity": 1000
+                              }
+                        }
+                }]
+            }|]
+
+        rTxBurn <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payloadBurn
+        verify rTxBurn
+            [ expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTxBurn _) = getFromResponse #transaction rTxBurn
+
+        signedTxBurn <- signTx ctx wa apiTxBurn [ expectResponseCode HTTP.status202 ]
+
+        submittedTxBurn <- submitTxWithWid ctx wa signedTxBurn
+        verify submittedTxBurn
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "wallet does not hold minted assets anymore" $ do
+            rWal <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWal
+                [ expectSuccess
+                , expectField (#assets . #available . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldBe` TokenMap.empty)
+                ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $

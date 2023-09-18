@@ -3657,8 +3657,10 @@ components:
           required:
             - operation
             - reference_input
+            - policy_id
           properties:
             reference_input: *referenceInput
+            policy_id: *assetPolicyId
             asset_name: *assetName
             operation: *ApiMintBurnOperation
 
