@@ -126,7 +126,7 @@ import System.Directory
 import System.Environment
     ( setEnv )
 import System.Environment.Extended
-    ( envFromText, isEnvSet )
+    ( envFromText, isEnvSet, lookupEnvNonEmpty )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp.Extra
@@ -293,8 +293,14 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 mintSeaHorseAssetsLock <- newMVar ()
 
                 let clusterDir = Tagged @"cluster" testDir
-                setupDir <- ClusterService.getShelleyTestDataPath
-
+                setupDir <-
+                    lookupEnvNonEmpty "SHELLEY_TEST_DATA" >>= \case
+                        Just filePath ->
+                            pure $ Tagged @"setup" filePath
+                        Nothing ->
+                            throwIO $
+                                userError "SHELLEY_TEST_DATA \
+                                    \environment variable not set"
                 putMVar ctx Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
@@ -308,7 +314,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                         withMVar mintSeaHorseAssetsLock $ \() ->
                             sendFaucetAssetsTo
                                 tr' conn clusterDir setupDir era batchSize
-                                    $ encodeAddresses
+                                    $ map (first (T.unpack . CA.bech32))
                                     $ seaHorseTestAssets nPerAddr c addrs
                     , _moveRewardsToScript = \(script, coin) ->
                             moveInstantaneousRewardsTo tr'
@@ -360,7 +366,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
-    encodeAddresses = map (first (T.unpack . CA.base58))
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =
