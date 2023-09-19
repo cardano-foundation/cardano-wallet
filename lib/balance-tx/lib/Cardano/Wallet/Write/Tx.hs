@@ -312,7 +312,7 @@ type RecentEraLedgerConstraints era =
 -- https://cardanofoundation.atlassian.net/browse/ADP-2353
 withConstraints
     :: RecentEra era
-    -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
+    -> ((IsRecentEra era, RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
     -> a
 withConstraints era a = case era of
     RecentEraBabbage -> a

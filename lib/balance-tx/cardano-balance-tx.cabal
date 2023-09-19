@@ -43,6 +43,7 @@ library
     , base
     , bytestring
     , cardano-addresses
+    , crypto-hash-extra
     , cardano-api
     , cardano-coin-selection
     , cardano-crypto

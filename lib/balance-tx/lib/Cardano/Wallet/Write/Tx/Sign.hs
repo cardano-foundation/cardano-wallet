@@ -16,10 +16,12 @@ module Cardano.Wallet.Write.Tx.Sign
     -- * Signing transactions
       signTx
     , KeyStore (..)
+    , keyStoreFromXPrv
+    , keyStoreFromMaybeXPrv
     , KeyHash'
     , keyHashToBytes
     , keyHashFromBytes
-
+    , keyHashFromXPrv
     -- * Signing-related utilities required for balancing
     , estimateSignedTxSize
 
@@ -36,7 +38,7 @@ import Prelude
 import Cardano.Crypto.Hash.Class
     ( hashFromBytes, hashToBytes )
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv, toXPub, xpubPublicKey )
 import Cardano.Ledger.Alonzo.Tx
     ( sizeAlonzoTxF )
 import Cardano.Ledger.Api
@@ -87,8 +89,10 @@ import Cardano.Wallet.Write.Tx
     )
 import Control.Lens
     ( view, (&), (.~), (^.) )
+import Crypto.Hash.Extra
+    ( blake2b224 )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Set
     ( Set )
 import Numeric.Natural
@@ -108,6 +112,8 @@ import Cardano.Ledger.Shelley.API
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
+import Control.Applicative
+    ( (<|>) )
 import Data.ByteString
     ( ByteString )
 import qualified Data.Foldable as F
@@ -127,9 +133,32 @@ keyHashToBytes (KeyHash h) = hashToBytes h
 keyHashFromBytes :: ByteString -> Maybe KeyHash'
 keyHashFromBytes = fmap KeyHash . hashFromBytes
 
+keyHashFromXPrv :: XPrv -> KeyHash'
+keyHashFromXPrv = fromMaybe (error "keyStoreFromXPrv: unable to decode xprv")
+    . keyHashFromBytes . blake2b224 . xpubPublicKey . toXPub
+
+-- FIXME: Use a 'Map' instead?
 newtype KeyStore = KeyStore
     { resolveKeyHash :: KeyHash 'Witness StandardCrypto -> Maybe XPrv
     }
+
+instance Semigroup KeyStore where
+    (KeyStore f) <> (KeyStore g) = KeyStore (\h -> f h <|> g h)
+
+instance Monoid KeyStore where
+    mempty = KeyStore $ const Nothing
+
+
+-- | NOTE: 'XPrv' must be unencrypted!
+keyStoreFromXPrv :: XPrv -> KeyStore
+keyStoreFromXPrv xprv =
+    let
+        h = keyHashFromXPrv xprv
+    in
+        KeyStore $ \h' -> if h == h' then Just xprv else Nothing
+
+keyStoreFromMaybeXPrv :: Maybe XPrv -> KeyStore
+keyStoreFromMaybeXPrv = maybe mempty keyStoreFromXPrv
 
 signTx
     :: forall era. IsRecentEra era => RecentEra era
@@ -148,7 +177,8 @@ signTx era keyStore utxo tx =
     in
         withConstraints era $ addKeyWitnesses tx wits
   where
-    timelockVKeyNeeded = mempty -- TODO
+    -- TODO: We need to add the logic for these ourselves
+    timelockVKeyNeeded = mempty
 
     -- We probably don't need this?
     noGenDelegs = GenDelegs mempty

@@ -463,6 +463,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxChange (..)
     , TxMetadata (..)
     , UnsignedTx (..)
+    , cardanoTxIdeallyNoLaterThan
+    , cardanoTxInExactEra
     , sealedTxFromCardano
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
@@ -509,7 +511,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Wallet.Write.Tx
-    ( recentEra )
+    ( RecentEra, ShelleyLedgerEra, recentEra )
 import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
@@ -519,6 +521,16 @@ import Cardano.Wallet.Write.Tx.Balance
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , fromWalletUTxO
+    )
+import Cardano.Wallet.Write.Tx.Sign
+    ( KeyHash'
+    , KeyStore (..)
+    , keyHashFromXPrv
+    , keyHashToBytes
+    , keyStoreFromMaybeXPrv
+    , keyStoreFromXPrv
+    , signTx
     )
 import Cardano.Wallet.Write.Tx.SizeEstimation
     ( TxWitnessTag (..), _txRewardWithdrawalCost )
@@ -657,8 +669,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import Cardano.Wallet.Write.Tx.Sign
-    ( KeyHash', keyHashToBytes )
 import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1838,73 +1848,64 @@ signTransaction
   -- ^ The original transaction, with additional signatures added where
   -- necessary
 signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
-    (RootCredentials rootKey rootPwd) utxo accIxForStakingM =
+    (RootCredentials rootKey rootPwd) utxo accIxForStakingM tx =
     let
-        rewardAcnts :: [(XPrv, Passphrase "encryption")]
-        rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
-          where
-            ourRewardAcc =
-                (getRawKey key $
-                    deriveRewardAccount @k rootPwd rootKey minBound
-                , rootPwd
-                )
+        externalStakeKey :: KeyStore
+        externalStakeKey = keyStoreFromMaybeXPrv $
+            uncurry (flip decrypt) <$> mextraRewardAcc
 
-        policyKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
-        policyKey = afterByron key $ \key' ->
-                ( hashVerificationKey key CA.Policy $ liftRawKey key'
-                    $ toXPub xprv
-                , xprv
-                , rootPwd
-                )
-          where
-            xprv = derivePolicyPrivateKey rootPwd (getRawKey key rootKey)
+        policyKey :: KeyStore
+        policyKey = keyStoreFromMaybeXPrv $ afterByron key $ \_ -> do
+            derivePolicyPrivateKey rootPwd (getRawKey key rootKey)
                 minBound
 
-        stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
-        stakingKeyM = join $ afterByron key $ \key' ->
-            case xprvM of
-                Just xprv ->
-                    Just
-                        ( hashVerificationKey key CA.Delegation
-                            $ liftRawKey key'
-                            $ toXPub xprv
-                        , xprv
-                        , rootPwd
-                        )
-                Nothing -> Nothing
-          where
-            xprvM =
-                getRawKey key
+        stakingKey :: KeyStore
+        stakingKey = keyStoreFromMaybeXPrv $ join $ afterByron key $ \_ -> do
+            xprv <- getRawKey key
                     . deriveRewardAccount @k rootPwd rootKey
                     <$> accIxForStakingM
+            pure $ decrypt rootPwd xprv
 
-        inputResolver :: TxIn -> Maybe Address
-        inputResolver i = do
-            TxOut addr _ <- UTxO.lookup i utxo
-            pure addr
+        decrypt pwd = Crypto.HD.xPrvChangePass pwd BS.empty
 
         -- TODO: We may want to change isOwned to work with credentials instead
         -- of addresses
-        inputResolver' :: KeyHash' -> Maybe XPrv
-        inputResolver' h = do
+        inputResolver :: KeyStore
+        inputResolver = KeyStore $ \h -> do
             let addr = Address $ mconcat
-                    [ unsafeFromHex "60" -- FIXME
+                    [ unsafeFromHex "61" -- FIXME
                     , keyHashToBytes h
                     ]
             (xprv, pwd) <- keyLookup addr
             pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
-
-
     in
-        addVkWitnesses
-            tl
-            preferredLatestEra
-            witCountCtx
-            rewardAcnts
-            policyKey
-            stakingKeyM
-            keyLookup
-            inputResolver
+        withSealedTx tx $ \era ->
+            signTx
+                era
+                (stakingKey <> inputResolver <> policyKey <> externalStakeKey)
+                (fromWalletUTxO era utxo)
+  where
+    withSealedTx
+        :: SealedTx
+        -> (forall era. Write.IsRecentEra era
+            => RecentEra era
+            -> Write.Tx (ShelleyLedgerEra era)
+            -> Write.Tx (ShelleyLedgerEra era))
+        -> SealedTx
+    withSealedTx sealed f =
+        case cardanoTxIdeallyNoLaterThan preferredLatestEra sealed of
+            Cardano.InAnyCardanoEra era ctx ->
+                case Write.toRecentEra era of
+                    Just eraForSigning -> Write.withConstraints eraForSigning $
+                        sealedTxFromCardano
+                        $ Cardano.InAnyCardanoEra era
+                        $ Write.toCardanoTx
+                        $ f eraForSigning
+                        $ Write.fromCardanoTx ctx
+                    Nothing -> error "not recent era"
+
+
+
 
 type MakeRewardAccountBuilder k =
     ClearCredentials k -> (XPrv, Passphrase "encryption")
