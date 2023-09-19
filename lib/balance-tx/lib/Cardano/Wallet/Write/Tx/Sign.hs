@@ -16,6 +16,9 @@ module Cardano.Wallet.Write.Tx.Sign
     -- * Signing transactions
       signTx
     , KeyStore (..)
+    , KeyHash'
+    , keyHashToBytes
+    , keyHashFromBytes
 
     -- * Signing-related utilities required for balancing
     , estimateSignedTxSize
@@ -30,6 +33,8 @@ module Cardano.Wallet.Write.Tx.Sign
 
 import Prelude
 
+import Cardano.Crypto.Hash.Class
+    ( hashFromBytes, hashToBytes )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Ledger.Alonzo.Tx
@@ -56,7 +61,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.Keys
-    ( GenDelegs, KeyHash )
+    ( GenDelegs, KeyHash (..) )
 import Cardano.Ledger.Keys
     ( GenDelegs (GenDelegs), KeyRole (Witness) )
 import Cardano.Ledger.UTxO
@@ -76,7 +81,6 @@ import Cardano.Wallet.Write.Tx
     , Tx
     , TxIn
     , UTxO
-    , fromCardanoTx
     , toCardanoTx
     , txBody
     , withConstraints
@@ -94,7 +98,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import Cardano.Ledger.Api
@@ -105,6 +108,8 @@ import Cardano.Ledger.Shelley.API
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
+import Data.ByteString
+    ( ByteString )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -114,12 +119,20 @@ import qualified Data.Set as Set
 -- Signing transactions
 --------------------------------------------------------------------------------
 
+type KeyHash' = KeyHash 'Witness StandardCrypto
+
+keyHashToBytes :: KeyHash' -> ByteString
+keyHashToBytes (KeyHash h) = hashToBytes h
+
+keyHashFromBytes :: ByteString -> Maybe KeyHash'
+keyHashFromBytes = fmap KeyHash . hashFromBytes
+
 newtype KeyStore = KeyStore
     { resolveKeyHash :: KeyHash 'Witness StandardCrypto -> Maybe XPrv
     }
 
 signTx
-    :: forall era. RecentEra era
+    :: forall era. IsRecentEra era => RecentEra era
     -> KeyStore
     -> UTxO (ShelleyLedgerEra era)
     -> Tx (ShelleyLedgerEra era)
@@ -130,10 +143,10 @@ signTx era keyStore utxo tx =
             <> witsVKeyNeeded era utxo tx noGenDelegs
         availibleKeys = mapMaybe (resolveKeyHash keyStore) $ Set.toList needed
 
-        wits = _
+        wits = Set.fromList $ map (mkShelleyWitness tx) availibleKeys
 
     in
-        addKeyWitnesses tx wits
+        withConstraints era $ addKeyWitnesses tx wits
   where
     timelockVKeyNeeded = mempty -- TODO
 

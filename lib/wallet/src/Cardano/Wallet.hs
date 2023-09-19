@@ -633,6 +633,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
@@ -652,10 +653,15 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
+import Cardano.Wallet.Write.Tx.Sign
+    ( KeyHash', keyHashToBytes )
 import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1876,6 +1882,19 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
+
+        -- TODO: We may want to change isOwned to work with credentials instead
+        -- of addresses
+        inputResolver' :: KeyHash' -> Maybe XPrv
+        inputResolver' h = do
+            let addr = Address $ mconcat
+                    [ unsafeFromHex "60" -- FIXME
+                    , keyHashToBytes h
+                    ]
+            (xprv, pwd) <- keyLookup addr
+            pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
+
+
     in
         addVkWitnesses
             tl
