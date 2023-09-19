@@ -128,7 +128,8 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
-data TransactionLayer k ktype tx = TransactionLayer
+-- FIXME: Drop unused 'ktype' param
+data TransactionLayer k (ktype :: Depth) tx = TransactionLayer
     { mkTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
@@ -151,28 +152,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         --
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
-
-    , addVkWitnesses
-        :: AnyCardanoEra
-            -- Preferred latest era
-        -> WitnessCountCtx
-        -> [(XPrv, Passphrase "encryption")]
-            -- Reward accounts
-        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- policy key hash and private key
-        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
-            -- optional staking key hash and private key
-        -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
-            -- Key store / address resolution
-        -> (TxIn -> Maybe Address)
-            -- Input resolution
-        -> tx
-            -- The transaction to sign
-        -> tx
-        -- ^ Add Vk witnesses to a transaction for known inputs.
-        --
-        -- If inputs can't be resolved, they are simply skipped, hence why this
-        -- function cannot fail.
 
     , mkUnsignedTransaction
         :: forall era
