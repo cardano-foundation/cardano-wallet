@@ -1609,7 +1609,7 @@ testCp = snd $ initWallet block0 initDummyState
     initDummyState :: TestState
     initDummyState = mkSeqStateFromRootXPrv
         ShelleyKeyS (RootCredentials xprv mempty)
-        purposeCIP1852 defaultAddressPoolGap
+        purposeCIP1852 defaultAddressPoolGap False
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty

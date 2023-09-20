@@ -307,7 +307,7 @@ prop_genChangeGapFromRootXPrv g = property $
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     s0 = mkSeqStateFromRootXPrv ShelleyKeyS
-        (RootCredentials key mempty) purposeCIP1852 g
+        (RootCredentials key mempty) purposeCIP1852 g False
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub
@@ -320,7 +320,7 @@ prop_genChangeGapFromAccountXPub g = property $
     accIx = toEnum 0x80000000
     accXPub = publicKey ShelleyKeyS
         $ deriveAccountPrivateKey mempty rootXPrv accIx
-    s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g
+    s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g False
 
 prop_changeAddressRotation
     :: SeqState 'Mainnet ShelleyKey
@@ -414,12 +414,13 @@ prop_changeIsOnlyKnownAfterGeneration
     :: ( SeqAddressPool 'UtxoInternal ShelleyKey
        , SeqAddressPool 'UtxoExternal ShelleyKey
        )
+    -> Bool
     -> Property
-prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
+prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) changeAddr =
     let
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs ourAccount
-             Nothing rewardAccount defaultPrefix
+             Nothing rewardAccount defaultPrefix changeAddr
         addrs0 = pair' <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress SMainnet k) s0
         addrs1 = fst' <$> knownAddresses s1
@@ -586,14 +587,14 @@ instance
         SeqAddressPool <$> genPool pool
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs acc policy rwd prefix) =
-        (\(i, e) -> SeqState i e ixs acc policy rwd prefix)
+    shrink (SeqState intPool extPool ixs acc policy rwd prefix change) =
+        (\(i, e) -> SeqState i e ixs acc policy rwd prefix change)
             <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
         return $ SeqState intPool extPool emptyPendingIxs ourAccount
-            Nothing rewardAccount defaultPrefix
+            Nothing rewardAccount defaultPrefix False
 
 -- | Wrapper to encapsulate keys.
 data Key = forall (k :: Depth -> * -> *).

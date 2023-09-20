@@ -103,17 +103,17 @@ instance ( (key == SharedKey) ~ 'False, Eq (Seq.SeqState n key) )
 
     addressIso = iso from to
       where
-        from (Seq.SeqState int ext a b c d e) =
+        from (Seq.SeqState int ext a b c d e f) =
             let int0 = clear int
                 ext0 = clear ext
-            in  ( SeqPrologue $ Seq.SeqState int0 ext0 a b c d e
+            in  ( SeqPrologue $ Seq.SeqState int0 ext0 a b c d e f
                 , SeqDiscoveries (addresses int) (addresses ext)
                 )
-        to  ( SeqPrologue (Seq.SeqState int0 ext0 a b c d e)
+        to  ( SeqPrologue (Seq.SeqState int0 ext0 a b c d e f)
             , SeqDiscoveries ints exts
             )
             = Seq.SeqState
-                (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d e
+                (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d e f
 
 -- | Address data from sequential address pool.
 -- The phantom type parameter @c@ prevents mixing up

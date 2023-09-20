@@ -2351,7 +2351,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
     (mkSeqStateFromRootXPrv ShelleyKeyS
         (W.RootCredentials rootK pwd)
         purposeCIP1852
-        defaultAddressPoolGap)
+        defaultAddressPoolGap False)
   where
     pwd = Passphrase ""
     rootK = Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty

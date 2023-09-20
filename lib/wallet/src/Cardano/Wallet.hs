@@ -1010,7 +1010,7 @@ createIcarusWallet
     wname
     credentials = do
         let g = defaultAddressPoolGap
-            s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
+            s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g False
             (hist, cp) = initWallet block0 s
         now <- getCurrentTime
         let meta =

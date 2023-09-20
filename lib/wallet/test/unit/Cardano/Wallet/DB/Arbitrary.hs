@@ -618,8 +618,8 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs acc policy rwd prefix) =
-            (\(i, e, x) -> SeqState i e x acc policy rwd prefix)
+    shrink (SeqState intPool extPool ixs acc policy rwd prefix change) =
+            (\(i, e, x) -> SeqState i e x acc policy rwd prefix change)
         <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
         <$> arbitrary
@@ -629,6 +629,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
         <*> pure (Just arbitraryPolicyKey)
         <*> pure arbitraryRewardAccount
         <*> pure defaultSeqStatePrefix
+        <*> arbitrary
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
