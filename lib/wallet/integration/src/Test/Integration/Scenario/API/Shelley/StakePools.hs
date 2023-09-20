@@ -134,6 +134,7 @@ import Test.Integration.Framework.DSL
     , verifyMetadataSource
     , waitForNextEpoch
     , waitForTxImmutability
+    , waitNumberOfEpochs
     , walletId
     , (.<)
     , (.>)
@@ -642,23 +643,22 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
+        -- Epoch A: delegation tx happened.
+        -- Epoch A+1: stake is registered to a chosen pool.
+        -- Epoch A+2: stake is active, rewards start accumulating.
+        -- Epoch A+3: rewards from epoch A+2 are calculated.
+        -- Epoch A+4: rewards from epoch A+2 are paid out.
+        waitNumberOfEpochs 4 ctx
 
-        -- Wait for money to flow
-        eventually "Wallet gets rewards" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-                >>= flip verify
-                    [ expectField (#balance . #reward)
-                        (.> (Quantity 0))
-                    ]
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            >>= flip verify
+                [ expectField (#balance . #reward) (.> (Quantity 0)) ]
 
         -- Can quit with rewards
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
-            , expectField (#withdrawals)
-                (\[ApiWithdrawal _ c] -> c .> Quantity 0)
+            , expectField #withdrawals (\[ApiWithdrawal _ c] -> c .> Quantity 0)
             ]
 
     it "STAKE_POOLS_JOIN_05 - \
