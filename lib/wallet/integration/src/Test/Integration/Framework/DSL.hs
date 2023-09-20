@@ -61,9 +61,6 @@ module Test.Integration.Framework.DSL
 
     -- * Constants
     , minUTxOValue
-    , slotLengthValue
-    , securityParameterValue
-    , epochLengthValue
     , defaultTxTTL
     , maximumCollateralInputCountByEra
     , minimumCollateralPercentageByEra
@@ -744,20 +741,6 @@ minUTxOValue e
     | e >= ApiBabbage =   978_370
     | e >= ApiAlonzo  =   999_978
     | otherwise       = 1_000_000
-
--- | Parameter in test cluster shelley genesis.
---
--- This space left blank intentionally.
-slotLengthValue :: NominalDiffTime
-slotLengthValue =  0.2
-
--- | Parameter in test cluster shelley genesis.
-securityParameterValue :: Word32
-securityParameterValue = 10
-
--- | Parameter in test cluster shelley genesis.
-epochLengthValue :: Word32
-epochLengthValue = 160
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.

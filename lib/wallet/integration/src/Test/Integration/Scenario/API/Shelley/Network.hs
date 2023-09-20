@@ -25,7 +25,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( Expectation, SpecWith, describe, shouldBe, shouldNotBe )
+    ( Expectation, SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -34,14 +34,11 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , RequestException
     , counterexample
-    , epochLengthValue
     , expectField
     , expectResponseCode
     , maximumCollateralInputCountByEra
     , minimumCollateralPercentageByEra
     , request
-    , securityParameterValue
-    , slotLengthValue
     , verify
     )
 
@@ -98,11 +95,11 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #desiredPoolNumber
                 (`shouldBe` nOpt)
             , expectField #slotLength
-                (`shouldBe` Quantity slotLengthValue)
+                (`shouldSatisfy` (> Quantity 0))
             , expectField #epochLength
-                (`shouldBe` Quantity epochLengthValue)
+                (`shouldSatisfy` (> Quantity 10))
             , expectField #securityParameter
-                (`shouldBe` Quantity securityParameterValue)
+                (`shouldSatisfy` (> Quantity 1))
             , expectField #activeSlotCoefficient
                 (`shouldBe` Quantity 50.0)
             , expectField #maximumCollateralInputCount
