@@ -40,11 +40,16 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Crypto.Wallet
     ( XPrv, toXPub, xpubPublicKey )
 import Cardano.Ledger.Alonzo.Tx
-    ( sizeAlonzoTxF )
+    ( ScriptPurpose, sizeAlonzoTxF )
+import Cardano.Ledger.Alonzo.UTxO
+    ( AlonzoScriptsNeeded (..) )
 import Cardano.Ledger.Api
     ( Addr (..)
+    , Script
+    , ScriptHash
     , addrTxOutL
     , addrTxWitsL
+    , bodyTxL
     , bootAddrTxWitsL
     , ppMinFeeAL
     , sizeTxF
@@ -60,12 +65,18 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Api
     ( StandardCrypto )
+import Cardano.Ledger.Api
+    ( WitVKey )
+import Cardano.Ledger.Api.UTxO
+    ( EraUTxO (..) )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.Keys
     ( GenDelegs, KeyHash (..) )
 import Cardano.Ledger.Keys
     ( GenDelegs (GenDelegs), KeyRole (Witness) )
+import Cardano.Ledger.Shelley.API
+    ( addKeyWitnesses )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -87,12 +98,16 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
+import Control.Applicative
+    ( (<|>) )
 import Control.Lens
     ( view, (&), (.~), (^.) )
 import Crypto.Hash.Extra
     ( blake2b224 )
+import Data.ByteString
+    ( ByteString )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( catMaybes, fromMaybe, mapMaybe )
 import Data.Set
     ( Set )
 import Numeric.Natural
@@ -104,18 +119,11 @@ import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import Cardano.Ledger.Api
-    ( WitVKey )
+import qualified Cardano.Ledger.Alonzo.TxInfo as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import Cardano.Ledger.Shelley.API
-    ( addKeyWitnesses )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
-import Control.Applicative
-    ( (<|>) )
-import Data.ByteString
-    ( ByteString )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -203,13 +211,51 @@ signTx era keyStore utxo tx =
 
 -- | Re-exposed version of 'Alonzo.Rules.witsVKeyNeeded'
 witsVKeyNeeded
-    :: RecentEra era
+    :: forall era. RecentEra era
     -> UTxO (ShelleyLedgerEra era)
     -> Tx (ShelleyLedgerEra era)
     -> GenDelegs StandardCrypto
     -> Set (KeyHash 'Witness StandardCrypto)
-witsVKeyNeeded RecentEraBabbage = Alonzo.Rules.witsVKeyNeeded
-witsVKeyNeeded RecentEraConway  = Alonzo.Rules.witsVKeyNeeded
+witsVKeyNeeded era utxo tx gd = timelockVKeyNeeded <> case era of
+    RecentEraBabbage -> Alonzo.Rules.witsVKeyNeeded utxo tx gd
+    RecentEraConway -> Alonzo.Rules.witsVKeyNeeded utxo tx gd
+  where
+    -- NOTE: ScriptPurpose is available if we
+    scriptsNeeded :: [(ScriptHash StandardCrypto)]
+    scriptsNeeded = case era of
+        RecentEraBabbage -> unwrap $ getScriptsNeeded utxo (tx ^. bodyTxL)
+        RecentEraConway -> unwrap $ getScriptsNeeded utxo (tx ^. bodyTxL)
+      where
+        unwrap (AlonzoScriptsNeeded x) = map snd x
+
+    scripts :: [Script (ShelleyLedgerEra era)]
+    scripts = mapMaybe
+        (`Map.lookup` (withConstraints era $ Alonzo.txscripts utxo tx))
+        scriptsNeeded
+
+    timelockScripts = mapMaybe (toTimelockScript era) scripts
+
+    -- timelockVKeyNeeded = sum $ map estimateMaxWitnessRequiredPerInput timelockScripts
+
+    -- FIXME: estimateKeyWitnessCount must not count all key hashes!
+    -- Only signTx should count all! Move this there instead!
+    timelockVKeyNeeded = timelockHashes <> Set.fromList (retrieveAllKeyHashes =<< timelockScripts)
+
+    -- FIXME: HACK because shared wallets have 'ScriptHash -> addrXPrv' lookup,
+    -- not 'KeyHash -> addrXPrv' lookup.
+    timelockHashes = Set.fromList $ map (fromCAScriptHash . CA.toScriptHash) timelockScripts
+      where
+        fromCAScriptHash = fromMaybe err . keyHashFromBytes . CA.unScriptHash
+          where
+            err = error "fromCAKeyHash invalid hash"
+
+    retrieveAllKeyHashes :: CA.Script CA.KeyHash -> [KeyHash']
+    retrieveAllKeyHashes =
+         map fromCAKeyHash . CA.foldScript (:) []
+      where
+        fromCAKeyHash = fromMaybe err . keyHashFromBytes . CA.digest
+          where
+            err = error "fromCAKeyHash invalid hash"
 
 --------------------------------------------------------------------------------
 -- Other
@@ -326,7 +372,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
-            $ mapMaybe toTimelockScript scripts
+            $ mapMaybe (toTimelockScript (recentEra @era)) scripts
         -- when wallets uses reference input it means script containing
         -- its policy key was already published in previous tx
         -- if so we need to add one witness that will stem from policy signing
@@ -360,8 +406,6 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
         Byron.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
 
-    dummyKeyRole = CA.Payment
-
     estimateDelegSigningKeys :: Cardano.Certificate -> Integer
     estimateDelegSigningKeys = \case
         Cardano.StakeAddressRegistrationCertificate _ -> 0
@@ -376,21 +420,6 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         estimateWitNumForCred = \case
             Cardano.StakeCredentialByKey _ -> 1
             Cardano.StakeCredentialByScript _ -> 0
-    toTimelockScript
-        :: Ledger.Script (Cardano.ShelleyLedgerEra era)
-        -> Maybe (CA.Script CA.KeyHash)
-    toTimelockScript anyScript = case recentEra @era of
-        RecentEraConway ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
-        RecentEraBabbage ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
-
     hasScriptCred
         :: UTxO (ShelleyLedgerEra era)
         -> TxIn
@@ -479,3 +508,23 @@ estimateMaxWitnessRequiredPerInput = \case
     -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
     CA.ActiveFromSlot _     -> 0
     CA.ActiveUntilSlot _    -> 0
+
+
+toTimelockScript
+    :: forall era. RecentEra era
+    -> Ledger.Script (Cardano.ShelleyLedgerEra era)
+    -> Maybe (CA.Script CA.KeyHash)
+toTimelockScript era anyScript = case era of
+    RecentEraConway ->
+        case anyScript of
+            Alonzo.TimelockScript timelock ->
+                Just $ toWalletScript (const dummyKeyRole) timelock
+            Alonzo.PlutusScript _ _ -> Nothing
+    RecentEraBabbage ->
+        case anyScript of
+            Alonzo.TimelockScript timelock ->
+                Just $ toWalletScript (const dummyKeyRole) timelock
+            Alonzo.PlutusScript _ _ -> Nothing
+
+  where
+    dummyKeyRole = CA.Payment

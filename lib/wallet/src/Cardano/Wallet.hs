@@ -1856,15 +1856,21 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
 
         policyKey :: KeyStore
         policyKey = keyStoreFromMaybeXPrv $ afterByron key $ \_ -> do
-            derivePolicyPrivateKey rootPwd (getRawKey key rootKey)
-                minBound
+            decrypt rootPwd
+                $ derivePolicyPrivateKey
+                    rootPwd
+                    (getRawKey key rootKey)
+                    minBound
 
         stakingKey :: KeyStore
         stakingKey = keyStoreFromMaybeXPrv $ join $ afterByron key $ \_ -> do
-            xprv <- getRawKey key
-                    . deriveRewardAccount @k rootPwd rootKey
-                    <$> accIxForStakingM
-            pure $ decrypt rootPwd xprv
+            pure
+                . decrypt rootPwd
+                . getRawKey key
+                . deriveRewardAccount @k rootPwd rootKey
+                $ fromMaybe minBound accIxForStakingM
+                -- Shared wallet's may set accIxForStakingM. If nothing, we're
+                -- a Shelley wallet and use minBound.
 
         decrypt pwd = Crypto.HD.xPrvChangePass pwd BS.empty
 
@@ -1873,7 +1879,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         inputResolver :: KeyStore
         inputResolver = KeyStore $ \h -> do
             let addr = Address $ mconcat
-                    [ unsafeFromHex "61" -- FIXME
+                    [ unsafeFromHex $ if isSharedWallet then "71" else "61" -- FIXME
                     , keyHashToBytes h
                     ]
             (xprv, pwd) <- keyLookup addr
@@ -1885,6 +1891,9 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
                 (stakingKey <> inputResolver <> policyKey <> externalStakeKey)
                 (fromWalletUTxO era utxo)
   where
+    isSharedWallet = case key of
+        SharedKeyS -> True
+        _ -> False
     withSealedTx
         :: SealedTx
         -> (forall era. Write.IsRecentEra era
