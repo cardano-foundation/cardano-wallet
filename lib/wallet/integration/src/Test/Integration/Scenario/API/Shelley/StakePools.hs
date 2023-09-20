@@ -908,17 +908,29 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 <$> unsafeRequest @[ApiT StakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase) >>= flip verify
+            rJoin <- joinStakePool @n
+                ctx (SpecificPool pool) (w, fixturePassphrase)
+            verify rJoin
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
+            eventually "join transaction is in ledger" $ do
+                let txId = ApiTxId (getFromResponse #id rJoin)
+                request @(ApiTransaction n)
+                    ctx (Link.getTransaction @'Shelley w txId) Default Empty
+                >>= flip verify
+                    [ expectField (#status . #getApiT) (`shouldBe` InLedger) ]
 
-            eventually "Wallet is delegating to p1" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
-                    Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
-                    ]
+            -- Epoch A: delegation tx happened.
+            -- Epoch A+1: stake is live, registered to a chosen pool.
+            -- Epoch A+2: stake is active, rewards start accumulating.
+            waitNumberOfEpochs 2 ctx
+
+            request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
+                ]
 
             rQuit <- quitStakePool @n ctx (w, fixturePassphrase)
             verify rQuit
@@ -929,28 +941,32 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
 
-            let txId = getFromResponse #id rQuit
-            let link = Link.getTransaction @'Shelley w (ApiTxId txId)
             eventually "quit transaction is in ledger" $ do
-                rSrc <- request @(ApiTransaction n) ctx link Default Empty
-                verify rSrc
+                let txId = ApiTxId (getFromResponse #id rQuit)
+                request @(ApiTransaction n)
+                    ctx (Link.getTransaction @'Shelley w txId) Default Empty
+                >>= flip verify
                     [ expectResponseCode HTTP.status200
                     , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                     , expectField (#status . #getApiT) (`shouldBe` InLedger)
                     , expectField #metadata  (`shouldBe` Nothing)
-                    , expectField #inputs $ \inputs' -> do
-                        inputs' `shouldSatisfy` all (isJust . source)
+                    , expectField #inputs (`shouldSatisfy` all (isJust . source))
                     ]
 
-            eventually "Wallet is not delegating and it got his deposit back" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
-                    Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` notDelegating [])
-                    , expectField (#balance . #total)
-                        (.>= Quantity (depositAmt ctx))
-                    , expectField (#balance . #available)
-                        (.>= Quantity (depositAmt ctx))
-                    ]
+            -- Epoch A: un-delegation tx happened.
+            -- Epoch A+1: un-delegation has been registered.
+            -- Epoch A+2: wallet is not delegating;
+            waitNumberOfEpochs 2 ctx
+
+            request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                Default Empty >>= flip verify
+                [ expectField #delegation
+                    (`shouldBe` notDelegating [])
+                , expectField (#balance . #total)
+                    (.>= Quantity (depositAmt ctx))
+                , expectField (#balance . #available)
+                    (.>= Quantity (depositAmt ctx))
+                ]
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough to cover fees" $ \ctx -> runResourceT $ do
@@ -967,11 +983,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
 
-            eventually "Wallet is delegating to p1" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
-                    Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
-                    ]
+            -- Epoch A: delegation tx happened.
+            -- Epoch A+1: stake is live, registered to a chosen pool.
+            -- Epoch A+2: stake is active, rewards start accumulating.
+            waitNumberOfEpochs 2 ctx
+
+            request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
+                ]
 
             quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
