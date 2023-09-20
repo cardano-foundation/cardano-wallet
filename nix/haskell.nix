@@ -205,8 +205,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                 # because ouroboros-network doesn't fully work under Wine.
                 integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
 
-                unit.preCheck = noCacheTestFailuresCookie +
-                  lib.optionalString stdenv.isDarwin ''
+                unit.preCheck = noCacheTestFailuresCookie + ''
+                    export SHELLEY_TEST_DATA=${shelleyTestData}
+                  '' + lib.optionalString stdenv.isDarwin ''
                     # cardano-node socket path becomes too long otherwise
                     export TMPDIR=/tmp
                   '';
