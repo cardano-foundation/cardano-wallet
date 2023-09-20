@@ -60,16 +60,12 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Api
     ( StandardCrypto )
-import Cardano.Ledger.Api
-    ( WitVKey )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.Keys
     ( GenDelegs, KeyHash (..) )
 import Cardano.Ledger.Keys
     ( GenDelegs (GenDelegs), KeyRole (Witness) )
-import Cardano.Ledger.Shelley.API
-    ( addKeyWitnesses )
 import Cardano.Ledger.UTxO
     ( txinLookup )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -91,14 +87,10 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
-import Control.Applicative
-    ( (<|>) )
 import Control.Lens
     ( view, (&), (.~), (^.) )
 import Crypto.Hash.Extra
     ( blake2b224 )
-import Data.ByteString
-    ( ByteString )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Set
@@ -110,14 +102,20 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import Cardano.Ledger.Api
+    ( WitVKey )
 import qualified Cardano.Ledger.Api as Ledger
+import Cardano.Ledger.Shelley.API
+    ( addKeyWitnesses )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Codec.CBOR.Decoding as CBOR
+import Control.Applicative
+    ( (<|>) )
+import Data.ByteString
+    ( ByteString )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -202,46 +200,6 @@ signTx era keyStore utxo tx =
                 Cardano.Tx body _ = toCardanoTx tx
             in
                 body
-
---    mkByronWitness
---        :: Tx (ShelleyLedgerEra era)
---        -> XPrv
---        -> WitVKey 'Witness StandardCrypto
---    mkByronWitness tx key = withConstraints era $
---        toLedgerWit $ Cardano.makeShelleyKeyWitness (toCardanoTxBody tx)
---            $ Cardano.WitnessPaymentExtendedKey
---            $ Cardano.PaymentExtendedSigningKey key
---      where
---        toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
---
---        toCardanoTxBody :: Tx (ShelleyLedgerEra era) -> Cardano.TxBody era
---        toCardanoTxBody tx = withConstraints era $
---            let
---                Cardano.Tx body _ = toCardanoTx tx
---            in
---                body
---
---        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
---            (toHDPayloadAddress addr)
---            (Byron.toByronNetworkMagic nw)
-
-
---    toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
---    toHDPayloadAddress (W.Address addr) = do
---        payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload addr
---        attributes <- CBOR.deserialiseCbor decodeAllAttributes' payload
---        case filter (\(tag,_) -> tag == 1) attributes of
---            [(1, bytes)] ->
---                Byron.HDAddressPayload <$> CBOR.decodeNestedBytes CBOR.decodeBytes bytes
---            _ ->
---                Nothing
---      where
---        decodeAllAttributes' = do
---            _ <- CBOR.decodeListLenCanonicalOf 3
---            _ <- CBOR.decodeBytes
---            CBOR.decodeAllAttributes
-
-
 
 -- | Re-exposed version of 'Alonzo.Rules.witsVKeyNeeded'
 witsVKeyNeeded
