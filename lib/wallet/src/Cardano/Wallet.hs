@@ -528,6 +528,7 @@ import Cardano.Wallet.Write.Tx.Sign
     , KeyStore (..)
     , keyHashFromXPrv
     , keyHashToBytes
+    , keyStoreFromKeyHashLookup
     , keyStoreFromMaybeXPrv
     , keyStoreFromXPrv
     , signTx
@@ -1877,18 +1878,26 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         -- TODO: We may want to change isOwned to work with credentials instead
         -- of addresses
         inputResolver :: KeyStore
-        inputResolver = KeyStore $ \h -> do
+        inputResolver = keyStoreFromKeyHashLookup $ \h -> do
             let addr = Address $ mconcat
                     [ unsafeFromHex $ if isSharedWallet then "71" else "61" -- FIXME
                     , keyHashToBytes h
                     ]
             (xprv, pwd) <- keyLookup addr
             pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
+
+        byronInputResolver :: KeyStore
+        byronInputResolver = case txWitnessTagForKey key of
+            TxWitnessByronUTxO -> KeyStore (const Nothing) $ \addr -> do
+                (xprv, pwd) <- keyLookup $ toWallet $ Write.AddrBootstrap addr
+                pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
+            TxWitnessShelleyUTxO -> mempty
+
     in
         withSealedTx tx $ \era ->
             signTx
                 era
-                (stakingKey <> inputResolver <> policyKey <> externalStakeKey)
+                (stakingKey <> inputResolver <> policyKey <> externalStakeKey <> byronInputResolver)
                 (fromWalletUTxO era utxo)
   where
     isSharedWallet = case key of

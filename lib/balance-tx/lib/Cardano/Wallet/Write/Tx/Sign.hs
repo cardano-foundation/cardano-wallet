@@ -18,6 +18,7 @@ module Cardano.Wallet.Write.Tx.Sign
     , KeyStore (..)
     , keyStoreFromXPrv
     , keyStoreFromMaybeXPrv
+    , keyStoreFromKeyHashLookup
     , KeyHash'
     , keyHashToBytes
     , keyHashFromBytes
@@ -45,12 +46,15 @@ import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded (..) )
 import Cardano.Ledger.Api
     ( Addr (..)
+    , BootstrapAddress (unBootstrapAddress)
+    , BootstrapWitness
     , Script
     , ScriptHash
     , addrTxOutL
     , addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
+    , inputsTxBodyL
     , ppMinFeeAL
     , reqSignerHashesTxBodyL
     , sizeTxF
@@ -85,15 +89,17 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin, toWalletScript )
+    ( Convert (toWallet), toWalletCoin, toWalletScript )
 import Cardano.Wallet.Write.Tx
-    ( IsRecentEra (..)
+    ( Address
+    , IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
     , Tx
     , TxIn
+    , TxOut
     , UTxO
     , toCardanoTx
     , txBody
@@ -102,7 +108,7 @@ import Cardano.Wallet.Write.Tx
 import Control.Applicative
     ( (<|>) )
 import Control.Lens
-    ( view, (&), (.~), (^.) )
+    ( view, (%~), (&), (.~), (^.) )
 import Crypto.Hash.Extra
     ( blake2b224 )
 import Data.ByteString
@@ -118,13 +124,26 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
+import Cardano.Chain.Common
+    ( addrAttributesUnwrapped )
+import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Crypto.Hash as Crypto
+import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxInfo as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import Cardano.Ledger.Binary.Plain
+    ( serialize' )
+import qualified Cardano.Ledger.Keys.Bootstrap as SL
+import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -147,15 +166,25 @@ keyHashFromXPrv = fromMaybe (error "keyStoreFromXPrv: unable to decode xprv")
     . keyHashFromBytes . blake2b224 . xpubPublicKey . toXPub
 
 -- FIXME: Use a 'Map' instead?
-newtype KeyStore = KeyStore
+data KeyStore = KeyStore
     { resolveKeyHash :: KeyHash 'Witness StandardCrypto -> Maybe XPrv
+
+-- TODO: Change isOurs to take fingerprint instead, then we don't need
+-- resolveAddress, and can rely on resolveKeyHash instead.
+-- resolveBootstrapAddress is fine to keep.
+-- resolveAddress :: Address -> Maybe XPrv
+
+    , resolveBootstrapAddress :: BootstrapAddress StandardCrypto -> Maybe XPrv
     }
 
 instance Semigroup KeyStore where
-    (KeyStore f) <> (KeyStore g) = KeyStore (\h -> f h <|> g h)
+    (KeyStore f f') <> (KeyStore g g') =
+        KeyStore
+            (\h -> f h <|> g h)
+            (\a -> f' a <|> g' a)
 
 instance Monoid KeyStore where
-    mempty = KeyStore $ const Nothing
+    mempty = KeyStore (const Nothing) (const Nothing)
 
 
 -- | NOTE: 'XPrv' must be unencrypted!
@@ -164,10 +193,15 @@ keyStoreFromXPrv xprv =
     let
         h = keyHashFromXPrv xprv
     in
-        KeyStore $ \h' -> if h == h' then Just xprv else Nothing
+        KeyStore (\h' -> if h == h' then Just xprv else Nothing) (const Nothing)
 
 keyStoreFromMaybeXPrv :: Maybe XPrv -> KeyStore
 keyStoreFromMaybeXPrv = maybe mempty keyStoreFromXPrv
+
+keyStoreFromKeyHashLookup
+    :: (KeyHash 'Witness StandardCrypto -> Maybe XPrv)
+    -> KeyStore
+keyStoreFromKeyHashLookup f = KeyStore f (const Nothing)
 
 signTx
     :: forall era. IsRecentEra era => RecentEra era
@@ -183,14 +217,35 @@ signTx era keyStore utxo tx =
 
         wits = Set.fromList $ map (mkShelleyWitness tx) availibleKeys
 
+        bootWits = Set.fromList $ catMaybes $ do
+            bootAddr <- byronInputAddrs tx
+            case resolveBootstrapAddress keyStore bootAddr of
+                Just xprv -> return $ Just $ mkByronWitness tx bootAddr xprv
+                Nothing -> return Nothing
+
     in
-        withConstraints era $ addKeyWitnesses tx wits
+        withConstraints era
+            $ flip addKeyWitnesses wits
+            $ addBootstrapWitnesses era tx bootWits
   where
     -- TODO: We need to add the logic for these ourselves
     timelockVKeyNeeded = mempty
 
     -- We probably don't need this?
     noGenDelegs = GenDelegs mempty
+
+
+    -- TODO: Check for completeness.
+    byronInputAddrs
+        :: Tx (ShelleyLedgerEra era)
+        -> [BootstrapAddress StandardCrypto]
+    byronInputAddrs tx = withConstraints era $ mapMaybe getBootAddr $ mapMaybe (flip txinLookup utxo) $ Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
+      where
+        getBootAddr :: TxOut (ShelleyLedgerEra era) -> Maybe (BootstrapAddress StandardCrypto)
+        getBootAddr o = withConstraints era $ case o ^. addrTxOutL of
+            AddrBootstrap bootAddr -> Just bootAddr
+            _ -> Nothing
+
 
     mkShelleyWitness
         :: Tx (ShelleyLedgerEra era)
@@ -209,6 +264,40 @@ signTx era keyStore utxo tx =
                 Cardano.Tx body _ = toCardanoTx tx
             in
                 body
+    mkByronWitness
+        :: Tx (ShelleyLedgerEra era)
+        -> BootstrapAddress StandardCrypto
+        -> XPrv
+        -> BootstrapWitness StandardCrypto
+    mkByronWitness tx addr key = withConstraints era $
+            SL.makeBootstrapWitness
+                (Crypto.castHash $ Crypto.hashWith serialize' $ tx ^. bodyTxL)
+                (CC.SigningKey key)
+                attributes
+
+      where
+        toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
+
+        networkMagic = Byron.aaNetworkMagic . addrAttributesUnwrapped . unBootstrapAddress $ addr
+
+        attributes =
+            Byron.mkAttributes Byron.AddrAttributes {
+              Byron.aaVKDerivationPath = derivationPath,
+              Byron.aaNetworkMagic     = networkMagic
+            }
+
+        derivationPath :: Maybe Byron.HDAddressPayload
+        derivationPath =
+            Byron.aaVKDerivationPath . addrAttributesUnwrapped . unBootstrapAddress $ addr
+
+
+addBootstrapWitnesses
+    :: RecentEra era
+    -> Tx (ShelleyLedgerEra era)
+    -> Set (SL.BootstrapWitness StandardCrypto)
+    -> Tx (ShelleyLedgerEra era)
+addBootstrapWitnesses era tx newWits = withConstraints era $
+    tx & witsTxL . bootAddrTxWitsL %~ Set.union newWits
 
 -- | Re-exposed version of 'Alonzo.Rules.witsVKeyNeeded'
 witsVKeyNeeded

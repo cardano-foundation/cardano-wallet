@@ -108,6 +108,7 @@ module Cardano.Wallet.Write.Tx
 
     -- ** Address
     , Address
+    , Ledger.Addr (..)
     , unsafeAddressFromBytes
 
     -- ** Value
@@ -295,6 +296,7 @@ type RecentEraLedgerConstraints era =
     , Core.Value era ~ MaryValue StandardCrypto
     , Core.TxWits era ~ AlonzoTxWits era
     , ExtendedUTxO era
+    , Core.EraTxBody era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , Alonzo.AlonzoEraTxBody era
