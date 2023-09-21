@@ -365,6 +365,7 @@ SeqState
     seqStatePolicyXPub        B8.ByteString Maybe  sql=policy_xpub
     seqStateRewardXPub        B8.ByteString        sql=reward_xpub
     seqStateDerivationPrefix  W.DerivationPrefix   sql=derivation_prefix
+    seqStateOneChangeAddrMode Bool                 sql=one_change_addr_mode
 
     Primary seqStateWalletId
     Foreign Wallet OnDeleteCascade seq_state seqStateWalletId
