@@ -52,6 +52,7 @@ import Cardano.Ledger.Api
     , bodyTxL
     , bootAddrTxWitsL
     , ppMinFeeAL
+    , reqSignerHashesTxBodyL
     , sizeTxF
     , witsTxL
     )
@@ -216,11 +217,15 @@ witsVKeyNeeded
     -> Tx (ShelleyLedgerEra era)
     -> GenDelegs StandardCrypto
     -> Set (KeyHash 'Witness StandardCrypto)
-witsVKeyNeeded era utxo tx gd = timelockVKeyNeeded <> case era of
+witsVKeyNeeded era utxo tx gd = extra <> timelockVKeyNeeded <> case era of
     RecentEraBabbage -> Alonzo.Rules.witsVKeyNeeded utxo tx gd
     RecentEraConway -> Alonzo.Rules.witsVKeyNeeded utxo tx gd
   where
-    -- NOTE: ScriptPurpose is available if we
+    -- Treated separately
+    -- https://github.com/input-output-hk/cardano-ledger/blob/513857a0d802a6c0e96f8f79bd1af2337bd42e4e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Rules/Utxow.hs#L373-L376
+    extra = withConstraints era $ tx ^. (bodyTxL . reqSignerHashesTxBodyL)
+
+    -- NOTE: ScriptPurpose is available if we wanted to display it to users.
     scriptsNeeded :: [(ScriptHash StandardCrypto)]
     scriptsNeeded = case era of
         RecentEraBabbage -> unwrap $ getScriptsNeeded utxo (tx ^. bodyTxL)
