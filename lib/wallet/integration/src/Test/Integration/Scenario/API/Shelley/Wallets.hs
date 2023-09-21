@@ -574,12 +574,12 @@ spec = describe "SHELLEY_WALLETS" $ do
                 } |]
         rWal <- postWallet ctx payloadCreate
         expectResponseCode HTTP.status201 rWal
-        let walOneChangeAddr = getFromResponse Prelude.id rWal
+        let wOneChangeAddr = getFromResponse Prelude.id rWal
 
         -- new empty wallet has 20 unused external addresses and 0 used change addresses
         let initialTotal1 = 20
         let initialUsed1  = 0
-        listAddresses @n ctx walOneChangeAddr
+        listAddresses @n ctx wOneChangeAddr
             >>= verifyAddrs initialTotal1 initialUsed1
 
         wFixture <- fixtureWallet ctx
@@ -592,8 +592,8 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         --send funds to
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
-        addrs <- listAddresses @n ctx walOneChangeAddr
-        let destOneChange = (addrs !! 0) ^. #id
+        addrs1 <- listAddresses @n ctx wOneChangeAddr
+        let destOneChange = (addrs1 !! 0) ^. #id
         let payloadTx amt destination = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -613,12 +613,12 @@ spec = describe "SHELLEY_WALLETS" $ do
 
                 eventually "Transaction is discovered" $ do
                     request @(ApiTransaction n) ctx
-                        (Link.getTransaction @'Shelley walOneChangeAddr (ApiTxId txid)) Default Empty
+                        (Link.getTransaction @'Shelley wOneChangeAddr (ApiTxId txid)) Default Empty
                         >>= expectField #status (`shouldBe` ApiT InLedger)
                     request @(ApiTransaction n) ctx
                         (Link.getTransaction @'Shelley wFixture (ApiTxId txid)) Default Empty
                         >>= expectField #status (`shouldBe` ApiT InLedger)
-        forM_ [1..3] $ \num -> realizeTx wFixture (num * minUTxOValue') destOneChange
+        forM_ [5,6,7] $ \num -> realizeTx wFixture (num * minUTxOValue') destOneChange
 
         -- the fixture wallet has 20 unused external addresses, 10 used external addresses,
         -- and 3 used change addresses as there were three txs sent and each tx used new change
@@ -627,9 +627,22 @@ spec = describe "SHELLEY_WALLETS" $ do
             >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
         -- the previously empty wallet has 20 unused external addresses and 0 used change addresses
         -- and 1 used external address as three txs choose the same address as destination address
-        listAddresses @n ctx walOneChangeAddr
+        listAddresses @n ctx wOneChangeAddr
             >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
 
+        addrs2 <- listAddresses @n ctx wFixture
+        let destFixture = (addrs2 !! 0) ^. #id
+        forM_ [1,1,1,1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
+
+        -- the fixture wallet has still 20 unused external addresses, 10 used external addresses,
+        -- and 3 used change addresses as five txs sent to it used its first, already used,
+        -- address
+        listAddresses @n ctx wFixture
+            >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
+        -- the one change wallet has 20 unused external addresses and 1 used change addresses
+        -- and 1 used external address even as it sent 5 txs outside
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs (initialTotal1+2) (initialUsed1+2)
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
