@@ -551,6 +551,47 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- postWallet' ctx headers payload
             verify r expectations
 
+    it "WALLETS_CREATE_10 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
+        m21 <- liftIO $ genMnemonics M21
+        let payloadCreate = Json [json| {
+                "name": "Some Wallet",
+                "mnemonic_sentence": #{m21},
+                "passphrase": #{fixturePassphrase},
+                "one_change_address": true
+                } |]
+        rWal <- postWallet ctx payloadCreate
+        expectResponseCode HTTP.status201 rWal
+
+        wSrc <- fixtureWallet ctx
+        --send funds
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let wDest = getFromResponse id rWal
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{minUTxOValue' },
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        let realizeTx amt = do
+                rTrans <- request @(ApiTransaction n) ctx
+                    (Link.createTransactionOld @'Shelley wSrc) Default payloadTx
+                expectResponseCode HTTP.status202 rTrans
+
+                eventually "Wallet balance is as expected" $ do
+                    rGet <- request @ApiWallet ctx
+                        (Link.getWallet @'Shelley wDest) Default Empty
+                    verify rGet
+                        [ expectField (#balance . #total)
+                            (`shouldBe` Quantity amt)
+                        ]
+        realizeTx minUTxOValue'
+
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
