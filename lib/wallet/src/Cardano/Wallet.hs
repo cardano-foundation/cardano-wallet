@@ -528,6 +528,8 @@ import Cardano.Wallet.Write.Tx.Sign
     , KeyStore (..)
     , keyHashFromXPrv
     , keyHashToBytes
+    , keyStoreFromAddressLookup
+    , keyStoreFromBootstrapAddressLookup
     , keyStoreFromKeyHashLookup
     , keyStoreFromMaybeXPrv
     , keyStoreFromXPrv
@@ -538,7 +540,7 @@ import Cardano.Wallet.Write.Tx.SizeEstimation
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
-    ( (>>>) )
+    ( first, (>>>) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -1878,17 +1880,13 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         -- TODO: We may want to change isOwned to work with credentials instead
         -- of addresses
         inputResolver :: KeyStore
-        inputResolver = keyStoreFromKeyHashLookup $ \h -> do
-            let addr = Address $ mconcat
-                    [ unsafeFromHex $ if isSharedWallet then "71" else "61" -- FIXME
-                    , keyHashToBytes h
-                    ]
-            (xprv, pwd) <- keyLookup addr
-            pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
+        inputResolver = keyStoreFromAddressLookup $ \addr -> do
+            uncurry (flip decrypt) . first (getRawKey key)
+                <$> keyLookup (toWallet addr)
 
         byronInputResolver :: KeyStore
         byronInputResolver = case txWitnessTagForKey key of
-            TxWitnessByronUTxO -> KeyStore (const Nothing) $ \addr -> do
+            TxWitnessByronUTxO -> keyStoreFromBootstrapAddressLookup $ \addr -> do
                 (xprv, pwd) <- keyLookup $ toWallet $ Write.AddrBootstrap addr
                 pure $ Crypto.HD.xPrvChangePass pwd BS.empty $ getRawKey key xprv
             TxWitnessShelleyUTxO -> mempty
@@ -1900,9 +1898,6 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
                 (stakingKey <> inputResolver <> policyKey <> externalStakeKey <> byronInputResolver)
                 (fromWalletUTxO era utxo)
   where
-    isSharedWallet = case key of
-        SharedKeyS -> True
-        _ -> False
     withSealedTx
         :: SealedTx
         -> (forall era. Write.IsRecentEra era

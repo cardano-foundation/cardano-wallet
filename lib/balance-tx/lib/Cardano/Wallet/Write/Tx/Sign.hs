@@ -19,6 +19,9 @@ module Cardano.Wallet.Write.Tx.Sign
     , keyStoreFromXPrv
     , keyStoreFromMaybeXPrv
     , keyStoreFromKeyHashLookup
+    , keyStoreFromAddressLookup
+    , keyStoreFromBootstrapAddressLookup
+
     , KeyHash'
     , keyHashToBytes
     , keyHashFromBytes
@@ -54,6 +57,7 @@ import Cardano.Ledger.Api
     , addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
+    , collateralInputsTxBodyL
     , inputsTxBodyL
     , ppMinFeeAL
     , reqSignerHashesTxBodyL
@@ -172,19 +176,19 @@ data KeyStore = KeyStore
 -- TODO: Change isOurs to take fingerprint instead, then we don't need
 -- resolveAddress, and can rely on resolveKeyHash instead.
 -- resolveBootstrapAddress is fine to keep.
--- resolveAddress :: Address -> Maybe XPrv
+    , resolveAddress :: Address -> Maybe XPrv
 
     , resolveBootstrapAddress :: BootstrapAddress StandardCrypto -> Maybe XPrv
     }
 
 instance Semigroup KeyStore where
-    (KeyStore f f') <> (KeyStore g g') =
-        KeyStore
-            (\h -> f h <|> g h)
-            (\a -> f' a <|> g' a)
+    (KeyStore f g h) <> (KeyStore f' g' h') =
+        KeyStore (alt1 f f') (alt1 g g') (alt1 h h')
+      where
+        alt1 a b x = a x <|> b x
 
 instance Monoid KeyStore where
-    mempty = KeyStore (const Nothing) (const Nothing)
+    mempty = KeyStore (const Nothing) (const Nothing) (const Nothing)
 
 
 -- | NOTE: 'XPrv' must be unencrypted!
@@ -193,15 +197,34 @@ keyStoreFromXPrv xprv =
     let
         h = keyHashFromXPrv xprv
     in
-        KeyStore (\h' -> if h == h' then Just xprv else Nothing) (const Nothing)
+        KeyStore
+            (\h' -> if h == h' then Just xprv else Nothing)
+            (const Nothing)
+            (const Nothing)
 
 keyStoreFromMaybeXPrv :: Maybe XPrv -> KeyStore
 keyStoreFromMaybeXPrv = maybe mempty keyStoreFromXPrv
 
+
+keyStoreFromBootstrapAddressLookup
+    :: (BootstrapAddress StandardCrypto -> Maybe XPrv)
+    -> KeyStore
+keyStoreFromBootstrapAddressLookup = KeyStore (const Nothing) (const Nothing)
+
+keyStoreFromAddressLookup
+    :: (Address -> Maybe XPrv)
+    -> KeyStore
+keyStoreFromAddressLookup f =
+    KeyStore (const Nothing) f (const Nothing)
+
 keyStoreFromKeyHashLookup
     :: (KeyHash 'Witness StandardCrypto -> Maybe XPrv)
     -> KeyStore
-keyStoreFromKeyHashLookup f = KeyStore f (const Nothing)
+keyStoreFromKeyHashLookup f =
+    KeyStore
+        f
+        (const Nothing)
+        (const Nothing)
 
 signTx
     :: forall era. IsRecentEra era => RecentEra era
@@ -213,7 +236,10 @@ signTx era keyStore utxo tx =
     let
         needed = timelockVKeyNeeded
             <> witsVKeyNeeded era utxo tx noGenDelegs
-        availibleKeys = mapMaybe (resolveKeyHash keyStore) $ Set.toList needed
+        availibleKeys = mconcat
+            [ mapMaybe (resolveKeyHash keyStore) $ Set.toList needed
+            , mapMaybe (resolveAddress keyStore) (shelleyInputAddrs tx)
+            ]
 
         wits = Set.fromList $ map (mkShelleyWitness tx) availibleKeys
 
@@ -234,18 +260,32 @@ signTx era keyStore utxo tx =
     -- We probably don't need this?
     noGenDelegs = GenDelegs mempty
 
-
     -- TODO: Check for completeness.
-    byronInputAddrs
+    inputAddresses
         :: Tx (ShelleyLedgerEra era)
-        -> [BootstrapAddress StandardCrypto]
-    byronInputAddrs tx = withConstraints era $ mapMaybe getBootAddr $ mapMaybe (flip txinLookup utxo) $ Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
+        -> [Address]
+    inputAddresses tx = withConstraints era
+        $ map (view addrTxOutL)
+        $ mapMaybe (`txinLookup` utxo)
+        $ Set.toList
+        $ mconcat
+            [ tx ^. bodyTxL . inputsTxBodyL
+            , tx ^. bodyTxL . collateralInputsTxBodyL
+            ]
+
+    byronInputAddrs = mapMaybe asBootAddr . inputAddresses
       where
-        getBootAddr :: TxOut (ShelleyLedgerEra era) -> Maybe (BootstrapAddress StandardCrypto)
-        getBootAddr o = withConstraints era $ case o ^. addrTxOutL of
+        asBootAddr :: Address -> Maybe (BootstrapAddress StandardCrypto)
+        asBootAddr = \case
             AddrBootstrap bootAddr -> Just bootAddr
             _ -> Nothing
 
+    shelleyInputAddrs = mapMaybe asAddr . inputAddresses
+      where
+        asAddr :: Address -> Maybe Address
+        asAddr = \case
+            a@Addr{} -> Just a
+            _ -> Nothing
 
     mkShelleyWitness
         :: Tx (ShelleyLedgerEra era)
