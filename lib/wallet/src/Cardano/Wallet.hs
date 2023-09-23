@@ -269,6 +269,7 @@ import Cardano.Wallet.Address.Derivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    , KeyFingerprint (KeyFingerprint)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
     , Role (..)
@@ -277,7 +278,9 @@ import Cardano.Wallet.Address.Derivation
     , deriveRewardAccount
     , liftDelegationAddressS
     , liftIndex
+    , liftPaymentAddressS
     , stakeDerivationPath
+    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
@@ -393,7 +396,12 @@ import Cardano.Wallet.Primitive.Model
     , totalUTxO
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    , SNetworkId
+    , fromSNetworkId
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
     , Passphrase
@@ -1824,16 +1832,15 @@ calcMinimumCoinValues pp txLayer =
     constraints = Write.txConstraints pp $ transactionWitnessTag txLayer
 
 signTransaction
-  :: forall k ktype
+  :: forall k ktype n
    . ( HardDerivation k
      , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
      )
   => KeyFlavorS k
-  -> TransactionLayer k ktype SealedTx
+  -> SNetworkId n
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
   -- ^ Preferred latest era
-  -> WitnessCountCtx
   -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (Maybe (XPrv, Passphrase "encryption"))
@@ -1850,7 +1857,7 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
+signTransaction key network preferredLatestEra keyLookup mextraRewardAcc
     (RootCredentials rootKey rootPwd) utxo accIxForStakingM tx =
     let
         externalStakeKey :: KeyStore
@@ -1884,6 +1891,18 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
             uncurry (flip decrypt) . first (getRawKey key)
                 <$> keyLookup (toWallet addr)
 
+        -- For reqSignerHashes
+        inputResolver' :: KeyStore
+        inputResolver' = keyStoreFromKeyHashLookup $ \keyHash -> do
+            case key of
+                ShelleyKeyS -> do
+                    let addr = withSNetworkId (fromSNetworkId network) $ \(_ :: SNetworkId n1) ->
+                            liftPaymentAddressS @n1 @k @'CredFromKeyK
+                                (KeyFingerprint $ keyHashToBytes keyHash)
+                    uncurry (flip decrypt) . first (getRawKey key)
+                        <$> keyLookup addr
+                _ -> Nothing
+
         byronInputResolver :: KeyStore
         byronInputResolver = case txWitnessTagForKey key of
             TxWitnessByronUTxO -> keyStoreFromBootstrapAddressLookup $ \addr -> do
@@ -1895,7 +1914,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         withSealedTx tx $ \era ->
             signTx
                 era
-                (stakingKey <> inputResolver <> policyKey <> externalStakeKey <> byronInputResolver)
+                (stakingKey <> inputResolver <> inputResolver' <> policyKey <> externalStakeKey <> byronInputResolver)
                 (fromWalletUTxO era utxo)
   where
     withSealedTx
@@ -2101,9 +2120,8 @@ buildAndSignTransactionPure
         passphrase = preparePassphrase passphraseScheme userPassphrase
         signedTx = signTransaction @k @'CredFromKeyK
             (keyFlavorFromState @s)
-            txLayer
+            (sNetworkId @(NetworkOf s))
             anyCardanoEra
-            AnyWitnessCountCtx
             (isOwned wF (getState wallet) (rootKey, passphrase))
             mExternalRewardAccount
             (RootCredentials rootKey passphrase)

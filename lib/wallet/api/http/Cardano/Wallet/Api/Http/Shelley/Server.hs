@@ -437,7 +437,6 @@ import Cardano.Wallet.Flavor
     , WalletFlavorS (..)
     , keyFlavorFromState
     , keyOfWallet
-    , shelleyOrShared
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
@@ -457,7 +456,7 @@ import Cardano.Wallet.Primitive.Model
     , totalUTxO
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminantCheck )
+    ( HasSNetworkId (..), NetworkDiscriminantCheck, networkIdVal )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (..)
@@ -2117,7 +2116,6 @@ signTransaction ctx (ApiT wid) body = do
     sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let
             db = wrk ^. W.dbLayer @IO @s
-            tl = wrk ^. W.transactionLayer @k
             nl = wrk ^. W.networkLayer
         db & \W.DBLayer{atomically, readCheckpoint} ->
             W.withRootKey @s db wid pwd ErrWitnessTxWithRootKey
@@ -2135,15 +2133,12 @@ signTransaction ctx (ApiT wid) body = do
                         accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
                         accIxForStakingM = getAccountIx @s (getState cp)
 
-                        witCountCtx = shelleyOrShared wF
-                            AnyWitnessCountCtx $ \flavor ->
-                                toWitnessCountCtx flavor (getState cp)
-
                     era <- liftIO $ NW.currentNodeEra nl
                     let sealedTx = body ^. #transaction . #getApiT
                     pure $ W.signTransaction
                         (keyFlavorFromState @s)
-                        tl era witCountCtx keyLookup
+                        (sNetworkId @(NetworkOf s))
+                        era keyLookup
                         Nothing (RootCredentials rootK pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
