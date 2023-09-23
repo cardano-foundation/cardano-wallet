@@ -280,7 +280,6 @@ import Cardano.Wallet.Address.Derivation
     , liftIndex
     , liftPaymentAddressS
     , stakeDerivationPath
-    , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
@@ -318,13 +317,7 @@ import Cardano.Wallet.Address.Keys.SequentialAny
 import Cardano.Wallet.Address.Keys.Shared
     ( addCosignerAccXPub )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron
-    , afterByron
-    , changePassphraseNew
-    , getRawKey
-    , hashVerificationKey
-    , liftRawKey
-    )
+    ( AfterByron, afterByron, changePassphraseNew, getRawKey, liftRawKey )
 import Cardano.Wallet.Address.MaybeLight
     ( MaybeLight (maybeDiscover) )
 import Cardano.Wallet.Address.States.IsOwned
@@ -396,12 +389,7 @@ import Cardano.Wallet.Primitive.Model
     , totalUTxO
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..)
-    , SNetworkId
-    , fromSNetworkId
-    , networkIdVal
-    , withSNetworkId
-    )
+    ( HasSNetworkId (..), SNetworkId, fromSNetworkId, withSNetworkId )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
     , Passphrase
@@ -472,7 +460,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , UnsignedTx (..)
     , cardanoTxIdeallyNoLaterThan
-    , cardanoTxInExactEra
     , sealedTxFromCardano
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
@@ -532,15 +519,12 @@ import Cardano.Wallet.Write.Tx.Balance
     , fromWalletUTxO
     )
 import Cardano.Wallet.Write.Tx.Sign
-    ( KeyHash'
-    , KeyStore (..)
-    , keyHashFromXPrv
+    ( KeyStore (..)
     , keyHashToBytes
     , keyStoreFromAddressLookup
     , keyStoreFromBootstrapAddressLookup
     , keyStoreFromKeyHashLookup
     , keyStoreFromMaybeXPrv
-    , keyStoreFromXPrv
     , signTx
     )
 import Cardano.Wallet.Write.Tx.SizeEstimation
@@ -676,8 +660,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write

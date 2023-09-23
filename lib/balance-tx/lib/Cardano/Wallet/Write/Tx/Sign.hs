@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
@@ -39,20 +38,24 @@ module Cardano.Wallet.Write.Tx.Sign
 
 import Prelude
 
+import Cardano.Chain.Common
+    ( addrAttributesUnwrapped )
 import Cardano.Crypto.Hash.Class
     ( hashFromBytes, hashToBytes )
 import Cardano.Crypto.Wallet
     ( XPrv, toXPub, xpubPublicKey )
-import Cardano.Ledger.Alonzo.Tx
-    ( ScriptPurpose, sizeAlonzoTxF )
 import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded (..) )
 import Cardano.Ledger.Api
     ( Addr (..)
+    , Addr (..)
     , BootstrapAddress (unBootstrapAddress)
     , BootstrapWitness
     , Script
     , ScriptHash
+    , StandardCrypto
+    , WitVKey
+    , addrTxOutL
     , addrTxOutL
     , addrTxWitsL
     , bodyTxL
@@ -60,30 +63,19 @@ import Cardano.Ledger.Api
     , collateralInputsTxBodyL
     , inputsTxBodyL
     , ppMinFeeAL
+    , ppMinFeeAL
     , reqSignerHashesTxBodyL
     , sizeTxF
     , witsTxL
     )
-import Cardano.Ledger.Api
-    ( Addr (..)
-    , AlonzoEraTxBody
-    , Era (EraCrypto)
-    , EraTx
-    , addrTxOutL
-    , ppMinFeeAL
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto )
-import Cardano.Ledger.Api
-    ( WitVKey )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (..) )
+import Cardano.Ledger.Binary.Plain
+    ( serialize' )
 import Cardano.Ledger.Credential
     ( Credential (..) )
 import Cardano.Ledger.Keys
-    ( GenDelegs, KeyHash (..) )
-import Cardano.Ledger.Keys
-    ( GenDelegs (GenDelegs), KeyRole (Witness) )
+    ( GenDelegs (GenDelegs), KeyHash (..), KeyRole (Witness) )
 import Cardano.Ledger.Shelley.API
     ( addKeyWitnesses )
 import Cardano.Ledger.UTxO
@@ -93,7 +85,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toWallet), toWalletCoin, toWalletScript )
+    ( toWalletCoin, toWalletScript )
 import Cardano.Wallet.Write.Tx
     ( Address
     , IsRecentEra (..)
@@ -103,10 +95,8 @@ import Cardano.Wallet.Write.Tx
     , ShelleyLedgerEra
     , Tx
     , TxIn
-    , TxOut
     , UTxO
     , toCardanoTx
-    , txBody
     , withConstraints
     )
 import Control.Applicative
@@ -128,26 +118,17 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
-import Cardano.Chain.Common
-    ( addrAttributesUnwrapped )
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.Rules as Alonzo.Rules
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxInfo as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import Cardano.Ledger.Binary.Plain
-    ( serialize' )
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Codec.CBOR.Decoding as CBOR
-import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -227,7 +208,7 @@ keyStoreFromKeyHashLookup f =
         (const Nothing)
 
 signTx
-    :: forall era. IsRecentEra era => RecentEra era
+    :: RecentEra era
     -> KeyStore
     -> UTxO (ShelleyLedgerEra era)
     -> Tx (ShelleyLedgerEra era)
@@ -238,15 +219,15 @@ signTx era keyStore utxo tx =
             <> witsVKeyNeeded era utxo tx noGenDelegs
         availibleKeys = mconcat
             [ mapMaybe (resolveKeyHash keyStore) $ Set.toList needed
-            , mapMaybe (resolveAddress keyStore) (shelleyInputAddrs tx)
+            , mapMaybe (resolveAddress keyStore) shelleyInputAddrs
             ]
 
-        wits = Set.fromList $ map (mkShelleyWitness tx) availibleKeys
+        wits = Set.fromList $ map (mkShelleyWitness era tx) availibleKeys
 
         bootWits = Set.fromList $ catMaybes $ do
-            bootAddr <- byronInputAddrs tx
+            bootAddr <- byronInputAddrs
             case resolveBootstrapAddress keyStore bootAddr of
-                Just xprv -> return $ Just $ mkByronWitness tx bootAddr xprv
+                Just xprv -> return $ Just $ mkByronWitness era tx bootAddr xprv
                 Nothing -> return Nothing
 
     in
@@ -262,9 +243,8 @@ signTx era keyStore utxo tx =
 
     -- TODO: Check for completeness.
     inputAddresses
-        :: Tx (ShelleyLedgerEra era)
-        -> [Address]
-    inputAddresses tx = withConstraints era
+        :: [Address]
+    inputAddresses = withConstraints era
         $ map (view addrTxOutL)
         $ mapMaybe (`txinLookup` utxo)
         $ Set.toList
@@ -273,62 +253,68 @@ signTx era keyStore utxo tx =
             , tx ^. bodyTxL . collateralInputsTxBodyL
             ]
 
-    byronInputAddrs = mapMaybe asBootAddr . inputAddresses
+    byronInputAddrs = mapMaybe asBootAddr inputAddresses
       where
         asBootAddr :: Address -> Maybe (BootstrapAddress StandardCrypto)
         asBootAddr = \case
             AddrBootstrap bootAddr -> Just bootAddr
             _ -> Nothing
 
-    shelleyInputAddrs = mapMaybe asAddr . inputAddresses
+    shelleyInputAddrs = mapMaybe asAddr inputAddresses
       where
         asAddr :: Address -> Maybe Address
         asAddr = \case
             a@Addr{} -> Just a
             _ -> Nothing
 
-    mkShelleyWitness
-        :: Tx (ShelleyLedgerEra era)
-        -> XPrv
-        -> WitVKey 'Witness StandardCrypto
-    mkShelleyWitness tx key = withConstraints era $
-        toLedgerWit $ Cardano.makeShelleyKeyWitness (toCardanoTxBody tx)
-            $ Cardano.WitnessPaymentExtendedKey
-            $ Cardano.PaymentExtendedSigningKey key
-      where
-        toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
+mkShelleyWitness
+    :: RecentEra era
+    -> Tx (ShelleyLedgerEra era)
+    -> XPrv
+    -> WitVKey 'Witness StandardCrypto
+mkShelleyWitness era tx key = withConstraints era $
+    toLedgerWit $ Cardano.makeShelleyKeyWitness (toCardanoTxBody era tx)
+        $ Cardano.WitnessPaymentExtendedKey
+        $ Cardano.PaymentExtendedSigningKey key
+  where
+    toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
+    toLedgerWit (Cardano.ShelleyBootstrapWitness _ _) = error "impossible"
+    toLedgerWit (Byron.ByronKeyWitness _) = error "impossible"
 
-        toCardanoTxBody :: Tx (ShelleyLedgerEra era) -> Cardano.TxBody era
-        toCardanoTxBody tx = withConstraints era $
-            let
-                Cardano.Tx body _ = toCardanoTx tx
-            in
-                body
-    mkByronWitness
-        :: Tx (ShelleyLedgerEra era)
-        -> BootstrapAddress StandardCrypto
-        -> XPrv
-        -> BootstrapWitness StandardCrypto
-    mkByronWitness tx addr key = withConstraints era $
-            SL.makeBootstrapWitness
-                (Crypto.castHash $ Crypto.hashWith serialize' $ tx ^. bodyTxL)
-                (CC.SigningKey key)
-                attributes
+toCardanoTxBody
+    :: RecentEra era
+    -> Tx (ShelleyLedgerEra era)
+    -> Cardano.TxBody era
+toCardanoTxBody era tx = withConstraints era $
+    let
+        Cardano.Tx body _ = toCardanoTx tx
+    in
+        body
 
-      where
-        toLedgerWit (Cardano.ShelleyKeyWitness _ w) = w
+mkByronWitness
+    :: RecentEra era
+    -> Tx (ShelleyLedgerEra era)
+    -> BootstrapAddress StandardCrypto
+    -> XPrv
+    -> BootstrapWitness StandardCrypto
+mkByronWitness era tx addr key = withConstraints era $
+        SL.makeBootstrapWitness
+            (Crypto.castHash $ Crypto.hashWith serialize' $ tx ^. bodyTxL)
+            (CC.SigningKey key)
+            attributes
 
-        networkMagic = Byron.aaNetworkMagic . addrAttributesUnwrapped . unBootstrapAddress $ addr
+  where
+    networkMagic = Byron.aaNetworkMagic . addrAttributesUnwrapped . unBootstrapAddress $ addr
 
-        attributes =
-            Byron.mkAttributes Byron.AddrAttributes {
-              Byron.aaVKDerivationPath = derivationPath,
-              Byron.aaNetworkMagic     = networkMagic
-            }
+    attributes =
+        Byron.mkAttributes Byron.AddrAttributes {
+          Byron.aaVKDerivationPath = derivationPath,
+          Byron.aaNetworkMagic     = networkMagic
+        }
 
-        derivationPath :: Maybe Byron.HDAddressPayload
-        derivationPath =
-            Byron.aaVKDerivationPath . addrAttributesUnwrapped . unBootstrapAddress $ addr
+    derivationPath :: Maybe Byron.HDAddressPayload
+    derivationPath =
+        Byron.aaVKDerivationPath . addrAttributesUnwrapped . unBootstrapAddress $ addr
 
 
 addBootstrapWitnesses

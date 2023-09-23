@@ -456,7 +456,7 @@ import Cardano.Wallet.Primitive.Model
     , totalUTxO
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminantCheck, networkIdVal )
+    ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (..)
