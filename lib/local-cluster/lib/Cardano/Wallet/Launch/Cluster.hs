@@ -49,7 +49,6 @@ module Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , testMinSeverityFromEnv
     , testLogDirFromEnv
-    , tokenMetadataServerFromEnv
 
       -- * Faucets
     , Credential (..)
@@ -212,8 +211,6 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
     ( Generic )
-import Network.URI
-    ( URI, parseURI )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -226,7 +223,7 @@ import System.Directory
     , makeAbsolute
     )
 import System.Environment
-    ( getEnvironment, lookupEnv )
+    ( getEnvironment )
 import System.Environment.Extended
     ( lookupEnvNonEmpty )
 import System.Exit
@@ -326,12 +323,6 @@ walletMinSeverityFromEnv =
 testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
-
-tokenMetadataServerFromEnv :: IO (Maybe URI)
-tokenMetadataServerFromEnv =
-    lookupEnv "TOKEN_METADATA_SERVER" <&> \case
-        Nothing -> Nothing
-        Just t -> parseURI t
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.

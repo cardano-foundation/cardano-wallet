@@ -160,9 +160,11 @@ module Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , fixturePassphrase
     , fixturePassphraseEncrypted
+    , waitForEpoch
     , waitForNextEpoch
-    , waitNumberOfEpochs
+    , waitNumberOfEpochBoundaries
     , waitForTxImmutability
+    , waitForTxStatus
     , waitAllTxsInLedger
     , toQueryString
     , withMethod
@@ -337,11 +339,13 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , PoolMetadataSource
     , Settings
+    , SlotInEpoch (unSlotInEpoch)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SortOrder (..)
     , WalletId (..)
+    , unSlotInEpoch
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -371,6 +375,8 @@ import Control.Monad
     ( forM_, join, replicateM, unless, void, (>=>) )
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO (..), liftIO )
+import Control.Monad.Loops
+    ( iterateUntilM )
 import Control.Monad.Trans.Resource
     ( ResourceT, allocate, runResourceT )
 import Control.Retry
@@ -393,8 +399,6 @@ import Data.Foldable
     ( toList )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -1102,6 +1106,19 @@ unsafeGetTransactionTime txs =
         (Just t):_ -> pure t
         _ -> throwString "Expected at least one transaction with a time."
 
+waitForTxStatus
+    :: forall m n
+     . (HasSNetworkId n, MonadUnliftIO m)
+    => Context
+    -> ApiWallet
+    -> TxStatus
+    -> ApiTransaction n
+    -> m ()
+waitForTxStatus ctx w txStatus tx = eventually "Tx is in ledger" $ do
+    let endpoint = Link.getTransaction @'Shelley w tx
+    r <- getResponse <$> request @(ApiTransaction n) ctx endpoint Default Empty
+    r ^. #status . #getApiT `shouldBe` txStatus
+
 waitAllTxsInLedger
     :: forall n m.
         ( HasSNetworkId n
@@ -1118,42 +1135,92 @@ waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ 
     view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
 
 waitForNextEpoch :: MonadIO m => Context -> m ()
-waitForNextEpoch = waitNumberOfEpochs 1
+waitForNextEpoch = waitNumberOfEpochBoundaries 1
 
-waitNumberOfEpochs :: MonadIO m => Natural -> Context -> m ()
-waitNumberOfEpochs n ctx = liftIO $ do
-    parameters <- networkParameters
-    let slotLen = getQuantity $ parameters ^. #slotLength
-    let slotsPerEpoch = fromIntegral . getQuantity $ parameters ^. #epochLength
-    expectedEpochAfterSleep <- currentEpoch <&> (+ fromIntegral n)
+-- | Wait for the given number of epoch boundaries to pass.
+--
+-- This function takes into account that a current slot in an epoch may be
+-- greater than 0, and will wait for the remaining slots in the current epoch:
+-- e.g. Assuming 100 slots per epoch,
+-- if the current epoch/slot is 0/99, and we wait for 3 epochs
+-- then we will wait for 201 slots (1 + 100 + 100)
+-- such that the current epoch/slot will be 3/0
+waitNumberOfEpochBoundaries :: MonadIO m => Natural -> Context -> m ()
+waitNumberOfEpochBoundaries numberOfEpochs ctx = liftIO $ do
+    (slotLen, slotsPerEpoch) <- slotInfo ctx
+    (currentEpoch, slotInEpoch) <- tipInfo ctx
+    let expectedEpochAfterSleep = currentEpoch + fromIntegral numberOfEpochs
+        numberOfSlots = fromIntegral slotsPerEpoch * fromIntegral numberOfEpochs
+        slotsPassed = fromIntegral (unSlotInEpoch slotInEpoch)
 
-    sleep $ slotLen * slotsPerEpoch * fromIntegral n
+    sleep $ slotLen * (numberOfSlots - slotsPassed)
 
-    epochAfterSleep <- currentEpoch
-    unless (epochAfterSleep >= expectedEpochAfterSleep)
+    -- Sometimes current node tip is a few slots off what we expect it to be;
+    -- The additional sleep compensates for this imprecision;
+    (actualEpochAfterSleep', slotInEpochAfterSleep') <-
+        tipInfo ctx >>= iterateUntilM
+            (\(epochAfterSleep, _slotInEpochAfterSleep) ->
+                epochAfterSleep >= expectedEpochAfterSleep)
+            (\(_epochAfterSleep, slotInEpochAfterSleep) -> do
+                let missedSlots =
+                        slotsPerEpoch - unSlotInEpoch slotInEpochAfterSleep
+                sleep $ slotLen * fromIntegral missedSlots
+                tipInfo ctx
+            )
+
+    unless (actualEpochAfterSleep' >= expectedEpochAfterSleep)
         $ expectationFailure . mconcat
         $ [ "After waiting for "
-          , show n
-          , " epochs, current epoch ("
-          , show (unEpochNo epochAfterSleep)
+          , show numberOfEpochs
+          , " epochs, current epoch/slot ("
+          , show (unEpochNo actualEpochAfterSleep')
+          , "/"
+          , show (unSlotInEpoch slotInEpochAfterSleep')
           , ") is less than expected ("
           , show (unEpochNo expectedEpochAfterSleep)
-          , ")"
+          , "/0)"
           ]
-  where
-    currentEpoch :: IO EpochNo
-    currentEpoch =
-        getApiT . (^. #nodeTip . #slotId . #epochNumber) <$> networkInfo
 
-    networkInfo :: IO ApiNetworkInformation
-    networkInfo = getResponse <$> request ctx Link.getNetworkInfo Default Empty
+tipInfo :: Context -> IO (EpochNo, SlotInEpoch)
+tipInfo ctx = do
+    netInfo :: ApiNetworkInformation <-
+        getResponse <$> request ctx Link.getNetworkInfo Default Empty
+    let slot = netInfo ^. #nodeTip . #slotId
+    pure (getApiT (slot ^. #epochNumber), getApiT (slot ^. #slotNumber))
 
-    networkParameters :: IO ApiNetworkParameters
-    networkParameters =
+slotInfo :: Context -> IO (NominalDiffTime, Word32)
+slotInfo ctx = do
+    parameters :: ApiNetworkParameters <-
         getResponse <$> request ctx Link.getNetworkParams Default Empty
+    let slotLen = getQuantity $ parameters ^. #slotLength
+    let slotsPerEpoch = getQuantity $ parameters ^. #epochLength
+    pure (slotLen, slotsPerEpoch)
 
-    sleep :: NominalDiffTime -> IO ()
-    sleep t = threadDelay (round (t * 10 ^ (6::Int)))
+sleep :: NominalDiffTime -> IO ()
+sleep t = threadDelay (ceiling (t * 10 ^ (6::Int)))
+
+waitForEpoch :: MonadIO m => EpochNo -> Context -> m ()
+waitForEpoch targetEpoch ctx = liftIO $ do
+    (slotLen, slotsPerEpoch) <- slotInfo ctx
+    (currentEpoch, slotInEpoch) <- tipInfo ctx
+
+    unless (currentEpoch > targetEpoch) $ do
+        let n = unEpochNo $ targetEpoch - currentEpoch
+
+        sleep $ slotLen * fromIntegral slotsPerEpoch * fromIntegral n
+            - fromIntegral (unSlotInEpoch slotInEpoch) * slotLen
+
+        (epochAfterSleep , _slotInEpoch) <- tipInfo ctx
+        unless (epochAfterSleep >= targetEpoch)
+            $ expectationFailure . mconcat
+            $ [ "After waiting for "
+            , show n
+            , " epochs, current epoch ("
+            , show (unEpochNo epochAfterSleep)
+            , ") is less than expected ("
+            , show (unEpochNo targetEpoch)
+            , ")"
+            ]
 
 -- Sometimes, we need to wait long-enough for transactions to become immutable.
 -- What long enough is rather empirical here, but it must satisfies one important
@@ -2661,10 +2728,7 @@ getWallet ctx w = do
 -- Note: In the local cluster, some of the pools retire early.
 -- When running the test in isolation, we have to delegate
 -- to pools which will retire later.
-notRetiringPools
-    :: MonadUnliftIO f
-    => Context
-    -> f [StakePool]
+notRetiringPools :: MonadUnliftIO f => Context -> f [StakePool]
 notRetiringPools ctx = do
     filter won'tRetire . map getApiT . snd <$>
         unsafeRequest @[ApiT StakePool] ctx
@@ -3296,10 +3360,7 @@ pubKeyFromMnemonics mnemonics =
 --
 -- Helper for delegation statuses
 --
-getSlotParams
-    :: MonadIO m
-    => Context
-    -> m (EpochNo, SlottingParameters)
+getSlotParams :: MonadIO m => Context -> m (EpochNo, SlottingParameters)
 getSlotParams ctx = do
     r1 <- liftIO $ request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
@@ -3310,17 +3371,18 @@ getSlotParams ctx = do
 
     let endpoint = ( "GET", "v2/network/parameters" )
     r2 <- liftIO $ request @ApiNetworkParameters ctx endpoint Default Empty
-    let (Quantity slotL) = getFromResponse #slotLength r2
-    let (Quantity epochL) = getFromResponse #epochLength r2
-    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
-    let (Quantity k) = getFromResponse #securityParameter r2
-    let sp = SlottingParameters
+    let Quantity slotL = getFromResponse #slotLength r2
+    let Quantity epochL = getFromResponse #epochLength r2
+    let Quantity coeff = getFromResponse #activeSlotCoefficient r2
+    let Quantity k = getFromResponse #securityParameter r2
+    pure
+        ( currentEpoch
+        , SlottingParameters
             (SlotLength slotL)
             (EpochLength epochL)
             (ActiveSlotCoefficient coeff)
             (Quantity k)
-
-    return (currentEpoch, sp)
+        )
 
 -- | Converts a transaction TTL in seconds into a number of slots, using the
 -- slot length.

@@ -46,6 +46,8 @@ import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
+import System.Environment
+    ( getEnv )
 import System.Environment.Extended
     ( isEnvSet )
 import System.IO.Temp.Extra
@@ -70,7 +72,6 @@ import UnliftIO.STM
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Service as ClusterService
 
 {-------------------------------------------------------------------------------
                                       Spec
@@ -261,7 +262,8 @@ withTestNode tr action = do
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $
         \dir -> do
-            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            cfgSetupDir <-
+                Tagged @"setup" <$> getEnv "SHELLEY_TEST_DATA"
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = defaultPoolConfigs
                     , Cluster.cfgLastHardFork = BabbageHardFork

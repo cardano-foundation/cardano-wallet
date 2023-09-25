@@ -14,10 +14,6 @@ module Service where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Extra
     ( stdoutTextTracer )
 import Cardano.Launcher.Node
@@ -42,10 +38,6 @@ import Data.Functor
     ( (<&>) )
 import Data.Tagged
     ( Tagged (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Main.Utf8
     ( withUtf8 )
 import System.Environment.Extended
@@ -208,7 +200,6 @@ main = withUtf8 $ do
                 , cfgSetupDir
                 }
         Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
-            _tokenMetadataServer <- Cluster.tokenMetadataServerFromEnv
             clusterDir <- Path.parseAbsDir clusterPath
             let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
             PathIO.createDirIfMissing False walletDir
@@ -258,41 +249,3 @@ getShelleyTestDataPath =
     lookupEnvNonEmpty "SHELLEY_TEST_DATA" <&> Tagged . \case
         Nothing -> $(getTestData) </> "cardano-node-shelley"
         Just fp -> fp
-
--- Logging
-
-data LogOutput
-    = LogToStdStreams Severity
-    -- ^ Log to console, with the given minimum 'Severity'.
-    --
-    -- Logs of Warning or higher severity will be output to stderr. Notice or
-    -- lower severity logs will be output to stdout.
-    | LogToFile FilePath Severity
-    deriving stock (Eq, Show)
-
-data TestsLog
-    = MsgBaseUrl Text Text Text -- wallet url, ekg url, prometheus url
-    | MsgSettingUpFaucet
-    | MsgCluster Cluster.ClusterLog
-    deriving stock (Show)
-
-instance ToText TestsLog where
-    toText = \case
-        MsgBaseUrl walletUrl ekgUrl prometheusUrl ->
-            mconcat
-                [ "Wallet url: "
-                , walletUrl
-                , ", EKG url: "
-                , ekgUrl
-                , ", Prometheus url:"
-                , prometheusUrl
-                ]
-        MsgSettingUpFaucet -> "Setting up faucet..."
-        MsgCluster msg -> toText msg
-
-instance HasPrivacyAnnotation TestsLog
-instance HasSeverityAnnotation TestsLog where
-    getSeverityAnnotation = \case
-        MsgSettingUpFaucet -> Notice
-        MsgBaseUrl{} -> Notice
-        MsgCluster msg -> getSeverityAnnotation msg

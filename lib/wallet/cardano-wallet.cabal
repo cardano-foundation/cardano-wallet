@@ -539,10 +539,12 @@ library cardano-wallet-integration
     , http-types
     , HUnit
     , iohk-monitoring
+    , lens
     , lens-aeson
     , local-cluster
     , memory
     , microstache
+    , monad-loops
     , network-uri
     , optparse-applicative
     , process

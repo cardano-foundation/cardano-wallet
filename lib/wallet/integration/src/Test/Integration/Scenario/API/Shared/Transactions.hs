@@ -141,6 +141,7 @@ import Test.Integration.Framework.DSL
     , fundSharedWallet
     , genMnemonics
     , getFromResponse
+    , getResponse
     , getSharedWallet
     , json
     , listAddresses
@@ -160,6 +161,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , waitForNextEpoch
+    , waitNumberOfEpochBoundaries
     , walletId
     , (.>)
     )
@@ -238,8 +240,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
 
-        let (ApiSharedWallet (Left wal)) =
-                getFromResponse Prelude.id rPost
+        let (ApiSharedWallet (Left wal)) = getResponse rPost
 
         let metadata =
                 Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
@@ -278,7 +279,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let walShared@(ApiSharedWallet (Right wal)) =
-                getFromResponse Prelude.id rPost
+                getResponse rPost
 
         let metadata =
                 Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
@@ -396,7 +397,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let walShared@(ApiSharedWallet (Right wal)) =
-                getFromResponse Prelude.id rPost
+                getResponse rPost
 
         let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
@@ -695,7 +696,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wb) Default Empty
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
             "payments": [{
@@ -1053,25 +1054,25 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPost1)
             [ expectResponseCode HTTP.status201
             ]
-        let walPending1 = getFromResponse Prelude.id rPost1
+        let walPending1 = getResponse rPost1
         let payloadPatch1 = Json [json| {
                 "cosigner#1": #{accXPubDerived2}
                 } |]
         rPatch1 <- patchSharedWallet ctx walPending1 Payment payloadPatch1
         expectResponseCode HTTP.status200 rPatch1
-        let walShared1 = getFromResponse Prelude.id rPatch1
+        let walShared1 = getResponse rPatch1
 
         rPost2 <- postSharedWallet ctx Default payload2
         verify (fmap (swapEither . view #wallet) <$> rPost2)
             [ expectResponseCode HTTP.status201
             ]
-        let walPending2 = getFromResponse Prelude.id rPost2
+        let walPending2 = getResponse rPost2
         let payloadPatch2 = Json [json| {
                 "cosigner#0": #{accXPubDerived1}
                 } |]
         rPatch2 <- patchSharedWallet ctx walPending2 Payment payloadPatch2
         expectResponseCode HTTP.status200 rPatch2
-        let walShared2 = getFromResponse Prelude.id rPatch2
+        let walShared2 = getResponse rPatch2
 
         --checking that balances are the same as before deletion
         eventually "balance is like before deletion" $ do
@@ -1167,7 +1168,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
         let destAddr1 = (head addrs) ^. #id
         let destAddr2 = (addrs !! 1) ^. #id
         let payload destination amt = Json [json|{
@@ -1206,7 +1207,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let linkList = listTransactionsFilteredByAddress walDest Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
-            pure (getFromResponse Prelude.id rl)
+            pure (getResponse rl)
 
         let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
         let plusDelta, minusDelta :: UTCTime -> UTCTime
@@ -1550,7 +1551,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
-            let txs = getFromResponse Prelude.id r
+            let txs = getResponse r
             txs `shouldBe` []
 
     it "SHARED_TRANSACTIONS_LIST_04 - \
@@ -1620,7 +1621,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
         let destAddr = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1709,7 +1710,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
         let destAddr = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1866,7 +1867,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
                                  , delegatingCert stakeKeyDerPathParty2])]
         verify rDecodedTx2 (decodedExpectations1 ++ certExpectation2 ++ witsExp1)
-        let (ApiSerialisedTransaction apiTx1 _) =
+        let ApiSerialisedTransaction apiTx1 _ =
                 getFromResponse #transaction rTx1
         signedTx1 <-
             signSharedTx ctx party1 apiTx1
@@ -1898,7 +1899,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg403MissingWitsInTransaction 3 2)
             ]
 
-        let (ApiSerialisedTransaction apiTx2 _) = signedTx1
+        let ApiSerialisedTransaction apiTx2 _ = signedTx1
         signedTx2 <-
             signSharedTx ctx party2 apiTx2
                 [ expectResponseCode HTTP.status202 ]
@@ -1931,8 +1932,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         eventually "Party1's wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shared party1
-                    (getFromResponse Prelude.id submittedTx2))
+                (Link.getTransaction @'Shared party1 (getResponse submittedTx2))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -1946,8 +1946,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 ]
         eventually "Party2's wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shared party2
-                    (getFromResponse Prelude.id submittedTx2))
+                (Link.getTransaction @'Shared party2 (getResponse submittedTx2))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -1983,23 +1982,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
 
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-
-        eventually "party1: Wallet gets rewards from pool1" $ do
-            r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
-            verify r
-                [ expectField
-                      (#balance . #reward)
-                      (.> (Quantity 0))
-                ]
-        eventually "party2: Wallet gets rewards from pool1" $ do
-            r <- request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
-            verify r
-                [ expectField
-                      (#balance . #reward)
-                      (.> (Quantity 0))
-                ]
+        -- Epoch A: delegation tx happened.
+        -- <-- 1st boundary (A / A+1)
+        -- Epoch A+1: stake is registered to a chosen pool.
+        -- <-- 2nd boundary (A+1 / A+2)
+        -- Epoch A+2: stake is active, rewards start accumulating.
+        waitNumberOfEpochBoundaries 2 ctx
 
         eventually "party1: Wallet is delegating to pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
@@ -2011,6 +1999,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                     ]
+
+        -- <-- 1st boundary (A+2 / A+3)
+        -- Epoch A+3: rewards from epoch A+2 are calculated.
+        -- <-- 2nd boundary (A+3 / A+4)
+        -- Epoch A+4: rewards from epoch A+2 are paid out.
+        waitNumberOfEpochBoundaries 2 ctx
+
+        eventually "party1: Wallet gets rewards from pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #reward) (.> (Quantity 0)) ]
+
+        eventually "party2: Wallet gets rewards from pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #reward) (.> (Quantity 0)) ]
 
         -- join another stake pool
         let delegationRejoin = Json [json|{
@@ -2029,20 +2033,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
-        let (ApiSerialisedTransaction apiTx3 _) =
+        let ApiSerialisedTransaction apiTx3 _ =
                 getFromResponse #transaction rTx2
         signedTx3 <-
             signSharedTx ctx party1 apiTx3
                 [ expectResponseCode HTTP.status202 ]
-        let (ApiSerialisedTransaction apiTx4 _) = signedTx3
+        let ApiSerialisedTransaction apiTx4 _ = signedTx3
         signedTx4 <-
             signSharedTx ctx party2 apiTx4
                 [ expectResponseCode HTTP.status202 ]
 
         submittedTx3 <- submitSharedTxWithWid ctx party1 signedTx4
-        verify submittedTx3
-            [ expectResponseCode HTTP.status202
-            ]
+        verify submittedTx3 [ expectResponseCode HTTP.status202 ]
         let delegatingCert2 path =
                 WalletDelegationCertificate $ JoinPool path (ApiT pool2)
 
@@ -2086,8 +2088,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])]
         verify rDecodedTx8 (decodedExpectations2 ++ certExpectation4 ++ witsExp4)
 
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
+        waitNumberOfEpochBoundaries 2 ctx
 
         eventually "party1: Wallet is delegating to pool2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
@@ -2103,7 +2104,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "Party1's wallet has joined another pool" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shared party1
-                    (getFromResponse Prelude.id submittedTx3))
+                    (getResponse submittedTx3))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2117,7 +2118,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "Party2's wallet has joined another pool" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shared party2
-                    (getFromResponse Prelude.id submittedTx3))
+                    (getResponse submittedTx3))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2178,49 +2179,38 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        let (ApiSerialisedTransaction apiTx5 _) =
+        let ApiSerialisedTransaction apiTx5 _ =
                 getFromResponse #transaction rTx3
         signedTx5 <-
             signSharedTx ctx party1 apiTx5
                 [ expectResponseCode HTTP.status202 ]
-        let (ApiSerialisedTransaction apiTx6 _) = signedTx5
+        let ApiSerialisedTransaction apiTx6 _ = signedTx5
         signedTx6 <-
             signSharedTx ctx party2 apiTx6
                 [ expectResponseCode HTTP.status202 ]
 
         submittedTx4 <- submitSharedTxWithWid ctx party1 signedTx6
-        verify submittedTx4
-            [ expectResponseCode HTTP.status202
-            ]
+        verify submittedTx4 [ expectResponseCode HTTP.status202 ]
 
         -- Rewards are have been consumed.
         eventually "Party1's wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                 >>= flip verify
-                    [ expectField
-                        (#balance . #reward)
-                        (`shouldBe` (Quantity 0))
-                    , expectField
-                        (#balance . #available)
-                        (.> previousBalance)
-                    ]
+                [ expectField (#balance . #reward) (`shouldBe` (Quantity 0))
+                , expectField (#balance . #available) (.> previousBalance)
+                ]
+
         eventually "Party2's wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                 >>= flip verify
-                    [ expectField
-                        (#balance . #reward)
-                        (`shouldBe` (Quantity 0))
-                    , expectField
-                        (#balance . #available)
-                        (.> previousBalance)
-                    ]
+                [ expectField (#balance . #reward) (`shouldBe` (Quantity 0))
+                , expectField (#balance . #available) (.> previousBalance)
+                ]
 
         -- now we can quit
         let delegationQuit = Json [json|{
                 "delegations": [{
-                    "quit": {
-                        "stake_key_index": "0H"
-                    }
+                    "quit": { "stake_key_index": "0H" }
                 }]
             }|]
         rTx4 <- request @(ApiConstructTransaction n) ctx
@@ -2231,12 +2221,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
             ]
 
-        let (ApiSerialisedTransaction apiTx7 _) =
-                getFromResponse #transaction rTx4
+        let ApiSerialisedTransaction apiTx7 _ = getFromResponse #transaction rTx4
         signedTx7 <-
             signSharedTx ctx party1 apiTx7
                 [ expectResponseCode HTTP.status202 ]
-        let (ApiSerialisedTransaction apiTx8 _) = signedTx7
+        let ApiSerialisedTransaction apiTx8 _ = signedTx7
         signedTx8 <-
             signSharedTx ctx party2 apiTx8
                 [ expectResponseCode HTTP.status202 ]
@@ -2258,9 +2247,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx10 certExpectation6
 
         submittedTx5 <- submitSharedTxWithWid ctx party1 signedTx8
-        verify submittedTx5
-            [ expectResponseCode HTTP.status202
-            ]
+        verify submittedTx5 [ expectResponseCode HTTP.status202 ]
+
+        waitNumberOfEpochBoundaries 2 ctx
 
         eventually "party1: Wallet is not delegating" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
@@ -2273,10 +2262,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     ]
 
+        waitNumberOfEpochBoundaries 2 ctx
+
         eventually "Party1's wallet has quitted" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shared party1
-                    (getFromResponse Prelude.id submittedTx5))
+                    (getResponse submittedTx5))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2289,7 +2280,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "Party2's wallet has quitted" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shared party2
-                    (getFromResponse Prelude.id submittedTx5))
+                    (getResponse submittedTx5))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -2315,13 +2306,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rPostCreateParent <- postWallet ctx payloadCreateParent
         verify rPostCreateParent
             [ expectResponseCode HTTP.status201 ]
-        let parentWal = getFromResponse Prelude.id rPostCreateParent
+        let parentWal = getResponse rPostCreateParent
 
         -- financing the parent Shelley wallet
         rAddrShelley <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shelley parentWal) Default Empty
         expectResponseCode HTTP.status200 rAddrShelley
-        let addrs = getFromResponse Prelude.id rAddrShelley
+        let addrs = getResponse rAddrShelley
         let destination = (addrs !! 1) ^. #id
         wShelley <- fixtureWallet ctx
         let payloadTx = Json [json|{
@@ -2377,12 +2368,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (view #wallet) <$> rPostCreateChild1)
             [ expectResponseCode HTTP.status201
             ]
-        let sharedWal1 = getFromResponse Prelude.id rPostCreateChild1
+        let sharedWal1 = getResponse rPostCreateChild1
         let (ApiSharedWallet (Right walActive1)) = sharedWal1
 
         rPostCreateChild2 <- postSharedWallet ctx Default
             (payloadCreateChild "1H" "Shared Wallet 2")
-        let sharedWal2 = getFromResponse Prelude.id rPostCreateChild2
+        let sharedWal2 = getResponse rPostCreateChild2
         let (ApiSharedWallet (Right walActive2)) = sharedWal2
         verify (fmap (view #wallet) <$> rPostCreateChild2)
             [ expectResponseCode HTTP.status201
@@ -2398,13 +2389,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddrShared1 <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walActive1) Default Empty
         expectResponseCode HTTP.status200 rAddrShared1
-        let addrs1 = getFromResponse Prelude.id rAddrShared1
+        let addrs1 = getResponse rAddrShared1
         let destAddr1 = (addrs1 !! 1) ^. #id
 
         rAddrShared2 <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walActive2) Default Empty
         expectResponseCode HTTP.status200 rAddrShared2
-        let addrs2 = getFromResponse Prelude.id rAddrShared2
+        let addrs2 = getResponse rAddrShared2
         let destAddr2 = (addrs2 !! 1) ^. #id
 
         let payloadTx1 = Json [json|{
@@ -2501,12 +2492,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
                     ]
 
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
+        waitNumberOfEpochBoundaries 4 ctx
 
         eventually "Shared Wallet 1 gets rewards from pool1" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
@@ -2618,13 +2604,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
 
         let addr0 = (head addrs) ^. #id
         let linkList0 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr0))
         rl0 <- request @([ApiTransaction n]) ctx linkList0 Default Empty
         verify rl0 [expectListSize 2]
-        let txs0 = getFromResponse Prelude.id rl0
+        let txs0 = getResponse rl0
         let amts0 = fmap (view #amount) txs0
         Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
 
@@ -2632,7 +2618,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
         rl1 <- request @([ApiTransaction n]) ctx linkList1 Default Empty
         verify rl1 [expectListSize 1]
-        let txs1 = getFromResponse Prelude.id rl1
+        let txs1 = getResponse rl1
         let amts1 = fmap (view #amount) txs1
         amts1 `shouldBe` (Quantity <$> [a3])
 
@@ -2640,7 +2626,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2 <- request @([ApiTransaction n]) ctx linkList2 Default Empty
         verify rl2 [expectListSize 3]
-        let txs2 = getFromResponse Prelude.id rl2
+        let txs2 = getResponse rl2
         let amts2 = fmap (view #amount) txs2
         Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
 
@@ -2680,7 +2666,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let linkList2a = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
         rl2a <- request @([ApiTransaction n]) ctx linkList2a Default Empty
         verify rl2a [expectListSize 3]
-        let txs2a = getFromResponse Prelude.id rl2a
+        let txs2a = getResponse rl2a
         let amts2a = fmap (view #amount) txs2a
         amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
 
@@ -2740,7 +2726,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
          let isExternal (ApiAddressWithPath _ _
                  (_ NE.:| [_, _, (ApiT (DerivationIndex ix)), _] ) ) = ix == 0
              isExternal _ = False
-         return (filter isExternal $ getFromResponse Prelude.id r)
+         return (filter isExternal $ getResponse r)
 
      sendAmtToAddr ctx src dest amt addrIx = do
          addrs <- listExternalAddresses ctx dest
@@ -2798,7 +2784,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
-         let txs = getFromResponse Prelude.id r
+         let txs = getResponse r
          return txs
 
      listAllSharedTransactions ctx w = do
@@ -2806,7 +2792,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing Nothing Nothing (Just Descending) Nothing Nothing
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
-         let txs = getFromResponse Prelude.id r
+         let txs = getResponse r
          return txs
 
      fixtureSharedWalletWith ctx amt = do
@@ -2817,7 +2803,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        let addrs = getResponse rAddr
         let destAddr = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -2904,14 +2890,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
         let walShared1@(ApiSharedWallet (Right walA)) =
-                getFromResponse Prelude.id rPostA
+                getResponse rPostA
 
         rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
         let walShared2@(ApiSharedWallet (Right walB)) =
-                getFromResponse Prelude.id rPostB
+                getResponse rPostB
 
         fundSharedWallet @n
             ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
@@ -2961,14 +2947,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPostA)
             [ expectResponseCode HTTP.status201
             ]
-        let walPendingA = getFromResponse Prelude.id rPostA
+        let walPendingA = getResponse rPostA
         let payloadPatchA = Json [json| {
                 "cosigner#1": #{accXPubDerivedB}
                 } |]
         rPatchA <- patchSharedWallet ctx walPendingA Payment payloadPatchA
         expectResponseCode HTTP.status200 rPatchA
         let walShared1@(ApiSharedWallet (Right walA)) =
-                getFromResponse Prelude.id rPatchA
+                getResponse rPatchA
 
         -- payload for B
         let payloadB = Json [json| {
@@ -2991,14 +2977,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
-        let walPendingB = getFromResponse Prelude.id rPostB
+        let walPendingB = getResponse rPostB
         let payloadPatchB = Json [json| {
                 "cosigner#0": #{accXPubDerivedA}
                 } |]
         rPatchB <- patchSharedWallet ctx walPendingB Payment payloadPatchB
         expectResponseCode HTTP.status200 rPatchB
         let walShared2@(ApiSharedWallet (Right walB)) =
-                getFromResponse Prelude.id rPatchB
+                getResponse rPatchB
 
         fundSharedWallet @n ctx faucetUtxoAmt
             (NE.fromList [walShared1, walShared2])
@@ -3066,21 +3052,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status201
             ]
         let walShared1@(ApiSharedWallet (Right walA)) =
-                getFromResponse Prelude.id rPostA
+                getResponse rPostA
 
         rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
         let walShared2@(ApiSharedWallet (Right walB)) =
-                getFromResponse Prelude.id rPostB
+                getResponse rPostB
 
         rPostC <- postSharedWallet ctx Default (payload m15txtC m12txtC)
         verify (fmap (swapEither . view #wallet) <$> rPostC)
             [ expectResponseCode HTTP.status201
             ]
         let walShared3@(ApiSharedWallet (Right walC)) =
-                getFromResponse Prelude.id rPostC
+                getResponse rPostC
 
         fundSharedWallet @n ctx faucetUtxoAmt
             (NE.fromList [walShared1, walShared2, walShared3])
