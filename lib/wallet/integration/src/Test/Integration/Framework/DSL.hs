@@ -1655,15 +1655,22 @@ rewardWallet ctx = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
+    let fetchWallet w =
+            let endpoint = Link.getWallet @'Shelley w
+             in request @ApiWallet ctx endpoint Default Empty
     let w = getResponse r
+
     waitForNextEpoch ctx
-    eventually "MIR wallet: wallet is 100% synced " $ do
-        rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-        verify rg
-            [ expectField (#balance . #available . #getQuantity) (.> 0)
-            , expectField (#balance . #reward . #getQuantity) (.> 0)
-            ]
-        pure (getResponse rg, mw)
+
+    eventually "MIR wallet has available balance" $
+        fetchWallet w >>=
+            flip verify [expectField (#balance . #available) (.> Quantity 0)]
+
+    eventually "MIR wallet has a reward balance" $
+        fetchWallet w >>=
+            flip verify [expectField (#balance . #reward) (.> Quantity 0)]
+
+    (,mw) . getResponse <$> liftIO (fetchWallet w)
 
 fixtureMultiAssetWallet
     :: MonadIO m
