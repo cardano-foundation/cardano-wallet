@@ -191,8 +191,6 @@ import Data.List
     ( intercalate, isSuffixOf, nub, permutations, sort )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.ListMap
-    ( ListMap (..) )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Tagged
@@ -204,9 +202,9 @@ import Data.Text.Class
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Data.Time.Clock
-    ( UTCTime, getCurrentTime )
+    ( addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+    ( utcTimeToPOSIXSeconds )
 import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
@@ -971,17 +969,41 @@ generateGenesis
     :: HasCallStack
     => Tagged "cluster" FilePath
     -> Tagged "setup" FilePath
-    -> UTCTime
     -> [(Address, Coin)]
     -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
     -- ^ For adding genesis pools and staking in Babbage and later.
     -> IO GenesisFiles
-generateGenesis clusterDir setupDir systemStart initialFunds addPoolsToGenesis = do
-    let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
-    let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
+generateGenesis clusterDir setupDir initialFunds addPoolsToGenesis = do
+    {- The timestamp of the 0-th slot.
 
-    let pparams =
-            Ledger.emptyPParams
+    Ideally it should be few seconds later than the cluster actually starts.
+    If it's significantly later, nodes won't be doing anything for a while.
+    If it's slightly before the actual starts, some slots will be missed,
+    but it shouldn't be critical as long as less than k slots are missed.
+
+    Empirically, 10 seconds seems to be a good value: enough for a cluster to
+    initialize itself before producing any blocks, but not too much to wait for.
+
+    Lower values (e.g. 1 second) might cause custer to start but not produce
+    any blocks, because the first slot will be too far in the past. When this
+    happens then node logs contain TraceNoLedgerView message and wallet log says
+    "Current tip is [point genesis]. (not applying blocks)"
+    -}
+    systemStart <- addUTCTime 10 <$> getCurrentTime
+
+    let shelleyGenesisData = addPoolsToGenesis ShelleyGenesis
+            { sgSystemStart = systemStart
+            , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
+            , sgSlotLength = 0.1
+            , sgSecurityParam = 10
+            , sgEpochLength = 100
+            , sgUpdateQuorum = 1
+            , sgNetworkMagic = 764_824_073
+            , sgSlotsPerKESPeriod = 86_400
+            , sgMaxKESEvolutions = 5
+            , sgNetworkId = Mainnet
+            , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
+            , sgProtocolParams = Ledger.emptyPParams
                 & ppMinFeeAL .~ Ledger.Coin 100
                 & ppMinFeeBL .~ Ledger.Coin 100_000
                 & ppMinUTxOValueL .~ Ledger.Coin 1_000_000
@@ -992,9 +1014,9 @@ generateGenesis clusterDir setupDir systemStart initialFunds addPoolsToGenesis =
                 & ppMaxTxSizeL .~ 16_384
                 & ppMinPoolCostL .~ Ledger.Coin 0
                 & ppExtraEntropyL .~ Ledger.NeutralNonce
-                -- There are a few smaller features/fixes which are enabled based on
-                -- the protocol version rather than just the era, so we need to
-                -- set it to a realisitic value.
+                -- There are a few smaller features/fixes which are enabled
+                -- based on the protocol version rather than just the era,
+                -- so we need to set it to a realisitic value.
                 & ppProtocolVersionL .~ Ledger.ProtVer (natVersion @8) 0
                 -- Sensible pool & reward parameters:
                 & ppNOptL .~ 3
@@ -1006,21 +1028,14 @@ generateGenesis clusterDir setupDir systemStart initialFunds addPoolsToGenesis =
                 -- in advance retirements may be announced. For testing purposes,
                 -- we allow retirements to be announced far into the future.
                 & ppEMaxL .~ 1_000_000
-
-    let shelleyGenesisData = addPoolsToGenesis ShelleyGenesis
-            { sgSystemStart = systemStart'
-            , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
-            , sgSlotLength = 0.1
-            , sgSecurityParam = 10
-            , sgEpochLength = 100
-            , sgUpdateQuorum = 1
-            , sgNetworkMagic = 764_824_073
-            , sgSlotsPerKESPeriod = 86_400
-            , sgMaxKESEvolutions = 5
-            , sgNetworkId = Mainnet
-            , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
-            , sgProtocolParams = pparams
-            , sgInitialFunds = extraInitialFunds
+            , sgInitialFunds =
+                ListMap.fromList
+                    [ ( fromMaybe (error "sgInitialFunds: invalid addr")
+                            $ Ledger.deserialiseAddr $ unAddress address
+                    , Ledger.Coin $ intCast c
+                    )
+                    | (address, Coin c) <- initialFunds
+                    ]
             , sgStaking = Ledger.emptyGenesisStaking
             -- We need this to submit MIR certs
             -- (and probably for the BFT node pre-babbage):
@@ -1043,7 +1058,8 @@ generateGenesis clusterDir setupDir systemStart initialFunds addPoolsToGenesis =
 
     let byronGenesis = untag clusterDir </> "genesis.byron.json"
     yamlToAeson (untag setupDir </> "byron-genesis.yaml")
-        >>= withAddedKey "startTime" startTime
+        >>= withAddedKey "startTime"
+                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
         >>= Aeson.encodeFile byronGenesis
 
     let alonzoGenesis = untag clusterDir </> "genesis.alonzo.json"
@@ -1055,18 +1071,6 @@ generateGenesis clusterDir setupDir systemStart initialFunds addPoolsToGenesis =
         >>= Aeson.encodeFile conwayGenesis
 
     pure GenesisFiles{..}
-
-  where
-    extraInitialFunds ::
-        HasCallStack => ListMap (Ledger.Addr StandardCrypto) Ledger.Coin
-    extraInitialFunds =
-        ListMap.fromList
-            [ ( fromMaybe (error "extraFunds: invalid addr")
-                    $ Ledger.deserialiseAddr $ unAddress address
-              , Ledger.Coin $ intCast c
-              )
-            | (address, Coin c) <- initialFunds
-            ]
 
 data FaucetFunds = FaucetFunds
     { pureAdaFunds :: [(Address, Coin)]
@@ -1118,7 +1122,6 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         traceWith tr $ MsgStartingCluster clusterDir
         resetGlobals
 
-        systemStart <- getCurrentTime
         configuredPools <- configurePools tr config metadataServer cfgStakePools
 
         addGenesisPools <- do
@@ -1133,7 +1136,6 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             generateGenesis
                 cfgClusterDir
                 cfgSetupDir
-                systemStart
                 (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
                 (if postAlonzo then addGenesisPools else federalizeNetwork)
 
@@ -2236,6 +2238,13 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
 
     let bftPrv = untag setupDir </> "bft-leader" <> ".skey"
 
+    {- There is a ledger rule that disallows submitting MIR certificates
+    "too late in Epoch" e.g. less that stability window slots before beginning
+    of a next epoch. See the MIRCertificateTooLateinEpochDELEG error.
+
+    This problem is worked around by retrying the transaction submission until
+    it succeeds.  (This is not ideal as it pollutes logs with error messages)
+    -}
     submitTx tr conn "MIR certificates"
         =<< signTx tr outputDir (Tagged @"tx-body" txFile)
             [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
