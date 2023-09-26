@@ -738,7 +738,7 @@ cmdWalletUpdateName mkClient =
     exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
-            (WalletPutData $ Just (ApiT wName))
+            (WalletPutData (Just (ApiT wName)) Nothing)
 
 data UpdatePassphraseCredential = MnemonicCredentials | OldPasswordCredentials
     deriving Eq

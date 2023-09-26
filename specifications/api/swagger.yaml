@@ -3001,7 +3001,7 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
-        one_change_address:
+        one_change_address_mode:
           schema:
             type: boolean
             default: false
@@ -3445,6 +3445,15 @@ components:
       type: object
       properties:
         name: *walletName
+
+    ApiWalletPutDataExtended: &ApiWalletPutDataExtended
+      type: object
+      properties:
+        name: *walletName
+        one_change_address_mode:
+          schema:
+            type: boolean
+            default: false
 
     ApiPostAccountKeyData: &ApiPostAccountKeyData
       type: object
@@ -6529,7 +6538,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPutData
+            schema: *ApiWalletPutDataExtended
       responses: *responsesPutWallet
 
   /wallets/{walletId}/passphrase:

@@ -1110,7 +1110,7 @@ postShelleyWallet ctx generateKey body = do
     wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     genesisParams = ctx ^. #netParams
-    oneAddrMode = fromMaybe False (body ^. #oneChangeAddress)
+    oneAddrMode = fromMaybe False (body ^. #oneChangeAddressMode)
 
 postAccountWallet
     :: forall ctx s k n w.

@@ -1049,7 +1049,7 @@ data WalletPostData = WalletPostData
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "user"))
-    , oneChangeAddress :: !(Maybe Bool)
+    , oneChangeAddressMode :: !(Maybe Bool)
     }
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPostData
     deriving (Eq, Generic, Show)
@@ -1115,8 +1115,9 @@ data AccountPostData = AccountPostData
     deriving (FromJSON, ToJSON) via DefaultRecord AccountPostData
     deriving (Eq, Generic, Show)
 
-newtype WalletPutData = WalletPutData
+data WalletPutData = WalletPutData
     { name :: (Maybe (ApiT WalletName))
+    , oneChangeAddressMode :: (Maybe Bool)
     }
     deriving (Eq, Generic)
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPutData
