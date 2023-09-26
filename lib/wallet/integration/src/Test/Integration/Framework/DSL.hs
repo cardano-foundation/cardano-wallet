@@ -61,9 +61,6 @@ module Test.Integration.Framework.DSL
 
     -- * Constants
     , minUTxOValue
-    , slotLengthValue
-    , securityParameterValue
-    , epochLengthValue
     , defaultTxTTL
     , maximumCollateralInputCountByEra
     , minimumCollateralPercentageByEra
@@ -115,6 +112,7 @@ module Test.Integration.Framework.DSL
     , isValidRandomDerivationPath
     , genMnemonics
     , genMnemonics'
+    , getResponse
     , getFromResponse
     , getFromResponseList
     , json
@@ -134,7 +132,6 @@ module Test.Integration.Framework.DSL
     , listTransactions
     , listAllTransactions
     , deleteAllWallets
-    , fixtureRawTx
     , fixtureRandomWallet
     , fixtureRandomWalletMws
     , fixtureRandomWalletAddrs
@@ -163,8 +160,11 @@ module Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , fixturePassphrase
     , fixturePassphraseEncrypted
+    , waitForEpoch
     , waitForNextEpoch
+    , waitNumberOfEpochBoundaries
     , waitForTxImmutability
+    , waitForTxStatus
     , waitAllTxsInLedger
     , toQueryString
     , withMethod
@@ -320,7 +320,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Faucet
-    ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
+    ( NextWallet, nextWallet )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
@@ -336,14 +336,16 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
-    , EpochNo
+    , EpochNo (..)
     , PoolMetadataSource
     , Settings
+    , SlotInEpoch (unSlotInEpoch)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SortOrder (..)
     , WalletId (..)
+    , unSlotInEpoch
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -373,6 +375,8 @@ import Control.Monad
     ( forM_, join, replicateM, unless, void, (>=>) )
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO (..), liftIO )
+import Control.Monad.Loops
+    ( iterateUntilM )
 import Control.Monad.Trans.Resource
     ( ResourceT, allocate, runResourceT )
 import Control.Retry
@@ -490,6 +494,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -744,20 +749,6 @@ minUTxOValue e
     | e >= ApiBabbage =   978_370
     | e >= ApiAlonzo  =   999_978
     | otherwise       = 1_000_000
-
--- | Parameter in test cluster shelley genesis.
---
--- This space left blank intentionally.
-slotLengthValue :: NominalDiffTime
-slotLengthValue =  0.2
-
--- | Parameter in test cluster shelley genesis.
-securityParameterValue :: Word32
-securityParameterValue = 10
-
--- | Parameter in test cluster shelley genesis.
-epochLengthValue :: Word32
-epochLengthValue = 160
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
@@ -1115,6 +1106,19 @@ unsafeGetTransactionTime txs =
         (Just t):_ -> pure t
         _ -> throwString "Expected at least one transaction with a time."
 
+waitForTxStatus
+    :: forall m n
+     . (HasSNetworkId n, MonadUnliftIO m)
+    => Context
+    -> ApiWallet
+    -> TxStatus
+    -> ApiTransaction n
+    -> m ()
+waitForTxStatus ctx w txStatus tx = eventually "Tx is in ledger" $ do
+    let endpoint = Link.getTransaction @'Shelley w tx
+    r <- getResponse <$> request @(ApiTransaction n) ctx endpoint Default Empty
+    r ^. #status . #getApiT `shouldBe` txStatus
+
 waitAllTxsInLedger
     :: forall n m.
         ( HasSNetworkId n
@@ -1127,17 +1131,96 @@ waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ 
     let ep = Link.listTransactions @'Shelley w
     r <- request @[ApiTransaction n] ctx ep Default Empty
     expectResponseCode HTTP.status200 r
-    let txs = getFromResponse id r
+    let txs = getResponse r
     view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
 
-waitForNextEpoch :: MonadUnliftIO m => Context -> m ()
-waitForNextEpoch ctx = do
-    epoch <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
-        request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
-    eventually "waitForNextEpoch: goes to next epoch" $ do
-        epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
-            request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
-        unless (getApiT epoch' > getApiT epoch) $ expectationFailure "not yet"
+waitForNextEpoch :: MonadIO m => Context -> m ()
+waitForNextEpoch = waitNumberOfEpochBoundaries 1
+
+-- | Wait for the given number of epoch boundaries to pass.
+--
+-- This function takes into account that a current slot in an epoch may be
+-- greater than 0, and will wait for the remaining slots in the current epoch:
+-- e.g. Assuming 100 slots per epoch,
+-- if the current epoch/slot is 0/99, and we wait for 3 epochs
+-- then we will wait for 201 slots (1 + 100 + 100)
+-- such that the current epoch/slot will be 3/0
+waitNumberOfEpochBoundaries :: MonadIO m => Natural -> Context -> m ()
+waitNumberOfEpochBoundaries numberOfEpochs ctx = liftIO $ do
+    (slotLen, slotsPerEpoch) <- slotInfo ctx
+    (currentEpoch, slotInEpoch) <- tipInfo ctx
+    let expectedEpochAfterSleep = currentEpoch + fromIntegral numberOfEpochs
+        numberOfSlots = fromIntegral slotsPerEpoch * fromIntegral numberOfEpochs
+        slotsPassed = fromIntegral (unSlotInEpoch slotInEpoch)
+
+    sleep $ slotLen * (numberOfSlots - slotsPassed)
+
+    -- Sometimes current node tip is a few slots off what we expect it to be;
+    -- The additional sleep compensates for this imprecision;
+    (actualEpochAfterSleep', slotInEpochAfterSleep') <-
+        tipInfo ctx >>= iterateUntilM
+            (\(epochAfterSleep, _slotInEpochAfterSleep) ->
+                epochAfterSleep >= expectedEpochAfterSleep)
+            (\(_epochAfterSleep, slotInEpochAfterSleep) -> do
+                let missedSlots =
+                        slotsPerEpoch - unSlotInEpoch slotInEpochAfterSleep
+                sleep $ slotLen * fromIntegral missedSlots
+                tipInfo ctx
+            )
+
+    unless (actualEpochAfterSleep' >= expectedEpochAfterSleep)
+        $ expectationFailure . mconcat
+        $ [ "After waiting for "
+          , show numberOfEpochs
+          , " epochs, current epoch/slot ("
+          , show (unEpochNo actualEpochAfterSleep')
+          , "/"
+          , show (unSlotInEpoch slotInEpochAfterSleep')
+          , ") is less than expected ("
+          , show (unEpochNo expectedEpochAfterSleep)
+          , "/0)"
+          ]
+
+tipInfo :: Context -> IO (EpochNo, SlotInEpoch)
+tipInfo ctx = do
+    netInfo :: ApiNetworkInformation <-
+        getResponse <$> request ctx Link.getNetworkInfo Default Empty
+    let slot = netInfo ^. #nodeTip . #slotId
+    pure (getApiT (slot ^. #epochNumber), getApiT (slot ^. #slotNumber))
+
+slotInfo :: Context -> IO (NominalDiffTime, Word32)
+slotInfo ctx = do
+    parameters :: ApiNetworkParameters <-
+        getResponse <$> request ctx Link.getNetworkParams Default Empty
+    let slotLen = getQuantity $ parameters ^. #slotLength
+    let slotsPerEpoch = getQuantity $ parameters ^. #epochLength
+    pure (slotLen, slotsPerEpoch)
+
+sleep :: NominalDiffTime -> IO ()
+sleep t = threadDelay (ceiling (t * 10 ^ (6::Int)))
+
+waitForEpoch :: MonadIO m => EpochNo -> Context -> m ()
+waitForEpoch targetEpoch ctx = liftIO $ do
+    (slotLen, slotsPerEpoch) <- slotInfo ctx
+    (currentEpoch, slotInEpoch) <- tipInfo ctx
+
+    unless (currentEpoch > targetEpoch) $ do
+        let n = unEpochNo $ targetEpoch - currentEpoch
+
+        sleep $ slotLen * fromIntegral slotsPerEpoch * fromIntegral n
+            - fromIntegral (unSlotInEpoch slotInEpoch) * slotLen
+
+        (epochAfterSleep , _slotInEpoch) <- tipInfo ctx
+        unless (epochAfterSleep >= targetEpoch)
+            $ expectationFailure . mconcat
+            $ [ "After waiting for "
+            , show n
+            , " epochs, current epoch ("
+            , show (unEpochNo epochAfterSleep)
+            , ") is less than expected ("
+            , show (unEpochNo targetEpoch)
+            , ")"
+            ]
 
 -- Sometimes, we need to wait long-enough for transactions to become immutable.
 -- What long enough is rather empirical here, but it must satisfies one important
@@ -1338,7 +1421,7 @@ restoreWalletFromPubKey ctx pubKey name = snd <$> allocate create destroy
             }|]
         r <- request @w ctx (Link.postWallet @style) Default payloadRestore
         expectResponseCode HTTP.status201 r
-        let wid = getFromResponse id r
+        let wid = getResponse r
         eventually "restoreWalletFromPubKey: wallet is 100% synced " $ do
             rg <- request @w ctx (Link.getWallet @style wid) Default Empty
             expectField (typed @(ApiT SyncProgress) . #getApiT) (`shouldBe` Ready) rg
@@ -1453,7 +1536,7 @@ emptyByronWalletWith ctx style (name, mnemonic, pass) = do
         }|]
     r <- postByronWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 emptyByronWalletFromXPrvWith
     :: forall m. MonadUnliftIO m
@@ -1470,7 +1553,7 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
         }|]
     r <- postByronWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 
 emptyWalletAndMnemonic
@@ -1486,7 +1569,7 @@ emptyWalletAndMnemonic ctx = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r, mnemonic)
+    return (getResponse r, mnemonic)
 
 emptyWalletAndMnemonicAndSndFactor
     :: MonadUnliftIO m
@@ -1505,7 +1588,7 @@ emptyWalletAndMnemonicAndSndFactor ctx = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r, mnemonic, sndFactor)
+    return (getResponse r, mnemonic, sndFactor)
 
 -- | Create an empty wallet
 emptyWallet
@@ -1521,7 +1604,7 @@ emptyWallet ctx = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 -- | Create an empty wallet
 emptyWalletWith
@@ -1539,7 +1622,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 emptyWalletAndMnemonicWith
     :: MonadUnliftIO m
@@ -1556,7 +1639,7 @@ emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    return (getFromResponse id r, mnemonic)
+    return (getResponse r, mnemonic)
 
 rewardWallet
     :: MonadUnliftIO m
@@ -1572,15 +1655,22 @@ rewardWallet ctx = do
         }|]
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
-    let w = getFromResponse id r
+    let fetchWallet w =
+            let endpoint = Link.getWallet @'Shelley w
+             in request @ApiWallet ctx endpoint Default Empty
+    let w = getResponse r
+
     waitForNextEpoch ctx
-    eventually "MIR wallet: wallet is 100% synced " $ do
-        rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-        verify rg
-            [ expectField (#balance . #available . #getQuantity) (.> 0)
-            , expectField (#balance . #reward . #getQuantity) (.> 0)
-            ]
-        pure (getFromResponse id rg, mw)
+
+    eventually "MIR wallet has available balance" $
+        fetchWallet w >>=
+            flip verify [expectField (#balance . #available) (.> Quantity 0)]
+
+    eventually "MIR wallet has a reward balance" $
+        fetchWallet w >>=
+            flip verify [expectField (#balance . #reward) (.> Quantity 0)]
+
+    (,mw) . getResponse <$> liftIO (fetchWallet w)
 
 fixtureMultiAssetWallet
     :: MonadIO m
@@ -1610,7 +1700,7 @@ fixtureMultiAssetRandomWallet ctx = do
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
     rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
-    let addrs = getFromResponse id rL
+    let addrs = getResponse rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
@@ -1629,7 +1719,7 @@ fixtureMultiAssetRandomWallet ctx = do
                 (`shouldNotBe` TokenMap.empty)
             , expectField (#state . #getApiT) (`shouldBe` Ready)
             ]
-        return (getFromResponse id rb)
+        return (getResponse rb)
 
 fixtureMultiAssetIcarusWallet
     :: forall n m.
@@ -1648,7 +1738,7 @@ fixtureMultiAssetIcarusWallet ctx = do
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
     rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
-    let addrs = getFromResponse id rL
+    let addrs = getResponse rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
@@ -1666,7 +1756,7 @@ fixtureMultiAssetIcarusWallet ctx = do
             , expectField (#assets . #total . #getApiT)
                 (`shouldNotBe` TokenMap.empty)
             ]
-        return (getFromResponse id rb)
+        return (getResponse rb)
 
 emptySharedWallet
     :: forall m. MonadUnliftIO m
@@ -1701,7 +1791,7 @@ emptySharedWallet ctx = do
    verify (fmap (swapEither . view #wallet) <$> rPost)
        [ expectResponseCode HTTP.status201
        ]
-   pure $ getFromResponse Prelude.id rPost
+   pure $ getResponse rPost
 
 emptySharedWalletDelegating
     :: forall m. MonadUnliftIO m
@@ -1791,7 +1881,7 @@ emptySharedWalletDelegating ctx = do
        [ expectResponseCode HTTP.status201
        ]
 
-   pure (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
+   pure (getResponse rPostA, getResponse rPostB)
 
 fundSharedWallet
     :: forall n m
@@ -1811,7 +1901,7 @@ fundSharedWallet ctx amt sharedWals = do
    rAddr <- request @[ApiAddressWithPath n] ctx
        (Link.listAddresses @'Shared wal) Default Empty
    expectResponseCode HTTP.status200 rAddr
-   let sharedAddrs = getFromResponse Prelude.id rAddr
+   let sharedAddrs = getResponse rAddr
    let destination = (sharedAddrs !! 1) ^. #id
 
    wShelley <- fixtureWallet ctx
@@ -1991,14 +2081,6 @@ patchSharedWallet ctx wal cred payload =
           let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
           in request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
 
-fixtureRawTx
-    :: Context
-    -> (Address, Natural)
-    -> IO BL.ByteString
-fixtureRawTx ctx (addr, amt) =
-    nextTxBuilder (_faucet ctx) >>= \build ->
-        BL.fromStrict <$> build (addr, Coin $ fromIntegral amt)
-
 -- | Default passphrase used for fixture wallets
 fixturePassphrase :: Text
 fixturePassphrase =
@@ -2042,7 +2124,7 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
         r <- request @ApiWallet ctx
             (Link.postWallet @'Shelley) Default payload
         expectResponseCode HTTP.status201 r
-        let w = getFromResponse id r
+        let w = getResponse r
         race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ -> expectationFailure'
                 "fixtureWallet: waited too long for initial transaction"
@@ -2055,7 +2137,7 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
         r <- request @ApiWallet ctx
             (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
-            then return (getFromResponse id r)
+            then return (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a faucet Random wallet and wait until funds are available.
@@ -2107,7 +2189,7 @@ fixtureRandomWalletWith ctx coins0 = do
     r <- request @ApiByronWallet ctx
         (Link.getWallet @'Byron dest) Default Empty
     expectResponseCode HTTP.status200 r
-    pure (getFromResponse id r)
+    pure (getResponse r)
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWalletMws
@@ -2158,7 +2240,7 @@ fixtureIcarusWalletWith ctx coins0 = do
     r <- request @ApiByronWallet ctx
         (Link.getWallet @'Byron dest) Default Empty
     expectResponseCode HTTP.status200 r
-    pure (getFromResponse id r)
+    pure (getResponse r)
 
 
 -- | Restore a legacy wallet (Byron or Icarus)
@@ -2179,7 +2261,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
                 } |]
         r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
         expectResponseCode HTTP.status201 r
-        let w = getFromResponse id r
+        let w = getResponse r
         liftIO $ race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ ->
                 expectationFailure'
@@ -2195,7 +2277,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
-            then return (getFromResponse id r)
+            then return (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a wallet with the given UTxO distribution. Note that there's a
@@ -2224,7 +2306,7 @@ fixtureWalletWith ctx coins0 = do
     r <- request @ApiWallet ctx
         (Link.getWallet @'Shelley dest) Default Empty
     expectResponseCode HTTP.status200 r
-    pure (getFromResponse id r)
+    pure (getResponse r)
   where
     -- | Move coins from a wallet to another
     moveCoins
@@ -2239,7 +2321,7 @@ fixtureWalletWith ctx coins0 = do
         balance <- getFromResponse (#balance . #available . #getQuantity)
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
-        addrs <- fmap (view #id) . getFromResponse id
+        addrs <- fmap (view #id) . getResponse
             <$> request @[ApiAddressWithPath n] ctx
                     (Link.listAddresses @'Shelley dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
@@ -2276,13 +2358,13 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
   where
     payload = Json [aesonQQ| {
             "name": "Fixed empty spec wallet",
-            "mnemonic_sentence": #{mnemonicToText (head seqMnemonics)},
+            "mnemonic_sentence": #{mnemonicToText (head Mnemonics.sequential)},
             "passphrase": #{fixturePassphrase}
         } |]
     create = do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         expectResponseCode HTTP.status201 r
-        pure $ getFromResponse id r
+        pure $ getResponse r
     free w = void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Shelley w) Default Empty
 
@@ -2339,6 +2421,9 @@ faucetUtxoAmt :: Natural
 faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
+
+getResponse :: HasCallStack => (HTTP.Status, Either RequestException a) -> a
+getResponse = getFromResponse id
 
 getFromResponse
     :: HasCallStack
@@ -2558,7 +2643,7 @@ listAddresses ctx w = do
     let link = Link.listAddresses @'Shelley w
     r <- request @[ApiAddressWithPath n] ctx link Default Empty
     expectResponseCode HTTP.status200 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 signTx
     :: MonadUnliftIO m
@@ -2575,7 +2660,7 @@ signTx ctx w sealedTx expectations = do
     let signEndpoint = Link.signTransaction @'Shelley w
     r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
     verify r expectations
-    pure $ getFromResponse Prelude.id r
+    pure $ getResponse r
 
 signSharedTx
     :: MonadUnliftIO m
@@ -2592,7 +2677,7 @@ signSharedTx ctx w sealedTx expectations = do
     let signEndpoint = Link.signTransaction @'Shared w
     r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
     verify r expectations
-    pure $ getFromResponse Prelude.id r
+    pure $ getResponse r
 
 submitTx
     :: MonadUnliftIO m
@@ -2609,7 +2694,7 @@ submitTx ctx tx expectations = do
             ]
     r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
     verify r expectations
-    pure $ getFromResponse Prelude.id  r
+    pure $ getResponse  r
 
 submitTxWithWid
     :: MonadUnliftIO m
@@ -2645,15 +2730,12 @@ getWallet ctx w = do
     let link = Link.getWallet @'Shelley w
     r <- request @ApiWallet ctx link Default Empty
     expectResponseCode HTTP.status200 r
-    return (getFromResponse id r)
+    return (getResponse r)
 
 -- Note: In the local cluster, some of the pools retire early.
 -- When running the test in isolation, we have to delegate
 -- to pools which will retire later.
-notRetiringPools
-    :: MonadUnliftIO f
-    => Context
-    -> f [StakePool]
+notRetiringPools :: MonadUnliftIO f => Context -> f [StakePool]
 notRetiringPools ctx = do
     filter won'tRetire . map getApiT . snd <$>
         unsafeRequest @[ApiT StakePool] ctx
@@ -2705,7 +2787,7 @@ listTransactions
 listTransactions ctx w mStart mEnd mOrder mLimit = do
     r <- request @[ApiTransaction n] ctx path Default Empty
     expectResponseCode HTTP.status200 r
-    let txs = getFromResponse id r
+    let txs = getResponse r
     return txs
   where
     path = Link.listTransactions' @'Shelley w
@@ -3285,10 +3367,7 @@ pubKeyFromMnemonics mnemonics =
 --
 -- Helper for delegation statuses
 --
-getSlotParams
-    :: MonadIO m
-    => Context
-    -> m (EpochNo, SlottingParameters)
+getSlotParams :: MonadIO m => Context -> m (EpochNo, SlottingParameters)
 getSlotParams ctx = do
     r1 <- liftIO $ request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
@@ -3299,17 +3378,18 @@ getSlotParams ctx = do
 
     let endpoint = ( "GET", "v2/network/parameters" )
     r2 <- liftIO $ request @ApiNetworkParameters ctx endpoint Default Empty
-    let (Quantity slotL) = getFromResponse #slotLength r2
-    let (Quantity epochL) = getFromResponse #epochLength r2
-    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
-    let (Quantity k) = getFromResponse #securityParameter r2
-    let sp = SlottingParameters
+    let Quantity slotL = getFromResponse #slotLength r2
+    let Quantity epochL = getFromResponse #epochLength r2
+    let Quantity coeff = getFromResponse #activeSlotCoefficient r2
+    let Quantity k = getFromResponse #securityParameter r2
+    pure
+        ( currentEpoch
+        , SlottingParameters
             (SlotLength slotL)
             (EpochLength epochL)
             (ActiveSlotCoefficient coeff)
             (Quantity k)
-
-    return (currentEpoch, sp)
+        )
 
 -- | Converts a transaction TTL in seconds into a number of slots, using the
 -- slot length.

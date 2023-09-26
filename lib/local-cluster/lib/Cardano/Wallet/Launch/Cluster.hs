@@ -26,8 +26,7 @@
 module Cardano.Wallet.Launch.Cluster
     ( -- * Local test cluster launcher
       withCluster
-    , LocalClusterConfig (..)
-    , localClusterConfigFromEnv
+    , Config (..)
     , ClusterEra (..)
     , FaucetFunds (..)
 
@@ -50,7 +49,6 @@ module Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , testMinSeverityFromEnv
     , testLogDirFromEnv
-    , tokenMetadataServerFromEnv
 
       -- * Faucets
     , Credential (..)
@@ -66,6 +64,8 @@ module Cardano.Wallet.Launch.Cluster
 
 import Prelude
 
+import Cardano.Address
+    ( Address (..) )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Api
@@ -135,16 +135,8 @@ import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
 import Cardano.Startup
     ( restrictFileMode )
-import Cardano.Wallet.Address.Derivation
-    ( hex )
-import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
-import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -156,7 +148,9 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
-    ( mapFirst )
+    ( HasCallStack, mapFirst )
+import Codec.Binary.Bech32
+    ( dataPartFromBytes )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.Arrow
@@ -182,23 +176,25 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Char
     ( toLower )
 import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Foldable
     ( traverse_ )
+import Data.Generics.Labels
+    ()
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( intercalate, nub, permutations, sort )
+    ( intercalate, isSuffixOf, nub, permutations, sort )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.ListMap
-    ( ListMap (..) )
 import Data.Maybe
     ( catMaybes, fromMaybe )
+import Data.Tagged
+    ( Tagged (..), retag, untag )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -206,23 +202,26 @@ import Data.Text.Class
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime, getCurrentTime )
+    ( addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+    ( utcTimeToPOSIXSeconds )
 import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
     ( Generic )
-import Network.URI
-    ( URI, parseURI )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
 import System.Directory
-    ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
+    ( copyFile
+    , createDirectory
+    , createDirectoryIfMissing
+    , listDirectory
+    , makeAbsolute
+    )
 import System.Environment
-    ( getEnvironment, lookupEnv )
+    ( getEnvironment )
 import System.Environment.Extended
     ( lookupEnvNonEmpty )
 import System.Exit
@@ -235,8 +234,6 @@ import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process.Typed
     ( ProcessConfig, proc, readProcess, setEnv, setEnvInherit )
-import Test.Utils.Paths
-    ( getTestData )
 import Test.Utils.StaticServer
     ( withStaticServer )
 import UnliftIO.Async
@@ -248,15 +245,17 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, swapMVar )
 
+import qualified Cardano.Address as Address
+import qualified Cardano.Codec.Cbor as CBOR
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Read as CBOR
-import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -271,19 +270,12 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
 
-newtype PoolId = PoolId {getPoolId :: ByteString}
-    deriving (Generic, Eq, Show, Ord)
 
--- | Returns the shelley test data path, which is usually relative to the
--- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
--- variable.
-getShelleyTestDataPath :: IO FilePath
-getShelleyTestDataPath = fromMaybe source <$> lookupEnvNonEmpty var
-  where
-    source = $(getTestData) </> "cardano-node-shelley"
-    var = "SHELLEY_TEST_DATA"
+newtype PoolId = PoolId {getPoolId :: ByteString}
+    deriving stock (Generic, Eq, Show, Ord)
 
 logFileConfigFromEnv
     :: Maybe String
@@ -293,7 +285,7 @@ logFileConfigFromEnv
 logFileConfigFromEnv subdir =
     LogFileConfig
         <$> nodeMinSeverityFromEnv
-        <*> (testLogDirFromEnv subdir)
+        <*> testLogDirFromEnv subdir
         <*> pure Info
 
 -- | The lower-case names of all 'Severity' values.
@@ -329,12 +321,6 @@ walletMinSeverityFromEnv =
 testMinSeverityFromEnv :: IO Severity
 testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
-
-tokenMetadataServerFromEnv :: IO (Maybe URI)
-tokenMetadataServerFromEnv =
-    lookupEnv "TOKEN_METADATA_SERVER" <&> \case
-        Nothing -> Nothing
-        Just t -> parseURI t
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
@@ -442,6 +428,7 @@ cliRetry tr msg processConfig = do
             ExitSuccess -> pure ()
             ExitFailure code -> traceWith tr (MsgCLIRetryResult msg code err)
         pure (st, out, err)
+    isFail :: (ExitCode, b, c) -> IO Bool
     isFail (st, _, _) = pure (st /= ExitSuccess)
     pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
 
@@ -461,7 +448,7 @@ data PoolRecipe = PoolRecipe
     -- ^ Tells @withSMASH@ whether to delist this pool or not. Aside from
     -- this, a delisted pool will operate as normal.
     }
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
 
 -- | Represents the notion of a fully configured pool. All keys are known, but
 -- not necessarily exposed using this interface.
@@ -509,7 +496,7 @@ withPoolMetadataServer tr dir action = do
                     traceWith tr
                         $ MsgRegisteringPoolMetadata
                             (_urlFromPoolIndex i)
-                            (B8.unpack $ hex hash)
+                            (B8.unpack $ convertToBase Base16 hash)
                 , urlFromPoolIndex = _urlFromPoolIndex
                 }
   where
@@ -518,36 +505,36 @@ withPoolMetadataServer tr dir action = do
 
 configurePools
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> ClusterEra
+    -> Config
     -> PoolMetadataServer
     -> NonEmpty PoolRecipe
     -> IO (NonEmpty ConfiguredPool)
-configurePools tr dir era metadataServer =
-    mapM (configurePool tr dir era metadataServer)
+configurePools tr config metadataServer =
+    traverse (configurePool tr config metadataServer)
 
 configurePool
-    :: Tracer IO ClusterLog
-    -> FilePath
-    -> ClusterEra
+    :: HasCallStack
+    => Tracer IO ClusterLog
+    -> Config
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr baseDir era metadataServer recipe = do
+configurePool tr Config{..} metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
     let name = "pool-" <> show i
-    let dir = baseDir </> name
-    createDirectoryIfMissing False dir
+    let poolDir :: Tagged "pool" FilePath
+        poolDir = Tagged $ untag cfgClusterDir </> name
+    createDirectoryIfMissing False (untag poolDir)
 
     -- Generate/assign keys
-    (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
-    (kesPrv, kesPub) <- genKesKeyPair tr dir
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair tr dir recipe
-    opCert <- issueOpCert tr dir kesPub opPrv opCount
-    let ownerPub = dir </> "stake.pub"
-    let ownerPrv = dir </> "stake.prv"
+    (vrfPrv, vrfPub) <- genVrfKeyPair tr poolDir
+    (kesPrv, kesPub) <- genKesKeyPair tr poolDir
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair tr poolDir recipe
+    opCert <- issueOpCert tr poolDir kesPub opPrv opCount
+    let ownerPub = Tagged @"stake-pub" $ untag poolDir </> "stake.pub"
+    let ownerPrv = Tagged @"stake-prv" $ untag poolDir </> "stake.prv"
     genStakeAddrKeyPair tr (ownerPrv, ownerPub)
 
     let metadataURL = urlFromPoolIndex metadataServer i
@@ -557,36 +544,38 @@ configurePool tr baseDir era metadataServer recipe = do
     pure
         ConfiguredPool
             { operatePool = \nodeParams action -> do
-                let NodeParams genesisFiles hardForks (port, peers) logCfg = nodeParams
+                let NodeParams genesisFiles hardForks (port, peers) logCfg =
+                        nodeParams
                 let logCfg' = setLoggingName name logCfg
 
-                topology <- genTopology dir peers
-                withStaticServer dir $ \url -> do
-                    traceWith tr $ MsgStartedStaticServer dir url
+                topology <-
+                    genTopology (retag @"pool" @_ @"output" poolDir) peers
+                withStaticServer (untag poolDir) $ \url -> do
+                    traceWith tr $ MsgStartedStaticServer (untag poolDir) url
 
                     (config, genesisData, vd) <-
                         genNodeConfig
-                            dir
-                            ""
+                            (retag @"pool" @_ @"output" poolDir)
+                            cfgSetupDir
+                            (Tagged @"node-name" mempty)
                             genesisFiles
                             hardForks
                             logCfg'
 
-                    let cfg =
-                            CardanoNodeConfig
-                                { nodeDir = dir
-                                , nodeConfigFile = config
-                                , nodeTopologyFile = topology
-                                , nodeDatabaseDir = "db"
-                                , nodeDlgCertFile = Nothing
-                                , nodeSignKeyFile = Nothing
-                                , nodeOpCertFile = Just opCert
-                                , nodeKesKeyFile = Just kesPrv
-                                , nodeVrfKeyFile = Just vrfPrv
-                                , nodePort = Just (NodePort port)
-                                , nodeLoggingHostname = Just name
-                                , nodeExecutable = Nothing
-                                }
+                    let cfg = CardanoNodeConfig
+                            { nodeDir = untag @"pool" poolDir
+                            , nodeConfigFile = untag @"node-config" config
+                            , nodeTopologyFile = untag @"topology" topology
+                            , nodeDatabaseDir = "db"
+                            , nodeDlgCertFile = Nothing
+                            , nodeSignKeyFile = Nothing
+                            , nodeOpCertFile = Just opCert
+                            , nodeKesKeyFile = Just $ untag @"kes-prv" kesPrv
+                            , nodeVrfKeyFile = Just $ untag @"vrf-prv" vrfPrv
+                            , nodePort = Just (NodePort port)
+                            , nodeLoggingHostname = Just name
+                            , nodeExecutable = Nothing
+                            }
 
                     withCardanoNodeProcess tr name cfg $ \socket -> do
                         action $ RunningNode socket genesisData vd
@@ -641,24 +630,36 @@ configurePool tr baseDir era metadataServer recipe = do
                 -- @registerViaTx@, but this seems to work regardless. (We
                 -- do want to submit it here for the sake of babbage)
                 let retire e = do
-                        retCert <- issuePoolRetirementCert tr dir opPub e
+                        retCert <- issuePoolRetirementCert tr poolDir opPub e
                         (rawTx, faucetPrv) <-
-                            preparePoolRetirement tr dir era [retCert]
-                        tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
+                            preparePoolRetirement tr
+                                poolDir cfgSetupDir cfgLastHardFork [retCert]
+                        tx <- signTx tr
+                            (retag @"pool" @_ @"output" poolDir)
+                            (retag @"retirement-tx" @_ @"tx-body" rawTx)
+                            [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
+                            , retag @"stake-prv" @_ @"signing-key" ownerPrv
+                            , retag @"op-prv" @_ @"signing-key" opPrv
+                            ]
                         submitTx tr socket "retirement cert" tx
 
                 traverse_ retire mretirementEpoch
             , registerViaTx = \(RunningNode socket _ _) -> do
-                stakeCert <- issueStakeVkCert tr dir "stake-pool" ownerPub
-                let poolRegistrationCert = dir </> "pool.cert"
+                stakeCert <-
+                    issueStakeVkCert tr
+                    (retag @"cluster" @_ @"output" cfgClusterDir)
+                    (Tagged @"prefix" "stake-pool")
+                    ownerPub
+                let poolRegistrationCert =
+                        Tagged @"pool-reg-cert" $ untag poolDir </> "pool.cert"
                 cli
                     tr
                     [ "stake-pool"
                     , "registration-certificate"
                     , "--cold-verification-key-file"
-                    , opPub
+                    , untag opPub
                     , "--vrf-verification-key-file"
-                    , vrfPub
+                    , untag vrfPub
                     , "--pool-pledge"
                     , show pledgeAmt
                     , "--pool-cost"
@@ -666,23 +667,22 @@ configurePool tr baseDir era metadataServer recipe = do
                     , "--pool-margin"
                     , "0.1"
                     , "--pool-reward-account-verification-key-file"
-                    , ownerPub
+                    , untag ownerPub
                     , "--pool-owner-stake-verification-key-file"
-                    , ownerPub
+                    , untag ownerPub
                     , "--metadata-url"
                     , metadataURL
                     , "--metadata-hash"
                     , blake2b256S (BL.toStrict metadataBytes)
                     , "--mainnet"
                     , "--out-file"
-                    , poolRegistrationCert
+                    , untag poolRegistrationCert
                     ]
 
-                mPoolRetirementCert <-
-                    traverse
-                        (issuePoolRetirementCert tr dir opPub)
-                        mretirementEpoch
-                dlgCert <- issueDlgCert tr dir ownerPub opPub
+                mPoolRetirementCert <- forM mretirementEpoch $ do
+                    issuePoolRetirementCert tr poolDir opPub
+
+                dlgCert <- issueDlgCert tr poolDir ownerPub opPub
 
                 -- In order to get a working stake pool we need to.
                 --
@@ -697,21 +697,29 @@ configurePool tr baseDir era metadataServer recipe = do
 
                 let certificates =
                         catMaybes
-                            [ pure stakeCert
-                            , pure poolRegistrationCert
-                            , pure dlgCert
-                            , mPoolRetirementCert
+                            [ pure $ untag stakeCert
+                            , pure $ untag poolRegistrationCert
+                            , pure $ untag dlgCert
+                            , untag <$> mPoolRetirementCert
                             ]
                 (rawTx, faucetPrv) <-
                     preparePoolRegistration
                         tr
-                        dir
-                        era
+                        poolDir
+                        cfgSetupDir
+                        cfgLastHardFork
                         ownerPub
                         certificates
                         pledgeAmt
-                tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
-                submitTx tr socket name tx
+                tx <-
+                    signTx tr
+                        (retag @"pool" @_ @"output" poolDir)
+                        (retag @"registration-tx" @_ @"tx-body" rawTx)
+                        [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
+                        , retag @"stake-prv" @_ @"signing-key" ownerPrv
+                        , retag @"op-prv" @_ @"signing-key" opPrv
+                        ]
+                submitTx tr socket (Tagged @"name" name) tx
             , metadataUrl = T.pack metadataURL
             , recipe = recipe
             }
@@ -885,12 +893,6 @@ defaultPoolConfigs =
   where
     millionAda = 1_000_000_000_000
 
-localClusterConfigFromEnv :: IO LocalClusterConfig
-localClusterConfigFromEnv = do
-    era <- clusterEraFromEnv
-    LocalClusterConfig defaultPoolConfigs era
-        <$> logFileConfigFromEnv (Just $ clusterEraToString era)
-
 data ClusterEra
     = ByronNoHardFork
     | ShelleyHardFork
@@ -898,7 +900,7 @@ data ClusterEra
     | MaryHardFork
     | AlonzoHardFork
     | BabbageHardFork
-    deriving (Show, Read, Eq, Ord, Bounded, Enum)
+    deriving stock (Show, Read, Eq, Ord, Bounded, Enum)
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
@@ -925,64 +927,83 @@ clusterEraToString = \case
     AlonzoHardFork -> "alonzo"
     BabbageHardFork -> "babbage"
 
-data LocalClusterConfig = LocalClusterConfig
+data Config = Config
     { cfgStakePools :: NonEmpty PoolRecipe
     -- ^ Stake pools to register.
     , cfgLastHardFork :: ClusterEra
     -- ^ Which era to use.
     , cfgNodeLogging :: LogFileConfig
     -- ^ Log severity for node.
-    }
-    deriving (Show)
+    , cfgClusterDir :: Tagged "cluster" FilePath
+    -- ^ Root directory for cluster data.
+    , cfgSetupDir :: Tagged "setup" FilePath
+    -- ^ Directory containing data for cluster setup.
+    } deriving stock (Show)
 
 -- | Information about a launched node.
-data RunningNode
-    = RunningNode
-        CardanoNodeConn
-        -- ^ Socket path
-        (ShelleyGenesis StandardCrypto)
-        -- ^ Genesis data
-        NodeToClientVersionData
-    deriving (Show, Eq)
+data RunningNode = RunningNode
+    { runningNodeSocketPath :: CardanoNodeConn
+    , runningNodeShelleyGenesis :: ShelleyGenesis StandardCrypto
+    , runningNodeVersionData :: NodeToClientVersionData
+    } deriving stock (Show, Eq)
 
-unsafeUnitInterval :: Rational -> UnitInterval
+unsafeUnitInterval :: HasCallStack => Rational -> UnitInterval
 unsafeUnitInterval x =
     fromMaybe
         (error $ "unsafeUnitInterval: " <> show x <> " is out of bounds")
         (boundRational x)
 
-unsafeNonNegativeInterval :: Rational -> NonNegativeInterval
+unsafeNonNegativeInterval :: HasCallStack => Rational -> NonNegativeInterval
 unsafeNonNegativeInterval x =
     fromMaybe
         (error $ "unsafeNonNegativeInterval: " <> show x <> " is out of bounds")
         (boundRational x)
 
-unsafePositiveUnitInterval :: Rational -> PositiveUnitInterval
+unsafePositiveUnitInterval :: HasCallStack => Rational -> PositiveUnitInterval
 unsafePositiveUnitInterval x =
     fromMaybe
         (error $ "unsafeNonNegativeInterval: " <> show x <> " is out of bounds")
         (boundRational x)
 
 generateGenesis
-    :: FilePath
-    -> UTCTime
+    :: HasCallStack
+    => Tagged "cluster" FilePath
+    -> Tagged "setup" FilePath
     -> [(Address, Coin)]
     -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
     -- ^ For adding genesis pools and staking in Babbage and later.
     -> IO GenesisFiles
-generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
-    source <- getShelleyTestDataPath
-    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "alonzo-genesis.yaml")
-        >>= Aeson.encodeFile (dir </> "genesis.alonzo.json")
+generateGenesis clusterDir setupDir initialFunds addPoolsToGenesis = do
+    {- The timestamp of the 0-th slot.
 
-    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "conway-genesis.yaml")
-        >>= Aeson.encodeFile (dir </> "genesis.conway.json")
+    Ideally it should be few seconds later than the cluster actually starts.
+    If it's significantly later, nodes won't be doing anything for a while.
+    If it's slightly before the actual starts, some slots will be missed,
+    but it shouldn't be critical as long as less than k slots are missed.
 
-    let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
-    let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
+    Empirically, 10 seconds seems to be a good value: enough for a cluster to
+    initialize itself before producing any blocks, but not too much to wait for.
 
-    let pparams =
-            Ledger.emptyPParams
+    Lower values (e.g. 1 second) might cause custer to start but not produce
+    any blocks, because the first slot will be too far in the past. When this
+    happens then node logs contain TraceNoLedgerView message and wallet log says
+    "Current tip is [point genesis]. (not applying blocks)"
+    -}
+    systemStart <- addUTCTime 10 <$> getCurrentTime
+
+    let shelleyGenesisData = addPoolsToGenesis ShelleyGenesis
+            { sgSystemStart = systemStart
+            , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
+            , sgSlotLength = 0.1
+            , sgSecurityParam = 10
+            , sgEpochLength = 100
+            , sgUpdateQuorum = 1
+            , sgNetworkMagic = 764_824_073
+            , sgSlotsPerKESPeriod = 86_400
+            , sgMaxKESEvolutions = 5
+            , sgNetworkId = Mainnet
+            , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
+            , sgProtocolParams = Ledger.emptyPParams
                 & ppMinFeeAL .~ Ledger.Coin 100
                 & ppMinFeeBL .~ Ledger.Coin 100_000
                 & ppMinUTxOValueL .~ Ledger.Coin 1_000_000
@@ -993,9 +1014,9 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
                 & ppMaxTxSizeL .~ 16_384
                 & ppMinPoolCostL .~ Ledger.Coin 0
                 & ppExtraEntropyL .~ Ledger.NeutralNonce
-                -- There are a few smaller features/fixes which are enabled based on
-                -- the protocol version rather than just the era, so we need to
-                -- set it to a realisitic value.
+                -- There are a few smaller features/fixes which are enabled
+                -- based on the protocol version rather than just the era,
+                -- so we need to set it to a realisitic value.
                 & ppProtocolVersionL .~ Ledger.ProtVer (natVersion @8) 0
                 -- Sensible pool & reward parameters:
                 & ppNOptL .~ 3
@@ -1007,64 +1028,49 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
                 -- in advance retirements may be announced. For testing purposes,
                 -- we allow retirements to be announced far into the future.
                 & ppEMaxL .~ 1_000_000
+            , sgInitialFunds =
+                ListMap.fromList
+                    [ ( fromMaybe (error "sgInitialFunds: invalid addr")
+                            $ Ledger.deserialiseAddr $ unAddress address
+                    , Ledger.Coin $ intCast c
+                    )
+                    | (address, Coin c) <- initialFunds
+                    ]
+            , sgStaking = Ledger.emptyGenesisStaking
+            -- We need this to submit MIR certs
+            -- (and probably for the BFT node pre-babbage):
+            , sgGenDelegs =
+                fromRight (error "invalid sgGenDelegs")
+                    $ Aeson.eitherDecode
+                    $ Aeson.encode
+                        [aesonQQ|{
+    "8ae01cab15f6235958b1147e979987bbdb90788f7c4e185f1632427a": {
+        "delegate": "b7bf59bb963aa785afe220f5b0d3deb826fd0bcaeeee58cb81ab443d",
+        "vrf": "4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e"
+    }
+                        }|]
+                            }
 
-    let sg =
-            addPoolsToGenesis
-                ShelleyGenesis
-                    { sgSystemStart = systemStart'
-                    , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
-                    , sgSlotLength = 0.2
-                    , sgSecurityParam = 10
-                    , sgEpochLength = 160
-                    , sgUpdateQuorum = 1
-                    , sgNetworkMagic = 764_824_073
-                    , sgSlotsPerKESPeriod = 86_400
-                    , sgMaxKESEvolutions = 5
-                    , sgNetworkId = Mainnet
-                    , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
-                    , sgProtocolParams = pparams
-                    , sgInitialFunds = extraInitialFunds
-                    , sgStaking = Ledger.emptyGenesisStaking
-                    , -- We need this to submit MIR certs (and probably for the BFT node
-                      -- pre-babbage):
-                      sgGenDelegs =
-                        fromRight (error "invalid sgGenDelegs")
-                            $ Aeson.eitherDecode
-                            $ Aeson.encode
-                                [aesonQQ| {
-                    "8ae01cab15f6235958b1147e979987bbdb90788f7c4e185f1632427a": {
-                        "delegate": "b7bf59bb963aa785afe220f5b0d3deb826fd0bcaeeee58cb81ab443d",
-                        "vrf": "4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e"
-                    }
-                }
-                |]
-                    }
+    let shelleyGenesis = untag clusterDir </> "genesis.shelley.json"
+    Aeson.encodeFile shelleyGenesis shelleyGenesisData
 
-    let shelleyGenesisFile = (dir </> "genesis.json")
-    Aeson.encodeFile shelleyGenesisFile sg
+    let yamlToAeson = Yaml.decodeFileThrow @_ @Aeson.Value
 
-    let byronGenesisFile = dir </> "genesis.byron.json"
-    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "byron-genesis.yaml")
-        >>= withAddedKey "startTime" startTime
-        >>= Aeson.encodeFile byronGenesisFile
+    let byronGenesis = untag clusterDir </> "genesis.byron.json"
+    yamlToAeson (untag setupDir </> "byron-genesis.yaml")
+        >>= withAddedKey "startTime"
+                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
+        >>= Aeson.encodeFile byronGenesis
 
-    pure
-        GenesisFiles
-            { byronGenesis = byronGenesisFile
-            , shelleyGenesis = dir </> "genesis.json"
-            , alonzoGenesis = dir </> "genesis.alonzo.json"
-            , conwayGenesis = dir </> "genesis.conway.json"
-            }
-  where
-    extraInitialFunds :: ListMap (Ledger.Addr StandardCrypto) Ledger.Coin
-    extraInitialFunds =
-        ListMap.fromList
-            [ ( fromMaybe (error "extraFunds: invalid addr")
-                    $ Ledger.deserialiseAddr addrBytes
-              , Ledger.Coin $ intCast c
-              )
-            | (Address addrBytes, Coin c) <- initialFunds
-            ]
+    let alonzoGenesis = untag clusterDir </> "genesis.alonzo.json"
+    yamlToAeson (untag setupDir </> "alonzo-genesis.yaml")
+        >>= Aeson.encodeFile alonzoGenesis
+
+    let conwayGenesis = untag clusterDir </> "genesis.conway.json"
+    yamlToAeson (untag setupDir </> "conway-genesis.yaml")
+        >>= Aeson.encodeFile conwayGenesis
+
+    pure GenesisFiles{..}
 
 data FaucetFunds = FaucetFunds
     { pureAdaFunds :: [(Address, Coin)]
@@ -1078,7 +1084,7 @@ data FaucetFunds = FaucetFunds
     , mirFunds :: [(Credential, Coin)]
     -- ^ "Move instantaneous rewards" - for easily funding reward accounts.
     }
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
 
 instance Semigroup FaucetFunds where
     FaucetFunds ada1 ma1 mir1 <> FaucetFunds ada2 ma2 mir2 =
@@ -1101,25 +1107,22 @@ instance Monoid FaucetFunds where
 --
 -- The callback actions are not guaranteed to use the same node.
 withCluster
-    :: Tracer IO ClusterLog
-    -- ^ Trace for subprocess control logging.
-    -> FilePath
-    -- ^ Temporary directory to create config files in.
-    -> LocalClusterConfig
-    -- ^ The configurations of pools to spawn.
+    :: HasCallStack
+    => Tracer IO ClusterLog
+    -> Config
     -> FaucetFunds
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTracer' tr "withCluster" $ do
-    withPoolMetadataServer tr dir $ \metadataServer -> do
-        createDirectoryIfMissing True dir
-        traceWith tr $ MsgStartingCluster dir
+withCluster tr config@Config{..} faucetFunds onClusterStart =
+    bracketTracer' tr "withCluster" $ do
+    let clusterDir = untag cfgClusterDir
+    withPoolMetadataServer tr clusterDir $ \metadataServer -> do
+        createDirectoryIfMissing True clusterDir
+        traceWith tr $ MsgStartingCluster clusterDir
         resetGlobals
 
-        systemStart <- addUTCTime 1 <$> getCurrentTime
-        configuredPools <-
-            configurePools tr dir cfgLastHardFork metadataServer cfgStakePools
+        configuredPools <- configurePools tr config metadataServer cfgStakePools
 
         addGenesisPools <- do
             genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
@@ -1127,11 +1130,13 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         let federalizeNetwork =
                 over #sgProtocolParams (set ppDL (unsafeUnitInterval 0.25))
 
+        faucetAddresses <- readFaucetAddresses cfgSetupDir
+
         genesisFiles <-
             generateGenesis
-                dir
-                systemStart
-                (adaFunds <> internalFaucetFunds)
+                cfgClusterDir
+                cfgSetupDir
+                (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
                 (if postAlonzo then addGenesisPools else federalizeNetwork)
 
         if postAlonzo
@@ -1167,7 +1172,8 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                             cfgLastHardFork
                             (head ports)
                             cfgNodeLogging
-                withBFTNode tr dir bftCfg $ \runningBFTNode -> do
+                withBFTNode tr cfgClusterDir cfgSetupDir bftCfg $
+                    \runningBFTNode -> do
                     extraClusterSetupUsingNode configuredPools runningBFTNode
 
                     -- NOTE: We used to perform 'registerViaTx' as part of
@@ -1176,7 +1182,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                     -- Just submitting the registration certs in sequence
                     -- /seems/ to work though, and the setup working 100%
                     -- correctly in alonzo will soon not be important.
-                    mapM_ (`registerViaTx` runningBFTNode) configuredPools
+                    traverse_ (`registerViaTx` runningBFTNode) configuredPools
                     launchPools
                         configuredPools
                         genesisFiles
@@ -1192,13 +1198,13 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
 
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
-        :: NonEmpty (ConfiguredPool) -> RunningNode -> IO ()
+        :: NonEmpty ConfiguredPool -> RunningNode -> IO ()
     extraClusterSetupUsingNode configuredPools runningNode = do
         let RunningNode conn _ _ = runningNode
 
-        -- Needs to happen in the first 20% of the epoch, so we run this
-        -- first.
-        moveInstantaneousRewardsTo tr conn dir cfgLastHardFork mirFunds
+        -- Needs to happen in the first 20% of the epoch, so we run this first.
+        moveInstantaneousRewardsTo
+            tr conn cfgClusterDir cfgSetupDir cfgLastHardFork mirFunds
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -1211,26 +1217,36 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         -- submission pool might also be an idea for the future.
         when postAlonzo
             $ forM_ configuredPools
-            $ \pool -> do
-                finalizeShelleyGenesisSetup pool runningNode
+            $ \pool -> finalizeShelleyGenesisSetup pool runningNode
+
+        let encodeMainnetShelleyAddr address =
+                case CBOR.deserialiseCbor CBOR.decodeAddressPayload (unAddress address) of
+                    Left _failure ->
+                        Bech32.encodeLenient
+                            [Bech32.humanReadablePart|addr|]
+                            (dataPartFromBytes (unAddress address))
+                    Right _payload ->
+                        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet (unAddress address)
 
         sendFaucetAssetsTo
             tr
             conn
-            dir
+            cfgClusterDir
+            cfgSetupDir
             cfgLastHardFork
             20
-            (encodeAddresses maFunds)
+            (first (T.unpack . encodeMainnetShelleyAddr) <$> maFunds)
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration tr dir cfgLastHardFork
-        tx <- signTx tr dir rawTx [faucetPrv]
+        (rawTx, faucetPrv) <- prepareKeyRegistration tr config
+        tx <- signTx tr
+                (retag @"cluster" @_ @"output" cfgClusterDir)
+                (retag @"reg-tx" @_ @"tx-body" rawTx)
+                [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
         submitTx tr conn "pre-registered stake key" tx
 
     -- \| Actually spin up the pools.
-    launchPools
-        :: NonEmpty ConfiguredPool
-        -> GenesisFiles
+    launchPools :: HasCallStack => NonEmpty ConfiguredPool -> GenesisFiles
         -> [(Int, [Int])]
         -- @(port, peers)@ pairs availible for the nodes. Can be used to e.g.
         -- add a BFT node as extra peer for all pools.
@@ -1301,14 +1317,12 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
     --
     -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
-    rotate :: Ord a => [a] -> [(a, [a])]
+    rotate :: HasCallStack => Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap f . permutations
       where
         f = \case
             [] -> error "rotate: impossible"
             x : xs -> (x, sort xs)
-
-    encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
 data LogFileConfig = LogFileConfig
     { minSeverityTerminal :: Severity
@@ -1318,7 +1332,7 @@ data LogFileConfig = LogFileConfig
     , minSeverityFile :: Severity
     -- ^ Minimum logging severity for 'extraLogFile'
     }
-    deriving (Show)
+    deriving stock (Show)
 
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams
@@ -1333,78 +1347,81 @@ data NodeParams = NodeParams
     -- config. This option can set the minimum severity and add another output
     -- file.
     }
-    deriving (Show)
+    deriving stock (Show)
 
-singleNodeParams :: GenesisFiles -> Severity -> Maybe (FilePath, Severity) -> NodeParams
+singleNodeParams
+    :: GenesisFiles
+    -> Severity
+    -> Maybe (FilePath, Severity)
+    -> NodeParams
 singleNodeParams genesisFiles severity extraLogFile =
-    let
-        logCfg =
-            LogFileConfig
-                { minSeverityTerminal = severity
-                , extraLogDir = fmap fst extraLogFile
-                , minSeverityFile = maybe severity snd extraLogFile
-                }
-    in
-        NodeParams genesisFiles maxBound (0, []) logCfg
+    NodeParams genesisFiles maxBound (0, []) LogFileConfig
+        { minSeverityTerminal = severity
+        , extraLogDir = fmap fst extraLogFile
+        , minSeverityFile = maybe severity snd extraLogFile
+        }
 
 withBFTNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> FilePath
-    -- ^ Parent state directory. Node data will be created in a subdirectory of
-    -- this.
+    -> Tagged "cluster" FilePath
+    -- ^ Parent cluster state directory.
+    -- Node data will be created in a subdirectory of this.
+    -> Tagged "setup" FilePath
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (RunningNode -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr baseDir params action =
+withBFTNode tr clusterDir setupDir params action = do
+    let name = "bft"
+    let NodeParams genesisFiles hardForks (port, peers) logCfg = params
+    let nodeDir = untag clusterDir </> name
     bracketTracer' tr "withBFTNode" $ do
-        createDirectoryIfMissing False dir
-        source <- getShelleyTestDataPath
+        createDirectoryIfMissing False nodeDir
 
         let copyKeyFile f = do
-                let dst = dir </> f
-                copyFile (source </> f) dst
+                let dst = nodeDir </> f
+                copyFile (untag setupDir </> f) dst
                 restrictFileMode dst
                 pure dst
 
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <-
-            forM
-                [ "bft-leader" <> ".byron.cert"
-                , "bft-leader" <> ".byron.skey"
-                , "bft-leader" <> ".vrf.skey"
-                , "bft-leader" <> ".kes.skey"
-                , "bft-leader" <> ".opcert"
+            traverse (copyKeyFile . ("bft-leader" <>))
+                [ ".byron.cert"
+                , ".byron.skey"
+                , ".vrf.skey"
+                , ".kes.skey"
+                , ".opcert"
                 ]
-                copyKeyFile
 
         (config, genesisData, versionData) <-
-            genNodeConfig dir "-bft" genesisFiles hardForks (setLoggingName name logCfg)
-        topology <- genTopology dir peers
+            genNodeConfig
+                (Tagged @"output" nodeDir)
+                setupDir
+                (Tagged @"node-name" "-bft")
+                genesisFiles hardForks
+                (setLoggingName name logCfg)
 
-        let cfg =
-                CardanoNodeConfig
-                    { nodeDir = dir
-                    , nodeConfigFile = config
-                    , nodeTopologyFile = topology
-                    , nodeDatabaseDir = "db"
-                    , nodeDlgCertFile = Just bftCert
-                    , nodeSignKeyFile = Just bftPrv
-                    , nodeOpCertFile = Just opCert
-                    , nodeKesKeyFile = Just kesPrv
-                    , nodeVrfKeyFile = Just vrfPrv
-                    , nodePort = Just (NodePort port)
-                    , nodeLoggingHostname = Just name
-                    , nodeExecutable = Nothing
-                    }
+        topology <- genTopology (Tagged @"output" nodeDir) peers
 
-        withCardanoNodeProcess tr name cfg $ \socket ->
+        let nodeConfig = CardanoNodeConfig
+                { nodeDir = nodeDir
+                , nodeConfigFile = untag config
+                , nodeTopologyFile = untag topology
+                , nodeDatabaseDir = "db"
+                , nodeDlgCertFile = Just bftCert
+                , nodeSignKeyFile = Just bftPrv
+                , nodeOpCertFile = Just opCert
+                , nodeKesKeyFile = Just kesPrv
+                , nodeVrfKeyFile = Just vrfPrv
+                , nodePort = Just (NodePort port)
+                , nodeLoggingHostname = Just name
+                , nodeExecutable = Nothing
+                }
+
+        withCardanoNodeProcess tr name nodeConfig $ \socket ->
             action $ RunningNode socket genesisData versionData
-  where
-    name = "bft"
-    dir = baseDir </> name
-    NodeParams genesisFiles hardForks (port, peers) logCfg = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -1415,28 +1432,36 @@ withBFTNode tr baseDir params action =
 _withRelayNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> FilePath
-    -- ^ Parent state directory. Node data will be created in a subdirectory of
-    -- this.
+    -> Tagged "cluster" FilePath
+    -- ^ Parent state directory.
+    -- Node data will be created in a subdirectory of this.
+    -> Tagged "setup" FilePath
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (RunningNode -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-_withRelayNode tr baseDir params act =
+_withRelayNode tr clusterDir setupDir params act = do
+    let name = "node"
+    let nodeDir = Tagged @"output" $ untag clusterDir </> name
+    let NodeParams genesisFiles hardForks (port, peers) logCfg = params
     bracketTracer' tr "withRelayNode" $ do
-        createDirectory dir
+        createDirectory $ untag nodeDir
 
         let logCfg' = setLoggingName name logCfg
         (config, genesisData, vd) <-
-            genNodeConfig dir "-relay" genesisFiles hardForks logCfg'
-        topology <- genTopology dir peers
+            genNodeConfig
+                nodeDir
+                setupDir
+                (Tagged @"node-name" "-relay")
+                genesisFiles hardForks logCfg'
+        topology <- genTopology nodeDir peers
 
         let cfg =
                 CardanoNodeConfig
-                    { nodeDir = dir
-                    , nodeConfigFile = config
-                    , nodeTopologyFile = topology
+                    { nodeDir = untag nodeDir
+                    , nodeConfigFile = untag config
+                    , nodeTopologyFile = untag topology
                     , nodeDatabaseDir = "db"
                     , nodeDlgCertFile = Nothing
                     , nodeSignKeyFile = Nothing
@@ -1450,10 +1475,6 @@ _withRelayNode tr baseDir params act =
 
         let act' socket = act $ RunningNode socket genesisData vd
         withCardanoNodeProcess tr name cfg act'
-  where
-    name = "node"
-    dir = baseDir </> name
-    NodeParams genesisFiles hardForks (port, peers) logCfg = params
 
 toTextPoolId :: PoolId -> Text
 toTextPoolId =
@@ -1494,7 +1515,7 @@ withSMASH tr parentDir action = do
         BL8.writeFile (poolDir </> hashFile) bytes
 
     -- Write delisted pools
-    let toSmashId (PoolId bytes) = T.pack . B8.unpack . hex $ bytes
+    let toSmashId = T.pack . B8.unpack . convertToBase Base16 . getPoolId
     let poolId (PoolRecipe _ _ _ _ (pid, _, _, _) _) = toSmashId pid
     let delistedPoolIds = poolId <$> NE.filter delisted defaultPoolConfigs
     BL8.writeFile
@@ -1524,6 +1545,7 @@ withCardanoNodeProcess
 withCardanoNodeProcess tr name cfg = withCardanoNode tr' cfg >=> throwErrs
   where
     tr' = contramap (MsgLauncher name) tr
+    throwErrs :: Either ProcessHasExited a -> IO a
     throwErrs = either throwIO pure
 
 setLoggingName :: String -> LogFileConfig -> LogFileConfig
@@ -1537,25 +1559,32 @@ data GenesisFiles = GenesisFiles
     , alonzoGenesis :: FilePath
     , conwayGenesis :: FilePath
     }
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 genNodeConfig
-    :: FilePath
+    :: Tagged "output" FilePath
     -- ^ A top-level directory where to put the configuration.
-    -> String -- Node name
+    -> Tagged "setup" FilePath
+    -> Tagged "node-name" String -- Node name
     -> GenesisFiles
     -- ^ Genesis block start time
     -> ClusterEra
     -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
-    -> IO (FilePath, ShelleyGenesis StandardCrypto, NodeToClientVersionData)
-genNodeConfig dir name genesisFiles clusterEra logCfg = do
+    -> IO
+        ( Tagged "node-config" FilePath
+        , ShelleyGenesis StandardCrypto
+        , NodeToClientVersionData
+        )
+genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
-    let GenesisFiles{byronGenesis, shelleyGenesis, alonzoGenesis, conwayGenesis} =
-            genesisFiles
-
-    source <- getShelleyTestDataPath
+    let GenesisFiles
+            { byronGenesis
+            , shelleyGenesis
+            , alonzoGenesis
+            , conwayGenesis
+            } = genesisFiles
 
     let fileScribe (path, sev) =
             ScribeDefinition
@@ -1575,9 +1604,9 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
                     , (,extraSev) . T.pack <$> mExtraLogFile
                     ]
 
-    ----
-    -- Configuration
-    Yaml.decodeFileThrow (source </> "node.config")
+    let poolNodeConfig = untag poolDir </> ("node" <> untag name <> ".config")
+
+    Yaml.decodeFileThrow (untag setupDir </> "node.config")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
         >>= withAddedKey "ByronGenesisFile" byronGenesis
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
@@ -1586,23 +1615,25 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
         >>= withAddedKey "minSeverity" Debug
         >>= withScribes scribes
         >>= withObject (addMinSeverityStdout severity)
-        >>= Yaml.encodeFile (dir </> ("node" <> name <> ".config"))
+        >>= Yaml.encodeFile poolNodeConfig
 
     -- Parameters
     genesisData <- Yaml.decodeFileThrow shelleyGenesis
     let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
-        ( dir </> ("node" <> name <> ".config")
+        ( Tagged @"node-config" poolNodeConfig
         , genesisData
         , NodeToClientVersionData{networkMagic, query = False}
         )
   where
+    withScribes :: [ScribeDefinition] -> Yaml.Value -> IO Yaml.Value
     withScribes scribes =
         withAddedKey "setupScribes" scribes
             >=> withAddedKey
                 "defaultScribes"
                 (map (\s -> [toJSON $ scKind s, toJSON $ scName s]) scribes)
 
+    withHardForks :: ClusterEra -> Yaml.Value -> IO Yaml.Value
     withHardForks era =
         withObject (pure . Aeson.union (Aeson.fromList hardForks))
       where
@@ -1622,11 +1653,12 @@ withAddedKey
 withAddedKey k v = withObject (pure . Aeson.insert k (toJSON v))
 
 -- | Generate a topology file from a list of peers.
-genTopology :: FilePath -> [Int] -> IO FilePath
-genTopology dir peers = do
-    let file = dir </> "node.topology"
+genTopology
+    :: Tagged "output" FilePath -> [Int] -> IO (Tagged "topology" FilePath)
+genTopology outputDir peers = do
+    let file = untag outputDir </> "node.topology"
     Aeson.encodeFile file $ Aeson.object ["Producers" .= map encodePeer peers]
-    pure file
+    pure $ Tagged @"topology" file
   where
     encodePeer :: Int -> Aeson.Value
     encodePeer port =
@@ -1640,83 +1672,105 @@ genTopology dir peers = do
 -- issue counter
 writeOperatorKeyPair
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> Tagged "pool" FilePath
     -> PoolRecipe
-    -> IO (FilePath, FilePath, FilePath)
-writeOperatorKeyPair tr dir recipe = do
+    -> IO
+        ( Tagged "op-prv" FilePath
+        , Tagged "op-pub" FilePath
+        , Tagged "op-cnt" FilePath
+        )
+writeOperatorKeyPair tr poolDir recipe = do
     let (_pId, pub, prv, count) = operatorKeys recipe
+    traceWith tr $ MsgGenOperatorKeyPair $ untag poolDir
 
-    traceWith tr $ MsgGenOperatorKeyPair dir
-
-    let opPub = dir </> "op.pub"
-    let opPrv = dir </> "op.prv"
-    let opCount = dir </> "op.count"
+    let opPub = untag poolDir </> "op.pub"
+    let opPrv = untag poolDir </> "op.prv"
+    let opCount = untag poolDir </> "op.count"
 
     Aeson.encodeFile opPub pub
     Aeson.encodeFile opPrv prv
     Aeson.encodeFile opCount count
 
-    pure (opPrv, opPub, opCount)
+    pure
+        ( Tagged @"op-prv" opPrv
+        , Tagged @"op-pub" opPub
+        , Tagged @"op-cnt" opCount
+        )
 
 -- | Create a key pair for a node KES operational key
-genKesKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
-genKesKeyPair tr dir = do
-    let kesPub = dir </> "kes.pub"
-    let kesPrv = dir </> "kes.prv"
+genKesKeyPair
+    :: Tracer IO ClusterLog
+    -> Tagged "pool" FilePath
+    -> IO (Tagged "kes-prv" FilePath, Tagged "kes-pub" FilePath)
+genKesKeyPair tr poolDir = do
+    let kesPrv = Tagged @"kes-prv" $ untag poolDir </> "kes.prv"
+    let kesPub = Tagged @"kes-pub" $ untag poolDir </> "kes.pub"
     cli
         tr
         [ "node"
         , "key-gen-KES"
         , "--verification-key-file"
-        , kesPub
+        , untag kesPub
         , "--signing-key-file"
-        , kesPrv
+        , untag kesPrv
         ]
     pure (kesPrv, kesPub)
 
 -- | Create a key pair for a node VRF operational key
-genVrfKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
-genVrfKeyPair tr dir = do
-    let vrfPub = dir </> "vrf.pub"
-    let vrfPrv = dir </> "vrf.prv"
+genVrfKeyPair
+    :: Tracer IO ClusterLog
+    -> Tagged "pool" FilePath
+    -> IO (Tagged "vrf-prv" FilePath, Tagged "vrf-pub" FilePath)
+genVrfKeyPair tr poolDir = do
+    let vrfPrv = Tagged @"vrf-prv" $ untag poolDir </> "vrf.prv"
+    let vrfPub = Tagged @"vrf-pub" $ untag poolDir </> "vrf.pub"
     cli
         tr
         [ "node"
         , "key-gen-VRF"
         , "--verification-key-file"
-        , vrfPub
+        , untag vrfPub
         , "--signing-key-file"
-        , vrfPrv
+        , untag vrfPrv
         ]
     pure (vrfPrv, vrfPub)
 
 -- | Create a stake address key pair
-genStakeAddrKeyPair :: Tracer IO ClusterLog -> (FilePath, FilePath) -> IO ()
+genStakeAddrKeyPair
+    :: Tracer IO ClusterLog
+    -> (Tagged "stake-prv" FilePath, Tagged "stake-pub" FilePath)
+    -> IO ()
 genStakeAddrKeyPair tr (stakePrv, stakePub) = do
     cli
         tr
         [ "stake-address"
         , "key-gen"
         , "--verification-key-file"
-        , stakePub
+        , untag stakePub
         , "--signing-key-file"
-        , stakePrv
+        , untag stakePrv
         ]
 
 -- | Issue a node operational certificate
-issueOpCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
-issueOpCert tr dir kesPub opPrv opCount = do
-    let file = dir </> "op.cert"
+issueOpCert
+    :: Tracer IO ClusterLog
+    -> Tagged "pool" FilePath
+    -> Tagged "kes-pub" FilePath
+    -> Tagged "op-prv" FilePath
+    -> Tagged "op-cnt" FilePath
+    -> IO FilePath
+issueOpCert tr nodeDir kesPub opPrv opCount = do
+    let file = untag nodeDir </> "op.cert"
     cli
         tr
         [ "node"
         , "issue-op-cert"
         , "--kes-verification-key-file"
-        , kesPub
+        , untag kesPub
         , "--cold-signing-key-file"
-        , opPrv
+        , untag opPrv
         , "--operational-certificate-issue-counter-file"
-        , opCount
+        , untag opCount
         , "--kes-period"
         , "0"
         , "--out-file"
@@ -1727,32 +1781,32 @@ issueOpCert tr dir kesPub opPrv opCount = do
 -- | Create a stake address registration certificate from a vk
 issueStakeVkCert
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> String
-    -> FilePath
-    -> IO FilePath
-issueStakeVkCert tr dir prefix stakePub = do
-    let file = dir </> prefix <> "-stake.cert"
+    -> Tagged "output" FilePath
+    -> Tagged "prefix" String
+    -> Tagged "stake-pub" FilePath
+    -> IO (Tagged "stake-vk-cert" FilePath)
+issueStakeVkCert tr outputDir prefix stakePub = do
+    let file = untag outputDir </> untag prefix <> "-stake.cert"
     cli
         tr
         [ "stake-address"
         , "registration-certificate"
         , "--staking-verification-key-file"
-        , stakePub
+        , untag stakePub
         , "--out-file"
         , file
         ]
-    pure file
+    pure $ Tagged file
 
 -- | Create a stake address registration certificate from a script
 issueStakeScriptCert
     :: Tracer IO ClusterLog
+    -> Tagged "output" FilePath
+    -> Tagged "prefix" String
     -> FilePath
-    -> String
-    -> FilePath
-    -> IO FilePath
-issueStakeScriptCert tr dir prefix stakeScript = do
-    let file = dir </> prefix <> "-stake.cert"
+    -> IO (Tagged "stake-script-cert" FilePath)
+issueStakeScriptCert tr outputDir prefix stakeScript = do
+    let file = untag outputDir </> untag prefix <> "-stake.cert"
     cli
         tr
         [ "stake-address"
@@ -1762,53 +1816,66 @@ issueStakeScriptCert tr dir prefix stakeScript = do
         , "--out-file"
         , file
         ]
-    pure file
+    pure $ Tagged file
 
 stakePoolIdFromOperatorVerKey
-    :: FilePath -> IO (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
-stakePoolIdFromOperatorVerKey filepath = do
+    :: HasCallStack
+    => Tagged "op-pub" FilePath
+    -> IO (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
+stakePoolIdFromOperatorVerKey opPub = do
     stakePoolVerKey <-
         either (error . show) id
             <$> readVerificationKeyOrFile
                 AsStakePoolKey
-                (VerificationKeyFilePath $ File filepath)
+                (VerificationKeyFilePath $ File $ untag opPub)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 poolVrfFromFile
-    :: FilePath -> IO (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
-poolVrfFromFile filepath = do
+    :: HasCallStack
+    => Tagged "vrf-pub" FilePath
+    -> IO (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
+poolVrfFromFile vrfPub = do
     stakePoolVerKey <-
         either (error . show) id
             <$> readVerificationKeyOrFile
                 AsVrfKey
-                (VerificationKeyFilePath $ File filepath)
+                (VerificationKeyFilePath $ File $ untag vrfPub)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 stakingKeyHashFromFile
-    :: FilePath -> IO (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
-stakingKeyHashFromFile filepath = do
+    :: HasCallStack
+    => Tagged "stake-pub" FilePath
+    -> IO (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
+stakingKeyHashFromFile stakePub = do
     stakePoolVerKey <-
         either (error . show) id
             <$> readVerificationKeyOrFile
                 AsStakeKey
-                (VerificationKeyFilePath $ File filepath)
+                (VerificationKeyFilePath $ File $ untag stakePub)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure $ either (error . show) snd
+        $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
 stakingAddrFromVkFile
-    :: FilePath -> IO (Ledger.Addr StandardCrypto)
-stakingAddrFromVkFile filepath = do
+    :: HasCallStack
+    => Tagged "stake-pub" FilePath
+    -> IO (Ledger.Addr StandardCrypto)
+stakingAddrFromVkFile stakePub = do
     stakePoolVerKey <-
         either (error . show) id
             <$> readVerificationKeyOrFile
                 AsStakeKey
-                (VerificationKeyFilePath $ File filepath)
+                (VerificationKeyFilePath $ File $ untag stakePub)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
-    let payKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
-    let delegKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
-    return
+    let payKH = either (error . show) snd
+            $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    let delegKH = either (error . show) snd
+            $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
+    pure
         $ Ledger.Addr
             Mainnet
             (Ledger.KeyHashObj payKH)
@@ -1816,62 +1883,69 @@ stakingAddrFromVkFile filepath = do
 
 issuePoolRetirementCert
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> FilePath
+    -> Tagged "pool" FilePath
+    -> Tagged "op-pub" FilePath
     -> Word31
-    -> IO FilePath
-issuePoolRetirementCert tr dir opPub retirementEpoch = do
-    let file = dir </> "pool-retirement.cert"
+    -> IO (Tagged "retirement-cert" FilePath)
+issuePoolRetirementCert tr poolDir opPub retirementEpoch = do
+    let file = untag poolDir </> "pool-retirement.cert"
     cli
         tr
         [ "stake-pool"
         , "deregistration-certificate"
         , "--cold-verification-key-file"
-        , opPub
+        , untag opPub
         , "--epoch"
         , show retirementEpoch
         , "--out-file"
         , file
         ]
-    pure file
+    pure $ Tagged @"retirement-cert" file
 
 -- | Create a stake address delegation certificate.
-issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
-issueDlgCert tr dir stakePub opPub = do
-    let file = dir </> "dlg.cert"
+issueDlgCert
+    :: Tracer IO ClusterLog
+    -> Tagged "pool" FilePath
+    -> Tagged "stake-pub" FilePath
+    -> Tagged "op-pub" FilePath
+    -> IO (Tagged "stake-addr-deleg-cert" FilePath)
+issueDlgCert tr poolDir stakePub opPub = do
+    let file = untag poolDir </> "dlg.cert"
     cli
         tr
         [ "stake-address"
         , "delegation-certificate"
         , "--staking-verification-key-file"
-        , stakePub
+        , untag stakePub
         , "--stake-pool-verification-key-file"
-        , opPub
+        , untag opPub
         , "--out-file"
         , file
         ]
-    pure file
+    pure $ Tagged file
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
 preparePoolRegistration
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> Tagged "pool" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
-    -> FilePath
+    -> Tagged "stake-pub" FilePath
     -> [FilePath]
     -> Integer
-    -> IO (FilePath, FilePath)
-preparePoolRegistration tr dir era stakePub certs pledgeAmt = do
-    let file = dir </> "tx.raw"
-    addr <- genSinkAddress tr dir (Just stakePub)
-    (faucetInput, faucetPrv) <- takeFaucet
+    -> IO (Tagged "registration-tx" FilePath, Tagged "faucet-prv" FilePath)
+preparePoolRegistration tr poolDir setupDir era stakePub certs pledgeAmt = do
+    let file = untag poolDir </> "tx.raw"
+    addr <-
+        genSinkAddress tr (retag @"pool" @_ @"output" poolDir) (Just stakePub)
+    (faucetInput, faucetPrv) <- takeFaucet setupDir
     cli tr
         $ [ "transaction"
           , "build-raw"
           , cliEraFlag era
           , "--tx-in"
-          , faucetInput
+          , untag faucetInput
           , "--tx-out"
           , addr <> "+" <> show pledgeAmt
           , "--ttl"
@@ -1883,44 +1957,44 @@ preparePoolRegistration tr dir era stakePub certs pledgeAmt = do
           ]
             ++ mconcat ((\cert -> ["--certificate-file", cert]) <$> certs)
 
-    pure (file, faucetPrv)
+    pure (Tagged file, faucetPrv)
 
 preparePoolRetirement
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> Tagged "pool" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
-    -> [FilePath]
-    -> IO (FilePath, FilePath)
-preparePoolRetirement tr dir era certs = do
-    let file = dir </> "tx.raw"
-    (faucetInput, faucetPrv) <- takeFaucet
+    -> [Tagged "retirement-cert" FilePath]
+    -> IO (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
+preparePoolRetirement tr poolDir setupDir era certs = do
+    let file = untag poolDir </> "tx.raw"
+    (faucetInput, faucetPrv) <- takeFaucet setupDir
     cli tr
         $ [ "transaction"
           , "build-raw"
           , cliEraFlag era
           , "--tx-in"
-          , faucetInput
+          , untag faucetInput
           , "--ttl"
           , "400"
           , "--fee"
-          , show (faucetAmt)
+          , show faucetAmt
           , "--out-file"
           , file
           ]
-            ++ mconcat ((\cert -> ["--certificate-file", cert]) <$> certs)
+            ++ mconcat ((\cert -> ["--certificate-file", untag cert]) <$> certs)
 
-    pure (file, faucetPrv)
+    pure (Tagged file, faucetPrv)
 
 -- | For creating test fixtures. Returns PolicyId, signing key, and verification
 -- key hash, all hex-encoded. Files are put in the given directory.
 genMonetaryPolicyScript
     :: Tracer IO ClusterLog
-    -> FilePath
-    -- ^ Directory
+    -> Tagged "output" FilePath
     -> IO (String, (String, String))
-genMonetaryPolicyScript tr dir = do
-    let policyPub = dir </> "policy.pub"
-    let policyPrv = dir </> "policy.prv"
+genMonetaryPolicyScript tr outputDir = do
+    let policyPub = untag outputDir </> "policy.pub"
+    let policyPrv = untag outputDir </> "policy.prv"
 
     cli
         tr
@@ -1940,52 +2014,52 @@ genMonetaryPolicyScript tr dir = do
             , "--payment-verification-key-file"
             , policyPub
             ]
-    script <- writeMonetaryPolicyScriptFile dir vkeyHash
+    script <- writeMonetaryPolicyScriptFile outputDir vkeyHash
     policyId <-
         cliLine
             tr
             [ "transaction"
             , "policyid"
             , "--script-file"
-            , script
+            , untag script
             ]
 
     pure (policyId, (skey, vkeyHash))
 
 writeMonetaryPolicyScriptFile
-    :: FilePath
+    :: Tagged "output" FilePath
     -- ^ Destination directory for script file
     -> String
     -- ^ The script verification key hash
-    -> IO FilePath
+    -> IO (Tagged "policy-script" FilePath)
     -- ^ Returns the filename written
-writeMonetaryPolicyScriptFile dir keyHash = do
-    let scriptFile = dir </> keyHash <.> "script"
+writeMonetaryPolicyScriptFile outputDir keyHash = do
+    let scriptFile = untag outputDir </> keyHash <.> "script"
     Aeson.encodeFile scriptFile
         $ object
             [ "type" .= Aeson.String "sig"
             , "keyHash" .= keyHash
             ]
-    pure scriptFile
+    pure $ Tagged scriptFile
 
 writePolicySigningKey
-    :: FilePath
+    :: Tagged "output" FilePath
     -- ^ destination directory for key file
     -> String
     -- ^ Name of file, keyhash perhaps.
     -> String
     -- ^ The cbor-encoded key material, encoded in hex
-    -> IO FilePath
+    -> IO (Tagged "policy-signing-key" FilePath)
     -- ^ Returns the filename written
-writePolicySigningKey dir keyHash cborHex = do
-    let keyFile = dir </> keyHash <.> "skey"
+writePolicySigningKey outputDir keyHash cborHex = do
+    let keyFile = untag outputDir </> keyHash <.> "skey"
     Aeson.encodeFile keyFile
         $ object
             [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
             , "description" .= Aeson.String "Payment Signing Key"
             , "cborHex" .= cborHex
             ]
-    pure keyFile
+    pure $ Tagged keyFile
 
 -- | Dig in to a @cardano-cli@ TextView key file to get the hex-encoded key.
 readKeyFromFile :: FilePath -> IO Text
@@ -1999,14 +2073,16 @@ readKeyFromFile f = do
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
-    -> FilePath
+    -> Tagged "cluster" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr conn dir era targets =
+sendFaucetFundsTo tr conn clusterDir setupDir era targets =
     batch 80 targets
-        $ sendFaucet tr conn dir era "ada" . map coinBundle
+        $ sendFaucet tr conn clusterDir setupDir era "ada" . map coinBundle
   where
+    coinBundle :: (String, Coin) -> (String, (TokenBundle, [a]))
     coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
 
 -- | Create transactions to fund the given faucet addresses with Ada and assets.
@@ -2017,33 +2093,36 @@ sendFaucetFundsTo tr conn dir era targets =
 sendFaucetAssetsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
-    -> FilePath
+    -> Tagged "cluster" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
     -> Int
     -- ^ batch size
     -> [(String, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr conn dir era batchSize targets = do
+sendFaucetAssetsTo tr conn clusterDir setupDir era batchSize targets =
     when (era >= MaryHardFork)
         $ batch batchSize targets
-        $ sendFaucet tr conn dir era "assets"
+        $ sendFaucet tr conn clusterDir setupDir era "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
 -- 'sendFaucetAssetsTo'.
 sendFaucet
-    :: Tracer IO ClusterLog
+    :: HasCallStack
+    => Tracer IO ClusterLog
     -> CardanoNodeConn
-    -> FilePath
+    -> Tagged "cluster" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
     -> String
     -- ^ label for logging
     -> [(String, (TokenBundle, [(String, String)]))]
     -> IO ()
-sendFaucet tr conn dir era what targets = do
-    (faucetInput, faucetPrv) <- takeFaucet
-    let file = dir </> "faucet-tx.raw"
+sendFaucet tr conn clusterDir setupDir era what targets = do
+    (faucetInput, faucetPrv) <- takeFaucet setupDir
+    let file = untag clusterDir </> "faucet-tx.raw"
 
     let mkOutput addr (TokenBundle (Coin c) tokens) =
             [ "--tx-out"
@@ -2056,7 +2135,7 @@ sendFaucet tr conn dir era what targets = do
             mconcat
                 [ T.unpack (toText pid)
                 , if B8.null name then "" else "."
-                , B8.unpack (hex name)
+                , B8.unpack (convertToBase Base16 name)
                 ]
         mkMint [] = []
         mkMint assets = ["--mint", intercalate " + " (map cliAsset assets)]
@@ -2068,17 +2147,18 @@ sendFaucet tr conn dir era what targets = do
     when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
+    let outputDir = retag @"cluster" @_ @"output" clusterDir
 
     scripts <-
         forM (nub $ concatMap (map snd . snd . snd) targets)
-            $ writeMonetaryPolicyScriptFile dir
+            $ writeMonetaryPolicyScriptFile outputDir
 
     cli tr
         $ [ "transaction"
           , "build-raw"
           , cliEraFlag era
           , "--tx-in"
-          , faucetInput
+          , untag faucetInput
           , "--ttl"
           , "6000000"
           , -- Big enough to allow minting in the actual integration tests,
@@ -2090,15 +2170,18 @@ sendFaucet tr conn dir era what targets = do
           ]
             ++ concatMap (uncurry mkOutput . fmap fst) targets
             ++ mkMint targetAssets
-            ++ (concatMap (\f -> ["--minting-script-file", f]) scripts)
+            ++ (concatMap (\f -> ["--minting-script-file", untag f]) scripts)
 
-    policyKeys <- forM (nub $ concatMap (snd . snd) targets)
-        $ \(skey, keyHash) -> writePolicySigningKey dir keyHash skey
+    policyKeys <-
+        forM (nub $ concatMap (snd . snd) targets) $ \(skey, keyHash) ->
+            writePolicySigningKey outputDir keyHash skey
 
-    tx <- signTx tr dir file (faucetPrv : policyKeys)
-    submitTx tr conn (what ++ " faucet tx") tx
+    tx <- signTx tr outputDir
+        (Tagged @"tx-body" file)
+        (retag @"faucet-prv" @_ @"signing-key" faucetPrv : map retag policyKeys)
+    submitTx tr conn (Tagged @"name" $ what ++ " faucet tx") tx
 
-batch :: Int -> [a] -> ([a] -> IO b) -> IO ()
+batch :: HasCallStack => Int -> [a] -> ([a] -> IO b) -> IO ()
 batch s xs = forM_ (group s xs)
   where
     -- TODO: Use split package?
@@ -2112,32 +2195,36 @@ batch s xs = forM_ (group s xs)
 data Credential
     = KeyCredential XPub
     | ScriptCredential ByteString
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
 
 moveInstantaneousRewardsTo
-    :: Tracer IO ClusterLog
+    :: HasCallStack
+    => Tracer IO ClusterLog
     -> CardanoNodeConn
-    -> FilePath
+    -> Tagged "cluster" FilePath
+    -> Tagged "setup" FilePath
     -> ClusterEra
     -> [(Credential, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr conn dir era targets = do
-    certs <- mapM mkCredentialCerts targets
-    (faucetInput, faucetPrv) <- takeFaucet
-    let file = dir </> "mir-tx.raw"
+moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
+    let outputDir = retag @"cluster" @_ @"output" clusterDir
+    certs <- mapM (mkCredentialCerts outputDir) targets
+    (faucetInput, faucetPrv) <- takeFaucet setupDir
+    let txFile = untag clusterDir </> "mir-tx.raw"
 
-    let total = fromIntegral $ sum $ map (unCoin . snd) targets
+    let total = sum $ map (Coin.toInteger . snd) targets
     let totalDeposit = fromIntegral (length targets) * depositAmt
-    when (total > faucetAmt) $ error "moveInstantaneousRewardsTo: too much to pay"
+    when (total > faucetAmt) $
+        error "moveInstantaneousRewardsTo: too much to pay"
 
-    sink <- genSinkAddress tr dir Nothing
+    sink <- genSinkAddress tr (retag @"cluster" @_ @"output" clusterDir) Nothing
 
     cli tr
         $ [ "transaction"
           , "build-raw"
           , cliEraFlag era
           , "--tx-in"
-          , faucetInput
+          , untag faucetInput
           , "--ttl"
           , "999999999"
           , "--fee"
@@ -2145,20 +2232,30 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
           , "--tx-out"
           , sink <> "+" <> "1000000"
           , "--out-file"
-          , file
+          , txFile
           ]
-            ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
+            ++ concatMap (\x -> ["--certificate-file", untag x]) (mconcat certs)
 
-    testData <- getShelleyTestDataPath
-    let bftPrv = testData </> "bft-leader" <> ".skey"
+    let bftPrv = untag setupDir </> "bft-leader" <> ".skey"
 
-    tx <- signTx tr dir file [faucetPrv, bftPrv]
-    submitTx tr conn "MIR certificates" tx
+    {- There is a ledger rule that disallows submitting MIR certificates
+    "too late in Epoch" e.g. less that stability window slots before beginning
+    of a next epoch. See the MIRCertificateTooLateinEpochDELEG error.
+
+    This problem is worked around by retrying the transaction submission until
+    it succeeds.  (This is not ideal as it pollutes logs with error messages)
+    -}
+    submitTx tr conn "MIR certificates"
+        =<< signTx tr outputDir (Tagged @"tx-body" txFile)
+            [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
+            , Tagged @"signing-key" bftPrv
+            ]
   where
     mkCredentialCerts
-        :: (Credential, Coin)
-        -> IO [FilePath]
-    mkCredentialCerts = \case
+        :: Tagged "output" FilePath
+        -> (Credential, Coin)
+        -> IO [Tagged "cert" FilePath]
+    mkCredentialCerts outputDir = \case
         (KeyCredential xpub, coin) -> do
             (prefix, vkFile) <- mkVerificationKey xpub
             stakeAddr <-
@@ -2170,9 +2267,10 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
                     , "--stake-verification-key-file"
                     , vkFile
                     ]
-            stakeCert <- issueStakeVkCert tr dir prefix vkFile
+            stakeCert <-
+                issueStakeVkCert tr outputDir prefix (Tagged @"stake-pub" vkFile)
             mirCert <- mkMIRCertificate (stakeAddr, coin)
-            pure [stakeCert, mirCert]
+            pure [retag stakeCert, retag mirCert]
         (ScriptCredential script, coin) -> do
             (prefix, scriptFile) <- mkScript script
             -- NOTE: cardano-cli does not support creating stake-address from
@@ -2188,9 +2286,9 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
                         , "--payment-script-file"
                         , scriptFile
                         ]
-            stakeCert <- issueStakeScriptCert tr dir prefix scriptFile
+            stakeCert <- issueStakeScriptCert tr outputDir prefix scriptFile
             mirCert <- mkMIRCertificate (stakeAddr, coin)
-            pure [stakeCert, mirCert]
+            pure [retag stakeCert, retag mirCert]
       where
         toStakeAddress =
             T.unpack
@@ -2205,26 +2303,26 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
           where
             hrp = [humanReadablePart|stake|]
 
-    mkVerificationKey
-        :: XPub
-        -> IO (String, FilePath)
+    mkVerificationKey :: XPub -> IO (Tagged "prefix" String, FilePath)
     mkVerificationKey xpub = do
-        let base16 = T.unpack $ T.decodeUtf8 $ hex $ xpubPublicKey xpub
+        let base16 =
+                T.unpack . T.decodeUtf8 . convertToBase Base16
+                    $ xpubPublicKey xpub
         let json =
                 Aeson.object
                     [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
                     , "description" .= Aeson.String "Stake Verification Key"
                     , "cborHex" .= Aeson.String ("5820" <> T.pack base16)
                     ]
-        let file = dir </> base16 <> ".vk"
+        let file = untag clusterDir </> base16 <> ".vk"
         BL8.writeFile file (Aeson.encode json)
-        pure (base16, file)
+        pure (Tagged base16, file)
 
-    mkScript
-        :: ByteString
-        -> IO (String, FilePath)
+    mkScript :: ByteString -> IO (Tagged "prefix" String, FilePath)
     mkScript bytes = do
-        let base16 = T.decodeUtf8 $ hex $ CBOR.toStrictByteString $ CBOR.encodeBytes bytes
+        let base16 =
+                T.decodeUtf8 . convertToBase Base16
+                    $ CBOR.toStrictByteString $ CBOR.encodeBytes bytes
         let json =
                 Aeson.object
                     [ "type" .= Aeson.String "PlutusScriptV1"
@@ -2232,15 +2330,13 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
                     , "cborHex" .= Aeson.String base16
                     ]
         let prefix = take 100 (T.unpack base16)
-        let file = dir </> prefix <> ".plutus"
+        let file = untag clusterDir </> prefix <> ".plutus"
         BL8.writeFile file (Aeson.encode json)
-        pure (prefix, file)
+        pure (Tagged prefix, file)
 
-    mkMIRCertificate
-        :: (String, Coin)
-        -> IO FilePath
+    mkMIRCertificate :: (String, Coin) -> IO (Tagged "mir-cert" FilePath)
     mkMIRCertificate (stakeAddr, Coin reward) = do
-        let mirCert = dir </> stakeAddr <> ".mir"
+        let mirCert = untag clusterDir </> stakeAddr <> ".mir"
         cli
             tr
             [ "governance"
@@ -2253,33 +2349,31 @@ moveInstantaneousRewardsTo tr conn dir era targets = do
             , "--out-file"
             , mirCert
             ]
-        pure mirCert
+        pure $ Tagged @"mir-cert" mirCert
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
 prepareKeyRegistration
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> ClusterEra
-    -> IO (FilePath, FilePath)
-prepareKeyRegistration tr dir era = do
-    let file = dir </> "tx.raw"
-
-    let stakePub = dir </> "pre-registered-stake.pub"
-    Aeson.encodeFile stakePub preRegisteredStakeKey
-
-    (faucetInput, faucetPrv) <- takeFaucet
-
-    cert <- issueStakeVkCert tr dir "pre-registered" stakePub
-    sink <- genSinkAddress tr dir Nothing
-
+    -> Config
+    -> IO (Tagged "reg-tx" FilePath, Tagged "faucet-prv" FilePath)
+prepareKeyRegistration tr Config{..} = do
+    let outputDir = retag @"cluster" @_ @"output" cfgClusterDir
+    let file = untag cfgClusterDir </> "tx.raw"
+    let stakePub = Tagged @"stake-pub"
+            $ untag cfgClusterDir </> "pre-registered-stake.pub"
+    Aeson.encodeFile (untag stakePub) preRegisteredStakeKey
+    (faucetInput, faucetPrv) <- takeFaucet cfgSetupDir
+    cert <- issueStakeVkCert
+        tr outputDir (Tagged @"prefix" "pre-registered") stakePub
+    sink <- genSinkAddress tr outputDir Nothing
     cli
         tr
         [ "transaction"
         , "build-raw"
-        , cliEraFlag era
+        , cliEraFlag cfgLastHardFork
         , "--tx-in"
-        , faucetInput
+        , untag faucetInput
         , "--tx-out"
         , sink <> "+" <> "1000000"
         , "--ttl"
@@ -2287,22 +2381,22 @@ prepareKeyRegistration tr dir era = do
         , "--fee"
         , show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file"
-        , cert
+        , untag cert
         , "--out-file"
         , file
         ]
-    pure (file, faucetPrv)
+    pure (Tagged @"reg-tx" file, faucetPrv)
 
 genSinkAddress
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> Tagged "output" FilePath
     -- ^ Directory to put keys
-    -> Maybe FilePath
+    -> Maybe (Tagged "stake-pub" FilePath)
     -- ^ Stake pub
     -> IO String
-genSinkAddress tr dir stakePub = do
-    let sinkPrv = dir </> "sink.prv"
-    let sinkPub = dir </> "sink.pub"
+genSinkAddress tr outputDir stakePub = do
+    let sinkPrv = untag outputDir </> "sink.prv"
+    let sinkPub = untag outputDir </> "sink.pub"
     cli
         tr
         [ "address"
@@ -2318,44 +2412,51 @@ genSinkAddress tr dir stakePub = do
           , "--mainnet"
           , "--payment-verification-key-file"
           , sinkPub
-          ]
-            ++ maybe [] (\key -> ["--stake-verification-key-file", key]) stakePub
+          ] ++
+          case stakePub of
+                Nothing -> []
+                Just key -> ["--stake-verification-key-file", untag key]
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> Tagged "output" FilePath
     -- ^ Output directory
-    -> FilePath
+    -> Tagged "tx-body" FilePath
     -- ^ Tx body file
-    -> [FilePath]
+    -> [Tagged "signing-key" FilePath]
     -- ^ Signing keys for witnesses
-    -> IO FilePath
-signTx tr dir rawTx keys = do
-    let file = dir </> "tx.signed"
+    -> IO (Tagged "tx-signed" FilePath)
+signTx tr outputDir rawTx keys = do
+    let file = untag outputDir </> "tx.signed"
     cli tr
         $ [ "transaction"
           , "sign"
           , "--tx-body-file"
-          , rawTx
+          , untag rawTx
           , "--mainnet"
           , "--out-file"
           , file
           ]
-            ++ concatMap (\key -> ["--signing-key-file", key]) keys
-    pure file
+            ++ concatMap (\key -> ["--signing-key-file", untag key]) keys
+    pure $ Tagged @"tx-signed" file
 
 -- | Submit a transaction through a running node.
-submitTx :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> FilePath -> IO ()
+submitTx
+    :: Tracer IO ClusterLog
+    -> CardanoNodeConn
+    -> Tagged "name" String
+    -> Tagged "tx-signed" FilePath
+    -> IO ()
 submitTx tr conn name signedTx =
-    cliRetry tr ("Submitting transaction for " <> T.pack name)
+    cliRetry tr ("Submitting transaction for " <> T.pack (untag name))
         =<< cliConfigNode
             tr
             conn
             [ "transaction"
             , "submit"
             , "--tx-file"
-            , signedTx
+            , untag signedTx
             , "--mainnet"
             , "--cardano-mode"
             ]
@@ -2364,11 +2465,13 @@ submitTx tr conn name signedTx =
 -- fund some initial transaction for the cluster. Faucet have plenty of money to
 -- pay for certificates and are intended for a one-time usage in a single
 -- transaction.
-takeFaucet :: IO (String, String)
-takeFaucet = do
+takeFaucet
+    :: HasCallStack
+    => Tagged "setup" FilePath
+    -> IO (Tagged "tx-in" String, Tagged "faucet-prv" FilePath)
+takeFaucet setupDir = do
     i <- modifyMVar faucetIndex (\i -> pure (i + 1, i))
-    source <- getShelleyTestDataPath
-    let basename = source </> "faucet-addrs" </> "faucet" <> show i
+    let basename = untag setupDir </> "faucet-addrs" </> "faucet" <> show i
     base58Addr <- BS.readFile $ basename <> ".addr"
     let addr =
             fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
@@ -2377,247 +2480,30 @@ takeFaucet = do
                 . T.strip
                 $ T.decodeUtf8 base58Addr
 
-    let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
+    let txin = B8.unpack (convertToBase Base16 (blake2b256 addr)) <> "#0"
     let signingKey = basename <> ".shelley.key"
-    pure (txin, signingKey)
+    pure (Tagged @"tx-in" txin, Tagged @"faucet-prv" signingKey)
+
+readFaucetAddresses :: HasCallStack => Tagged "setup" FilePath -> IO [Address]
+readFaucetAddresses setupDir = do
+    let faucetDataPath = untag setupDir </> "faucet-addrs"
+    allFileNames <- listDirectory faucetDataPath
+    let addrFileNames = filter (".addr" `isSuffixOf`) allFileNames
+    forM addrFileNames $ readAddress . (faucetDataPath </>)
+  where
+    readAddress :: HasCallStack => FilePath -> IO Address
+    readAddress addrFile = do
+        rawFileContents <- TIO.readFile addrFile
+        let base58EncodedAddress = T.strip rawFileContents
+        case Address.fromBase58 base58EncodedAddress of
+            Just address -> pure address
+            Nothing -> error
+                $ "Failed to base58-decode address file: " <> addrFile
 
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
 faucetIndex :: MVar Int
 faucetIndex = unsafePerformIO $ newMVar 1
 {-# NOINLINE faucetIndex #-}
-
--- Funds needed by 'withCluster' itself.
---
--- FIXME: We should generate these programatically. Currently they need to match
--- the files on disk read by 'takeFaucet'.
-internalFaucetFunds :: [(Address, Coin)]
-internalFaucetFunds =
-    map
-        ((,Coin 1_000_000_000_000_000) . unsafeDecodeAddr . T.pack)
-        [ "Ae2tdPwUPEZGc7WAmkmXxP3QJ8aiKSMGgfWV6w4A58ebjpr5ah147VvJfDH"
-        , "Ae2tdPwUPEZCREUZxa3F1fTyVPMU2MLMYAkRe7DEVoyZsWKahphgdifWuc3"
-        , "Ae2tdPwUPEYxL4wYjNxK8z5mCgMmnG1WkMFZaeZ6EGdV2LDZ5pgQzvzVpuo"
-        , "Ae2tdPwUPEZMcoAHgC7RvCL9ewjZdj9Yrej2bHJJpvubhkSaRn5Y7dPGKRy"
-        , "Ae2tdPwUPEZ7geEbqcaNfMFL8EMpeRYAQrHABau6xUmek87xeyyrmPm4ETc"
-        , "Ae2tdPwUPEZNHxjww4RhosX3LMVAzbJtCj3vzoQM3wgLwhEHUp13jX8Xte8"
-        , "Ae2tdPwUPEZ8cgFfwvjp9t42v3zQE8nCsjxMpDcdcJZzBocsUK2btirTHDN"
-        , "Ae2tdPwUPEZK4VrjHdDpeTfSvWMzNa6qZ5erD2aVmU5S3mCeCZsoT6SJ6NW"
-        , "Ae2tdPwUPEZ2pEgBhSNKiUXRfhb5p8jByYiJXAsokHdLGMVeqLjHFNaEr7b"
-        , "VhLXUZmS1gXFnDcCzVHi2BqhkA1cvDUZrMvGfYotD4eEjKnkdfid7YsY"
-        , "Ae2tdPwUPEYxYSimKRCvz9iqtsCEAeN6KR7SC1dWFYgCVb18ttTrJaht4qz"
-        , "Ae2tdPwUPEZ16WMj3KGxQxTtm7cgY2oygWF8Pk1gWRCL9phsawFoJUQo8V4"
-        , "Ae2tdPwUPEZ3S2LzBCw3v9qm7ZfADBeHa8GjC4g71bKLeS1HJiNPz58efsG"
-        , "Ae2tdPwUPEZ5MEg5J9CJBuanYyoAeq8Usyeh3mTpAjFAfaMUHErZCC6VESB"
-        , "Ae2tdPwUPEZKTEGqULNJggS2feij8B5DEkTgvj4pf6BX9xaNWsrk83a94op"
-        , "Ae2tdPwUPEZ1x5d9EZgDis5f33LKFR4ZrGwh3uhYVYThiubgFSzSa5ZWWjn"
-        , "Ae2tdPwUPEZLEiDLGWsbGYvnKQbDxJaUJ6PPx7ynjAjnLsNjsBB9qfwD8FL"
-        , "Ae2tdPwUPEZEMR4QcU9rFCeTK8G6E5ABNAhiuEDzritQarbJ56GBMbPem8v"
-        , "Ae2tdPwUPEZMgjLUEpnfpbaGrrBc3mcfLMgzT8JL2rsWcE8YGuwerng4JTx"
-        , "Ae2tdPwUPEZCdpgB296udjjMqK4crPXjpMz9zzzk1QARbC844JqYGygKZck"
-        , "Ae2tdPwUPEZC7DMJnx7xpRjG9wQXsNtCKvkB5RhDqK9zzra96ugUfMgkw6F"
-        , "Ae2tdPwUPEZA2Hxg2X94qnx42UwLdnC2vfjSw1na2jcWnS2LjeoazWgcGqz"
-        , "Ae2tdPwUPEYzwDXTM8VDDNG48ZVJPZT5ev3BGpLsBZqkYeP9Ay6keHQiUHN"
-        , "Ae2tdPwUPEZK5jjAU6gc8o1Hxk9FGC2JXYR29eRj2zvYDVRy3oJKmzkkWXr"
-        , "Ae2tdPwUPEZHRYGpLbcxzKSBFmVghBdUbMLD7Z1RP3CaWmE2MfudSCdLERE"
-        , "Ae2tdPwUPEZ3YosvMkMYRuHAzGXmj9FDZiSWxZJxY2bfjtXQupV6cFufGxj"
-        , "Ae2tdPwUPEZAUVNwHSzyz3RRhe9hgFNvw6ZBWgusousZEu71AUxwkjTJQXd"
-        , "Ae2tdPwUPEZBWbsXKZ6Xj1hVqNrJevo1MguQErP7Ekws9Mwe3QyApRbfzuj"
-        , "Ae2tdPwUPEZBwEwpyZ86qJJ5UcBs7zENaB9JmB1ccKKrjF2m8WqYvRLQTUQ"
-        , "Ae2tdPwUPEZLVrvsAkoKffT5T2Ny9peTcw1pgDQZGUNuyhsShZYRGdJdg3P"
-        , "Ae2tdPwUPEZMMcjnYLD8hNzD8rBuQX4Rbwh4Hrri9wo9Vd3QhWgJp82Q3Zb"
-        , "Ae2tdPwUPEZNCXJnNKSoVwATYNRoehHnwhQLeg7Voeun7aKgw7pBELp9Xyx"
-        , "Ae2tdPwUPEZMZgPQpYm9VNwW6o1y9gtgmmuto8XxnVzJQnQWNyfbK1ehxhG"
-        , "Ae2tdPwUPEYx5Boej5GuTgWrL6yhioVeAN9KybWPCZgfbzTNfE4p134zvFr"
-        , "Ae2tdPwUPEZAGMrgFKgSjDymZ6bRhcuCgK53xX5n7xcDUHC8MnijrSVU69g"
-        , "Ae2tdPwUPEZL7g7DTRjBp63JMbSouTPJcjjZD6GQCiK3HseKbs2AYHLwcUk"
-        , "Ae2tdPwUPEYw3nfF8ceQBJZ3zFL4jP9SFoyJ6N1qYTj6fk1SLaxUhrYFqAp"
-        , "Ae2tdPwUPEZBWq2xEQD7NacM1cmTAvnRdwnLX5jGkBvvZpjBCCaTyVbQyCg"
-        , "Ae2tdPwUPEZ2BJqnSoUrhVQ4Nf5XmHP6beK1LvYrZFaJqG6PLbHtEKzQCFV"
-        , "Ae2tdPwUPEZLGkJsDc5t8WUgPafrvpQkTjXhc3zwZfT2RRSD2SCDwGJ2gko"
-        , "Ae2tdPwUPEZG48xoQbHyjEw4sAz4KFFPC6H3RjvZoqDd7ui1hnBoCZ7hjZK"
-        , "Ae2tdPwUPEZGjAkaWbCogSWVBjhUxnF2sMRq2QUu82itFU4PAcdo8NkLBGx"
-        , "Ae2tdPwUPEZGUUmRGEwhKYoGtuqjubky2tQDB4b59RVsEaMedoNjkgBhz3z"
-        , "Ae2tdPwUPEZD4CQHEa9YBp3FgK15dbM8wE4i6VcZczaUNix8U1rnrxrTBqe"
-        , "Ae2tdPwUPEZ8uESNVsKkobHzoEZeRpmim475QdWF6CmBdJHWFSJjo9BT5s2"
-        , "Ae2tdPwUPEZBhxiuQ3tnhdh5mW8PS5yAJ8jsxYbhs6PvYPx11o7eBs2Nja1"
-        , "Ae2tdPwUPEZGXi9taRWo4pYMMZ9WtvvJme3yhmi61PkZEPUaE5c4GhwPVim"
-        , "Ae2tdPwUPEZMCPdErTxmgUT4FbQty7tcCmHidJkTAxMpYGF6RYVNkrK1JAR"
-        , "Ae2tdPwUPEZ92FRSRqV4dz49btBPRJUEhzyCN4Yh3QZmxGjkD18VxtAvjrJ"
-        , "Ae2tdPwUPEZHto9s5ouv4SQha5WpwNrEERfWQDerXgxygM2exm9MSH972o2"
-        , "Ae2tdPwUPEYyg77BWtM7HDR9DgtntvnjD5sANzHsXhLSrfHw2QoYnhzVkBV"
-        , "Ae2tdPwUPEZ1SBb6wXc9WP5DY3PGRyh6puiaFCUG8mvwPsfijvDvE3FtYV3"
-        , "Ae2tdPwUPEYw7n23qBj9dxeTk6vNjGwzHfSXx1zzG1k98smReGMGZmCdwvD"
-        , "Ae2tdPwUPEZMsinkhpKJy3yYQ2f486UC1f3iLfeCntEe2AgyWkp3sMxXUZB"
-        , "Ae2tdPwUPEZ8V56xa8NY8yAz6pbpyzmbnwneqmHJxoHisXyiiDSubsSDqTY"
-        , "Ae2tdPwUPEZNCgK9K9CD9B6c1BcVMcJbSLhTBwNDWzhQ265zrYEjrV47eeW"
-        , "Ae2tdPwUPEZ5PXtvRfwrrGa9ZGcmApTwTqvh58QTQANDX2ddLUcpTZnaHLo"
-        , "Ae2tdPwUPEYzVh39uUKFBSubv4FGenCAEyV2BdKSwCADzVJYKEJVwPAUicj"
-        , "Ae2tdPwUPEZCT2LnNBam5QjU6LE5VQRS7Z2JW1md69zMvu9y9WMnLwN3bX6"
-        , "Ae2tdPwUPEZ8AFCshDagF6igZf2bHXixA1g5PdpRvn4KyTpG6zyMzky4ehh"
-        , "Ae2tdPwUPEZ6nWqtXbKtchU3mpyRtrRZDt4obySFrrR85M4XcN74KTktXKv"
-        , "Ae2tdPwUPEZMigfySnz9UFSmmMYvRUd2kPadT272pbbHotNVRp2scDyG2AK"
-        , "Ae2tdPwUPEYxiwE99mBo8SkNPkzPEgrJmZpyXd9RuHWhpGKrSYaxUcKAbYQ"
-        , "Ae2tdPwUPEZ9jpF2FAh8dxQ3BCWgG19ThVYPkEyMjhThvrhXx8ngBQeHhCQ"
-        , "Ae2tdPwUPEZ82cmCBfjYq8iRzRWGgjMs7UkPypwp8LiSUJyMFEJGxBr2YKq"
-        , "Ae2tdPwUPEZ1eMNrx76WA5JBwvxiHQWxM3tNYjpFDnJp9fgq86BHcxqSfN4"
-        , "Ae2tdPwUPEZKJUFkpxqYrE32biZKQuqgWUdNKhFWbrGxJCnUNXVaxtQkErR"
-        , "Ae2tdPwUPEYwAGnLtgusi3JKq4mvNqWvY9aztGtLwa22ko3HzUra3hjGXGx"
-        , "Ae2tdPwUPEZ81XjXQAzpCj6QkV99kgkK46aS4J8xfppMi3R2Dpq4hhk7VNE"
-        , "Ae2tdPwUPEZ7nPhRYqbcNaaif222Dp9rx998Q2YGYR2UNxw8qmNWwJ6daxo"
-        , "Ae2tdPwUPEZ43xHeJbzVkx15t8qAhham5nt72JeK6XpXYvm68bfUHk6uVju"
-        , "Ae2tdPwUPEZD45f87j3XvfwTWfTNgnz8QpnksffePU32ivaifqxcENuG6KK"
-        , "Ae2tdPwUPEZF42GYPd3j7iw2cCUEMvirSk4vLPkTRdqqJtr4R4PsHSj4w2d"
-        , "Ae2tdPwUPEYzyxBezBeDqDzfNQ3gzF27LVvAqETTsaw6kdJpTWHCgmPVEo2"
-        , "Ae2tdPwUPEZGXRwDFR5VCmKCesFgBqgtrADgFo9FfjwSPEAyJvtVfh1JSmX"
-        , "Ae2tdPwUPEZMYDvawa3S1DCA7eZdhrDFJMXHyh5hpxZJCQJD8c6ruBRanDJ"
-        , "Ae2tdPwUPEZ8ffskBQYLzjPyqyxKsiNzYbvcJSN9JintHx6V6K1K8aEtho5"
-        , "Ae2tdPwUPEZ8cmT88Unk2WD5YzUCcc8ifb3SzMQMpj5LS1QgRa7g6kez46h"
-        , "Ae2tdPwUPEZGqtA4AbujDXkMH6zFZvTjUnRajLtwTCRV39EVdYtQJKrsc8u"
-        , "Ae2tdPwUPEZ5oH337RvQhYkjaDjvZnK1PKD4tVsJsNKcBcGUWihgTsiVtde"
-        , "Ae2tdPwUPEZAKA1vGHeZVpa3zhakExJ5utM9vwJ6auahoiCNFf6SufibHpC"
-        , "Ae2tdPwUPEYxkHxX8KdWAPkfkTxa8kdNaZEo69baccQ7HpRfUUsELigZJf4"
-        , "Ae2tdPwUPEZHajXavDF4CN4ExxHJUof8A2N2ugdEhv3LuPb76YmgUhxPu8R"
-        , "Ae2tdPwUPEZGpXcqTCfq9KocPWYgVB234GRUdFVDhnxJ2H9stGrszkZJKTc"
-        , "Ae2tdPwUPEZDVJUU3NfXH8di6D5E16djtgaFjWm8f81CEmoHUnMwMGGqbVj"
-        , "Ae2tdPwUPEZAS8cHTvHVwgPoAC1dg9RdTx3nQVam8gNebLYwiy9YccQQuB1"
-        , "Ae2tdPwUPEZ5hLgiaE7dzZuhqo68xZ7sMiqMGp39auHPcsE1VNNRvq7PnYN"
-        , "Ae2tdPwUPEZAdY5hGCpQpxT2ReHdW8gd3A4h5CJsedt9SyQeUpHBzzcwjAt"
-        , "Ae2tdPwUPEZ4afabfMLDJbX7Gaazj71zPpPrLeNywrv8uusU95bm21CBnwE"
-        , "Ae2tdPwUPEZ7wwdAXP8z1hhMMWNrP9cc34eCFPbvEi5zFm6jDunvFq74WZe"
-        , "Ae2tdPwUPEZMNyJAuNPb76ejraE3j3vQTup1xRxBHa5fKgzfznWbJijt5q2"
-        , "Ae2tdPwUPEZHSzjcTUtJGNw5EcMtoYcEMpmdiPAMn1HVzy52WoTtRFpukws"
-        , "Ae2tdPwUPEZMZLrkwBYumeF8P8eDPzRUWmW2epZRGRiGcvkhQptDFbujuQq"
-        , "Ae2tdPwUPEZ56rfrz5TdFY1JHnCkTGMWRX4orh6Q1BMmTV5ATx7z4xbFfG7"
-        , "Ae2tdPwUPEYyV78NYSddi6atWJgjWTpBHC3J1H2ceXzbDd5znBchmyp7sV3"
-        , "Ae2tdPwUPEZ9jb4o5V26jQKbeDkppnJkgebXbWaabndYsRnXXYVb6weu2BP"
-        , "Ae2tdPwUPEZHVs5JvSXmYxYvZGHZ8DHoM2zfJaiL99LkRbnvpH3oAVKuoS5"
-        , "Ae2tdPwUPEZ967PQDmUALkQ7cEuuQVdCQp1iuUXnpbgE1kzamaBJ7qpqkwj"
-        , "Ae2tdPwUPEZA8i4pSXDVJHTufffv59optZ9CFbfdUgJbHqUYbdx93N7ppV9"
-        , "Ae2tdPwUPEYyDqAPnJ18XPaTE77vDAeuVa4Ytp7GBNe9PNvNLeLVBiM4jVL"
-        , "Ae2tdPwUPEYw1wgtGgnoe2NbgfoFyxERny8qJM1vkqCXzkiXipJkJ7qvoR9"
-        , "Ae2tdPwUPEZHKcKbatmsP23ACD6VVXiNa9czTngsBnHGT5dqqi233xVLcGs"
-        , "Ae2tdPwUPEZEapggvTWfEx5jK1kkGVYMKeex7DcJVcTgmKxdcUnQXrDho2b"
-        , "Ae2tdPwUPEZ1NPbZE91PQidZVBafLLco2YnpHdgwTxNPKgygXSwZVq4dgKB"
-        , "Ae2tdPwUPEZLVnbtDRzNT1WmVfHTrkPs4JG38xNfmGkNWV9WgxYriy1qd6o"
-        , "Ae2tdPwUPEZHUxRcryapNJoL8Fo6kMGFXsLQSLC3nmhbpz3M6RaT3CcfKrZ"
-        , "Ae2tdPwUPEZ19YqjHnDr1yckaWEjwtZoaC3HZpVHepyzvcrVFtFoBUx4y1P"
-        , "Ae2tdPwUPEYxdvmBHt6hD1ra9DwYMUed6VT3aB16DA8VZWGQvJyhd1MJSkE"
-        , "Ae2tdPwUPEZ5grUgBooGGbBK9yHqdgVTdECqwS2XaeqG8boGBGqCA3nSBDi"
-        , "Ae2tdPwUPEZLSj5xiNKzbZXQ2ZjKU4JLyfvf5E7dQLahcGZZg4QA7pNVZg2"
-        , "Ae2tdPwUPEZHAvgfBNo8va259BSfq8nZpC7Lwp8jMJHkkUppMQnpRgPARaL"
-        , "Ae2tdPwUPEZGNCsJF8xVNjHYAKDkyerXt2wCRexy7BFXcWvyiHFKSHTPJdF"
-        , "Ae2tdPwUPEYzo3JzNowvs4gS69rZ3R5nT2KKZKWWxaymCufUsatVpu2kqii"
-        , "Ae2tdPwUPEZFu8H46FK5q7g6ApMFAqpoYJJjmLyh8DheUL51i5dhbLcmSXG"
-        , "Ae2tdPwUPEZ5fTgRDV736NaHHUAKaxj4ytyX1j7NLAtAF3x7gtUFGc2L8U3"
-        , "Ae2tdPwUPEZCwt8ZP7R3wHB2Doed6neUHmhZYERTh3bsTQm6EfjFcfWmnTc"
-        , "Ae2tdPwUPEZFQYXdB6V3wPfh99fDb8F3fXSvjVu7qBSjP8kVf81H2ApkaQu"
-        , "Ae2tdPwUPEZEyVBVWrGSbQqrzQgNEdLexbUZJzqkF95Co3eESSVxerDdUfS"
-        , "Ae2tdPwUPEYy6cvJ1mo5fBhYvP7r6RTpmxNGBgX8Cs4FC39eJr8DWYMd9vv"
-        , "Ae2tdPwUPEZMQjnsmRoq1Vxb31PfLhxaBLsorC38QYj8Qbx9Afqg9DNeJhc"
-        , "Ae2tdPwUPEZEpQ5obkgfFrjXk1GKnNBg7fkyjmNUhkH3vBxmZw7menySh28"
-        , "Ae2tdPwUPEZ4hwGffsjLTTApiZEK1HgaVnndfJA1az5ToZNhiieXoskiixx"
-        , "Ae2tdPwUPEZKzTzbEfDkNLvM3AfzMASBWmcSM9EU5aZ2iAAyuoyQd2gyNNN"
-        , "Ae2tdPwUPEYyK9ph2bLu4GwopB38aUoHBDG2zDYGfdbZCEfYFXv6NDix979"
-        , "Ae2tdPwUPEYy9WUnYWknL4SWq2nF8y2L7FngyhV6ftMEQYaTAtCxVjWHMjo"
-        , "Ae2tdPwUPEZKgCUPxD5tSUDtgn3PiTfenMAFcTEBXsJqiESDmQnzxCVJj7B"
-        , "Ae2tdPwUPEZ8uuaUYL4GD5uS5yiUTW6JYW54K258EGFyDeFK465fPXb2dsB"
-        , "Ae2tdPwUPEZBhevhLwkd7maXseXHSfJMwgkNNraPnBXh1w86dChTRbDgrEr"
-        , "Ae2tdPwUPEZLEdZb2Un8b2JLfRXzQi3cYbAtn4NG6SmLYiv1vxueuESNFVr"
-        , "Ae2tdPwUPEYwpmuPpqUeqn2qTc3xEY6siqmTTaC6tn5S6fb45d8gz7Pdje3"
-        , "Ae2tdPwUPEZCTzw5sgjL8X51m7Dg4xccizqJFRnrwyEWByTE4WTt1BnqtbA"
-        , "Ae2tdPwUPEZ7tTXxGa4WfnGbN7qJu8gSRMmsjTDgNhz3qdCiuYC5N3ZMR12"
-        , "Ae2tdPwUPEZ1UZJcQUs61oXayVvQVKAsry9oMMgDwSK9z2eMw8DibHsap1f"
-        , "Ae2tdPwUPEYwJDXVgaPdZoFmDm2PcwqY67xBDpnj4z3UJmfR9dMD2XAfCjw"
-        , "Ae2tdPwUPEZKr5rmjQY7aFHgEMAbMqtV38XtJCZtdNFKoiPVnWLnNDf4BGp"
-        , "Ae2tdPwUPEYzSnRmYNX9GjEkhc1gXewiS2b3XQyMjztyiWrZiA6AdtWzpQ4"
-        , "Ae2tdPwUPEZ4tThjhRaZZxAT1SNfRfB7yt9gYCysSamKkB7HUVH7NjkWxaA"
-        , "Ae2tdPwUPEZ4msp1fbqK25ShSJ4BGYq6QbhBf4ALi3i17JS7KCx7gA8ksG8"
-        , "Ae2tdPwUPEZGrBvM4Qr6wiWTMbJ7W46cMLWsenw3JQ9WvH7xwVnJTkL6n2Z"
-        , "Ae2tdPwUPEZ9fUaqXRMUXhpwAqoGSaSXcrUGByyGyUnHokYH3dt2FBD8BLS"
-        , "Ae2tdPwUPEZFbSUYiJG9oxa1U97ypoRHr7xg2PBhbXWShLRRU1Mav1tyYSw"
-        , "Ae2tdPwUPEZJ6JcaDPLRZBNLyyB7QfN5sm1TGPpC8BCVF9eezeyRiPRXYHH"
-        , "Ae2tdPwUPEZE5ZueRGyhkaW9qwWMiHYVM9uN8iTKYtTLoYoaEEU4djnKShk"
-        , "Ae2tdPwUPEZJkqt5PS6o5myu5H15Gje6cPwJYXHN1ji4BzPiTKXzBvXjhWy"
-        , "Ae2tdPwUPEZ1v2xoxVpm3pxFw5U6WuRV4Q3kdivrWF5cUhTVPgkBm8kMRvu"
-        , "Ae2tdPwUPEZK1afLbsLTMb56F3MPCqqTq78ygzbZAamrExQMvSgyUT6jHPF"
-        , "Ae2tdPwUPEZF2oYZxKaMntEh48gFqPKoGhjAaQwVNQMmUa695mhjQmebnkq"
-        , "Ae2tdPwUPEZCsnxYXZfzXmbfuiBse9tTTimUuqEv4BRHjThCA4igaAfBmaN"
-        , "Ae2tdPwUPEYw34SJK5vkreGkV9AUmMUB1pN9bcCjk8H3EVMbbw2PcjubFCq"
-        , "Ae2tdPwUPEZLTWD9YuWFQTzLCZAbqnHwui8QSPPYAeNC7BobRVVajMsBgM1"
-        , "Ae2tdPwUPEZ8UWnc14XpyhupmGrNk9QeguBfW8gzQ8WZ6PcUAtCgBdyCxsW"
-        , "Ae2tdPwUPEYxzJRUWjG2e8FytD24VNa7FVYr4cdMmPBjoe3MCVVsvpHyh55"
-        , "Ae2tdPwUPEZL14t4gybitgy6eHHogQUJS5pRH6P74fDeWuA8p76pMGnNBCR"
-        , "Ae2tdPwUPEZM7EpvTXRV9ynN4mzoYFgG9xATWqEofbw2ZVK4AjALqaZxU3H"
-        , "Ae2tdPwUPEZAXXviL2b9KNt6a5uHH5x6d3pzdPVCheXBRT81XrAKK2qMqtg"
-        , "Ae2tdPwUPEZ3VrxgvtfBz2JXuszTPAKCLfapzcusf9zmxqWKxorW95QxEcR"
-        , "Ae2tdPwUPEZ2t7h2auTtCbyoBk7uvroZQQ4ns5D6xoUAX83b72qqYJZDqgs"
-        , "Ae2tdPwUPEZDpPM7EhAw1XVzRS52KHxASnkDceu6XTHuCJ3sPHFeCd6NDyZ"
-        , "Ae2tdPwUPEZ73MuSt6NBpTSU4dzMpU2Lcd7jaKYnhfT4wS7udiB2ygy7znp"
-        , "Ae2tdPwUPEZ3b8rdA63Qnvs6TGtmBaoNUXtf7vkYfUSf4iABUsWyFewiNav"
-        , "Ae2tdPwUPEZHj8Kjyc4mbww3CRXBqjYhmKiXXyesGuCJZbffBFTyYWg54LE"
-        , "Ae2tdPwUPEZMYomeS16gfhsV5UPuygbfPPRpMZiUwUmSxeHquue5VBiiXUs"
-        , "Ae2tdPwUPEZ9TrvR9uzKnJZkxvPeTPMXB5EHkBhSb9odZa6z6RKKj3pSrrw"
-        , "Ae2tdPwUPEZGAkywA1EDCnE5dTqKfx5Ngf6nbMbCmUWpRirKLv1Rp68eFwP"
-        , "Ae2tdPwUPEZFjizwxcB6U2g5nwpkquqFQL78E7wq4mRp8JbQd3etaDyn1R3"
-        , "Ae2tdPwUPEZ5Zznsim2RjRnDwo2CNQdTiQgKUWwED3v97qksmDnefKcGjwB"
-        , "Ae2tdPwUPEZFAkbyARmyeFMR4c5yikc4AySUosnJWdw65FxJ6AsL7wh6XnJ"
-        , "Ae2tdPwUPEYw7i4tXgdRBNAMVqTfskTUFTRYaVQoGyLnM87tXKuVodcUTmo"
-        , "Ae2tdPwUPEZ7YLaEDbGKpWn6Ds5dRomUJ93aEF3Ptc6kkEq8Nxes118czAJ"
-        , "Ae2tdPwUPEZ3pbYRkq3M3BDuLp5JLA5pBiT8diXZy8tec8FKtgdiQpS7eM2"
-        , "Ae2tdPwUPEZ5kjhAsNtPK9sA4Kj8cLnmZV63RNGPXimMAPib3vPScuSRfFQ"
-        , "Ae2tdPwUPEZAgEaoWowXz8w3K5agdtukBAYCpeR9o37e8rogzrhn8t8SDdi"
-        , "Ae2tdPwUPEZMYomeS16gfhsV5UPuygbfPPRpMZiUwUmSxeHquue5VBiiXUs"
-        , "Ae2tdPwUPEZ9TrvR9uzKnJZkxvPeTPMXB5EHkBhSb9odZa6z6RKKj3pSrrw"
-        , "Ae2tdPwUPEZGAkywA1EDCnE5dTqKfx5Ngf6nbMbCmUWpRirKLv1Rp68eFwP"
-        , "Ae2tdPwUPEZFjizwxcB6U2g5nwpkquqFQL78E7wq4mRp8JbQd3etaDyn1R3"
-        , "Ae2tdPwUPEZ5Zznsim2RjRnDwo2CNQdTiQgKUWwED3v97qksmDnefKcGjwB"
-        , "Ae2tdPwUPEZFAkbyARmyeFMR4c5yikc4AySUosnJWdw65FxJ6AsL7wh6XnJ"
-        , "Ae2tdPwUPEYw7i4tXgdRBNAMVqTfskTUFTRYaVQoGyLnM87tXKuVodcUTmo"
-        , "Ae2tdPwUPEZ7YLaEDbGKpWn6Ds5dRomUJ93aEF3Ptc6kkEq8Nxes118czAJ"
-        , "Ae2tdPwUPEZ3pbYRkq3M3BDuLp5JLA5pBiT8diXZy8tec8FKtgdiQpS7eM2"
-        , "Ae2tdPwUPEZ5kjhAsNtPK9sA4Kj8cLnmZV63RNGPXimMAPib3vPScuSRfFQ"
-        , "Ae2tdPwUPEZAgEaoWowXz8w3K5agdtukBAYCpeR9o37e8rogzrhn8t8SDdi"
-        , "Ae2tdPwUPEZGBDWYqP7EFf5xABUf48zeupxgQ5wcwyE4hnLqrWxwv4FKZ4H"
-        , "Ae2tdPwUPEZHkJRxkXZw7LiwD36VbQcz6ezrh8NxMjF5YZDpk8y5T7AqkbN"
-        , "Ae2tdPwUPEZLXBf4ZiyWdBnjVdJj4mq36KzW8LczBzaWysiLXqv5iEvH8a5"
-        , "Ae2tdPwUPEZGfG3euqbHvWDx1amXpngGgnXeD1Xehfi6SsRvijRwmUQbVzG"
-        , "Ae2tdPwUPEZ2d3hdaPhgAn4M2qQ1YwkVW1JR5fXBmZqjF67n8AEyXy699FN"
-        , "Ae2tdPwUPEZNEuvLyVeVnzGqz8RZRqszCrJtkDzyFNEWYWbK1sJrkg2noyR"
-        , "Ae2tdPwUPEZ3huRFSrKKUj6cxmjPdxzrE4QgL3FjMNkUyqsCp6rqg35JiZJ"
-        , "Ae2tdPwUPEZKYLBpCCsCnzRRiLcJ9W3zktENcBhCPg3GDqy5vvF77RE8EQW"
-        , "Ae2tdPwUPEZ8BPPnf5dgoj9RAPBqZkKD2BtLPXQs1NcaKfPJ9xpRFukcx2v"
-        , "Ae2tdPwUPEZKd8dcsyY5NeW7rAgMwA7sUTDwmqieYgeZoExZvxbMPnQfVFp"
-        , "Ae2tdPwUPEZLMpPv3SoyV5SPqcvE9wAdk9H5iTmksEAn2p21eXGqCFTutxX"
-        , "Ae2tdPwUPEYxbWadLJR8sd9WyJGYMvk5aZ5yAprWgwbfmXEZqJNguFwzpMN"
-        , "Ae2tdPwUPEZ4xsrAWyHz4nHgC5RoffZZxHApRtx815m3en8M1n7JXynwhWd"
-        , "Ae2tdPwUPEZ49twXRg8MMnYeqTYbcZekaRDLEYqqzZN9zTJtvNz8n7USJc9"
-        , "Ae2tdPwUPEZ1qkgyJ3RqTmdnBGrVUEq5uHcSPvz7rHM8xKfGk9ZEydny8kH"
-        , "Ae2tdPwUPEZ3H5CCbDTs9hby6fE474QpHjaPFtRHtxQ3maG7fmav1b7nNjg"
-        , "Ae2tdPwUPEZJ9V14gEp6fEY94RsP6DMwQAxCK31h4nFHqpJfXZ9gzdZZRGz"
-        , "Ae2tdPwUPEZKaVojFd7YhtbPcgMWtUzA2xXeyww9WyfhksVw1QUFyCpR5sd"
-        , "Ae2tdPwUPEZHy5iKqn68XqGAx7wx5tdHchkCS3QY7zrYmZ3EBm5hUwJSkUb"
-        , "Ae2tdPwUPEZ7Wo53F3GTJ93YzeLoJMJpvXirkCQcwGQafJrpTRZ1UmgL7LR"
-        , "Ae2tdPwUPEZ9YgYPcYWGxm992Rsj3HSeGi7DiKLGxUfyRuNrMKb2k5fKR56"
-        , "Ae2tdPwUPEZKR5s691Hpn5TAWVxRTnHae7U6wLD9giUutRaGiXp39PbHnSV"
-        , "Ae2tdPwUPEZHywzbLni3qBUV3mCfAsfgnCdK1pBTRht1Q79AzfUS4mJ161E"
-        , "Ae2tdPwUPEZEUS1HZBW2WLibjrCQvSx8smr1UuQT86Wc7osVrAdkmMZwEkH"
-        , "Ae2tdPwUPEZ2vwANf3pV4YX2q3JpP1jGozyToLgRJWJY7EU735uoach8iPE"
-        , "Ae2tdPwUPEZM2zssBS1PM34jrJEvms6badKtKzVzUzL3p5PavuXna5jUzeu"
-        , "Ae2tdPwUPEZBAwPn77EhvqdABbAeBLuknY98CHX5GqRZDxbrrYjAURjh5iA"
-        , "Ae2tdPwUPEZGKHFUV3QgGyx6quKEQhjk3YacFMgZ6k39Zf6R9scN239rD7q"
-        , "Ae2tdPwUPEZ9GFCNDtgbKEnbC3qBoBCFYyFLbJHNscGY5LgJMm8UMYzGkTh"
-        , "Ae2tdPwUPEZN7UdsESqCofiHSJCBGzbW8hrXGtPjAdVyzDxyBMxUwKqFoYU"
-        , "Ae2tdPwUPEZ4WcYSHRLwM7zPdh5z1pWYBFJAPD7NsRSPEWN12gmysETSGmX"
-        , "Ae2tdPwUPEZNLpZzpi6raWCGgqxf9E5tGoYSWEpuRm4RM6bXsV3G4rUPF3G"
-        , "Ae2tdPwUPEZ1J7zvE2ZC8WqCsijgQdm1ZUwkdLnRTBfXASKFou5L29NpLKs"
-        , "Ae2tdPwUPEZ5L17NbihRn95WXSo4YBN7vv4FGdNA5X84mmbviGpM9Ma67aa"
-        , "Ae2tdPwUPEYxPxoQL8DrcchoY2gsxeK8JX3RSYGCUBY4xZH7yAaPjXrexDt"
-        , "Ae2tdPwUPEZG4V4GdZBd93TaVpQEcGNBuQAJSK2yGVQg4x4EwXZ9gU3oYQr"
-        , "Ae2tdPwUPEZKxg6sc6eEjLyau3wTYnZaAmKVn9a3apPtEcrg7ibYZzQhfdt"
-        , "Ae2tdPwUPEZEAQJxUj5Xkcukd5mvCwrMuicspyAiDuPkxA598NJGrpRdnG2"
-        ]
-  where
-    unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
 -- | Allow running the test cluster a second time in the same process.
 resetGlobals :: IO ()
@@ -2718,7 +2604,7 @@ data ClusterLog
     | MsgDebug Text
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
-    deriving (Show)
+    deriving stock (Show)
 
 instance ToText ClusterLog where
     toText = \case

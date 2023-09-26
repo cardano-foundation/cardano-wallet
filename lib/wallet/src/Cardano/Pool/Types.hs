@@ -94,7 +94,10 @@ instance PersistFieldSql StakePoolTicker where
 -- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool
 -- registration certificate.
 newtype PoolId = PoolId { getPoolId :: ByteString }
-    deriving (Generic, Eq, Show, Ord)
+    deriving (Generic, Eq, Ord)
+
+instance Show PoolId where
+    show p = "(PoolId " <> show (encodePoolIdBech32 p) <> ")"
 
 poolIdBytesLength :: [Int]
 poolIdBytesLength = [28, 32]

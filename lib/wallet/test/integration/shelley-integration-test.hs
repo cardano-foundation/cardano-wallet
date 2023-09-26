@@ -36,23 +36,22 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
-import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Api.Types
     ( ApiEra (..) )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , genRewardAccounts
+    , deriveShelleyRewardAccount
     , hwLedgerTestFunds
-    , maryIntegrationTestAssets
-    , mirMnemonics
+    , maryIntegrationTestFunds
     , seaHorseTestAssets
     , shelleyIntegrationTestFunds
     )
@@ -63,10 +62,10 @@ import Cardano.Wallet.Launch.Cluster
     , ClusterLog
     , Credential (..)
     , FaucetFunds (..)
+    , LogFileConfig (..)
     , RunningNode (..)
     , clusterEraFromEnv
     , clusterEraToString
-    , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
     , sendFaucetAssetsTo
@@ -79,7 +78,7 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
+    ( NetworkDiscriminant (..), NetworkId (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -106,6 +105,8 @@ import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
 import Data.Maybe
     ( fromMaybe )
+import Data.Tagged
+    ( Tagged (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -125,7 +126,7 @@ import System.Directory
 import System.Environment
     ( setEnv )
 import System.Environment.Extended
-    ( envFromText, isEnvSet )
+    ( envFromText, isEnvSet, lookupEnvNonEmpty )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp.Extra
@@ -145,11 +146,16 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
 
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
+import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Text as T
+import qualified Service as ClusterService
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoinSelections
@@ -286,7 +292,16 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
-                putMVar ctx $ Context
+                let clusterDir = Tagged @"cluster" testDir
+                setupDir <-
+                    lookupEnvNonEmpty "SHELLEY_TEST_DATA" >>= \case
+                        Just filePath ->
+                            pure $ Tagged @"setup" filePath
+                        Nothing ->
+                            throwIO $
+                                userError "SHELLEY_TEST_DATA \
+                                    \environment variable not set"
+                putMVar ctx Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
@@ -297,12 +312,17 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _smashUrl = smashUrl
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
-                            sendFaucetAssetsTo tr' conn testDir era batchSize
-                                $ encodeAddresses
-                                $ seaHorseTestAssets nPerAddr c addrs
+                            sendFaucetAssetsTo
+                                tr' conn clusterDir setupDir era batchSize
+                                    $ map (first (T.unpack . CA.bech32))
+                                    $ seaHorseTestAssets nPerAddr c addrs
                     , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr' conn testDir era
-                            [(ScriptCredential script, coin)]
+                            moveInstantaneousRewardsTo tr'
+                                conn
+                                clusterDir
+                                setupDir
+                                era
+                                [(ScriptCredential script, coin)]
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
@@ -334,12 +354,18 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
-            clusterCfg <- localClusterConfigFromEnv
-            withCluster tr' testDir clusterCfg faucetFunds
+            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            let clusterConfig = Cluster.Config
+                    { Cluster.cfgStakePools = Cluster.defaultPoolConfigs
+                    , Cluster.cfgLastHardFork = BabbageHardFork
+                    , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , Cluster.cfgClusterDir = Tagged @"cluster" testDir
+                    , Cluster.cfgSetupDir = cfgSetupDir
+                    }
+            withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
-    encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =
@@ -347,11 +373,14 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 <> byronIntegrationTestFunds
                 <> hwLedgerTestFunds
         , maFunds =
-            maryIntegrationTestAssets (Coin 10_000_000)
+            maryIntegrationTestFunds (Coin 10_000_000)
         , mirFunds =
-            first KeyCredential
-            . (,Coin $ fromIntegral oneMillionAda)
-            <$> concatMap genRewardAccounts mirMnemonics
+            [ ( KeyCredential (Shelley.getKey xpub)
+              , Coin (fromIntegral oneMillionAda)
+              )
+            | m <- Mnemonics.mir
+            , let (xpub, _prv) = deriveShelleyRewardAccount (SomeMnemonic m)
+            ]
         }
 
     onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
