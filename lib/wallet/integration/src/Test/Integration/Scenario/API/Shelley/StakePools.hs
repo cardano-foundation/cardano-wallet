@@ -1365,7 +1365,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     costOfJoining :: Context -> Natural
     costOfJoining ctx =
         if _mainEra ctx >= ApiBabbage
-        then costOf (TxSize 483) ctx
+        then costOf (TxSize 485) ctx
         else costOf (TxSize 479) ctx
 
     costOfQuitting :: Context -> Natural
