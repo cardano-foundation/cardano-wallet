@@ -113,6 +113,7 @@ module Cardano.Wallet
     , putDelegationCertificate
     , readDelegation
     , getCurrentEpochSlotting
+    , setOneChangeAddressMode
 
     -- * Shared Wallet
     , updateCosigner
@@ -3332,6 +3333,18 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
     pure policyXPub
   where
     db = ctx ^. dbLayer
+
+setOneChangeAddressMode
+    :: forall s n
+     . s ~ SeqState n ShelleyKey
+    => WalletLayer IO s
+    -> Bool
+    -> IO ()
+setOneChangeAddressMode ctx modeOnOff =
+    onWalletState ctx $ update $ \s ->
+        let (SeqPrologue seqState) = WS.prologue s
+            seqState' = seqState & #oneChangeAddressMode .~ modeOnOff
+        in  [ReplacePrologue $ SeqPrologue seqState']
 
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
