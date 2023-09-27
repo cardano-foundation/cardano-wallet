@@ -3106,6 +3106,10 @@ components:
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
         script_validation: *validationLevel
+        one_change_address_mode:
+          schema:
+            type: boolean
+            default: false
 
     ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
       type: object
