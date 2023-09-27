@@ -262,14 +262,14 @@ withTestNode tr action = do
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $
         \dir -> do
-            cfgSetupDir <-
-                Tagged @"setup" <$> getEnv "SHELLEY_TEST_DATA"
+            cfgClusterConfigs <-
+                Tagged @"cluster-configs" <$> getEnv "LOCAL_CLUSTER_CONFIGS"
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = defaultPoolConfigs
                     , Cluster.cfgLastHardFork = BabbageHardFork
                     , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
                     , Cluster.cfgClusterDir = Tagged @"cluster" dir
-                    , Cluster.cfgSetupDir = cfgSetupDir
+                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
                     }
             withCluster tr clusterConfig mempty $
                 \(RunningNode sock genesisData vData) -> do

@@ -497,13 +497,13 @@ withShelleyServer tracers action = do
         withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            cfgClusterConfigs <- ClusterService.getClusterConfigsPath
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = NE.head defaultPoolConfigs :| []
                     , Cluster.cfgLastHardFork = maxBound
                     , Cluster.cfgNodeLogging = LogFileConfig Error Nothing Error
                     , Cluster.cfgClusterDir = Tagged @"cluster" dir
-                    , Cluster.cfgSetupDir = cfgSetupDir
+                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
                     }
             withCluster
                 nullTracer clusterConfig faucetFunds (onClusterStart act db)

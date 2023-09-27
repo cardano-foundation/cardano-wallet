@@ -101,6 +101,8 @@ import Control.Tracer
     ( Tracer (..), contramap, traceWith )
 import Data.Either.Combinators
     ( whenLeft )
+import Data.Functor
+    ( (<&>) )
 import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
 import Data.Maybe
@@ -293,14 +295,10 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 mintSeaHorseAssetsLock <- newMVar ()
 
                 let clusterDir = Tagged @"cluster" testDir
-                setupDir <-
-                    lookupEnvNonEmpty "SHELLEY_TEST_DATA" >>= \case
-                        Just filePath ->
-                            pure $ Tagged @"setup" filePath
-                        Nothing ->
-                            throwIO $
-                                userError "SHELLEY_TEST_DATA \
-                                    \environment variable not set"
+                clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
+                    <&> Tagged @"cluster-configs"
+                        . fromMaybe "../local-cluster/test/data/cluster-configs"
+
                 putMVar ctx Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
@@ -313,14 +311,14 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
                             sendFaucetAssetsTo
-                                tr' conn clusterDir setupDir era batchSize
+                                tr' conn clusterDir clusterConfigs era batchSize
                                     $ map (first (T.unpack . CA.bech32))
                                     $ seaHorseTestAssets nPerAddr c addrs
                     , _moveRewardsToScript = \(script, coin) ->
                             moveInstantaneousRewardsTo tr'
                                 conn
                                 clusterDir
-                                setupDir
+                                clusterConfigs
                                 era
                                 [(ScriptCredential script, coin)]
                     }
@@ -354,13 +352,13 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
-            cfgSetupDir <- ClusterService.getShelleyTestDataPath
+            cfgClusterConfigs <- ClusterService.getClusterConfigsPath
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = Cluster.defaultPoolConfigs
                     , Cluster.cfgLastHardFork = BabbageHardFork
                     , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
                     , Cluster.cfgClusterDir = Tagged @"cluster" testDir
-                    , Cluster.cfgSetupDir = cfgSetupDir
+                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
                     }
             withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
@@ -384,8 +382,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         }
 
     onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
-        let
-            (gp, block0, genesisPools) = fromGenesisData genesisData
+        let (gp, block0, genesisPools) = fromGenesisData genesisData
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText
