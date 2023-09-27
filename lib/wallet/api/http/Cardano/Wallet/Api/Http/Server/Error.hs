@@ -14,15 +14,15 @@
 -- 'IsServerError' definition along with most instances
 --
 module Cardano.Wallet.Api.Http.Server.Error
-  ( IsServerError (..)
-  , liftHandler
-  , liftE
-  , apiError
-  , err425
-  , showT
-  , handler
-  )
-  where
+    ( IsServerError (..)
+    , liftHandler
+    , liftE
+    , apiError
+    , err425
+    , showT
+    , handler
+    )
+    where
 
 import Prelude
 
@@ -100,6 +100,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletCoin )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -127,8 +129,6 @@ import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf )
 import Data.Maybe
     ( isJust )
-import Data.Quantity
-    ( Quantity (Quantity) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -563,7 +563,7 @@ instance IsServerError ErrBalanceTx where
                 , "is not enough ada available to pay for the fee and"
                 , "also pay for the minimum ada quantities of all"
                 , "change outputs. I need approximately"
-                , pretty (view #shortfall e)
+                , pretty (toWalletCoin (view #shortfall e))
                 , "ada to proceed. Try increasing your wallet balance"
                 , "or sending a smaller amount."
                 ]
@@ -573,12 +573,12 @@ instance IsServerError ErrBalanceTxInternalError where
         ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
-                , pretty coin, "and cannot finish balancing."
+                , pretty (toWalletCoin coin), "and cannot finish balancing."
                 ]
 
           where
             info = ApiErrorBalanceTxUnderestimatedFee
-                { underestimation = Quantity $ Coin.toNatural coin
+                { underestimation = Coin.toQuantity $ toWalletCoin coin
                 , candidateTxHex = hexText $ serialisedTx candidateTx
                 , candidateTxReadable = T.pack (show candidateTx)
                 , estimatedNumberOfKeyWits = intCast nWits
@@ -993,7 +993,7 @@ instance IsServerError ErrBalanceTxInsufficientCollateralError where
             , "of pure ada UTxOs in your wallet is insufficient to cover"
             , "the minimum amount of collateral required."
             , "I need an ada amount of at least:"
-            , pretty (view #minimumCollateralAmount e)
+            , pretty (toWalletCoin (view #minimumCollateralAmount e))
             , "The largest combination of pure ada UTxOs I could find is:"
             , pretty $ listF $ L.sort
                 $ fmap (view #coin . view #tokens . snd)

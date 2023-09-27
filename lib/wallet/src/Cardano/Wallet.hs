@@ -487,7 +487,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoWdrls
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWallet )
+    ( toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( txWitnessTagForKey )
 import Cardano.Wallet.Transaction
@@ -2922,7 +2922,7 @@ calculateFeePercentiles
     handleCannotCover = \case
         ErrBalanceTxUnableToCreateChange
             ErrBalanceTxUnableToCreateChangeError {requiredCost} ->
-                pure $ Fee requiredCost
+                pure $ Fee $ toWalletCoin requiredCost
         e -> throwE e
 
 -- | Make a pair of fee estimation percentiles more imprecise.

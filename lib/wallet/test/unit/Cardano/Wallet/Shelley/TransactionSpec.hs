@@ -202,7 +202,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet )
+    ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
@@ -1112,17 +1112,18 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCost = Fee (Coin.fromNatural 166_029)
+        let requiredCostLovelace :: Natural
+            requiredCostLovelace = 166_029
         let estimateFee = except $ Left
                 $ ErrBalanceTxUnableToCreateChange
                 $ ErrBalanceTxUnableToCreateChangeError
-                    { requiredCost = feeToCoin requiredCost
-                    , shortfall = Coin 100_000
+                    { requiredCost = Ledger.Coin $ intCast requiredCostLovelace
+                    , shortfall = Ledger.Coin 100_000
                     }
         result <- runExceptT (calculateFeePercentiles estimateFee)
         result `shouldBe` Right
-            ( Percentile requiredCost
-            , Percentile requiredCost
+            ( Percentile $ Fee $ Coin requiredCostLovelace
+            , Percentile $ Fee $ Coin requiredCostLovelace
             )
 
 binaryCalculationsSpec :: AnyRecentEra -> Spec
@@ -3259,7 +3260,8 @@ prop_balanceTransactionValid
             Left (ErrBalanceTxInternalError
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
                 let counterexampleText = unlines
-                        [ "underestimated fee by " <> pretty delta
+                        [ "underestimated fee by "
+                            <> pretty (toWalletCoin delta)
                         , "candidate tx: " <> pretty candidateTx
                         , "assuming key witness count: " <> show nWits
                         ]

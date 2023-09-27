@@ -119,7 +119,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( FeePerByte (..)
+    ( Coin (..)
+    , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
@@ -263,7 +264,7 @@ data ErrBalanceTxInsufficientCollateralError =
     ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: W.UTxO
         -- ^ The largest available combination of pure ada UTxOs.
-    , minimumCollateralAmount :: W.Coin
+    , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
     deriving (Eq, Generic, Show)
@@ -277,14 +278,14 @@ data ErrBalanceTxInsufficientCollateralError =
 --
 data ErrBalanceTxUnableToCreateChangeError =
     ErrBalanceTxUnableToCreateChangeError
-    { requiredCost :: !W.Coin
+    { requiredCost :: !Coin
         -- ^ An estimate of the minimal fee required for this transaction to
         -- be considered valid.
         --
         -- TODO: ADP-2547
         -- Investigate whether this field is really appropriate and necessary,
         -- and if not, remove it.
-    , shortfall :: !W.Coin
+    , shortfall :: !Coin
         -- ^ The total additional quantity of ada required to pay for the
         -- minimum ada quantities of all change outputs as well as the
         -- marginal fee for including these outputs in the transaction.
@@ -310,7 +311,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError
-    = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
+    = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
@@ -654,7 +655,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             | otherwise ->
                 throwE . ErrBalanceTxInternalError $
                 ErrUnderestimatedFee
-                    (W.Coin.unsafeFromIntegral (-c))
+                    (Coin (-c))
                     (toSealed candidateTx)
                     witCount
 
@@ -668,7 +669,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
             ErrBalanceTxInternalError $
-                ErrUnderestimatedFee c (toSealed candidateTx) witCount)
+            ErrUnderestimatedFee
+                (W.toLedgerCoin c) (toSealed candidateTx) witCount
+        )
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
@@ -1455,7 +1458,9 @@ coinSelectionErrorToBalanceTxError = \case
                 UnableToConstructChangeError {shortfall, requiredCost} ->
                     ErrBalanceTxUnableToCreateChange
                     ErrBalanceTxUnableToCreateChangeError
-                        {shortfall, requiredCost}
+                        { shortfall = W.toLedgerCoin shortfall
+                        , requiredCost = W.toLedgerCoin requiredCost
+                        }
             EmptyUTxO ->
                 ErrBalanceTxUnableToCreateInput
     SelectionCollateralErrorOf SelectionCollateralError
@@ -1469,7 +1474,7 @@ coinSelectionErrorToBalanceTxError = \case
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
             , minimumCollateralAmount
-                = minimumSelectionAmount
+                = W.toLedgerCoin minimumSelectionAmount
             }
 
 --------------------------------------------------------------------------------
