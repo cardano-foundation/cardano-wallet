@@ -570,7 +570,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "name": "Some Wallet",
                 "mnemonic_sentence": #{m21},
                 "passphrase": #{fixturePassphrase},
-                "one_change_address": true
+                "one_change_address_mode": true
                 } |]
         rWal <- postWallet ctx payloadCreate
         expectResponseCode HTTP.status201 rWal
@@ -593,7 +593,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         --send funds to
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         addrs1 <- listAddresses @n ctx wOneChangeAddr
-        let destOneChange = (addrs1 !! 0) ^. #id
+        let destOneChange = (head addrs1) ^. #id
         let payloadTx amt destination = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -631,7 +631,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
 
         addrs2 <- listAddresses @n ctx wFixture
-        let destFixture = (addrs2 !! 0) ^. #id
+        let destFixture = (head addrs2) ^. #id
         forM_ [1,1,1,1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
 
         -- the fixture wallet has still 20 unused external addresses, 10 used external addresses,
@@ -663,7 +663,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         -- the one change address wallet has 20 unused external addresses and 3 used change addresses
         -- and 1 used external address
         listAddresses @n ctx wOneChangeAddr
-            >>= verifyAddrs (initialTotal1+4) (initialUsed1+3)
+            >>= verifyAddrs (initialTotal1+4) (initialUsed1+4)
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

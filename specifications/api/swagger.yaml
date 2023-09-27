@@ -465,6 +465,10 @@ x-walletDiscovery: &walletDiscovery
     - sequential
   example: sequential
 
+x-oneChangeAddressMode: &oneChangeAddressMode
+  type: boolean
+  default: false
+
 x-walletName: &walletName
   type: string
   maxLength: 255
@@ -3001,10 +3005,7 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
-        one_change_address_mode:
-          schema:
-            type: boolean
-            default: false
+        one_change_address_mode: *oneChangeAddressMode
 
     ApiAccountPostData: &ApiAccountPostData
       type: object
@@ -3106,10 +3107,7 @@ components:
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
         script_validation: *validationLevel
-        one_change_address_mode:
-          schema:
-            type: boolean
-            default: false
+        one_change_address_mode: *oneChangeAddressMode
 
     ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
       type: object
@@ -3454,10 +3452,7 @@ components:
       type: object
       properties:
         name: *walletName
-        one_change_address_mode:
-          schema:
-            type: boolean
-            default: false
+        one_change_address_mode: *oneChangeAddressMode
 
     ApiPostAccountKeyData: &ApiPostAccountKeyData
       type: object
