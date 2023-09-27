@@ -618,7 +618,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     request @(ApiTransaction n) ctx
                         (Link.getTransaction @'Shelley wFixture (ApiTxId txid)) Default Empty
                         >>= expectField #status (`shouldBe` ApiT InLedger)
-        forM_ [5,6,7] $ \num -> realizeTx wFixture (num * minUTxOValue') destOneChange
+        forM_ [10,10,10] $ \num -> realizeTx wFixture (num * minUTxOValue') destOneChange
 
         -- the fixture wallet has 20 unused external addresses, 10 used external addresses,
         -- and 3 used change addresses as there were three txs sent and each tx used new change
@@ -639,10 +639,31 @@ spec = describe "SHELLEY_WALLETS" $ do
         -- address
         listAddresses @n ctx wFixture
             >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
-        -- the one change wallet has 20 unused external addresses and 1 used change addresses
+        -- the one change address wallet has 20 unused external addresses and 1 used change addresses
         -- and 1 used external address even as it sent 5 txs outside
         listAddresses @n ctx wOneChangeAddr
             >>= verifyAddrs (initialTotal1+2) (initialUsed1+2)
+
+        --let's switch off one change address mode
+        let putData = Json [json| {
+                "one_change_address_mode": false
+                } |]
+        let walIdOneChangeAddr = wOneChangeAddr ^. walletId
+        rPut <- request @ApiWallet ctx
+            ("PUT", "v2/wallets" </> walIdOneChangeAddr) Default putData
+        verify rPut
+            [ expectResponseCode HTTP.status200
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                    (`shouldBe` 20)
+            , expectField walletId (`shouldBe` walIdOneChangeAddr)
+            ]
+
+        forM_ [1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
+        -- the one change address wallet has 20 unused external addresses and 3 used change addresses
+        -- and 1 used external address
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs (initialTotal1+4) (initialUsed1+3)
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
