@@ -278,14 +278,14 @@ data ErrBalanceTxInsufficientCollateralError =
 --
 data ErrBalanceTxUnableToCreateChangeError =
     ErrBalanceTxUnableToCreateChangeError
-    { requiredCost :: !W.Coin
+    { requiredCost :: !Coin
         -- ^ An estimate of the minimal fee required for this transaction to
         -- be considered valid.
         --
         -- TODO: ADP-2547
         -- Investigate whether this field is really appropriate and necessary,
         -- and if not, remove it.
-    , shortfall :: !W.Coin
+    , shortfall :: !Coin
         -- ^ The total additional quantity of ada required to pay for the
         -- minimum ada quantities of all change outputs as well as the
         -- marginal fee for including these outputs in the transaction.
@@ -1456,7 +1456,9 @@ coinSelectionErrorToBalanceTxError = \case
                 UnableToConstructChangeError {shortfall, requiredCost} ->
                     ErrBalanceTxUnableToCreateChange
                     ErrBalanceTxUnableToCreateChangeError
-                        {shortfall, requiredCost}
+                        { shortfall = W.toLedgerCoin shortfall
+                        , requiredCost = W.toLedgerCoin requiredCost
+                        }
             EmptyUTxO ->
                 ErrBalanceTxUnableToCreateInput
     SelectionCollateralErrorOf SelectionCollateralError

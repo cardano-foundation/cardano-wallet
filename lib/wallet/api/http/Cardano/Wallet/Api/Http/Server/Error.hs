@@ -565,7 +565,7 @@ instance IsServerError ErrBalanceTx where
                 , "is not enough ada available to pay for the fee and"
                 , "also pay for the minimum ada quantities of all"
                 , "change outputs. I need approximately"
-                , pretty (view #shortfall e)
+                , pretty (toWalletCoin (view #shortfall e))
                 , "ada to proceed. Try increasing your wallet balance"
                 , "or sending a smaller amount."
                 ]
