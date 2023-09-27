@@ -119,7 +119,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( FeePerByte (..)
+    ( Coin
+    , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
@@ -263,7 +264,7 @@ data ErrBalanceTxInsufficientCollateralError =
     ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: W.UTxO
         -- ^ The largest available combination of pure ada UTxOs.
-    , minimumCollateralAmount :: W.Coin
+    , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
     deriving (Eq, Generic, Show)
@@ -1469,7 +1470,7 @@ coinSelectionErrorToBalanceTxError = \case
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
             , minimumCollateralAmount
-                = minimumSelectionAmount
+                = W.toLedgerCoin minimumSelectionAmount
             }
 
 --------------------------------------------------------------------------------

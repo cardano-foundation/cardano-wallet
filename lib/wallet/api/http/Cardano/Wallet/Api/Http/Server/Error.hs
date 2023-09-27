@@ -100,6 +100,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletCoin )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -993,7 +995,7 @@ instance IsServerError ErrBalanceTxInsufficientCollateralError where
             , "of pure ada UTxOs in your wallet is insufficient to cover"
             , "the minimum amount of collateral required."
             , "I need an ada amount of at least:"
-            , pretty (view #minimumCollateralAmount e)
+            , pretty (toWalletCoin (view #minimumCollateralAmount e))
             , "The largest combination of pure ada UTxOs I could find is:"
             , pretty $ listF $ L.sort
                 $ fmap (view #coin . view #tokens . snd)
