@@ -14,15 +14,15 @@
 -- 'IsServerError' definition along with most instances
 --
 module Cardano.Wallet.Api.Http.Server.Error
-  ( IsServerError (..)
-  , liftHandler
-  , liftE
-  , apiError
-  , err425
-  , showT
-  , handler
-  )
-  where
+    ( IsServerError (..)
+    , liftHandler
+    , liftE
+    , apiError
+    , err425
+    , showT
+    , handler
+    )
+    where
 
 import Prelude
 
