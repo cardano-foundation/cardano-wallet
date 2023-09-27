@@ -129,8 +129,6 @@ import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf )
 import Data.Maybe
     ( isJust )
-import Data.Quantity
-    ( Quantity (Quantity) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -575,12 +573,12 @@ instance IsServerError ErrBalanceTxInternalError where
         ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
-                , pretty coin, "and cannot finish balancing."
+                , pretty (toWalletCoin coin), "and cannot finish balancing."
                 ]
 
           where
             info = ApiErrorBalanceTxUnderestimatedFee
-                { underestimation = Quantity $ Coin.toNatural coin
+                { underestimation = Coin.toQuantity $ toWalletCoin coin
                 , candidateTxHex = hexText $ serialisedTx candidateTx
                 , candidateTxReadable = T.pack (show candidateTx)
                 , estimatedNumberOfKeyWits = intCast nWits

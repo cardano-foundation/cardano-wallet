@@ -119,7 +119,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( Coin
+    ( Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
@@ -311,7 +311,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError
-    = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
+    = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
@@ -655,7 +655,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             | otherwise ->
                 throwE . ErrBalanceTxInternalError $
                 ErrUnderestimatedFee
-                    (W.Coin.unsafeFromIntegral (-c))
+                    (Coin (-c))
                     (toSealed candidateTx)
                     witCount
 
@@ -669,7 +669,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
             ErrBalanceTxInternalError $
-                ErrUnderestimatedFee c (toSealed candidateTx) witCount)
+            ErrUnderestimatedFee
+                (W.toLedgerCoin c) (toSealed candidateTx) witCount
+        )
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 

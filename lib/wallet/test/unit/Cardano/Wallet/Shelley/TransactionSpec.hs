@@ -202,7 +202,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet )
+    ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
@@ -3260,7 +3260,8 @@ prop_balanceTransactionValid
             Left (ErrBalanceTxInternalError
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
                 let counterexampleText = unlines
-                        [ "underestimated fee by " <> pretty delta
+                        [ "underestimated fee by "
+                            <> pretty (toWalletCoin delta)
                         , "candidate tx: " <> pretty candidateTx
                         , "assuming key witness count: " <> show nWits
                         ]
