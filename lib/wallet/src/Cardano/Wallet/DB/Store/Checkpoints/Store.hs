@@ -550,8 +550,8 @@ instance
 
     insertPrologue wid (SharedPrologue st) = do
         let Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM
-                gap readiness = st
-        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM
+                gap modeOnOff readiness = st
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM modeOnOff
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
             insertCosigner (cosigners $ fromJust dTemplateM) Delegation
@@ -561,7 +561,7 @@ instance
                 deleteWhere [SharedStatePendingWalletId ==. wid]
                 dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
-        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM =
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM modeOnOff =
             do
                 deleteWhere [SharedStateWalletId ==. wid]
                 insert_ $ SharedState
@@ -572,6 +572,7 @@ instance
                     , sharedStateDelegationScript = template <$> dTemplateM
                     , sharedStateRewardAccount = rewardAcctM
                     , sharedStateDerivationPrefix = prefix
+                    , sharedStateOneChangeAddrMode = modeOnOff
                     }
 
         insertCosigner cs cred = do
@@ -606,7 +607,7 @@ instance
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
-        let SharedState _ accountBytes gap pScript dScriptM rewardAcctM prefix =
+        let SharedState _ accountBytes gap pScript dScriptM rewardAcctM prefix modeOnOff =
                 entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
         pCosigners <- lift $ selectCosigners @key wid Payment
@@ -619,7 +620,7 @@ instance
                 ScriptTemplate (Map.fromList $ prepareKeys dCosigners)
                 <$> dScriptM
             mkSharedState =
-                Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM gap
+                Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM gap modeOnOff
         pendingIxs <- lift selectSharedStatePendingIxs
         prologue <- lift $ multisigPoolAbsent wid <&> \case
             True ->  mkSharedState Shared.Pending

@@ -116,11 +116,12 @@ mkSharedStateFromAccountXPub
     => KeyFlavorS k
     -> k 'AccountK XPub
     -> Index 'Hardened 'AccountK
+    -> Bool
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-mkSharedStateFromAccountXPub kF accXPub accIx gap pTemplate dTemplateM =
+mkSharedStateFromAccountXPub kF accXPub accIx modeOnOff gap pTemplate dTemplateM =
     activate kF $ SharedState
         { derivationPrefix = DerivationPrefix (purposeCIP1854, coinTypeAda, accIx)
         , accountXPub = accXPub
@@ -128,6 +129,7 @@ mkSharedStateFromAccountXPub kF accXPub accIx gap pTemplate dTemplateM =
         , delegationTemplate = dTemplateM
         , rewardAccountKey = Nothing
         , poolGap = gap
+        , oneChangeAddressMode = modeOnOff
         , ready = Pending
         }
 
@@ -137,12 +139,13 @@ mkSharedStateFromRootXPrv
     => KeyFlavorS k
     -> ClearCredentials k
     -> Index 'Hardened 'AccountK
+    -> Bool
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-mkSharedStateFromRootXPrv kF (RootCredentials rootXPrv pwd) accIx =
-    mkSharedStateFromAccountXPub kF accXPub accIx
+mkSharedStateFromRootXPrv kF (RootCredentials rootXPrv pwd) accIx modeOnOff =
+    mkSharedStateFromAccountXPub kF accXPub accIx modeOnOff
   where
     accXPub = publicKey kF $ deriveAccountPrivateKey pwd rootXPrv accIx
 

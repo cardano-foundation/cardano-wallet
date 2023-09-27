@@ -308,6 +308,10 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
         -- ^ Reward account script hash associated with this wallet
     , poolGap :: !AddressPoolGap
         -- ^ Address pool gap to be used in the address pool of shared state
+    , oneChangeAddressMode :: Bool
+        -- ^ One change address mode. If switched on then next transactions will
+        -- use the same change address. If no then next change index for
+        -- each next transaction is used
     , ready :: !(Readiness (SharedAddressPools k))
         -- ^ Readiness status of the shared state.
         -- The state is ready if all cosigner public keys have been obtained.
@@ -322,7 +326,7 @@ deriving instance ( Show (k 'AccountK XPub) ) => Show (SharedState n k)
 -- because there is no general equality for address pools
 -- (we cannot test the generators for equality).
 instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
-    SharedState a1 a2 a3 a4 a5 a6 ap == SharedState b1 b2 b3 b4 b5 b6 bp
+    SharedState a1 a2 a3 a4 a5 a6 a7 ap == SharedState b1 b2 b3 b4 b5 b6 b7 bp
         = and
             [ a1 == b1
             , a2 == b2
@@ -330,6 +334,7 @@ instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
             , a4 == b4
             , a5 == b5
             , a6 == b6
+            , a7 == b7
             , ap `match` bp
             ]
       where
@@ -346,6 +351,7 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where
         <> indentF 4 ("delegationTemplate:" <> build (delegationTemplate st))
         <> indentF 4 ("rewardAccountKey:" <> build (toText <$> rewardAccountKey st))
         <> indentF 4 ("poolGap:" <> build (toText $ poolGap st))
+        <> indentF 4 ("one change address mode:" <> build (oneChangeAddressMode st))
         <> indentF 4 ("ready: " <> readyF (ready st))
       where
         readyF (Pending) = "Pending"

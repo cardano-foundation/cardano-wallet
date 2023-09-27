@@ -1850,7 +1850,7 @@ data ApiSharedWalletPostDataFromMnemonics =
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
     , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
     , scriptValidation :: !(Maybe (ApiT ValidationLevel))
-    , oneChangeAddress :: !(Maybe Bool)
+    , oneChangeAddressMode :: !(Maybe Bool)
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON)
