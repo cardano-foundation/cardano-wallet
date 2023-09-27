@@ -558,9 +558,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         waitNumberOfEpochBoundaries 2 ctx
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-            >>= flip verify
-            [expectField #delegation (`shouldBe` delegating (ApiT pool2) [])]
+        eventually "Wallet is now delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+                >>= flip verify
+                [expectField #delegation (`shouldBe` delegating (ApiT pool2) [])]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
