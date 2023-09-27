@@ -556,7 +556,7 @@ configurePool tr Config{..} metadataServer recipe = do
                     (config, genesisData, vd) <-
                         genNodeConfig
                             (retag @"pool" @_ @"output" poolDir)
-                            cfgSetupDir
+                            cfgClusterConfigs
                             (Tagged @"node-name" mempty)
                             genesisFiles
                             hardForks
@@ -633,7 +633,7 @@ configurePool tr Config{..} metadataServer recipe = do
                         retCert <- issuePoolRetirementCert tr poolDir opPub e
                         (rawTx, faucetPrv) <-
                             preparePoolRetirement tr
-                                poolDir cfgSetupDir cfgLastHardFork [retCert]
+                                poolDir cfgClusterConfigs cfgLastHardFork [retCert]
                         tx <- signTx tr
                             (retag @"pool" @_ @"output" poolDir)
                             (retag @"retirement-tx" @_ @"tx-body" rawTx)
@@ -706,7 +706,7 @@ configurePool tr Config{..} metadataServer recipe = do
                     preparePoolRegistration
                         tr
                         poolDir
-                        cfgSetupDir
+                        cfgClusterConfigs
                         cfgLastHardFork
                         ownerPub
                         certificates
@@ -936,7 +936,7 @@ data Config = Config
     -- ^ Log severity for node.
     , cfgClusterDir :: Tagged "cluster" FilePath
     -- ^ Root directory for cluster data.
-    , cfgSetupDir :: Tagged "setup" FilePath
+    , cfgClusterConfigs:: Tagged "cluster-configs" FilePath
     -- ^ Directory containing data for cluster setup.
     } deriving stock (Show)
 
@@ -968,7 +968,7 @@ unsafePositiveUnitInterval x =
 generateGenesis
     :: HasCallStack
     => Tagged "cluster" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> [(Address, Coin)]
     -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
     -- ^ For adding genesis pools and staking in Babbage and later.
@@ -1130,12 +1130,11 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let federalizeNetwork =
                 over #sgProtocolParams (set ppDL (unsafeUnitInterval 0.25))
 
-        faucetAddresses <- readFaucetAddresses cfgSetupDir
-
+        faucetAddresses <- readFaucetAddresses cfgClusterConfigs
         genesisFiles <-
             generateGenesis
                 cfgClusterDir
-                cfgSetupDir
+                cfgClusterConfigs
                 (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
                 (if postAlonzo then addGenesisPools else federalizeNetwork)
 
@@ -1172,7 +1171,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                             cfgLastHardFork
                             (head ports)
                             cfgNodeLogging
-                withBFTNode tr cfgClusterDir cfgSetupDir bftCfg $
+                withBFTNode tr cfgClusterDir cfgClusterConfigs bftCfg $
                     \runningBFTNode -> do
                     extraClusterSetupUsingNode configuredPools runningBFTNode
 
@@ -1204,7 +1203,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
         moveInstantaneousRewardsTo
-            tr conn cfgClusterDir cfgSetupDir cfgLastHardFork mirFunds
+            tr conn cfgClusterDir cfgClusterConfigs cfgLastHardFork mirFunds
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -1232,8 +1231,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             tr
             conn
             cfgClusterDir
-            cfgSetupDir
-            cfgLastHardFork
+            cfgClusterConfigs cfgLastHardFork
             20
             (first (T.unpack . encodeMainnetShelleyAddr) <$> maFunds)
 
@@ -1367,7 +1365,7 @@ withBFTNode
     -> Tagged "cluster" FilePath
     -- ^ Parent cluster state directory.
     -- Node data will be created in a subdirectory of this.
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (RunningNode -> IO a)
@@ -1435,7 +1433,7 @@ _withRelayNode
     -> Tagged "cluster" FilePath
     -- ^ Parent state directory.
     -- Node data will be created in a subdirectory of this.
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (RunningNode -> IO a)
@@ -1564,7 +1562,7 @@ data GenesisFiles = GenesisFiles
 genNodeConfig
     :: Tagged "output" FilePath
     -- ^ A top-level directory where to put the configuration.
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles
     -- ^ Genesis block start time
@@ -1929,7 +1927,7 @@ issueDlgCert tr poolDir stakePub opPub = do
 preparePoolRegistration
     :: Tracer IO ClusterLog
     -> Tagged "pool" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> Tagged "stake-pub" FilePath
     -> [FilePath]
@@ -1962,7 +1960,7 @@ preparePoolRegistration tr poolDir setupDir era stakePub certs pledgeAmt = do
 preparePoolRetirement
     :: Tracer IO ClusterLog
     -> Tagged "pool" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> [Tagged "retirement-cert" FilePath]
     -> IO (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
@@ -2074,7 +2072,7 @@ sendFaucetFundsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> Tagged "cluster" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> [(String, Coin)]
     -> IO ()
@@ -2094,7 +2092,7 @@ sendFaucetAssetsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> Tagged "cluster" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> Int
     -- ^ batch size
@@ -2114,7 +2112,7 @@ sendFaucet
     => Tracer IO ClusterLog
     -> CardanoNodeConn
     -> Tagged "cluster" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> String
     -- ^ label for logging
@@ -2202,7 +2200,7 @@ moveInstantaneousRewardsTo
     => Tracer IO ClusterLog
     -> CardanoNodeConn
     -> Tagged "cluster" FilePath
-    -> Tagged "setup" FilePath
+    -> Tagged "cluster-configs" FilePath
     -> ClusterEra
     -> [(Credential, Coin)]
     -> IO ()
@@ -2363,7 +2361,7 @@ prepareKeyRegistration tr Config{..} = do
     let stakePub = Tagged @"stake-pub"
             $ untag cfgClusterDir </> "pre-registered-stake.pub"
     Aeson.encodeFile (untag stakePub) preRegisteredStakeKey
-    (faucetInput, faucetPrv) <- takeFaucet cfgSetupDir
+    (faucetInput, faucetPrv) <- takeFaucet cfgClusterConfigs
     cert <- issueStakeVkCert
         tr outputDir (Tagged @"prefix" "pre-registered") stakePub
     sink <- genSinkAddress tr outputDir Nothing
@@ -2467,7 +2465,7 @@ submitTx tr conn name signedTx =
 -- transaction.
 takeFaucet
     :: HasCallStack
-    => Tagged "setup" FilePath
+    => Tagged "cluster-configs" FilePath
     -> IO (Tagged "tx-in" String, Tagged "faucet-prv" FilePath)
 takeFaucet setupDir = do
     i <- modifyMVar faucetIndex (\i -> pure (i + 1, i))
@@ -2484,7 +2482,7 @@ takeFaucet setupDir = do
     let signingKey = basename <> ".shelley.key"
     pure (Tagged @"tx-in" txin, Tagged @"faucet-prv" signingKey)
 
-readFaucetAddresses :: HasCallStack => Tagged "setup" FilePath -> IO [Address]
+readFaucetAddresses :: HasCallStack => Tagged "cluster-configs" FilePath -> IO [Address]
 readFaucetAddresses setupDir = do
     let faucetDataPath = untag setupDir </> "faucet-addrs"
     allFileNames <- listDirectory faucetDataPath

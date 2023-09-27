@@ -5,7 +5,7 @@ default:
 build:
   cabal build all
 
-local-cluster $SHELLEY_TEST_DATA="lib/local-cluster/test/data/cardano-node-shelley":
+local-cluster $LOCAL_CLUSTER_CONFIGS="lib/local-cluster/test/data/cluster-configs":
   nix shell '.#local-cluster' '.#cardano-node' '.#cardano-wallet' -c "local-cluster"
 
 # run wallet-e2e suite against the preprod network

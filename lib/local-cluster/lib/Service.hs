@@ -191,13 +191,13 @@ main = withUtf8 $ do
         cfgNodeLogging <-
             Cluster.logFileConfigFromEnv
                 (Just (Cluster.clusterEraToString clusterEra))
-        cfgSetupDir <- getShelleyTestDataPath
+        cfgClusterConfigs <- getClusterConfigsPath
         let clusterCfg = Cluster.Config
                 { cfgStakePools = Cluster.defaultPoolConfigs
                 , cfgLastHardFork = clusterEra
                 , cfgNodeLogging
                 , cfgClusterDir = Tagged clusterPath
-                , cfgSetupDir
+                , cfgClusterConfigs
                 }
         Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
             clusterDir <- Path.parseAbsDir clusterPath
@@ -241,11 +241,11 @@ main = withUtf8 $ do
                 , let (xPub, _xPrv) = deriveShelleyRewardAccount (SomeMnemonic m)
                 ]
             }
--- | Returns the shelley test data path, which is usually relative to the
--- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
+-- | Returns a path to the local cluster configuration, which is usually relative to the
+-- package sources, but can be overridden by the @LOCAL_CLUSTER_CONFIGS@ environment
 -- variable.
-getShelleyTestDataPath :: IO (Tagged "setup" FilePath)
-getShelleyTestDataPath =
-    lookupEnvNonEmpty "SHELLEY_TEST_DATA" <&> Tagged . \case
-        Nothing -> $(getTestData) </> "cardano-node-shelley"
+getClusterConfigsPath :: IO (Tagged "cluster-configs" FilePath)
+getClusterConfigsPath =
+    lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS" <&> Tagged . \case
+        Nothing -> $(getTestData) </> "cluster-configs"
         Just fp -> fp
