@@ -1508,7 +1508,7 @@ data ErrBalanceTxOutputAdaQuantityInsufficientError =
 
 newtype ErrBalanceTxOutputSizeExceedsLimitError =
     ErrBalanceTxOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: (W.Address, W.TokenBundle)
+    { outputThatExceedsLimit :: (W.Address, Value)
     }
     deriving (Eq, Generic, Show)
 
@@ -1558,11 +1558,12 @@ validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
-validateTxOutputSize cs out = case sizeAssessment of
+validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
-        Just $ ErrBalanceTxOutputSizeExceedsLimitError out
+        Just $
+        ErrBalanceTxOutputSizeExceedsLimitError (address, W.toLedger bundle)
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment =

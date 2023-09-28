@@ -955,7 +955,7 @@ instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
         , "Destination address: "
         , pretty (fst output)
         , ". Asset count: "
-        , pretty (TokenMap.size $ snd output ^. #tokens)
+        , pretty (TokenMap.size $ toWalletTokenBundle (snd output) ^. #tokens)
         , "."
         ]
       where
