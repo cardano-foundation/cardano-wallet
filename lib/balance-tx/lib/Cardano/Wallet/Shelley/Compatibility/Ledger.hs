@@ -23,6 +23,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toLedgerTimelockScript
 
       -- * Conversions from ledger specification types to wallet types
+    , toWalletAddress
     , toWalletCoin
     , toWalletTokenBundle
     , toWalletTokenPolicyId
@@ -295,7 +296,10 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
             [ "toLedger @Address: Invalid address:"
             , pretty (Address bytes)
             ]
-    toWallet = Address . Ledger.serialiseAddr
+    toWallet = toWalletAddress
+
+toWalletAddress :: Ledger.Addr StandardCrypto -> Address
+toWalletAddress = Address . Ledger.serialiseAddr
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TxOut'
