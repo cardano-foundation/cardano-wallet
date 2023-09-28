@@ -143,6 +143,7 @@ import Test.Integration.Framework.DSL
     , genXPubsBech32
     , getAccountKeyShared
     , getFromResponse
+    , getResponse
     , getSharedWallet
     , getSharedWalletKey
     , getWalletIdFromSharedWallet
@@ -910,6 +911,64 @@ spec = describe "SHARED_WALLETS" $ do
         rPost <- postSharedWallet ctx Default payloadCreate
         expectResponseCode HTTP.status403 rPost
         expectErrorMessage errMsg403WrongIndex rPost
+
+    it "SHARED_WALLETS_CREATE_14 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
+        let verifyAddrs nTotal nUsed addrs = do
+                liftIO (length addrs `shouldBe` nTotal)
+                let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
+                liftIO (length onlyUsed `shouldBe` nUsed)
+
+        let listAddresses wal = do
+                rAddr <- request @[ApiAddressWithPath n] ctx
+                    (Link.listAddresses @'Shared wal) Default Empty
+                expectResponseCode HTTP.status200 rAddr
+                pure $ getResponse rAddr
+
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $
+                BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived =
+                sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "one_change_address_mode": true,
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walOneAddr@(ApiSharedWallet (Right walOneAddr')) =
+                getFromResponse id rPost
+
+        -- new empty wallet has 20 unused external addresses and 0 used change addresses
+        let initialTotal1 = 20
+        let initialUsed1  = 0
+        listAddresses walOneAddr'
+            >>= verifyAddrs initialTotal1 initialUsed1
+
+        wFixture <- fixtureSharedWallet @n ctx
+        -- new fixture wallet has 21 unused external addresses, 1 used external addresses
+        -- (second one was used), and 0 used change addresses
+        let initialTotal2 = 22
+        let initialUsed2  = 1
+        listAddresses wFixture
+            >>= verifyAddrs initialTotal2 initialUsed2
 
     it "SHARED_WALLETS_DELETE_01 - \
         \Delete of a shared wallet" $
