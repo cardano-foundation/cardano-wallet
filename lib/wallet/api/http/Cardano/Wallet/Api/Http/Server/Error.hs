@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin, toWalletTokenBundle )
+    ( Convert (toWallet), toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -925,7 +925,11 @@ instance IsServerError ErrBalanceTxOutputError where
                             , show index
                             ]
                 , txOutputLovelaceSpecified =
-                    Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
+                    Coin.toQuantity
+                        $ TokenBundle.getCoin
+                        $ toWallet
+                        $ snd
+                        $ view #output e
                 , txOutputLovelaceRequiredMinimum =
                     Coin.toQuantity $ toWalletCoin $ view #minimumExpectedCoin e
                 }

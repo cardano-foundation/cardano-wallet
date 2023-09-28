@@ -1502,7 +1502,7 @@ data ErrBalanceTxOutputErrorInfo
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
     { minimumExpectedCoin :: Coin
-    , output :: (W.Address, W.TokenBundle)
+    , output :: (W.Address, Value)
     }
     deriving (Eq, Generic, Show)
 
@@ -1593,10 +1593,10 @@ validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
-validateTxOutputAdaQuantity constraints output
+validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
         Just ErrBalanceTxOutputAdaQuantityInsufficientError
-            {minimumExpectedCoin, output}
+            {minimumExpectedCoin, output = (address, W.toLedger bundle)}
     | otherwise =
         Nothing
   where
