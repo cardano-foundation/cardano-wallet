@@ -15,7 +15,8 @@
 module Cardano.Wallet.Shelley.Compatibility.Ledger
     (
       -- * Conversions from wallet types to ledger specification types
-      toLedgerCoin
+      toLedgerAddress
+    , toLedgerCoin
     , toLedgerTokenBundle
     , toLedgerTokenPolicyId
     , toLedgerTokenName
@@ -290,13 +291,16 @@ instance Convert TxIn (Ledger.TxIn StandardCrypto) where
 --------------------------------------------------------------------------------
 
 instance Convert Address (Ledger.Addr StandardCrypto) where
-    toLedger (Address bytes ) = case Ledger.deserialiseAddr bytes of
-        Just addr -> addr
-        Nothing -> error $ unwords
-            [ "toLedger @Address: Invalid address:"
-            , pretty (Address bytes)
-            ]
+    toLedger = toLedgerAddress
     toWallet = toWalletAddress
+
+toLedgerAddress :: Address -> Ledger.Addr StandardCrypto
+toLedgerAddress (Address bytes) = case Ledger.deserialiseAddr bytes of
+    Just addr -> addr
+    Nothing -> error $ unwords
+        [ "toLedger @Address: Invalid address:"
+        , pretty (Address bytes)
+        ]
 
 toWalletAddress :: Ledger.Addr StandardCrypto -> Address
 toWalletAddress = Address . Ledger.serialiseAddr
