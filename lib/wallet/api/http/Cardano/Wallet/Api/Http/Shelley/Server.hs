@@ -1864,6 +1864,12 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
                     handler $ W.setOneChangeAddressMode wrk modeOnOff
                 _ ->
                     return ()
+        SharedWallet ->
+            case body ^. #oneChangeAddressMode of
+                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+                    handler $ W.setOneChangeAddressModeShared wrk modeOnOff
+                _ ->
+                    return ()
         _ ->
             return ()
     fst <$> getWallet ctx mkApiWallet (ApiT wid)
