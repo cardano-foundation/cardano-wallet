@@ -1500,7 +1500,7 @@ data ErrBalanceTxOutputErrorInfo
 
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
-    { minimumExpectedCoin :: W.Coin
+    { minimumExpectedCoin :: Coin
     , output :: (W.Address, W.TokenBundle)
     }
     deriving (Eq, Generic, Show)
@@ -1602,8 +1602,8 @@ validateTxOutputAdaQuantity constraints output
     isBelowMinimum :: Bool
     isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
 
-    minimumExpectedCoin :: W.Coin
-    minimumExpectedCoin =
+    minimumExpectedCoin :: Coin
+    minimumExpectedCoin = W.toLedgerCoin $
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)

@@ -926,7 +926,7 @@ instance IsServerError ErrBalanceTxOutputError where
                 , txOutputLovelaceSpecified =
                     Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
                 , txOutputLovelaceRequiredMinimum =
-                    Coin.toQuantity $ view #minimumExpectedCoin e
+                    Coin.toQuantity $ toWalletCoin $ view #minimumExpectedCoin e
                 }
         ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
