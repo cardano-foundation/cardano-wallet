@@ -3224,8 +3224,8 @@ prop_balanceTransactionValid
                         ]
             Left (ErrBalanceTxAssetsInsufficient err) -> do
                 let missing = view #shortfall err
-                let missingCoin = view #coin missing == Coin 0
-                let missingTokens = view #tokens missing == mempty
+                let missingCoin = Value.coin missing == mempty
+                let missingTokens = Value.isAdaOnly missing
                 case (missingCoin, missingTokens) of
                     (False, False) ->
                         label "missing coin and tokens" $

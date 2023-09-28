@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin )
+    ( toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -503,7 +503,8 @@ instance IsServerError ErrBalanceTx where
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
-                , "missing: ", pretty . Flat $ e ^. #shortfall
+                , "missing: "
+                , pretty . Flat . toWalletTokenBundle $ e ^. #shortfall
                 ]
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->

@@ -130,6 +130,7 @@ import Cardano.Wallet.Write.Tx
     , TxIn
     , TxOut
     , UTxO (..)
+    , Value
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -301,11 +302,11 @@ data ErrBalanceTxUnableToCreateChangeError =
 -- that would be necessary to balance the transaction.
 --
 data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
-    { available :: W.TokenBundle
+    { available :: Value
         -- ^ The total sum of all assets available.
-    , required :: W.TokenBundle
+    , required :: Value
         -- ^ The total sum of all assets required.
-    , shortfall :: W.TokenBundle
+    , shortfall :: Value
         -- ^ The total shortfall between available and required assets.
     }
     deriving (Eq, Generic, Show)
@@ -1450,9 +1451,9 @@ coinSelectionErrorToBalanceTxError = \case
             BalanceInsufficient e ->
                 ErrBalanceTxAssetsInsufficient $
                 ErrBalanceTxAssetsInsufficientError
-                    { available = view #utxoBalanceAvailable e
-                    , required = view #utxoBalanceRequired e
-                    , shortfall = view #utxoBalanceShortfall e
+                    { available = W.toLedger (view #utxoBalanceAvailable e)
+                    , required = W.toLedger (view #utxoBalanceRequired e)
+                    , shortfall = W.toLedger (view #utxoBalanceShortfall e)
                     }
             UnableToConstructChange
                 UnableToConstructChangeError {shortfall, requiredCost} ->

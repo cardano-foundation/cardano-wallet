@@ -660,9 +660,9 @@ prop_calculateFeePercentiles (NonEmpty coins) =
     genericError
         = ErrBalanceTxAssetsInsufficient
         $ ErrBalanceTxAssetsInsufficientError
-            TokenBundle.empty
-            TokenBundle.empty
-            TokenBundle.empty
+            mempty
+            mempty
+            mempty
 
     estimateFee :: ExceptT ErrBalanceTx (State Int) W.Fee
     estimateFee = do
