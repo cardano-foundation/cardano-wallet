@@ -538,7 +538,7 @@ type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 type Address = Ledger.Addr StandardCrypto
 
 type Script = AlonzoScript
-type Value = MaryValue
+type Value = MaryValue StandardCrypto
 
 unsafeAddressFromBytes :: ByteString -> Address
 unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of

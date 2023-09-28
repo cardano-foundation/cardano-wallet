@@ -11,7 +11,7 @@ import Prelude
 import Cardano.CoinSelection.Size
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Ledger.Api
-    ( StandardCrypto, ppMaxValSizeL, ppProtocolVersionL )
+    ( ppMaxValSizeL, ppProtocolVersionL )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (pvMajor) )
 import Cardano.Ledger.Binary
@@ -56,7 +56,7 @@ computeTokenBundleSerializedLengthBytes
     -> TxSize
 computeTokenBundleSerializedLengthBytes tb ver = serSize (toLedger tb)
   where
-    serSize :: Value StandardCrypto -> TxSize
+    serSize :: Value -> TxSize
     serSize v = maybe err TxSize
         . intCastMaybe
         . BL.length
