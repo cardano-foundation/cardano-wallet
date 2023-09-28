@@ -487,7 +487,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoWdrls
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWallet, toWalletCoin )
+    ( toLedgerAddress, toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( txWitnessTagForKey )
 import Cardano.Wallet.Transaction
@@ -555,6 +555,8 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
+import Data.Bifunctor
+    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
@@ -3712,16 +3714,16 @@ defaultChangeAddressGen
     -> ChangeAddressGen s
 defaultChangeAddressGen arg =
     ChangeAddressGen
-        (genChange arg)
-        (maxLengthAddressFor (keyFlavorFromState @s))
+        (first toLedgerAddress <$> genChange arg)
+        (toLedgerAddress $ maxLengthAddressFor (keyFlavorFromState @s))
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
 dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
-        (maxLengthAddressFor (keyFlavorFromState @s),)
-        (maxLengthAddressFor (keyFlavorFromState @s))
+        (toLedgerAddress $ maxLengthAddressFor (keyFlavorFromState @s),)
+        (toLedgerAddress $ maxLengthAddressFor (keyFlavorFromState @s))
 
 utxoAssumptionsForWallet
     :: forall s

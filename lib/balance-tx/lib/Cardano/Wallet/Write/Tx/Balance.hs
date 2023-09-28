@@ -958,7 +958,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     , minimumCollateralPercentage =
         withConstraints era $ pp ^. ppCollateralPercentageL
     , maximumLengthChangeAddress =
-        maxLengthChangeAddress changeGen
+        W.toWalletAddress $ maxLengthChangeAddress changeGen
     }
 
     selectionParams = SelectionParams
@@ -1040,7 +1040,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen :: s -> (W.Address, s)
+    { getChangeAddressGen :: s -> (Address, s)
 
     -- | Returns the longest address that the wallet can generate for a given
     --   key.
@@ -1054,7 +1054,7 @@ data ChangeAddressGen s = ChangeAddressGen
     --  - never be used for anything besides its length and validity properties.
     --  - never be used as a payment target within a real transaction.
     --
-    , maxLengthChangeAddress :: W.Address
+    , maxLengthChangeAddress :: Address
     }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
@@ -1068,7 +1068,7 @@ assignChangeAddresses
 assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
-        pure $ W.TxOut addr bundle
+        pure $ W.TxOut (W.toWalletAddress addr) bundle
     pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
 
 -- | Convert a 'Cardano.Value' into a positive and negative component. Useful
