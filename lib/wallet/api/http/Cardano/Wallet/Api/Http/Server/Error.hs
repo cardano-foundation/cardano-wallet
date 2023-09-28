@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toWallet), toWalletCoin, toWalletTokenBundle )
+    ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -953,7 +953,7 @@ instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
-        , pretty (fst output)
+        , pretty (toWalletAddress (fst output))
         , ". Asset count: "
         , pretty (TokenMap.size $ toWalletTokenBundle (snd output) ^. #tokens)
         , "."
