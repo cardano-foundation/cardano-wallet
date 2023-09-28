@@ -119,7 +119,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( Coin (..)
+    ( Address
+    , Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
@@ -1502,7 +1503,7 @@ data ErrBalanceTxOutputErrorInfo
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
     { minimumExpectedCoin :: Coin
-    , output :: (W.Address, Value)
+    , output :: (Address, Value)
     }
     deriving (Eq, Generic, Show)
 
@@ -1597,7 +1598,9 @@ validateTxOutputAdaQuantity
 validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
         Just ErrBalanceTxOutputAdaQuantityInsufficientError
-            {minimumExpectedCoin, output = (address, W.toLedger bundle)}
+            { minimumExpectedCoin
+            , output = (W.toLedger address, W.toLedger bundle)
+            }
     | otherwise =
         Nothing
   where
