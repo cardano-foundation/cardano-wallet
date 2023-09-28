@@ -1515,7 +1515,7 @@ newtype ErrBalanceTxOutputSizeExceedsLimitError =
 
 data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
     ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    { address :: W.Address
+    { address :: Address
       -- ^ The address to which this token quantity was to be sent.
     , asset :: W.AssetId
       -- ^ The asset identifier to which this token quantity corresponds.
@@ -1582,7 +1582,7 @@ validateTxOutputTokenQuantities
 validateTxOutputTokenQuantities out =
     [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
-    | let address = fst out
+    | let address = W.toLedgerAddress $ fst out
     , (asset, quantity) <- W.TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]

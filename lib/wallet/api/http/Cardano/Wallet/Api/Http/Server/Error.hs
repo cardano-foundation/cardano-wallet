@@ -968,7 +968,7 @@ instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
         , "maximum quantity allowed in a single transaction output. Try "
         , "splitting this quantity across two or more outputs. "
         , "Destination address: "
-        , pretty (view #address e)
+        , pretty (toWalletAddress (view #address e))
         , ". Token policy identifier: "
         , pretty (view (#asset . #tokenPolicyId) e)
         , ". Asset name: "
