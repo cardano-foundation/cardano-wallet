@@ -292,7 +292,7 @@ type RecentEraLedgerConstraints era =
     , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
-    , Core.Value era ~ MaryValue StandardCrypto
+    , Core.Value era ~ Value
     , Core.TxWits era ~ AlonzoTxWits era
     , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
@@ -511,7 +511,7 @@ type TxOut era = Core.TxOut (ShelleyLedgerEra era)
 
 modifyTxOutValue
     :: RecentEra era
-    -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
+    -> (Value -> Value)
     -> TxOut era
     -> TxOut era
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
@@ -529,7 +529,7 @@ modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 txOutValue
     :: RecentEra era
     -> TxOut era
-    -> MaryValue StandardCrypto
+    -> Value
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
@@ -567,7 +567,7 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 data TxOutInRecentEra
     = TxOutInRecentEra
         Address
-        (MaryValue StandardCrypto)
+        Value
         (Datum LatestLedgerEra)
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
