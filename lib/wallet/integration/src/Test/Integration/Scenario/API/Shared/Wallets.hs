@@ -1058,6 +1058,11 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField walletId (`shouldBe` walIdOneChangeAddr)
             ]
 
+        forM_ [1,1] $ \num -> realizeTx walOneAddr wFixture (num * minUTxOValue') destFixture
+        -- the one change address wallet has 20 unused external addresses and 3 used change addresses
+        -- and 1 used external address
+        listAddresses walOneAddr
+            >>= verifyAddrs (initialTotal1+4) (initialUsed1+4)
 
     it "SHARED_WALLETS_DELETE_01 - \
         \Delete of a shared wallet" $
