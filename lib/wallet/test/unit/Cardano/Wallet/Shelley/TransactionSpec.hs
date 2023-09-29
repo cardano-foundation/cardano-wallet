@@ -3232,18 +3232,18 @@ prop_balanceTransactionValid
                         -- , prop_outputsSatisfyMinAdaRequirement tx
                         ]
             Left (ErrBalanceTxAssetsInsufficient err) -> do
-                let missing = view #shortfall err
-                let missingCoin = Value.coin missing == mempty
-                let missingTokens = Value.isAdaOnly missing
-                case (missingCoin, missingTokens) of
+                let shortfall = view #shortfall err
+                let shortfallCoin = Value.coin shortfall == mempty
+                let shortfallTokens = Value.isAdaOnly shortfall
+                case (shortfallCoin, shortfallTokens) of
                     (False, False) ->
-                        label "missing coin and tokens" $
+                        label "shortfall coin and tokens" $
                         property True
                     (False, True) ->
-                        label "missing coin" $
+                        label "shortfall coin" $
                         property True
                     (True, False) ->
-                        label "missing tokens" $
+                        label "shortfall tokens" $
                         counterexample (show err) $ property True
                     (True, True) ->
                         property False
