@@ -94,7 +94,7 @@ module Cardano.Wallet.Write.Tx
     , Ledger.TxId
 
     -- * TxOut
-    , Core.TxOut
+    , TxOut
     , BabbageTxOut (..)
     , TxOutInBabbage
     , TxOutInRecentEra (..)

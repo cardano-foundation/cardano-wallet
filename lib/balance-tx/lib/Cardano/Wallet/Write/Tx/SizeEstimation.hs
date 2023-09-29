@@ -75,7 +75,6 @@ import Cardano.Wallet.Write.Tx
     ( FeePerByte (..)
     , IsRecentEra (recentEra)
     , RecentEra (..)
-    , ShelleyLedgerEra
     , TxOut
     , computeMinimumCoinForTxOut
     , getFeePerByte
@@ -694,7 +693,7 @@ mkLedgerTxOut
     => RecentEra era
     -> W.Address
     -> TokenBundle
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
 mkLedgerTxOut txOutEra address bundle =
     case txOutEra of
         RecentEraBabbage -> W.toBabbageTxOut txOut

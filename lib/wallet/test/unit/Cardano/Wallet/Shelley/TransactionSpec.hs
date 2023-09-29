@@ -3363,7 +3363,7 @@ prop_balanceTransactionValid
       where
         era = recentEra @era
 
-        valid :: Write.TxOut (Cardano.ShelleyLedgerEra era) -> Property
+        valid :: Write.TxOut era -> Property
         valid out = counterexample msg $ property $
             not $ Write.isBelowMinimumCoinForTxOut era ledgerPParams out
           where

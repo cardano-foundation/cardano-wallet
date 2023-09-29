@@ -821,7 +821,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         $ outputs era
         $ txBody era tx
       where
-        fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
+        fromLedgerTxOut :: TxOut era -> W.TxOut
         fromLedgerTxOut o = case era of
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
@@ -989,7 +989,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         => RecentEra era
         -> W.Address
         -> W.TokenBundle
-        -> TxOut (ShelleyLedgerEra era)
+        -> TxOut era
     mkLedgerTxOut txOutEra address bundle =
         case txOutEra of
             RecentEraBabbage -> W.toBabbageTxOut txOut
@@ -1428,7 +1428,7 @@ toLedgerTxOut
     :: HasCallStack
     => RecentEra era
     -> W.TxOut
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
 toLedgerTxOut txOutEra txOut =
     case txOutEra of
         RecentEraBabbage -> W.toBabbageTxOut txOut
@@ -1436,7 +1436,7 @@ toLedgerTxOut txOutEra txOut =
 
 toWalletTxOut
     :: RecentEra era
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
