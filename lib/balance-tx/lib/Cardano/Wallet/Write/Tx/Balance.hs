@@ -1424,20 +1424,13 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
     shortfall = costOfBurningSurplus `W.Coin.difference` surplus
 
-toLedgerTxOut
-    :: HasCallStack
-    => RecentEra era
-    -> W.TxOut
-    -> TxOut era
+toLedgerTxOut :: HasCallStack => RecentEra era -> W.TxOut -> TxOut era
 toLedgerTxOut txOutEra txOut =
     case txOutEra of
         RecentEraBabbage -> W.toBabbageTxOut txOut
         RecentEraConway -> W.toConwayTxOut txOut
 
-toWalletTxOut
-    :: RecentEra era
-    -> TxOut era
-    -> W.TxOut
+toWalletTxOut :: RecentEra era -> TxOut era -> W.TxOut
 toWalletTxOut RecentEraBabbage = W.fromBabbageTxOut
 toWalletTxOut RecentEraConway = W.fromConwayTxOut
 

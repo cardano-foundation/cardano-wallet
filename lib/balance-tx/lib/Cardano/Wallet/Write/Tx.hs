@@ -509,27 +509,16 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 
 type TxOut era = Core.TxOut (ShelleyLedgerEra era)
 
-modifyTxOutValue
-    :: RecentEra era
-    -> (Value -> Value)
-    -> TxOut era
-    -> TxOut era
+modifyTxOutValue :: RecentEra era -> (Value -> Value) -> TxOut era -> TxOut era
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
     BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
     BabbageTxOut addr (f val) dat script
 
-modifyTxOutCoin
-    :: RecentEra era
-    -> (Coin -> Coin)
-    -> TxOut era
-    -> TxOut era
+modifyTxOutCoin :: RecentEra era -> (Coin -> Coin) -> TxOut era -> TxOut era
 modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 
-txOutValue
-    :: RecentEra era
-    -> TxOut era
-    -> Value
+txOutValue :: RecentEra era -> TxOut era -> Value
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
@@ -572,10 +561,7 @@ data TxOutInRecentEra
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
 
-unwrapTxOutInRecentEra
-    :: RecentEra era
-    -> TxOutInRecentEra
-    -> TxOut era
+unwrapTxOutInRecentEra :: RecentEra era -> TxOutInRecentEra -> TxOut era
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
     RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
     RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
@@ -638,9 +624,7 @@ computeMinimumCoinForTxOut
 computeMinimumCoinForTxOut era pp out = withConstraints era $
     Core.getMinCoinTxOut pp (withMaxLengthSerializedCoin out)
   where
-    withMaxLengthSerializedCoin
-        :: TxOut era
-        -> TxOut era
+    withMaxLengthSerializedCoin :: TxOut era -> TxOut era
     withMaxLengthSerializedCoin =
         modifyTxOutCoin era (const $ toLedger txOutMaxCoin)
 
@@ -698,10 +682,7 @@ txBody era = case era of
     RecentEraConway -> Babbage.body -- same type for conway
 
 -- Until we have convenient lenses to use
-outputs
-    :: RecentEra era
-    -> Core.TxBody (ShelleyLedgerEra era)
-    -> [TxOut era]
+outputs :: RecentEra era -> Core.TxBody (ShelleyLedgerEra era) -> [TxOut era]
 outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 
