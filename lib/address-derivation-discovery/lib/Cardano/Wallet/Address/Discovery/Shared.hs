@@ -104,6 +104,7 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     , PendingIxs
     , nextChangeIndex
+    , pendingIxsFromList
     , pendingIxsToList
     )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -545,8 +546,15 @@ instance GenChange (SharedState n k) where
     genChange mkAddress st = case ready st of
         Pending ->
             error "generating change in pending shared state does not make sense"
-        Active (SharedAddressPools extPool intPool pending) ->
-            let (ix, pending') = nextChangeIndex (getPool intPool) pending
+        Active pools@(SharedAddressPools extPool intPool pending) ->
+            let ixMin = minBound @(Index 'Soft 'CredFromScriptK)
+                updatePending pendingIxs =
+                    pendingIxsFromList $ L.nub $ (pendingIxsToList pendingIxs) <> [ixMin]
+                (ix, pending') =
+                    if (oneChangeAddressMode st) then
+                        ( ixMin, updatePending (pendingChangeIxs pools) )
+                    else
+                        nextChangeIndex (getPool intPool) pending
                 addr = mkAddress (paymentTemplate st) (delegationTemplate st) ix
             in (addr, st{ ready = Active (SharedAddressPools extPool intPool pending') })
 

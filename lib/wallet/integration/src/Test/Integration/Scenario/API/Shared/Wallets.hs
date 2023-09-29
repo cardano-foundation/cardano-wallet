@@ -961,13 +961,13 @@ spec = describe "SHARED_WALLETS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPost)
             [ expectResponseCode HTTP.status201
             ]
-        let walOneAddr@(ApiSharedWallet (Right walOneAddr')) =
+        let (ApiSharedWallet (Right walOneAddr)) =
                 getFromResponse Prelude.id rPost
 
         -- new empty wallet has 20 unused external addresses and 0 used change addresses
         let initialTotal1 = 20
         let initialUsed1  = 0
-        listAddresses walOneAddr'
+        listAddresses walOneAddr
             >>= verifyAddrs initialTotal1 initialUsed1
 
         wFixture <- fixtureSharedWallet @n ctx
@@ -980,7 +980,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         --send funds to one change address wallet
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
-        addrs1 <- listAddresses walOneAddr'
+        addrs1 <- listAddresses walOneAddr
         let destOneChange = (head addrs1) ^. #id
         let payloadTx amt destination = Json [json|{
                 "payments": [{
@@ -1016,7 +1016,7 @@ spec = describe "SHARED_WALLETS" $ do
                     request @(ApiTransaction n) ctx
                         (Link.getTransaction @'Shared wSrc (ApiTxId txid)) Default Empty
                         >>= expectField #status (`shouldBe` ApiT InLedger)
-        forM_ [10, 10, 10] $ \num -> realizeTx wFixture walOneAddr' (num * minUTxOValue') destOneChange
+        forM_ [10, 10, 10] $ \num -> realizeTx wFixture walOneAddr (num * minUTxOValue') destOneChange
 
         -- new fixture wallet has 21 unused external addresses, 1 used external addresses
         -- (second one was used), and 3 used change addresses as there were three txs sent and each tx used new change
@@ -1025,8 +1025,22 @@ spec = describe "SHARED_WALLETS" $ do
             >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
         -- the previously empty wallet has 20 unused external addresses and 0 used change addresses
         -- and 1 used external address as three txs choose the same address as destination address
-        listAddresses walOneAddr'
+        listAddresses walOneAddr
             >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
+
+        addrs2 <- listAddresses wFixture
+        let destFixture = (head addrs2) ^. #id
+        forM_ [1,1,1,1,1] $ \num -> realizeTx walOneAddr wFixture (num * minUTxOValue') destFixture
+
+        -- the fixture wallet has still 20 unused external addresses, 2 used external addresses (first and second),
+        -- and 3 used change addresses as five txs sent to it used its first, already used,
+        -- address. As initialTotal2 = 22 and initialUsed2  = 1
+        listAddresses wFixture
+            >>= verifyAddrs (initialTotal2+3) (initialUsed2+4)
+        -- the one change address wallet has 20 unused external addresses and 1 used change addresses
+        -- and 1 used external address even as it sent 5 txs outside
+        listAddresses walOneAddr
+            >>= verifyAddrs (initialTotal1+2) (initialUsed1+2)
 
 
     it "SHARED_WALLETS_DELETE_01 - \
