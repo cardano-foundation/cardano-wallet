@@ -119,7 +119,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
-    ( Coin (..)
+    ( Address
+    , Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
@@ -130,6 +131,7 @@ import Cardano.Wallet.Write.Tx
     , TxIn
     , TxOut
     , UTxO (..)
+    , Value
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -301,11 +303,11 @@ data ErrBalanceTxUnableToCreateChangeError =
 -- that would be necessary to balance the transaction.
 --
 data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
-    { available :: W.TokenBundle
+    { available :: Value
         -- ^ The total sum of all assets available.
-    , required :: W.TokenBundle
+    , required :: Value
         -- ^ The total sum of all assets required.
-    , shortfall :: W.TokenBundle
+    , shortfall :: Value
         -- ^ The total shortfall between available and required assets.
     }
     deriving (Eq, Generic, Show)
@@ -956,7 +958,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     , minimumCollateralPercentage =
         withConstraints era $ pp ^. ppCollateralPercentageL
     , maximumLengthChangeAddress =
-        maxLengthChangeAddress changeGen
+        W.toWalletAddress $ maxLengthChangeAddress changeGen
     }
 
     selectionParams = SelectionParams
@@ -1038,7 +1040,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen :: s -> (W.Address, s)
+    { getChangeAddressGen :: s -> (Address, s)
 
     -- | Returns the longest address that the wallet can generate for a given
     --   key.
@@ -1052,7 +1054,7 @@ data ChangeAddressGen s = ChangeAddressGen
     --  - never be used for anything besides its length and validity properties.
     --  - never be used as a payment target within a real transaction.
     --
-    , maxLengthChangeAddress :: W.Address
+    , maxLengthChangeAddress :: Address
     }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
@@ -1066,7 +1068,7 @@ assignChangeAddresses
 assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
-        pure $ W.TxOut addr bundle
+        pure $ W.TxOut (W.toWalletAddress addr) bundle
     pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
 
 -- | Convert a 'Cardano.Value' into a positive and negative component. Useful
@@ -1450,9 +1452,9 @@ coinSelectionErrorToBalanceTxError = \case
             BalanceInsufficient e ->
                 ErrBalanceTxAssetsInsufficient $
                 ErrBalanceTxAssetsInsufficientError
-                    { available = view #utxoBalanceAvailable e
-                    , required = view #utxoBalanceRequired e
-                    , shortfall = view #utxoBalanceShortfall e
+                    { available = W.toLedger (view #utxoBalanceAvailable e)
+                    , required = W.toLedger (view #utxoBalanceRequired e)
+                    , shortfall = W.toLedger (view #utxoBalanceShortfall e)
                     }
             UnableToConstructChange
                 UnableToConstructChangeError {shortfall, requiredCost} ->
@@ -1500,20 +1502,20 @@ data ErrBalanceTxOutputErrorInfo
 
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
-    { minimumExpectedCoin :: W.Coin
-    , output :: (W.Address, W.TokenBundle)
+    { minimumExpectedCoin :: Coin
+    , output :: (Address, Value)
     }
     deriving (Eq, Generic, Show)
 
 newtype ErrBalanceTxOutputSizeExceedsLimitError =
     ErrBalanceTxOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: (W.Address, W.TokenBundle)
+    { outputThatExceedsLimit :: (Address, Value)
     }
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
     ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    { address :: W.Address
+    { address :: Address
       -- ^ The address to which this token quantity was to be sent.
     , asset :: W.AssetId
       -- ^ The asset identifier to which this token quantity corresponds.
@@ -1557,11 +1559,13 @@ validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
-validateTxOutputSize cs out = case sizeAssessment of
+validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
-        Just $ ErrBalanceTxOutputSizeExceedsLimitError out
+        Just $
+        ErrBalanceTxOutputSizeExceedsLimitError
+            (W.toLedger address, W.toLedger bundle)
   where
     sizeAssessment :: TokenBundleSizeAssessment
     sizeAssessment =
@@ -1578,7 +1582,7 @@ validateTxOutputTokenQuantities
 validateTxOutputTokenQuantities out =
     [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
-    | let address = fst out
+    | let address = W.toLedgerAddress $ fst out
     , (asset, quantity) <- W.TokenMap.toFlatList $ (snd out) ^. #tokens
     , quantity > txOutMaxTokenQuantity
     ]
@@ -1592,18 +1596,20 @@ validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
     -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
-validateTxOutputAdaQuantity constraints output
+validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
         Just ErrBalanceTxOutputAdaQuantityInsufficientError
-            {minimumExpectedCoin, output}
+            { minimumExpectedCoin
+            , output = (W.toLedger address, W.toLedger bundle)
+            }
     | otherwise =
         Nothing
   where
     isBelowMinimum :: Bool
     isBelowMinimum = uncurry (constraints ^. #isBelowMinimumAdaQuantity) output
 
-    minimumExpectedCoin :: W.Coin
-    minimumExpectedCoin =
+    minimumExpectedCoin :: Coin
+    minimumExpectedCoin = W.toLedgerCoin $
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)

@@ -84,6 +84,7 @@ import Cardano.Ledger.Api
     , ppMaxTxSizeL
     , ppMinFeeAL
     , scriptTxWitsL
+    , serialiseAddr
     , witsTxL
     )
 import Cardano.Ledger.Era
@@ -202,7 +203,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet, toWalletCoin )
+    ( toBabbageTxOut
+    , toLedgerAddress
+    , toLedgerTokenBundle
+    , toWallet
+    , toWalletAddress
+    , toWalletCoin
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxWitnessTag (..)
@@ -1784,7 +1791,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
 
 instance Show AnyChangeAddressGenWithState where
     show (AnyChangeAddressGenWithState (ChangeAddressGen gen _) s) =
-            show $ toLedger $ fst $ gen s
+            show $ fst $ gen s
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
@@ -1886,7 +1893,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
         let nChange = max nPayments 1
         let s0 = DummyChangeState 0
-        let expectedChange = flip evalState s0
+        let expectedChange = fmap toWalletAddress <$>
+                flip evalState s0
                 $ replicateM nChange
                 $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
 
@@ -2556,9 +2564,9 @@ instance Buildable AnyChangeAddressGenWithState where
     build (AnyChangeAddressGenWithState (ChangeAddressGen g maxLengthAddr) s0) =
         blockListF
             [ nameF "changeAddr0" $
-                build $ show $ toLedger $ fst $ g s0
+                build $ show $ fst $ g s0
             , nameF "max address length" $
-                build $ BS.length $ unAddress maxLengthAddr
+                build $ BS.length $ serialiseAddr maxLengthAddr
             ]
 
 instance Buildable Wallet' where
@@ -2881,8 +2889,9 @@ dummyChangeAddrGen = ChangeAddressGen
             :: Index
                 'Cardano.Wallet.Address.Derivation.Soft
                 'CredFromKeyK
-            -> Address
-        addressAtIx ix = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
+            -> Write.Address
+        addressAtIx ix = toLedgerAddress
+            $ paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
             $ publicKey ShelleyKeyS
             $ Shelley.ShelleyKey
             $ Shelley.deriveAddressPrivateKeyShelley
@@ -3224,8 +3233,8 @@ prop_balanceTransactionValid
                         ]
             Left (ErrBalanceTxAssetsInsufficient err) -> do
                 let missing = view #shortfall err
-                let missingCoin = view #coin missing == Coin 0
-                let missingTokens = view #tokens missing == mempty
+                let missingCoin = Value.coin missing == mempty
+                let missingTokens = Value.isAdaOnly missing
                 case (missingCoin, missingTokens) of
                     (False, False) ->
                         label "missing coin and tokens" $

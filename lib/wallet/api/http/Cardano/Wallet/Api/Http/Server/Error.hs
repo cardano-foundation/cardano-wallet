@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( serialisedTx )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin )
+    ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -503,7 +503,8 @@ instance IsServerError ErrBalanceTx where
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
-                , "missing: ", pretty . Flat $ e ^. #shortfall
+                , "missing: "
+                , pretty . Flat . toWalletTokenBundle $ e ^. #shortfall
                 ]
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
@@ -924,9 +925,13 @@ instance IsServerError ErrBalanceTxOutputError where
                             , show index
                             ]
                 , txOutputLovelaceSpecified =
-                    Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
+                    Coin.toQuantity
+                        $ TokenBundle.getCoin
+                        $ toWallet
+                        $ snd
+                        $ view #output e
                 , txOutputLovelaceRequiredMinimum =
-                    Coin.toQuantity $ view #minimumExpectedCoin e
+                    Coin.toQuantity $ toWalletCoin $ view #minimumExpectedCoin e
                 }
         ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
@@ -948,9 +953,9 @@ instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
-        , pretty (fst output)
+        , pretty (toWalletAddress (fst output))
         , ". Asset count: "
-        , pretty (TokenMap.size $ snd output ^. #tokens)
+        , pretty (TokenMap.size $ toWalletTokenBundle (snd output) ^. #tokens)
         , "."
         ]
       where
@@ -963,7 +968,7 @@ instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
         , "maximum quantity allowed in a single transaction output. Try "
         , "splitting this quantity across two or more outputs. "
         , "Destination address: "
-        , pretty (view #address e)
+        , pretty (toWalletAddress (view #address e))
         , ". Token policy identifier: "
         , pretty (view (#asset . #tokenPolicyId) e)
         , ". Asset name: "
