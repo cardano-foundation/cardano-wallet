@@ -2918,7 +2918,7 @@ balanceTx
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
-    -> Either ErrBalanceTx (Cardano.Tx era)
+    -> Either (ErrBalanceTx era) (Cardano.Tx era)
 balanceTx
     (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
     protocolParameters
@@ -2944,7 +2944,7 @@ balanceTransactionWithDummyChangeState
     -> UTxO
     -> StdGenSeed
     -> PartialTx era
-    -> Either ErrBalanceTx (Cardano.Tx era, DummyChangeState)
+    -> Either (ErrBalanceTx era) (Cardano.Tx era, DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
         balanceTransaction
