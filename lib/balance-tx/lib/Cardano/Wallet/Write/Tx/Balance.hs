@@ -11,6 +11,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -338,7 +339,9 @@ data ErrBalanceTx era
     --   - the given partial transaction has no existing inputs; and
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
-    deriving (Show, Eq)
+
+deriving instance Eq (ErrBalanceTx era)
+deriving instance Show (ErrBalanceTx era)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
