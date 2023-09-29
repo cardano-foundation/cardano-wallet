@@ -507,13 +507,13 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 -- TxOut
 --------------------------------------------------------------------------------
 
-type TxOut era = Core.TxOut era
+type TxOut era = Core.TxOut (ShelleyLedgerEra era)
 
 modifyTxOutValue
     :: RecentEra era
     -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
-    -> TxOut (ShelleyLedgerEra era)
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
+    -> TxOut era
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
         BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
@@ -522,13 +522,13 @@ modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
 modifyTxOutCoin
     :: RecentEra era
     -> (Coin -> Coin)
-    -> TxOut (ShelleyLedgerEra era)
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
+    -> TxOut era
 modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 
 txOutValue
     :: RecentEra era
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
     -> MaryValue StandardCrypto
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
@@ -575,7 +575,7 @@ data TxOutInRecentEra
 unwrapTxOutInRecentEra
     :: RecentEra era
     -> TxOutInRecentEra
-    -> (TxOut (ShelleyLedgerEra era))
+    -> TxOut era
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
     RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
     RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
@@ -633,14 +633,14 @@ computeMinimumCoinForTxOut
     :: forall era. RecentEra era
     -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
     -> Core.PParams (ShelleyLedgerEra era)
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
     -> Coin
 computeMinimumCoinForTxOut era pp out = withConstraints era $
     Core.getMinCoinTxOut pp (withMaxLengthSerializedCoin out)
   where
     withMaxLengthSerializedCoin
-        :: TxOut (ShelleyLedgerEra era)
-        -> TxOut (ShelleyLedgerEra era)
+        :: TxOut era
+        -> TxOut era
     withMaxLengthSerializedCoin =
         modifyTxOutCoin era (const $ toLedger txOutMaxCoin)
 
@@ -648,7 +648,7 @@ isBelowMinimumCoinForTxOut
     :: forall era. RecentEra era
     -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
     -> Core.PParams (ShelleyLedgerEra era)
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut era
     -> Bool
 isBelowMinimumCoinForTxOut era pp out =
     actualCoin < requiredMin
@@ -658,7 +658,7 @@ isBelowMinimumCoinForTxOut era pp out =
     requiredMin = withConstraints era $ Core.getMinCoinTxOut pp out
     actualCoin = getCoin era out
 
-    getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
+    getCoin :: RecentEra era -> TxOut era -> Coin
     getCoin RecentEraConway (Babbage.BabbageTxOut _ val _ _) = coin val
     getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
 
@@ -701,7 +701,7 @@ txBody era = case era of
 outputs
     :: RecentEra era
     -> Core.TxBody (ShelleyLedgerEra era)
-    -> [TxOut (ShelleyLedgerEra era)]
+    -> [TxOut era]
 outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 
