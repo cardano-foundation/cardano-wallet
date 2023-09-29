@@ -669,7 +669,7 @@ isBelowMinimumCoinForTxOut era pp out =
 -- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
 utxoFromTxOuts
     :: RecentEra era
-    -> [(TxIn, Core.TxOut (ShelleyLedgerEra era))]
+    -> [(TxIn, TxOut era)]
     -> (Shelley.UTxO (ShelleyLedgerEra era))
 utxoFromTxOuts era = withConstraints era $
     Shelley.UTxO . Map.fromList
