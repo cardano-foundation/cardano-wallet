@@ -590,7 +590,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         listAddresses @n ctx wFixture
             >>= verifyAddrs initialTotal2 initialUsed2
 
-        --send funds to
+        --send funds to one change address wallet
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         addrs1 <- listAddresses @n ctx wOneChangeAddr
         let destOneChange = (head addrs1) ^. #id
