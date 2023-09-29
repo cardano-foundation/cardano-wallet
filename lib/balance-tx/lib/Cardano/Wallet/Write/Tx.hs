@@ -515,9 +515,9 @@ modifyTxOutValue
     -> TxOut era
     -> TxOut era
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 
 modifyTxOutCoin
     :: RecentEra era
