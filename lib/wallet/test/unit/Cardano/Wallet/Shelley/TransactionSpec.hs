@@ -3233,20 +3233,24 @@ prop_balanceTransactionValid
                         ]
             Left (ErrBalanceTxAssetsInsufficient err) -> do
                 let shortfall = view #shortfall err
-                let shortfallCoin = Value.coin shortfall == mempty
-                let shortfallTokens = Value.isAdaOnly shortfall
-                case (shortfallCoin, shortfallTokens) of
-                    (False, False) ->
-                        label "shortfall coin and tokens" $
-                        property True
-                    (False, True) ->
-                        label "shortfall coin" $
-                        property True
-                    (True, False) ->
-                        label "shortfall tokens" $
-                        counterexample (show err) $ property True
-                    (True, True) ->
-                        property False
+                    shortfallOfAda = Value.coin shortfall /= mempty
+                    shortfallOfNonAdaAssets = not (Value.isAdaOnly shortfall)
+                counterexample (show err) $
+                    case (shortfallOfAda, shortfallOfNonAdaAssets) of
+                        (False, False) ->
+                            -- This case should never occur, as the existence
+                            -- of a shortfall implies that we are short of at
+                            -- least one asset.
+                            property False
+                        (True, False) ->
+                            label "shortfall of ada"
+                                $ property True
+                        (False, True) ->
+                            label "shortfall of non-ada assets"
+                                $ property True
+                        (True, True) ->
+                            label "shortfall of both ada and non-ada assets"
+                                $ property True
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
