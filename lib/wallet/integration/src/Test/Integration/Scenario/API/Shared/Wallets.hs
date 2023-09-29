@@ -167,6 +167,7 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , verify
     , walletId
+    , (</>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403CreateIllegal
@@ -1041,6 +1042,21 @@ spec = describe "SHARED_WALLETS" $ do
         -- and 1 used external address even as it sent 5 txs outside
         listAddresses walOneAddr
             >>= verifyAddrs (initialTotal1+2) (initialUsed1+2)
+
+        --let's switch off one change address mode
+        let putData = Json [json| {
+                "one_change_address_mode": false
+                } |]
+        let walIdOneChangeAddr = walOneAddr ^. walletId
+        rPut <- request @ApiWallet ctx
+            ("PUT", "v2/shared-wallets" </> walIdOneChangeAddr) Default putData
+        verify rPut
+            [ expectResponseCode HTTP.status200
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                    (`shouldBe` 20)
+            , expectField walletId (`shouldBe` walIdOneChangeAddr)
+            ]
 
 
     it "SHARED_WALLETS_DELETE_01 - \

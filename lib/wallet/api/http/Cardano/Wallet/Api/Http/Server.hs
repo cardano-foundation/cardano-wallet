@@ -624,6 +624,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     sharedWallets apilayer =
              postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
         :<|> (fmap fst . getWallet apilayer mkSharedWallet)
+        :<|> putWallet apilayer mkSharedWallet
         :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
         :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment
         :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation

@@ -5696,6 +5696,17 @@ x-responsesPutWallet: &responsesPutWallet
       application/json:
         schema: *ApiWallet
 
+x-responsesPutSharedWallet: &responsesPutSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
 x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
   403:
@@ -7754,6 +7765,21 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+    put:
+      operationId: putSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Update Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutDataExtended
+      responses: *responsesPutSharedWallet
 
   /shared-wallets/{walletId}/statistics/utxos:
     get:
