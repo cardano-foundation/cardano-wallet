@@ -40,8 +40,6 @@ module Cardano.Wallet.Shelley.Transaction
     , EraConstraints
     , _decodeSealedTx
     , mkDelegationCertificates
-    , mkByronWitness
-    , mkShelleyWitness
     , mkTx
     , mkUnsignedTx
     , txWitnessTagForKey
@@ -296,9 +294,7 @@ mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees 
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
-    let signed = signTransaction keyF networkId AnyWitnessCountCtx acctResolver
-            (const Nothing) Nothing (const Nothing) addrResolver inputResolver
-            (unsigned, mkExtraWits unsigned)
+    let signed = Cardano.Tx unsigned (error "TODO: mkTx: signTransaction")
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
             { resolvedInputs = second Just <$> F.toList (view #inputs cs)
@@ -318,165 +314,6 @@ mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees 
     acctResolver acct = do
         let acct' = toRewardAccountRaw $ toXPub rewardAcnt
         guard (acct == acct') $> (rewardAcnt, pwdAcnt)
-
--- Adds VK witnesses to an already constructed transactions. The function
--- preserves any existing witnesses on the transaction, and resolve inputs
--- dynamically using the provided lookup function.
---
--- If a key for a given input isn't found, the input is skipped.
-signTransaction
-    :: forall k ktype era
-     . EraConstraints era
-    => KeyFlavorS k
-    -> Cardano.NetworkId
-    -- ^ Network identifier (e.g. mainnet, testnet)
-    -> WitnessCountCtx
-    -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
-    -- ^ Stake key store / reward account resolution
-    -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
-    -- ^ Policy key resolution
-    -> Maybe KeyHash
-    -- ^ Optional policy key
-    -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
-    -- ^ Staking script key resolution
-    -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
-    -- ^ Payment key store
-    -> (TxIn -> Maybe Address)
-    -- ^ Input resolver
-    -> (Cardano.TxBody era, [Cardano.KeyWitness era])
-    -- ^ The transaction to sign, possibly with already some existing witnesses
-    -> Cardano.Tx era
-signTransaction
-    keyF
-    networkId
-    witCountCtx
-    resolveRewardAcct
-    resolvePolicyKey
-    policyKeyM
-    resolveStakingKeyInScript
-    resolveAddress
-    resolveInput
-    (body, wits) =
-        Cardano.makeSignedTransaction wits' body
- where
-    wits' = mconcat
-        [ wits
-        , mapMaybe mkTxInWitness inputs
-        , mapMaybe mkTxInWitness collaterals
-        , mapMaybe mkWdrlCertWitness wdrls
-        , mapMaybe mkExtraWitness extraKeys
-        , mapMaybe mkWdrlCertWitness certs
-        , mapMaybe mkPolicyWitness mintBurnScriptsKeyHashes
-        , mapMaybe mkStakingScriptWitness stakingScriptsKeyHashes
-        ]
-      where
-        Cardano.TxBody bodyContent = body
-
-        inputs =
-            [ Compatibility.fromCardanoTxIn i
-            | (i, _) <- Cardano.txIns bodyContent
-            ]
-
-        collaterals =
-            case Cardano.txInsCollateral bodyContent of
-                Cardano.TxInsCollateralNone ->
-                    []
-                Cardano.TxInsCollateral _ is ->
-                    Compatibility.fromCardanoTxIn <$> is
-
-        extraKeys =
-            case Cardano.txExtraKeyWits bodyContent of
-                Cardano.TxExtraKeyWitnessesNone ->
-                    []
-                Cardano.TxExtraKeyWitnesses _ xs ->
-                    xs
-        wdrls =
-            [ addr
-            | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
-            ]
-
-        certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
-
-        mintBurnScriptsKeyHashes =
-            let (_, toMint, toBurn, _, _, _) = fromCardanoTx witCountCtx $
-                    Cardano.makeSignedTransaction wits body
-            in
-            -- Note that we use 'nub' here because multiple scripts can share
-            -- the same policyXPub. It's sufficient to have one witness for
-            -- each.
-            L.nub $ getScriptsKeyHashes toMint <> getScriptsKeyHashes toBurn
-
-        stakingScriptsKeyHashes =
-            let (_, _, _, _, _, (WitnessCount _ nativeScripts _)) =
-                    fromCardanoTx witCountCtx $
-                    Cardano.makeSignedTransaction wits body
-                isDelegationKeyHash (KeyHash Delegation _) = True
-                isDelegationKeyHash (KeyHash _ _) = False
-            in
-                filter isDelegationKeyHash $
-                L.nub $ concatMap retrieveAllKeyHashesE $
-                filter isTimelockE nativeScripts
-
-    retrieveAllKeyHashesE (NativeExplicitScript s _) = foldScript (:) [] s
-    retrieveAllKeyHashesE _ = []
-
-    isTimelockE (NativeExplicitScript _ _) = True
-    isTimelockE _ = False
-
-    retrieveAllKeyHashes (NativeScript s _) = foldScript (:) [] s
-    retrieveAllKeyHashes _ = []
-
-    isTimelockOrRef (NativeScript _ _) = True
-    isTimelockOrRef (AnyScriptReference _ _) = True
-    isTimelockOrRef _ = False
-
-    getScriptsKeyHashes :: TokenMapWithScripts -> [KeyHash]
-    getScriptsKeyHashes scripts =
-        let getKeyHash script@(NativeScript _ _) =
-                retrieveAllKeyHashes script
-            getKeyHash (AnyScriptReference _ _) = case policyKeyM of
-                Just policyKey -> [policyKey]
-                Nothing -> []
-            getKeyHash _ = error "getKeyHash: this should be filtered at at this stage"
-        in
-        concatMap getKeyHash $
-        filter isTimelockOrRef $
-        Map.elems $ scripts ^. #txScripts
-
-    mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
-    mkTxInWitness i = do
-        addr <- resolveInput i
-        (k, pwd) <- resolveAddress addr
-        let  pk = (getRawKey keyF k, pwd)
-        pure $ case txWitnessTagForKey keyF of
-            TxWitnessShelleyUTxO -> mkShelleyWitness body pk
-            TxWitnessByronUTxO ->
-                mkByronWitness body networkId addr pk
-
-    mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
-    mkWdrlCertWitness a =
-        mkShelleyWitness body <$> resolveRewardAcct a
-
-    mkPolicyWitness :: KeyHash -> Maybe (Cardano.KeyWitness era)
-    mkPolicyWitness a =
-        mkShelleyWitness body <$> resolvePolicyKey a
-
-    mkStakingScriptWitness :: KeyHash -> Maybe (Cardano.KeyWitness era)
-    mkStakingScriptWitness a =
-        mkShelleyWitness body <$> resolveStakingKeyInScript a
-
-    mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
-    mkExtraWitness vkh = do
-        -- NOTE: We cannot resolve key hashes directly, so create a one-time
-        -- temporary address with that key hash which is fine to lookup via the
-        -- address lookup provided above. It works _fine_ because the discovery
-        -- of addresses is done properly based on the address constituents (i.e.
-        -- the key hash) and not the overall address itself.
-        let addr = Cardano.makeShelleyAddress networkId
-                (Cardano.PaymentCredentialByKey vkh)
-                Cardano.NoStakeAddress
-        (k, pwd) <- resolveAddress (fromCardanoAddress addr)
-        pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
     :: KeyFlavorS k
@@ -499,65 +336,6 @@ newTransactionLayer keyF networkId = TransactionLayer
                 let payload = TxPayload (view #txMetadata ctx) certs (const [])
                 mkTx keyF networkId payload ttl stakeCreds keystore wdrl
                     selection delta
-
-    , addVkWitnesses =
-        \era witCountCtx stakeCreds policyCreds scriptStakingCredM addressResolver
-        inputResolver sealedTx -> do
-            let acctMap :: Map RewardAccount (XPrv, Passphrase "encryption")
-                acctMap = Map.fromList $ map
-                    (\(xprv, pwd) -> (toRewardAccountRaw $ toXPub xprv,(xprv, pwd)))
-                    stakeCreds
-
-            let acctResolver
-                    :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
-                acctResolver acct = Map.lookup acct acctMap
-
-            let policyResolver
-                    :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
-                policyResolver keyhash = do
-                    (keyhash', xprv, encP) <- policyCreds
-                    guard (keyhash == keyhash') $> (xprv, encP)
-
-            let stakingScriptResolver
-                    :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
-                stakingScriptResolver keyhash = case scriptStakingCredM of
-                    Just scriptStakingCred -> do
-                        let (keyhash', xprv, encP) = scriptStakingCred
-                        guard (keyhash == keyhash') $> (xprv, encP)
-                    Nothing -> Nothing
-
-            let policyKeyM :: Maybe KeyHash
-                policyKeyM = do
-                    (keyhash', _, _) <- policyCreds
-                    pure keyhash'
-
-            case cardanoTxIdeallyNoLaterThan era sealedTx of
-                InAnyCardanoEra ByronEra _ ->
-                    sealedTx
-                InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
-                    Nothing (const Nothing) addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
-                InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
-                    Nothing (const Nothing) addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
-                InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
-                InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
-                InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
-                InAnyCardanoEra ConwayEra (Cardano.Tx body wits) ->
-                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
-                    policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
-                    & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \stakeCred ctx selection -> do
         let ttl   = txValidityInterval ctx
@@ -1035,42 +813,6 @@ mkWithdrawals networkId wdrl = case wdrl of
         [(stakeAddress acc, toCardanoLovelace amt)]
   where
     stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
-
-mkShelleyWitness
-    :: IsShelleyBasedEra era
-    => Cardano.TxBody era
-    -> (XPrv, Passphrase "encryption")
-    -> Cardano.KeyWitness era
-mkShelleyWitness body key =
-    Cardano.makeShelleyKeyWitness body (unencrypt key)
-  where
-    unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
-        $ Cardano.PaymentExtendedSigningKey
-        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
-
-mkByronWitness
-    :: forall era. EraConstraints era
-    => Cardano.TxBody era
-    -> Cardano.NetworkId
-    -> Address
-    -> (XPrv, Passphrase "encryption")
-    -> Cardano.KeyWitness era
-mkByronWitness
-    (Cardano.ShelleyTxBody era body _scripts _scriptData _auxData _scriptValidity)
-    nw
-    addr
-    encryptedKey =
-    Cardano.ShelleyBootstrapWitness era $
-        SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
-  where
-    txHash = Crypto.castHash $ Crypto.hashWith serialize' body
-
-    unencrypt (xprv, pwd) = CC.SigningKey
-        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
-
-    addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-        (toHDPayloadAddress addr)
-        (Byron.toByronNetworkMagic nw)
 
 explicitFees :: ShelleyBasedEra era -> Cardano.Lovelace -> Cardano.TxFee era
 explicitFees era = case era of
