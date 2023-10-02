@@ -1729,6 +1729,17 @@ x-transactionMetadata: &transactionMetadata
   # propertyNames:
   #   pattern: '^[0-9]+$'
 
+x-encryptMetadata: &encryptMetadata
+  description: |
+    If used then metadata in transaction is going to be encrypted
+    using the specified password using PBKDF2 scheme. The encrypted metadata is
+    going to be stored in blockchain.
+  type: object
+  required:
+    - passphrase
+  properties:
+    passphrase: *walletPassphrase
+
 x-transactionTTL: &transactionTTL
   description: |
     The TTL (time to live) is the time period in which the transaction
@@ -3671,6 +3682,7 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
+        encrypt_metadata: *encryptMetadata
         mint_burn:
           type: array
           items: *ApiMintBurnData
