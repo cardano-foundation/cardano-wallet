@@ -656,7 +656,7 @@ prop_calculateFeePercentiles (NonEmpty coins) =
                     `closeTo` (1/10 :: Double)
                 ]
   where
-    genericError :: ErrBalanceTx
+    genericError :: ErrBalanceTx era
     genericError
         = ErrBalanceTxAssetsInsufficient
         $ ErrBalanceTxAssetsInsufficientError
@@ -664,7 +664,7 @@ prop_calculateFeePercentiles (NonEmpty coins) =
             mempty
             mempty
 
-    estimateFee :: ExceptT ErrBalanceTx (State Int) W.Fee
+    estimateFee :: ExceptT (ErrBalanceTx era) (State Int) W.Fee
     estimateFee = do
         i <- lift get
         lift $ put $ (i + 1) `mod` length coins

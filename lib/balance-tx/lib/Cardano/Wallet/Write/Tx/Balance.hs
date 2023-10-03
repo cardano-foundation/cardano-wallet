@@ -11,6 +11,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -318,7 +319,7 @@ data ErrBalanceTxInternalError
     deriving (Show, Eq)
 
 -- | Errors that can occur when balancing transactions.
-data ErrBalanceTx
+data ErrBalanceTx era
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
@@ -338,7 +339,9 @@ data ErrBalanceTx
     --   - the given partial transaction has no existing inputs; and
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
-    deriving (Show, Eq)
+
+deriving instance Eq (ErrBalanceTx era)
+deriving instance Show (ErrBalanceTx era)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
@@ -435,7 +438,7 @@ balanceTransaction
     -> ChangeAddressGen changeState
     -> changeState
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Cardano.Tx era, changeState)
 balanceTransaction
     utxoAssumptions
     pp
@@ -468,7 +471,7 @@ balanceTransaction
   where
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
-    minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
+    minimalStrategyIsWorthTrying :: ErrBalanceTx era -> Bool
     minimalStrategyIsWorthTrying e = or
         [ maxSizeLimitExceeded
         , unableToConstructChange
@@ -545,7 +548,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> changeState
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
@@ -711,7 +714,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: PartialTx era
-        -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
+        -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
         withConstraints era $ do
             let res = flip map txIns $ \i-> do
@@ -739,7 +742,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardTxSize
         :: KeyWitnessCount
         -> Cardano.Tx era
-        -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+        -> ExceptT (ErrBalanceTx era) m (Cardano.Tx era)
     guardTxSize witCount cardanoTx =
         withConstraints era $ do
             let tx = fromCardanoTx cardanoTx
@@ -748,7 +751,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 throwE ErrBalanceTxMaxSizeLimitExceeded
             pure cardanoTx
 
-    guardTxBalanced :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    guardTxBalanced
+        :: Cardano.Tx era
+        -> ExceptT (ErrBalanceTx era) m (Cardano.Tx era)
     guardTxBalanced tx = do
         let bal = txBalance tx
         if bal == mempty
@@ -764,7 +769,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
-        -> ExceptT ErrBalanceTx m
+        -> ExceptT (ErrBalanceTx era) m
             (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
@@ -790,7 +795,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
         :: Cardano.UTxO era
-        -> ExceptT ErrBalanceTx m ()
+        -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
         let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
@@ -826,7 +831,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
-    assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    assembleTransaction
+        :: TxUpdate
+        -> ExceptT (ErrBalanceTx era) m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
@@ -834,7 +841,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 pp timeTranslation combinedUTxO redeemers tx'
 
     guardConflictingWithdrawalNetworks
-        :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+        :: Cardano.Tx era
+        -> ExceptT (ErrBalanceTx era) m ()
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Use of withdrawals with different networks breaks balancing.
@@ -857,7 +865,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         when conflictingWdrlNetworks $
             throwE ErrBalanceTxConflictingNetworks
 
-    guardExistingCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+    guardExistingCollateral :: Cardano.Tx era -> ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
@@ -869,14 +877,18 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Cardano.TxInsCollateral _ _ ->
                 throwE ErrBalanceTxExistingCollateral
 
-    guardExistingTotalCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+    guardExistingTotalCollateral
+        :: Cardano.Tx era
+        -> ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txTotalCollateral body of
             Cardano.TxTotalCollateralNone -> return ()
             Cardano.TxTotalCollateral _ _ ->
                throwE ErrBalanceTxExistingTotalCollateral
 
-    guardExistingReturnCollateral :: Cardano.Tx era -> ExceptT ErrBalanceTx m ()
+    guardExistingReturnCollateral
+        :: Cardano.Tx era
+        -> ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
         case Cardano.txReturnCollateral body of
             Cardano.TxReturnCollateralNone -> return ()
@@ -907,21 +919,21 @@ selectAssets
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either ErrBalanceTx Selection
+    -> Either (ErrBalanceTx era) Selection
 selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy = do
         validateTxOutputs'
         performSelection'
   where
     validateTxOutputs'
-        :: Either ErrBalanceTx ()
+        :: Either (ErrBalanceTx era) ()
     validateTxOutputs'
         = left ErrBalanceTxOutputError
         $ validateTxOutputs selectionConstraints
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: Either ErrBalanceTx Selection
+        :: Either (ErrBalanceTx era) Selection
     performSelection'
         = left coinSelectionErrorToBalanceTxError
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
@@ -1445,7 +1457,7 @@ toWalletTxOut RecentEraConway = W.fromConwayTxOut
 --
 coinSelectionErrorToBalanceTxError
     :: SelectionError WalletSelectionContext
-    -> ErrBalanceTx
+    -> ErrBalanceTx era
 coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of

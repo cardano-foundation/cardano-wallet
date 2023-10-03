@@ -2043,7 +2043,7 @@ buildAndSignTransactionPure
     -> TransactionCtx
     -> StateT
         (Wallet s)
-        (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
+        (ExceptT (Either (ErrBalanceTx era) ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
     timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
@@ -2182,7 +2182,7 @@ buildTransactionPure
     -> PreSelection
     -> TransactionCtx
     -> ExceptT
-        (Either ErrBalanceTx ErrConstructTx)
+        (Either (ErrBalanceTx era) ErrConstructTx)
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
@@ -2877,10 +2877,10 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
 -- recoded distribution.
 calculateFeePercentiles
-    :: forall m
+    :: forall m era
      . Monad m
-    => ExceptT ErrBalanceTx m Fee
-    -> ExceptT ErrBalanceTx m (Percentile 10 Fee, Percentile 90 Fee)
+    => ExceptT (ErrBalanceTx era) m Fee
+    -> ExceptT (ErrBalanceTx era) m (Percentile 10 Fee, Percentile 90 Fee)
 calculateFeePercentiles
     = fmap deciles
     . handleErrors
@@ -2920,7 +2920,7 @@ calculateFeePercentiles
     -- Therefore, we convert "cannot cover" errors into the necessary
     -- fee amount, even though there isn't enough in the wallet
     -- to cover for these fees.
-    handleCannotCover :: ErrBalanceTx -> ExceptT ErrBalanceTx m Fee
+    handleCannotCover :: ErrBalanceTx era -> ExceptT (ErrBalanceTx era) m Fee
     handleCannotCover = \case
         ErrBalanceTxUnableToCreateChange
             ErrBalanceTxUnableToCreateChangeError {requiredCost} ->
@@ -3477,7 +3477,7 @@ data WalletException
     | ExceptionConstructSharedWallet ErrConstructSharedWallet
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
     | ExceptionSignPayment ErrSignPayment
-    | ExceptionBalanceTx ErrBalanceTx
+    | forall era. ExceptionBalanceTx (ErrBalanceTx era)
     | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction

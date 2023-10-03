@@ -489,7 +489,7 @@ instance IsServerError ErrWriteTxEra where
                 , "compatible with a recent era."
                 ]
 
-instance IsServerError ErrBalanceTx where
+instance IsServerError (ErrBalanceTx era) where
     toServerError = \case
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
