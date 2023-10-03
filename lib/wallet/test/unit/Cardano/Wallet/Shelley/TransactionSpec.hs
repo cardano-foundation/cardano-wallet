@@ -3232,21 +3232,25 @@ prop_balanceTransactionValid
                         -- , prop_outputsSatisfyMinAdaRequirement tx
                         ]
             Left (ErrBalanceTxAssetsInsufficient err) -> do
-                let missing = view #shortfall err
-                let missingCoin = Value.coin missing == mempty
-                let missingTokens = Value.isAdaOnly missing
-                case (missingCoin, missingTokens) of
-                    (False, False) ->
-                        label "missing coin and tokens" $
-                        property True
-                    (False, True) ->
-                        label "missing coin" $
-                        property True
-                    (True, False) ->
-                        label "missing tokens" $
-                        counterexample (show err) $ property True
-                    (True, True) ->
-                        property False
+                let shortfall = view #shortfall err
+                    shortfallOfAda = Value.coin shortfall /= mempty
+                    shortfallOfNonAdaAssets = not (Value.isAdaOnly shortfall)
+                counterexample (show err) $
+                    case (shortfallOfAda, shortfallOfNonAdaAssets) of
+                        (False, False) ->
+                            -- This case should never occur, as the existence
+                            -- of a shortfall implies that we are short of at
+                            -- least one asset.
+                            property False
+                        (True, False) ->
+                            label "shortfall of ada"
+                                $ property True
+                        (False, True) ->
+                            label "shortfall of non-ada assets"
+                                $ property True
+                        (True, True) ->
+                            label "shortfall of both ada and non-ada assets"
+                                $ property True
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
