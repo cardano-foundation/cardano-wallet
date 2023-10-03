@@ -1732,8 +1732,10 @@ x-transactionMetadata: &transactionMetadata
 x-encryptMetadata: &encryptMetadata
   description: |
     If used then metadata in transaction is going to be encrypted
-    using the specified password using PBKDF2 scheme. The encrypted metadata is
-    going to be stored in blockchain.
+    via AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
+    PBKDF2 password stretching is used to get a 32-byte symmetric key.
+    PBKDF2 encryption using HMAC with the hash algorithm SHA512 is employed here.
+    The encrypted metadata is going to be stored in blockchain as a consequence.
   type: object
   required:
     - passphrase
@@ -2535,6 +2537,7 @@ components:
         - transaction
       properties:
         transaction: *serialisedTransactionEncoded
+        encrypt_metadata: *encryptMetadata
 
     ApiTokenAmountFingerprint: &ApiTokenAmountFingerprint
       type: object
