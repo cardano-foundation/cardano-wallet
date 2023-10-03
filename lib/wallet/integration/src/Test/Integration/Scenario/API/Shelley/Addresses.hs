@@ -71,7 +71,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
-    , getFromResponse
+    , getResponse
     , isValidDerivationPath
     , json
     , listAddresses
@@ -425,10 +425,11 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
         expectResponseCode HTTP.status202 r2
+
         let goldenAddr =
-                "addr1w8rqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqm5wul2" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+                "addr_test1wrrqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqqu6qs0" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
 
     it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
         --- $ cat script.txt
@@ -450,10 +451,11 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
         expectResponseCode HTTP.status202 r2
+
         let goldenAddr =
-                "addr1w8jtlgneqelxxlckcsgrkd7rd6ycrgegu5th24x0f058gmqhsnv92" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+                "addr_test1wrjtlgneqelxxlckcsgrkd7rd6ycrgegu5th24x0f058gmqvc8s20" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
 
     it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
         --- $ cat script.txt
@@ -475,10 +477,11 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
         expectResponseCode HTTP.status202 r2
+
         let goldenAddr =
-                "addr1w9q0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerasvf2cg0" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+                "addr_test1wpq0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerashp7y82" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
 
     it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
         --- $ cat script.txt
@@ -505,9 +508,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
         expectResponseCode HTTP.status202 r2
         let goldenAddr =
-                "addr1wyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84ag6sm0n8" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+                "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Generating golden test data for reward account addresses - script credential:
     --- (a) script hash
@@ -536,9 +539,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r2 <- request @AnyAddress ctx Link.postAnyAddress Default payload2
         expectResponseCode HTTP.status202 r2
         let goldenAddr =
-                "stake17yshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9sduxphm" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
+                "stake_test17qshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9s2kvrnx" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Generating golden test data for reward account addresses - both script credentials:
     --- (a) script hashes
@@ -612,11 +615,11 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectResponseCode HTTP.status202 r4
 
         let goldenAddr =
-                "addr1xyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqu6mtx3" :: Text
-        validateAddr r1 goldenAddr
-        validateAddr r2 goldenAddr
-        validateAddr r3 goldenAddr
-        validateAddr r4 goldenAddr
+                "addr_test1xqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqlvxt2w" :: Text
+        toJSON (getResponse r1) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r2) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r3) `shouldBe` object ["address" .= goldenAddr ]
+        toJSON (getResponse r4) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Generating golden test. We use the following mnemonic in all examples below:
     --- $ cat recovery-phrase.txt
@@ -638,9 +641,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
+
         let goldenAddr =
-                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
-        validateAddr r goldenAddr
+                "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -659,8 +663,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
-        validateAddr r goldenAddr
+                "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -681,8 +685,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
-        validateAddr r goldenAddr
+                "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
@@ -700,8 +704,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+                "stake_test1uq6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0gdfvj8f" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
@@ -719,8 +723,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+                "stake_test1uq6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0gdfvj8f" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/2/0 \
@@ -740,8 +744,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
-        validateAddr r goldenAddr
+                "stake_test1uq6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0gdfvj8f" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Golden address can be obtained via
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -768,9 +772,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -785,9 +788,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -803,9 +805,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -821,9 +822,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -839,9 +839,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
@@ -856,9 +855,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
-                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
-        validateAddr r goldenAddr
+                "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Generating golden test data for delegating address - payment from script, stake from pub key:
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -885,8 +883,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle" :: Text
-        validateAddr r goldenAddr
+                "addr_test1zqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7sq4jdnx" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     -- Generating golden test data for delegating address - payment from pub key, stake from script:
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
@@ -911,8 +909,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq" :: Text
-        validateAddr r goldenAddr
+                "addr_test1ypqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6snk9ahl" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     it "ANY_ADDRESS_POST_12 - Delegating addresses API roundtrip" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -959,8 +957,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1xy756z909yycvf5ah8j5pc4cvuedkhvhyylmgfz400t8jdwmwa0hp024gu7dm6h8n252lkgnzemp93mm9kyd48p64mjshqtu3c" :: Text
-        validateAddr r goldenAddr
+                "addr_test1xq756z909yycvf5ah8j5pc4cvuedkhvhyylmgfz400t8jdwmwa0hp024gu7dm6h8n252lkgnzemp93mm9kyd48p64mjs5kkua8" :: Text
+        toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
 
     it "ANY_ADDRESS_POST_14a - at_least 0 is valid when non-validated" $ \ctx -> do
         let payload = Json [json|{
@@ -1208,7 +1206,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         -- Request first 10 extended account public keys
         let indices = [0..9]
         accountPublicKeys <- forM indices $ \index -> do
-            let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2_147_483_648 + index)
+            let accountPath = Link.postAccountKey @'Shelley
+                    w (DerivationIndex $ 2_147_483_648 + index)
             let payload1 = Json [json|{
                     "passphrase": #{fixturePassphrase},
                     "format": "extended"
@@ -1229,7 +1228,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "POST_ACCOUNT_02 - Can get account public key using purpose" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
-        let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2_147_483_648 + 1)
+        let accountPath = Link.postAccountKey @'Shelley
+                w (DerivationIndex $ 2_147_483_648 + 1)
         let payload1 = Json [json|{
                 "passphrase": #{fixturePassphrase},
                 "format": "extended"
@@ -1268,7 +1268,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         w <- emptyWallet ctx
 
         let stakePath =
-                Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) Nothing
+                Link.getWalletKey @'Shelley
+                    w MutableAccount (DerivationIndex 0) Nothing
         (_, stakeKey) <-
             unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
         let (Aeson.String stakeKeyTxt) = toJSON stakeKey
@@ -1282,28 +1283,23 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let (Aeson.Object stakeAddrJson) = toJSON stakeAddr
         let (Just (Aeson.String stakeAddrTxt)) =
                 KeyMap.lookup "address" stakeAddrJson
-        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake1"
+        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake_test1"
 
     it "ANY_ADDRESS_POST_16 - Staking address using stake credential hashed" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
         let stakePath =
-                Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) (Just True)
+                Link.getWalletKey @'Shelley
+                    w MutableAccount (DerivationIndex 0) (Just True)
         (_, stakeKeyHash) <-
             unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
         let (Aeson.String stakeKeyHashTxt) = toJSON stakeKeyHash
         stakeKeyHashTxt `shouldSatisfy` T.isPrefixOf "stake_vkh1"
 
-        let payload = Json [json|{
-                "stake": #{stakeKeyHash}
-            }|]
+        let payload = Json [json|{ "stake": #{stakeKeyHash} }|]
         (_, stakeAddr) <-
                 unsafeRequest @AnyAddress ctx Link.postAnyAddress payload
         let (Aeson.Object stakeAddrJson) = toJSON stakeAddr
         let (Just (Aeson.String stakeAddrTxt)) =
                 KeyMap.lookup "address" stakeAddrJson
-        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake1"
-  where
-    validateAddr resp expected = do
-        let addr = getFromResponse id resp
-        toJSON addr `shouldBe` object ["address" .= expected ]
+        stakeAddrTxt `shouldSatisfy` T.isPrefixOf "stake_test1"

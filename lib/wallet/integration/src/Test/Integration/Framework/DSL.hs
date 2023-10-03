@@ -2253,8 +2253,10 @@ fixtureLegacyWallet
 fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
   where
     create = do
-        let payload = Json [aesonQQ| {
-                "name": "Faucet Byron Wallet",
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default $
+            let name = "Faucet Legacy Byron Wallet " <> style
+             in Json [aesonQQ|{
+                "name": #{name},
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
@@ -2430,9 +2432,10 @@ getFromResponse
     => Lens' s a
     -> (HTTP.Status, Either RequestException s)
     -> a
-getFromResponse getter (_, res) = case res of
-    Left _  -> error "getFromResponse failed to get item"
-    Right s -> view getter s
+getFromResponse getter (_httpStatus, res) =
+    case res of
+        Left err -> error $ "Expected response but got an error: " <> show err
+        Right s -> view getter s
 
 getFromResponseList
     :: Int

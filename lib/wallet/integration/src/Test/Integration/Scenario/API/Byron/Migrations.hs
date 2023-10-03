@@ -97,7 +97,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Test.Hspec as Hspec
 
 spec
     :: forall n
@@ -243,7 +242,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             testAddressCycling "Icarus" fixtureIcarusWallet  3
             testAddressCycling "Icarus" fixtureIcarusWallet 10
 
-    Hspec.it "BYRON_MIGRATE_02 - \
+    it "BYRON_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
@@ -383,7 +382,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
-    Hspec.it "BYRON_MIGRATE_04 - \
+    it "BYRON_MIGRATE_04 - \
         \Actual fee for migration is identical to predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT @IO $ do
@@ -517,7 +516,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage errMsg400ParseError
                 ]
 
-    Hspec.it "BYRON_MIGRATE_08 - \
+    it "BYRON_MIGRATE_08 - \
         \It's not possible to migrate a wallet whose total balance is less \
         \than the minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
@@ -657,6 +656,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
+
             let targetAddressIds = take targetAddressCount targetAddresses <&>
                     (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 

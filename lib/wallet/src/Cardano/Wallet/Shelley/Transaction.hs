@@ -450,8 +450,7 @@ signTransaction
         let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagForKey keyF of
             TxWitnessShelleyUTxO -> mkShelleyWitness body pk
-            TxWitnessByronUTxO ->
-                mkByronWitness body networkId addr pk
+            TxWitnessByronUTxO -> mkByronWitness body networkId addr pk
 
     mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
     mkWdrlCertWitness a =

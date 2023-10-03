@@ -944,6 +944,7 @@ test-suite integration
     , address-derivation-discovery
     , base
     , cardano-addresses
+    , cardano-ledger-shelley
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras

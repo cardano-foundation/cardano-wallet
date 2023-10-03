@@ -36,6 +36,8 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Ledger.Shelley.Genesis
+    ( sgNetworkMagic )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Startup
@@ -88,8 +90,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( fromGenesisData )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -186,7 +186,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
-main :: forall n. (n ~ 'Mainnet) => IO ()
+main :: forall n. (n ~ 'Testnet 42) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspecMain $ do
@@ -293,10 +293,18 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
-                let clusterDir = Tagged @"cluster" testDir
                 clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
                     <&> Tagged @"cluster-configs"
                         . fromMaybe "../local-cluster/test/data/cluster-configs"
+
+                let config = Cluster.Config
+                        { cfgStakePools = error "cfgStakePools: unused"
+                        , cfgLastHardFork = era
+                        , cfgNodeLogging = error "cfgNodeLogging: unused"
+                        , cfgClusterDir = Tagged @"cluster" testDir
+                        , cfgClusterConfigs = clusterConfigs
+                        , cfgTestnetMagic = Cluster.TestnetMagic 42
+                        }
 
                 putMVar ctx Context
                     { _cleanup = pure ()
@@ -310,15 +318,10 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
                             sendFaucetAssetsTo
-                                tr' conn clusterDir clusterConfigs era batchSize
-                                    $ map (first (T.unpack . CA.bech32))
-                                    $ seaHorseTestAssets nPerAddr c addrs
+                                tr' config conn batchSize
+                                (seaHorseTestAssets nPerAddr c addrs)
                     , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr'
-                                conn
-                                clusterDir
-                                clusterConfigs
-                                era
+                            moveInstantaneousRewardsTo tr' config conn
                                 [(ScriptCredential script, coin)]
                     }
         let action' = bracketTracer' tr "spec" . action
@@ -358,16 +361,21 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
                     , Cluster.cfgClusterDir = Tagged @"cluster" testDir
                     , Cluster.cfgClusterConfigs = cfgClusterConfigs
+                    , Cluster.cfgTestnetMagic = testnetMagic
                     }
             withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
 
+    testnetMagic = Cluster.TestnetMagic 42
+
     faucetFunds = FaucetFunds
         { pureAdaFunds =
-            shelleyIntegrationTestFunds
-                <> byronIntegrationTestFunds
+            let networkTag = CA.NetworkTag
+                    (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
+             in shelleyIntegrationTestFunds networkTag
+                <> byronIntegrationTestFunds networkTag
                 <> hwLedgerTestFunds
         , maFunds =
             maryIntegrationTestFunds (Coin 10_000_000)
@@ -381,7 +389,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         }
 
     onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
-        let (gp, block0, genesisPools) = fromGenesisData genesisData
+        let (networkParameters, block0, genesisPools) =
+                fromGenesisData genesisData
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText
@@ -389,9 +398,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
                 (NodeSource conn vData (SyncTolerance 10))
-                gp
+                networkParameters
                 tunedForMainnetPipeliningStrategy
-                NMainnet
+                (NTestnet (fromIntegral (sgNetworkMagic genesisData)) )
                 genesisPools
                 tracers
                 (Just db)
@@ -402,7 +411,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 Nothing
                 (Just tokenMetaUrl)
                 block0
-                (action conn gp)
+                (action conn networkParameters)
                 `withException` (traceWith tr . MsgServerError)
 
 {-------------------------------------------------------------------------------

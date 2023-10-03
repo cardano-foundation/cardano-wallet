@@ -47,7 +47,7 @@ data WalletProcessConfig = WalletProcessConfig
     , walletDatabase :: Path Abs Dir
     , walletListenHost :: Maybe Text
     , walletListenPort :: Maybe Int
-    , walletByronGenesis :: Path Abs File
+    , walletByronGenesisForTestnet :: Maybe (Path Abs File)
     }
 
 start :: WalletProcessConfig -> IO (WalletInstance, WalletApi)
@@ -68,21 +68,25 @@ start WalletProcessConfig{..} = do
         startProcess
             $ setStderr (useHandleClose handle)
             $ setStdout (useHandleClose handle)
-            $ proc
-                "cardano-wallet"
-                [ "serve"
-                , "--testnet"
-                , toFilePath walletByronGenesis
-                , "--node-socket"
-                , toFilePath (nodeApiSocket walletNodeApi)
-                , "--database"
-                , toFilePath walletDatabase
-                , "--listen-address"
-                , T.unpack host
-                , "--port"
-                , show port
-                , "--log-level"
-                , "INFO"
+            $ proc "cardano-wallet"
+            $ concat
+                [ [ "serve" ]
+                , case walletByronGenesisForTestnet of
+                    Nothing ->
+                        [ "--mainnet" ]
+                    Just waleltByronGenesis ->
+                        [ "--testnet", toFilePath waleltByronGenesis ]
+                , [ "--node-socket"
+                  , toFilePath (nodeApiSocket walletNodeApi)
+                  , "--database"
+                  , toFilePath walletDatabase
+                  , "--listen-address"
+                  , T.unpack host
+                  , "--port"
+                  , show port
+                  , "--log-level"
+                  , "DEBUG"
+                  ]
                 ]
     pure (WalletInstance process, config)
 

@@ -964,8 +964,8 @@ notSupported style = error $ "Endpoint not supported for " <> style <> " style"
 -- the context of this module, the network discrimination doesn't matter for it
 -- has no influence on the endpoint's value and/or path parameters.
 --
--- To ease type signatures, we therefore arbitrarily fix the network to Mainnet.
-type Net = 'Mainnet
+-- To ease type signatures, we therefore arbitrarily fix the network to Testnet.
+type Net = 'Testnet 42
 
 -- | Extract the method from a given Api
 class HasVerb api where
