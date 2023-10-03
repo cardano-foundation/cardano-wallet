@@ -30,7 +30,7 @@ cat > byron.genesis.spec.json <<EOF
 EOF
 
 cardano-cli byron genesis genesis \
-   --protocol-magic 764824073 \
+   --protocol-magic 42 \
    --start-time 2500000 \
    --k 8 \
    --n-poor-addresses 0 \

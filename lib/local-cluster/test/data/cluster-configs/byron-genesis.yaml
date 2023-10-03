@@ -1,36 +1,35 @@
 avvmDistr: {}
-
 blockVersionData:
-  scriptVersion: 0
-  slotDuration: '400'
+  heavyDelThd: '300000000000'
   maxBlockSize: '2000000'
   maxHeaderSize: '2000000'
-  maxTxSize: '4096'
   maxProposalSize: '700'
+  maxTxSize: '4096'
   mpcThd: '20000000000000'
-  heavyDelThd: '300000000000'
-  updateVoteThd: '1000000000000'
-  updateProposalThd: '100000000000000'
-  updateImplicit: '10000'
+  scriptVersion: 0
+  slotDuration: '20000'
   softforkRule:
     initThd: '900000000000000'
     minThd: '600000000000000'
     thdDecrement: '50000000000000'
   txFeePolicy:
+    multiplier: '43946000000'
     summand: '155381000000000'
-    multiplier: '43000000000'
   unlockStakeEpoch: '18446744073709551615'
-protocolConsts:
-  k: 5
-  protocolMagic: 764824073
-
+  updateImplicit: '10000'
+  updateProposalThd: '100000000000000'
+  updateVoteThd: '1000000000000'
 bootStakeholders:
-  3856c7c4db1ca26d77d5cecf1ed4ab7285f57dca999421fb797e9824: 1
+  dd4194236324c8d89b5f2877eb6b1d5abc23217ecc60076b583902bb: 1
 heavyDelegation:
-  3856c7c4db1ca26d77d5cecf1ed4ab7285f57dca999421fb797e9824:
+  dd4194236324c8d89b5f2877eb6b1d5abc23217ecc60076b583902bb:
+    cert: 86fe8c7fd9d6475dceacdd7f50e0b428e176a643ede9d08a186e4817ffed4f12fd38e1c29b68f2af9bf9b89ab1545db88a769ccaa274f15d162ed1682268ac02
+    delegatePk: zmgaMKBfDDeex3Q99KG/24K7PwskBuKKw6/g/ssIVTmUaNK5R4l25YSkDHNTVOxwo7jawvwAGxe5RcbwwEULdw==
+    issuerPk: siJZ1ewbKx9n3AxeFSegymNvyhhRuZd5B0CkbI8mlt6g6kFBqDtseUNOdp3CZorqPhiZdapS5eEOmHNneqWZOg==
     omega: 0
-    issuerPk: EcTlNi0niDQxL/vck7Q5rykozISyOTEMstVojJLxNORm1WfbSglEW4VgpjbiEqw+2KKbc1ivP5QI6ng+ZTtiug==
-    delegatePk: fIpFiXJo9dQxplJsx+DyYBZWjqI6Kgseyq0bclPILw8lhATGS0WaUVs3Ye1x6m8KNaKVSiiUDd+BjrfCjgt+uQ==
-    cert: 1ef766c62e55f6b81afd3785b37ad96e2cfb3fcf2c117050cbba8eeb2285f4428821afbe43580cfa08e0479b13d165a1a03fd57bcd26ce7c4e3c0892d25f5207
-
-nonAvvmBalances: {}
+nonAvvmBalances:
+  2657WMsDfac5Gwc9G8G47uNRRWXRRBGHssq5SVy8BAGg3jUfFM8tEgvxdiKhDFwEV: '0'
+  2657WMsDfac5djvSd1zzLx9Y3fBe81u6jFA85Ct65Qn5tLs8Z8AyWwGjwCLiEcS82: '45000000000000000'
+protocolConsts:
+  k: 108
+  protocolMagic: 42

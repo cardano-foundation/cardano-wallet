@@ -18,7 +18,7 @@ do
   cardano-cli \
     byron key signing-key-address \
     --byron-formats \
-    --mainnet \
+    --testnet-magic 42 \
     --secret $dir/faucet$i.byron.key \
     | head -n 1 > $dir/faucet$i.addr
 
