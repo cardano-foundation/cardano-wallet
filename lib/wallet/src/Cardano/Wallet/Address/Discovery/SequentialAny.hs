@@ -93,7 +93,7 @@ import GHC.TypeLits
 
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Cardano.Wallet.Write.UTxOAssumptions as UTxOAssumptions
+import qualified Cardano.Write.UTxOAssumptions as UTxOAssumptions
 
 {-------------------------------------------------------------------------------
     SeqAnyState

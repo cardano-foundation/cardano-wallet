@@ -378,7 +378,7 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
-import Cardano.Wallet.Write.Tx.Gen
+import Cardano.Write.Tx.Gen
     ( genDatumHash )
 import Control.Lens
     ( at, (?~) )

@@ -23,7 +23,7 @@
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
-module Cardano.Wallet.Write.Tx.Balance
+module Cardano.Write.Tx.Balance
     (
     -- * Balancing transactions
       balanceTransaction
@@ -96,30 +96,13 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.UTxO
     ( txinLookup )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
-    , SelectionCollateralError (..)
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOf (change)
-    , SelectionParams (..)
-    , SelectionStrategy (..)
-    , UnableToConstructChangeError (..)
-    , WalletSelectionContext
-    , WalletUTxO (..)
-    , performSelection
-    , toExternalUTxOMap
-    , toInternalUTxOMap
-    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
-import Cardano.Wallet.Write.ProtocolParameters
+import Cardano.Write.ProtocolParameters
     ( ProtocolParameters (..) )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( Address
     , Coin (..)
     , FeePerByte (..)
@@ -149,17 +132,17 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
-import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+import Cardano.Write.Tx.Balance.TokenBundleSize
     ( mkTokenBundleSizeAssessor )
-import Cardano.Wallet.Write.Tx.Redeemers
+import Cardano.Write.Tx.Redeemers
     ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
-import Cardano.Wallet.Write.Tx.Sign
+import Cardano.Write.Tx.Sign
     ( estimateKeyWitnessCount, estimateSignedTxSize )
-import Cardano.Wallet.Write.Tx.SizeEstimation
+import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), assumedTxWitnessTag, estimateTxCost )
-import Cardano.Wallet.Write.Tx.TimeTranslation
+import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation )
-import Cardano.Wallet.Write.UTxOAssumptions
+import Cardano.Write.UTxOAssumptions
     ( UTxOAssumptions (..), assumedInputScriptTemplate )
 import Control.Arrow
     ( left )
@@ -199,6 +182,23 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( Selection
+    , SelectionBalanceError (..)
+    , SelectionCollateralError (..)
+    , SelectionCollateralRequirement (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionOf (change)
+    , SelectionParams (..)
+    , SelectionStrategy (..)
+    , UnableToConstructChangeError (..)
+    , WalletSelectionContext
+    , WalletUTxO (..)
+    , performSelection
+    , toExternalUTxOMap
+    , toInternalUTxOMap
+    )
 import Numeric.Natural
     ( Natural )
 import System.Random.StdGenSeed

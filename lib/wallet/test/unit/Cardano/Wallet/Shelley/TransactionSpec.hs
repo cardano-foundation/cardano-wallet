@@ -229,7 +229,7 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( AnyRecentEra (..)
     , FeePerByte (..)
     , RecentEra (..)
@@ -237,7 +237,7 @@ import Cardano.Wallet.Write.Tx
     , recentEra
     , shelleyBasedEraFromRecentEra
     )
-import Cardano.Wallet.Write.Tx.Balance
+import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
@@ -265,15 +265,15 @@ import Cardano.Wallet.Write.Tx.Balance
     , sizeOfCoin
     , updateTx
     )
-import Cardano.Wallet.Write.Tx.Sign
+import Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
-import Cardano.Wallet.Write.Tx.SizeEstimation
+import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
     , estimateTxSize
     , sizeOf_BootstrapWitnesses
     , txConstraints
     )
-import Cardano.Wallet.Write.Tx.TimeTranslation
+import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Arrow
     ( first )
@@ -460,8 +460,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.ProtocolParameters as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA

@@ -11,7 +11,7 @@
 --
 -- Provides protocol parameters.
 --
-module Cardano.Wallet.Write.ProtocolParameters
+module Cardano.Write.ProtocolParameters
     ( ProtocolParameters (..)
     ) where
 
@@ -21,7 +21,7 @@ import Data.Functor.Identity
     ( Identity )
 
 import qualified Cardano.Ledger.Core as Ledger
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.

@@ -25,7 +25,7 @@
 --
 -- Module containing logic relating to size estimation as needed, mainly for
 -- the purpose of coin selection.
-module Cardano.Wallet.Write.Tx.SizeEstimation
+module Cardano.Write.Tx.SizeEstimation
     ( -- * Needed for normal coin selection for balanceTx
       estimateTxSize
     , estimateTxCost
@@ -69,9 +69,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
-import Cardano.Wallet.Write.ProtocolParameters
+import Cardano.Write.ProtocolParameters
     ( ProtocolParameters (..) )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( FeePerByte (..)
     , IsRecentEra (recentEra)
     , RecentEra (..)
@@ -82,9 +82,9 @@ import Cardano.Wallet.Write.Tx
     , isBelowMinimumCoinForTxOut
     , withConstraints
     )
-import Cardano.Wallet.Write.Tx.Sign
+import Cardano.Write.Tx.Sign
     ( estimateMaxWitnessRequiredPerInput )
-import Cardano.Wallet.Write.UTxOAssumptions
+import Cardano.Write.UTxOAssumptions
     ( UTxOAssumptions (..) )
 import Control.Lens
     ( (^.) )
@@ -111,7 +111,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS

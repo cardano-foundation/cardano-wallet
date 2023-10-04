@@ -170,7 +170,7 @@ import Cardano.Wallet.Transaction
     ( PreSelection (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( AnyRecentEra (..) )
 import Control.Arrow
     ( first )
@@ -254,7 +254,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

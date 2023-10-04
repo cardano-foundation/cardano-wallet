@@ -4,9 +4,9 @@ version:            2023.7.18
 synopsis:           Balancing transactions for the Cardano blockchain.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
-author:             IOHK Engineering Team
-maintainer:         operations@iohk.io
-copyright:          2018-2022 IOHK
+author:             Cardano Foundation (High Assurance Lab)
+maintainer:         hal@cardanofoundation.org
+copyright:          2018-2022 IOHK, 2023 Cardano Foundation
 license:            Apache-2.0
 category:           Blockchain, Cardano, Transactions
 build-type:         Simple
@@ -38,8 +38,6 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   build-depends:
-    , MonadRandom
-    , QuickCheck
     , base
     , bytestring
     , cardano-addresses
@@ -67,30 +65,31 @@ library
     , generics-sop
     , int-cast
     , lens
+    , MonadRandom
     , monoid-subclasses
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , pretty-simple
+    , QuickCheck
     , random
     , serialise
     , std-gen-seed
     , text
     , transformers
   exposed-modules:
-    Cardano.Tx.Balance
-    Cardano.Tx.Balance.Internal.CoinSelection
-    Cardano.Tx.Balance.Internal.CoinSelection.Gen
     Cardano.Wallet.Shelley.Compatibility.Ledger
-    Cardano.Wallet.Write.ProtocolParameters
-    Cardano.Wallet.Write.Tx
-    Cardano.Wallet.Write.Tx.Balance
-    Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
-    Cardano.Wallet.Write.Tx.Gen
-    Cardano.Wallet.Write.Tx.Redeemers
-    Cardano.Wallet.Write.Tx.Sign
-    Cardano.Wallet.Write.Tx.SizeEstimation
-    Cardano.Wallet.Write.Tx.TimeTranslation
-    Cardano.Wallet.Write.UTxOAssumptions
+    Cardano.Write.ProtocolParameters
+    Cardano.Write.Tx
+    Cardano.Write.Tx.Balance
+    Cardano.Write.Tx.Balance.TokenBundleSize
+    Cardano.Write.Tx.Gen
+    Cardano.Write.Tx.Redeemers
+    Cardano.Write.Tx.Sign
+    Cardano.Write.Tx.SizeEstimation
+    Cardano.Write.Tx.TimeTranslation
+    Cardano.Write.UTxOAssumptions
+    Internal.Cardano.Write.Tx.Balance.CoinSelection
+    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -99,16 +98,21 @@ test-suite test
   hs-source-dirs:     test/data test/spec
   main-is:            run-test-suite.hs
   build-depends:
-    , QuickCheck
     , base
     , cardano-balance-tx
+    , cardano-coin-selection
+    , cardano-ledger-api
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , data-default
     , generics-sop
     , hspec
     , hspec-core
+    , lens
+    , QuickCheck
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Tx.Balance.Internal.CoinSelectionSpec
+    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
+    Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec

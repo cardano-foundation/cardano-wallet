@@ -104,7 +104,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
-import Cardano.Wallet.Write.Tx.Balance
+import Cardano.Write.Tx.Balance
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInsufficientCollateralError (..)
@@ -115,7 +115,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrUpdateSealedTx (..)
     )
-import Cardano.Wallet.Write.Tx.Sign
+import Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..) )
 import Control.Monad.Except
     ( ExceptT, lift, withExceptT )
@@ -164,7 +164,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL

@@ -1,21 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Tx.Balance.Internal.CoinSelectionSpec
+module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     where
 
 import Prelude
 
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionOf (..)
-    , toExternalSelection
-    , toExternalUTxO
-    , toExternalUTxOMap
-    , toInternalSelection
-    , toInternalUTxO
-    , toInternalUTxOMap
-    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -40,6 +30,16 @@ import Data.Function
     ( (&) )
 import Generics.SOP
     ( NP (..) )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( Selection
+    , SelectionOf (..)
+    , toExternalSelection
+    , toExternalUTxO
+    , toExternalUTxOMap
+    , toInternalSelection
+    , toInternalUTxO
+    , toInternalUTxOMap
+    )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra

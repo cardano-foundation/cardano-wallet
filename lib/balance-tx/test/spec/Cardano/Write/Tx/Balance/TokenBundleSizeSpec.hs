@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Cardano.Wallet.Write.Tx.Balance.TokenBundleSizeSpec where
+module Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Prelude
 
@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( ProtVer (..)
     , RecentEra (..)
     , ShelleyLedgerEra
@@ -29,7 +29,7 @@ import Cardano.Wallet.Write.Tx
     , Version
     , withConstraints
     )
-import Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+import Cardano.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleSizeAssessor
     , assessTokenBundleSize
     , computeTokenBundleSerializedLengthBytes

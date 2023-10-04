@@ -508,9 +508,9 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( recentEra )
-import Cardano.Wallet.Write.Tx.Balance
+import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
@@ -520,9 +520,9 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , constructUTxOIndex
     )
-import Cardano.Wallet.Write.Tx.SizeEstimation
+import Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..), _txRewardWithdrawalCost )
-import Cardano.Wallet.Write.Tx.TimeTranslation
+import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
     ( (>>>) )
@@ -654,9 +654,9 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.SizeEstimation as Write
+import qualified Cardano.Write.ProtocolParameters as Write
+import qualified Cardano.Write.Tx as Write
+import qualified Cardano.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F

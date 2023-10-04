@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 
-module Cardano.Wallet.Write.Tx.TimeTranslation
+module Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
     , timeTranslationFromEpochInfo
     , systemStartTime

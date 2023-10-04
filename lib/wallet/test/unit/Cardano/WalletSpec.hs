@@ -148,9 +148,9 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( HasCallStack )
-import Cardano.Wallet.Write.Tx.Balance
+import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
-import Cardano.Wallet.Write.Tx.SizeEstimation
+import Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..) )
 import Control.DeepSeq
     ( NFData (..) )

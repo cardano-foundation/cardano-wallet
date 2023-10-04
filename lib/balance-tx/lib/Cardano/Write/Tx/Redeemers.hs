@@ -14,7 +14,7 @@
 -- License: Apache-2.0
 --
 -- Module containing 'assignScriptRedeemers'
-module Cardano.Wallet.Write.Tx.Redeemers
+module Cardano.Write.Tx.Redeemers
     ( assignScriptRedeemers
     , ErrAssignRedeemers (..)
     , Redeemer (..)
@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( IsRecentEra (recentEra)
     , PParams
     , RecentEraLedgerConstraints
@@ -52,7 +52,7 @@ import Cardano.Wallet.Write.Tx
     , txBody
     , withConstraints
     )
-import Cardano.Wallet.Write.Tx.TimeTranslation
+import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise
     ( deserialiseOrFail )
