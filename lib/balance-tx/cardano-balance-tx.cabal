@@ -77,7 +77,6 @@ library
     , text
     , transformers
   exposed-modules:
-    Cardano.Tx.Balance
     Cardano.Tx.Balance.Internal.CoinSelection
     Cardano.Tx.Balance.Internal.CoinSelection.Gen
     Cardano.Wallet.Shelley.Compatibility.Ledger
