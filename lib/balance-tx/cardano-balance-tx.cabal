@@ -101,13 +101,18 @@ test-suite test
     , QuickCheck
     , base
     , cardano-balance-tx
+    , cardano-coin-selection
+    , cardano-ledger-api
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , data-default
     , generics-sop
     , hspec
     , hspec-core
+    , lens
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec

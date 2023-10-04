@@ -922,7 +922,6 @@ test-suite unit
     Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
     Cardano.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
