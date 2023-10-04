@@ -83,7 +83,7 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , toKeyRole
     )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( BabbageTxOut, StandardBabbage )
 import Control.Lens
     ( folded, (<&>), (^.), (^..) )

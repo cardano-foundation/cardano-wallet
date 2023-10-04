@@ -173,7 +173,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..), parseURI, uriToText )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( MaybeInRecentEra )
 import Control.Arrow
     ( left, right )
@@ -256,7 +256,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..), oneof )
 
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
+import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 

@@ -559,9 +559,9 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( AnyRecentEra (..) )
-import Cardano.Wallet.Write.Tx.Balance
+import Cardano.Write.Tx.Balance
     ( Redeemer (..), UTxOAssumptions (..) )
 import Control.Arrow
     ( second, (&&&) )
@@ -705,10 +705,10 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance as Write
-import qualified Cardano.Wallet.Write.Tx.Sign as Write
+import qualified Cardano.Write.ProtocolParameters as Write
+import qualified Cardano.Write.Tx as Write
+import qualified Cardano.Write.Tx.Balance as Write
+import qualified Cardano.Write.Tx.Sign as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F

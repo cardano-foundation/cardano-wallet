@@ -5,14 +5,14 @@
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
 --
-module Cardano.Wallet.Write.Tx.Gen
+module Cardano.Write.Tx.Gen
     ( genDatumHash
     )
     where
 
 import Prelude
 
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( DatumHash, datumHashFromBytes )
 import Data.Maybe
     ( fromMaybe )

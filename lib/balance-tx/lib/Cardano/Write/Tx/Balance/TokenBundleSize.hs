@@ -1,5 +1,5 @@
 -- | Assessing sizes of token bundles
-module Cardano.Wallet.Write.Tx.Balance.TokenBundleSize
+module Cardano.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleSizeAssessor (..)
     , mkTokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes
@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( PParams, RecentEra, ShelleyLedgerEra, Value, Version, withConstraints )
 import Control.Lens
     ( (^.) )

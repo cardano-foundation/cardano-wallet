@@ -513,7 +513,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson

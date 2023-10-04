@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StartTime (..)
     )
-import Cardano.Wallet.Write.Tx.TimeTranslation
+import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Monad
     ( ap, join, liftM, (>=>) )

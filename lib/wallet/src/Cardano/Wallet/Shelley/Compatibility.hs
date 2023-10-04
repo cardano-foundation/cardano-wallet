@@ -361,8 +361,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.ProtocolParameters as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Array as Array
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS

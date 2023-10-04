@@ -155,7 +155,7 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
-import Cardano.Wallet.Write.Tx.SizeEstimation
+import Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..) )
 import Control.Arrow
     ( left, second )
@@ -195,7 +195,7 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L

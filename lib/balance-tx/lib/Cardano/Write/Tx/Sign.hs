@@ -8,7 +8,7 @@
 -- License: Apache-2.0
 --
 -- Module for 'signTx' and signing-related utilities for balancing.
-module Cardano.Wallet.Write.Tx.Sign
+module Cardano.Write.Tx.Sign
     (
     -- * Signing transactions
     -- TODO: Move signTx function here
@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletCoin, toWalletScript )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
@@ -71,7 +71,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
-import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map

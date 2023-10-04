@@ -5,7 +5,7 @@
 -- License: Apache-2.0
 --
 -- Module containing 'UTxOAssumptions' and related functionality.
-module Cardano.Wallet.Write.UTxOAssumptions
+module Cardano.Write.UTxOAssumptions
     (
     -- * UTxOAssumptions
       UTxOAssumptions (..)
@@ -20,7 +20,7 @@ import Prelude
 
 import Cardano.Ledger.Shelley.API
     ( Addr (..), Credential (..) )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( Address )
 
 import qualified Cardano.Address.Script as CA

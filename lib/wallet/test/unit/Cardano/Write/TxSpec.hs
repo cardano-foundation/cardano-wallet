@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Write.TxSpec where
+module Cardano.Write.TxSpec where
 
 import Prelude
 
@@ -14,7 +14,7 @@ import Cardano.Api.Gen
     ( genTxIn )
 import Cardano.Ledger.Api
     ( ppCoinsPerUTxOByteL )
-import Cardano.Wallet.Write.Tx
+import Cardano.Write.Tx
     ( AnyRecentEra
     , RecentEra (..)
     , computeMinimumCoinForTxOut
