@@ -1,4 +1,4 @@
-module Cardano.Tx.Balance.Internal.CoinSelection.Gen
+module Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
     ( coarbitraryWalletUTxO
     , genWalletUTxO
     , genWalletUTxOFunction
@@ -9,14 +9,14 @@ module Cardano.Tx.Balance.Internal.CoinSelection.Gen
 
 import Prelude
 
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( WalletUTxO (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn, genTxInLargeRange, shrinkTxIn )
 import Generics.SOP
     ( NP (..) )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( WalletUTxO (..) )
 import Test.QuickCheck
     ( Gen, coarbitrary )
 import Test.QuickCheck.Extra

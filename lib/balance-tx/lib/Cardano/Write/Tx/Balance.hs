@@ -96,23 +96,6 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.UTxO
     ( txinLookup )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
-    , SelectionCollateralError (..)
-    , SelectionCollateralRequirement (..)
-    , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionOf (change)
-    , SelectionParams (..)
-    , SelectionStrategy (..)
-    , UnableToConstructChangeError (..)
-    , WalletSelectionContext
-    , WalletUTxO (..)
-    , performSelection
-    , toExternalUTxOMap
-    , toInternalUTxOMap
-    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -199,6 +182,23 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.Tx.Balance.CoinSelection
+    ( Selection
+    , SelectionBalanceError (..)
+    , SelectionCollateralError (..)
+    , SelectionCollateralRequirement (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionOf (change)
+    , SelectionParams (..)
+    , SelectionStrategy (..)
+    , UnableToConstructChangeError (..)
+    , WalletSelectionContext
+    , WalletUTxO (..)
+    , performSelection
+    , toExternalUTxOMap
+    , toInternalUTxOMap
+    )
 import Numeric.Natural
     ( Natural )
 import System.Random.StdGenSeed

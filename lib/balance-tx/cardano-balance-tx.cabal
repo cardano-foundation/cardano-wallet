@@ -77,8 +77,6 @@ library
     , text
     , transformers
   exposed-modules:
-    Cardano.Tx.Balance.Internal.CoinSelection
-    Cardano.Tx.Balance.Internal.CoinSelection.Gen
     Cardano.Wallet.Shelley.Compatibility.Ledger
     Cardano.Write.ProtocolParameters
     Cardano.Write.Tx
@@ -90,6 +88,8 @@ library
     Cardano.Write.Tx.SizeEstimation
     Cardano.Write.Tx.TimeTranslation
     Cardano.Write.UTxOAssumptions
+    Internal.Cardano.Write.Tx.Balance.CoinSelection
+    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -109,5 +109,5 @@ test-suite test
     , hspec-core
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Tx.Balance.Internal.CoinSelectionSpec
+    Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec
