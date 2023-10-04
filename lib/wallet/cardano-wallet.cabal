@@ -213,10 +213,8 @@ library
 
   exposed-modules:
     Cardano.Api.Extra
-    Cardano.Api.Gen
     Cardano.DB.Sqlite
     Cardano.DB.Sqlite.Delete
-    Cardano.Ledger.Credential.Safe
     Cardano.Pool.DB
     Cardano.Pool.DB.Log
     Cardano.Pool.DB.Model
@@ -706,6 +704,7 @@ test-suite unit
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-api-extra
     , cardano-balance-tx
     , cardano-binary
     , cardano-coin-selection
@@ -842,7 +841,6 @@ test-suite unit
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Api.GenSpec
     Cardano.Byron.Codec.CborSpec
     Cardano.CLISpec
     Cardano.DB.Sqlite.DeleteSpec

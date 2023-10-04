@@ -59,6 +59,7 @@ index-state:
 packages:
   lib/application-extras
   , lib/balance-tx/
+  , lib/cardano-api-extra/
   , lib/crypto-hash-extra/
   , lib/coin-selection/
   , lib/delta-store/
