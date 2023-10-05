@@ -920,7 +920,6 @@ test-suite unit
     Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec

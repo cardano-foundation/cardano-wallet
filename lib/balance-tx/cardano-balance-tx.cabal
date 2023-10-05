@@ -98,21 +98,31 @@ test-suite test
   hs-source-dirs:     test/data test/spec
   main-is:            run-test-suite.hs
   build-depends:
+    , aeson
     , base
+    , bytestring
+    , cardano-api
+    , cardano-api-extra
     , cardano-balance-tx
     , cardano-coin-selection
+    , cardano-ledger-alonzo-test
     , cardano-ledger-api
+    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
+    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , containers
     , data-default
     , generics-sop
     , hspec
     , hspec-core
     , lens
     , QuickCheck
+    , quickcheck-classes
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Write.Tx.Balance.TokenBundleSizeSpec
+    Cardano.Write.TxSpec
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec
