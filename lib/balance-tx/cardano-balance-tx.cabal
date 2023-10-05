@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.0
 name:               cardano-balance-tx
 version:            2023.7.18
 synopsis:           Balancing transactions for the Cardano blockchain.
