@@ -2233,26 +2233,25 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
-                } |]
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+            }|]
         expectResponseCode HTTP.status201 r
-        let w = getResponse r
-        liftIO $ race (threadDelay sixtySeconds) (checkBalance w) >>= \case
-            Left _ ->
-                expectationFailure'
-                    "fixtureByronWallet: waited too long for initial transaction"
-            Right a ->
-                return a
-    free w = do
-        void $ request @() ctx
-            (Link.deleteWallet @'Byron w) Default Empty
+        liftIO $ race
+            (threadDelay (60 * oneSecond))
+            (checkBalance (getResponse r)) >>= \case
+                Right a -> pure a
+                Left () -> do
+                    threadDelay maxBound
+                    expectationFailure' $
+                        "fixtureByronWallet: timing out (> 60s) \
+                        \while checking " <> show style <> " wallet's balance."
 
-    sixtySeconds = 60*oneSecond
+    free w = void $ request @() ctx (Link.deleteWallet @'Byron w) Default Empty
+
     checkBalance w = do
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
-            then return (getResponse r)
+            then pure (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a wallet with the given UTxO distribution. Note that there's a
