@@ -98,21 +98,15 @@ import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
 
-    it "BYRON_CREATE_MIGRATION_PLAN_01 - \
-        \Can create a migration plan."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
+    let byronCreateMigrationPlan01 fixtureByronWallet ctx = runResourceT $ do
             sourceWallet <- fixtureByronWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
+                    \(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -125,16 +119,21 @@ spec = describe "BYRON_MIGRATIONS" $ do
                         else 333_900)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
-                , expectField (#balanceSelected . #ada . #getQuantity)
-                    (`shouldBe` 1_000_000_000_000)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
-                    (`shouldBe` 0)
+                , expectField (#balanceSelected . #ada)
+                    (`shouldBe` Quantity 1_000_000_000_000)
+                , expectField (#balanceLeftover . #ada)
+                    (`shouldBe` Quantity 0)
                 ]
 
-    it "BYRON_CREATE_MIGRATION_PLAN_02 - \
-        \Cannot create plan for empty wallet."
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
-        $ \emptyByronWallet -> runResourceT $ do
+    it "BYRON_CREATE_MIGRATION_PLAN_01r \
+        \- Can create a migration plan for a random wallet." $
+            byronCreateMigrationPlan01 fixtureRandomWallet
+
+    it "BYRON_CREATE_MIGRATION_PLAN_01i \
+        \- Can create a migration plan for an Icarus wallet." $
+            byronCreateMigrationPlan01 fixtureRandomWallet
+
+    let byronCreateMigrationPlan02 emptyByronWallet ctx = runResourceT $ do
             sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
@@ -148,6 +147,14 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
+
+    it "BYRON_CREATE_MIGRATION_PLAN_02r \
+        \- Cannot create plan for empty wallet." $
+            byronCreateMigrationPlan02 emptyRandomWallet
+
+    it "BYRON_CREATE_MIGRATION_PLAN_02i \
+        \- Cannot create plan for empty wallet." $
+            byronCreateMigrationPlan02 emptyIcarusWallet
 
     it "BYRON_CREATE_MIGRATION_PLAN_03 - \
         \Cannot create plan for Shelley wallet using Byron endpoint."
@@ -205,10 +212,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    it "BYRON_CREATE_MIGRATION_PLAN_05 - \
-        \Creating a plan is deterministic."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
+    let byronCreateMigrationPlan05 fixtureByronWallet ctx = runResourceT $ do
             sourceWallet <- fixtureByronWallet ctx
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
@@ -226,8 +230,15 @@ spec = describe "BYRON_MIGRATIONS" $ do
             case (snd response1, snd response2) of
                 (Right plan1, Right plan2) ->
                     liftIO $ plan1 `shouldBe` plan2
-                _ ->
-                    error "Unable to compare plans."
+                _ -> error "Unable to compare plans."
+
+    it "BYRON_CREATE_MIGRATION_PLAN_05r \
+        \- Creating a plan is deterministic." $
+            byronCreateMigrationPlan05 fixtureRandomWallet
+
+    it "BYRON_CREATE_MIGRATION_PLAN_05i \
+        \- Creating a plan is deterministic." $
+            byronCreateMigrationPlan05 fixtureIcarusWallet
 
     describe "BYRON_MIGRATE_01 - \
         \After a migration operation successfully completes, the correct \
