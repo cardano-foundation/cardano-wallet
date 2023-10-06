@@ -335,6 +335,10 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Ouroboros.Consensus.HardFork.History as HF
 
+--------------------------------------------------------------------------------
+-- Specifications
+--------------------------------------------------------------------------------
+
 spec :: Spec
 spec = do
     balanceTransactionSpec
@@ -933,6 +937,10 @@ distributeSurplusSpec = do
             prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
                 & withMaxSuccess 10_000
                 & property
+
+--------------------------------------------------------------------------------
+-- Properties
+--------------------------------------------------------------------------------
 
 prop_balanceTransactionExistingReturnCollateral
     :: Wallet'
