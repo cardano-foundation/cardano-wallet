@@ -38,6 +38,7 @@ module Cardano.Write.Tx.BalanceSpec
     , mockPParamsForBalancing
     , prop_distributeSurplus_onSuccess
     , prop_distributeSurplus_onSuccess_conservesSurplus
+    , prop_distributeSurplus_onSuccess_coversCostIncrease
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -184,6 +185,7 @@ import Cardano.Write.Tx.Balance
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , costOfIncreasingCoin
     , distributeSurplus
     , fromWalletUTxO
     , posAndNegFromCardanoValue
@@ -282,7 +284,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( (.>=.) )
+    ( report, (.>=.) )
 import Test.QuickCheck.Gen
     ( Gen (..) )
 import Test.Utils.Paths
@@ -1219,6 +1221,29 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
         surplus === Coin.difference
             (feeModified <> F.foldMap TxOut.coin changeModified)
             (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
+
+-- The 'distributeSurplus' function should cover the cost of any increases in
+-- 'Coin' values.
+--
+-- If the total cost of encoding ada quantities has increased by 𝛿c, then the
+-- fee value should have increased by at least 𝛿c.
+--
+prop_distributeSurplus_onSuccess_coversCostIncrease
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_coversCostIncrease =
+    prop_distributeSurplus_onSuccess $ \policy _surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) -> do
+        let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
+        let coinsModified = feeModified : (TxOut.coin <$> changeModified)
+        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
+        let costIncrease = F.foldMap
+                (uncurry $ costOfIncreasingCoin policy)
+                (coinsOriginal `zip` coinDeltas)
+        Coin.difference feeModified feeOriginal >= costIncrease
+            & report feeModified "feeModified"
+            & report feeOriginal "feeOriginal"
+            & report costIncrease "costIncrease"
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->

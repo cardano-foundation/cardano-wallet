@@ -171,6 +171,7 @@ import Cardano.Write.Tx.BalanceSpec
     , mockPParamsForBalancing
     , prop_distributeSurplus_onSuccess
     , prop_distributeSurplus_onSuccess_conservesSurplus
+    , prop_distributeSurplus_onSuccess_coversCostIncrease
     , testTxLayer
     )
 import Cardano.Write.Tx.Sign
@@ -1812,29 +1813,6 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
-
--- The 'distributeSurplus' function should cover the cost of any increases in
--- 'Coin' values.
---
--- If the total cost of encoding ada quantities has increased by 𝛿c, then the
--- fee value should have increased by at least 𝛿c.
---
-prop_distributeSurplus_onSuccess_coversCostIncrease
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
-prop_distributeSurplus_onSuccess_coversCostIncrease =
-    prop_distributeSurplus_onSuccess $ \policy _surplus
-        (TxFeeAndChange feeOriginal changeOriginal)
-        (TxFeeAndChange feeModified changeModified) -> do
-        let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
-        let coinsModified = feeModified : (TxOut.coin <$> changeModified)
-        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
-        let costIncrease = F.foldMap
-                (uncurry $ costOfIncreasingCoin policy)
-                (coinsOriginal `zip` coinDeltas)
-        Coin.difference feeModified feeOriginal >= costIncrease
-            & report feeModified "feeModified"
-            & report feeOriginal "feeOriginal"
-            & report costIncrease "costIncrease"
 
 -- Since the 'distributeSurplus' function is not aware of the minimum ada
 -- quantity or how to calculate it, it should never allow change ada values to
