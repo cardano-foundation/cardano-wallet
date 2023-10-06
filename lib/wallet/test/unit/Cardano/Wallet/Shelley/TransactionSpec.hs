@@ -1536,12 +1536,6 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
---------------------------------------------------------------------------------
--- Properties for 'distributeSurplus'
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
-
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
 mkGen f = MkGen $ \g _ -> f g
