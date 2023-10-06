@@ -61,6 +61,7 @@ import Cardano.Api
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
+    , genEncodingBoundaryLovelace
     , genNetworkId
     , genPaymentCredential
     , genSignedValue
@@ -97,6 +98,8 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing), Withdrawals (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
+import Cardano.Numeric.Util
+    ( power )
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
@@ -140,6 +143,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -161,7 +166,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoValue, toCardanoTxIn, toCardanoValue )
+    ( fromCardanoLovelace, fromCardanoValue, toCardanoTxIn, toCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut
     , toLedgerAddress
@@ -199,6 +204,7 @@ import Cardano.Write.Tx.Balance
     , fromWalletUTxO
     , maximumCostOfIncreasingCoin
     , posAndNegFromCardanoValue
+    , sizeOfCoin
     )
 import Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
@@ -270,9 +276,11 @@ import Test.Hspec.Golden
     ( Golden (..) )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Arbitrary2 (liftShrink2)
     , Property
     , Testable
     , arbitraryBoundedEnum
+    , arbitrarySizedNatural
     , checkCoverage
     , classify
     , conjoin
@@ -280,6 +288,7 @@ import Test.QuickCheck
     , cover
     , elements
     , forAll
+    , frequency
     , label
     , listOf
     , oneof
@@ -294,7 +303,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( report, (.>=.) )
+    ( report, shrinkNatural, (.>=.) )
 import Test.QuickCheck.Gen
     ( Gen (..) )
 import Test.Utils.Paths
@@ -321,9 +330,12 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -338,6 +350,7 @@ import qualified Ouroboros.Consensus.HardFork.History as HF
 spec :: Spec
 spec = do
     balanceTransactionSpec
+    distributeSurplusSpec
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
@@ -782,6 +795,156 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         case Cardano.txFee content of
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
+
+distributeSurplusSpec :: Spec
+distributeSurplusSpec = do
+    describe "sizeOfCoin" $ do
+        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
+        let cborSizeOfCoin =
+                TxSize
+                . fromIntegral
+                . BS.length
+                . CBOR.toStrictByteString
+                . CBOR.encodeWord64 . coinToWord64Clamped
+
+        let isBoundary c =
+                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` Coin 1)
+                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` Coin 1)
+
+        it "matches the size of the Word64 CBOR encoding" $
+            property $ checkCoverage $
+                forAll genEncodingBoundaryLovelace $ \l -> do
+                    let c = fromCardanoLovelace l
+                    let expected = cborSizeOfCoin c
+
+                    -- Use a low coverage requirement of 0.01% just to
+                    -- ensure we see /some/ amount of every size.
+                    let coverSize s = cover 0.01 (s == expected) (show s)
+                    sizeOfCoin c === expected
+                        & coverSize (TxSize 1)
+                        & coverSize (TxSize 2)
+                        & coverSize (TxSize 3)
+                        & coverSize (TxSize 5)
+                        & coverSize (TxSize 9)
+                        & cover 0.5 (isBoundary c) "boundary case"
+
+        describe "boundary case goldens" $ do
+            it "1 byte to 2 byte boundary" $ do
+                sizeOfCoin (Coin 23) `shouldBe` TxSize 1
+                sizeOfCoin (Coin 24) `shouldBe` TxSize 2
+            it "2 byte to 3 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
+                sizeOfCoin (Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
+            it "3 byte to 5 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
+                sizeOfCoin (Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
+            it "5 byte to 9 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
+                sizeOfCoin (Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
+
+    describe "costOfIncreasingCoin" $ do
+        it "costs 176 lovelace to increase 4294.967295 ada (2^32 - 1 lovelace) \
+           \by 1 lovelace on mainnet" $ do
+
+            let expectedCostIncrease = Coin 176
+            let mainnet = mainnetFeePerByte
+            costOfIncreasingCoin mainnet (Coin $ 2 `power` 32 - 1) (Coin 1)
+                `shouldBe` expectedCostIncrease
+
+        it "produces results in the range [0, 8 * feePerByte]" $
+            property $ \c increase -> do
+                let res = costOfIncreasingCoin (FeePerByte 1) c increase
+                counterexample (show res <> "out of bounds") $
+                    res >= Coin 0 && res <= Coin 8
+
+    describe "distributeSurplus" $ do
+
+        it "prop_distributeSurplus_onSuccess_conservesSurplus" $
+            prop_distributeSurplus_onSuccess_conservesSurplus
+                & property
+        it "prop_distributeSurplus_onSuccess_coversCostIncrease" $
+            prop_distributeSurplus_onSuccess_coversCostIncrease
+                & property
+        it "prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues" $
+            prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
+                & property
+        it "prop_distributeSurplus_onSuccess_doesNotReduceFeeValue" $
+            prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeLength" $
+            prop_distributeSurplus_onSuccess_preservesChangeLength
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeAddresses" $
+            prop_distributeSurplus_onSuccess_preservesChangeAddresses
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets" $
+            prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
+                & property
+        it "prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue" $
+            prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
+                & property
+        it "prop_distributeSurplus_onSuccess_increasesValuesByDelta" $
+            prop_distributeSurplus_onSuccess_increasesValuesByDelta
+                & property
+
+    describe "distributeSurplusDelta" $ do
+
+        -- NOTE: The test values below make use of 255 being encoded as 2 bytes,
+        -- and 256 as 3 bytes.
+
+        describe "when increasing change increases fee" $
+            it "will increase fee (99 lovelace for change, 1 for fee)" $
+                distributeSurplusDelta
+                    (FeePerByte 1)
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 200) [Coin 200])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 1) [Coin 99])
+
+        describe "when increasing fee increases fee" $
+            it "will increase fee (98 lovelace for change, 2 for fee)" $ do
+                distributeSurplusDelta
+                    (FeePerByte 1)
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 255) [Coin 200])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 2) [Coin 98])
+
+        describe
+            (unwords
+                [ "when increasing the change costs more in fees than the"
+                , "increase itself"
+                ]) $ do
+            it "will try burning the surplus as fees" $ do
+                distributeSurplusDelta
+                    mainnetFeePerByte
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 200) [Coin 255])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 10) [Coin 0])
+
+            it "will fail if neither the fee can be increased" $ do
+                distributeSurplusDelta
+                    mainnetFeePerByte
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 255) [Coin 255])
+                    `shouldBe`
+                    Left (ErrMoreSurplusNeeded $ Coin 34)
+
+        describe "when no change output is present" $ do
+            it "will burn surplus as excess fees" $
+                property $ \surplus fee0 -> do
+                    distributeSurplusDelta
+                        (FeePerByte 1)
+                        surplus
+                        (TxFeeAndChange fee0 [])
+                        `shouldBe`
+                        Right (TxFeeAndChange surplus [])
+
+        it "prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus" $
+            prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+                & withMaxSuccess 10_000
+                & property
 
 prop_balanceTransactionExistingReturnCollateral
     :: Wallet'
@@ -1779,6 +1942,9 @@ dummyTimeTranslationWithHorizon horizon =
     epochInfo = Slotting.hoistEpochInfo runExcept
         (HF.interpreterToEpochInfo (HF.mkInterpreter summary))
 
+mainnetFeePerByte :: FeePerByte
+mainnetFeePerByte = FeePerByte 44
+
 -- | We try to use similar parameters to mainnet where it matters (in particular
 -- fees, execution unit prices, and the cost model.)
 mockCardanoApiPParamsForBalancing
@@ -1939,6 +2105,21 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
     shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
+-- Coins (quantities of lovelace) must be strictly positive when included in
+-- transactions.
+--
+instance Arbitrary Coin where
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
+
+instance Arbitrary FeePerByte where
+    arbitrary = frequency
+        [ (1, pure mainnetFeePerByte)
+        , (7, FeePerByte <$> arbitrarySizedNatural)
+        ]
+    shrink (FeePerByte x) =
+        FeePerByte <$> shrinkNatural x
+
 instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
@@ -1972,6 +2153,32 @@ instance Arbitrary StdGenSeed  where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
+
+instance Arbitrary (TxBalanceSurplus Coin) where
+    -- We want to test cases where the surplus is zero. So it's important that
+    -- we do not restrict ourselves to positive coins here.
+    arbitrary = TxBalanceSurplus <$> frequency
+        [ (8, genCoin)
+        , (4, genCoin & scale (* (2 `power`  4)))
+        , (2, genCoin & scale (* (2 `power`  8)))
+        , (1, genCoin & scale (* (2 `power` 16)))
+        ]
+    shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus shrinkCoin
+
+instance Arbitrary (TxFeeAndChange [TxOut]) where
+    arbitrary = do
+        fee <- genCoin
+        change <- frequency
+            [ (1, pure [])
+            , (1, (: []) <$> TxOutGen.genTxOut)
+            , (6, listOf TxOutGen.genTxOut)
+            ]
+        pure $ TxFeeAndChange fee change
+    shrink (TxFeeAndChange fee change) =
+        uncurry TxFeeAndChange <$> liftShrink2
+            (shrinkCoin)
+            (shrinkList TxOutGen.shrinkTxOut)
+            (fee, change)
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
