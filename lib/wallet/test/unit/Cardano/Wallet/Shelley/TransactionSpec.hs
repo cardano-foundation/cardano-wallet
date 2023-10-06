@@ -169,11 +169,11 @@ import Cardano.Write.Tx.BalanceSpec
     ( TxBalanceSurplus (..)
     , dummyPolicyK
     , mockPParamsForBalancing
-    , prop_distributeSurplus_onSuccess
     , prop_distributeSurplus_onSuccess_conservesSurplus
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    , prop_distributeSurplus_onSuccess_increasesValuesByDelta
     , prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
@@ -310,7 +310,6 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Write.ProtocolParameters as Write
@@ -1819,35 +1818,6 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
-
--- The 'distributeSurplus' function should increase values by the exact amounts
--- indicated in 'distributeSurplusDelta'.
---
--- This is actually an implementation detail of 'distributeSurplus'.
---
--- However, it's useful to verify that this is true by subtracting the delta
--- values from the result of 'distributeSurplus', which should produce the
--- original fee and change values.
---
-prop_distributeSurplus_onSuccess_increasesValuesByDelta
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
-prop_distributeSurplus_onSuccess_increasesValuesByDelta =
-    prop_distributeSurplus_onSuccess $ \policy surplus
-        (TxFeeAndChange feeOriginal changeOriginal)
-        (TxFeeAndChange feeModified changeModified) ->
-            let (TxFeeAndChange feeDelta changeDeltas) =
-                    either (error . show) id
-                    $ distributeSurplusDelta policy surplus
-                    $ TxFeeAndChange
-                        (feeOriginal)
-                        (TxOut.coin <$> changeOriginal)
-            in
-            (TxFeeAndChange
-                (feeModified `Coin.difference` feeDelta)
-                (zipWith TxOut.subtractCoin changeDeltas changeModified)
-            )
-            ===
-            TxFeeAndChange feeOriginal changeOriginal
 
 --------------------------------------------------------------------------------
 

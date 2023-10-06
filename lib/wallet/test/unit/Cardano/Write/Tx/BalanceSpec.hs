@@ -41,6 +41,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    , prop_distributeSurplus_onSuccess_increasesValuesByDelta
     , prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
@@ -193,6 +194,7 @@ import Cardano.Write.Tx.Balance
     , constructUTxOIndex
     , costOfIncreasingCoin
     , distributeSurplus
+    , distributeSurplusDelta
     , fromWalletUTxO
     , posAndNegFromCardanoValue
     )
@@ -1275,6 +1277,35 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
         (TxFeeAndChange feeOriginal _changeOriginal)
         (TxFeeAndChange feeModified _changeModified) ->
             feeOriginal <= feeModified
+
+-- The 'distributeSurplus' function should increase values by the exact amounts
+-- indicated in 'distributeSurplusDelta'.
+--
+-- This is actually an implementation detail of 'distributeSurplus'.
+--
+-- However, it's useful to verify that this is true by subtracting the delta
+-- values from the result of 'distributeSurplus', which should produce the
+-- original fee and change values.
+--
+prop_distributeSurplus_onSuccess_increasesValuesByDelta
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_increasesValuesByDelta =
+    prop_distributeSurplus_onSuccess $ \policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+            let (TxFeeAndChange feeDelta changeDeltas) =
+                    either (error . show) id
+                    $ distributeSurplusDelta policy surplus
+                    $ TxFeeAndChange
+                        (feeOriginal)
+                        (TxOut.coin <$> changeOriginal)
+            in
+            (TxFeeAndChange
+                (feeModified `Coin.difference` feeDelta)
+                (zipWith TxOut.subtractCoin changeDeltas changeModified)
+            )
+            ===
+            TxFeeAndChange feeOriginal changeOriginal
 
 -- The 'distributeSurplus' function should only adjust the very first change
 -- value.  All other change values should be left untouched.
