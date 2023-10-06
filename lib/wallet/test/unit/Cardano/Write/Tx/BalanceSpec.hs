@@ -33,8 +33,10 @@ module Cardano.Write.Tx.BalanceSpec
     -- to balanceTx that have not yet been relocated to this module. Once all
     -- balanceTx-related tests have been relocated to this module, we should
     -- remove these exports:
+    , TxBalanceSurplus (..)
     , dummyPolicyK
     , mockPParamsForBalancing
+    , prop_distributeSurplus_onSuccess
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -165,7 +167,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
-    ( AnyRecentEra (..), RecentEra (..), recentEra )
+    ( AnyRecentEra (..), FeePerByte (..), RecentEra (..), recentEra )
 import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrAssignRedeemers (..)
@@ -173,12 +175,15 @@ import Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrMoreSurplusNeeded (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
     , Redeemer (..)
+    , TxFeeAndChange (..)
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , distributeSurplus
     , fromWalletUTxO
     , posAndNegFromCardanoValue
     )
@@ -202,6 +207,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Default
     ( Default (..) )
+import Data.Either
+    ( isRight )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -251,10 +258,13 @@ import Test.Hspec.Golden
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , Testable
     , arbitraryBoundedEnum
+    , checkCoverage
     , classify
     , conjoin
     , counterexample
+    , cover
     , elements
     , forAll
     , label
@@ -297,6 +307,7 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
@@ -1137,6 +1148,63 @@ prop_bootstrapWitnesses
                     mkByronWitness body net addr
                         (getRawKey ByronKeyS addrK, pwd)
 
+-- A helper function to generate properties for 'distributeSurplus' on
+-- success.
+--
+prop_distributeSurplus_onSuccess
+    :: Testable prop
+    => (FeePerByte
+        -> Coin
+        -> TxFeeAndChange [TxOut]
+        -> TxFeeAndChange [TxOut]
+        -> prop)
+    -> FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [TxOut]
+    -> Property
+prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
+    checkCoverage $
+    cover 50
+        (isRight mResult)
+        "isRight mResult" $
+    cover 10
+        (length changeOriginal == 0)
+        "length changeOriginal == 0" $
+    cover 10
+        (length changeOriginal == 1)
+        "length changeOriginal == 1" $
+    cover 50
+        (length changeOriginal >= 2)
+        "length changeOriginal >= 2" $
+    cover 2
+        (feeOriginal == Coin 0)
+        "feeOriginal == Coin 0" $
+    cover 2
+        (feeOriginal == Coin 1)
+        "feeOriginal == Coin 1" $
+    cover 50
+        (feeOriginal >= Coin 2)
+        "feeOriginal >= Coin 2" $
+    cover 1
+        (surplus == Coin 0)
+        "surplus == Coin 0" $
+    cover 1
+        (surplus == Coin 1)
+        "surplus == Coin 1" $
+    cover 50
+        (surplus >= Coin 2)
+        "surplus >= Coin 2" $
+    either
+        (const $ property True)
+        (property . propertyToTest policy surplus fc)
+        mResult
+  where
+    TxBalanceSurplus surplus = txSurplus
+    TxFeeAndChange feeOriginal changeOriginal = fc
+
+    mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+    mResult = distributeSurplus policy surplus fc
+
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     let
@@ -1167,6 +1235,9 @@ data BalanceTxGolden =
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
+
+newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
+    deriving (Eq, Show)
 
 data Wallet' = Wallet' UTxOAssumptions UTxO AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')

@@ -159,7 +159,6 @@ import Cardano.Write.Tx.Balance
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , costOfIncreasingCoin
-    , distributeSurplus
     , distributeSurplusDelta
     , maximumCostOfIncreasingCoin
     , noTxUpdate
@@ -167,7 +166,12 @@ import Cardano.Write.Tx.Balance
     , updateTx
     )
 import Cardano.Write.Tx.BalanceSpec
-    ( dummyPolicyK, mockPParamsForBalancing, testTxLayer )
+    ( TxBalanceSurplus (..)
+    , dummyPolicyK
+    , mockPParamsForBalancing
+    , prop_distributeSurplus_onSuccess
+    , testTxLayer
+    )
 import Cardano.Write.Tx.Sign
     ( estimateKeyWitnessCount, estimateSignedTxSize )
 import Cardano.Write.Tx.SizeEstimation
@@ -1782,9 +1786,6 @@ instance Arbitrary FeePerByte where
 mainnetFeePerByte :: FeePerByte
 mainnetFeePerByte = FeePerByte 44
 
-newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
-    deriving (Eq, Show)
-
 instance Arbitrary (TxBalanceSurplus Coin) where
     -- We want to test cases where the surplus is zero. So it's important that
     -- we do not restrict ourselves to positive coins here.
@@ -1810,63 +1811,6 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
-
--- A helper function to generate properties for 'distributeSurplus' on
--- success.
---
-prop_distributeSurplus_onSuccess
-    :: Testable prop
-    => (FeePerByte
-        -> Coin
-        -> TxFeeAndChange [TxOut]
-        -> TxFeeAndChange [TxOut]
-        -> prop)
-    -> FeePerByte
-    -> TxBalanceSurplus Coin
-    -> TxFeeAndChange [TxOut]
-    -> Property
-prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
-    checkCoverage $
-    cover 50
-        (isRight mResult)
-        "isRight mResult" $
-    cover 10
-        (length changeOriginal == 0)
-        "length changeOriginal == 0" $
-    cover 10
-        (length changeOriginal == 1)
-        "length changeOriginal == 1" $
-    cover 50
-        (length changeOriginal >= 2)
-        "length changeOriginal >= 2" $
-    cover 2
-        (feeOriginal == Coin 0)
-        "feeOriginal == Coin 0" $
-    cover 2
-        (feeOriginal == Coin 1)
-        "feeOriginal == Coin 1" $
-    cover 50
-        (feeOriginal >= Coin 2)
-        "feeOriginal >= Coin 2" $
-    cover 1
-        (surplus == Coin 0)
-        "surplus == Coin 0" $
-    cover 1
-        (surplus == Coin 1)
-        "surplus == Coin 1" $
-    cover 50
-        (surplus >= Coin 2)
-        "surplus >= Coin 2" $
-    either
-        (const $ property True)
-        (property . propertyToTest policy surplus fc)
-        mResult
-  where
-    TxBalanceSurplus surplus = txSurplus
-    TxFeeAndChange feeOriginal changeOriginal = fc
-
-    mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-    mResult = distributeSurplus policy surplus fc
 
 -- Verifies that the 'distributeSurplus' function conserves the surplus: the
 -- total increase in the fee and change ada quantities should be exactly equal
