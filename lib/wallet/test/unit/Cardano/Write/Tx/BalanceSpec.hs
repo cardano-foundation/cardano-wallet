@@ -39,6 +39,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess
     , prop_distributeSurplus_onSuccess_conservesSurplus
     , prop_distributeSurplus_onSuccess_coversCostIncrease
+    , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -1244,6 +1245,20 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
             & report feeModified "feeModified"
             & report feeOriginal "feeOriginal"
             & report costIncrease "costIncrease"
+
+-- Since the 'distributeSurplus' function is not aware of the minimum ada
+-- quantity or how to calculate it, it should never allow change ada values to
+-- decrease.
+--
+prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            all (uncurry (<=)) $ zip
+                (TxOut.coin <$> changeOriginal)
+                (TxOut.coin <$> changeModified)
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
