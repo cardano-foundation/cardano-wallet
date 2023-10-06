@@ -176,6 +176,7 @@ import Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
+    , prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
     , testTxLayer
     )
 import Cardano.Write.Tx.Sign
@@ -1817,18 +1818,6 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
-
--- The 'distributeSurplus' function should never adjust the values of non-ada
--- assets.
---
-prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
-prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
-    prop_distributeSurplus_onSuccess $ \_policy _surplus
-        (TxFeeAndChange _feeOriginal changeOriginal)
-        (TxFeeAndChange _feeModified changeModified) ->
-            (view (#tokens . #tokens) <$> changeOriginal) ===
-            (view (#tokens . #tokens) <$> changeModified)
 
 -- The 'distributeSurplus' function should only adjust the very first change
 -- value.  All other change values should be left untouched.

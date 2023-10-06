@@ -43,6 +43,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
+    , prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -1297,6 +1298,18 @@ prop_distributeSurplus_onSuccess_preservesChangeLength =
         (TxFeeAndChange _feeOriginal changeOriginal)
         (TxFeeAndChange _feeModified changeModified) ->
             length changeOriginal === length changeModified
+
+-- The 'distributeSurplus' function should never adjust the values of non-ada
+-- assets.
+--
+prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (view (#tokens . #tokens) <$> changeOriginal) ===
+            (view (#tokens . #tokens) <$> changeModified)
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
