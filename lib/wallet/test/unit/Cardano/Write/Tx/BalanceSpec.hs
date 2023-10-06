@@ -41,6 +41,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
     , testTxLayer
     ----------------------------------------------------------------------------
@@ -1272,6 +1273,18 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
         (TxFeeAndChange feeOriginal _changeOriginal)
         (TxFeeAndChange feeModified _changeModified) ->
             feeOriginal <= feeModified
+
+-- The 'distributeSurplus' function should never adjust addresses of change
+-- outputs.
+--
+prop_distributeSurplus_onSuccess_preservesChangeAddresses
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_preservesChangeAddresses =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (view #address <$> changeOriginal) ===
+            (view #address <$> changeModified)
 
 -- The 'distributeSurplus' function should always return exactly the same
 -- number of change outputs that it was given. It should never create or
