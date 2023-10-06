@@ -49,6 +49,7 @@ import Cardano.Api
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
+    , genEncodingBoundaryLovelace
     , genNetworkId
     , genPaymentCredential
     , genSignedValue
@@ -85,6 +86,8 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing), Withdrawals (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
+import Cardano.Numeric.Util
+    ( power )
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
@@ -128,6 +131,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -149,7 +154,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoValue, toCardanoTxIn, toCardanoValue )
+    ( fromCardanoLovelace, fromCardanoValue, toCardanoTxIn, toCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut
     , toLedgerAddress
@@ -165,7 +170,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
-    ( AnyRecentEra (..), RecentEra (..), recentEra )
+    ( AnyRecentEra (..), FeePerByte (..), RecentEra (..), recentEra )
 import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrAssignRedeemers (..)
@@ -173,14 +178,21 @@ import Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
+    , ErrMoreSurplusNeeded (..)
     , ErrUpdateSealedTx (..)
     , PartialTx (..)
     , Redeemer (..)
+    , TxFeeAndChange (..)
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
+    , costOfIncreasingCoin
+    , distributeSurplus
+    , distributeSurplusDelta
     , fromWalletUTxO
+    , maximumCostOfIncreasingCoin
     , posAndNegFromCardanoValue
+    , sizeOfCoin
     )
 import Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
@@ -202,6 +214,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Default
     ( Default (..) )
+import Data.Either
+    ( isLeft, isRight )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -250,13 +264,19 @@ import Test.Hspec.Golden
     ( Golden (..) )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Arbitrary2 (liftShrink2)
     , Property
+    , Testable
     , arbitraryBoundedEnum
+    , arbitrarySizedNatural
+    , checkCoverage
     , classify
     , conjoin
     , counterexample
+    , cover
     , elements
     , forAll
+    , frequency
     , label
     , listOf
     , oneof
@@ -271,7 +291,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( (.>=.) )
+    ( report, shrinkNatural, (.>=.) )
 import Test.QuickCheck.Gen
     ( Gen (..) )
 import Test.Utils.Paths
@@ -297,9 +317,13 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -311,9 +335,14 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Ouroboros.Consensus.HardFork.History as HF
 
+--------------------------------------------------------------------------------
+-- Specifications
+--------------------------------------------------------------------------------
+
 spec :: Spec
 spec = do
     balanceTransactionSpec
+    distributeSurplusSpec
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
@@ -759,6 +788,160 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
+distributeSurplusSpec :: Spec
+distributeSurplusSpec = do
+    describe "sizeOfCoin" $ do
+        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
+        let cborSizeOfCoin =
+                TxSize
+                . fromIntegral
+                . BS.length
+                . CBOR.toStrictByteString
+                . CBOR.encodeWord64 . coinToWord64Clamped
+
+        let isBoundary c =
+                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` Coin 1)
+                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` Coin 1)
+
+        it "matches the size of the Word64 CBOR encoding" $
+            property $ checkCoverage $
+                forAll genEncodingBoundaryLovelace $ \l -> do
+                    let c = fromCardanoLovelace l
+                    let expected = cborSizeOfCoin c
+
+                    -- Use a low coverage requirement of 0.01% just to
+                    -- ensure we see /some/ amount of every size.
+                    let coverSize s = cover 0.01 (s == expected) (show s)
+                    sizeOfCoin c === expected
+                        & coverSize (TxSize 1)
+                        & coverSize (TxSize 2)
+                        & coverSize (TxSize 3)
+                        & coverSize (TxSize 5)
+                        & coverSize (TxSize 9)
+                        & cover 0.5 (isBoundary c) "boundary case"
+
+        describe "boundary case goldens" $ do
+            it "1 byte to 2 byte boundary" $ do
+                sizeOfCoin (Coin 23) `shouldBe` TxSize 1
+                sizeOfCoin (Coin 24) `shouldBe` TxSize 2
+            it "2 byte to 3 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
+                sizeOfCoin (Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
+            it "3 byte to 5 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
+                sizeOfCoin (Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
+            it "5 byte to 9 byte boundary" $ do
+                sizeOfCoin (Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
+                sizeOfCoin (Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
+
+    describe "costOfIncreasingCoin" $ do
+        it "costs 176 lovelace to increase 4294.967295 ada (2^32 - 1 lovelace) \
+           \by 1 lovelace on mainnet" $ do
+
+            let expectedCostIncrease = Coin 176
+            let mainnet = mainnetFeePerByte
+            costOfIncreasingCoin mainnet (Coin $ 2 `power` 32 - 1) (Coin 1)
+                `shouldBe` expectedCostIncrease
+
+        it "produces results in the range [0, 8 * feePerByte]" $
+            property $ \c increase -> do
+                let res = costOfIncreasingCoin (FeePerByte 1) c increase
+                counterexample (show res <> "out of bounds") $
+                    res >= Coin 0 && res <= Coin 8
+
+    describe "distributeSurplus" $ do
+
+        it "prop_distributeSurplus_onSuccess_conservesSurplus" $
+            prop_distributeSurplus_onSuccess_conservesSurplus
+                & property
+        it "prop_distributeSurplus_onSuccess_coversCostIncrease" $
+            prop_distributeSurplus_onSuccess_coversCostIncrease
+                & property
+        it "prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues" $
+            prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
+                & property
+        it "prop_distributeSurplus_onSuccess_doesNotReduceFeeValue" $
+            prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeLength" $
+            prop_distributeSurplus_onSuccess_preservesChangeLength
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeAddresses" $
+            prop_distributeSurplus_onSuccess_preservesChangeAddresses
+                & property
+        it "prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets" $
+            prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
+                & property
+        it "prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue" $
+            prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
+                & property
+        it "prop_distributeSurplus_onSuccess_increasesValuesByDelta" $
+            prop_distributeSurplus_onSuccess_increasesValuesByDelta
+                & property
+
+    describe "distributeSurplusDelta" $ do
+
+        -- NOTE: The test values below make use of 255 being encoded as 2 bytes,
+        -- and 256 as 3 bytes.
+
+        describe "when increasing change increases fee" $
+            it "will increase fee (99 lovelace for change, 1 for fee)" $
+                distributeSurplusDelta
+                    (FeePerByte 1)
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 200) [Coin 200])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 1) [Coin 99])
+
+        describe "when increasing fee increases fee" $
+            it "will increase fee (98 lovelace for change, 2 for fee)" $ do
+                distributeSurplusDelta
+                    (FeePerByte 1)
+                    (Coin 100)
+                    (TxFeeAndChange (Coin 255) [Coin 200])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 2) [Coin 98])
+
+        describe
+            (unwords
+                [ "when increasing the change costs more in fees than the"
+                , "increase itself"
+                ]) $ do
+            it "will try burning the surplus as fees" $ do
+                distributeSurplusDelta
+                    mainnetFeePerByte
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 200) [Coin 255])
+                    `shouldBe`
+                    Right (TxFeeAndChange (Coin 10) [Coin 0])
+
+            it "will fail if neither the fee can be increased" $ do
+                distributeSurplusDelta
+                    mainnetFeePerByte
+                    (Coin 10)
+                    (TxFeeAndChange (Coin 255) [Coin 255])
+                    `shouldBe`
+                    Left (ErrMoreSurplusNeeded $ Coin 34)
+
+        describe "when no change output is present" $ do
+            it "will burn surplus as excess fees" $
+                property $ \surplus fee0 -> do
+                    distributeSurplusDelta
+                        (FeePerByte 1)
+                        surplus
+                        (TxFeeAndChange fee0 [])
+                        `shouldBe`
+                        Right (TxFeeAndChange surplus [])
+
+        it "prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus" $
+            prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+                & withMaxSuccess 10_000
+                & property
+
+--------------------------------------------------------------------------------
+-- Properties
+--------------------------------------------------------------------------------
+
 prop_balanceTransactionExistingReturnCollateral
     :: Wallet'
     -> ShowBuildable (PartialTx Cardano.BabbageEra)
@@ -1137,6 +1320,257 @@ prop_bootstrapWitnesses
                     mkByronWitness body net addr
                         (getRawKey ByronKeyS addrK, pwd)
 
+-- A helper function to generate properties for 'distributeSurplus' on
+-- success.
+--
+prop_distributeSurplus_onSuccess
+    :: Testable prop
+    => (FeePerByte
+        -> Coin
+        -> TxFeeAndChange [TxOut]
+        -> TxFeeAndChange [TxOut]
+        -> prop)
+    -> FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [TxOut]
+    -> Property
+prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
+    checkCoverage $
+    cover 50
+        (isRight mResult)
+        "isRight mResult" $
+    cover 10
+        (length changeOriginal == 0)
+        "length changeOriginal == 0" $
+    cover 10
+        (length changeOriginal == 1)
+        "length changeOriginal == 1" $
+    cover 50
+        (length changeOriginal >= 2)
+        "length changeOriginal >= 2" $
+    cover 2
+        (feeOriginal == Coin 0)
+        "feeOriginal == Coin 0" $
+    cover 2
+        (feeOriginal == Coin 1)
+        "feeOriginal == Coin 1" $
+    cover 50
+        (feeOriginal >= Coin 2)
+        "feeOriginal >= Coin 2" $
+    cover 1
+        (surplus == Coin 0)
+        "surplus == Coin 0" $
+    cover 1
+        (surplus == Coin 1)
+        "surplus == Coin 1" $
+    cover 50
+        (surplus >= Coin 2)
+        "surplus >= Coin 2" $
+    either
+        (const $ property True)
+        (property . propertyToTest policy surplus fc)
+        mResult
+  where
+    TxBalanceSurplus surplus = txSurplus
+    TxFeeAndChange feeOriginal changeOriginal = fc
+
+    mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+    mResult = distributeSurplus policy surplus fc
+
+-- Verifies that the 'distributeSurplus' function conserves the surplus: the
+-- total increase in the fee and change ada quantities should be exactly equal
+-- to the given surplus.
+--
+prop_distributeSurplus_onSuccess_conservesSurplus
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_conservesSurplus =
+    prop_distributeSurplus_onSuccess $ \_policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+        surplus === Coin.difference
+            (feeModified <> F.foldMap TxOut.coin changeModified)
+            (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
+
+-- The 'distributeSurplus' function should cover the cost of any increases in
+-- 'Coin' values.
+--
+-- If the total cost of encoding ada quantities has increased by 𝛿c, then the
+-- fee value should have increased by at least 𝛿c.
+--
+prop_distributeSurplus_onSuccess_coversCostIncrease
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_coversCostIncrease =
+    prop_distributeSurplus_onSuccess $ \policy _surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) -> do
+        let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
+        let coinsModified = feeModified : (TxOut.coin <$> changeModified)
+        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
+        let costIncrease = F.foldMap
+                (uncurry $ costOfIncreasingCoin policy)
+                (coinsOriginal `zip` coinDeltas)
+        Coin.difference feeModified feeOriginal >= costIncrease
+            & report feeModified "feeModified"
+            & report feeOriginal "feeOriginal"
+            & report costIncrease "costIncrease"
+
+-- Since the 'distributeSurplus' function is not aware of the minimum ada
+-- quantity or how to calculate it, it should never allow change ada values to
+-- decrease.
+--
+prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            all (uncurry (<=)) $ zip
+                (TxOut.coin <$> changeOriginal)
+                (TxOut.coin <$> changeModified)
+
+-- The 'distributeSurplus' function should never return a 'fee' value that is
+-- less than the original value.
+--
+prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange feeOriginal _changeOriginal)
+        (TxFeeAndChange feeModified _changeModified) ->
+            feeOriginal <= feeModified
+
+-- The 'distributeSurplus' function should increase values by the exact amounts
+-- indicated in 'distributeSurplusDelta'.
+--
+-- This is actually an implementation detail of 'distributeSurplus'.
+--
+-- However, it's useful to verify that this is true by subtracting the delta
+-- values from the result of 'distributeSurplus', which should produce the
+-- original fee and change values.
+--
+prop_distributeSurplus_onSuccess_increasesValuesByDelta
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_increasesValuesByDelta =
+    prop_distributeSurplus_onSuccess $ \policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+            let (TxFeeAndChange feeDelta changeDeltas) =
+                    either (error . show) id
+                    $ distributeSurplusDelta policy surplus
+                    $ TxFeeAndChange
+                        (feeOriginal)
+                        (TxOut.coin <$> changeOriginal)
+            in
+            (TxFeeAndChange
+                (feeModified `Coin.difference` feeDelta)
+                (zipWith TxOut.subtractCoin changeDeltas changeModified)
+            )
+            ===
+            TxFeeAndChange feeOriginal changeOriginal
+
+-- The 'distributeSurplus' function should only adjust the very first change
+-- value.  All other change values should be left untouched.
+--
+-- This is actually an implementation detail of 'distributeSurplus'.
+--
+-- In principle, 'distributeSurplus' could allow itself to adjust any of the
+-- change values in order to find a (marginally) more optimal solution.
+-- However, for reasons of simplicity, we only adjust the first change value.
+--
+-- Here we verify that the implementation indeed only adjusts the first change
+-- value, as expected.
+--
+prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (drop 1 changeOriginal) ===
+            (drop 1 changeModified)
+
+-- The 'distributeSurplus' function should never adjust addresses of change
+-- outputs.
+--
+prop_distributeSurplus_onSuccess_preservesChangeAddresses
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_preservesChangeAddresses =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (view #address <$> changeOriginal) ===
+            (view #address <$> changeModified)
+
+-- The 'distributeSurplus' function should always return exactly the same
+-- number of change outputs that it was given. It should never create or
+-- destroy change outputs.
+--
+prop_distributeSurplus_onSuccess_preservesChangeLength
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_preservesChangeLength =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            length changeOriginal === length changeModified
+
+-- The 'distributeSurplus' function should never adjust the values of non-ada
+-- assets.
+--
+prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (view (#tokens . #tokens) <$> changeOriginal) ===
+            (view (#tokens . #tokens) <$> changeModified)
+
+-- Verify that 'distributeSurplusDelta':
+--
+--    - covers the increase to the fee requirement incurred as a result of
+--      increasing the fee value and change values.
+--
+--    - conserves the surplus:
+--        - feeDelta + sum changeDeltas == surplus
+--
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+    :: FeePerByte -> Coin -> Coin -> [Coin] -> Property
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+    feePolicy surplus fee0 change0 =
+    checkCoverage $
+    cover 2  (isLeft  mres) "Failure" $
+    cover 50 (isRight mres) "Success" $
+    report mres "Result" $
+    counterexample (show mres) $ case mres of
+        Left (ErrMoreSurplusNeeded shortfall) ->
+            conjoin
+                [ property $ surplus < maxCoinCostIncrease
+                , property $ shortfall > Coin 0
+                , costOfIncreasingCoin feePolicy fee0 surplus
+                    === surplus <> shortfall
+                ]
+        Right (TxFeeAndChange feeDelta changeDeltas) -> do
+            let feeRequirementIncrease = mconcat
+                    [ costOfIncreasingCoin feePolicy fee0 feeDelta
+                    , F.fold $ zipWith (costOfIncreasingCoin feePolicy)
+                        change0
+                        changeDeltas
+                    ]
+            conjoin
+                [ property $ feeDelta >= feeRequirementIncrease
+                    & counterexample ("fee requirement increased by "
+                        <> show feeRequirementIncrease
+                        <> " but the fee delta was just "
+                        <> show feeDelta
+                        )
+                , F.fold changeDeltas <> feeDelta
+                    === surplus
+                ]
+  where
+    mres = distributeSurplusDelta
+        feePolicy surplus (TxFeeAndChange fee0 change0)
+    maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
+
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     let
@@ -1167,6 +1601,9 @@ data BalanceTxGolden =
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
+
+newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
+    deriving (Eq, Show)
 
 data Wallet' = Wallet' UTxOAssumptions UTxO AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')
@@ -1501,6 +1938,9 @@ dummyTimeTranslationWithHorizon horizon =
     epochInfo = Slotting.hoistEpochInfo runExcept
         (HF.interpreterToEpochInfo (HF.mkInterpreter summary))
 
+mainnetFeePerByte :: FeePerByte
+mainnetFeePerByte = FeePerByte 44
+
 -- | We try to use similar parameters to mainnet where it matters (in particular
 -- fees, execution unit prices, and the cost model.)
 mockCardanoApiPParamsForBalancing
@@ -1661,6 +2101,21 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
     shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
+-- Coins (quantities of lovelace) must be strictly positive when included in
+-- transactions.
+--
+instance Arbitrary Coin where
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
+
+instance Arbitrary FeePerByte where
+    arbitrary = frequency
+        [ (1, pure mainnetFeePerByte)
+        , (7, FeePerByte <$> arbitrarySizedNatural)
+        ]
+    shrink (FeePerByte x) =
+        FeePerByte <$> shrinkNatural x
+
 instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
@@ -1694,6 +2149,32 @@ instance Arbitrary StdGenSeed  where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
+
+instance Arbitrary (TxBalanceSurplus Coin) where
+    -- We want to test cases where the surplus is zero. So it's important that
+    -- we do not restrict ourselves to positive coins here.
+    arbitrary = TxBalanceSurplus <$> frequency
+        [ (8, genCoin)
+        , (4, genCoin & scale (* (2 `power`  4)))
+        , (2, genCoin & scale (* (2 `power`  8)))
+        , (1, genCoin & scale (* (2 `power` 16)))
+        ]
+    shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus shrinkCoin
+
+instance Arbitrary (TxFeeAndChange [TxOut]) where
+    arbitrary = do
+        fee <- genCoin
+        change <- frequency
+            [ (1, pure [])
+            , (1, (: []) <$> TxOutGen.genTxOut)
+            , (6, listOf TxOutGen.genTxOut)
+            ]
+        pure $ TxFeeAndChange fee change
+    shrink (TxFeeAndChange fee change) =
+        uncurry TxFeeAndChange <$> liftShrink2
+            (shrinkCoin)
+            (shrinkList TxOutGen.shrinkTxOut)
+            (fee, change)
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
