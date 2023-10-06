@@ -160,7 +160,6 @@ import Cardano.Write.Tx.Balance
     , TxUpdate (..)
     , costOfIncreasingCoin
     , distributeSurplusDelta
-    , maximumCostOfIncreasingCoin
     , noTxUpdate
     , sizeOfCoin
     , updateTx
@@ -169,6 +168,7 @@ import Cardano.Write.Tx.BalanceSpec
     ( TxBalanceSurplus (..)
     , dummyPolicyK
     , mockPParamsForBalancing
+    , prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     , prop_distributeSurplus_onSuccess_conservesSurplus
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
@@ -203,7 +203,7 @@ import Data.ByteString
 import Data.Char
     ( isDigit )
 import Data.Either
-    ( isLeft, isRight )
+    ( isRight )
 import Data.Function
     ( on, (&) )
 import Data.Generics.Internal.VL.Lens
@@ -287,7 +287,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, genNonEmpty, report, shrinkNatural, shrinkNonEmpty )
+    ( chooseNatural, genNonEmpty, shrinkNatural, shrinkNonEmpty )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -1730,52 +1730,6 @@ distributeSurplusSpec = do
             prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
                 & withMaxSuccess 10_000
                 & property
-
--- Verify that 'distributeSurplusDelta':
---
---    - covers the increase to the fee requirement incurred as a result of
---      increasing the fee value and change values.
---
---    - conserves the surplus:
---        - feeDelta + sum changeDeltas == surplus
---
-prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-    :: FeePerByte -> Coin -> Coin -> [Coin] -> Property
-prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-    feePolicy surplus fee0 change0 =
-    checkCoverage $
-    cover 2  (isLeft  mres) "Failure" $
-    cover 50 (isRight mres) "Success" $
-    report mres "Result" $
-    counterexample (show mres) $ case mres of
-        Left (ErrMoreSurplusNeeded shortfall) ->
-            conjoin
-                [ property $ surplus < maxCoinCostIncrease
-                , property $ shortfall > Coin 0
-                , costOfIncreasingCoin feePolicy fee0 surplus
-                    === surplus <> shortfall
-                ]
-        Right (TxFeeAndChange feeDelta changeDeltas) -> do
-            let feeRequirementIncrease = mconcat
-                    [ costOfIncreasingCoin feePolicy fee0 feeDelta
-                    , F.fold $ zipWith (costOfIncreasingCoin feePolicy)
-                        change0
-                        changeDeltas
-                    ]
-            conjoin
-                [ property $ feeDelta >= feeRequirementIncrease
-                    & counterexample ("fee requirement increased by "
-                        <> show feeRequirementIncrease
-                        <> " but the fee delta was just "
-                        <> show feeDelta
-                        )
-                , F.fold changeDeltas <> feeDelta
-                    === surplus
-                ]
-  where
-    mres = distributeSurplusDelta
-        feePolicy surplus (TxFeeAndChange fee0 change0)
-    maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
 --------------------------------------------------------------------------------
 -- Properties for 'distributeSurplus'

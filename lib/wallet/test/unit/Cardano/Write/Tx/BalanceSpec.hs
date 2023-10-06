@@ -46,6 +46,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
     , prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
+    , prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -196,6 +197,7 @@ import Cardano.Write.Tx.Balance
     , distributeSurplus
     , distributeSurplusDelta
     , fromWalletUTxO
+    , maximumCostOfIncreasingCoin
     , posAndNegFromCardanoValue
     )
 import Cardano.Write.Tx.Sign
@@ -219,7 +221,7 @@ import Data.ByteString
 import Data.Default
     ( Default (..) )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -1363,6 +1365,52 @@ prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
         (TxFeeAndChange _feeModified changeModified) ->
             (view (#tokens . #tokens) <$> changeOriginal) ===
             (view (#tokens . #tokens) <$> changeModified)
+
+-- Verify that 'distributeSurplusDelta':
+--
+--    - covers the increase to the fee requirement incurred as a result of
+--      increasing the fee value and change values.
+--
+--    - conserves the surplus:
+--        - feeDelta + sum changeDeltas == surplus
+--
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+    :: FeePerByte -> Coin -> Coin -> [Coin] -> Property
+prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
+    feePolicy surplus fee0 change0 =
+    checkCoverage $
+    cover 2  (isLeft  mres) "Failure" $
+    cover 50 (isRight mres) "Success" $
+    report mres "Result" $
+    counterexample (show mres) $ case mres of
+        Left (ErrMoreSurplusNeeded shortfall) ->
+            conjoin
+                [ property $ surplus < maxCoinCostIncrease
+                , property $ shortfall > Coin 0
+                , costOfIncreasingCoin feePolicy fee0 surplus
+                    === surplus <> shortfall
+                ]
+        Right (TxFeeAndChange feeDelta changeDeltas) -> do
+            let feeRequirementIncrease = mconcat
+                    [ costOfIncreasingCoin feePolicy fee0 feeDelta
+                    , F.fold $ zipWith (costOfIncreasingCoin feePolicy)
+                        change0
+                        changeDeltas
+                    ]
+            conjoin
+                [ property $ feeDelta >= feeRequirementIncrease
+                    & counterexample ("fee requirement increased by "
+                        <> show feeRequirementIncrease
+                        <> " but the fee delta was just "
+                        <> show feeDelta
+                        )
+                , F.fold changeDeltas <> feeDelta
+                    === surplus
+                ]
+  where
+    mres = distributeSurplusDelta
+        feePolicy surplus (TxFeeAndChange fee0 change0)
+    maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
