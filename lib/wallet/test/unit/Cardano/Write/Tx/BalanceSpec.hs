@@ -41,6 +41,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    , prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
     , prop_distributeSurplus_onSuccess_preservesChangeAddresses
     , prop_distributeSurplus_onSuccess_preservesChangeLength
     , prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
@@ -1274,6 +1275,27 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
         (TxFeeAndChange feeOriginal _changeOriginal)
         (TxFeeAndChange feeModified _changeModified) ->
             feeOriginal <= feeModified
+
+-- The 'distributeSurplus' function should only adjust the very first change
+-- value.  All other change values should be left untouched.
+--
+-- This is actually an implementation detail of 'distributeSurplus'.
+--
+-- In principle, 'distributeSurplus' could allow itself to adjust any of the
+-- change values in order to find a (marginally) more optimal solution.
+-- However, for reasons of simplicity, we only adjust the first change value.
+--
+-- Here we verify that the implementation indeed only adjusts the first change
+-- value, as expected.
+--
+prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange _feeOriginal changeOriginal)
+        (TxFeeAndChange _feeModified changeModified) ->
+            (drop 1 changeOriginal) ===
+            (drop 1 changeModified)
 
 -- The 'distributeSurplus' function should never adjust addresses of change
 -- outputs.
