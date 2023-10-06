@@ -40,6 +40,7 @@ module Cardano.Write.Tx.BalanceSpec
     , prop_distributeSurplus_onSuccess_conservesSurplus
     , prop_distributeSurplus_onSuccess_coversCostIncrease
     , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
+    , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -1259,6 +1260,17 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
             all (uncurry (<=)) $ zip
                 (TxOut.coin <$> changeOriginal)
                 (TxOut.coin <$> changeModified)
+
+-- The 'distributeSurplus' function should never return a 'fee' value that is
+-- less than the original value.
+--
+prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
+    prop_distributeSurplus_onSuccess $ \_policy _surplus
+        (TxFeeAndChange feeOriginal _changeOriginal)
+        (TxFeeAndChange feeModified _changeModified) ->
+            feeOriginal <= feeModified
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
