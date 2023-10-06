@@ -33,20 +33,8 @@ module Cardano.Write.Tx.BalanceSpec
     -- to balanceTx that have not yet been relocated to this module. Once all
     -- balanceTx-related tests have been relocated to this module, we should
     -- remove these exports:
-    , TxBalanceSurplus (..)
     , dummyPolicyK
     , mockPParamsForBalancing
-    , prop_distributeSurplus_onSuccess
-    , prop_distributeSurplus_onSuccess_conservesSurplus
-    , prop_distributeSurplus_onSuccess_coversCostIncrease
-    , prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
-    , prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
-    , prop_distributeSurplus_onSuccess_increasesValuesByDelta
-    , prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
-    , prop_distributeSurplus_onSuccess_preservesChangeAddresses
-    , prop_distributeSurplus_onSuccess_preservesChangeLength
-    , prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
-    , prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     , testTxLayer
     ----------------------------------------------------------------------------
 
