@@ -37,6 +37,7 @@ module Cardano.Write.Tx.BalanceSpec
     , dummyPolicyK
     , mockPParamsForBalancing
     , prop_distributeSurplus_onSuccess
+    , prop_distributeSurplus_onSuccess_conservesSurplus
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -1204,6 +1205,20 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
 
     mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
     mResult = distributeSurplus policy surplus fc
+
+-- Verifies that the 'distributeSurplus' function conserves the surplus: the
+-- total increase in the fee and change ada quantities should be exactly equal
+-- to the given surplus.
+--
+prop_distributeSurplus_onSuccess_conservesSurplus
+    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+prop_distributeSurplus_onSuccess_conservesSurplus =
+    prop_distributeSurplus_onSuccess $ \_policy surplus
+        (TxFeeAndChange feeOriginal changeOriginal)
+        (TxFeeAndChange feeModified changeModified) ->
+        surplus === Coin.difference
+            (feeModified <> F.foldMap TxOut.coin changeModified)
+            (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->

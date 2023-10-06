@@ -170,6 +170,7 @@ import Cardano.Write.Tx.BalanceSpec
     , dummyPolicyK
     , mockPParamsForBalancing
     , prop_distributeSurplus_onSuccess
+    , prop_distributeSurplus_onSuccess_conservesSurplus
     , testTxLayer
     )
 import Cardano.Write.Tx.Sign
@@ -1811,20 +1812,6 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
-
--- Verifies that the 'distributeSurplus' function conserves the surplus: the
--- total increase in the fee and change ada quantities should be exactly equal
--- to the given surplus.
---
-prop_distributeSurplus_onSuccess_conservesSurplus
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
-prop_distributeSurplus_onSuccess_conservesSurplus =
-    prop_distributeSurplus_onSuccess $ \_policy surplus
-        (TxFeeAndChange feeOriginal changeOriginal)
-        (TxFeeAndChange feeModified changeModified) ->
-        surplus === Coin.difference
-            (feeModified <> F.foldMap TxOut.coin changeModified)
-            (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
 
 -- The 'distributeSurplus' function should cover the cost of any increases in
 -- 'Coin' values.
