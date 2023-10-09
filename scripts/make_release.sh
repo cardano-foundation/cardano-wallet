@@ -23,7 +23,7 @@ SCRIPT=$(realpath "$0")
 # Release tags must follow format vYYYY-MM-DD.
 GIT_TAG="v2023-07-18"
 OLD_GIT_TAG="v2023-04-14"
-CARDANO_NODE_TAG="8.1.1"
+CARDANO_NODE_TAG="8.1.2"
 
 ################################################################################
 # Tag munging functions
