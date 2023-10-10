@@ -99,7 +99,8 @@ import Cardano.Wallet.Address.Derivation
     , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
+    ( ChangeAddressMode (..)
+    , CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
@@ -370,10 +371,8 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
-    , oneChangeAddressMode :: Bool
-        -- ^ One change address mode. If switched on then next transactions will
-        -- use the same change address. If no then next change index for
-        -- each next transaction is used
+    , changeAddressMode :: ChangeAddressMode
+        -- ^ How to generate change addresses.
     }
     deriving stock (Generic)
 
@@ -453,7 +452,7 @@ mkSeqStateFromAccountXPub
     -> Maybe (k 'PolicyK XPub)
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
-    -> Bool
+    -> ChangeAddressMode
     -> SeqState n k
 mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change = SeqState
     { internalPool = newSeqAddressPool @n accXPub g
@@ -463,7 +462,7 @@ mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change = SeqState
     , rewardAccountKey = rewardXPub
     , pendingChangeIxs = emptyPendingIxs
     , derivationPrefix = DerivationPrefix ( purpose, coinTypeAda, minBound )
-    , oneChangeAddressMode = change
+    , changeAddressMode = change
     }
   where
     -- This matches the reward address for "normal wallets". The accountXPub
@@ -547,10 +546,11 @@ instance
         updatePending pendingIxs =
             pendingIxsFromList $ L.nub $ (pendingIxsToList pendingIxs) <> [ixMin]
         (ix, pending') =
-            if (oneChangeAddressMode st) then
-                ( ixMin, updatePending (pendingChangeIxs st) )
-            else
-                nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
+            case changeAddressMode st of
+                SingleChangeAddress ->
+                    ( ixMin, updatePending (pendingChangeIxs st) )
+                IncreasingChangeAddresses ->
+                    nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
         addr = mkAddress addressXPub (rewardAccountKey st)
 

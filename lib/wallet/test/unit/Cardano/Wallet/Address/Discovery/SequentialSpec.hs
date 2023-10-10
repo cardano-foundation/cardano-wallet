@@ -51,7 +51,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
+    ( ChangeAddressMode (..)
+    , CompareDiscovery (..)
     , GenChange (..)
     , GetPurpose
     , IsOurs (..)
@@ -162,6 +163,7 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , frequency
+    , genericShrink
     , label
     , property
     , suchThat
@@ -307,7 +309,7 @@ prop_genChangeGapFromRootXPrv g = property $
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     s0 = mkSeqStateFromRootXPrv ShelleyKeyS
-        (RootCredentials key mempty) purposeCIP1852 g False
+        (RootCredentials key mempty) purposeCIP1852 g IncreasingChangeAddresses
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub
@@ -320,7 +322,7 @@ prop_genChangeGapFromAccountXPub g = property $
     accIx = toEnum 0x80000000
     accXPub = publicKey ShelleyKeyS
         $ deriveAccountPrivateKey mempty rootXPrv accIx
-    s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g False
+    s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g IncreasingChangeAddresses
 
 prop_changeAddressRotation
     :: SeqState 'Mainnet ShelleyKey
@@ -414,7 +416,7 @@ prop_changeIsOnlyKnownAfterGeneration
     :: ( SeqAddressPool 'UtxoInternal ShelleyKey
        , SeqAddressPool 'UtxoExternal ShelleyKey
        )
-    -> Bool
+    -> ChangeAddressMode
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) changeAddr =
     let
@@ -594,7 +596,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
         intPool <- arbitrary
         extPool <- arbitrary
         return $ SeqState intPool extPool emptyPendingIxs ourAccount
-            Nothing rewardAccount defaultPrefix False
+            Nothing rewardAccount defaultPrefix IncreasingChangeAddresses
 
 -- | Wrapper to encapsulate keys.
 data Key = forall (k :: Depth -> * -> *).
@@ -619,3 +621,7 @@ instance Arbitrary UnexpectedPrefix where
             rewardAcct = 0b11100001     -- keyhash, mainnet
             validPrefixesMainnet = [baseAddr, enterpriseAddr, rewardAcct]
         UnexpectedPrefix <$> arbitrary `suchThat` (`notElem` validPrefixesMainnet)
+
+instance Arbitrary ChangeAddressMode where
+    arbitrary = genericArbitrary
+    shrink = genericShrink

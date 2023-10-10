@@ -247,7 +247,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery
+    ( ChangeAddressMode (..)
+    , CompareDiscovery
     , GenChange (ArgGenChange)
     , GetAccount
     , GetPurpose (..)
@@ -1089,7 +1090,7 @@ postShelleyWallet
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
             (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP)
-            purposeCIP1852 g oneAddrMode
+            purposeCIP1852 g changeAddrMode
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s genesisParams wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
@@ -1110,7 +1111,9 @@ postShelleyWallet ctx generateKey body = do
     wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     genesisParams = ctx ^. #netParams
-    oneAddrMode = fromMaybe False (body ^. #oneChangeAddressMode)
+    changeAddrMode = case body ^. #oneChangeAddressMode of
+        Just True -> SingleChangeAddress
+        _         -> IncreasingChangeAddresses
 
 postAccountWallet
     :: forall ctx s k n w.
@@ -1132,7 +1135,7 @@ postAccountWallet
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub
-            (liftKey accXPub) Nothing purposeCIP1852 g False
+            (liftKey accXPub) Nothing purposeCIP1852 g IncreasingChangeAddresses
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s genesisParams wid wName state)
         coworker
@@ -1278,7 +1281,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromRootXPrv kF
-            (RootCredentials rootXPrv pwdP) ix' oneAddrMode
+            (RootCredentials rootXPrv pwdP) ix' changeAddrMode
             g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
@@ -1318,7 +1321,9 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
     genesisParams = ctx ^. #netParams
-    oneAddrMode = fromMaybe False (body ^. #oneChangeAddressMode)
+    changeAddrMode = case body ^. #oneChangeAddressMode of
+        Just True -> SingleChangeAddress
+        _         -> IncreasingChangeAddresses
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
@@ -1350,7 +1355,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromAccountXPub kF
-            (liftKey accXPub) acctIx False g pTemplate dTemplateM
+            (liftKey accXPub) acctIx IncreasingChangeAddresses g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
@@ -1861,13 +1866,13 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
         ShelleyWallet ->
             case body ^. #oneChangeAddressMode of
                 Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-                    handler $ W.setOneChangeAddressMode wrk modeOnOff
+                    handler $ W.setChangeAddressMode wrk (toOneAddrMode modeOnOff)
                 _ ->
                     return ()
         SharedWallet ->
             case body ^. #oneChangeAddressMode of
                 Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-                    handler $ W.setOneChangeAddressModeShared wrk modeOnOff
+                    handler $ W.setChangeAddressModeShared wrk (toOneAddrMode modeOnOff)
                 _ ->
                     return ()
         _ ->
@@ -1876,6 +1881,9 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
     modify wName meta = meta { name = wName }
+    toOneAddrMode = \case
+        True  -> SingleChangeAddress
+        False -> IncreasingChangeAddresses
 
 putWalletPassphrase
     :: forall ctx s k .

@@ -27,6 +27,7 @@ module Cardano.Wallet.Address.Discovery
     , GetPurpose (..)
     , GetAccount (..)
     , coinTypeAda
+    , ChangeAddressMode (..)
 
     , PendingIxs
     , emptyPendingIxs
@@ -60,6 +61,12 @@ import Data.Kind
     )
 import Data.List.NonEmpty
     ( NonEmpty
+    )
+import Data.String
+    ( fromString
+    )
+import Fmt
+    ( Buildable (..)
     )
 import GHC.Generics
     ( Generic
@@ -162,6 +169,20 @@ class GetPurpose (key :: Depth -> Type -> Type)  where
 -- It is used for getting account public key for a given state.
 class GetAccount s (key :: Depth -> Type -> Type) | s -> key  where
     getAccount :: s -> key 'AccountK XPub
+
+-- | How to generate change addresses.
+data ChangeAddressMode
+    = SingleChangeAddress
+        -- ^ Use a single address for all change outputs.
+    | IncreasingChangeAddresses
+        -- ^ For every change output, increase a counter and derive an address from that.
+    deriving stock (Generic, Show, Eq)
+
+instance NFData ChangeAddressMode
+
+instance Buildable ChangeAddressMode where
+    build SingleChangeAddress = fromString "single change address mode"
+    build IncreasingChangeAddresses = fromString "increasing change address mode"
 
 {-------------------------------------------------------------------------------
                         Pending Tx Change Indexes
