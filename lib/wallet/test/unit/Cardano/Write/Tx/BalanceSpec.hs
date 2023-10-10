@@ -12,6 +12,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
@@ -33,8 +34,11 @@ module Cardano.Write.Tx.BalanceSpec
     -- to balanceTx that have not yet been relocated to this module. Once all
     -- balanceTx-related tests have been relocated to this module, we should
     -- remove these exports:
+    , cardanoTx
     , dummyPolicyK
     , mockPParamsForBalancing
+    , recentEraTxFromBytes
+    , signedTxTestData
     , testTxLayer
     ----------------------------------------------------------------------------
 
@@ -142,7 +146,13 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), sealedTxFromCardano, sealedTxFromCardano', serialisedTx )
+    ( SealedTx (..)
+    , cardanoTxIdeallyNoLaterThan
+    , sealedTxFromBytes
+    , sealedTxFromCardano
+    , sealedTxFromCardano'
+    , serialisedTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -164,7 +174,11 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletCoin
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness, mkDelegationCertificates, newTransactionLayer )
+    ( mkByronWitness
+    , mkDelegationCertificates
+    , newTransactionLayer
+    , _decodeSealedTx
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..), TransactionLayer (..), WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
@@ -183,6 +197,8 @@ import Cardano.Write.Tx.Balance
     , PartialTx (..)
     , Redeemer (..)
     , TxFeeAndChange (..)
+    , TxFeeUpdate (UseNewTxFee)
+    , TxUpdate (TxUpdate)
     , UTxOAssumptions (..)
     , balanceTransaction
     , constructUTxOIndex
@@ -191,8 +207,10 @@ import Cardano.Write.Tx.Balance
     , distributeSurplusDelta
     , fromWalletUTxO
     , maximumCostOfIncreasingCoin
+    , noTxUpdate
     , posAndNegFromCardanoValue
     , sizeOfCoin
+    , updateTx
     )
 import Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
@@ -203,15 +221,19 @@ import Cardano.Write.Tx.TimeTranslation
 import Control.Lens
     ( set, (%~), (.~), (^.) )
 import Control.Monad
-    ( forM, replicateM )
+    ( forM, forM_, replicateM )
 import Control.Monad.Random
     ( evalRand )
 import Control.Monad.Trans.Except
     ( runExcept, runExceptT )
 import Control.Monad.Trans.State.Strict
     ( evalState, state )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isDigit )
 import Data.Default
     ( Default (..) )
 import Data.Either
@@ -224,10 +246,12 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.IntCast
     ( intCast )
+import Data.List
+    ( isSuffixOf, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( catMaybes, fromJust, fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Ratio
@@ -254,14 +278,20 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
+import System.Directory
+    ( listDirectory )
 import System.FilePath
-    ( (</>) )
+    ( takeExtension, (</>) )
 import System.Random.StdGenSeed
     ( StdGenSeed (..), stdGenFromSeed )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe )
+    ( Spec, describe, expectationFailure, it, pendingWith, runIO, shouldBe )
+import Test.Hspec.Core.Spec
+    ( SpecM )
 import Test.Hspec.Golden
     ( Golden (..) )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary2 (liftShrink2)
@@ -286,6 +316,7 @@ import Test.QuickCheck
     , shrinkList
     , shrinkMapBy
     , tabulate
+    , vectorOf
     , withMaxSuccess
     , (===)
     , (==>)
@@ -298,6 +329,8 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Pretty
     ( Pretty (..) )
+import Text.Read
+    ( readMaybe )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -343,6 +376,7 @@ spec :: Spec
 spec = do
     balanceTransactionSpec
     distributeSurplusSpec
+    updateTxSpec
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
@@ -937,6 +971,71 @@ distributeSurplusSpec = do
             prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
                 & withMaxSuccess 10_000
                 & property
+
+updateTxSpec :: Spec
+updateTxSpec = describe "updateTx" $ do
+    describe "no existing key witnesses" $ do
+        txs <- readTestTransactions
+        forM_ txs $ \(filepath, sealedTx) -> do
+            let anyRecentEraTx
+                    = fromJust $ Write.asAnyRecentEra $ cardanoTx sealedTx
+            it ("without TxUpdate: " <> filepath) $ do
+                Write.withInAnyRecentEra anyRecentEraTx $ \tx ->
+                    case updateTx tx noTxUpdate of
+                        Left e ->
+                            expectationFailure $
+                            "expected update to succeed but failed: "
+                                <> show e
+                        Right tx' -> do
+                            if tx /= tx' && show tx == show tx'
+                            -- The transaction encoding has changed.
+                            -- Unfortunately transactions are compared using
+                            -- their memoized bytes, but shown without their
+                            -- memoized bytes. This leads to the very
+                            -- confusing situation where the show result of
+                            -- two transactions is identical, but the (==)
+                            -- result of two transactions shows a
+                            -- discrepancy.
+                            --
+                            -- In this case we expect failure and write out
+                            -- the new memoized bytes to a file so the
+                            -- developer can update the binary test data.
+                            then do
+                                let
+                                    newEncoding = convertToBase Base16 $
+                                        Cardano.serialiseToCBOR tx'
+                                    rejectFilePath
+                                        = $(getTestData)
+                                        </> "plutus"
+                                        </> filepath <> ".rej"
+                                BS.writeFile rejectFilePath newEncoding
+                                expectationFailure $ mconcat
+                                    [ "Transaction encoding has changed, "
+                                    , "making comparison impossible. "
+                                    , "See .rej file: "
+                                    , rejectFilePath
+                                    ]
+                            else
+                                Cardano.serialiseToCBOR tx
+                                  `shouldBe` Cardano.serialiseToCBOR tx'
+
+            prop ("with TxUpdate: " <> filepath) $
+                prop_updateTx anyRecentEraTx
+
+    describe "existing key witnesses" $ do
+
+        signedTxs <- runIO signedTxTestData
+
+        it "returns `Left err` with noTxUpdate" $ do
+            -- Could be argued that it should instead return `Right tx`.
+            let anyRecentEraTx = recentEraTxFromBytes
+                    $ snd $ head signedTxs
+            Write.withInAnyRecentEra anyRecentEraTx $ \tx ->
+                updateTx tx noTxUpdate
+                    `shouldBe` Left (ErrExistingKeyWitnesses 1)
+
+        it "returns `Left err` when extra body content is non-empty" $ do
+            pendingWith "todo: add test data"
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -1578,6 +1677,31 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     in
         toCardanoValue pos <> (Cardano.negateValue (toCardanoValue neg)) === v
 
+prop_updateTx
+    :: Write.InAnyRecentEra Cardano.Tx
+    -> [(TxIn, TxOut)]
+    -> [TxIn]
+    -> [TxOut]
+    -> Coin
+    -> Property
+prop_updateTx
+    (Write.InAnyRecentEra _era tx)
+    extraIns extraCol extraOuts newFee =
+    do
+        let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
+        let tx' = either (error . show) id
+                $ updateTx tx extra
+        conjoin
+            [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
+            , outputs tx' === outputs tx <> Set.fromList extraOuts
+            , sealedFee tx' === Just newFee
+            , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
+            ]
+  where
+    inputs = sealedInputs . sealedTxFromCardano'
+    outputs = sealedOutputs . sealedTxFromCardano'
+    collateralIns = sealedCollateralInputs . sealedTxFromCardano'
+
 --------------------------------------------------------------------------------
 -- Utility types
 --------------------------------------------------------------------------------
@@ -1672,9 +1796,15 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
                 DummyChangeState { nextUnusedIndex = 0 })
             partialTx
 
+cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
+cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
+
 deserializeBabbageTx :: ByteString -> Cardano.Tx Cardano.BabbageEra
 deserializeBabbageTx = either (error . show) id
     . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsBabbageEra)
+
+fst6 :: (a, b, c, d, e, f) -> a
+fst6 (a, _, _, _, _, _) = a
 
 hasInsCollateral :: Cardano.Tx era -> Bool
 hasInsCollateral (Cardano.Tx (Cardano.TxBody content) _) =
@@ -1747,6 +1877,18 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
         Nothing
         Cardano.TxScriptValidityNone
 
+recentEraTxFromBytes :: ByteString -> Write.InAnyRecentEra Cardano.Tx
+recentEraTxFromBytes bytes =
+    let
+        anyEraTx
+            = cardanoTx
+            $ either (error . show) id
+            $ sealedTxFromBytes bytes
+    in
+        case Write.asAnyRecentEra anyEraTx of
+            Just recentEraTx -> recentEraTx
+            Nothing -> error "recentEraTxFromBytes: older eras not supported"
+
 -- | Restricts the inputs list of the 'PartialTx' to the inputs of the
 -- underlying CBOR transaction. This allows us to "fix" the 'PartialTx' after
 -- shrinking the CBOR.
@@ -1761,6 +1903,39 @@ restrictResolution (PartialTx tx (Cardano.UTxO u) redeemers) =
   where
     inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
         Set.fromList $ map fst $ Cardano.txIns bod
+
+sealedCollateralInputs :: SealedTx -> Set TxIn
+sealedCollateralInputs =
+    Set.fromList
+    . map fst
+    . view #resolvedCollateralInputs
+    . fst6
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
+
+sealedFee
+    :: forall era. Cardano.IsCardanoEra era
+    => Cardano.Tx era
+    -> Maybe Coin
+sealedFee =
+    view #fee
+    . fst6
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
+    . sealedTxFromCardano'
+
+sealedInputs :: SealedTx -> Set TxIn
+sealedInputs =
+    Set.fromList
+    . map fst
+    . view #resolvedInputs
+    . fst6
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
+
+sealedOutputs :: SealedTx -> Set TxOut
+sealedOutputs =
+    Set.fromList
+    . view #outputs
+    . fst6
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 serializedSize :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Int
 serializedSize = BS.length
@@ -1779,6 +1954,15 @@ txMinFee tx@(Cardano.Tx body _) u =
             (Write.pparamsLedger $ mockPParamsForBalancing @Cardano.BabbageEra)
             (Write.fromCardanoTx tx)
             (estimateKeyWitnessCount (Write.fromCardanoUTxO u) body)
+
+unsafeSealedTxFromHex :: ByteString -> IO SealedTx
+unsafeSealedTxFromHex =
+    either (fail . show) pure
+        . sealedTxFromBytes
+        . unsafeFromHex
+        . BS.dropWhileEnd isNewlineChar
+  where
+    isNewlineChar c = c `elem` [10,13]
 
 withValidityInterval
     :: ValidityInterval
@@ -2025,6 +2209,36 @@ pingPong_2 = PartialTx
   where
     tid = B8.replicate 32 '1'
 
+readTestTransactions :: SpecM a [(FilePath, SealedTx)]
+readTestTransactions = runIO $ do
+    let dir = $(getTestData) </> "plutus"
+    paths <- listDirectory dir
+    files <- flip foldMap paths $ \f ->
+        -- Ignore reject files
+        if ".rej" `isSuffixOf` takeExtension f
+        then pure []
+        else do
+            contents <- BS.readFile (dir </> f)
+            pure [(f, contents)]
+    traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
+
+-- | A collection of signed transaction bytestrings useful for testing.
+--
+-- These bytestrings can be regenerated by running the integration tests
+-- with lib/wallet/test/data/signedTxs/genData.patch applied.
+--
+signedTxTestData :: IO [(FilePath, ByteString)]
+signedTxTestData = do
+    let dir = $(getTestData) </> "signedTxs"
+    files <- listDirectory dir
+    fmap (sortOn (goldenIx . fst) . catMaybes) . forM files $ \name ->
+        if ".cbor" `isSuffixOf` name
+        then Just . (name,) <$> BS.readFile (dir </> name)
+        else pure Nothing
+  where
+    goldenIx :: FilePath -> Maybe Int
+    goldenIx = readMaybe . takeWhile isDigit
+
 testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
 testParameter_coinsPerUTxOWord_Alonzo
     = Ledger.CoinPerWord $ Ledger.Coin 34_482
@@ -2116,6 +2330,11 @@ instance Arbitrary FeePerByte where
     shrink (FeePerByte x) =
         FeePerByte <$> shrinkNatural x
 
+instance Arbitrary (Hash "Tx") where
+    arbitrary = do
+        bs <- vectorOf 32 arbitrary
+        pure $ Hash $ BS.pack bs
+
 instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
@@ -2175,6 +2394,22 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
             (shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
+
+instance Arbitrary TxIn where
+    arbitrary = do
+        ix <- scale (`mod` 3) arbitrary
+        txId <- arbitrary
+        pure $ TxIn txId ix
+
+instance Arbitrary TxOut where
+    arbitrary =
+        TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
+      where
+        addr = Address $ BS.pack (1:replicate 56 0)
+    shrink (TxOut addr bundle) =
+        [ TxOut addr bundle'
+        | bundle' <- shrinkTokenBundleSmallRange bundle
+        ]
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
