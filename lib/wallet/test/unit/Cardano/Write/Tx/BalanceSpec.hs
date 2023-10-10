@@ -1035,6 +1035,19 @@ updateTxSpec = describe "updateTx" $ do
 
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
+  where
+    readTestTransactions :: SpecM a [(FilePath, SealedTx)]
+    readTestTransactions = runIO $ do
+        let dir = $(getTestData) </> "plutus"
+        paths <- listDirectory dir
+        files <- flip foldMap paths $ \f ->
+            -- Ignore reject files
+            if ".rej" `isSuffixOf` takeExtension f
+            then pure []
+            else do
+                contents <- BS.readFile (dir </> f)
+                pure [(f, contents)]
+        traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -2207,19 +2220,6 @@ pingPong_2 = PartialTx
     }
   where
     tid = B8.replicate 32 '1'
-
-readTestTransactions :: SpecM a [(FilePath, SealedTx)]
-readTestTransactions = runIO $ do
-    let dir = $(getTestData) </> "plutus"
-    paths <- listDirectory dir
-    files <- flip foldMap paths $ \f ->
-        -- Ignore reject files
-        if ".rej" `isSuffixOf` takeExtension f
-        then pure []
-        else do
-            contents <- BS.readFile (dir </> f)
-            pure [(f, contents)]
-    traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
 
 -- | A collection of signed transaction bytestrings useful for testing.
 --
