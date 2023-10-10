@@ -64,6 +64,7 @@ packages:
   , lib/crypto-hash-extra/
   , lib/coin-selection/
   , lib/conversions/
+  , lib/customer-deposit-wallet/
   , lib/delta-store/
   , lib/delta-table
   , lib/delta-types/

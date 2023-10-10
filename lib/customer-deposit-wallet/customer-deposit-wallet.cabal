@@ -1,0 +1,133 @@
+cabal-version:      3.0
+build-type:         Simple
+name:               customer-deposit-wallet
+version:            0.1.0.0
+synopsis:           A wallet for the Cardano blockchain.
+description:        Please see README.md
+homepage:           https://github.com/cardano-foundation/cardano-wallet
+license:            Apache-2.0
+license-file:       LICENSE
+author:             HAL, Cardano Foundation
+maintainer:         hal@cardanofoundation.org
+copyright:          2023 Cardano Foundation
+category:           Web
+
+extra-source-files:
+  spec/**/*.agda
+
+common language
+  default-language:
+    Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options:
+    -Wall -Wcompat
+    -Wredundant-constraints
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  src
+  build-depends:
+    , async
+    , base
+    , bech32
+    , bytestring
+    , cardano-addresses
+    , cardano-wallet
+    , cardano-wallet-primitive
+    , cardano-ledger-byron
+    , containers
+    , contra-tracer
+    , deepseq
+    , delta-store
+    , delta-types
+    , directory
+    , filepath
+    , io-classes
+    , iohk-monitoring
+    , iohk-monitoring-extra              ^>=0.1
+    , network
+    , network-mux
+    , network-uri
+    , nothunks
+    , ntp-client
+    , ouroboros-consensus-cardano
+    , persistent                         ^>=2.13
+    , persistent-sqlite                  ^>=2.13
+    , persistent-template                ^>=2.12
+    , retry
+    , text
+    , time
+    , typed-protocols
+  exposed-modules:
+    Cardano.Wallet.Deposit.IO
+    Cardano.Wallet.Deposit.IO.DB
+    Cardano.Wallet.Deposit.IO.Network.Type
+    Cardano.Wallet.Deposit.Pure
+    Cardano.Wallet.Deposit.Pure.Balance
+    Cardano.Wallet.Deposit.Pure.UTxO
+    Cardano.Wallet.Deposit.Pure.UTxOHistory
+    Cardano.Wallet.Deposit.Pure.Submissions
+    Cardano.Wallet.Deposit.Read
+    Cardano.Wallet.Deposit.Write
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            test-suite-unit.hs
+  build-depends:
+    , base
+    , cardano-wallet
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils 
+    , customer-deposit-wallet
+    , hspec >=2.8.2
+    , QuickCheck
+    , with-utf8
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cardano.Wallet.Deposit.PureSpec
+    Spec
+
+library customer-deposit-wallet-http
+  import:          language, opts-lib
+  hs-source-dirs:  api/http
+  build-depends:
+    , base
+    , aeson
+    , customer-deposit-wallet
+    , http-api-data
+    , http-types
+    , optparse-applicative
+    , tls
+    , servant
+    , servant-server
+  exposed-modules:
+    Cardano.Wallet.Deposit.HTTP
+
+executable customer-deposit-wallet
+  import:         language, opts-exe
+  hs-source-dirs: exe
+  build-depends:
+    , base
+    , customer-deposit-wallet
+    , customer-deposit-wallet-http
+  main-is:
+    customer-deposit-wallet.hs
