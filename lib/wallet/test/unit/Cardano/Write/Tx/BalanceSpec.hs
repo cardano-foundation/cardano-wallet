@@ -822,7 +822,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
 spec_distributeSurplus :: Spec
-spec_distributeSurplus = do
+spec_distributeSurplus = describe "distributeSurplus" $ do
     describe "sizeOfCoin" $ do
         let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
         let cborSizeOfCoin =
