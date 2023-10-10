@@ -51,7 +51,7 @@ library
     build-depends: scrypt
 
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-pretty
     , aeson-qq
@@ -371,7 +371,7 @@ library cardano-wallet-api-http
   visibility:      public
   hs-source-dirs:  api/http
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-pretty
     , aeson-qq
@@ -496,7 +496,7 @@ library cardano-wallet-integration
   import:          language, opts-lib
   hs-source-dirs:  integration/src
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-qq
     , base
@@ -655,7 +655,7 @@ executable cardano-wallet
   hs-source-dirs: exe
   main-is:        cardano-wallet.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , cardano-wallet
     , cardano-wallet-api-http
@@ -693,7 +693,7 @@ test-suite unit
   hs-source-dirs:     test-common test/unit test/data
   main-is:            core-unit-test.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-qq
     , base
@@ -937,7 +937,7 @@ test-suite integration
   hs-source-dirs:     test/integration test/data
   main-is:            shelley-integration-test.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , cardano-addresses
     , cardano-wallet
@@ -975,7 +975,7 @@ benchmark restore
   hs-source-dirs: bench
   main-is:        restore-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , base
     , bytestring
@@ -1046,7 +1046,7 @@ benchmark db
   hs-source-dirs: bench test-common
   main-is:        db-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , bytestring
     , cardano-addresses
@@ -1086,7 +1086,7 @@ benchmark api
   hs-source-dirs: bench test-common
   main-is:        api-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , base
     , bytestring

@@ -1,5 +1,5 @@
 cabal-version:      2.2
-name:               address-derivation
+name:               address-derivation-discovery
 version:            2023.7.18
 synopsis:           Address derivation and discovery.
 description:        Please see README.md.

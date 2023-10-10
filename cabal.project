@@ -57,7 +57,7 @@ index-state:
   , cardano-haskell-packages 2023-06-05T06:39:32Z
 
 packages:
-    lib/address-derivation
+    lib/address-derivation-discovery
   , lib/application-extras
   , lib/balance-tx/
   , lib/cardano-api-extra/
