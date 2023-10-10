@@ -373,12 +373,12 @@ import qualified Ouroboros.Consensus.HardFork.History as HF
 
 spec :: Spec
 spec = do
-    balanceTransactionSpec
-    distributeSurplusSpec
-    updateTxSpec
+    spec_balanceTransaction
+    spec_distributeSurplus
+    spec_updateTx
 
-balanceTransactionSpec :: Spec
-balanceTransactionSpec = describe "balanceTransaction" $ do
+spec_balanceTransaction :: Spec
+spec_balanceTransaction = describe "balanceTransaction" $ do
     -- TODO: Create a test to show that datums are passed through...
 
     it "doesn't balance transactions with existing 'totalCollateral'"
@@ -821,8 +821,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-distributeSurplusSpec :: Spec
-distributeSurplusSpec = do
+spec_distributeSurplus :: Spec
+spec_distributeSurplus = do
     describe "sizeOfCoin" $ do
         let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
         let cborSizeOfCoin =
@@ -971,8 +971,8 @@ distributeSurplusSpec = do
                 & withMaxSuccess 10_000
                 & property
 
-updateTxSpec :: Spec
-updateTxSpec = describe "updateTx" $ do
+spec_updateTx :: Spec
+spec_updateTx = describe "updateTx" $ do
     describe "no existing key witnesses" $ do
         txs <- readTestTransactions
         forM_ txs $ \(filepath, sealedTx) -> do
