@@ -35,7 +35,6 @@ module Cardano.Write.Tx.BalanceSpec
     -- balanceTx-related tests have been relocated to this module, we should
     -- remove these exports:
     , cardanoTx
-    , dummyPolicyK
     , mockPParamsForBalancing
     , recentEraTxFromBytes
     , signedTxTestData
