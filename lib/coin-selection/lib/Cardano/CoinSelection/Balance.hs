@@ -1116,7 +1116,7 @@ assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectQuantityOf (Asset asset)
+    , selectQuantity = selectQuantityOf (Asset asset) strategy
     , selectionStrategy = strategy
     }
 
@@ -1130,7 +1130,7 @@ coinSelectionLens strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace
+    , selectQuantity  = selectQuantityOf AssetLovelace strategy
     , selectionStrategy = strategy
     }
 
@@ -1138,13 +1138,18 @@ selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
     => Asset
+    -> SelectionStrategy
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a = selectMatchingQuantity
-    [ SelectSingleton a
-    , SelectPairWith a
-    , SelectAnyWith a
-    ]
+selectQuantityOf a = selectMatchingQuantity <$> \case
+    SelectionStrategyMinimal ->
+        [ SelectSingleton a
+        , SelectPairWith a
+        , SelectAnyWith a
+        ]
+    SelectionStrategyOptimal ->
+        [ SelectAnyWith a
+        ]
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
