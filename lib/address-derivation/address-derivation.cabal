@@ -1,0 +1,114 @@
+cabal-version:      2.2
+name:               address-derivation
+version:            2023.7.18
+synopsis:           Address derivation and discovery.
+description:        Please see README.md.
+homepage:           https://github.com/cardano-foundation/cardano-wallet
+author:             Cardano Foundation (High Assurance Lab)
+maintainer:         hal@cardanofoundation.org
+copyright:          2018-2022 IOHK, 2023 Cardano Foundation
+license:            Apache-2.0
+category:           Blockchain, Cardano, Address, Derivation, Discovery
+build-type:         Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+flag scrypt
+  description: Enable compatibility support for legacy wallet passwords.
+  default:     True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  if flag(scrypt)
+    cpp-options:   -DHAVE_SCRYPT
+    build-depends: scrypt
+
+  build-depends:
+    , aeson
+    , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , binary
+    , bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-byron
+    , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-slotting
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cborg
+    , containers
+    , crypto-hash-extra
+    , cryptonite
+    , data-interval
+    , deepseq
+    , digest
+    , extra
+    , fmt
+    , generic-arbitrary
+    , int-cast
+    , lens
+    , memory
+    , ouroboros-consensus-cardano
+    , QuickCheck
+    , quiet
+    , random
+    , safe
+    , scientific
+    , text
+    , text-class
+    , time
+
+  exposed-modules:
+    Cardano.Byron.Codec.Cbor
+    Cardano.Wallet.Address.Book
+    Cardano.Wallet.Address.Derivation
+    Cardano.Wallet.Address.Derivation.Byron
+    Cardano.Wallet.Address.Derivation.Icarus
+    Cardano.Wallet.Address.Derivation.MintBurn
+    Cardano.Wallet.Address.Derivation.Shared
+    Cardano.Wallet.Address.Derivation.SharedKey
+    Cardano.Wallet.Address.Derivation.Shelley
+    Cardano.Wallet.Address.Discovery
+    Cardano.Wallet.Address.Discovery.Random
+    Cardano.Wallet.Address.Discovery.Sequential
+    Cardano.Wallet.Address.Discovery.Shared
+    Cardano.Wallet.Address.Encoding
+    Cardano.Wallet.Address.HasDelegation
+    Cardano.Wallet.Address.Pool
+    Cardano.Wallet.Address.States.Families
+    Cardano.Wallet.Address.States.Features
+    Cardano.Wallet.Address.States.Test.State
+    Cardano.Wallet.Primitive.Passphrase
+    Cardano.Wallet.Primitive.Passphrase.Current
+    Cardano.Wallet.Primitive.Passphrase.Gen
+    Cardano.Wallet.Primitive.Passphrase.Legacy
+    Cardano.Wallet.Primitive.Passphrase.Types
