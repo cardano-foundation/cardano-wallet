@@ -51,7 +51,7 @@ library
     build-depends: scrypt
 
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-pretty
     , aeson-qq
@@ -371,7 +371,7 @@ library cardano-wallet-api-http
   visibility:      public
   hs-source-dirs:  api/http
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-pretty
     , aeson-qq
@@ -496,7 +496,7 @@ library cardano-wallet-integration
   import:          language, opts-lib
   hs-source-dirs:  integration/src
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-qq
     , base
@@ -655,7 +655,7 @@ executable cardano-wallet
   hs-source-dirs: exe
   main-is:        cardano-wallet.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , cardano-wallet
     , cardano-wallet-api-http
@@ -693,7 +693,7 @@ test-suite unit
   hs-source-dirs:     test-common test/unit test/data
   main-is:            core-unit-test.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , aeson-qq
     , base
@@ -937,7 +937,7 @@ test-suite integration
   hs-source-dirs:     test/integration test/data
   main-is:            shelley-integration-test.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , cardano-addresses
     , cardano-wallet
@@ -975,7 +975,7 @@ benchmark restore
   hs-source-dirs: bench
   main-is:        restore-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , base
     , bytestring
@@ -1046,7 +1046,7 @@ benchmark db
   hs-source-dirs: bench test-common
   main-is:        db-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , base
     , bytestring
     , cardano-addresses
@@ -1086,7 +1086,7 @@ benchmark api
   hs-source-dirs: bench test-common
   main-is:        api-bench.hs
   build-depends:
-    , address-derivation
+    , address-derivation-discovery
     , aeson
     , base
     , bytestring
@@ -1113,79 +1113,3 @@ benchmark api
     , with-utf8
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
-
-library address-derivation
-  import:          language, opts-lib
-  visibility:      public
-  hs-source-dirs:  address
-  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
-
-  build-depends:
-    , aeson
-    , base
-    , base58-bytestring
-    , bech32
-    , bech32-th
-    , binary
-    , bytestring
-    , cardano-addresses
-    , cardano-crypto
-    , cardano-crypto-class
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-slotting
-    , cardano-wallet-primitive
-    , cardano-wallet-read
-    , cborg
-    , containers
-    , crypto-hash-extra
-    , cryptonite
-    , data-interval
-    , deepseq
-    , digest
-    , extra
-    , fmt
-    , generic-arbitrary
-    , int-cast
-    , lens
-    , memory
-    , ouroboros-consensus-cardano
-    , QuickCheck
-    , quiet
-    , random
-    , safe
-    , scientific
-    , text
-    , text-class
-    , time
-
-  exposed-modules:
-    Cardano.Byron.Codec.Cbor
-    Cardano.Wallet.Address.Book
-    Cardano.Wallet.Address.Derivation
-    Cardano.Wallet.Address.Derivation.Byron
-    Cardano.Wallet.Address.Derivation.Icarus
-    Cardano.Wallet.Address.Derivation.MintBurn
-    Cardano.Wallet.Address.Derivation.Shared
-    Cardano.Wallet.Address.Derivation.SharedKey
-    Cardano.Wallet.Address.Derivation.Shelley
-    Cardano.Wallet.Address.Discovery
-    Cardano.Wallet.Address.Discovery.Random
-    Cardano.Wallet.Address.Discovery.Sequential
-    Cardano.Wallet.Address.Discovery.Shared
-    Cardano.Wallet.Address.Encoding
-    Cardano.Wallet.Address.HasDelegation
-    Cardano.Wallet.Address.Pool
-    Cardano.Wallet.Address.States.Families
-    Cardano.Wallet.Address.States.Features
-    Cardano.Wallet.Address.States.Test.State
-    Cardano.Wallet.Primitive.Passphrase
-    Cardano.Wallet.Primitive.Passphrase.Current
-    Cardano.Wallet.Primitive.Passphrase.Gen
-    Cardano.Wallet.Primitive.Passphrase.Legacy
-    Cardano.Wallet.Primitive.Passphrase.Types
