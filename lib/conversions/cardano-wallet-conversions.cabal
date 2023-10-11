@@ -1,14 +1,14 @@
 cabal-version:      3.0
-name:               cardano-balance-tx
+name:               cardano-wallet-conversions
 version:            2023.7.18
-synopsis:           Balancing transactions for the Cardano blockchain.
+synopsis:           Miscellaneous conversion functions.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
 author:             Cardano Foundation (High Assurance Lab)
 maintainer:         hal@cardanofoundation.org
 copyright:          2018-2022 IOHK, 2023 Cardano Foundation
 license:            Apache-2.0
-category:           Blockchain, Cardano, Transactions
+category:           Blockchain, Cardano
 build-type:         Simple
 
 common language
@@ -41,55 +41,24 @@ library
     , base
     , bytestring
     , cardano-addresses
-    , cardano-api
-    , cardano-coin-selection
     , cardano-crypto-class
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
-    , cardano-ledger-api
     , cardano-ledger-babbage
-    , cardano-ledger-binary
-    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-ledger-shelley
+    , cardano-ledger-shelley-ma
     , cardano-slotting
     , cardano-strict-containers
-    , cardano-wallet-conversions
     , cardano-wallet-primitive
-    , cardano-wallet-test-utils
-    , cborg
     , containers
-    , deepseq
     , fmt
     , generic-lens
-    , generics-sop
     , int-cast
-    , lens
-    , MonadRandom
-    , monoid-subclasses
-    , ouroboros-consensus
     , ouroboros-consensus-cardano
-    , pretty-simple
-    , QuickCheck
-    , random
-    , serialise
-    , std-gen-seed
-    , text
-    , transformers
   exposed-modules:
-    Cardano.Write.ProtocolParameters
-    Cardano.Write.Tx
-    Cardano.Write.Tx.Balance
-    Cardano.Write.Tx.Balance.TokenBundleSize
-    Cardano.Write.Tx.Gen
-    Cardano.Write.Tx.Redeemers
-    Cardano.Write.Tx.Sign
-    Cardano.Write.Tx.SizeEstimation
-    Cardano.Write.Tx.TimeTranslation
-    Cardano.Write.UTxOAssumptions
-    Internal.Cardano.Write.Tx.Balance.CoinSelection
-    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
+    Cardano.Wallet.Shelley.Compatibility.Ledger
 
 test-suite test
   import:             language, opts-exe
@@ -98,31 +67,20 @@ test-suite test
   hs-source-dirs:     test/spec
   main-is:            run-test-suite.hs
   build-depends:
-    , aeson
     , base
     , bytestring
-    , cardano-api
-    , cardano-api-extra
-    , cardano-balance-tx
-    , cardano-coin-selection
-    , cardano-ledger-alonzo-test
-    , cardano-ledger-api
-    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
-    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
+    , cardano-addresses
+    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
+    , cardano-wallet-conversions
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , containers
-    , data-default
-    , generics-sop
     , hspec
     , hspec-core
-    , lens
+    , ouroboros-consensus-cardano
     , QuickCheck
-    , quickcheck-classes
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
-    Cardano.Write.TxSpec
-    Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
+    Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Spec
+    SpecHook

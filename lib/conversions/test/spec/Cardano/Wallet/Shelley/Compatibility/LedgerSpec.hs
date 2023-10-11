@@ -10,9 +10,7 @@ module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script )
-import Cardano.Wallet.Gen
-    ( genScript )
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -48,7 +46,19 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), elements, property, vectorOf, (===) )
+    ( Arbitrary (..)
+    , Gen
+    , Positive (Positive)
+    , arbitrarySizedNatural
+    , choose
+    , elements
+    , oneof
+    , property
+    , scale
+    , sized
+    , vectorOf
+    , (===)
+    )
 
 import qualified Data.ByteString as BS
 
@@ -128,6 +138,25 @@ instance Arbitrary (Script KeyHash) where
     arbitrary = do
         keyHashes <- vectorOf 10 arbitrary
         genScript keyHashes
+      where
+        genScript :: [a] -> Gen (Script a)
+        genScript elems = scale (`div` 3) $ sized scriptTree
+          where
+            scriptTree 0 = oneof
+                [ RequireSignatureOf <$> elements elems
+                , ActiveFromSlot <$> arbitrarySizedNatural
+                , ActiveUntilSlot <$> arbitrarySizedNatural
+                ]
+            scriptTree n = do
+                Positive m <- arbitrary
+                let n' = n `div` (m + 1)
+                scripts' <- vectorOf m (scriptTree n')
+                atLeast <- choose (1, fromIntegral m)
+                elements
+                    [ RequireAllOf scripts'
+                    , RequireAnyOf scripts'
+                    , RequireSomeOf atLeast scripts'
+                    ]
 
 instance Arbitrary KeyHash where
     arbitrary = do
