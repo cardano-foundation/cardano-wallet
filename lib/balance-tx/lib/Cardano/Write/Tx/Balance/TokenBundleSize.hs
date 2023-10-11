@@ -18,8 +18,6 @@ import Cardano.Ledger.Binary
     ( serialize )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger )
 import Cardano.Write.Tx
     ( PParams, RecentEra, ShelleyLedgerEra, Value, Version, withConstraints )
 import Control.Lens
@@ -28,6 +26,7 @@ import Data.IntCast
     ( intCastMaybe )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.ByteString.Lazy as BL
 
 -- | Assesses a token bundle size in relation to the maximum size that can be
@@ -54,7 +53,7 @@ computeTokenBundleSerializedLengthBytes
     :: TokenBundle.TokenBundle
     -> Version
     -> TxSize
-computeTokenBundleSerializedLengthBytes tb ver = serSize (toLedger tb)
+computeTokenBundleSerializedLengthBytes tb ver = serSize (Convert.toLedger tb)
   where
     serSize :: Value -> TxSize
     serSize v = maybe err TxSize
