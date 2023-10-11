@@ -82,6 +82,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlanPostData
     , ApiWalletMigrationPostData
     , ApiWalletPassphrase
+    , ApiWalletPutData
+    , ApiWalletPutDataExtended
     , ApiWalletSignData
     , Base (Base64)
     , ByronWalletPutPassphraseData
@@ -90,7 +92,6 @@ import Cardano.Wallet.Api.Types
     , SettingsPutData (..)
     , SomeByronWalletPostData
     , WalletOrAccountPostData
-    , WalletPutData
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.NetworkId
@@ -1142,12 +1143,12 @@ instance Malformed (BodyParam ByronWalletPutPassphraseData) where
               )
             ]
 
-instance Malformed (BodyParam WalletPutData) where
+instance Malformed (BodyParam ApiWalletPutData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutData(WalletPutData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutData(WalletPutData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutData(ApiWalletPutData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutData(ApiWalletPutData) failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
@@ -1167,6 +1168,43 @@ instance Malformed (BodyParam WalletPutData) where
               )
             , ( [aesonQQ| { "name": 1.5 }|]
               , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
+              )
+            ]
+
+instance Malformed (BodyParam ApiWalletPutDataExtended) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutDataExtended(ApiWalletPutDataExtended) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutDataExtended(ApiWalletPutDataExtended) failed, expected Object, but encountered String")
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"name : \"random\"}", msgJsonInvalid)
+            ]
+         jsonValid =
+            first (BodyParam . Aeson.encode) <$>
+            [ ( [aesonQQ| { "name": "" }|]
+              , "Error in $.name: name is too short: expected at least 1 character"
+              )
+            , ( [aesonQQ| { "name": #{nameTooLong} }|]
+              , "Error in $.name: name is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ| { "name": 123 }|]
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
+              )
+            , ( [aesonQQ| { "name": [] }|]
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Array"
+              )
+            , ( [aesonQQ| { "name": 1.5 }|]
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
+              )
+            , ( [aesonQQ| { "one_change_address_mode": 123 }|]
+              , "Error in $['one_change_address_mode']: expected Bool, but encountered Number"
+              )
+            , ( [aesonQQ| { "one_change_address_mode": [] }|]
+              , "Error in $['one_change_address_mode']: expected Bool, but encountered Array"
+              )
+            , ( [aesonQQ| { "one_change_address_mode": "something" }|]
+              , "Error in $['one_change_address_mode']: expected Bool, but encountered String"
               )
             ]
 

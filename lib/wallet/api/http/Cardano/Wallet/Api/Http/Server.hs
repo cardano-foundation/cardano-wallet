@@ -158,6 +158,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , putRandomAddress
     , putRandomAddresses
     , putWallet
+    , putWalletByron
     , putWalletPassphrase
     , quitStakePool
     , rndStateChange
@@ -464,8 +465,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (listWallets byron  mkLegacyWallet)
                 (listWallets icarus mkLegacyWallet)
         :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWallet byron mkLegacyWallet wid name)
-                (icarus, putWallet icarus mkLegacyWallet wid name)
+                (byron , putWalletByron byron mkLegacyWallet wid name)
+                (icarus, putWalletByron icarus mkLegacyWallet wid name)
              )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getWalletUtxoSnapshot byron wid)

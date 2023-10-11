@@ -235,6 +235,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
+    , ApiWalletPutData
+    , ApiWalletPutDataExtended
     , ApiWalletSignData
     , ApiWalletUtxoSnapshot
     , ByronWalletPutPassphraseData
@@ -246,7 +248,6 @@ import Cardano.Wallet.Api.Types
     , SettingsPutData
     , SomeByronWalletPostData
     , WalletOrAccountPostData
-    , WalletPutData
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Api.Types.BlockHeader
@@ -421,7 +422,7 @@ type PostWallet = "wallets"
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/putWallet
 type PutWallet = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] WalletPutData
+    :> ReqBody '[JSON] ApiWalletPutDataExtended
     :> Put '[JSON] ApiWallet
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/putWalletPassphrase
@@ -819,7 +820,7 @@ type ListByronWallets = "byron-wallets"
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/putByronWallet
 type PutByronWallet = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] WalletPutData
+    :> ReqBody '[JSON] ApiWalletPutData
     :> Put '[JSON] ApiByronWallet
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/getByronWalletUtxoSnapshot
@@ -1084,7 +1085,7 @@ type GetSharedWallet = "shared-wallets"
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/putSharedWallet
 type PutSharedWallet = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] WalletPutData
+    :> ReqBody '[JSON] ApiWalletPutDataExtended
     :> Put '[JSON] ApiSharedWallet
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/listSharedWallets

@@ -186,6 +186,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ApiWallet
+    , ApiWalletPutDataExtended (..)
     , Base (Base16)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (ByronWalletPutPassphraseData)
@@ -194,7 +195,6 @@ import Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
-    , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , WalletPutPassphraseMnemonicData (WalletPutPassphraseMnemonicData)
     , WalletPutPassphraseOldPassphraseData (WalletPutPassphraseOldPassphraseData)
@@ -738,7 +738,7 @@ cmdWalletUpdateName mkClient =
     exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
-            (WalletPutData (Just (ApiT wName)) Nothing)
+            (ApiWalletPutDataExtended (Just (ApiT wName)) Nothing)
 
 data UpdatePassphraseCredential = MnemonicCredentials | OldPasswordCredentials
     deriving Eq
