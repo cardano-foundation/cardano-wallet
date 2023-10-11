@@ -111,7 +111,7 @@ hashScript =
 
 pingPong_1 :: Aeson.Value
 pingPong_1 = [aesonQQ|{
-    "transaction": "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6",
+    "transaction": "84A500800D80018183581D60E8DCA143107CC9B4F10B9E821C8CF628A5C65AC9D417B877B7CA8ECB1A001E84805820923918E403BF43C34B4EF6B48EB2EE04BABED17320D8D1B9FF9AD086E86F44EC02000E80A10481D87980F5F6",
     "redeemers": [],
     "inputs": []
 }|]
@@ -168,7 +168,7 @@ game_2 =
             {
                 "id": "{{transactionId}}",
                 "index": 0,
-                "address": "addr1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
+                "address": "addr_test1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
                 "datum": "14845e067bf83c19a97207c8a2057d9499624783f1fce1ef5abf600392240ad0",
                 "amount": {
                   "quantity": 10000000,
@@ -204,7 +204,7 @@ game_3 =
             {
                 "id": "{{transactionId}}",
                 "index": 0,
-                "address": "addr1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
+                "address": "addr_test1w89gquc23wc7h8k4chyaad268mjft7t0c08wqertwms70sc5pc6gt",
                 "datum": "4401f9f4de01abb2164d77909afb1249f2c519331aa034bbfc5248e50b08db86",
                 "amount": {
                   "quantity": 10000000,
@@ -303,7 +303,7 @@ withdrawScript_1 =
         Bech32.encodeLenient prefix $ Bech32.dataPartFromBytes $
             (header <>) $ getHash $ getApiT scriptHash
       where
-        prefix = [humanReadablePart|stake|]
+        prefix = [humanReadablePart|stake_test|]
         header = BS.singleton 241
 
     template = unsafeRight $ left show $ compileMustacheText "withdrawScript_1" [i|{

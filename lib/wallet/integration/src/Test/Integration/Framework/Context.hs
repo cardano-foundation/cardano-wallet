@@ -35,6 +35,8 @@ import Network.HTTP.Client
     ( Manager )
 import Network.URI
     ( URI )
+import Numeric.Natural
+    ( Natural )
 
 -- | Context for integration tests.
 --
@@ -57,6 +59,8 @@ data Context = Context
         -- ^ A function to inject rewards into some stake address.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
+    , _networkId :: Natural
+        -- ^ The network id of the underlying chain.
     , _poolGarbageCollectionEvents
         :: IORef [PoolGarbageCollectionEvent]
         -- ^ The complete list of pool garbage collection events.

@@ -303,7 +303,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                         , cfgNodeLogging = error "cfgNodeLogging: unused"
                         , cfgClusterDir = Tagged @"cluster" testDir
                         , cfgClusterConfigs = clusterConfigs
-                        , cfgTestnetMagic = Cluster.TestnetMagic 42
+                        , cfgTestnetMagic = testnetMagic
                         }
 
                 putMVar ctx Context
@@ -312,6 +312,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = np
+                    , _networkId = Cluster.testnetMagicToNatural testnetMagic
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = clusterToApiEra era
                     , _smashUrl = smashUrl
@@ -376,7 +377,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
              in shelleyIntegrationTestFunds networkTag
                 <> byronIntegrationTestFunds networkTag
-                <> hwLedgerTestFunds
+                <> hwLedgerTestFunds networkTag
         , maFunds =
             maryIntegrationTestFunds (Coin 10_000_000)
         , mirFunds =

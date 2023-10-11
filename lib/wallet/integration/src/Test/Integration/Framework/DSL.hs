@@ -523,7 +523,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 --
 
 -- | Expect a successful response, without any further assumptions.
-expectSuccess :: MonadIO m => (s, Either RequestException a) -> m ()
+expectSuccess :: (HasCallStack, MonadIO m) => (s, Either RequestException a) -> m ()
 expectSuccess = either wantedSuccessButError (const $ pure ()) . snd
 
 -- | Expect an error response, without any further assumptions.
@@ -1659,7 +1659,7 @@ rewardWallet ctx = do
              in request @ApiWallet ctx endpoint Default Empty
     let w = getResponse r
 
-    waitForNextEpoch ctx
+    waitNumberOfEpochBoundaries 2 ctx
 
     eventually "MIR wallet has available balance" $
         fetchWallet w >>=

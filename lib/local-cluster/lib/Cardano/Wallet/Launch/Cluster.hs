@@ -223,6 +223,8 @@ import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
     ( (<.>), (</>) )
+import System.IO.Temp
+    ( emptyTempFile )
 import System.IO.Temp.Extra
     ( TempDirLog )
 import System.IO.Unsafe
@@ -2156,18 +2158,17 @@ sendFaucet tr config conn what targets = do
         forM (nub $ concatMap (snd . snd) targets) $ \(skey, keyHash) ->
             writePolicySigningKey outputDir keyHash skey
 
-    tx <- signTx
+    signTx
         tr
         (cfgTestnetMagic config)
         outputDir
         (Tagged @"tx-body" file)
         (retag @"faucet-prv" @_ @"signing-key" faucetPrv : map retag policyKeys)
-    submitTx
-        tr
-        (cfgTestnetMagic config)
-        conn
-        (Tagged @"name" $ what ++ " faucet tx")
-        tx
+        >>= submitTx
+            tr
+            (cfgTestnetMagic config)
+            conn
+            (Tagged @"name" $ what ++ " faucet tx")
 
 batch :: HasCallStack => Int -> [a] -> ([a] -> IO b) -> IO ()
 batch s xs = forM_ (group s xs)
@@ -2412,7 +2413,7 @@ signTx
     -- ^ Signing keys for witnesses
     -> IO (Tagged "tx-signed" FilePath)
 signTx tr testnetMagic outputDir rawTx keys = do
-    let file = untag outputDir </> "tx.signed"
+    file <- emptyTempFile (untag outputDir) "tx-signed.json"
     cli tr
         $ [ "transaction"
           , "sign"
@@ -2675,7 +2676,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgStartedStaticServer _ _ -> Info
         MsgTempDir msg -> getSeverityAnnotation msg
         MsgBracket _ _ -> Debug
-        MsgCLIStatus _ ExitSuccess _ _ -> Debug
+        MsgCLIStatus _ ExitSuccess _ _ -> Info
         MsgCLIStatus _ (ExitFailure _) _ _ -> Error
         MsgCLIRetry _ -> Info
         MsgCLIRetryResult{} -> Info

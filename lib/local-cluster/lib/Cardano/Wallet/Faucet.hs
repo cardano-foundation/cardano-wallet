@@ -653,15 +653,15 @@ byronIntegrationTestFunds networkTag =
             (byronAddresses networkTag dustWallet2)
             (replicate 100 (Coin 10_000_000_000) <> replicate 100 (Coin 1))
 
-hwLedgerTestFunds :: [(Address, Coin)]
-hwLedgerTestFunds = do
+hwLedgerTestFunds :: CA.NetworkTag -> [(Address, Coin)]
+hwLedgerTestFunds networkTag = do
     mnemonic <- Mnemonics.hardwareLedger
     address <- take 10 $ deriveLedgerAddresses mnemonic
     pure (address, Coin 100_000_000_000)
   where
     deriveLedgerAddresses :: SomeMnemonic -> [Address]
     deriveLedgerAddresses mnemonic =
-        Icarus.paymentAddress Icarus.icarusTestnet . fmap toXPub . addrXPrv
+        Icarus.paymentAddress (CA.RequiresNetworkTag, networkTag) . fmap toXPub . addrXPrv
             <$> paymentKeyIxs
       where
         rootXPrv = Icarus.unsafeGenerateKeyFromHardwareLedger mnemonic

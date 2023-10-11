@@ -14,6 +14,7 @@
 module Test.Hspec.Extra
     ( aroundAll
     , it
+    , xit
     , itWithCustomTimeout
     , parallel
     , counterexample
@@ -133,6 +134,13 @@ it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
 it = itWithCustomTimeout (60*minutes)
   where
     minutes = 10
+
+-- |
+-- Changing `it` to `xit` marks the corresponding spec item as pending.
+--
+-- This can be used to temporarily disable a spec item.
+xit :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
+xit label action = Hspec.before_ Hspec.pending $ it label action
 
 -- | Like @it@ but with a custom timeout, testing of the function possible.
 itWithCustomTimeout

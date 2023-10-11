@@ -53,7 +53,7 @@ import Data.Text
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe, shouldNotSatisfy, shouldSatisfy )
+    ( shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -264,20 +264,18 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "ADDRESS_LIST_05 - bech32 HRP is correct - mainnet" $ \ctx -> runResourceT $ do
+    it "ADDRESS_LIST_05 - bech32 HRP is correct - testnet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        r <- request @[Aeson.Value] ctx
-            (Link.listAddresses @'Shelley w) Default Empty
+        r <- request @[Aeson.Value] ctx (Link.listAddresses @'Shelley w) Default Empty
         verify r
             [ expectResponseCode HTTP.status200
-            -- integration tests are configured for mainnet
+            -- integration tests are configured for testnet (42)
             , expectListField 0 (Aeson.key "id" . Aeson._String)
-                (`shouldSatisfy` T.isPrefixOf "addr")
-            , expectListField 0 (Aeson.key "id" . Aeson._String)
-                (`shouldNotSatisfy` T.isPrefixOf "addr_test")
+                (`shouldSatisfy` T.isPrefixOf "addr_test")
             ]
 
-    it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending" $ \ctx -> runResourceT @IO $ do
+    it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction \
+        \is no longer pending" $ \ctx -> runResourceT @IO $ do
         let verifyAddrs nTotal nUsed addrs = do
                 liftIO (length addrs `shouldBe` nTotal)
                 let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
