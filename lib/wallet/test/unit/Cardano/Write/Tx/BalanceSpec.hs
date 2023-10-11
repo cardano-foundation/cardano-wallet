@@ -162,16 +162,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoLovelace, fromCardanoValue, toCardanoTxIn, toCardanoValue )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut
-    , toLedgerAddress
-    , toLedgerTokenBundle
-    , toWallet
-    , toWalletAddress
-    , toWalletCoin
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkDelegationCertificates
@@ -351,7 +341,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
-import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
+import qualified Cardano.Wallet.Shelley.Compatibility as Convert
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
@@ -477,13 +468,13 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
         let nChange = max nPayments 1
         let s0 = DummyChangeState 0
-        let expectedChange = fmap toWalletAddress <$>
+        let expectedChange = fmap Convert.toWalletAddress <$>
                 flip evalState s0
                 $ replicateM nChange
                 $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
 
         let address :: Babbage.BabbageTxOut StandardBabbage -> Address
-            address (Babbage.BabbageTxOut addr _ _ _) = toWallet addr
+            address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
 
         let (tx, s') =
                 either (error . show) id $ balance' ptx
@@ -510,7 +501,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         Write.isBelowMinimumCoinForTxOut era pp (head outs)
             `shouldBe` False
 
-        head outs `shouldBe` (toBabbageTxOut out')
+        head outs `shouldBe` (Convert.toBabbageTxOut out')
 
     describe "effect of txMaxSize on coin selection" $ do
 
@@ -765,7 +756,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     ptx
                 combinedUTxO = mconcat
                         [ view #inputs ptx
-                        , Compatibility.toCardanoUTxO
+                        , Convert.toCardanoUTxO
                             Cardano.ShelleyBasedEraBabbage
                             walletUTxO
                         ]
@@ -839,7 +830,7 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
                 forAll genEncodingBoundaryLovelace $ \l -> do
-                    let c = fromCardanoLovelace l
+                    let c = Convert.fromCardanoLovelace l
                     let expected = cborSizeOfCoin c
 
                     -- Use a low coverage requirement of 0.01% just to
@@ -1207,7 +1198,7 @@ prop_balanceTransactionValid
                  (ErrUnderestimatedFee delta candidateTx nWits)) ->
                 let counterexampleText = unlines
                         [ "underestimated fee by "
-                            <> pretty (toWalletCoin delta)
+                            <> pretty (Convert.toWalletCoin delta)
                         , "candidate tx: " <> pretty candidateTx
                         , "assuming key witness count: " <> show nWits
                         ]
@@ -1687,7 +1678,9 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     let
         (pos, neg) = posAndNegFromCardanoValue v
     in
-        toCardanoValue pos <> (Cardano.negateValue (toCardanoValue neg)) === v
+        (Convert.toCardanoValue pos) <>
+        (Cardano.negateValue (Convert.toCardanoValue neg))
+        === v
 
 prop_updateTx
     :: Write.InAnyRecentEra Cardano.Tx
@@ -1757,7 +1750,7 @@ addExtraTxIns extraIns =
     #tx %~ modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns))
   where
     toLedgerInputs =
-        Set.map (Cardano.toShelleyTxIn . toCardanoTxIn) . Set.fromList
+        Set.map (Cardano.toShelleyTxIn . Convert.toCardanoTxIn) . Set.fromList
 
 -- | Wrapper for testing convenience. Does hide the monad 'm', tracing, and the
 -- updated 'changeState'. Does /not/ specify mock values for things like
@@ -1882,7 +1875,8 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
     body = Cardano.ShelleyTxBody
         Cardano.ShelleyBasedEraBabbage
         ( mkBasicTxBody &
-            outputsTxBodyL .~ StrictSeq.fromList (toBabbageTxOut <$> txouts)
+            outputsTxBodyL .~
+            StrictSeq.fromList (Convert.toBabbageTxOut <$> txouts)
         )
         []
         Cardano.TxBodyNoScriptData
@@ -2052,7 +2046,7 @@ dummyChangeAddrGen = ChangeAddressGen
             'Cardano.Wallet.Address.Derivation.Soft
             'CredFromKeyK
         -> Write.Address
-    addressAtIx ix = toLedgerAddress
+    addressAtIx ix = Convert.toLedgerAddress
         $ paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
         $ publicKey ShelleyKeyS
         $ Shelley.ShelleyKey
@@ -2202,7 +2196,8 @@ pingPong_2 = PartialTx
                   [ "714d72cf569a339a18a7d93023139"
                   , "83f56e0d96cd45bdcb1d6512dca6a"
                   ])
-              (toLedgerTokenBundle $ TokenBundle.fromCoin $ Coin 2_000_000)
+              (Convert.toLedgerTokenBundle
+                  $ TokenBundle.fromCoin $ Coin 2_000_000)
               (Write.DatumHash
                   $ fromJust
                   $ Write.datumHashFromBytes
@@ -2303,14 +2298,14 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
     shrink (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra val) =
         map
             (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra
-                . toCardanoValue)
-            (shrink $ Compatibility.fromCardanoValue val)
+                . Convert.toCardanoValue)
+            (shrink $ Convert.fromCardanoValue val)
 
     shrink (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra val) =
         map
             (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra
-                . toCardanoValue)
-            (shrink $ fromCardanoValue val)
+                . Convert.toCardanoValue)
+            (shrink $ Convert.fromCardanoValue val)
     shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
@@ -2440,7 +2435,7 @@ instance Arbitrary Wallet' where
                 genIn = genTxIn
 
                 genOut :: Gen TxOut
-                genOut = Compatibility.fromCardanoTxOut <$>
+                genOut = Convert.fromCardanoTxOut <$>
                   (Cardano.TxOut
                         <$> genAddr
                         <*> (scale (* 2) (genTxOutValue era))
