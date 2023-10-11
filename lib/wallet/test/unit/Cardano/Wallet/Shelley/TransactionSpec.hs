@@ -44,8 +44,6 @@ import Cardano.Api
     )
 import Cardano.Api.Gen
     ( genTx, genTxBodyContent, genTxInEra, genWitnesses )
-import Cardano.Ledger.Api
-    ( bootAddrTxWitsL, scriptTxWitsL, witsTxL )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic) )
 import Cardano.Wallet
@@ -120,37 +118,32 @@ import Cardano.Wallet.Shelley.Transaction
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
+    , newTransactionLayer
     )
 import Cardano.Wallet.Transaction
-    ( SelectionOf (..), WitnessCountCtx (..), selectionDelta )
+    ( SelectionOf (..)
+    , TransactionLayer (..)
+    , WitnessCountCtx (..)
+    , selectionDelta
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
     ( AnyRecentEra (..)
     , RecentEra (..)
     , cardanoEraFromRecentEra
-    , recentEra
     , shelleyBasedEraFromRecentEra
     )
 import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
 import Cardano.Write.Tx.BalanceSpec
-    ( cardanoTx
-    , mockPParamsForBalancing
-    , recentEraTxFromBytes
-    , signedTxTestData
-    , testTxLayer
-    )
-import Cardano.Write.Tx.Sign
-    ( estimateKeyWitnessCount, estimateSignedTxSize )
+    ( cardanoTx, mockPParamsForBalancing )
 import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize, txConstraints )
 import Control.Arrow
     ( first )
-import Control.Lens
-    ( (^.) )
 import Control.Monad
-    ( forM_, replicateM )
+    ( replicateM )
 import Control.Monad.Random
     ( MonadRandom (..), Random (randomR, randomRs), random, randoms )
 import Control.Monad.Trans.Except
@@ -185,22 +178,12 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable (..), pretty, (+||), (||+) )
-import GHC.Stack
-    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec
-    , describe
-    , expectationFailure
-    , it
-    , pendingWith
-    , runIO
-    , shouldBe
-    , shouldSatisfy
-    )
+    ( Spec, describe, it, pendingWith, shouldBe, shouldSatisfy )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -247,8 +230,6 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -259,7 +240,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do
@@ -267,7 +247,6 @@ spec = describe "TransactionSpec" $ do
     feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
-    estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
         -- TODO [ADP-2849] The implementation must be restricted to work only in
         -- 'RecentEra's, not just the tests.
@@ -1359,6 +1338,8 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
+testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
+testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet
 
 --------------------------------------------------------------------------------
 -- Transaction constraints
@@ -1503,138 +1484,6 @@ instance Buildable a => Show (ShowBuildable a) where
 
 instance Arbitrary (Hash "Datum") where
     arbitrary = pure $ Hash $ BS.pack $ replicate 28 0
-
-estimateSignedTxSizeSpec :: Spec
-estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
-    txBinaries <- runIO signedTxTestData
-    describe "equals the binary size of signed txs" $
-        forAllGoldens txBinaries test
-  where
-    test
-        :: forall era. Write.IsRecentEra era
-        => String
-        -> ByteString
-        -> Cardano.Tx era
-        -> IO ()
-    test _name bs cTx@(Cardano.Tx body _) = do
-        let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
-            witCount dummyAddr = estimateKeyWitnessCount
-                (Write.fromCardanoUTxO
-                    $ utxoPromisingInputsHaveAddress dummyAddr body)
-                body
-            era = recentEra @era
-
-            tx :: Write.Tx (Write.ShelleyLedgerEra era)
-            tx = Write.fromCardanoTx @era cTx
-
-            noScripts = Write.withConstraints (recentEra @era) $
-                Map.null $ tx ^. witsTxL . scriptTxWitsL
-            noBootWits = Write.withConstraints (recentEra @era) $
-                Set.null $ tx ^. witsTxL . bootAddrTxWitsL
-            testDoesNotYetSupport x =
-                pendingWith $ "Test setup does not work for txs with " <> x
-
-            signedBinarySize = TxSize $ fromIntegral $ BS.length bs
-
-        case (noScripts, noBootWits) of
-                (True, True) -> do
-                    estimateSignedTxSize era pparams (witCount vkCredAddr) tx
-                        `shouldBeInclusivelyWithin`
-                        ( signedBinarySize - correction
-                        , signedBinarySize
-                        )
-                (False, False) ->
-                    testDoesNotYetSupport "bootstrap wits + scripts"
-                (True, False) ->
-                    estimateSignedTxSize era pparams (witCount bootAddr) tx
-                        `shouldBeInclusivelyWithin`
-                        ( signedBinarySize - correction
-                        , signedBinarySize + bootWitsCanBeLongerBy
-                        )
-                (False, True) -> testDoesNotYetSupport "scripts"
-      where
-        -- Apparently the cbor encoding used by the ledger for size checks
-        -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
-        -- serialized size for these goldens.
-        correction = TxSize 6
-
-    -- | Checks for membership in the given closed interval [a, b]
-    x `shouldBeInclusivelyWithin` (a, b) =
-        if a <= x && x <= b
-        then pure ()
-        else expectationFailure $ unwords
-            [ show x
-            , "not in the expected interval"
-            , "[" <> show a <> ", " <> show b <> "]"
-            ]
-
-    forAllGoldens
-        :: [(String, ByteString)]
-        -> (forall era. Write.IsRecentEra era
-                => String
-                -> ByteString
-                -> Cardano.Tx era
-                -> IO ())
-        -> Spec
-    forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
-        Write.withInAnyRecentEra (recentEraTxFromBytes bs) $ \tx ->
-            let
-                msg = unlines
-                    [ B8.unpack $ hex bs
-                    , pretty
-                        $ sealedTxFromCardano
-                        $ InAnyCardanoEra cardanoEra tx
-                    ]
-            in
-                Hspec.counterexample msg $ f name bs tx
-
-    -- estimateSignedTxSize now depends upon being able to resolve inputs. To
-    -- keep tese tests working, we can create a UTxO with dummy values as long
-    -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
-    -- outputs with vk payment credentials.
-    utxoPromisingInputsHaveAddress
-        :: forall era. (HasCallStack, Cardano.IsShelleyBasedEra era)
-        => Address
-        -> Cardano.TxBody era
-        -> Cardano.UTxO era
-    utxoPromisingInputsHaveAddress addr (Cardano.TxBody body) =
-        Cardano.UTxO $ Map.fromList $
-            [ (i
-               , Compatibility.toCardanoTxOut
-                     (shelleyBasedEra @era)
-                     Nothing
-                     (TxOut addr mempty)
-               )
-            | i <- allTxIns body
-            ]
-
-      where
-        allTxIns b = col ++ map fst ins
-          where
-            col = case Cardano.txInsCollateral b of
-                Cardano.TxInsCollateral _ c -> c
-                Cardano.TxInsCollateralNone -> []
-            ins = Cardano.txIns body
-
-    -- An address with a vk payment credential. For the test above, this is the
-    -- only aspect which matters.
-    vkCredAddr = Address $ unsafeFromHex
-        "6000000000000000000000000000000000000000000000000000000000"
-
-    -- This is a short bootstrap address retrieved from
-    -- "byron-address-format.md".
-    bootAddr = Address $ unsafeFromHex
-        "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
-
-    -- With more attributes, the address can be longer. This value was chosen
-    -- /experimentally/ to make the tests pass. The ledger has been validating
-    -- new outputs with bootstrap addresses have attributes not larger than 64
-    -- bytes. The ledger has done so since the middle of the Byron era.
-    -- Address attributes are included in the bootstrap witnesses.
-    --
-    -- NOTE: If we had access to the real UTxO set for the inputs of the test
-    -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
-    bootWitsCanBeLongerBy = TxSize 45
 
 --------------------------------------------------------------------------------
 -- Utilities
