@@ -45,11 +45,7 @@ import Prelude
 import Cardano.Address.Script
     ( KeyHash (..), KeyRole (Policy) )
 import Cardano.Api
-    ( CardanoEra (..)
-    , InAnyCardanoEra (..)
-    , IsCardanoEra (..)
-    , IsShelleyBasedEra (shelleyBasedEra)
-    )
+    ( CardanoEra (..), InAnyCardanoEra (..), IsCardanoEra (..) )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -79,6 +75,8 @@ import Cardano.Ledger.Api
     , MaryEraTxBody (..)
     , ShelleyEraTxBody (..)
     , ValidityInterval (..)
+    , allInputsTxBodyF
+    , bodyTxL
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -172,7 +170,14 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
-    ( AnyRecentEra (..), FeePerByte (..), RecentEra (..), recentEra )
+    ( AnyRecentEra (..)
+    , Datum (..)
+    , FeePerByte (..)
+    , RecentEra (..)
+    , TxOutInRecentEra (..)
+    , recentEra
+    , utxoFromTxOutsInRecentEra
+    )
 import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrAssignRedeemers (..)
@@ -342,7 +347,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
-import qualified Cardano.Wallet.Shelley.Compatibility as Convert
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
@@ -759,8 +763,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     ptx
                 combinedUTxO = mconcat
                         [ view #inputs ptx
-                        , Convert.toCardanoUTxO
-                            Cardano.ShelleyBasedEraBabbage
+                        , Write.toCardanoUTxO $ fromWalletUTxO
+                            RecentEraBabbage
                             walletUTxO
                         ]
             in
@@ -833,7 +837,7 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
                 forAll genEncodingBoundaryLovelace $ \l -> do
-                    let c = Convert.fromCardanoLovelace l
+                    let c = cardanoToWalletCoin l
                     let expected = cborSizeOfCoin c
 
                     -- Use a low coverage requirement of 0.01% just to
@@ -980,8 +984,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     test _name bs cTx@(Cardano.Tx body _) = do
         let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             witCount dummyAddr = estimateKeyWitnessCount
-                (Write.fromCardanoUTxO
-                    $ utxoPromisingInputsHaveAddress dummyAddr body)
+                (utxoPromisingInputsHaveAddress era dummyAddr tx)
                 body
             era = recentEra @era
 
@@ -1044,27 +1047,29 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
     -- outputs with vk payment credentials.
     utxoPromisingInputsHaveAddress
-        :: forall era. (HasCallStack, Cardano.IsShelleyBasedEra era)
-        => Address
-        -> Cardano.TxBody era
-        -> Cardano.UTxO era
-    utxoPromisingInputsHaveAddress addr (Cardano.TxBody body) =
-        Cardano.UTxO $ Map.fromList $
+        :: forall era. HasCallStack
+        => RecentEra era
+        -> Address
+        -> Write.Tx (Write.ShelleyLedgerEra era)
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
+    utxoPromisingInputsHaveAddress era addr tx =
+        utxoFromTxOutsInRecentEra era $
             [ (i
-              , Convert.toCardanoTxOut
-                  (shelleyBasedEra @era)
-                  Nothing
-                  (TxOut addr mempty)
+              , TxOutInRecentEra
+                    (Convert.toLedger addr)
+                    (Convert.toLedgerTokenBundle mempty)
+                    NoDatum
+                    Nothing
               )
-            | i <- allTxIns body
+            | i <- allInputs tx
             ]
       where
-        allTxIns b = col ++ map fst ins
-          where
-            col = case Cardano.txInsCollateral b of
-                Cardano.TxInsCollateral _ c -> c
-                Cardano.TxInsCollateralNone -> []
-            ins = Cardano.txIns body
+        allInputs
+            :: Write.Tx (Write.ShelleyLedgerEra era)
+            -> [Write.TxIn]
+        allInputs body = Write.withConstraints era
+            $ Set.toList
+            $ body ^. (bodyTxL . allInputsTxBodyF)
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
@@ -1802,8 +1807,8 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
     let
         (pos, neg) = posAndNegFromCardanoValue v
     in
-        (Convert.toCardanoValue pos) <>
-        (Cardano.negateValue (Convert.toCardanoValue neg))
+        walletToCardanoValue pos <>
+        (Cardano.negateValue (walletToCardanoValue neg))
         === v
 
 prop_updateTx
@@ -1874,7 +1879,7 @@ addExtraTxIns extraIns =
     #tx %~ modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns))
   where
     toLedgerInputs =
-        Set.map (Cardano.toShelleyTxIn . Convert.toCardanoTxIn) . Set.fromList
+        Set.map Convert.toLedger . Set.fromList
 
 -- | Wrapper for testing convenience. Does hide the monad 'm', tracing, and the
 -- updated 'changeState'. Does /not/ specify mock values for things like
@@ -2110,6 +2115,27 @@ withValidityInterval
     -> PartialTx Cardano.BabbageEra
     -> PartialTx Cardano.BabbageEra
 withValidityInterval vi = #tx %~ modifyBabbageTxBody (vldtTxBodyL .~ vi)
+
+walletToCardanoValue :: TokenBundle -> Cardano.Value
+walletToCardanoValue = Cardano.fromMaryValue . Convert.toLedger
+
+cardanoToWalletValue :: Cardano.Value -> TokenBundle
+cardanoToWalletValue = Convert.toWallet . Cardano.toMaryValue
+
+cardanoToWalletCoin :: Cardano.Lovelace -> Coin
+cardanoToWalletCoin = Convert.toWallet . Cardano.toShelleyLovelace
+
+cardanoToWalletTxOut
+    :: forall era. Write.IsRecentEra era
+    => Cardano.TxOut Cardano.CtxUTxO era
+    -> TxOut
+cardanoToWalletTxOut =
+    toWallet . Cardano.toShelleyTxOut (Write.shelleyBasedEra @era)
+  where
+    toWallet :: Write.TxOut (Write.ShelleyLedgerEra era) -> TxOut
+    toWallet x = case recentEra @era of
+        RecentEraBabbage -> Convert.fromBabbageTxOut x
+        RecentEraConway -> Convert.fromConwayTxOut x
 
 --------------------------------------------------------------------------------
 -- Test values
@@ -2430,14 +2456,14 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
     shrink (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra val) =
         map
             (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra
-                . Convert.toCardanoValue)
-            (shrink $ Convert.fromCardanoValue val)
+                . walletToCardanoValue)
+            (shrink $ cardanoToWalletValue val)
 
     shrink (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra val) =
         map
             (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra
-                . Convert.toCardanoValue)
-            (shrink $ Convert.fromCardanoValue val)
+                . walletToCardanoValue)
+            (shrink $ cardanoToWalletValue val)
     shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
@@ -2567,7 +2593,7 @@ instance Arbitrary Wallet' where
                 genIn = genTxIn
 
                 genOut :: Gen TxOut
-                genOut = Convert.fromCardanoTxOut <$>
+                genOut = cardanoToWalletTxOut <$>
                   (Cardano.TxOut
                         <$> genAddr
                         <*> (scale (* 2) (genTxOutValue era))
