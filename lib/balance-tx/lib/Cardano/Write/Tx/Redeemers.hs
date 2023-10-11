@@ -38,8 +38,6 @@ import Cardano.Slotting.EpochInfo
     ( EpochInfo, hoistEpochInfo )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..) )
 import Cardano.Write.Tx
     ( IsRecentEra (recentEra)
     , PParams
@@ -97,6 +95,7 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -271,7 +270,7 @@ redeemerData = \case
 toScriptPurpose :: Redeemer -> Alonzo.ScriptPurpose StandardCrypto
 toScriptPurpose = \case
     RedeemerSpending _ txin ->
-        Alonzo.Spending (toLedger txin)
+        Alonzo.Spending (Convert.toLedger txin)
     RedeemerMinting _ pid ->
         Alonzo.Minting (toPolicyID pid)
     RedeemerRewarding _ (Cardano.StakeAddress ntwrk acct) ->
