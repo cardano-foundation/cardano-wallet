@@ -522,7 +522,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
         let totalOutput tx =
                 let (wtx, _, _, _, _, _) =
-                        decodeTx testTxLayer maxBound
+                        _decodeSealedTx maxBound
                         (ShelleyWalletCtx dummyPolicyK)
                         (sealedTxFromCardano' tx)
                 in
