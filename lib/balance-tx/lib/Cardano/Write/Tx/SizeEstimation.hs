@@ -67,8 +67,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txOutMaxCoin )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..) )
 import Cardano.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Write.Tx
@@ -110,7 +108,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -127,7 +125,7 @@ _txRewardWithdrawalCost
     -> Coin
     -> Coin
 _txRewardWithdrawalCost feePerByte witType =
-    toWallet
+    Convert.toWallet
     . Write.feeOfBytes feePerByte
     . unTxSize
     . _txRewardWithdrawalSize witType
@@ -180,7 +178,7 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
         constantTxFee <> estimateTxCost feePerByte empty
 
     constantTxFee = withConstraints era $
-        toWallet $ protocolParams ^. ppMinFeeBL
+        Convert.toWallet $ protocolParams ^. ppMinFeeBL
 
     feePerByte = getFeePerByte (recentEra @era) protocolParams
 
@@ -206,7 +204,7 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64
 
-    txOutputMinimumAdaQuantity addr tokens = toWallet $
+    txOutputMinimumAdaQuantity addr tokens = Convert.toWallet $
         computeMinimumCoinForTxOut
             era
             protocolParams
@@ -697,8 +695,8 @@ mkLedgerTxOut
     -> TxOut (ShelleyLedgerEra era)
 mkLedgerTxOut txOutEra address bundle =
     case txOutEra of
-        RecentEraBabbage -> W.toBabbageTxOut txOut
-        RecentEraConway -> W.toConwayTxOut txOut
+        RecentEraBabbage -> Convert.toBabbageTxOut txOut
+        RecentEraConway -> Convert.toConwayTxOut txOut
       where
         txOut = W.TxOut address bundle
 
