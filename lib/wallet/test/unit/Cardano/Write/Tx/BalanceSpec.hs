@@ -1029,16 +1029,6 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -- serialized size for these goldens.
         correction = TxSize 6
 
-    -- | Checks for membership in the given closed interval [a, b]
-    x `shouldBeInclusivelyWithin` (a, b) =
-        if a <= x && x <= b
-        then pure ()
-        else expectationFailure $ unwords
-            [ show x
-            , "not in the expected interval"
-            , "[" <> show a <> ", " <> show b <> "]"
-            ]
-
     forAllGoldens
         :: [(String, ByteString)]
         -> (forall era. Write.IsRecentEra era
@@ -2089,6 +2079,17 @@ serializedSize = BS.length
     . serialisedTx
     . sealedTxFromCardano
     . Cardano.InAnyCardanoEra (Cardano.cardanoEra @era)
+
+-- | Checks for membership in the given closed interval [a, b]
+shouldBeInclusivelyWithin :: (Ord a, Show a) => a -> (a, a) -> IO ()
+x `shouldBeInclusivelyWithin` (a, b) =
+    if a <= x && x <= b
+    then pure ()
+    else expectationFailure $ unwords
+        [ show x
+        , "not in the expected interval"
+        , "[" <> show a <> ", " <> show b <> "]"
+        ]
 
 txMinFee
     :: Cardano.Tx Cardano.BabbageEra
