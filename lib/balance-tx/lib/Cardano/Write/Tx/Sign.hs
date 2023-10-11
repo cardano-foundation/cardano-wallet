@@ -43,8 +43,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin, toWalletScript )
 import Cardano.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
@@ -70,7 +68,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -125,11 +123,11 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     coinQuotRem (W.Coin p) (W.Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> W.Coin
-    minfee witCount = toWalletCoin $ Write.evaluateMinimumFee
+    minfee witCount = Convert.toWalletCoin $ Write.evaluateMinimumFee
         era pparams unsignedTx witCount
 
     feePerByte :: W.Coin
-    feePerByte = withConstraints era $ Ledger.toWalletCoin $
+    feePerByte = withConstraints era $ Convert.toWalletCoin $
         pparams ^. ppMinFeeAL
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
@@ -244,12 +242,12 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         RecentEraConway ->
             case anyScript of
                 Alonzo.TimelockScript timelock ->
-                    Just $ toWalletScript (const dummyKeyRole) timelock
+                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
                 Alonzo.PlutusScript _ _ -> Nothing
         RecentEraBabbage ->
             case anyScript of
                 Alonzo.TimelockScript timelock ->
-                    Just $ toWalletScript (const dummyKeyRole) timelock
+                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
                 Alonzo.PlutusScript _ _ -> Nothing
 
     hasScriptCred
