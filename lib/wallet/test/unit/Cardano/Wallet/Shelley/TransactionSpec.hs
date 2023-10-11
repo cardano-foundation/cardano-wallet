@@ -120,9 +120,14 @@ import Cardano.Wallet.Shelley.Transaction
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
+    , newTransactionLayer
     )
 import Cardano.Wallet.Transaction
-    ( SelectionOf (..), WitnessCountCtx (..), selectionDelta )
+    ( SelectionOf (..)
+    , TransactionLayer (..)
+    , WitnessCountCtx (..)
+    , selectionDelta
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
@@ -139,7 +144,6 @@ import Cardano.Write.Tx.BalanceSpec
     , mockPParamsForBalancing
     , recentEraTxFromBytes
     , signedTxTestData
-    , testTxLayer
     )
 import Cardano.Write.Tx.Sign
     ( estimateKeyWitnessCount, estimateSignedTxSize )
@@ -1359,6 +1363,8 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
+testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
+testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet
 
 --------------------------------------------------------------------------------
 -- Transaction constraints

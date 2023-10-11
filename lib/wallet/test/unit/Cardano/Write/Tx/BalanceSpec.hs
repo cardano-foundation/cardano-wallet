@@ -38,7 +38,6 @@ module Cardano.Write.Tx.BalanceSpec
     , mockPParamsForBalancing
     , recentEraTxFromBytes
     , signedTxTestData
-    , testTxLayer
     ----------------------------------------------------------------------------
 
     ) where
@@ -173,13 +172,9 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletCoin
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness
-    , mkDelegationCertificates
-    , newTransactionLayer
-    , _decodeSealedTx
-    )
+    ( mkByronWitness, mkDelegationCertificates, _decodeSealedTx )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), TransactionLayer (..), WitnessCountCtx (..) )
+    ( DelegationAction (..), WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Write.Tx
@@ -2248,9 +2243,6 @@ testParameter_coinsPerUTxOByte_Babbage
 
 testStdGenSeed :: StdGenSeed
 testStdGenSeed = StdGenSeed 0
-
-testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
-testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances, generators, and shrinkers
