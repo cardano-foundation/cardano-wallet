@@ -37,8 +37,6 @@ module Cardano.Write.Tx.BalanceSpec
     -- remove these exports:
     , cardanoTx
     , mockPParamsForBalancing
-    , recentEraTxFromBytes
-    , signedTxTestData
     ----------------------------------------------------------------------------
 
     ) where
