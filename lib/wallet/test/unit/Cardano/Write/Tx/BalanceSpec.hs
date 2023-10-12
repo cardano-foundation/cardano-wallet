@@ -155,8 +155,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn )
 import Cardano.Wallet.Shelley.Transaction
@@ -172,6 +170,7 @@ import Cardano.Write.Tx
     , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
+    , TxIn
     , TxOut
     , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
@@ -347,6 +346,7 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
@@ -554,7 +554,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "when passed unresolved inputs" $ do
         it "fails with ErrBalanceTxUnresolvedTxIn" $ do
-            let txin = TxIn (Hash $ B8.replicate 32 '3') 10
+            let txin = W.TxIn (Hash $ B8.replicate 32 '3') 10
 
             -- 1 output, 1 input without utxo entry
             let partialTx :: PartialTx Cardano.BabbageEra
@@ -575,7 +575,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 balance (withNoUTxO pingPong_2)
                     `shouldBe` Left
                         (ErrBalanceTxUnresolvedInputs $ NE.fromList
-                            [ TxIn (Hash "11111111111111111111111111111111") 0
+                            [ W.TxIn (Hash "11111111111111111111111111111111") 0
                             ]
                         )
 
@@ -627,7 +627,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             -- With ix 1 instead of 0, making it point to an input which
             -- doesn't exist in the tx.
             let faultyRedeemer =
-                    RedeemerSpending (unsafeFromHex "D87A80") (TxIn tid 1)
+                    RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn tid 1)
 
             let withFaultyRedeemer =
                     over #redeemers $ mapFirst $ const faultyRedeemer
@@ -655,7 +655,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
     dustUTxO = W.UTxO $ Map.fromList $
-        [ ( TxIn (Hash $ B8.replicate 32 '1') ix
+        [ ( W.TxIn (Hash $ B8.replicate 32 '1') ix
           , W.TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
           )
         | ix <- [0 .. 500]
@@ -669,7 +669,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (TxIn dummyHash) [0..]
+        ins = map (W.TxIn dummyHash) [0..]
         outs = map (W.TxOut dummyAddr) bundles
         dummyHash = Hash $ B8.replicate 32 '0'
 
@@ -782,7 +782,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     utxo coins = W.UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (TxIn dummyHash) [0..]
+        ins = map (W.TxIn dummyHash) [0..]
         outs = map (W.TxOut addr . TokenBundle.fromCoin) coins
         dummyHash = Hash $ B8.replicate 32 '0'
 
@@ -1070,7 +1070,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
       where
         allInputs
             :: Write.Tx (Write.ShelleyLedgerEra era)
-            -> [Write.TxIn]
+            -> [TxIn]
         allInputs body = withConstraints era
             $ Set.toList
             $ body ^. (bodyTxL . allInputsTxBodyF)
@@ -1844,8 +1844,8 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
 
 prop_updateTx
     :: InAnyRecentEra Cardano.Tx
-    -> [(TxIn, W.TxOut)]
-    -> [TxIn]
+    -> [(W.TxIn, W.TxOut)]
+    -> [W.TxIn]
     -> [W.TxOut]
     -> Coin
     -> Property
@@ -1903,7 +1903,7 @@ data Wallet' = Wallet' UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
 
 -- Ideally merge with 'updateTx'
 addExtraTxIns
-    :: [TxIn]
+    :: [W.TxIn]
     -> PartialTx Cardano.BabbageEra
     -> PartialTx Cardano.BabbageEra
 addExtraTxIns extraIns =
@@ -2070,7 +2070,7 @@ restrictResolution (PartialTx tx (Cardano.UTxO u) redeemers) =
     inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
         Set.fromList $ map fst $ Cardano.txIns bod
 
-sealedCollateralInputs :: SealedTx -> Set TxIn
+sealedCollateralInputs :: SealedTx -> Set W.TxIn
 sealedCollateralInputs =
     Set.fromList
     . map fst
@@ -2088,7 +2088,7 @@ sealedFee =
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
     . sealedTxFromCardano'
 
-sealedInputs :: SealedTx -> Set TxIn
+sealedInputs :: SealedTx -> Set W.TxIn
 sealedInputs =
     Set.fromList
     . map fst
@@ -2402,7 +2402,7 @@ pingPong_2 = PartialTx
           )
         ]
     , redeemers =
-        [ RedeemerSpending (unsafeFromHex "D87A80") (TxIn (Hash tid) 0)
+        [ RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn (Hash tid) 0)
         ]
     }
   where
@@ -2578,11 +2578,11 @@ instance Arbitrary (TxFeeAndChange [W.TxOut]) where
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
 
-instance Arbitrary TxIn where
+instance Arbitrary W.TxIn where
     arbitrary = do
         ix <- scale (`mod` 3) arbitrary
         txId <- arbitrary
-        pure $ TxIn txId ix
+        pure $ W.TxIn txId ix
 
 instance Arbitrary W.TxOut where
     arbitrary =
@@ -2620,7 +2620,7 @@ instance Arbitrary Wallet' where
           where
             genEntry = (,) <$> genIn <*> genOut
               where
-                genIn :: Gen TxIn
+                genIn :: Gen W.TxIn
                 genIn = genTxIn
 
                 genOut :: Gen W.TxOut
