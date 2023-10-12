@@ -171,6 +171,8 @@ import Cardano.Write.Tx
     ( AnyRecentEra (..)
     , Datum (..)
     , FeePerByte (..)
+    , InAnyRecentEra (..)
+    , IsRecentEra (..)
     , RecentEra (..)
     , TxOutInRecentEra (..)
     , UTxO
@@ -399,13 +401,13 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 - serializedSize (Cardano.Tx body [])
 
         let evaluateMinimumFeeSize
-                :: forall era. Write.IsRecentEra era
+                :: forall era. IsRecentEra era
                 => Cardano.Tx era
                 -> Natural
             evaluateMinimumFeeSize (Cardano.Tx body wits) = fromIntegral
                 $ Write.unCoin
                 $ Write.evaluateMinimumFee
-                    (Write.recentEra @era)
+                    (recentEra @era)
                     pp
                     (Write.fromCardanoTx (Cardano.Tx body []))
                     (KeyWitnessCount 0 (fromIntegral $ length wits))
@@ -422,7 +424,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "coin-selection's size estimation == balanceTx's size estimation"
             $ property
             $ prop_bootstrapWitnesses
-            $ \n (Write.InAnyRecentEra _era tx) -> do
+            $ \n (InAnyRecentEra _era tx) -> do
                 let balanceSize = evaluateMinimumFeeDerivedWitSize tx
                 let csSize = coinSelectionEstimatedSize $ intCast n
                 balanceSize === csSize
@@ -431,7 +433,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "balanceTx's size estimation >= measured serialized size"
             $ property
             $ prop_bootstrapWitnesses
-            $ \n (Write.InAnyRecentEra _era tx) -> do
+            $ \n (InAnyRecentEra _era tx) -> do
                 let estimated = evaluateMinimumFeeDerivedWitSize tx
                 let measured = measuredWitSize tx
                 let overestimation
@@ -495,7 +497,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
 
     it "assigns minimal ada quantities to outputs without ada" $ do
-        let era = Write.RecentEraBabbage
+        let era = RecentEraBabbage
         let out = TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
         let out' = TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
         let Cardano.ShelleyTx _ tx = either (error . show) id
@@ -976,7 +978,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         forAllGoldens txBinaries test
   where
     test
-        :: forall era. Write.IsRecentEra era
+        :: forall era. IsRecentEra era
         => String
         -> ByteString
         -> Cardano.Tx era
@@ -1024,7 +1026,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
 
     forAllGoldens
         :: [(String, ByteString)]
-        -> (forall era. Write.IsRecentEra era
+        -> (forall era. IsRecentEra era
             => String
             -> ByteString
             -> Cardano.Tx era
@@ -1489,7 +1491,7 @@ prop_balanceTransactionValid
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
-    :: (Word8 -> Write.InAnyRecentEra Cardano.Tx -> Property)
+    :: (Word8 -> InAnyRecentEra Cardano.Tx -> Property)
     -> Word8
     -- ^ Number of bootstrap witnesses.
     --
@@ -1513,7 +1515,7 @@ prop_bootstrapWitnesses
         wits :: [Cardano.KeyWitness era]
         wits = map (dummyWitForIx body) addrIxs
     in
-        p n (Write.InAnyRecentEra era $ Cardano.Tx body wits)
+        p n (InAnyRecentEra era $ Cardano.Tx body wits)
   where
     emptyCardanoTxBody = body
       where
@@ -1812,14 +1814,14 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
         === v
 
 prop_updateTx
-    :: Write.InAnyRecentEra Cardano.Tx
+    :: InAnyRecentEra Cardano.Tx
     -> [(TxIn, TxOut)]
     -> [TxIn]
     -> [TxOut]
     -> Coin
     -> Property
 prop_updateTx
-    (Write.InAnyRecentEra _era tx)
+    (InAnyRecentEra _era tx)
     extraIns extraCol extraOuts newFee =
     do
         let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
@@ -1885,7 +1887,7 @@ addExtraTxIns extraIns =
 -- updated 'changeState'. Does /not/ specify mock values for things like
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
-    :: Write.IsRecentEra era
+    :: IsRecentEra era
     => Wallet'
     -> Write.ProtocolParameters era
     -> TimeTranslation
@@ -1912,7 +1914,7 @@ balanceTx
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
-    :: forall era. Write.IsRecentEra era
+    :: forall era. IsRecentEra era
     => UTxOAssumptions
     -> W.UTxO
     -> StdGenSeed
@@ -1964,7 +1966,7 @@ mkTestWallet utxo =
     Wallet' AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
 mockPParamsForBalancing
-    :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
+    :: forall era . IsRecentEra era => Write.ProtocolParameters era
 mockPParamsForBalancing =
     Write.ProtocolParameters . either (error . show) id $
         Cardano.toLedgerPParams
@@ -2012,7 +2014,7 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
         Nothing
         Cardano.TxScriptValidityNone
 
-recentEraTxFromBytes :: ByteString -> Write.InAnyRecentEra Cardano.Tx
+recentEraTxFromBytes :: ByteString -> InAnyRecentEra Cardano.Tx
 recentEraTxFromBytes bytes =
     let
         anyEraTx
@@ -2126,7 +2128,7 @@ cardanoToWalletCoin :: Cardano.Lovelace -> Coin
 cardanoToWalletCoin = Convert.toWallet . Cardano.toShelleyLovelace
 
 cardanoToWalletTxOut
-    :: forall era. Write.IsRecentEra era
+    :: forall era. IsRecentEra era
     => Cardano.TxOut Cardano.CtxUTxO era
     -> TxOut
 cardanoToWalletTxOut =
