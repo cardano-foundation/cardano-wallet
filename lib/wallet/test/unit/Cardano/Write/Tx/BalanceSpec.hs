@@ -170,6 +170,7 @@ import Cardano.Write.Tx
     , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
+    , ShelleyLedgerEra
     , Tx
     , TxIn
     , TxOut
@@ -993,7 +994,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 body
             era = recentEra @era
 
-            tx :: Tx (Write.ShelleyLedgerEra era)
+            tx :: Tx (ShelleyLedgerEra era)
             tx = Write.fromCardanoTx @era cTx
 
             noScripts = withConstraints (recentEra @era)
@@ -1055,8 +1056,8 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         :: forall era. HasCallStack
         => RecentEra era
         -> Address
-        -> Tx (Write.ShelleyLedgerEra era)
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> Tx (ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
     utxoPromisingInputsHaveAddress era addr tx =
         utxoFromTxOutsInRecentEra era $
             [ (i
@@ -1070,7 +1071,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             ]
       where
         allInputs
-            :: Tx (Write.ShelleyLedgerEra era)
+            :: Tx (ShelleyLedgerEra era)
             -> [TxIn]
         allInputs body = withConstraints era
             $ Set.toList
@@ -1359,7 +1360,7 @@ prop_balanceTransactionValid
     prop_expectFeeExcessSmallerThan
         :: Cardano.Lovelace
         -> Cardano.Tx era
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
         -> Property
     prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
@@ -1378,7 +1379,7 @@ prop_balanceTransactionValid
 
     prop_minfeeIsCovered
         :: Cardano.Tx era
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
         -> Property
     prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
@@ -1397,7 +1398,7 @@ prop_balanceTransactionValid
 
     prop_validSize
         :: Cardano.Tx era
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
         let era = recentEra @era
@@ -1465,7 +1466,7 @@ prop_balanceTransactionValid
 
     minFee
         :: Cardano.Tx era
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
         -> Cardano.Lovelace
     minFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
@@ -1474,7 +1475,7 @@ prop_balanceTransactionValid
 
     txBalance
         :: Cardano.Tx era
-        -> UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (ShelleyLedgerEra era)
         -> Cardano.Value
     txBalance tx u = Write.toCardanoValue @era $
         Write.evaluateTransactionBalance
@@ -2164,7 +2165,7 @@ cardanoToWalletTxOut
 cardanoToWalletTxOut =
     toWallet . Cardano.toShelleyTxOut (Write.shelleyBasedEra @era)
   where
-    toWallet :: TxOut (Write.ShelleyLedgerEra era) -> W.TxOut
+    toWallet :: TxOut (ShelleyLedgerEra era) -> W.TxOut
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
         RecentEraConway -> Convert.fromConwayTxOut x
