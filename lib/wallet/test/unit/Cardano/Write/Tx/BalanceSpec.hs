@@ -159,8 +159,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness, mkDelegationCertificates, _decodeSealedTx )
 import Cardano.Wallet.Transaction
@@ -174,6 +172,8 @@ import Cardano.Write.Tx
     , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
+    , TxOut
+    , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
     , UTxO
     , recentEra
@@ -348,6 +348,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
@@ -469,7 +470,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         -- test case.
         let nPayments = 10
         let paymentOuts = replicate nPayments $
-                TxOut
+                W.TxOut
                     dummyAddr
                     (TokenBundle.fromCoin (Coin 1_000_000))
         let ptx = paymentPartialTx paymentOuts
@@ -499,8 +500,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "assigns minimal ada quantities to outputs without ada" $ do
         let era = RecentEraBabbage
-        let out = TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
-        let out' = TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
+        let out = W.TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
+        let out' = W.TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
         let Cardano.ShelleyTx _ tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
@@ -532,21 +533,21 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ TxOut dummyAddr
+                    [ W.TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 50_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ TxOut dummyAddr
+                    [ W.TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 100_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ TxOut dummyAddr
+                    [ W.TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 200_000_000))
                     ]
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
@@ -559,7 +560,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             let partialTx :: PartialTx Cardano.BabbageEra
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
-                        [ TxOut dummyAddr
+                        [ W.TxOut dummyAddr
                             (TokenBundle.fromCoin (Coin 1_000_000))
                         ]
             balance partialTx
@@ -655,7 +656,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     dustWallet = mkTestWallet dustUTxO
     dustUTxO = W.UTxO $ Map.fromList $
         [ ( TxIn (Hash $ B8.replicate 32 '1') ix
-          , TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
+          , W.TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
           )
         | ix <- [0 .. 500]
         ]
@@ -669,7 +670,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (TxIn dummyHash) [0..]
-        outs = map (TxOut dummyAddr) bundles
+        outs = map (W.TxOut dummyAddr) bundles
         dummyHash = Hash $ B8.replicate 32 '0'
 
     utxo coins = utxoWithBundles $ map TokenBundle.fromCoin coins
@@ -782,7 +783,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     utxo coins = W.UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (TxIn dummyHash) [0..]
-        outs = map (TxOut addr . TokenBundle.fromCoin) coins
+        outs = map (W.TxOut addr . TokenBundle.fromCoin) coins
         dummyHash = Hash $ B8.replicate 32 '0'
 
     rootK =
@@ -792,7 +793,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
-        [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
+        [ W.TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
         ]
 
     delegate :: PartialTx Cardano.BabbageEra
@@ -1423,7 +1424,7 @@ prop_balanceTransactionValid
       where
         era = recentEra @era
 
-        valid :: Write.TxOut (Cardano.ShelleyLedgerEra era) -> Property
+        valid :: TxOut (Cardano.ShelleyLedgerEra era) -> Property
         valid out = counterexample msg $ property $
             not $ Write.isBelowMinimumCoinForTxOut era ledgerPParams out
           where
@@ -1561,12 +1562,12 @@ prop_distributeSurplus_onSuccess
     :: Testable prop
     => (FeePerByte
         -> Coin
-        -> TxFeeAndChange [TxOut]
-        -> TxFeeAndChange [TxOut]
+        -> TxFeeAndChange [W.TxOut]
+        -> TxFeeAndChange [W.TxOut]
         -> prop)
     -> FeePerByte
     -> TxBalanceSurplus Coin
-    -> TxFeeAndChange [TxOut]
+    -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     checkCoverage $
@@ -1608,7 +1609,7 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     TxBalanceSurplus surplus = txSurplus
     TxFeeAndChange feeOriginal changeOriginal = fc
 
-    mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
+    mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [W.TxOut])
     mResult = distributeSurplus policy surplus fc
 
 -- Verifies that the 'distributeSurplus' function conserves the surplus: the
@@ -1616,7 +1617,10 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
 -- to the given surplus.
 --
 prop_distributeSurplus_onSuccess_conservesSurplus
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_conservesSurplus =
     prop_distributeSurplus_onSuccess $ \_policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
@@ -1632,7 +1636,10 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
 -- fee value should have increased by at least 𝛿c.
 --
 prop_distributeSurplus_onSuccess_coversCostIncrease
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_coversCostIncrease =
     prop_distributeSurplus_onSuccess $ \policy _surplus
         (TxFeeAndChange feeOriginal changeOriginal)
@@ -1653,7 +1660,10 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
 -- decrease.
 --
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -1666,7 +1676,10 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
 -- less than the original value.
 --
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange feeOriginal _changeOriginal)
@@ -1683,7 +1696,10 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
 -- original fee and change values.
 --
 prop_distributeSurplus_onSuccess_increasesValuesByDelta
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_increasesValuesByDelta =
     prop_distributeSurplus_onSuccess $ \policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
@@ -1715,7 +1731,10 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
 -- value, as expected.
 --
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -1727,7 +1746,10 @@ prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
 -- outputs.
 --
 prop_distributeSurplus_onSuccess_preservesChangeAddresses
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_preservesChangeAddresses =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -1740,7 +1762,10 @@ prop_distributeSurplus_onSuccess_preservesChangeAddresses =
 -- destroy change outputs.
 --
 prop_distributeSurplus_onSuccess_preservesChangeLength
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_preservesChangeLength =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -1751,7 +1776,10 @@ prop_distributeSurplus_onSuccess_preservesChangeLength =
 -- assets.
 --
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
-    :: FeePerByte -> TxBalanceSurplus Coin -> TxFeeAndChange [TxOut] -> Property
+    :: FeePerByte
+    -> TxBalanceSurplus Coin
+    -> TxFeeAndChange [W.TxOut]
+    -> Property
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
     prop_distributeSurplus_onSuccess $ \_policy _surplus
         (TxFeeAndChange _feeOriginal changeOriginal)
@@ -1816,9 +1844,9 @@ prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
 
 prop_updateTx
     :: InAnyRecentEra Cardano.Tx
-    -> [(TxIn, TxOut)]
+    -> [(TxIn, W.TxOut)]
     -> [TxIn]
-    -> [TxOut]
+    -> [W.TxOut]
     -> Coin
     -> Property
 prop_updateTx
@@ -2001,7 +2029,7 @@ modifyBabbageTxBody
             scriptValidity)
         keyWits
 
-paymentPartialTx :: [TxOut] -> PartialTx Cardano.BabbageEra
+paymentPartialTx :: [W.TxOut] -> PartialTx Cardano.BabbageEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
   where
     body = Cardano.ShelleyTxBody
@@ -2068,7 +2096,7 @@ sealedInputs =
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
-sealedOutputs :: SealedTx -> Set TxOut
+sealedOutputs :: SealedTx -> Set W.TxOut
 sealedOutputs =
     Set.fromList
     . view #outputs
@@ -2131,11 +2159,11 @@ cardanoToWalletCoin = Convert.toWallet . Cardano.toShelleyLovelace
 cardanoToWalletTxOut
     :: forall era. IsRecentEra era
     => Cardano.TxOut Cardano.CtxUTxO era
-    -> TxOut
+    -> W.TxOut
 cardanoToWalletTxOut =
     toWallet . Cardano.toShelleyTxOut (Write.shelleyBasedEra @era)
   where
-    toWallet :: Write.TxOut (Write.ShelleyLedgerEra era) -> TxOut
+    toWallet :: TxOut (Write.ShelleyLedgerEra era) -> W.TxOut
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
         RecentEraConway -> Convert.fromConwayTxOut x
@@ -2355,7 +2383,7 @@ pingPong_2 = PartialTx
     , inputs = Write.toCardanoUTxO $
         Write.utxoFromTxOutsInRecentEra RecentEraBabbage
         [ ( Write.unsafeMkTxIn tid 0
-          , Write.TxOutInRecentEra
+          , TxOutInRecentEra
               (Write.unsafeAddressFromBytes $ unsafeFromHex $ mconcat
                   [ "714d72cf569a339a18a7d93023139"
                   , "83f56e0d96cd45bdcb1d6512dca6a"
@@ -2535,7 +2563,7 @@ instance Arbitrary (TxBalanceSurplus Coin) where
         ]
     shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus shrinkCoin
 
-instance Arbitrary (TxFeeAndChange [TxOut]) where
+instance Arbitrary (TxFeeAndChange [W.TxOut]) where
     arbitrary = do
         fee <- genCoin
         change <- frequency
@@ -2556,13 +2584,13 @@ instance Arbitrary TxIn where
         txId <- arbitrary
         pure $ TxIn txId ix
 
-instance Arbitrary TxOut where
+instance Arbitrary W.TxOut where
     arbitrary =
-        TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
+        W.TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
       where
         addr = Address $ BS.pack (1:replicate 56 0)
-    shrink (TxOut addr bundle) =
-        [ TxOut addr bundle'
+    shrink (W.TxOut addr bundle) =
+        [ W.TxOut addr bundle'
         | bundle' <- shrinkTokenBundleSmallRange bundle
         ]
 
@@ -2595,7 +2623,7 @@ instance Arbitrary Wallet' where
                 genIn :: Gen TxIn
                 genIn = genTxIn
 
-                genOut :: Gen TxOut
+                genOut :: Gen W.TxOut
                 genOut = cardanoToWalletTxOut <$>
                   (Cardano.TxOut
                         <$> genAddr
