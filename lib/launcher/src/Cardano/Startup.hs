@@ -11,8 +11,7 @@
 module Cardano.Startup
     (
     -- * Program startup
-      withUtf8Encoding
-    , setUtf8EncodingHandles
+      setUtf8EncodingHandles
 
     -- * Clean shutdown
     , withShutdownHandler
@@ -45,8 +44,6 @@ import GHC.IO.Encoding
     ( setFileSystemEncoding )
 import System.IO
     ( Handle, hIsOpen, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
-import System.IO.CodePage
-    ( withCP65001 )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Concurrent
@@ -68,14 +65,6 @@ import qualified Data.Text as T
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers
 -------------------------------------------------------------------------------}
-
--- | Force the locale text encoding to UTF-8. This is needed because the CLI
--- prints UTF-8 characters regardless of the @LANG@ environment variable or any
--- other settings.
---
--- On Windows the current console code page is changed to UTF-8.
-withUtf8Encoding :: IO a -> IO a
-withUtf8Encoding action = withCP65001 (setUtf8EncodingHandles >> action)
 
 setUtf8EncodingHandles :: IO ()
 setUtf8EncodingHandles = do
