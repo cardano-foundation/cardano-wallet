@@ -8,6 +8,9 @@ build:
 local-cluster $LOCAL_CLUSTER_CONFIGS="lib/local-cluster/test/data/cluster-configs":
   nix shell '.#local-cluster' '.#cardano-node' '.#cardano-wallet' -c "local-cluster"
 
+unit $LOCAL_CLUSTER_CONFIGS="lib/local-cluster/test/data/cluster-configs":
+  cabal test cardano-wallet:unit
+
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix run '.#cardano-wallet-e2e' -- preprod \

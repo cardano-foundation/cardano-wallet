@@ -96,6 +96,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       };
 
       indexState = "2023-06-04T22:30:25Z";
+
+      localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
     in {
       name = "cardano-wallet";
       compiler-nix-name = "ghc8107";
@@ -107,7 +109,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       };
 
       shell = {
-
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
@@ -158,6 +159,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             sha256map."https://github.com/pepeiborra/ekg-json"."7a0af7a8fd38045fd15fb13445bdcc7085325460" = "sha256-fVwKxGgM0S4Kv/4egVAAiAjV7QB5PBqMVMCfsv7otIQ=";
             }))
         ]);
+        shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
       };
 
       inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
@@ -185,7 +187,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           ({ config, pkgs, ... }:
             let
               cardanoNodeExes = [ nodePkgs.cardano-cli nodePkgs.cardano-node ];
-              localClusterConfigs = src + /lib/local-cluster/test/data/cluster-configs;
             in
             {
               reinstallableLibGhc = true;
