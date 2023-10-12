@@ -178,6 +178,7 @@ import Cardano.Write.Tx
     , UTxO
     , recentEra
     , utxoFromTxOutsInRecentEra
+    , withConstraints
     )
 import Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -414,7 +415,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
               where
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
-                pp = Write.withConstraints (Write.recentEra @era) $
+                pp = withConstraints (recentEra @era) $
                     Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
 
         let evaluateMinimumFeeDerivedWitSize (Cardano.Tx body wits)
@@ -993,9 +994,9 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             tx :: Write.Tx (Write.ShelleyLedgerEra era)
             tx = Write.fromCardanoTx @era cTx
 
-            noScripts = Write.withConstraints (recentEra @era)
+            noScripts = withConstraints (recentEra @era)
                 $ Map.null $ tx ^. witsTxL . scriptTxWitsL
-            noBootWits = Write.withConstraints (recentEra @era)
+            noBootWits = withConstraints (recentEra @era)
                 $ Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
@@ -1069,7 +1070,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         allInputs
             :: Write.Tx (Write.ShelleyLedgerEra era)
             -> [Write.TxIn]
-        allInputs body = Write.withConstraints era
+        allInputs body = withConstraints era
             $ Set.toList
             $ body ^. (bodyTxL . allInputsTxBodyF)
 
