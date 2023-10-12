@@ -177,6 +177,7 @@ import Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
     , UTxO
+    , fromCardanoUTxO
     , recentEra
     , toCardanoUTxO
     , utxoFromTxOutsInRecentEra
@@ -1229,7 +1230,7 @@ prop_balanceTransactionValid
     wallet@(Wallet' _ walletUTxO _) (ShowBuildable partialTx) seed =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
-                Write.fromCardanoUTxO (view #inputs partialTx)
+                fromCardanoUTxO (view #inputs partialTx)
                 <> fromWalletUTxO (recentEra @era) walletUTxO
 
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
@@ -2133,7 +2134,7 @@ txMinFee tx@(Cardano.Tx body _) u =
             RecentEraBabbage
             (Write.pparamsLedger $ mockPParamsForBalancing @Cardano.BabbageEra)
             (Write.fromCardanoTx tx)
-            (estimateKeyWitnessCount (Write.fromCardanoUTxO u) body)
+            (estimateKeyWitnessCount (fromCardanoUTxO u) body)
 
 unsafeSealedTxFromHex :: ByteString -> IO SealedTx
 unsafeSealedTxFromHex =
