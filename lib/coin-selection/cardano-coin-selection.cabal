@@ -83,7 +83,6 @@ test-suite test
     , bytestring
     , cardano-coin-selection
     , cardano-numeric
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers

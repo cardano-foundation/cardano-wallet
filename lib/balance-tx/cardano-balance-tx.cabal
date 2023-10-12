@@ -109,7 +109,6 @@ test-suite test
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-conway:{cardano-ledger-conway, testlib}
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers

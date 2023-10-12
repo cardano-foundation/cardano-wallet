@@ -72,7 +72,6 @@ test-suite test
     , cardano-addresses
     , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-wallet-conversions
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , hspec
