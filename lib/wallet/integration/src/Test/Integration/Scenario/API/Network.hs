@@ -20,6 +20,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , nextEpoch
     )
+import Cardano.Wallet.Launch.Cluster
+    ( TestnetMagic (testnetMagicToNatural) )
 import Cardano.Wallet.Pools
     ( EpochInfo (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -77,7 +79,8 @@ spec = describe "COMMON_NETWORK" $ do
                     (epochStartTime <$> nextEpoch (unsafeResponse x))
                         .> Just now
                 , expectField (#networkInfo . #protocolMagic)
-                    (`shouldBe` fromIntegral (_networkId ctx))
+                    (`shouldBe` fromIntegral
+                        (testnetMagicToNatural (_testnetMagic ctx)))
                 , expectField #walletMode (`shouldBe` Node)
                 ]
             counterexample (show r) $ do

@@ -110,6 +110,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Typeable
+    ( Proxy (..) )
+import GHC.TypeNats
+    ( natVal )
 import Main.Utf8
     ( withUtf8 )
 import Network.HTTP.Client
@@ -186,14 +190,17 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
-main :: forall n. (n ~ 'Testnet 42) => IO ()
+main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspecMain $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
-        specWithServer testDir tracers $ do
+
+        let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+
+        specWithServer testnetMagic testDir tracers $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
@@ -267,11 +274,12 @@ clusterToApiEra = \case
     BabbageHardFork -> ApiBabbage
 
 specWithServer
-    :: FilePath
+    :: Cluster.TestnetMagic
+    -> FilePath
     -> (Tracer IO TestsLog, Tracers IO)
     -> SpecWith Context
     -> Spec
-specWithServer testDir (tr, tracers) = aroundAll withContext
+specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
@@ -312,7 +320,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = np
-                    , _networkId = Cluster.testnetMagicToNatural testnetMagic
+                    , _testnetMagic = testnetMagic
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = clusterToApiEra era
                     , _smashUrl = smashUrl
@@ -368,8 +376,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
-
-    testnetMagic = Cluster.TestnetMagic 42
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =

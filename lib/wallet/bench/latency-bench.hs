@@ -476,13 +476,13 @@ withShelleyServer tracers action = do
                     responseTimeoutMicro sixtySeconds
                 })
             faucet <- initFaucet
-            putMVar ctx $ Context
+            putMVar ctx Context
                 { _cleanup = pure ()
                 , _manager = manager
                 , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
                 , _networkParameters = np
-                , _networkId = Cluster.testnetMagicToNatural testnetMagic
+                , _testnetMagic = testnetMagic
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
                 , _smashUrl = ""
