@@ -95,6 +95,7 @@ library
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-application-extras
+    , cardano-wallet-conversions
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -397,6 +398,7 @@ library cardano-wallet-api-http
     , cardano-ledger-shelley
     , cardano-wallet
     , cardano-wallet-application-extras
+    , cardano-wallet-conversions
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -729,6 +731,7 @@ test-suite unit
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
+    , cardano-wallet-conversions
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -911,7 +914,6 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.TypesSpec
     Cardano.Wallet.RegistrySpec
-    Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Cardano.Wallet.Shelley.CompatibilitySpec
     Cardano.Wallet.Shelley.LaunchSpec
     Cardano.Wallet.Shelley.NetworkSpec
