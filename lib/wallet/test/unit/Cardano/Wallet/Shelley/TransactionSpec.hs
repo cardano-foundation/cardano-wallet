@@ -1402,7 +1402,7 @@ instance Arbitrary MockSelection where
     arbitrary = genMockSelection
     shrink = shrinkMockSelection
 
--- Tests that using 'txBaseSize' to estimate the size of an empty selection                                                                        ....
+-- Tests that using 'txBaseSize' to estimate the size of an empty selection
 -- produces a result that is consistent with the result of using
 -- 'estimateTxSize'.
 --
