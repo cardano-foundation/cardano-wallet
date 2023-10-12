@@ -177,8 +177,10 @@ import Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
     , UTxO
+    , fromCardanoTx
     , fromCardanoUTxO
     , recentEra
+    , toCardanoTx
     , toCardanoUTxO
     , utxoFromTxOutsInRecentEra
     , withConstraints
@@ -415,7 +417,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 $ Write.evaluateMinimumFee
                     (recentEra @era)
                     pp
-                    (Write.fromCardanoTx (Cardano.Tx body []))
+                    (fromCardanoTx (Cardano.Tx body []))
                     (KeyWitnessCount 0 (fromIntegral $ length wits))
               where
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
@@ -997,7 +999,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             era = recentEra @era
 
             tx :: Tx (ShelleyLedgerEra era)
-            tx = Write.fromCardanoTx @era cTx
+            tx = fromCardanoTx @era cTx
 
             noScripts = withConstraints (recentEra @era)
                 $ Map.null $ tx ^. witsTxL . scriptTxWitsL
@@ -1407,7 +1409,7 @@ prop_balanceTransactionValid
         let (TxSize size) =
                 estimateSignedTxSize era ledgerPParams
                     (estimateKeyWitnessCount utxo body)
-                    (Write.fromCardanoTx tx)
+                    (fromCardanoTx tx)
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
@@ -1472,7 +1474,7 @@ prop_balanceTransactionValid
         -> Cardano.Lovelace
     minFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
-            (Write.fromCardanoTx tx)
+            (fromCardanoTx tx)
             (estimateKeyWitnessCount utxo body)
 
     txBalance
@@ -1484,7 +1486,7 @@ prop_balanceTransactionValid
             era
             ledgerPParams
             u
-            (Write.txBody era $ Write.fromCardanoTx tx)
+            (Write.txBody era $ fromCardanoTx tx)
       where
         era = recentEra @era
 
@@ -1525,7 +1527,7 @@ prop_bootstrapWitnesses
   where
     emptyCardanoTxBody = body
       where
-        Cardano.Tx body _ = Write.toCardanoTx $ Write.emptyTx era
+        Cardano.Tx body _ = toCardanoTx $ Write.emptyTx era
 
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty
@@ -2133,7 +2135,7 @@ txMinFee tx@(Cardano.Tx body _) u =
         Write.evaluateMinimumFee
             RecentEraBabbage
             (Write.pparamsLedger $ mockPParamsForBalancing @Cardano.BabbageEra)
-            (Write.fromCardanoTx tx)
+            (fromCardanoTx tx)
             (estimateKeyWitnessCount (fromCardanoUTxO u) body)
 
 unsafeSealedTxFromHex :: ByteString -> IO SealedTx
