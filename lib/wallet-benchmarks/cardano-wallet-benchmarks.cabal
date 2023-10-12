@@ -45,3 +45,4 @@ benchmark memory
     , text-class
     , transformers
     , optparse-applicative
+    , with-utf8

@@ -109,7 +109,6 @@ test-suite test
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-conway:{cardano-ledger-conway, testlib}
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
@@ -120,6 +119,7 @@ test-suite test
     , lens
     , QuickCheck
     , quickcheck-classes
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Write.Tx.Balance.TokenBundleSizeSpec

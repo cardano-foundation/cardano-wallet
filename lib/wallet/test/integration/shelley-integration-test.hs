@@ -39,10 +39,7 @@ import Cardano.Launcher
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Startup
-    ( installSignalHandlersNoLogging
-    , setDefaultFilePermissions
-    , withUtf8Encoding
-    )
+    ( installSignalHandlersNoLogging, setDefaultFilePermissions )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv )
 import Cardano.Wallet.Api.Types
@@ -113,6 +110,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Main.Utf8
+    ( withUtf8 )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -251,7 +250,7 @@ withTestsSetup action = do
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
-    withUtf8Encoding $
+    withUtf8 $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
         withSystemTempDir stdoutTextTracer "test" skipCleanup $ \testDir ->

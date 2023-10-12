@@ -82,12 +82,12 @@ test-suite test
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers
     , hspec
     , QuickCheck
     , quickcheck-instances
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Api.GenSpec

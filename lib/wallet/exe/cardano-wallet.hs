@@ -69,11 +69,7 @@ import Cardano.CLI
 import Cardano.Launcher.Node
     ( CardanoNodeConn )
 import Cardano.Startup
-    ( ShutdownHandlerLog
-    , installSignalHandlers
-    , withShutdownHandler
-    , withUtf8Encoding
-    )
+    ( ShutdownHandlerLog, installSignalHandlers, withShutdownHandler )
 import Cardano.Wallet.Api.Client
     ( addressClient
     , networkClient
@@ -120,6 +116,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Main.Utf8
+    ( withUtf8 )
 import Network.URI
     ( URI )
 import "optparse-applicative" Options.Applicative
@@ -155,7 +153,7 @@ import qualified System.Info as I
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = withUtf8Encoding $ do
+main = withUtf8 $ do
     enableWindowsANSI
     runCli $ cli $ mempty
         <> cmdServe

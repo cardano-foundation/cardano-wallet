@@ -66,8 +66,6 @@ import Cardano.DB.Sqlite
     ( SqliteContext (..) )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
-import Cardano.Startup
-    ( withUtf8Encoding )
 import Cardano.Wallet
     ( putWalletCheckpoints )
 import Cardano.Wallet.Address.Derivation
@@ -198,6 +196,8 @@ import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import GHC.Num
     ( Natural )
+import Main.Utf8
+    ( withUtf8 )
 import System.Directory
     ( doesFileExist, getFileSize )
 import System.FilePath
@@ -226,7 +226,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
 main :: IO ()
-main = withUtf8Encoding $ withLogging $ \trace -> do
+main = withUtf8 $ withLogging $ \trace -> do
     let tr = filterSeverity (pure . const Error) $ trMessageText trace
     defaultMain
         [ bgroupWriteUTxO tr

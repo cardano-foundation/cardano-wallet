@@ -72,13 +72,13 @@ test-suite test
     , cardano-addresses
     , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-wallet-conversions
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , hspec
     , hspec-core
     , ouroboros-consensus-cardano
     , QuickCheck
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec

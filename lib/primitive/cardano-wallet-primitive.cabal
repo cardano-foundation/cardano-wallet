@@ -145,7 +145,6 @@ test-suite test
     , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley-test
     , cardano-numeric
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
@@ -168,7 +167,7 @@ test-suite test
     , string-qq
     , text
     , text-class
-
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
