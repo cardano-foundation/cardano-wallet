@@ -170,6 +170,7 @@ import Cardano.Write.Tx
     , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
+    , Tx
     , TxIn
     , TxOut
     , TxOutInRecentEra (..)
@@ -992,7 +993,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 body
             era = recentEra @era
 
-            tx :: Write.Tx (Write.ShelleyLedgerEra era)
+            tx :: Tx (Write.ShelleyLedgerEra era)
             tx = Write.fromCardanoTx @era cTx
 
             noScripts = withConstraints (recentEra @era)
@@ -1054,7 +1055,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         :: forall era. HasCallStack
         => RecentEra era
         -> Address
-        -> Write.Tx (Write.ShelleyLedgerEra era)
+        -> Tx (Write.ShelleyLedgerEra era)
         -> UTxO (Write.ShelleyLedgerEra era)
     utxoPromisingInputsHaveAddress era addr tx =
         utxoFromTxOutsInRecentEra era $
@@ -1069,7 +1070,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             ]
       where
         allInputs
-            :: Write.Tx (Write.ShelleyLedgerEra era)
+            :: Tx (Write.ShelleyLedgerEra era)
             -> [TxIn]
         allInputs body = withConstraints era
             $ Set.toList
