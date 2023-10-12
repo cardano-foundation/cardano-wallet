@@ -161,8 +161,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness, mkDelegationCertificates, _decodeSealedTx )
 import Cardano.Wallet.Transaction
@@ -175,6 +173,7 @@ import Cardano.Write.Tx
     , FeePerByte (..)
     , RecentEra (..)
     , TxOutInRecentEra (..)
+    , UTxO
     , recentEra
     , utxoFromTxOutsInRecentEra
     )
@@ -347,6 +346,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
@@ -650,7 +650,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     -- Wallet with only small utxos, and enough of them to fill a tx in the
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
-    dustUTxO = UTxO $ Map.fromList $
+    dustUTxO = W.UTxO $ Map.fromList $
         [ ( TxIn (Hash $ B8.replicate 32 '1') ix
           , TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
           )
@@ -663,7 +663,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
-    utxoWithBundles bundles = UTxO $ Map.fromList $ zip ins outs
+    utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (TxIn dummyHash) [0..]
         outs = map (TxOut dummyAddr) bundles
@@ -776,7 +776,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
-    utxo coins = UTxO $ Map.fromList $ zip ins outs
+    utxo coins = W.UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (TxIn dummyHash) [0..]
         outs = map (TxOut addr . TokenBundle.fromCoin) coins
@@ -1051,7 +1051,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         => RecentEra era
         -> Address
         -> Write.Tx (Write.ShelleyLedgerEra era)
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
     utxoPromisingInputsHaveAddress era addr tx =
         utxoFromTxOutsInRecentEra era $
             [ (i
@@ -1354,7 +1354,7 @@ prop_balanceTransactionValid
     prop_expectFeeExcessSmallerThan
         :: Cardano.Lovelace
         -> Cardano.Tx era
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
@@ -1373,7 +1373,7 @@ prop_balanceTransactionValid
 
     prop_minfeeIsCovered
         :: Cardano.Tx era
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
@@ -1392,7 +1392,7 @@ prop_balanceTransactionValid
 
     prop_validSize
         :: Cardano.Tx era
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
         let era = recentEra @era
@@ -1460,7 +1460,7 @@ prop_balanceTransactionValid
 
     minFee
         :: Cardano.Tx era
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
         -> Cardano.Lovelace
     minFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
@@ -1469,7 +1469,7 @@ prop_balanceTransactionValid
 
     txBalance
         :: Cardano.Tx era
-        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> UTxO (Write.ShelleyLedgerEra era)
         -> Cardano.Value
     txBalance tx u = Write.toCardanoValue @era $
         Write.evaluateTransactionBalance
@@ -1863,7 +1863,7 @@ newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
-data Wallet' = Wallet' UTxOAssumptions UTxO AnyChangeAddressGenWithState
+data Wallet' = Wallet' UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')
 
 --------------------------------------------------------------------------------
@@ -1914,7 +1914,7 @@ balanceTx
 balanceTransactionWithDummyChangeState
     :: forall era. Write.IsRecentEra era
     => UTxOAssumptions
-    -> UTxO
+    -> W.UTxO
     -> StdGenSeed
     -> PartialTx era
     -> Either (ErrBalanceTx era) (Cardano.Tx era, DummyChangeState)
@@ -1959,7 +1959,7 @@ hasTotalCollateral (Cardano.Tx (Cardano.TxBody content) _) =
         Cardano.TxTotalCollateralNone -> False
         Cardano.TxTotalCollateral _ _ -> True
 
-mkTestWallet :: UTxO -> Wallet'
+mkTestWallet :: W.UTxO -> Wallet'
 mkTestWallet utxo =
     Wallet' AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
@@ -2585,7 +2585,7 @@ instance Arbitrary Wallet' where
         genByronVkAddr = Cardano.byronAddressInEra <$> genAddressByron
 
         genWalletUTxO genAddr = scale (* 2) $
-            UTxO . Map.fromList <$> listOf genEntry
+            W.UTxO . Map.fromList <$> listOf genEntry
           where
             genEntry = (,) <$> genIn <*> genOut
               where
@@ -2611,10 +2611,10 @@ instance Arbitrary Wallet' where
         -- because it will shrink to invalid addresses.
         shrinkUTxO
             = take 16
-            . fmap (UTxO . Map.fromList)
+            . fmap (W.UTxO . Map.fromList)
             . shrinkList shrinkEntry
             . Map.toList
-            . unUTxO
+            . W.unUTxO
 
         shrinkEntry _ = []
 
