@@ -87,6 +87,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
+    , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
     , sealedTxFromBytes
     , sealedTxFromBytes'
@@ -137,7 +138,7 @@ import Cardano.Write.Tx
 import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
 import Cardano.Write.Tx.BalanceSpec
-    ( cardanoTx, mockPParamsForBalancing )
+    ( mockPParamsForBalancing )
 import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize, txConstraints )
 import Control.Arrow
@@ -1337,6 +1338,9 @@ dummyWit b =
 
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
+
+cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
+cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
 
 testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet

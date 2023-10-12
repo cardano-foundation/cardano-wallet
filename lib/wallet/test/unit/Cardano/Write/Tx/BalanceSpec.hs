@@ -35,7 +35,6 @@ module Cardano.Write.Tx.BalanceSpec
     -- to balanceTx that have not yet been relocated to this module. Once all
     -- balanceTx-related tests have been relocated to this module, we should
     -- remove these exports:
-    , cardanoTx
     , mockPParamsForBalancing
     ----------------------------------------------------------------------------
 
