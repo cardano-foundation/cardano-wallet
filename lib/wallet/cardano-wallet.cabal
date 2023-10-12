@@ -674,6 +674,7 @@ executable cardano-wallet
     , text-class
     , transformers
     , unliftio
+    , with-utf8
 
 -- Triggers this https://github.com/haskell/cabal/issues/6470
 -- if moved to an external library
@@ -834,6 +835,7 @@ test-suite unit
     , wai-extra
     , wai-middleware-logging
     , warp
+    , with-utf8
     , x509
     , x509-store
     , yaml
@@ -968,7 +970,7 @@ test-suite integration
     , text
     , text-class
     , unliftio
-
+    , with-utf8
   build-tool-depends: cardano-wallet:cardano-wallet
 
 benchmark restore
@@ -1039,7 +1041,7 @@ benchmark latency
     , time
     , unliftio
     , wai-middleware-logging
-
+    , with-utf8
   other-modules:  Cardano.Wallet.LatencyBenchShared
 
 benchmark db
@@ -1079,7 +1081,7 @@ benchmark db
     , time
     , transformers
     , unliftio
-
+    , with-utf8
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
 
 benchmark api

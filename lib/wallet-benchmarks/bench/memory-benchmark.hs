@@ -7,7 +7,7 @@ import Prelude
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Startup
-    ( installSignalHandlers, withUtf8Encoding )
+    ( installSignalHandlers )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -22,6 +22,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Main.Utf8
+    ( withUtf8 )
 import System.FilePath
     ( takeBaseName, (</>) )
 import System.IO.Temp
@@ -102,7 +104,7 @@ configInfo = O.info (configParser O.<**> O.helper) $ mconcat
     ]
 
 main :: IO ()
-main = withUtf8Encoding $ do
+main = withUtf8 $ do
     Config{..} <- O.execParser configInfo
     requireExecutable nodeExe "--version"
     requireExecutable walletExe "version"

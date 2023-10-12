@@ -168,7 +168,7 @@ test-suite test
     , string-qq
     , text
     , text-class
-
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec

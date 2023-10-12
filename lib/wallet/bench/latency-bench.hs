@@ -30,8 +30,6 @@ import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
     ( Mnemonic, SomeMnemonic (..), mnemonicToText )
-import Cardano.Startup
-    ( withUtf8Encoding )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (ListenOnRandomPort) )
 import Cardano.Wallet.Api.Types
@@ -99,6 +97,8 @@ import Data.Tagged
     ( Tagged (..) )
 import Fmt
     ( build )
+import Main.Utf8
+    ( withUtf8 )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -161,7 +161,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Service as ClusterService
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withUtf8Encoding $
+main = withUtf8 $
     withLatencyLogging setupTracers $ \tracers capture ->
         withShelleyServer tracers $ \ctx -> do
             walletApiBench @n capture ctx

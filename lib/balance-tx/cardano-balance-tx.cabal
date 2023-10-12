@@ -120,6 +120,7 @@ test-suite test
     , lens
     , QuickCheck
     , quickcheck-classes
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Write.Tx.Balance.TokenBundleSizeSpec

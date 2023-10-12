@@ -79,6 +79,7 @@ test-suite test
     , hspec-core
     , ouroboros-consensus-cardano
     , QuickCheck
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec

@@ -103,7 +103,7 @@ test-suite test
     , safe
     , text
     , transformers
-
+    , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.CoinSelection.BalanceSpec
