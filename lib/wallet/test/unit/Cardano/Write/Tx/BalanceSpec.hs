@@ -131,8 +131,6 @@ import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -340,6 +338,8 @@ import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types.Address as W
+    ( Address (..) )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
@@ -488,7 +488,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 $ replicateM nChange
                 $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
 
-        let address :: Babbage.BabbageTxOut StandardBabbage -> Address
+        let address :: Babbage.BabbageTxOut StandardBabbage -> W.Address
             address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
 
         let (tx, s') =
@@ -679,7 +679,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     utxo coins = utxoWithBundles $ map W.TokenBundle.fromCoin coins
 
-    dummyAddr = Address $ unsafeFromHex
+    dummyAddr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
 balanceTransactionGoldenSpec :: Spec
@@ -792,7 +792,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     rootK =
         Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
-    addr = Address $ unsafeFromHex
+    addr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     payment :: PartialTx Cardano.BabbageEra
@@ -1057,7 +1057,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     utxoPromisingInputsHaveAddress
         :: forall era. HasCallStack
         => RecentEra era
-        -> Address
+        -> W.Address
         -> Tx (ShelleyLedgerEra era)
         -> UTxO (ShelleyLedgerEra era)
     utxoPromisingInputsHaveAddress era addr tx =
@@ -1081,12 +1081,12 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
-    vkCredAddr = Address $ unsafeFromHex
+    vkCredAddr = W.Address $ unsafeFromHex
         "6000000000000000000000000000000000000000000000000000000000"
 
     -- This is a short bootstrap address retrieved from
     -- "byron-address-format.md".
-    bootAddr = Address $ unsafeFromHex
+    bootAddr = W.Address $ unsafeFromHex
         "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
 
     -- With more attributes, the address can be longer. This value was chosen
@@ -2592,7 +2592,7 @@ instance Arbitrary W.TxOut where
     arbitrary =
         W.TxOut addr <$> scale (`mod` 4) W.genTokenBundleSmallRange
       where
-        addr = Address $ BS.pack (1:replicate 56 0)
+        addr = W.Address $ BS.pack (1:replicate 56 0)
     shrink (W.TxOut addr bundle) =
         [ W.TxOut addr bundle'
         | bundle' <- W.shrinkTokenBundleSmallRange bundle
