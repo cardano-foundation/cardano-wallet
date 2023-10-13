@@ -342,9 +342,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W.Hash
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-    ( Hash (..) )
+    ( Hash (..), mockHash )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
@@ -2185,7 +2184,7 @@ block0 = W.Block
     { header = W.BlockHeader
         { slotNo = SlotNo 0
         , blockHeight = W.Quantity 0
-        , headerHash = W.Hash.mockHash $ SlotNo 0
+        , headerHash = W.mockHash $ SlotNo 0
         , parentHeaderHash = Nothing
         }
     , transactions = []
