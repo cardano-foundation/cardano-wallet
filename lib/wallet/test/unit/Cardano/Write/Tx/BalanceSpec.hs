@@ -137,10 +137,6 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
-import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , cardanoTxIdeallyNoLaterThan
@@ -350,7 +346,10 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -477,7 +476,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let paymentOuts = replicate nPayments $
                 W.TxOut
                     dummyAddr
-                    (TokenBundle.fromCoin (W.Coin 1_000_000))
+                    (W.TokenBundle.fromCoin (W.Coin 1_000_000))
         let ptx = paymentPartialTx paymentOuts
 
         -- True for values of nPayments small enough not to cause
@@ -505,8 +504,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "assigns minimal ada quantities to outputs without ada" $ do
         let era = RecentEraBabbage
-        let out = W.TxOut dummyAddr (TokenBundle.fromCoin (W.Coin 0))
-        let out' = W.TxOut dummyAddr (TokenBundle.fromCoin (W.Coin 874_930))
+        let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
+        let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
         let Cardano.ShelleyTx _ tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
@@ -539,21 +538,21 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (W.Coin 50_000_000))
+                        (W.TokenBundle.fromCoin (W.Coin 50_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (W.Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (W.Coin 100_000_000))
+                        (W.TokenBundle.fromCoin (W.Coin 100_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (W.Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (W.Coin 200_000_000))
+                        (W.TokenBundle.fromCoin (W.Coin 200_000_000))
                     ]
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
@@ -566,7 +565,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
                         [ W.TxOut dummyAddr
-                            (TokenBundle.fromCoin (W.Coin 1_000_000))
+                            (W.TokenBundle.fromCoin (W.Coin 1_000_000))
                         ]
             balance partialTx
                 `shouldBe`
@@ -661,7 +660,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     dustWallet = mkTestWallet dustUTxO
     dustUTxO = W.UTxO $ Map.fromList $
         [ ( W.TxIn (Hash $ B8.replicate 32 '1') ix
-          , W.TxOut dummyAddr (TokenBundle.fromCoin $ W.Coin 1_000_000)
+          , W.TxOut dummyAddr (W.TokenBundle.fromCoin $ W.Coin 1_000_000)
           )
         | ix <- [0 .. 500]
         ]
@@ -678,7 +677,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         outs = map (W.TxOut dummyAddr) bundles
         dummyHash = Hash $ B8.replicate 32 '0'
 
-    utxo coins = utxoWithBundles $ map TokenBundle.fromCoin coins
+    utxo coins = utxoWithBundles $ map W.TokenBundle.fromCoin coins
 
     dummyAddr = Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
@@ -788,7 +787,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     utxo coins = W.UTxO $ Map.fromList $ zip ins outs
       where
         ins = map (W.TxIn dummyHash) [0..]
-        outs = map (W.TxOut addr . TokenBundle.fromCoin) coins
+        outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
         dummyHash = Hash $ B8.replicate 32 '0'
 
     rootK =
@@ -798,7 +797,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
-        [ W.TxOut addr (TokenBundle.fromCoin (W.Coin 1_000_000))
+        [ W.TxOut addr (W.TokenBundle.fromCoin (W.Coin 1_000_000))
         ]
 
     delegate :: PartialTx Cardano.BabbageEra
@@ -2152,10 +2151,10 @@ withValidityInterval
     -> PartialTx Cardano.BabbageEra
 withValidityInterval vi = #tx %~ modifyBabbageTxBody (vldtTxBodyL .~ vi)
 
-walletToCardanoValue :: TokenBundle -> Cardano.Value
+walletToCardanoValue :: W.TokenBundle -> Cardano.Value
 walletToCardanoValue = Cardano.fromMaryValue . Convert.toLedger
 
-cardanoToWalletValue :: Cardano.Value -> TokenBundle
+cardanoToWalletValue :: Cardano.Value -> W.TokenBundle
 cardanoToWalletValue = Convert.toWallet . Cardano.toMaryValue
 
 cardanoToWalletCoin :: Cardano.Lovelace -> W.Coin
@@ -2394,7 +2393,7 @@ pingPong_2 = PartialTx
                   , "83f56e0d96cd45bdcb1d6512dca6a"
                   ])
               (Convert.toLedgerTokenBundle
-                  $ TokenBundle.fromCoin $ W.Coin 2_000_000)
+                  $ W.TokenBundle.fromCoin $ W.Coin 2_000_000)
               (Write.DatumHash
                   $ fromJust
                   $ Write.datumHashFromBytes
@@ -2553,9 +2552,9 @@ instance Arbitrary (PartialTx Cardano.BabbageEra) where
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
 
-instance Arbitrary TokenBundle where
-    arbitrary = genTokenBundleSmallRange
-    shrink = shrinkTokenBundleSmallRange
+instance Arbitrary W.TokenBundle where
+    arbitrary = W.genTokenBundleSmallRange
+    shrink = W.shrinkTokenBundleSmallRange
 
 instance Arbitrary (TxBalanceSurplus W.Coin) where
     -- We want to test cases where the surplus is zero. So it's important that
@@ -2591,12 +2590,12 @@ instance Arbitrary W.TxIn where
 
 instance Arbitrary W.TxOut where
     arbitrary =
-        W.TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
+        W.TxOut addr <$> scale (`mod` 4) W.genTokenBundleSmallRange
       where
         addr = Address $ BS.pack (1:replicate 56 0)
     shrink (W.TxOut addr bundle) =
         [ W.TxOut addr bundle'
-        | bundle' <- shrinkTokenBundleSmallRange bundle
+        | bundle' <- W.shrinkTokenBundleSmallRange bundle
         ]
 
 instance Arbitrary Wallet' where
