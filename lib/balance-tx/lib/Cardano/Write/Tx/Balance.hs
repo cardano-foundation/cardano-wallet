@@ -174,6 +174,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
+import Data.Semigroup.Cancellative
+    ( Reductive ((</>)) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Fmt
@@ -1363,7 +1365,7 @@ distributeSurplusDeltaWithOneChangeCoin
         extraFee = findFixpointIncreasingFeeBy $
             costOfIncreasingCoin feePolicy change0 surplus
     in
-        case surplus `W.Coin.subtract` extraFee of
+        case surplus </> extraFee of
             Just extraChange ->
                 Right $ TxFeeAndChange
                     { fee = extraFee
