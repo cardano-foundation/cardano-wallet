@@ -92,7 +92,7 @@ prop_assessTokenBundleSize_enlarge
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' pp =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
-        [ assess (b1 `TokenBundle.add` b2)
+        [ assess (b1 <> b2)
             === TokenBundleSizeExceedsLimit
         , assess (b1 `TokenBundle.setCoin` txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
