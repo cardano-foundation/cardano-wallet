@@ -147,8 +147,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness, mkDelegationCertificates, _decodeSealedTx )
 import Cardano.Wallet.Transaction
@@ -351,6 +349,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..) )
@@ -2626,7 +2625,7 @@ instance Arbitrary Wallet' where
             genEntry = (,) <$> genIn <*> genOut
               where
                 genIn :: Gen W.TxIn
-                genIn = genTxIn
+                genIn = W.genTxIn
 
                 genOut :: Gen W.TxOut
                 genOut = cardanoToWalletTxOut <$>
