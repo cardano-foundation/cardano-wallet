@@ -130,7 +130,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..) )
+    ( BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -334,6 +334,10 @@ import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types as W
+    ( Block (..) )
+import qualified Cardano.Wallet.Primitive.Types as W.Block
+    ( header )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..) )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
@@ -1963,7 +1967,7 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
             dummyTimeTranslation
             (constructUTxOIndex utxo)
             dummyChangeAddrGen
-            (getState $ unsafeInitWallet utxo (header block0)
+            (getState $ unsafeInitWallet utxo (W.Block.header block0)
                 DummyChangeState { nextUnusedIndex = 0 })
             partialTx
 
@@ -2178,8 +2182,8 @@ cardanoToWalletTxOut =
 -- Test values
 --------------------------------------------------------------------------------
 
-block0 :: Block
-block0 = Block
+block0 :: W.Block
+block0 = W.Block
     { header = BlockHeader
         { slotNo = SlotNo 0
         , blockHeight = W.Quantity 0
