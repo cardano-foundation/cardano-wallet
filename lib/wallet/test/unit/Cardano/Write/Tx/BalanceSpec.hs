@@ -133,10 +133,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -350,7 +346,10 @@ import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+    ( Coin (..) )
+import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -478,7 +477,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let paymentOuts = replicate nPayments $
                 W.TxOut
                     dummyAddr
-                    (TokenBundle.fromCoin (Coin 1_000_000))
+                    (TokenBundle.fromCoin (W.Coin 1_000_000))
         let ptx = paymentPartialTx paymentOuts
 
         -- True for values of nPayments small enough not to cause
@@ -506,8 +505,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "assigns minimal ada quantities to outputs without ada" $ do
         let era = RecentEraBabbage
-        let out = W.TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
-        let out' = W.TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
+        let out = W.TxOut dummyAddr (TokenBundle.fromCoin (W.Coin 0))
+        let out' = W.TxOut dummyAddr (TokenBundle.fromCoin (W.Coin 874_930))
         let Cardano.ShelleyTx _ tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
@@ -535,26 +534,26 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                         (sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
-                    <> fromMaybe (Coin 0) (view #fee wtx)
+                    <> fromMaybe (W.Coin 0) (view #fee wtx)
 
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (Coin 50_000_000))
+                        (TokenBundle.fromCoin (W.Coin 50_000_000))
                     ]
-            totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
+            totalOutput <$> tx `shouldBe` Right (W.Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (Coin 100_000_000))
+                        (TokenBundle.fromCoin (W.Coin 100_000_000))
                     ]
-            totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
+            totalOutput <$> tx `shouldBe` Right (W.Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
-                        (TokenBundle.fromCoin (Coin 200_000_000))
+                        (TokenBundle.fromCoin (W.Coin 200_000_000))
                     ]
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
@@ -567,7 +566,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
                         [ W.TxOut dummyAddr
-                            (TokenBundle.fromCoin (Coin 1_000_000))
+                            (TokenBundle.fromCoin (W.Coin 1_000_000))
                         ]
             balance partialTx
                 `shouldBe`
@@ -655,14 +654,14 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     horizon = SlotNo 20
     beyondHorizon = SlotNo 21
 
-    wallet = mkTestWallet (utxo [Coin 5_000_000])
+    wallet = mkTestWallet (utxo [W.Coin 5_000_000])
 
     -- Wallet with only small utxos, and enough of them to fill a tx in the
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
     dustUTxO = W.UTxO $ Map.fromList $
         [ ( W.TxIn (Hash $ B8.replicate 32 '1') ix
-          , W.TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
+          , W.TxOut dummyAddr (TokenBundle.fromCoin $ W.Coin 1_000_000)
           )
         | ix <- [0 .. 500]
         ]
@@ -704,7 +703,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     describe "balanced binaries" $ do
         let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
-        let walletUTxO = utxo [Coin 5_000_000]
+        let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
             let tx = either (error . show) id $ balanceTx
@@ -743,7 +742,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     test :: String -> PartialTx Cardano.BabbageEra -> Spec
     test name partialTx = it name $ do
         goldenText name
-            (map (mkGolden partialTx . Coin) defaultWalletBalanceRange)
+            (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
       where
         defaultWalletBalanceRange = [0, 50_000 .. 4_000_000]
 
@@ -761,7 +760,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             dir = $(getTestData) </> "balanceTx"
 
-        mkGolden :: PartialTx Cardano.BabbageEra -> Coin -> BalanceTxGolden
+        mkGolden :: PartialTx Cardano.BabbageEra -> W.Coin -> BalanceTxGolden
         mkGolden ptx c =
             let
                 walletUTxO = utxo [c]
@@ -799,7 +798,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
-        [ W.TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
+        [ W.TxOut addr (TokenBundle.fromCoin (W.Coin 1_000_000))
         ]
 
     delegate :: PartialTx Cardano.BabbageEra
@@ -832,7 +831,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 spec_distributeSurplus :: Spec
 spec_distributeSurplus = describe "distributeSurplus" $ do
     describe "sizeOfCoin" $ do
-        let coinToWord64Clamped = fromMaybe maxBound . Coin.toWord64Maybe
+        let coinToWord64Clamped = fromMaybe maxBound . W.Coin.toWord64Maybe
         let cborSizeOfCoin =
                 TxSize
                 . fromIntegral
@@ -841,8 +840,8 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
                 . CBOR.encodeWord64 . coinToWord64Clamped
 
         let isBoundary c =
-                sizeOfCoin c /= sizeOfCoin (c `Coin.difference` Coin 1)
-                || sizeOfCoin c /= sizeOfCoin (c `Coin.add` Coin 1)
+                sizeOfCoin c /= sizeOfCoin (c `W.Coin.difference` W.Coin 1)
+                || sizeOfCoin c /= sizeOfCoin (c `W.Coin.add` W.Coin 1)
 
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
@@ -863,32 +862,32 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
 
         describe "boundary case goldens" $ do
             it "1 byte to 2 byte boundary" $ do
-                sizeOfCoin (Coin 23) `shouldBe` TxSize 1
-                sizeOfCoin (Coin 24) `shouldBe` TxSize 2
+                sizeOfCoin (W.Coin 23) `shouldBe` TxSize 1
+                sizeOfCoin (W.Coin 24) `shouldBe` TxSize 2
             it "2 byte to 3 byte boundary" $ do
-                sizeOfCoin (Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
-                sizeOfCoin (Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
+                sizeOfCoin (W.Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
+                sizeOfCoin (W.Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
             it "3 byte to 5 byte boundary" $ do
-                sizeOfCoin (Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
-                sizeOfCoin (Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
+                sizeOfCoin (W.Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
+                sizeOfCoin (W.Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
             it "5 byte to 9 byte boundary" $ do
-                sizeOfCoin (Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
-                sizeOfCoin (Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
+                sizeOfCoin (W.Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
+                sizeOfCoin (W.Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
 
     describe "costOfIncreasingCoin" $ do
         it "costs 176 lovelace to increase 4294.967295 ada (2^32 - 1 lovelace) \
            \by 1 lovelace on mainnet" $ do
 
-            let expectedCostIncrease = Coin 176
+            let expectedCostIncrease = W.Coin 176
             let mainnet = mainnetFeePerByte
-            costOfIncreasingCoin mainnet (Coin $ 2 `power` 32 - 1) (Coin 1)
+            costOfIncreasingCoin mainnet (W.Coin $ 2 `power` 32 - 1) (W.Coin 1)
                 `shouldBe` expectedCostIncrease
 
         it "produces results in the range [0, 8 * feePerByte]" $
             property $ \c increase -> do
                 let res = costOfIncreasingCoin (FeePerByte 1) c increase
                 counterexample (show res <> "out of bounds") $
-                    res >= Coin 0 && res <= Coin 8
+                    res >= W.Coin 0 && res <= W.Coin 8
 
     describe "distributeSurplus" $ do
 
@@ -929,19 +928,19 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
             it "will increase fee (99 lovelace for change, 1 for fee)" $
                 distributeSurplusDelta
                     (FeePerByte 1)
-                    (Coin 100)
-                    (TxFeeAndChange (Coin 200) [Coin 200])
+                    (W.Coin 100)
+                    (TxFeeAndChange (W.Coin 200) [W.Coin 200])
                     `shouldBe`
-                    Right (TxFeeAndChange (Coin 1) [Coin 99])
+                    Right (TxFeeAndChange (W.Coin 1) [W.Coin 99])
 
         describe "when increasing fee increases fee" $
             it "will increase fee (98 lovelace for change, 2 for fee)" $ do
                 distributeSurplusDelta
                     (FeePerByte 1)
-                    (Coin 100)
-                    (TxFeeAndChange (Coin 255) [Coin 200])
+                    (W.Coin 100)
+                    (TxFeeAndChange (W.Coin 255) [W.Coin 200])
                     `shouldBe`
-                    Right (TxFeeAndChange (Coin 2) [Coin 98])
+                    Right (TxFeeAndChange (W.Coin 2) [W.Coin 98])
 
         describe
             (unwords
@@ -951,18 +950,18 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
             it "will try burning the surplus as fees" $ do
                 distributeSurplusDelta
                     mainnetFeePerByte
-                    (Coin 10)
-                    (TxFeeAndChange (Coin 200) [Coin 255])
+                    (W.Coin 10)
+                    (TxFeeAndChange (W.Coin 200) [W.Coin 255])
                     `shouldBe`
-                    Right (TxFeeAndChange (Coin 10) [Coin 0])
+                    Right (TxFeeAndChange (W.Coin 10) [W.Coin 0])
 
             it "will fail if neither the fee can be increased" $ do
                 distributeSurplusDelta
                     mainnetFeePerByte
-                    (Coin 10)
-                    (TxFeeAndChange (Coin 255) [Coin 255])
+                    (W.Coin 10)
+                    (TxFeeAndChange (W.Coin 255) [W.Coin 255])
                     `shouldBe`
-                    Left (ErrMoreSurplusNeeded $ Coin 34)
+                    Left (ErrMoreSurplusNeeded $ W.Coin 34)
 
         describe "when no change output is present" $ do
             it "will burn surplus as excess fees" $
@@ -1567,12 +1566,12 @@ prop_bootstrapWitnesses
 prop_distributeSurplus_onSuccess
     :: Testable prop
     => (FeePerByte
-        -> Coin
+        -> W.Coin
         -> TxFeeAndChange [W.TxOut]
         -> TxFeeAndChange [W.TxOut]
         -> prop)
     -> FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
@@ -1590,23 +1589,23 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
         (length changeOriginal >= 2)
         "length changeOriginal >= 2" $
     cover 2
-        (feeOriginal == Coin 0)
-        "feeOriginal == Coin 0" $
+        (feeOriginal == W.Coin 0)
+        "feeOriginal == W.Coin 0" $
     cover 2
-        (feeOriginal == Coin 1)
-        "feeOriginal == Coin 1" $
+        (feeOriginal == W.Coin 1)
+        "feeOriginal == W.Coin 1" $
     cover 50
-        (feeOriginal >= Coin 2)
-        "feeOriginal >= Coin 2" $
+        (feeOriginal >= W.Coin 2)
+        "feeOriginal >= W.Coin 2" $
     cover 1
-        (surplus == Coin 0)
-        "surplus == Coin 0" $
+        (surplus == W.Coin 0)
+        "surplus == W.Coin 0" $
     cover 1
-        (surplus == Coin 1)
-        "surplus == Coin 1" $
+        (surplus == W.Coin 1)
+        "surplus == W.Coin 1" $
     cover 50
-        (surplus >= Coin 2)
-        "surplus >= Coin 2" $
+        (surplus >= W.Coin 2)
+        "surplus >= W.Coin 2" $
     either
         (const $ property True)
         (property . propertyToTest policy surplus fc)
@@ -1624,14 +1623,14 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
 --
 prop_distributeSurplus_onSuccess_conservesSurplus
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_conservesSurplus =
     prop_distributeSurplus_onSuccess $ \_policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
-        surplus === Coin.difference
+        surplus === W.Coin.difference
             (feeModified <> F.foldMap TxOut.coin changeModified)
             (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
 
@@ -1643,7 +1642,7 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
 --
 prop_distributeSurplus_onSuccess_coversCostIncrease
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_coversCostIncrease =
@@ -1652,11 +1651,11 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
         (TxFeeAndChange feeModified changeModified) -> do
         let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
         let coinsModified = feeModified : (TxOut.coin <$> changeModified)
-        let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
+        let coinDeltas = zipWith W.Coin.difference coinsModified coinsOriginal
         let costIncrease = F.foldMap
                 (uncurry $ costOfIncreasingCoin policy)
                 (coinsOriginal `zip` coinDeltas)
-        Coin.difference feeModified feeOriginal >= costIncrease
+        W.Coin.difference feeModified feeOriginal >= costIncrease
             & report feeModified "feeModified"
             & report feeOriginal "feeOriginal"
             & report costIncrease "costIncrease"
@@ -1667,7 +1666,7 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
 --
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
@@ -1683,7 +1682,7 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
 --
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
@@ -1703,7 +1702,7 @@ prop_distributeSurplus_onSuccess_doesNotReduceFeeValue =
 --
 prop_distributeSurplus_onSuccess_increasesValuesByDelta
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_increasesValuesByDelta =
@@ -1718,7 +1717,7 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
                         (TxOut.coin <$> changeOriginal)
             in
             (TxFeeAndChange
-                (feeModified `Coin.difference` feeDelta)
+                (feeModified `W.Coin.difference` feeDelta)
                 (zipWith TxOut.subtractCoin changeDeltas changeModified)
             )
             ===
@@ -1738,7 +1737,7 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
 --
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
@@ -1753,7 +1752,7 @@ prop_distributeSurplus_onSuccess_onlyAdjustsFirstChangeValue =
 --
 prop_distributeSurplus_onSuccess_preservesChangeAddresses
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_preservesChangeAddresses =
@@ -1769,7 +1768,7 @@ prop_distributeSurplus_onSuccess_preservesChangeAddresses =
 --
 prop_distributeSurplus_onSuccess_preservesChangeLength
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_preservesChangeLength =
@@ -1783,7 +1782,7 @@ prop_distributeSurplus_onSuccess_preservesChangeLength =
 --
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets
     :: FeePerByte
-    -> TxBalanceSurplus Coin
+    -> TxBalanceSurplus W.Coin
     -> TxFeeAndChange [W.TxOut]
     -> Property
 prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
@@ -1802,7 +1801,7 @@ prop_distributeSurplus_onSuccess_preservesChangeNonAdaAssets =
 --        - feeDelta + sum changeDeltas == surplus
 --
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-    :: FeePerByte -> Coin -> Coin -> [Coin] -> Property
+    :: FeePerByte -> W.Coin -> W.Coin -> [W.Coin] -> Property
 prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     feePolicy surplus fee0 change0 =
     checkCoverage $
@@ -1813,7 +1812,7 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
         Left (ErrMoreSurplusNeeded shortfall) ->
             conjoin
                 [ property $ surplus < maxCoinCostIncrease
-                , property $ shortfall > Coin 0
+                , property $ shortfall > W.Coin 0
                 , costOfIncreasingCoin feePolicy fee0 surplus
                     === surplus <> shortfall
                 ]
@@ -1853,7 +1852,7 @@ prop_updateTx
     -> [(W.TxIn, W.TxOut)]
     -> [W.TxIn]
     -> [W.TxOut]
-    -> Coin
+    -> W.Coin
     -> Property
 prop_updateTx
     (InAnyRecentEra _era tx)
@@ -1888,10 +1887,10 @@ data AnyChangeAddressGenWithState where
 
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
-        Coin -- ^ Wallet balance
+        W.Coin -- ^ Wallet balance
         Cardano.Lovelace -- ^ Fee
         Cardano.Lovelace -- ^ Minimum fee
-    | BalanceTxGoldenFailure Coin String
+    | BalanceTxGoldenFailure W.Coin String
     deriving (Eq, Show)
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
@@ -2087,7 +2086,7 @@ sealedCollateralInputs =
 sealedFee
     :: forall era. Cardano.IsCardanoEra era
     => Cardano.Tx era
-    -> Maybe Coin
+    -> Maybe W.Coin
 sealedFee =
     view #fee
     . fst6
@@ -2159,7 +2158,7 @@ walletToCardanoValue = Cardano.fromMaryValue . Convert.toLedger
 cardanoToWalletValue :: Cardano.Value -> TokenBundle
 cardanoToWalletValue = Convert.toWallet . Cardano.toMaryValue
 
-cardanoToWalletCoin :: Cardano.Lovelace -> Coin
+cardanoToWalletCoin :: Cardano.Lovelace -> W.Coin
 cardanoToWalletCoin = Convert.toWallet . Cardano.toShelleyLovelace
 
 cardanoToWalletTxOut
@@ -2395,7 +2394,7 @@ pingPong_2 = PartialTx
                   , "83f56e0d96cd45bdcb1d6512dca6a"
                   ])
               (Convert.toLedgerTokenBundle
-                  $ TokenBundle.fromCoin $ Coin 2_000_000)
+                  $ TokenBundle.fromCoin $ W.Coin 2_000_000)
               (Write.DatumHash
                   $ fromJust
                   $ Write.datumHashFromBytes
@@ -2507,9 +2506,9 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
 -- Coins (quantities of lovelace) must be strictly positive when included in
 -- transactions.
 --
-instance Arbitrary Coin where
-    arbitrary = genCoinPositive
-    shrink = shrinkCoinPositive
+instance Arbitrary W.Coin where
+    arbitrary = W.genCoinPositive
+    shrink = W.shrinkCoinPositive
 
 instance Arbitrary FeePerByte where
     arbitrary = frequency
@@ -2558,20 +2557,20 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
 
-instance Arbitrary (TxBalanceSurplus Coin) where
+instance Arbitrary (TxBalanceSurplus W.Coin) where
     -- We want to test cases where the surplus is zero. So it's important that
     -- we do not restrict ourselves to positive coins here.
     arbitrary = TxBalanceSurplus <$> frequency
-        [ (8, genCoin)
-        , (4, genCoin & scale (* (2 `power`  4)))
-        , (2, genCoin & scale (* (2 `power`  8)))
-        , (1, genCoin & scale (* (2 `power` 16)))
+        [ (8, W.genCoin)
+        , (4, W.genCoin & scale (* (2 `power`  4)))
+        , (2, W.genCoin & scale (* (2 `power`  8)))
+        , (1, W.genCoin & scale (* (2 `power` 16)))
         ]
-    shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus shrinkCoin
+    shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus W.shrinkCoin
 
 instance Arbitrary (TxFeeAndChange [W.TxOut]) where
     arbitrary = do
-        fee <- genCoin
+        fee <- W.genCoin
         change <- frequency
             [ (1, pure [])
             , (1, (: []) <$> TxOutGen.genTxOut)
@@ -2580,7 +2579,7 @@ instance Arbitrary (TxFeeAndChange [W.TxOut]) where
         pure $ TxFeeAndChange fee change
     shrink (TxFeeAndChange fee change) =
         uncurry TxFeeAndChange <$> liftShrink2
-            (shrinkCoin)
+            (W.shrinkCoin)
             (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
 
@@ -2837,8 +2836,8 @@ instance Buildable BalanceTxGolden where
         ]
       where
         lovelaceF (Cardano.Lovelace l)
-            | l < 0     = "-" <> pretty (Coin.unsafeFromIntegral (-l))
-            | otherwise = pretty (Coin.unsafeFromIntegral l)
+            | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
+            | otherwise = pretty (W.Coin.unsafeFromIntegral l)
 
 instance Buildable Wallet' where
     build (Wallet' assumptions utxo changeAddressGen) =
