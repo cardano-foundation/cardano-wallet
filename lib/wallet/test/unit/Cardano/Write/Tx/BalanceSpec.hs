@@ -238,8 +238,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes, fromJust, fromMaybe )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Ratio
     ( (%) )
 import Data.Set
@@ -366,6 +364,8 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Quantity as W
+    ( Quantity (..) )
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -2182,7 +2182,7 @@ block0 :: Block
 block0 = Block
     { header = BlockHeader
         { slotNo = SlotNo 0
-        , blockHeight = Quantity 0
+        , blockHeight = W.Quantity 0
         , headerHash = W.Hash.mockHash $ SlotNo 0
         , parentHeaderHash = Nothing
         }
