@@ -39,6 +39,8 @@ import Control.Lens
     ( (&), (.~) )
 import Data.Default
     ( def )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Word
     ( Word64 )
 import Numeric.Natural
@@ -92,7 +94,7 @@ prop_assessTokenBundleSize_enlarge
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' pp =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
-        [ assess (b1 `TokenBundle.add` b2)
+        [ assess (b1 <> b2)
             === TokenBundleSizeExceedsLimit
         , assess (b1 `TokenBundle.setCoin` txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
@@ -112,7 +114,7 @@ prop_assessTokenBundleSize_shrink
     -> Property
 prop_assessTokenBundleSize_shrink b1' b2' pp =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
-        [ assess (b1 `TokenBundle.difference` b2)
+        [ assess (b1 <\> b2)
             === TokenBundleSizeWithinLimit
         , assess (b1 `TokenBundle.setCoin` txOutMinCoin)
             === TokenBundleSizeWithinLimit

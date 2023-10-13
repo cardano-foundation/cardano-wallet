@@ -117,6 +117,7 @@ test-suite test
     , hspec
     , hspec-core
     , lens
+    , monoid-subclasses
     , QuickCheck
     , quickcheck-classes
     , with-utf8

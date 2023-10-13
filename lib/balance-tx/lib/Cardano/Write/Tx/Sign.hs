@@ -58,6 +58,8 @@ import Control.Lens
     ( view, (&), (.~), (^.) )
 import Data.Maybe
     ( mapMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Numeric.Natural
     ( Natural )
 
@@ -67,7 +69,6 @@ import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.Tx as Write
 import qualified Data.Foldable as F
@@ -88,7 +89,7 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
         feeOfWits :: W.Coin
-        feeOfWits = minfee nWits `W.Coin.difference` minfee mempty
+        feeOfWits = minfee nWits <\> minfee mempty
 
         sizeOfWits :: TxSize
         sizeOfWits =

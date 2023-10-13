@@ -174,6 +174,10 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
+import Data.Semigroup.Cancellative
+    ( Reductive ((</>)) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Fmt
@@ -964,7 +968,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
                 , txPaymentTemplate = view #template <$>
                     assumedInputScriptTemplate utxoAssumptions
                 }
-            ] `W.Coin.difference` boringFee
+            ] <\> boringFee
         , maximumCollateralInputCount = withConstraints era $
             unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
     , minimumCollateralPercentage =
@@ -1269,7 +1273,7 @@ costOfIncreasingCoin
     -> W.Coin -- ^ Increment
     -> W.Coin
 costOfIncreasingCoin (FeePerByte perByte) from delta =
-    costOfCoin (from <> delta) `W.Coin.difference` costOfCoin from
+    costOfCoin (from <> delta) <\> costOfCoin from
   where
     costOfCoin = W.Coin . (perByte *) . unTxSize . sizeOfCoin
 
@@ -1363,7 +1367,7 @@ distributeSurplusDeltaWithOneChangeCoin
         extraFee = findFixpointIncreasingFeeBy $
             costOfIncreasingCoin feePolicy change0 surplus
     in
-        case surplus `W.Coin.subtract` extraFee of
+        case surplus </> extraFee of
             Just extraChange ->
                 Right $ TxFeeAndChange
                     { fee = extraFee
@@ -1434,7 +1438,7 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
         Right $ TxFeeAndChange surplus ()
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
-    shortfall = costOfBurningSurplus `W.Coin.difference` surplus
+    shortfall = costOfBurningSurplus <\> surplus
 
 toLedgerTxOut
     :: HasCallStack
