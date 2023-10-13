@@ -843,7 +843,7 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
 
         let isBoundary c =
                 sizeOfCoin c /= sizeOfCoin (c `W.Coin.difference` W.Coin 1)
-                || sizeOfCoin c /= sizeOfCoin (c `W.Coin.add` W.Coin 1)
+                || sizeOfCoin c /= sizeOfCoin (c <> W.Coin 1)
 
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
