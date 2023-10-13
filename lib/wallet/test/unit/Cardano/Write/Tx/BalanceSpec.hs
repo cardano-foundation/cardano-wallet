@@ -351,8 +351,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (..) )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
@@ -1630,8 +1631,8 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
         surplus === W.Coin.difference
-            (feeModified <> F.foldMap TxOut.coin changeModified)
-            (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
+            (feeModified <> F.foldMap W.TxOut.coin changeModified)
+            (feeOriginal <> F.foldMap W.TxOut.coin changeOriginal)
 
 -- The 'distributeSurplus' function should cover the cost of any increases in
 -- 'Coin' values.
@@ -1648,8 +1649,8 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
     prop_distributeSurplus_onSuccess $ \policy _surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) -> do
-        let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
-        let coinsModified = feeModified : (TxOut.coin <$> changeModified)
+        let coinsOriginal = feeOriginal : (W.TxOut.coin <$> changeOriginal)
+        let coinsModified = feeModified : (W.TxOut.coin <$> changeModified)
         let coinDeltas = zipWith W.Coin.difference coinsModified coinsOriginal
         let costIncrease = F.foldMap
                 (uncurry $ costOfIncreasingCoin policy)
@@ -1673,8 +1674,8 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
         (TxFeeAndChange _feeOriginal changeOriginal)
         (TxFeeAndChange _feeModified changeModified) ->
             all (uncurry (<=)) $ zip
-                (TxOut.coin <$> changeOriginal)
-                (TxOut.coin <$> changeModified)
+                (W.TxOut.coin <$> changeOriginal)
+                (W.TxOut.coin <$> changeModified)
 
 -- The 'distributeSurplus' function should never return a 'fee' value that is
 -- less than the original value.
@@ -1713,11 +1714,11 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
                     $ distributeSurplusDelta policy surplus
                     $ TxFeeAndChange
                         (feeOriginal)
-                        (TxOut.coin <$> changeOriginal)
+                        (W.TxOut.coin <$> changeOriginal)
             in
             (TxFeeAndChange
                 (feeModified `W.Coin.difference` feeDelta)
-                (zipWith TxOut.subtractCoin changeDeltas changeModified)
+                (zipWith W.TxOut.subtractCoin changeDeltas changeModified)
             )
             ===
             TxFeeAndChange feeOriginal changeOriginal
