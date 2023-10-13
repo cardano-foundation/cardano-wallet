@@ -133,8 +133,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , cardanoTxIdeallyNoLaterThan
@@ -344,6 +342,9 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..) )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W.Hash
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
+    ( Hash (..) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle )
@@ -558,7 +559,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "when passed unresolved inputs" $ do
         it "fails with ErrBalanceTxUnresolvedTxIn" $ do
-            let txin = W.TxIn (Hash $ B8.replicate 32 '3') 10
+            let txin = W.TxIn (W.Hash $ B8.replicate 32 '3') 10
 
             -- 1 output, 1 input without utxo entry
             let partialTx :: PartialTx Cardano.BabbageEra
@@ -579,7 +580,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 balance (withNoUTxO pingPong_2)
                     `shouldBe` Left
                         (ErrBalanceTxUnresolvedInputs $ NE.fromList
-                            [ W.TxIn (Hash "11111111111111111111111111111111") 0
+                            [ W.TxIn
+                                (W.Hash "11111111111111111111111111111111") 0
                             ]
                         )
 
@@ -626,7 +628,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     describe "when a redeemer points to an input that doesn't exist" $ do
         it "fails with ErrAssignRedeemersTargetNotFound" $ do
 
-            let tid = Hash $ B8.replicate 32 '1'
+            let tid = W.Hash $ B8.replicate 32 '1'
 
             -- With ix 1 instead of 0, making it point to an input which
             -- doesn't exist in the tx.
@@ -659,7 +661,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
     dustUTxO = W.UTxO $ Map.fromList $
-        [ ( W.TxIn (Hash $ B8.replicate 32 '1') ix
+        [ ( W.TxIn (W.Hash $ B8.replicate 32 '1') ix
           , W.TxOut dummyAddr (W.TokenBundle.fromCoin $ W.Coin 1_000_000)
           )
         | ix <- [0 .. 500]
@@ -675,7 +677,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
       where
         ins = map (W.TxIn dummyHash) [0..]
         outs = map (W.TxOut dummyAddr) bundles
-        dummyHash = Hash $ B8.replicate 32 '0'
+        dummyHash = W.Hash $ B8.replicate 32 '0'
 
     utxo coins = utxoWithBundles $ map W.TokenBundle.fromCoin coins
 
@@ -788,7 +790,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
       where
         ins = map (W.TxIn dummyHash) [0..]
         outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
-        dummyHash = Hash $ B8.replicate 32 '0'
+        dummyHash = W.Hash $ B8.replicate 32 '0'
 
     rootK =
         Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
@@ -2181,7 +2183,7 @@ block0 = Block
     { header = BlockHeader
         { slotNo = SlotNo 0
         , blockHeight = Quantity 0
-        , headerHash = mockHash $ SlotNo 0
+        , headerHash = W.Hash.mockHash $ SlotNo 0
         , parentHeaderHash = Nothing
         }
     , transactions = []
@@ -2406,7 +2408,7 @@ pingPong_2 = PartialTx
           )
         ]
     , redeemers =
-        [ RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn (Hash tid) 0)
+        [ RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn (W.Hash tid) 0)
         ]
     }
   where
@@ -2517,10 +2519,10 @@ instance Arbitrary FeePerByte where
     shrink (FeePerByte x) =
         FeePerByte <$> shrinkNatural x
 
-instance Arbitrary (Hash "Tx") where
+instance Arbitrary (W.Hash "Tx") where
     arbitrary = do
         bs <- vectorOf 32 arbitrary
-        pure $ Hash $ BS.pack bs
+        pure $ W.Hash $ BS.pack bs
 
 instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
