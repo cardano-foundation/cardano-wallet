@@ -236,6 +236,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes, fromJust, fromMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Ratio
     ( (%) )
 import Data.Set
@@ -842,7 +844,7 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
                 . CBOR.encodeWord64 . coinToWord64Clamped
 
         let isBoundary c =
-                sizeOfCoin c /= sizeOfCoin (c `W.Coin.difference` W.Coin 1)
+                sizeOfCoin c /= sizeOfCoin (c <\> W.Coin 1)
                 || sizeOfCoin c /= sizeOfCoin (c <> W.Coin 1)
 
         it "matches the size of the Word64 CBOR encoding" $
@@ -1632,8 +1634,9 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
     prop_distributeSurplus_onSuccess $ \_policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
-        surplus === W.Coin.difference
+        surplus ===
             (feeModified <> F.foldMap W.TxOut.coin changeModified)
+            <\>
             (feeOriginal <> F.foldMap W.TxOut.coin changeOriginal)
 
 -- The 'distributeSurplus' function should cover the cost of any increases in
@@ -1653,11 +1656,11 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
         (TxFeeAndChange feeModified changeModified) -> do
         let coinsOriginal = feeOriginal : (W.TxOut.coin <$> changeOriginal)
         let coinsModified = feeModified : (W.TxOut.coin <$> changeModified)
-        let coinDeltas = zipWith W.Coin.difference coinsModified coinsOriginal
+        let coinDeltas = zipWith (<\>) coinsModified coinsOriginal
         let costIncrease = F.foldMap
                 (uncurry $ costOfIncreasingCoin policy)
                 (coinsOriginal `zip` coinDeltas)
-        W.Coin.difference feeModified feeOriginal >= costIncrease
+        feeModified <\> feeOriginal >= costIncrease
             & report feeModified "feeModified"
             & report feeOriginal "feeOriginal"
             & report costIncrease "costIncrease"
@@ -1719,7 +1722,7 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
                         (W.TxOut.coin <$> changeOriginal)
             in
             (TxFeeAndChange
-                (feeModified `W.Coin.difference` feeDelta)
+                (feeModified <\> feeDelta)
                 (zipWith W.TxOut.subtractCoin changeDeltas changeModified)
             )
             ===
