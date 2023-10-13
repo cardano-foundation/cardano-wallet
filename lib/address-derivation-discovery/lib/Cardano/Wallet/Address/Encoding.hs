@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -24,7 +25,6 @@
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE DerivingVia #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -295,23 +295,19 @@ guardNetwork addrNetwork serverNetwork =
 
 
 encodeStakeAddress :: SNetworkId n -> W.RewardAccount -> Text
-encodeStakeAddress SMainnet = shelleyEncodeStakeAddress SL.Mainnet
-encodeStakeAddress (STestnet _)= shelleyEncodeStakeAddress SL.Testnet
+encodeStakeAddress = shelleyEncodeStakeAddress . sToNetwork
 
-decodeStakeAddress
-    :: SNetworkId n
-    -> Text
-    -> Either TextDecodingError W.RewardAccount
-decodeStakeAddress SMainnet = shelleyDecodeStakeAddress SL.Mainnet
-decodeStakeAddress (STestnet _) = shelleyDecodeStakeAddress SL.Testnet
-
+decodeStakeAddress ::
+    SNetworkId n -> Text -> Either TextDecodingError W.RewardAccount
+decodeStakeAddress = shelleyDecodeStakeAddress . sToNetwork
 
 encodeAddress :: SNetworkId n -> W.Address -> Text
-encodeAddress = \case
-    SMainnet -> shelleyEncodeAddress SL.Mainnet
-    STestnet _ -> shelleyEncodeAddress SL.Testnet
+encodeAddress = shelleyEncodeAddress . sToNetwork
 
 decodeAddress :: SNetworkId n -> Text -> Either TextDecodingError W.Address
-decodeAddress = \case
-    SMainnet -> shelleyDecodeAddress SL.Mainnet
-    (STestnet _) -> shelleyDecodeAddress SL.Testnet
+decodeAddress = shelleyDecodeAddress . sToNetwork
+
+sToNetwork :: SNetworkId n -> SL.Network
+sToNetwork = \case
+    SMainnet -> SL.Mainnet
+    STestnet _ -> SL.Testnet

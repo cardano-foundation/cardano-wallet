@@ -62,5 +62,5 @@ testnetMagic :: forall pm. KnownNat pm => ProtocolMagic
 testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 
 magicSNetworkId :: SNetworkId n -> ProtocolMagic
-magicSNetworkId SMainnet = ProtocolMagic  764824073
+magicSNetworkId SMainnet = ProtocolMagic 764824073
 magicSNetworkId (STestnet pm) = ProtocolMagic $ fromIntegral $ fromSNat pm

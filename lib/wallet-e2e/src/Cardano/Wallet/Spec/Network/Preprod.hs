@@ -72,7 +72,7 @@ nodeWalletSetup stateDir nodeConfigDir withNetworkConfig = runResourceT do
                   , walletNodeApi = nodeApi
                   , walletListenHost = Nothing
                   , walletListenPort = Nothing
-                  , walletByronGenesis =
+                  , walletByronGenesisForTestnet = Just $
                       nodeConfigDir </> [relfile|byron-genesis.json|]
                   }
       (_walletReleaseKey, (_walletInstance, walletApi)) <-

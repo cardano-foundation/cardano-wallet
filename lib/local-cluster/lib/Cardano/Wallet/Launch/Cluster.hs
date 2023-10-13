@@ -27,6 +27,7 @@ module Cardano.Wallet.Launch.Cluster
     ( -- * Local test cluster launcher
       withCluster
     , Config (..)
+    , TestnetMagic (..)
     , ClusterEra (..)
     , FaucetFunds (..)
 
@@ -122,7 +123,7 @@ import Cardano.Ledger.Api
     , ppTauL
     )
 import Cardano.Ledger.BaseTypes
-    ( Network (Mainnet)
+    ( Network (Testnet)
     , NonNegativeInterval
     , PositiveUnitInterval
     , StrictMaybe (..)
@@ -146,15 +147,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeBech32Decode, unsafeFromHex )
+    ( unsafeFromHex )
 import Cardano.Wallet.Util
-    ( HasCallStack, mapFirst )
-import Codec.Binary.Bech32
-    ( dataPartFromBytes )
-import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
-import Control.Arrow
-    ( first )
+    ( HasCallStack )
 import Control.Lens
     ( over, set, (&), (.~), (<&>) )
 import Control.Monad
@@ -169,14 +164,12 @@ import Data.Aeson
     ( object, toJSON, (.:), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.Bits
-    ( (.|.) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+    ( bitcoinAlphabet, decodeBase58 )
 import Data.Char
     ( toLower )
 import Data.Either
@@ -209,6 +202,8 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -228,6 +223,8 @@ import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
     ( (<.>), (</>) )
+import System.IO.Temp
+    ( emptyTempFile )
 import System.IO.Temp.Extra
     ( TempDirLog )
 import System.IO.Unsafe
@@ -246,6 +243,7 @@ import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, swapMVar )
 
 import qualified Cardano.Address as Address
+import qualified Cardano.Address as CA
 import qualified Cardano.Codec.Cbor as CBOR
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
@@ -253,8 +251,6 @@ import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -487,18 +483,17 @@ withPoolMetadataServer tr dir action = do
     createDirectoryIfMissing False metadir
     withStaticServer metadir $ \baseURL -> do
         let _urlFromPoolIndex i = baseURL </> metadataFileName i
-        action
-            $ PoolMetadataServer
-                { registerMetadataForPoolIndex = \i metadata -> do
-                    let metadataBytes = Aeson.encode metadata
-                    BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes
-                    let hash = blake2b256 (BL.toStrict metadataBytes)
-                    traceWith tr
-                        $ MsgRegisteringPoolMetadata
-                            (_urlFromPoolIndex i)
-                            (B8.unpack $ convertToBase Base16 hash)
-                , urlFromPoolIndex = _urlFromPoolIndex
-                }
+        action PoolMetadataServer
+            { registerMetadataForPoolIndex = \i metadata -> do
+                let metadataBytes = Aeson.encode metadata
+                BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes
+                let hash = blake2b256 (BL.toStrict metadataBytes)
+                traceWith tr
+                    $ MsgRegisteringPoolMetadata
+                        (_urlFromPoolIndex i)
+                        (B8.unpack $ convertToBase Base16 hash)
+            , urlFromPoolIndex = _urlFromPoolIndex
+            }
   where
     metadataFileName :: Int -> FilePath
     metadataFileName i = show i <> ".json"
@@ -519,7 +514,7 @@ configurePool
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr Config{..} metadataServer recipe = do
+configurePool tr config@Config{..} metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
@@ -553,7 +548,7 @@ configurePool tr Config{..} metadataServer recipe = do
                 withStaticServer (untag poolDir) $ \url -> do
                     traceWith tr $ MsgStartedStaticServer (untag poolDir) url
 
-                    (config, genesisData, vd) <-
+                    (nodeConfig, genesisData, vd) <-
                         genNodeConfig
                             (retag @"pool" @_ @"output" poolDir)
                             cfgClusterConfigs
@@ -564,7 +559,7 @@ configurePool tr Config{..} metadataServer recipe = do
 
                     let cfg = CardanoNodeConfig
                             { nodeDir = untag @"pool" poolDir
-                            , nodeConfigFile = untag @"node-config" config
+                            , nodeConfigFile = untag @"node-config" nodeConfig
                             , nodeTopologyFile = untag @"topology" topology
                             , nodeDatabaseDir = "db"
                             , nodeDlgCertFile = Nothing
@@ -593,7 +588,7 @@ configurePool tr Config{..} metadataServer recipe = do
                             , ppCost = Ledger.Coin 0
                             , ppMargin = unsafeUnitInterval 0.1
                             , ppRewardAcnt =
-                                Ledger.RewardAcnt Mainnet
+                                Ledger.RewardAcnt Testnet
                                     $ Ledger.KeyHashObj stakePubHash
                             , ppOwners = Set.fromList [stakePubHash]
                             , ppRelays = mempty
@@ -635,13 +630,14 @@ configurePool tr Config{..} metadataServer recipe = do
                             preparePoolRetirement tr
                                 poolDir cfgClusterConfigs cfgLastHardFork [retCert]
                         tx <- signTx tr
+                            cfgTestnetMagic
                             (retag @"pool" @_ @"output" poolDir)
                             (retag @"retirement-tx" @_ @"tx-body" rawTx)
                             [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
                             , retag @"stake-prv" @_ @"signing-key" ownerPrv
                             , retag @"op-prv" @_ @"signing-key" opPrv
                             ]
-                        submitTx tr socket "retirement cert" tx
+                        submitTx tr cfgTestnetMagic socket "retirement cert" tx
 
                 traverse_ retire mretirementEpoch
             , registerViaTx = \(RunningNode socket _ _) -> do
@@ -674,7 +670,8 @@ configurePool tr Config{..} metadataServer recipe = do
                     , metadataURL
                     , "--metadata-hash"
                     , blake2b256S (BL.toStrict metadataBytes)
-                    , "--mainnet"
+                    , "--testnet-magic"
+                    , show cfgTestnetMagic
                     , "--out-file"
                     , untag poolRegistrationCert
                     ]
@@ -705,21 +702,22 @@ configurePool tr Config{..} metadataServer recipe = do
                 (rawTx, faucetPrv) <-
                     preparePoolRegistration
                         tr
+                        config
                         poolDir
-                        cfgClusterConfigs
-                        cfgLastHardFork
                         ownerPub
                         certificates
                         pledgeAmt
                 tx <-
-                    signTx tr
+                    signTx
+                        tr
+                        cfgTestnetMagic
                         (retag @"pool" @_ @"output" poolDir)
                         (retag @"registration-tx" @_ @"tx-body" rawTx)
                         [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
                         , retag @"stake-prv" @_ @"signing-key" ownerPrv
                         , retag @"op-prv" @_ @"signing-key" opPrv
                         ]
-                submitTx tr socket (Tagged @"name" name) tx
+                submitTx tr cfgTestnetMagic socket (Tagged @"name" name) tx
             , metadataUrl = T.pack metadataURL
             , recipe = recipe
             }
@@ -927,6 +925,9 @@ clusterEraToString = \case
     AlonzoHardFork -> "alonzo"
     BabbageHardFork -> "babbage"
 
+newtype TestnetMagic = TestnetMagic { testnetMagicToNatural :: Natural }
+    deriving stock (Show)
+
 data Config = Config
     { cfgStakePools :: NonEmpty PoolRecipe
     -- ^ Stake pools to register.
@@ -936,8 +937,9 @@ data Config = Config
     -- ^ Log severity for node.
     , cfgClusterDir :: Tagged "cluster" FilePath
     -- ^ Root directory for cluster data.
-    , cfgClusterConfigs:: Tagged "cluster-configs" FilePath
+    , cfgClusterConfigs :: Tagged "cluster-configs" FilePath
     -- ^ Directory containing data for cluster setup.
+    , cfgTestnetMagic :: TestnetMagic
     } deriving stock (Show)
 
 -- | Information about a launched node.
@@ -967,13 +969,12 @@ unsafePositiveUnitInterval x =
 
 generateGenesis
     :: HasCallStack
-    => Tagged "cluster" FilePath
-    -> Tagged "cluster-configs" FilePath
+    => Config
     -> [(Address, Coin)]
     -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
     -- ^ For adding genesis pools and staking in Babbage and later.
     -> IO GenesisFiles
-generateGenesis clusterDir setupDir initialFunds addPoolsToGenesis = do
+generateGenesis Config{..} initialFunds addPoolsToGenesis = do
     {- The timestamp of the 0-th slot.
 
     Ideally it should be few seconds later than the cluster actually starts.
@@ -998,10 +999,11 @@ generateGenesis clusterDir setupDir initialFunds addPoolsToGenesis = do
             , sgSecurityParam = 10
             , sgEpochLength = 100
             , sgUpdateQuorum = 1
-            , sgNetworkMagic = 764_824_073
+            , sgNetworkMagic =
+                fromIntegral (testnetMagicToNatural cfgTestnetMagic)
             , sgSlotsPerKESPeriod = 86_400
             , sgMaxKESEvolutions = 5
-            , sgNetworkId = Mainnet
+            , sgNetworkId = Testnet
             , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
             , sgProtocolParams = Ledger.emptyPParams
                 & ppMinFeeAL .~ Ledger.Coin 100
@@ -1044,31 +1046,30 @@ generateGenesis clusterDir setupDir initialFunds addPoolsToGenesis = do
                     $ Aeson.eitherDecode
                     $ Aeson.encode
                         [aesonQQ|{
-    "8ae01cab15f6235958b1147e979987bbdb90788f7c4e185f1632427a": {
-        "delegate": "b7bf59bb963aa785afe220f5b0d3deb826fd0bcaeeee58cb81ab443d",
-        "vrf": "4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e"
-    }
-                        }|]
+        "91612ee7b158dc64871a959060973d0f2b8fb6e85ae960f03b8640ac": {
+            "delegate": "180b3fae61789f61cbdbc69e5f8e1beae9093aa2215e482dc8d89ec9",
+            "vrf": "e9ef3b5d81d400eb046de696354ff8e84122f505e706e3c86a361cce919a686e"
+        }
+    }|]
                             }
 
-    let shelleyGenesis = untag clusterDir </> "genesis.shelley.json"
+    let shelleyGenesis = untag cfgClusterDir </> "genesis.shelley.json"
     Aeson.encodeFile shelleyGenesis shelleyGenesisData
 
     let yamlToAeson = Yaml.decodeFileThrow @_ @Aeson.Value
 
-    let byronGenesis = untag clusterDir </> "genesis.byron.json"
-    yamlToAeson (untag setupDir </> "byron-genesis.yaml")
+    let byronGenesis = untag cfgClusterDir </> "genesis.byron.json"
+    yamlToAeson (untag cfgClusterConfigs </> "byron-genesis.yaml")
         >>= withAddedKey "startTime"
                 (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
         >>= Aeson.encodeFile byronGenesis
 
-    let alonzoGenesis = untag clusterDir </> "genesis.alonzo.json"
-    yamlToAeson (untag setupDir </> "alonzo-genesis.yaml")
+    let alonzoGenesis = untag cfgClusterDir </> "genesis.alonzo.json"
+    yamlToAeson (untag cfgClusterConfigs </> "alonzo-genesis.yaml")
         >>= Aeson.encodeFile alonzoGenesis
 
-    let conwayGenesis = untag clusterDir </> "genesis.conway.json"
-    yamlToAeson (untag setupDir </> "conway-genesis.yaml")
-        >>= Aeson.encodeFile conwayGenesis
+    let conwayGenesis = untag cfgClusterDir </> "conway-genesis.json"
+    copyFile (untag cfgClusterConfigs </> "conway-genesis.json") conwayGenesis
 
     pure GenesisFiles{..}
 
@@ -1133,8 +1134,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         faucetAddresses <- readFaucetAddresses cfgClusterConfigs
         genesisFiles <-
             generateGenesis
-                cfgClusterDir
-                cfgClusterConfigs
+                config
                 (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
                 (if postAlonzo then addGenesisPools else federalizeNetwork)
 
@@ -1202,8 +1202,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo
-            tr conn cfgClusterDir cfgClusterConfigs cfgLastHardFork mirFunds
+        moveInstantaneousRewardsTo tr config conn mirFunds
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -1218,30 +1217,17 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             $ forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
-        let encodeMainnetShelleyAddr address =
-                case CBOR.deserialiseCbor CBOR.decodeAddressPayload (unAddress address) of
-                    Left _failure ->
-                        Bech32.encodeLenient
-                            [Bech32.humanReadablePart|addr|]
-                            (dataPartFromBytes (unAddress address))
-                    Right _payload ->
-                        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet (unAddress address)
-
-        sendFaucetAssetsTo
-            tr
-            conn
-            cfgClusterDir
-            cfgClusterConfigs cfgLastHardFork
-            20
-            (first (T.unpack . encodeMainnetShelleyAddr) <$> maFunds)
+        sendFaucetAssetsTo tr config conn 20 maFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration tr config
-        tx <- signTx tr
+        tx <- signTx
+                tr
+                cfgTestnetMagic
                 (retag @"cluster" @_ @"output" cfgClusterDir)
                 (retag @"reg-tx" @_ @"tx-body" rawTx)
                 [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
-        submitTx tr conn "pre-registered stake key" tx
+        submitTx tr cfgTestnetMagic conn "pre-registered stake key" tx
 
     -- \| Actually spin up the pools.
     launchPools :: HasCallStack => NonEmpty ConfiguredPool -> GenesisFiles
@@ -1385,12 +1371,12 @@ withBFTNode tr clusterDir setupDir params action = do
                 pure dst
 
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <-
-            traverse (copyKeyFile . ("bft-leader" <>))
-                [ ".byron.cert"
-                , ".byron.skey"
-                , ".vrf.skey"
-                , ".kes.skey"
-                , ".opcert"
+            traverse copyKeyFile
+                [ "delegate-keys/byron.000.cert.json"
+                , "delegate-keys/byron.000.key"
+                , "delegate-keys/shelley.000.vrf.skey"
+                , "delegate-keys/shelley.000.kes.skey"
+                , "delegate-keys/shelley.000.opcert.json"
                 ]
 
         (config, genesisData, versionData) <-
@@ -1602,9 +1588,10 @@ genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
                     , (,extraSev) . T.pack <$> mExtraLogFile
                     ]
 
-    let poolNodeConfig = untag poolDir </> ("node" <> untag name <> ".config")
+    let poolNodeConfig =
+            untag poolDir </> ("node" <> untag name <> "-config.json")
 
-    Yaml.decodeFileThrow (untag setupDir </> "node.config")
+    Yaml.decodeFileThrow (untag setupDir </> "node-config.json")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
         >>= withAddedKey "ByronGenesisFile" byronGenesis
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
@@ -1875,7 +1862,7 @@ stakingAddrFromVkFile stakePub = do
             $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
     pure
         $ Ledger.Addr
-            Mainnet
+            Testnet
             (Ledger.KeyHashObj payKH)
             (Ledger.StakeRefBase (Ledger.KeyHashObj delegKH))
 
@@ -1926,22 +1913,25 @@ issueDlgCert tr poolDir stakePub opPub = do
 -- automatically delegating 'pledge' amount to the given stake key.
 preparePoolRegistration
     :: Tracer IO ClusterLog
+    -> Config
     -> Tagged "pool" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
     -> Tagged "stake-pub" FilePath
     -> [FilePath]
     -> Integer
     -> IO (Tagged "registration-tx" FilePath, Tagged "faucet-prv" FilePath)
-preparePoolRegistration tr poolDir setupDir era stakePub certs pledgeAmt = do
+preparePoolRegistration tr config poolDir stakePub certs pledgeAmt = do
     let file = untag poolDir </> "tx.raw"
     addr <-
-        genSinkAddress tr (retag @"pool" @_ @"output" poolDir) (Just stakePub)
-    (faucetInput, faucetPrv) <- takeFaucet setupDir
+        genSinkAddress
+            tr
+            (cfgTestnetMagic config)
+            (retag @"pool" @_ @"output" poolDir)
+            (Just stakePub)
+    (faucetInput, faucetPrv) <- takeFaucet (cfgClusterConfigs config)
     cli tr
         $ [ "transaction"
           , "build-raw"
-          , cliEraFlag era
+          , cliEraFlag (cfgLastHardFork config)
           , "--tx-in"
           , untag faucetInput
           , "--tx-out"
@@ -2070,17 +2060,14 @@ readKeyFromFile f = do
 
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
+    -> Config
     -> CardanoNodeConn
-    -> Tagged "cluster" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
-    -> [(String, Coin)]
+    -> [(Address, Coin)]
     -> IO ()
-sendFaucetFundsTo tr conn clusterDir setupDir era targets =
-    batch 80 targets
-        $ sendFaucet tr conn clusterDir setupDir era "ada" . map coinBundle
+sendFaucetFundsTo tr config conn targets =
+    batch 80 targets $ sendFaucet tr config conn "ada" . map coinBundle
   where
-    coinBundle :: (String, Coin) -> (String, (TokenBundle, [a]))
+    coinBundle :: (any, Coin) -> (any, (TokenBundle, [a]))
     coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
 
 -- | Create transactions to fund the given faucet addresses with Ada and assets.
@@ -2090,19 +2077,17 @@ sendFaucetFundsTo tr conn clusterDir setupDir era targets =
 -- minting transaction.
 sendFaucetAssetsTo
     :: Tracer IO ClusterLog
+    -> Config
     -> CardanoNodeConn
-    -> Tagged "cluster" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
     -> Int
     -- ^ batch size
-    -> [(String, (TokenBundle, [(String, String)]))]
+    -> [(Address, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr conn clusterDir setupDir era batchSize targets =
-    when (era >= MaryHardFork)
+sendFaucetAssetsTo tr config conn batchSize targets =
+    when (cfgLastHardFork config >= MaryHardFork)
         $ batch batchSize targets
-        $ sendFaucet tr conn clusterDir setupDir era "assets"
+        $ sendFaucet tr config conn "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
@@ -2110,22 +2095,21 @@ sendFaucetAssetsTo tr conn clusterDir setupDir era batchSize targets =
 sendFaucet
     :: HasCallStack
     => Tracer IO ClusterLog
+    -> Config
     -> CardanoNodeConn
-    -> Tagged "cluster" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
     -> String
     -- ^ label for logging
-    -> [(String, (TokenBundle, [(String, String)]))]
+    -> [(Address, (TokenBundle, [(String, String)]))]
     -> IO ()
-sendFaucet tr conn clusterDir setupDir era what targets = do
-    (faucetInput, faucetPrv) <- takeFaucet setupDir
+sendFaucet tr config conn what targets = do
+    let clusterDir = cfgClusterDir config
+    (faucetInput, faucetPrv) <- takeFaucet (cfgClusterConfigs config)
     let file = untag clusterDir </> "faucet-tx.raw"
 
     let mkOutput addr (TokenBundle (Coin c) tokens) =
             [ "--tx-out"
             , unwords
-                $ [addr, show c, "lovelace"]
+                $ [T.unpack (CA.bech32 addr), show c, "lovelace"]
                     ++ map (("+ " ++) . cliAsset) (TokenMap.toFlatList tokens)
             ]
         cliAsset (aid, (TokenQuantity q)) = unwords [show q, cliAssetId aid]
@@ -2154,7 +2138,7 @@ sendFaucet tr conn clusterDir setupDir era what targets = do
     cli tr
         $ [ "transaction"
           , "build-raw"
-          , cliEraFlag era
+          , cliEraFlag (cfgLastHardFork config)
           , "--tx-in"
           , untag faucetInput
           , "--ttl"
@@ -2174,10 +2158,17 @@ sendFaucet tr conn clusterDir setupDir era what targets = do
         forM (nub $ concatMap (snd . snd) targets) $ \(skey, keyHash) ->
             writePolicySigningKey outputDir keyHash skey
 
-    tx <- signTx tr outputDir
+    signTx
+        tr
+        (cfgTestnetMagic config)
+        outputDir
         (Tagged @"tx-body" file)
         (retag @"faucet-prv" @_ @"signing-key" faucetPrv : map retag policyKeys)
-    submitTx tr conn (Tagged @"name" $ what ++ " faucet tx") tx
+        >>= submitTx
+            tr
+            (cfgTestnetMagic config)
+            conn
+            (Tagged @"name" $ what ++ " faucet tx")
 
 batch :: HasCallStack => Int -> [a] -> ([a] -> IO b) -> IO ()
 batch s xs = forM_ (group s xs)
@@ -2198,16 +2189,16 @@ data Credential
 moveInstantaneousRewardsTo
     :: HasCallStack
     => Tracer IO ClusterLog
+    -> Config
     -> CardanoNodeConn
-    -> Tagged "cluster" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
     -> [(Credential, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
+moveInstantaneousRewardsTo tr config conn targets = do
+    let clusterDir = cfgClusterDir config
+    let clusterConfigs = cfgClusterConfigs config
     let outputDir = retag @"cluster" @_ @"output" clusterDir
-    certs <- mapM (mkCredentialCerts outputDir) targets
-    (faucetInput, faucetPrv) <- takeFaucet setupDir
+    certs <- mapM (mkCredentialCerts outputDir (cfgTestnetMagic config)) targets
+    (faucetInput, faucetPrv) <- takeFaucet clusterConfigs
     let txFile = untag clusterDir </> "mir-tx.raw"
 
     let total = sum $ map (Coin.toInteger . snd) targets
@@ -2215,12 +2206,16 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
     when (total > faucetAmt) $
         error "moveInstantaneousRewardsTo: too much to pay"
 
-    sink <- genSinkAddress tr (retag @"cluster" @_ @"output" clusterDir) Nothing
+    sink <- genSinkAddress
+        tr
+        (cfgTestnetMagic config)
+        (retag @"cluster" @_ @"output" clusterDir)
+        Nothing -- stake pub
 
     cli tr
         $ [ "transaction"
           , "build-raw"
-          , cliEraFlag era
+          , cliEraFlag (cfgLastHardFork config)
           , "--tx-in"
           , untag faucetInput
           , "--ttl"
@@ -2234,8 +2229,6 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
           ]
             ++ concatMap (\x -> ["--certificate-file", untag x]) (mconcat certs)
 
-    let bftPrv = untag setupDir </> "bft-leader" <> ".skey"
-
     {- There is a ledger rule that disallows submitting MIR certificates
     "too late in Epoch" e.g. less that stability window slots before beginning
     of a next epoch. See the MIRCertificateTooLateinEpochDELEG error.
@@ -2243,17 +2236,23 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
     This problem is worked around by retrying the transaction submission until
     it succeeds.  (This is not ideal as it pollutes logs with error messages)
     -}
-    submitTx tr conn "MIR certificates"
-        =<< signTx tr outputDir (Tagged @"tx-body" txFile)
+    submitTx tr (cfgTestnetMagic config) conn "MIR certificates"
+        =<< signTx
+            tr
+            (cfgTestnetMagic config)
+            outputDir
+            (Tagged @"tx-body" txFile)
             [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
-            , Tagged @"signing-key" bftPrv
+            , Tagged @"signing-key" $ untag clusterConfigs
+                </> "delegate-keys/shelley.000.skey"
             ]
   where
     mkCredentialCerts
         :: Tagged "output" FilePath
+        -> TestnetMagic
         -> (Credential, Coin)
         -> IO [Tagged "cert" FilePath]
-    mkCredentialCerts outputDir = \case
+    mkCredentialCerts outputDir testnetMagic = \case
         (KeyCredential xpub, coin) -> do
             (prefix, vkFile) <- mkVerificationKey xpub
             stakeAddr <-
@@ -2261,7 +2260,8 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
                     tr
                     [ "stake-address"
                     , "build"
-                    , "--mainnet"
+                    , "--testnet-magic"
+                    , show (testnetMagicToNatural testnetMagic)
                     , "--stake-verification-key-file"
                     , vkFile
                     ]
@@ -2271,35 +2271,19 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
             pure [retag stakeCert, retag mirCert]
         (ScriptCredential script, coin) -> do
             (prefix, scriptFile) <- mkScript script
-            -- NOTE: cardano-cli does not support creating stake-address from
-            -- scripts just yet... So it's a bit ugly, but we create a stake
-            -- address by creating a standard address, and replacing the header.
             stakeAddr <-
-                toStakeAddress
-                    <$> cliLine
-                        tr
-                        [ "address"
-                        , "build"
-                        , "--mainnet"
-                        , "--payment-script-file"
-                        , scriptFile
-                        ]
+               cliLine
+                    tr
+                    [ "stake-address"
+                    , "build"
+                    , "--testnet-magic"
+                    , show (testnetMagicToNatural testnetMagic)
+                    , "--stake-script-file"
+                    , scriptFile
+                    ]
             stakeCert <- issueStakeScriptCert tr outputDir prefix scriptFile
             mirCert <- mkMIRCertificate (stakeAddr, coin)
             pure [retag stakeCert, retag mirCert]
-      where
-        toStakeAddress =
-            T.unpack
-                . Bech32.encodeLenient hrp
-                . Bech32.dataPartFromBytes
-                . BL.toStrict
-                . BL.pack
-                . mapFirst (240 .|.)
-                . BL.unpack
-                . unsafeBech32Decode
-                . T.pack
-          where
-            hrp = [humanReadablePart|stake|]
 
     mkVerificationKey :: XPub -> IO (Tagged "prefix" String, FilePath)
     mkVerificationKey xpub = do
@@ -2312,7 +2296,7 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
                     , "description" .= Aeson.String "Stake Verification Key"
                     , "cborHex" .= Aeson.String ("5820" <> T.pack base16)
                     ]
-        let file = untag clusterDir </> base16 <> ".vk"
+        let file = untag (cfgClusterDir config) </> base16 <> ".vk"
         BL8.writeFile file (Aeson.encode json)
         pure (Tagged base16, file)
 
@@ -2328,13 +2312,13 @@ moveInstantaneousRewardsTo tr conn clusterDir setupDir era targets = do
                     , "cborHex" .= Aeson.String base16
                     ]
         let prefix = take 100 (T.unpack base16)
-        let file = untag clusterDir </> prefix <> ".plutus"
+        let file = untag (cfgClusterDir config) </> prefix <> ".plutus"
         BL8.writeFile file (Aeson.encode json)
         pure (Tagged prefix, file)
 
     mkMIRCertificate :: (String, Coin) -> IO (Tagged "mir-cert" FilePath)
     mkMIRCertificate (stakeAddr, Coin reward) = do
-        let mirCert = untag clusterDir </> stakeAddr <> ".mir"
+        let mirCert = untag (cfgClusterDir config) </> stakeAddr <> ".mir"
         cli
             tr
             [ "governance"
@@ -2364,7 +2348,7 @@ prepareKeyRegistration tr Config{..} = do
     (faucetInput, faucetPrv) <- takeFaucet cfgClusterConfigs
     cert <- issueStakeVkCert
         tr outputDir (Tagged @"prefix" "pre-registered") stakePub
-    sink <- genSinkAddress tr outputDir Nothing
+    sink <- genSinkAddress tr cfgTestnetMagic outputDir Nothing
     cli
         tr
         [ "transaction"
@@ -2387,12 +2371,13 @@ prepareKeyRegistration tr Config{..} = do
 
 genSinkAddress
     :: Tracer IO ClusterLog
+    -> TestnetMagic
     -> Tagged "output" FilePath
     -- ^ Directory to put keys
     -> Maybe (Tagged "stake-pub" FilePath)
     -- ^ Stake pub
     -> IO String
-genSinkAddress tr outputDir stakePub = do
+genSinkAddress tr testnetMagic outputDir stakePub = do
     let sinkPrv = untag outputDir </> "sink.prv"
     let sinkPub = untag outputDir </> "sink.pub"
     cli
@@ -2407,7 +2392,8 @@ genSinkAddress tr outputDir stakePub = do
     cliLine tr
         $ [ "address"
           , "build"
-          , "--mainnet"
+          , "--testnet-magic"
+          , show (testnetMagicToNatural testnetMagic)
           , "--payment-verification-key-file"
           , sinkPub
           ] ++
@@ -2418,6 +2404,7 @@ genSinkAddress tr outputDir stakePub = do
 -- | Sign a transaction with all the necessary signatures.
 signTx
     :: Tracer IO ClusterLog
+    -> TestnetMagic
     -> Tagged "output" FilePath
     -- ^ Output directory
     -> Tagged "tx-body" FilePath
@@ -2425,14 +2412,15 @@ signTx
     -> [Tagged "signing-key" FilePath]
     -- ^ Signing keys for witnesses
     -> IO (Tagged "tx-signed" FilePath)
-signTx tr outputDir rawTx keys = do
-    let file = untag outputDir </> "tx.signed"
+signTx tr testnetMagic outputDir rawTx keys = do
+    file <- emptyTempFile (untag outputDir) "tx-signed.json"
     cli tr
         $ [ "transaction"
           , "sign"
           , "--tx-body-file"
           , untag rawTx
-          , "--mainnet"
+          , "--testnet-magic"
+          , show (testnetMagicToNatural testnetMagic)
           , "--out-file"
           , file
           ]
@@ -2442,11 +2430,12 @@ signTx tr outputDir rawTx keys = do
 -- | Submit a transaction through a running node.
 submitTx
     :: Tracer IO ClusterLog
+    -> TestnetMagic
     -> CardanoNodeConn
     -> Tagged "name" String
     -> Tagged "tx-signed" FilePath
     -> IO ()
-submitTx tr conn name signedTx =
+submitTx tr testnetMagic conn name signedTx =
     cliRetry tr ("Submitting transaction for " <> T.pack (untag name))
         =<< cliConfigNode
             tr
@@ -2455,7 +2444,8 @@ submitTx tr conn name signedTx =
             , "submit"
             , "--tx-file"
             , untag signedTx
-            , "--mainnet"
+            , "--testnet-magic"
+            , show (testnetMagicToNatural testnetMagic)
             , "--cardano-mode"
             ]
 
@@ -2686,7 +2676,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgStartedStaticServer _ _ -> Info
         MsgTempDir msg -> getSeverityAnnotation msg
         MsgBracket _ _ -> Debug
-        MsgCLIStatus _ ExitSuccess _ _ -> Debug
+        MsgCLIStatus _ ExitSuccess _ _ -> Info
         MsgCLIStatus _ (ExitFailure _) _ _ -> Error
         MsgCLIRetry _ -> Info
         MsgCLIRetryResult{} -> Info

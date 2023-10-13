@@ -1,0 +1,5 @@
+{
+    "type": "PaymentSigningKeyByron_ed25519_bip32",
+    "description": "",
+    "cborHex": "5880f827e3d1be3aa2aab47933165ec8ad0b6b06049b8e4da55a2beeeca7c945ba5de68e4d083d3ac07a60d69d093fa829c013e807f1c815f33a448c047b3db3463e6255de96bfb9217440caed0a1773ece4506caa17a7602c7c8f04a875ccce524b31b918a0765c3f0e6afbf3f07646830b45aa218fe4c01c185ade6f3f504a4522"
+}

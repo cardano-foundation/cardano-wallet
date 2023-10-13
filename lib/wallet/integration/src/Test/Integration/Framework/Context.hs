@@ -17,6 +17,8 @@ import Cardano.Wallet.Api.Types
     ( ApiEra )
 import Cardano.Wallet.Faucet
     ( Faucet )
+import Cardano.Wallet.Launch.Cluster
+    ( TestnetMagic )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -57,6 +59,8 @@ data Context = Context
         -- ^ A function to inject rewards into some stake address.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
+    , _testnetMagic :: TestnetMagic
+        -- ^ The protocol magic of the underlying test network.
     , _poolGarbageCollectionEvents
         :: IORef [PoolGarbageCollectionEvent]
         -- ^ The complete list of pool garbage collection events.

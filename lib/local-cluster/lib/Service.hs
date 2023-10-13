@@ -51,6 +51,7 @@ import Test.Utils.Paths
 import UnliftIO.Concurrent
     ( threadDelay )
 
+import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
@@ -198,6 +199,7 @@ main = withUtf8 $ do
                 , cfgNodeLogging
                 , cfgClusterDir = Tagged clusterPath
                 , cfgClusterConfigs
+                , cfgTestnetMagic = Cluster.TestnetMagic 42
                 }
         Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
             clusterDir <- Path.parseAbsDir clusterPath
@@ -220,17 +222,19 @@ main = withUtf8 $ do
                             Nothing
                         , WC.walletListenPort =
                             Nothing
-                        , WC.walletByronGenesis =
+                        , WC.walletByronGenesisForTestnet = Just $
                             clusterDir Path.</> [Path.relfile|genesis.byron.json|]
                         }
                     )
                     (WC.stop . fst)
                 threadDelay maxBound -- wait for Ctrl+C
   where
+    networkTag = CA.NetworkTag 42
     faucetFunds =
         Cluster.FaucetFunds
             { pureAdaFunds =
-                shelleyIntegrationTestFunds <> byronIntegrationTestFunds
+                shelleyIntegrationTestFunds networkTag
+                    <> byronIntegrationTestFunds networkTag
             , maFunds =
                 maryIntegrationTestFunds (Coin 10_000_000)
             , mirFunds =
@@ -241,6 +245,7 @@ main = withUtf8 $ do
                 , let (xPub, _xPrv) = deriveShelleyRewardAccount (SomeMnemonic m)
                 ]
             }
+
 -- | Returns a path to the local cluster configuration, which is usually relative to the
 -- package sources, but can be overridden by the @LOCAL_CLUSTER_CONFIGS@ environment
 -- variable.

@@ -153,6 +153,7 @@ import UnliftIO.MVar
 import UnliftIO.STM
     ( TVar )
 
+import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
@@ -475,12 +476,13 @@ withShelleyServer tracers action = do
                     responseTimeoutMicro sixtySeconds
                 })
             faucet <- initFaucet
-            putMVar ctx $ Context
+            putMVar ctx Context
                 { _cleanup = pure ()
                 , _manager = manager
                 , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
                 , _networkParameters = np
+                , _testnetMagic = testnetMagic
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
                 , _smashUrl = ""
@@ -504,15 +506,20 @@ withShelleyServer tracers action = do
                     , Cluster.cfgNodeLogging = LogFileConfig Error Nothing Error
                     , Cluster.cfgClusterDir = Tagged @"cluster" dir
                     , Cluster.cfgClusterConfigs = cfgClusterConfigs
+                    , Cluster.cfgTestnetMagic = testnetMagic
                     }
             withCluster
                 nullTracer clusterConfig faucetFunds (onClusterStart act db)
 
+    testnetMagic = Cluster.TestnetMagic 42
+
     faucetFunds = FaucetFunds
         { pureAdaFunds =
-            shelleyIntegrationTestFunds
-             <> byronIntegrationTestFunds
-             <> massiveWalletFunds
+            let networkTag = CA.NetworkTag
+                    (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
+             in shelleyIntegrationTestFunds networkTag
+                <> byronIntegrationTestFunds networkTag
+                <> massiveWalletFunds
         , maFunds =
             maryIntegrationTestFunds (Coin 10_000_000)
         , mirFunds = [] -- not needed

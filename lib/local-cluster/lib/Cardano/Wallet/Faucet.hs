@@ -110,6 +110,7 @@ import GHC.TypeLits
 import UnliftIO.MVar
     ( MVar, modifyMVar )
 
+import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Byron as Byron
 import qualified Cardano.Address.Style.Icarus as Icarus
 import qualified Cardano.Address.Style.Shelley as Shelley
@@ -181,17 +182,19 @@ nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
 -- | Generate faucets addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
-genByronFaucets :: FilePath -> [Mnemonic 12] -> IO [[Text]]
-genByronFaucets = genFaucet base58 byronAddresses
+genByronFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 12] -> IO [[Text]]
+genByronFaucets = genFaucet base58 . byronAddresses
 
-byronAddresses :: KnownNat mw => Mnemonic mw -> [Address]
-byronAddresses mw = mkPaymentAddrForIx <$> paymentKeyIxs
+byronAddresses :: KnownNat mw => CA.NetworkTag -> Mnemonic mw -> [Address]
+byronAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Byron) PaymentK] =
         let firstIx = minBound
         in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
-        Byron.paymentAddress Byron.byronMainnet (toXPub <$> paymentKey)
+        Byron.paymentAddress
+            (CA.RequiresNetworkTag, networkTag)
+            (toXPub <$> paymentKey)
       where
         secondFactor = ()
         paymentKey =
@@ -206,18 +209,20 @@ byronAddresses mw = mkPaymentAddrForIx <$> paymentKeyIxs
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
--- >>> genMnemonics 100 >>= genIcarusFaucets "icarus-faucets.yaml"
-genIcarusFaucets :: FilePath -> [Mnemonic 15] -> IO [[Text]]
-genIcarusFaucets = genFaucet base58 icarusAddresses
+-- >>> genMnemonics 100 >>= genIcarusFaucets (CA.NetworkTag 42) "icarus-faucets.yaml"
+genIcarusFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 15] -> IO [[Text]]
+genIcarusFaucets = genFaucet base58 . icarusAddresses
 
-icarusAddresses :: Mnemonic 15 -> [Address]
-icarusAddresses mw = mkPaymentAddrForIx <$> paymentKeyIxs
+icarusAddresses :: CA.NetworkTag -> Mnemonic 15 -> [Address]
+icarusAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
         let firstIx = minBound
         in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
-        Icarus.paymentAddress Icarus.icarusMainnet (toXPub <$> paymentKey)
+        Icarus.paymentAddress
+            (CA.RequiresNetworkTag, networkTag)
+            (toXPub <$> paymentKey)
       where
         paymentKey =
             deriveAddressPrivateKey accountKey Icarus.UTxOExternal paymentAddrIx
@@ -251,7 +256,7 @@ deriveShelleyAddresses mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
         let firstIx = minBound
             in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
-        Shelley.paymentAddress Shelley.shelleyMainnet credential
+        Shelley.paymentAddress Shelley.shelleyTestnet credential
       where
         credential :: Shelley.Credential PaymentK =
             Shelley.PaymentFromExtendedKey (toXPub <$> paymentKey)
@@ -387,13 +392,13 @@ preregKeyWallet =
         , "rival"
         ]
 
-shelleyIntegrationTestFunds :: [(Address, Coin)]
-shelleyIntegrationTestFunds =
+shelleyIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
+shelleyIntegrationTestFunds networkTag =
     mconcat
         [ Mnemonics.sequential
             >>= take 10 . map (,defaultAmt) . addresses . SomeMnemonic
         , Mnemonics.icarus
-            >>= take 10 . map (,defaultAmt) . icarusAddresses
+            >>= take 10 . map (,defaultAmt) . icarusAddresses networkTag
         , zip
             (addresses $ SomeMnemonic onlyDustWallet)
             ( map
@@ -591,10 +596,11 @@ chunks n xs =
     let (ys, zs) = splitAt n xs
     in  ys : chunks n zs
 
-byronIntegrationTestFunds :: [(Address, Coin)]
-byronIntegrationTestFunds =
+byronIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
+byronIntegrationTestFunds networkTag =
     mconcat
-        [ Mnemonics.random >>= take 10 . map (,defaultAmt) . byronAddresses
+        [ Mnemonics.random >>=
+            take 10 . map (,defaultAmt) . (byronAddresses networkTag)
         , dustWallet1Funds
         , dustWallet2Funds
         ]
@@ -622,7 +628,7 @@ byronIntegrationTestFunds =
 
     dustWallet1Funds =
         zip
-            (byronAddresses dustWallet1)
+            (byronAddresses networkTag dustWallet1)
             [Coin 1, Coin 2, Coin 3, Coin 4, Coin 5]
 
     dustWallet2 :: Mnemonic 12
@@ -644,18 +650,18 @@ byronIntegrationTestFunds =
 
     dustWallet2Funds =
         zip
-            (byronAddresses dustWallet2)
+            (byronAddresses networkTag dustWallet2)
             (replicate 100 (Coin 10_000_000_000) <> replicate 100 (Coin 1))
 
-hwLedgerTestFunds :: [(Address, Coin)]
-hwLedgerTestFunds = do
+hwLedgerTestFunds :: CA.NetworkTag -> [(Address, Coin)]
+hwLedgerTestFunds networkTag = do
     mnemonic <- Mnemonics.hardwareLedger
     address <- take 10 $ deriveLedgerAddresses mnemonic
     pure (address, Coin 100_000_000_000)
   where
     deriveLedgerAddresses :: SomeMnemonic -> [Address]
     deriveLedgerAddresses mnemonic =
-        Icarus.paymentAddress Icarus.icarusMainnet . fmap toXPub . addrXPrv
+        Icarus.paymentAddress (CA.RequiresNetworkTag, networkTag) . fmap toXPub . addrXPrv
             <$> paymentKeyIxs
       where
         rootXPrv = Icarus.unsafeGenerateKeyFromHardwareLedger mnemonic

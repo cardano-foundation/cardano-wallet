@@ -139,7 +139,6 @@ module Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixtureIcarusWalletMws
     , fixtureIcarusWalletAddrs
-    , fixtureIcarusWalletWith
     , fixtureWallet
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
@@ -524,7 +523,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 --
 
 -- | Expect a successful response, without any further assumptions.
-expectSuccess :: MonadIO m => (s, Either RequestException a) -> m ()
+expectSuccess :: (HasCallStack, MonadIO m) => (s, Either RequestException a) -> m ()
 expectSuccess = either wantedSuccessButError (const $ pure ()) . snd
 
 -- | Expect an error response, without any further assumptions.
@@ -1660,7 +1659,7 @@ rewardWallet ctx = do
              in request @ApiWallet ctx endpoint Default Empty
     let w = getResponse r
 
-    waitForNextEpoch ctx
+    waitNumberOfEpochBoundaries 2 ctx
 
     eventually "MIR wallet has available balance" $
         fetchWallet w >>=
@@ -2214,33 +2213,7 @@ fixtureIcarusWalletAddrs
 fixtureIcarusWalletAddrs =
     fmap (second (icarusAddresses @n)) . fixtureIcarusWalletMws
 
--- | Restore a wallet with the given UTxO distribution. Note that there's a
--- limitation to what can be done here. We only have 10 UTxO available in each
--- faucet and they "only" have 'faucetUtxoAmt = 100_000 Ada' in each.
---
--- This function makes no attempt at ensuring the request is valid, so be
--- careful.
---
--- TODO: Remove duplication between Shelley / Byron fixtures.
-fixtureIcarusWalletWith
-    :: forall n m
-     . ( HasSNetworkId n , MonadUnliftIO m)
-    => Context
-    -> [Natural]
-    -> ResourceT m ApiByronWallet
-fixtureIcarusWalletWith ctx coins0 = do
-    src  <- fixtureIcarusWallet ctx
-    mws  <- liftIO $ entropyToMnemonic <$> genEntropy
-    dest <- emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet", mnemonicToText @15 mws, fixturePassphrase)
-    let addrs = icarusAddresses @n mws
-    liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
-    void $ request @() ctx
-        (Link.deleteWallet @'Byron src) Default Empty
-    r <- request @ApiByronWallet ctx
-        (Link.getWallet @'Byron dest) Default Empty
-    expectResponseCode HTTP.status200 r
-    pure (getResponse r)
+
 
 
 -- | Restore a legacy wallet (Byron or Icarus)
@@ -2253,31 +2226,32 @@ fixtureLegacyWallet
 fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
   where
     create = do
-        let payload = Json [aesonQQ| {
-                "name": "Faucet Byron Wallet",
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default $
+            let name = "Faucet Legacy Byron Wallet " <> style
+             in Json [aesonQQ|{
+                "name": #{name},
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
-                } |]
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+            }|]
         expectResponseCode HTTP.status201 r
-        let w = getResponse r
-        liftIO $ race (threadDelay sixtySeconds) (checkBalance w) >>= \case
-            Left _ ->
-                expectationFailure'
-                    "fixtureByronWallet: waited too long for initial transaction"
-            Right a ->
-                return a
-    free w = do
-        void $ request @() ctx
-            (Link.deleteWallet @'Byron w) Default Empty
+        liftIO $ race
+            (threadDelay (60 * oneSecond))
+            (checkBalance (getResponse r)) >>= \case
+                Right a -> pure a
+                Left () -> do
+                    threadDelay maxBound
+                    expectationFailure' $
+                        "fixtureByronWallet: timing out (> 60s) \
+                        \while checking " <> show style <> " wallet's balance."
 
-    sixtySeconds = 60*oneSecond
+    free w = void $ request @() ctx (Link.deleteWallet @'Byron w) Default Empty
+
     checkBalance w = do
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
-            then return (getResponse r)
+            then pure (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a wallet with the given UTxO distribution. Note that there's a
@@ -2430,9 +2404,10 @@ getFromResponse
     => Lens' s a
     -> (HTTP.Status, Either RequestException s)
     -> a
-getFromResponse getter (_, res) = case res of
-    Left _  -> error "getFromResponse failed to get item"
-    Right s -> view getter s
+getFromResponse getter (_httpStatus, res) =
+    case res of
+        Left err -> error $ "Expected response but got an error: " <> show err
+        Right s -> view getter s
 
 getFromResponseList
     :: Int

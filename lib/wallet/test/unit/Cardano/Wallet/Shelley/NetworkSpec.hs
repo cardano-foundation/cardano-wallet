@@ -270,6 +270,7 @@ withTestNode tr action = do
                     , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
                     , Cluster.cfgClusterDir = Tagged @"cluster" dir
                     , Cluster.cfgClusterConfigs = cfgClusterConfigs
+                    , Cluster.cfgTestnetMagic = Cluster.TestnetMagic 42
                     }
             withCluster tr clusterConfig mempty $
                 \(RunningNode sock genesisData vData) -> do

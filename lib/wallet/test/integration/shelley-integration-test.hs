@@ -36,6 +36,8 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Ledger.Shelley.Genesis
+    ( sgNetworkMagic )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Startup
@@ -88,8 +90,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( fromGenesisData )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -110,6 +110,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Typeable
+    ( Proxy (..) )
+import GHC.TypeNats
+    ( natVal )
 import Main.Utf8
     ( withUtf8 )
 import Network.HTTP.Client
@@ -186,14 +190,17 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
-main :: forall n. (n ~ 'Mainnet) => IO ()
+main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspecMain $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
-        specWithServer testDir tracers $ do
+
+        let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+
+        specWithServer testnetMagic testDir tracers $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
@@ -267,11 +274,12 @@ clusterToApiEra = \case
     BabbageHardFork -> ApiBabbage
 
 specWithServer
-    :: FilePath
+    :: Cluster.TestnetMagic
+    -> FilePath
     -> (Tracer IO TestsLog, Tracers IO)
     -> SpecWith Context
     -> Spec
-specWithServer testDir (tr, tracers) = aroundAll withContext
+specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
@@ -293,10 +301,18 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
-                let clusterDir = Tagged @"cluster" testDir
                 clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
                     <&> Tagged @"cluster-configs"
                         . fromMaybe "../local-cluster/test/data/cluster-configs"
+
+                let config = Cluster.Config
+                        { cfgStakePools = error "cfgStakePools: unused"
+                        , cfgLastHardFork = era
+                        , cfgNodeLogging = error "cfgNodeLogging: unused"
+                        , cfgClusterDir = Tagged @"cluster" testDir
+                        , cfgClusterConfigs = clusterConfigs
+                        , cfgTestnetMagic = testnetMagic
+                        }
 
                 putMVar ctx Context
                     { _cleanup = pure ()
@@ -304,21 +320,17 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = np
+                    , _testnetMagic = testnetMagic
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = clusterToApiEra era
                     , _smashUrl = smashUrl
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
                             sendFaucetAssetsTo
-                                tr' conn clusterDir clusterConfigs era batchSize
-                                    $ map (first (T.unpack . CA.bech32))
-                                    $ seaHorseTestAssets nPerAddr c addrs
+                                tr' config conn batchSize
+                                (seaHorseTestAssets nPerAddr c addrs)
                     , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr'
-                                conn
-                                clusterDir
-                                clusterConfigs
-                                era
+                            moveInstantaneousRewardsTo tr' config conn
                                 [(ScriptCredential script, coin)]
                     }
         let action' = bracketTracer' tr "spec" . action
@@ -358,6 +370,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
                     , Cluster.cfgClusterDir = Tagged @"cluster" testDir
                     , Cluster.cfgClusterConfigs = cfgClusterConfigs
+                    , Cluster.cfgTestnetMagic = testnetMagic
                     }
             withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
@@ -366,9 +379,11 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =
-            shelleyIntegrationTestFunds
-                <> byronIntegrationTestFunds
-                <> hwLedgerTestFunds
+            let networkTag = CA.NetworkTag
+                    (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
+             in shelleyIntegrationTestFunds networkTag
+                <> byronIntegrationTestFunds networkTag
+                <> hwLedgerTestFunds networkTag
         , maFunds =
             maryIntegrationTestFunds (Coin 10_000_000)
         , mirFunds =
@@ -381,7 +396,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         }
 
     onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
-        let (gp, block0, genesisPools) = fromGenesisData genesisData
+        let (networkParameters, block0, genesisPools) =
+                fromGenesisData genesisData
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText
@@ -389,9 +405,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
                 (NodeSource conn vData (SyncTolerance 10))
-                gp
+                networkParameters
                 tunedForMainnetPipeliningStrategy
-                NMainnet
+                (NTestnet (fromIntegral (sgNetworkMagic genesisData)) )
                 genesisPools
                 tracers
                 (Just db)
@@ -402,7 +418,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 Nothing
                 (Just tokenMetaUrl)
                 block0
-                (action conn gp)
+                (action conn networkParameters)
                 `withException` (traceWith tr . MsgServerError)
 
 {-------------------------------------------------------------------------------

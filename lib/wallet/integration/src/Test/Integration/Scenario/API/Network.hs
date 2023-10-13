@@ -20,12 +20,12 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , nextEpoch
     )
+import Cardano.Wallet.Launch.Cluster
+    ( TestnetMagic (testnetMagicToNatural) )
 import Cardano.Wallet.Pools
     ( EpochInfo (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( getProtocolMagic, mainnetMagic )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -72,12 +72,16 @@ spec = describe "COMMON_NETWORK" $ do
             let i = getFromResponse id r
             verify r
                 [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
-                , expectField (#nodeEra) (`shouldBe` _mainEra ctx)
-                , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
-                , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
+                , expectField #nodeEra (`shouldBe` _mainEra ctx)
+                , expectField (#nodeTip . #absoluteSlotNumber . #getApiT)
+                    (`shouldNotBe` 0)
+                , \x ->
+                    (epochStartTime <$> nextEpoch (unsafeResponse x))
+                        .> Just now
                 , expectField (#networkInfo . #protocolMagic)
-                    (`shouldBe` fromIntegral (getProtocolMagic mainnetMagic))
-                , expectField (#walletMode) (`shouldBe` Node)
+                    (`shouldBe` fromIntegral
+                        (testnetMagicToNatural (_testnetMagic ctx)))
+                , expectField #walletMode (`shouldBe` Node)
                 ]
             counterexample (show r) $ do
                 (epochStartTime <$> nextEpoch i) .> Just now
