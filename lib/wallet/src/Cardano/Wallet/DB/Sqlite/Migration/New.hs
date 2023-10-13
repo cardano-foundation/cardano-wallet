@@ -33,6 +33,9 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( getSchemaVersion
     , putSchemaVersion
     )
+import Cardano.Wallet.DB.Store.Checkpoints.Migration
+    ( migratePrologue
+    )
 import Cardano.Wallet.DB.Store.Delegations.Migration
     ( migrateDelegations
     )
@@ -61,9 +64,9 @@ import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
     Specific migrations
 ------------------------------------------------------------------------------}
 
-newStyleMigrations :: Migration (ReadDBHandle IO) 2 3
+newStyleMigrations :: Migration (ReadDBHandle IO) 2 4
 newStyleMigrations =
-    migrateDelegations
+    migratePrologue . migrateDelegations
 
 latestVersion :: Version
 latestVersion = getTargetVersion newStyleMigrations
