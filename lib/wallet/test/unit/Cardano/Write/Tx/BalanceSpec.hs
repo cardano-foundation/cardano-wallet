@@ -129,8 +129,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
-import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -335,7 +333,7 @@ import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
-    ( Block (..) )
+    ( Block (..), BlockHeader (..) )
 import qualified Cardano.Wallet.Primitive.Types as W.Block
     ( header )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -2184,7 +2182,7 @@ cardanoToWalletTxOut =
 
 block0 :: W.Block
 block0 = W.Block
-    { header = BlockHeader
+    { header = W.BlockHeader
         { slotNo = SlotNo 0
         , blockHeight = W.Quantity 0
         , headerHash = W.Hash.mockHash $ SlotNo 0
