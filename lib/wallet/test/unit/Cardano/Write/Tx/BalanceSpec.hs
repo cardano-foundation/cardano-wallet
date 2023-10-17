@@ -28,16 +28,6 @@
 
 module Cardano.Write.Tx.BalanceSpec
     ( spec
-
-    ----------------------------------------------------------------------------
-    -- TODO: ADP-3171
-    -- The exports in this section are currently needed by other tests related
-    -- to balanceTx that have not yet been relocated to this module. Once all
-    -- balanceTx-related tests have been relocated to this module, we should
-    -- remove these exports:
-    , mockPParamsForBalancing
-    ----------------------------------------------------------------------------
-
     ) where
 
 import Prelude
