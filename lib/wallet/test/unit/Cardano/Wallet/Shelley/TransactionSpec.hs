@@ -71,6 +71,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -78,7 +80,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange )
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -137,8 +139,6 @@ import Cardano.Write.Tx
     )
 import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
-import Cardano.Write.Tx.BalanceSpec
-    ()
 import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize, txConstraints )
 import Control.Arrow
@@ -200,12 +200,14 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , elements
     , forAll
     , forAllShow
     , frequency
     , label
     , oneof
     , property
+    , scale
     , suchThat
     , vector
     , vectorOf
@@ -1504,6 +1506,12 @@ newtype Large a = Large { unLarge :: a }
 instance Arbitrary (Large TokenBundle) where
     arbitrary = fmap Large . genTxOutTokenBundle =<< choose (1, 128)
 
+instance Arbitrary AnyRecentEra where
+    arbitrary = elements
+        [ AnyRecentEra RecentEraBabbage
+        , AnyRecentEra RecentEraConway
+        ]
+
 instance Arbitrary AssetId where
     arbitrary =
         TokenBundle.AssetId
@@ -1517,6 +1525,25 @@ instance Arbitrary AssetId where
         -- dominate so we can test the sanity of the estimation algorithm.
         <*> (UnsafeTokenName . BS.pack <$> vector 128)
 
+instance Arbitrary Coin where
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = do
+        bs <- vectorOf 32 arbitrary
+        pure $ Hash $ BS.pack bs
+
+instance Arbitrary Cardano.NetworkId where
+    arbitrary = oneof
+        [ pure Cardano.Mainnet
+        , Cardano.Testnet . Cardano.NetworkMagic <$> arbitrary
+        ]
+
+instance Arbitrary TokenBundle where
+    arbitrary = genTokenBundleSmallRange
+    shrink = shrinkTokenBundleSmallRange
+
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyId
     shrink = shrinkTokenPolicyId
@@ -1525,6 +1552,22 @@ instance Arbitrary (Script KeyHash) where
     arbitrary = do
         keyHashes <- vectorOf 10 arbitrary
         genScript keyHashes
+
+instance Arbitrary TxIn where
+    arbitrary = do
+        ix <- scale (`mod` 3) arbitrary
+        txId <- arbitrary
+        pure $ TxIn txId ix
+
+instance Arbitrary TxOut where
+    arbitrary =
+        TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
+      where
+        addr = Address $ BS.pack (1:replicate 56 0)
+    shrink (TxOut addr bundle) =
+        [ TxOut addr bundle'
+        | bundle' <- shrinkTokenBundleSmallRange bundle
+        ]
 
 instance Arbitrary KeyHash where
     arbitrary = do
