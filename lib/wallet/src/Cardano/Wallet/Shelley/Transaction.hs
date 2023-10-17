@@ -33,6 +33,7 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+    , txConstraints
 
     -- * Internals
     , TxPayload (..)
@@ -44,6 +45,8 @@ module Cardano.Wallet.Shelley.Transaction
     , mkShelleyWitness
     , mkTx
     , mkUnsignedTx
+    , _txRewardWithdrawalCost
+    , _txRewardWithdrawalSize
     , txWitnessTagForKey
     ) where
 
@@ -103,6 +106,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (TokenQuantity) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
@@ -110,7 +115,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity )
+    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -155,8 +160,10 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
+import Cardano.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
 import Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..) )
+    ( TxSkeleton (..), TxWitnessTag (..), estimateTxCost, estimateTxSize )
 import Control.Arrow
     ( left, second )
 import Control.Lens
@@ -177,11 +184,16 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( mapMaybe )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
 import Data.Type.Equality
     ( type (==) )
+import Data.Word
+    ( Word64, Word8 )
 import Ouroboros.Network.Block
     ( SlotNo )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
@@ -195,14 +207,16 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.Tx as Write
+import qualified Cardano.Write.Tx.Sign as Write
+import qualified Cardano.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -1085,6 +1099,169 @@ explicitFees era = case era of
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
     ShelleyBasedEraConway ->
         Cardano.TxFeeExplicit Cardano.TxFeesExplicitInConwayEra
+
+txConstraints
+    :: forall era. Write.IsRecentEra era
+    => ProtocolParameters era
+    -> TxWitnessTag
+    -> TxConstraints
+txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
+    { txBaseCost
+    , txBaseSize
+    , txInputCost
+    , txInputSize
+    , txOutputCost
+    , txOutputSize
+    , txOutputMaximumSize
+    , txOutputMaximumTokenQuantity
+    , txOutputMinimumAdaQuantity
+    , txOutputBelowMinimumAdaQuantity
+    , txRewardWithdrawalCost
+    , txRewardWithdrawalSize
+    , txMaximumSize
+    }
+  where
+    era = Write.recentEra @era
+
+    txBaseCost =
+        constantTxFee <> estimateTxCost feePerByte empty
+
+    constantTxFee = Write.withConstraints era $
+        Convert.toWallet $ protocolParams ^. Ledger.ppMinFeeBL
+
+    feePerByte = Write.getFeePerByte (Write.recentEra @era) protocolParams
+
+    txBaseSize =
+        estimateTxSize empty
+
+    txInputCost =
+        marginalCostOf empty {txInputCount = 1}
+
+    txInputSize =
+        marginalSizeOf empty {txInputCount = 1}
+
+    txOutputCost bundle =
+        marginalCostOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputSize bundle =
+        marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputMaximumSize = Write.withConstraints era $ (<>)
+        (txOutputSize mempty)
+        (TxSize (protocolParams ^. Ledger.ppMaxValSizeL))
+
+    txOutputMaximumTokenQuantity =
+        TokenQuantity $ fromIntegral $ maxBound @Word64
+
+    txOutputMinimumAdaQuantity addr tokens = Convert.toWallet $
+        Write.computeMinimumCoinForTxOut
+            era
+            protocolParams
+            (mkLedgerTxOut addr (TokenBundle txOutMaxCoin tokens))
+
+    txOutputBelowMinimumAdaQuantity addr bundle =
+        Write.isBelowMinimumCoinForTxOut
+            era
+            protocolParams
+            (mkLedgerTxOut addr bundle)
+
+    txRewardWithdrawalCost =
+        _txRewardWithdrawalCost feePerByte (Right witnessTag)
+
+    txRewardWithdrawalSize =
+        _txRewardWithdrawalSize (Right witnessTag)
+
+    txMaximumSize = Write.withConstraints era $
+        TxSize $ protocolParams ^. Ledger.ppMaxTxSizeL
+
+    empty :: TxSkeleton
+    empty = TxSkeleton
+        { txWitnessTag = witnessTag
+        , txInputCount = 0
+        , txOutputs = []
+        , txChange = []
+        , txPaymentTemplate = Nothing
+        }
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalCostOf :: TxSkeleton -> Coin
+    marginalCostOf skeleton =
+        estimateTxCost feePerByte skeleton <\>
+        estimateTxCost feePerByte empty
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalSizeOf :: TxSkeleton -> TxSize
+    marginalSizeOf =
+        (<\> txBaseSize) . estimateTxSize
+
+    -- Constructs a real transaction output from a token bundle.
+    mkTxOut :: TokenBundle -> TxOut
+    mkTxOut = TxOut dummyAddress
+      where
+        dummyAddress :: Address
+        dummyAddress = Address $ BS.replicate dummyAddressLength nullByte
+
+        dummyAddressLength :: Int
+        dummyAddressLength = 57
+        -- Note: We are at liberty to overestimate the length of an address
+        -- (which is safe). Therefore, we can choose a length that we know is
+        -- greater than or equal to all address lengths.
+
+        nullByte :: Word8
+        nullByte = 0
+
+    mkLedgerTxOut
+        :: HasCallStack
+        => Address
+        -> TokenBundle
+        -> Write.TxOut (Write.ShelleyLedgerEra era)
+    mkLedgerTxOut address bundle =
+        case era of
+            Write.RecentEraBabbage -> Convert.toBabbageTxOut txOut
+            Write.RecentEraConway -> Convert.toConwayTxOut txOut
+          where
+            txOut = TxOut address bundle
+
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalCost', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalCost
+    :: Write.FeePerByte
+    -> Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> Coin
+_txRewardWithdrawalCost feePerByte witType =
+    Convert.toWallet
+    . Write.feeOfBytes feePerByte
+    . unTxSize
+    . _txRewardWithdrawalSize witType
+
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalSize', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalSize
+    :: Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> TxSize
+_txRewardWithdrawalSize _ (Coin 0) = TxSize 0
+_txRewardWithdrawalSize witType _ =
+    Write.sizeOf_Withdrawals 1 <> wits
+  where
+    wits = case witType of
+        Right TxWitnessByronUTxO ->
+            Write.sizeOf_BootstrapWitnesses 1 -
+            Write.sizeOf_BootstrapWitnesses 0
+        Right TxWitnessShelleyUTxO ->
+            Write.sizeOf_VKeyWitnesses 1
+        Left scriptTemplate ->
+            let n = fromIntegral
+                    $ Write.estimateMaxWitnessRequiredPerInput
+                    $ view #template scriptTemplate
+            in Write.sizeOf_VKeyWitnesses n
 
 -- NOTE: Should probably not exist.  We could consider replacing it with
 -- `UTxOAssumptions`, which has the benefit of containing the script template we
