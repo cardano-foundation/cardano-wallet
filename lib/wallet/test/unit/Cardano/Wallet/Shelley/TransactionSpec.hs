@@ -236,6 +236,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1363,6 +1364,14 @@ mockTxConstraints =
     txConstraints
         (mockPParamsForBalancing @Cardano.BabbageEra)
         TxWitnessShelleyUTxO
+
+_mockPParamsForTxConstraints
+    :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
+_mockPParamsForTxConstraints =
+    Write.ProtocolParameters . either (error . show) id $
+        Cardano.toLedgerPParams
+            (Write.shelleyBasedEra @era)
+            _mockCardanoApiPParamsForTxConstraints
 
 -- | A set of protocol parameters for testing 'txConstraints'.
 _mockCardanoApiPParamsForTxConstraints :: Cardano.ProtocolParameters
