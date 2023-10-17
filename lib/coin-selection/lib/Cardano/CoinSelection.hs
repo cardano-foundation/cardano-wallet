@@ -778,7 +778,7 @@ verifySelectionOutputTokenQuantitiesWithinLimit cs _ps selection =
     verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
-    errors = verifyOutputTokenQuantities =<<
+    errors = verifyOutputTokenQuantities cs =<<
         selectionChangeOutputsWithDummyAddresses cs selection
 
 --------------------------------------------------------------------------------
@@ -1209,9 +1209,10 @@ deriving instance SelectionContext ctx =>
 -- protocol.
 --
 verifyOutputTokenQuantities
-    :: (Address ctx, TokenBundle)
+    :: SelectionConstraints ctx
+    -> (Address ctx, TokenBundle)
     -> [SelectionOutputTokenQuantityExceedsLimitError ctx]
-verifyOutputTokenQuantities out =
+verifyOutputTokenQuantities _cs out =
     [ SelectionOutputTokenQuantityExceedsLimitError
         {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
     | let address = fst out
