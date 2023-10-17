@@ -120,6 +120,7 @@ import Cardano.Wallet.Shelley.Transaction
     , mkShelleyWitness
     , mkUnsignedTx
     , newTransactionLayer
+    , txConstraints
     )
 import Cardano.Wallet.Transaction
     ( SelectionOf (..)
@@ -140,7 +141,7 @@ import Cardano.Write.Tx.Balance
 import Cardano.Write.Tx.BalanceSpec
     ( mockPParamsForBalancing )
 import Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), estimateTxSize, txConstraints )
+    ( TxSkeleton (..), estimateTxSize )
 import Control.Arrow
     ( first )
 import Control.Monad

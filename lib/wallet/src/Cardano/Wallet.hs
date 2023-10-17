@@ -489,7 +489,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedgerAddress, toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
-    ( txWitnessTagForKey )
+    ( txConstraints, txWitnessTagForKey )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -656,7 +656,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
-import qualified Cardano.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -1804,7 +1803,7 @@ calcMinimumCoinValues pp txLayer =
     uncurry (constraints ^. #txOutputMinimumAdaQuantity)
      . (\o -> (o ^. #address, o ^. #tokens . #tokens))
   where
-    constraints = Write.txConstraints pp $ transactionWitnessTag txLayer
+    constraints = txConstraints pp $ transactionWitnessTag txLayer
 
 signTransaction
   :: forall k ktype
@@ -2649,10 +2648,10 @@ createMigrationPlan
 createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet ctx
     (Write.InAnyRecentEra _era pp, _) <- readNodeTipStateForTxWrite nl
-    let txConstraints = Write.txConstraints pp (transactionWitnessTag tl)
+    let constraints = txConstraints pp (transactionWitnessTag tl)
         utxo = availableUTxO pending wallet
     pure
-        $ Migration.createPlan txConstraints utxo
+        $ Migration.createPlan constraints utxo
         $ Migration.RewardWithdrawal
         $ withdrawalToCoin rewardWithdrawal
   where
