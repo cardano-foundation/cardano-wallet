@@ -78,8 +78,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.NonRandom
@@ -1212,10 +1210,12 @@ verifyOutputTokenQuantities
     :: SelectionConstraints ctx
     -> (Address ctx, TokenBundle)
     -> [SelectionOutputTokenQuantityExceedsLimitError ctx]
-verifyOutputTokenQuantities _cs out =
+verifyOutputTokenQuantities cs out =
     [ SelectionOutputTokenQuantityExceedsLimitError
-        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+        {address, asset, quantity, quantityMaxBound}
     | let address = fst out
     , (asset, quantity) <- TokenMap.toFlatList $ (snd out) ^. #tokens
-    , quantity > txOutMaxTokenQuantity
+    , quantity > quantityMaxBound
     ]
+  where
+    quantityMaxBound = maximumOutputTokenQuantity cs
