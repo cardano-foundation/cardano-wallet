@@ -138,7 +138,7 @@ import Cardano.Write.Tx
 import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
 import Cardano.Write.Tx.BalanceSpec
-    ( mockPParamsForBalancing )
+    ()
 import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize, txConstraints )
 import Control.Arrow
@@ -1362,7 +1362,7 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParamsForBalancing @Cardano.BabbageEra)
+        (_mockPParamsForTxConstraints @Cardano.BabbageEra)
         TxWitnessShelleyUTxO
 
 _mockPParamsForTxConstraints
