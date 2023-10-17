@@ -9,7 +9,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -36,10 +35,8 @@ module Cardano.Write.Tx.SizeEstimation
 
      -- * Needed for estimateSignedTxSize
     , sizeOf_BootstrapWitnesses
-
-      -- * For the wallet
-    , _txRewardWithdrawalCost
-    , _txRewardWithdrawalSize
+    , sizeOf_VKeyWitnesses
+    , sizeOf_Withdrawals
     )
 
     where
@@ -64,8 +61,6 @@ import Cardano.Write.Tx.Sign
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Write.UTxOAssumptions
     ( UTxOAssumptions (..) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
 import Data.Set
@@ -79,49 +74,10 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
-import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
-
--- | Like the 'TxConstraints' field 'txRewardWithdrawalCost', but with added
--- support for shared wallets via the 'CA.ScriptTemplate' argument.
---
--- We may or may not want to support shared wallets in the full txConstraints.
-_txRewardWithdrawalCost
-    :: Write.FeePerByte
-    -> Either CA.ScriptTemplate TxWitnessTag
-    -> Coin
-    -> Coin
-_txRewardWithdrawalCost feePerByte witType =
-    Convert.toWallet
-    . Write.feeOfBytes feePerByte
-    . unTxSize
-    . _txRewardWithdrawalSize witType
-
--- | Like the 'TxConstraints' field 'txRewardWithdrawalSize', but with added
--- support for shared wallets via the 'CA.ScriptTemplate' argument.
---
--- We may or may not want to support shared wallets in the full txConstraints.
-_txRewardWithdrawalSize
-    :: Either CA.ScriptTemplate TxWitnessTag
-    -> Coin
-    -> TxSize
-_txRewardWithdrawalSize _ (Coin 0) = TxSize 0
-_txRewardWithdrawalSize witType _ =
-    sizeOf_Withdrawals 1 <> wits
-  where
-    wits = case witType of
-        Right TxWitnessByronUTxO ->
-            sizeOf_BootstrapWitnesses 1 - sizeOf_BootstrapWitnesses 0
-        Right TxWitnessShelleyUTxO ->
-            sizeOf_VKeyWitnesses 1
-        Left scriptTemplate ->
-            let n = fromIntegral $ estimateMaxWitnessRequiredPerInput
-                    $ view #template scriptTemplate
-            in sizeOf_VKeyWitnesses n
 
 --------------------------------------------------------------------------------
 -- Size estimation

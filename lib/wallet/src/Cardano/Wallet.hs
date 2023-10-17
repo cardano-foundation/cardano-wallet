@@ -489,7 +489,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedgerAddress, toWallet, toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
-    ( txConstraints, txWitnessTagForKey )
+    ( txConstraints, txWitnessTagForKey, _txRewardWithdrawalCost )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -521,7 +521,7 @@ import Cardano.Write.Tx.Balance
     , constructUTxOIndex
     )
 import Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..), _txRewardWithdrawalCost )
+    ( TxWitnessTag (..) )
 import Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow

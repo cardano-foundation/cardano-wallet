@@ -45,6 +45,8 @@ module Cardano.Wallet.Shelley.Transaction
     , mkShelleyWitness
     , mkTx
     , mkUnsignedTx
+    , _txRewardWithdrawalCost
+    , _txRewardWithdrawalSize
     , txWitnessTagForKey
     ) where
 
@@ -113,11 +115,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..)
-    , TxSize (TxSize)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
+    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -165,13 +163,7 @@ import Cardano.Wallet.Util
 import Cardano.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..)
-    , TxWitnessTag (..)
-    , estimateTxCost
-    , estimateTxSize
-    , _txRewardWithdrawalCost
-    , _txRewardWithdrawalSize
-    )
+    ( TxSkeleton (..), TxWitnessTag (..), estimateTxCost, estimateTxSize )
 import Control.Arrow
     ( left, second )
 import Control.Lens
@@ -201,6 +193,7 @@ import Data.Word
 import Ouroboros.Network.Block
     ( SlotNo )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
@@ -216,6 +209,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Cardano.Write.Tx as Write
+import qualified Cardano.Write.Tx.Sign as Write
+import qualified Cardano.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1228,6 +1223,45 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
             Write.RecentEraConway -> Convert.toConwayTxOut txOut
           where
             txOut = TxOut address bundle
+
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalCost', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalCost
+    :: Write.FeePerByte
+    -> Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> Coin
+_txRewardWithdrawalCost feePerByte witType =
+    Convert.toWallet
+    . Write.feeOfBytes feePerByte
+    . unTxSize
+    . _txRewardWithdrawalSize witType
+
+-- | Like the 'TxConstraints' field 'txRewardWithdrawalSize', but with added
+-- support for shared wallets via the 'CA.ScriptTemplate' argument.
+--
+-- We may or may not want to support shared wallets in the full txConstraints.
+_txRewardWithdrawalSize
+    :: Either CA.ScriptTemplate TxWitnessTag
+    -> Coin
+    -> TxSize
+_txRewardWithdrawalSize _ (Coin 0) = TxSize 0
+_txRewardWithdrawalSize witType _ =
+    Write.sizeOf_Withdrawals 1 <> wits
+  where
+    wits = case witType of
+        Right TxWitnessByronUTxO ->
+            Write.sizeOf_BootstrapWitnesses 1 -
+            Write.sizeOf_BootstrapWitnesses 0
+        Right TxWitnessShelleyUTxO ->
+            Write.sizeOf_VKeyWitnesses 1
+        Left scriptTemplate ->
+            let n = fromIntegral
+                    $ Write.estimateMaxWitnessRequiredPerInput
+                    $ view #template scriptTemplate
+            in Write.sizeOf_VKeyWitnesses n
 
 -- NOTE: Should probably not exist.  We could consider replacing it with
 -- `UTxOAssumptions`, which has the benefit of containing the script template we
