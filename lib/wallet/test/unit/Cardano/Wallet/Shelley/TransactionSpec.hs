@@ -71,6 +71,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -78,7 +80,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange )
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -138,8 +140,6 @@ import Cardano.Write.Tx
     )
 import Cardano.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
-import Cardano.Write.Tx.BalanceSpec
-    ( mockPParamsForBalancing )
 import Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize )
 import Control.Arrow
@@ -174,6 +174,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Word
@@ -199,12 +201,14 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , elements
     , forAll
     , forAllShow
     , frequency
     , label
     , oneof
     , property
+    , scale
     , suchThat
     , vector
     , vectorOf
@@ -225,6 +229,9 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Alonzo.Core as Alonzo
+import qualified Cardano.Ledger.Babbage.Core as Babbage
+import qualified Cardano.Ledger.Babbage.Core as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -232,6 +239,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1357,8 +1365,63 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParamsForBalancing @Cardano.BabbageEra)
+        (mockPParamsForTxConstraints @Cardano.BabbageEra)
         TxWitnessShelleyUTxO
+  where
+    mockPParamsForTxConstraints
+        :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
+    mockPParamsForTxConstraints =
+        Write.ProtocolParameters . either (error . show) id $
+            Cardano.toLedgerPParams
+                (Write.shelleyBasedEra @era)
+                mockCardanoApiPParamsForTxConstraints
+
+    mockCardanoApiPParamsForTxConstraints :: Cardano.ProtocolParameters
+    mockCardanoApiPParamsForTxConstraints = Cardano.ProtocolParameters
+        { Cardano.protocolParamTxFeeFixed = 155_381
+        , Cardano.protocolParamTxFeePerByte = 44
+        , Cardano.protocolParamMaxTxSize = 16_384
+        , Cardano.protocolParamMinUTxOValue = Nothing
+        , Cardano.protocolParamMaxTxExUnits =
+            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+        , Cardano.protocolParamMaxValueSize = Just 4_000
+        , Cardano.protocolParamProtocolVersion = (6, 0)
+        , Cardano.protocolParamDecentralization = Just 0
+        , Cardano.protocolParamExtraPraosEntropy = Nothing
+        , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
+        , Cardano.protocolParamMaxBlockBodySize = 100_000
+        , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
+        , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
+        , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
+        , Cardano.protocolParamPoolRetireMaxEpoch = Cardano.EpochNo 2
+        , Cardano.protocolParamStakePoolTargetNum = 100
+        , Cardano.protocolParamPoolPledgeInfluence = 0
+        , Cardano.protocolParamMonetaryExpansion = 0
+        , Cardano.protocolParamTreasuryCut = 0
+        , Cardano.protocolParamUTxOCostPerWord =
+            Just $ Cardano.fromShelleyLovelace $
+                Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
+        , Cardano.protocolParamUTxOCostPerByte =
+            Just $ Cardano.fromShelleyLovelace $
+                Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
+        -- Note: since 'txConstraints' does not make use of cost models, here
+        -- we use the simplest possible value, which is 'mempty'.
+        , Cardano.protocolParamCostModels = mempty
+        , Cardano.protocolParamPrices =
+            Just $ Cardano.ExecutionUnitPrices (721 % 10_000_000) (577 % 10_000)
+        , Cardano.protocolParamMaxBlockExUnits =
+            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+        , Cardano.protocolParamCollateralPercent = Just 150
+        , Cardano.protocolParamMaxCollateralInputs = Just 3
+        }
+
+    testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
+    testParameter_coinsPerUTxOWord_Alonzo
+        = Ledger.CoinPerWord $ Ledger.Coin 34_482
+
+    testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
+    testParameter_coinsPerUTxOByte_Babbage
+        = Ledger.CoinPerByte $ Ledger.Coin 4_310
 
 data MockSelection = MockSelection
     { txInputCount :: Int
@@ -1444,6 +1507,12 @@ newtype Large a = Large { unLarge :: a }
 instance Arbitrary (Large TokenBundle) where
     arbitrary = fmap Large . genTxOutTokenBundle =<< choose (1, 128)
 
+instance Arbitrary AnyRecentEra where
+    arbitrary = elements
+        [ AnyRecentEra RecentEraBabbage
+        , AnyRecentEra RecentEraConway
+        ]
+
 instance Arbitrary AssetId where
     arbitrary =
         TokenBundle.AssetId
@@ -1457,6 +1526,25 @@ instance Arbitrary AssetId where
         -- dominate so we can test the sanity of the estimation algorithm.
         <*> (UnsafeTokenName . BS.pack <$> vector 128)
 
+instance Arbitrary Coin where
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = do
+        bs <- vectorOf 32 arbitrary
+        pure $ Hash $ BS.pack bs
+
+instance Arbitrary Cardano.NetworkId where
+    arbitrary = oneof
+        [ pure Cardano.Mainnet
+        , Cardano.Testnet . Cardano.NetworkMagic <$> arbitrary
+        ]
+
+instance Arbitrary TokenBundle where
+    arbitrary = genTokenBundleSmallRange
+    shrink = shrinkTokenBundleSmallRange
+
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyId
     shrink = shrinkTokenPolicyId
@@ -1465,6 +1553,22 @@ instance Arbitrary (Script KeyHash) where
     arbitrary = do
         keyHashes <- vectorOf 10 arbitrary
         genScript keyHashes
+
+instance Arbitrary TxIn where
+    arbitrary = do
+        ix <- scale (`mod` 3) arbitrary
+        txId <- arbitrary
+        pure $ TxIn txId ix
+
+instance Arbitrary TxOut where
+    arbitrary =
+        TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
+      where
+        addr = Address $ BS.pack (1:replicate 56 0)
+    shrink (TxOut addr bundle) =
+        [ TxOut addr bundle'
+        | bundle' <- shrinkTokenBundleSmallRange bundle
+        ]
 
 instance Arbitrary KeyHash where
     arbitrary = do
