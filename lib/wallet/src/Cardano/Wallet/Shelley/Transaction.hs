@@ -1217,18 +1217,18 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
         nullByte :: Word8
         nullByte = 0
 
-mkLedgerTxOut
-    :: HasCallStack
-    => Write.RecentEra era
-    -> Address
-    -> TokenBundle
-    -> Write.TxOut (Write.ShelleyLedgerEra era)
-mkLedgerTxOut txOutEra address bundle =
-    case txOutEra of
-        Write.RecentEraBabbage -> Convert.toBabbageTxOut txOut
-        Write.RecentEraConway -> Convert.toConwayTxOut txOut
-      where
-        txOut = TxOut address bundle
+    mkLedgerTxOut
+        :: HasCallStack
+        => Write.RecentEra era
+        -> Address
+        -> TokenBundle
+        -> Write.TxOut (Write.ShelleyLedgerEra era)
+    mkLedgerTxOut txOutEra address bundle =
+        case txOutEra of
+            Write.RecentEraBabbage -> Convert.toBabbageTxOut txOut
+            Write.RecentEraConway -> Convert.toConwayTxOut txOut
+          where
+            txOut = TxOut address bundle
 
 -- NOTE: Should probably not exist.  We could consider replacing it with
 -- `UTxOAssumptions`, which has the benefit of containing the script template we
