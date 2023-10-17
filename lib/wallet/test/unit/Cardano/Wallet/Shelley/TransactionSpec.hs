@@ -173,6 +173,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Word
@@ -224,6 +226,9 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Alonzo.Core as Alonzo
+import qualified Cardano.Ledger.Babbage.Core as Babbage
+import qualified Cardano.Ledger.Babbage.Core as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -1358,6 +1363,54 @@ mockTxConstraints =
     txConstraints
         (mockPParamsForBalancing @Cardano.BabbageEra)
         TxWitnessShelleyUTxO
+
+-- | A set of protocol parameters for testing 'txConstraints'.
+_mockCardanoApiPParamsForTxConstraints :: Cardano.ProtocolParameters
+_mockCardanoApiPParamsForTxConstraints = Cardano.ProtocolParameters
+    { Cardano.protocolParamTxFeeFixed = 155_381
+    , Cardano.protocolParamTxFeePerByte = 44
+    , Cardano.protocolParamMaxTxSize = 16_384
+    , Cardano.protocolParamMinUTxOValue = Nothing
+    , Cardano.protocolParamMaxTxExUnits =
+        Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+    , Cardano.protocolParamMaxValueSize = Just 4_000
+    , Cardano.protocolParamProtocolVersion = (6, 0)
+    , Cardano.protocolParamDecentralization = Just 0
+    , Cardano.protocolParamExtraPraosEntropy = Nothing
+    , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
+    , Cardano.protocolParamMaxBlockBodySize = 100_000
+    , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
+    , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
+    , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
+    , Cardano.protocolParamPoolRetireMaxEpoch = Cardano.EpochNo 2
+    , Cardano.protocolParamStakePoolTargetNum = 100
+    , Cardano.protocolParamPoolPledgeInfluence = 0
+    , Cardano.protocolParamMonetaryExpansion = 0
+    , Cardano.protocolParamTreasuryCut = 0
+    , Cardano.protocolParamUTxOCostPerWord =
+        Just $ Cardano.fromShelleyLovelace $
+            Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
+    , Cardano.protocolParamUTxOCostPerByte =
+        Just $ Cardano.fromShelleyLovelace $
+            Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
+    -- Note: since 'txConstraints' does not make use of cost models, here
+    -- we use the simplest possible value, which is 'mempty'.
+    , Cardano.protocolParamCostModels = mempty
+    , Cardano.protocolParamPrices =
+        Just $ Cardano.ExecutionUnitPrices (721 % 10_000_000) (577 % 10_000)
+    , Cardano.protocolParamMaxBlockExUnits =
+        Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+    , Cardano.protocolParamCollateralPercent = Just 150
+    , Cardano.protocolParamMaxCollateralInputs = Just 3
+    }
+
+testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
+testParameter_coinsPerUTxOWord_Alonzo
+    = Ledger.CoinPerWord $ Ledger.Coin 34_482
+
+testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
+testParameter_coinsPerUTxOByte_Babbage
+    = Ledger.CoinPerByte $ Ledger.Coin 4_310
 
 data MockSelection = MockSelection
     { txInputCount :: Int
