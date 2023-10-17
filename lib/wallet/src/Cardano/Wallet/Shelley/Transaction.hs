@@ -1162,13 +1162,13 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
         Write.computeMinimumCoinForTxOut
             era
             protocolParams
-            (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
+            (mkLedgerTxOut addr (TokenBundle txOutMaxCoin tokens))
 
     txOutputBelowMinimumAdaQuantity addr bundle =
         Write.isBelowMinimumCoinForTxOut
             era
             protocolParams
-            (mkLedgerTxOut era addr bundle)
+            (mkLedgerTxOut addr bundle)
 
     txRewardWithdrawalCost =
         _txRewardWithdrawalCost feePerByte (Right witnessTag)
@@ -1219,12 +1219,11 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
 
     mkLedgerTxOut
         :: HasCallStack
-        => Write.RecentEra era
-        -> Address
+        => Address
         -> TokenBundle
         -> Write.TxOut (Write.ShelleyLedgerEra era)
-    mkLedgerTxOut txOutEra address bundle =
-        case txOutEra of
+    mkLedgerTxOut address bundle =
+        case era of
             Write.RecentEraBabbage -> Convert.toBabbageTxOut txOut
             Write.RecentEraConway -> Convert.toConwayTxOut txOut
           where
