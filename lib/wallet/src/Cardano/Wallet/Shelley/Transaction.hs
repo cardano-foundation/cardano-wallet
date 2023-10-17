@@ -1180,7 +1180,13 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
         TxSize $ protocolParams ^. Ledger.ppMaxTxSizeL
 
     empty :: TxSkeleton
-    empty = emptyTxSkeleton witnessTag
+    empty = TxSkeleton
+        { txWitnessTag = witnessTag
+        , txInputCount = 0
+        , txOutputs = []
+        , txChange = []
+        , txPaymentTemplate = Nothing
+        }
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
@@ -1210,19 +1216,6 @@ txConstraints (ProtocolParameters protocolParams) witnessTag = TxConstraints
 
         nullByte :: Word8
         nullByte = 0
-
--- | Constructs an empty transaction skeleton.
---
--- This may be used to estimate the size and cost of an empty transaction.
---
-emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
-emptyTxSkeleton txWitnessTag = TxSkeleton
-    { txWitnessTag
-    , txInputCount = 0
-    , txOutputs = []
-    , txChange = []
-    , txPaymentTemplate = Nothing
-    }
 
 mkLedgerTxOut
     :: HasCallStack
