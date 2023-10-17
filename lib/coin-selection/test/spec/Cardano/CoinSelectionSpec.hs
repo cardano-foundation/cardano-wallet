@@ -77,8 +77,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Except
@@ -611,7 +609,7 @@ genOutputsToCover = do
             ]
       where
         limit :: Natural
-        limit = unTokenQuantity txOutMaxTokenQuantity
+        limit = unTokenQuantity testMaximumOutputTokenQuantity
 
 shrinkOutputsToCover
     :: [(TestAddress, TokenBundle)] -> [[(TestAddress, TokenBundle)]]
