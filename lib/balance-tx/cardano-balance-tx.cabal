@@ -42,6 +42,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-balance-tx:internal
     , cardano-coin-selection
     , cardano-crypto-class
     , cardano-ledger-allegra
@@ -57,13 +58,10 @@ library
     , cardano-strict-containers
     , cardano-wallet-conversions
     , cardano-wallet-primitive
-    , cardano-wallet-test-utils
     , cborg
     , containers
-    , deepseq
     , fmt
     , generic-lens
-    , generics-sop
     , int-cast
     , lens
     , MonadRandom
@@ -88,15 +86,26 @@ library
     Cardano.Write.Tx.SizeEstimation
     Cardano.Write.Tx.TimeTranslation
     Cardano.Write.UTxOAssumptions
-    Internal.Cardano.Write.Tx.Balance.CoinSelection
-    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 library internal
   import:          language, opts-lib
   hs-source-dirs:  lib/internal
   build-depends:
     , base
+    , cardano-coin-selection
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , containers
+    , deepseq
+    , fmt
+    , generic-lens
+    , generics-sop
+    , MonadRandom
+    , QuickCheck
+    , transformers
   exposed-modules:
+    Internal.Cardano.Write.Tx.Balance.CoinSelection
+    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -110,7 +119,7 @@ test-suite test
     , bytestring
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-coin-selection
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
