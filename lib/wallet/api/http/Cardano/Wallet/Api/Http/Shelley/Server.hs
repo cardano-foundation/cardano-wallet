@@ -423,6 +423,8 @@ import Cardano.Wallet.Api.Types.Transaction
     , fromApiLimit
     , mkApiWitnessCount
     )
+import Cardano.Wallet.Balance.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -445,8 +447,6 @@ import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
-import Cardano.Wallet.Primitive.Migration
-    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , availableBalance

@@ -239,6 +239,9 @@ library
     Cardano.Wallet.Address.Keys.WitnessCount
     Cardano.Wallet.Address.MaybeLight
     Cardano.Wallet.Address.States.IsOwned
+    Cardano.Wallet.Balance.Migration
+    Cardano.Wallet.Balance.Migration.Planning
+    Cardano.Wallet.Balance.Migration.Selection
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
@@ -295,9 +298,6 @@ library
     Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
-    Cardano.Wallet.Primitive.Migration
-    Cardano.Wallet.Primitive.Migration.Planning
-    Cardano.Wallet.Primitive.Migration.Selection
     Cardano.Wallet.Primitive.Model
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.SyncProgress
@@ -868,6 +868,9 @@ test-suite unit
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
+    Cardano.Wallet.Balance.MigrationSpec
+    Cardano.Wallet.Balance.Migration.PlanningSpec
+    Cardano.Wallet.Balance.Migration.SelectionSpec
     Cardano.Wallet.Checkpoints.PolicySpec
     Cardano.Wallet.CheckpointsSpec
     Cardano.Wallet.DB.Arbitrary
@@ -903,9 +906,6 @@ test-suite unit
     Cardano.Wallet.NetworkSpec
     Cardano.Wallet.Primitive.BlockSummarySpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
-    Cardano.Wallet.Primitive.Migration.PlanningSpec
-    Cardano.Wallet.Primitive.Migration.SelectionSpec
-    Cardano.Wallet.Primitive.MigrationSpec
     Cardano.Wallet.Primitive.ModelSpec
     Cardano.Wallet.Primitive.Passphrase.LegacySpec
     Cardano.Wallet.Primitive.PassphraseSpec

@@ -1,16 +1,16 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-module Cardano.Wallet.Primitive.MigrationSpec
+module Cardano.Wallet.Balance.MigrationSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Migration
+import Cardano.Wallet.Balance.Migration
     ( RewardWithdrawal (..), createPlan )
-import Cardano.Wallet.Primitive.Migration.Planning
+import Cardano.Wallet.Balance.Migration.Planning
     ( categorizeUTxO, uncategorizeUTxO )
-import Cardano.Wallet.Primitive.Migration.SelectionSpec
+import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockTxConstraints
     , genRewardWithdrawal
     , genTokenBundleMixed
@@ -42,13 +42,13 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( verify )
 
-import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
+import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec =
-    describe "Cardano.Wallet.Primitive.MigrationSpec" $
+    describe "Cardano.Wallet.Balance.MigrationSpec" $
 
         describe "Creating migration plans (with concrete wallet types)" $ do
 

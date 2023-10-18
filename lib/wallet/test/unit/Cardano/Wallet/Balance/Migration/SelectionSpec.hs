@@ -9,12 +9,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.Migration.SelectionSpec
+module Cardano.Wallet.Balance.Migration.SelectionSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Migration.Selection
+import Cardano.Wallet.Balance.Migration.Selection
     ( RewardWithdrawal (..)
     , Selection (..)
     , SelectionCorrectness (..)
@@ -105,7 +105,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( report, verify )
 
-import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
+import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -116,7 +116,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
+spec = describe "Cardano.Wallet.Balance.Migration.SelectionSpec" $
 
     modifyMaxSuccess (const 1_000) $ do
 
