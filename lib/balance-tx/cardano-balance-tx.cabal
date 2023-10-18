@@ -38,11 +38,18 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib/main
   build-depends:
+    , cardano-balance-tx:internal
+  exposed-modules:
+
+library internal
+  import:          language, opts-lib
+  hs-source-dirs:  lib/internal
+  visibility:      public
+  build-depends:
     , base
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-balance-tx:internal
     , cardano-coin-selection
     , cardano-crypto-class
     , cardano-ledger-allegra
@@ -58,10 +65,13 @@ library
     , cardano-strict-containers
     , cardano-wallet-conversions
     , cardano-wallet-primitive
+    , cardano-wallet-test-utils
     , cborg
     , containers
+    , deepseq
     , fmt
     , generic-lens
+    , generics-sop
     , int-cast
     , lens
     , MonadRandom
@@ -79,6 +89,8 @@ library
     Internal.Cardano.Write.ProtocolParameters
     Internal.Cardano.Write.Tx
     Internal.Cardano.Write.Tx.Balance
+    Internal.Cardano.Write.Tx.Balance.CoinSelection
+    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
     Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     Internal.Cardano.Write.Tx.Gen
     Internal.Cardano.Write.Tx.Redeemers
@@ -86,26 +98,6 @@ library
     Internal.Cardano.Write.Tx.SizeEstimation
     Internal.Cardano.Write.Tx.TimeTranslation
     Internal.Cardano.Write.UTxOAssumptions
-
-library internal
-  import:          language, opts-lib
-  hs-source-dirs:  lib/internal
-  build-depends:
-    , base
-    , cardano-coin-selection
-    , cardano-wallet-primitive
-    , cardano-wallet-test-utils
-    , containers
-    , deepseq
-    , fmt
-    , generic-lens
-    , generics-sop
-    , MonadRandom
-    , QuickCheck
-    , transformers
-  exposed-modules:
-    Internal.Cardano.Write.Tx.Balance.CoinSelection
-    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -139,7 +131,7 @@ test-suite test
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
     Internal.Cardano.Write.TxSpec
-    Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec

@@ -68,7 +68,7 @@ library
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-binary
     , cardano-cli
     , cardano-coin-selection
@@ -386,7 +386,7 @@ library cardano-wallet-api-http
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-binary
     , cardano-cli
     , cardano-crypto
@@ -708,7 +708,7 @@ test-suite unit
     , cardano-addresses
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-binary
     , cardano-coin-selection
     , cardano-crypto
@@ -985,7 +985,7 @@ benchmark restore
     , base
     , bytestring
     , cardano-addresses
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
@@ -1055,7 +1055,7 @@ benchmark db
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-application-extras
@@ -1094,7 +1094,7 @@ benchmark api
     , base
     , bytestring
     , cardano-api
-    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-bench
