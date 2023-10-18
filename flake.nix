@@ -28,7 +28,7 @@
   #   - dockerImage - tarball of the docker image
   #
   # Other documentation:
-  #   https://input-output-hk.github.io/cardano-wallet/dev/Building#nix-build
+  #   https://cardano-foundation.github.io/cardano-wallet/dev/Building#nix-build
   #
   ############################################################################
 

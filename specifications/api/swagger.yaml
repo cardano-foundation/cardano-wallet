@@ -11,7 +11,7 @@ info:
     </p>
 externalDocs:
   description: Need more? Click here to access our API guide and walkthrough.
-  url: https://input-output-hk.github.io/cardano-wallet/
+  url: https://cardano-foundation.github.io/cardano-wallet/
 
 servers:
   - url: https://localhost:8090/v2/
