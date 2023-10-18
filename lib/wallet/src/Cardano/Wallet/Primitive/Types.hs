@@ -173,8 +173,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..), parseURI, uriToText )
-import Cardano.Write.Tx
-    ( MaybeInRecentEra )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -247,6 +245,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.Tx
+    ( MaybeInRecentEra )
 import Network.URI
     ( URI (..), uriToString )
 import NoThunks.Class
@@ -256,9 +256,9 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..), oneof )
 
-import qualified Cardano.Write.ProtocolParameters as Write
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata

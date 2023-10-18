@@ -559,10 +559,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Cardano.Write.Tx
-    ( AnyRecentEra (..) )
-import Cardano.Write.Tx.Balance
-    ( Redeemer (..), UTxOAssumptions (..) )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -646,6 +642,10 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.Tx
+    ( AnyRecentEra (..) )
+import Internal.Cardano.Write.Tx.Balance
+    ( Redeemer (..), UTxOAssumptions (..) )
 import Network.Ntp
     ( NtpClient, getNtpStatus )
 import Network.Socket
@@ -705,10 +705,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
-import qualified Cardano.Write.ProtocolParameters as Write
-import qualified Cardano.Write.Tx as Write
-import qualified Cardano.Write.Tx.Balance as Write
-import qualified Cardano.Write.Tx.Sign as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -716,6 +712,10 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
+import qualified Internal.Cardano.Write.Tx.Balance as Write
+import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp

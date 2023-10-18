@@ -26,7 +26,7 @@
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
-module Cardano.Write.Tx.BalanceSpec
+module Internal.Cardano.Write.Tx.BalanceSpec
     ( spec
     ) where
 
@@ -137,61 +137,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..), WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    , Datum (..)
-    , FeePerByte (..)
-    , InAnyRecentEra (..)
-    , IsRecentEra (..)
-    , RecentEra (..)
-    , ShelleyLedgerEra
-    , Tx
-    , TxIn
-    , TxOut
-    , TxOutInRecentEra (..)
-    , TxOutInRecentEra (..)
-    , UTxO
-    , fromCardanoTx
-    , fromCardanoUTxO
-    , recentEra
-    , toCardanoTx
-    , toCardanoUTxO
-    , utxoFromTxOutsInRecentEra
-    , withConstraints
-    )
-import Cardano.Write.Tx.Balance
-    ( ChangeAddressGen (..)
-    , ErrAssignRedeemers (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxOutputError (..)
-    , ErrBalanceTxOutputErrorInfo (..)
-    , ErrMoreSurplusNeeded (..)
-    , ErrUpdateSealedTx (..)
-    , PartialTx (..)
-    , Redeemer (..)
-    , TxFeeAndChange (..)
-    , TxFeeUpdate (UseNewTxFee)
-    , TxUpdate (TxUpdate)
-    , UTxOAssumptions (..)
-    , balanceTransaction
-    , constructUTxOIndex
-    , costOfIncreasingCoin
-    , distributeSurplus
-    , distributeSurplusDelta
-    , fromWalletUTxO
-    , maximumCostOfIncreasingCoin
-    , noTxUpdate
-    , posAndNegFromCardanoValue
-    , sizeOfCoin
-    , updateTx
-    )
-import Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
-import Cardano.Write.Tx.SizeEstimation
-    ( sizeOf_BootstrapWitnesses )
-import Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Lens
     ( set, (%~), (.~), (^.) )
 import Control.Monad
@@ -244,6 +189,61 @@ import Fmt
     ( Buildable (..), blockListF, blockListF', fmt, nameF, pretty )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.Tx
+    ( AnyRecentEra (..)
+    , Datum (..)
+    , FeePerByte (..)
+    , InAnyRecentEra (..)
+    , IsRecentEra (..)
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , Tx
+    , TxIn
+    , TxOut
+    , TxOutInRecentEra (..)
+    , TxOutInRecentEra (..)
+    , UTxO
+    , fromCardanoTx
+    , fromCardanoUTxO
+    , recentEra
+    , toCardanoTx
+    , toCardanoUTxO
+    , utxoFromTxOutsInRecentEra
+    , withConstraints
+    )
+import Internal.Cardano.Write.Tx.Balance
+    ( ChangeAddressGen (..)
+    , ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrMoreSurplusNeeded (..)
+    , ErrUpdateSealedTx (..)
+    , PartialTx (..)
+    , Redeemer (..)
+    , TxFeeAndChange (..)
+    , TxFeeUpdate (UseNewTxFee)
+    , TxUpdate (TxUpdate)
+    , UTxOAssumptions (..)
+    , balanceTransaction
+    , constructUTxOIndex
+    , costOfIncreasingCoin
+    , distributeSurplus
+    , distributeSurplusDelta
+    , fromWalletUTxO
+    , maximumCostOfIncreasingCoin
+    , noTxUpdate
+    , posAndNegFromCardanoValue
+    , sizeOfCoin
+    , updateTx
+    )
+import Internal.Cardano.Write.Tx.Sign
+    ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( sizeOf_BootstrapWitnesses )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
@@ -348,8 +348,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
-import qualified Cardano.Write.ProtocolParameters as Write
-import qualified Cardano.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -363,6 +361,8 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 

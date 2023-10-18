@@ -509,21 +509,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Write.Tx
-    ( recentEra )
-import Cardano.Write.Tx.Balance
-    ( ChangeAddressGen (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxUnableToCreateChangeError (..)
-    , PartialTx (..)
-    , UTxOAssumptions (..)
-    , balanceTransaction
-    , constructUTxOIndex
-    )
-import Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..) )
-import Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation )
+    ( balanceTransaction )
 import Control.Arrow
     ( (>>>) )
 import Control.DeepSeq
@@ -622,6 +608,21 @@ import GHC.Num
     ( Natural )
 import GHC.TypeNats
     ( Nat )
+import Internal.Cardano.Write.Tx
+    ( recentEra )
+import Internal.Cardano.Write.Tx.Balance
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    , PartialTx (..)
+    , UTxOAssumptions (..)
+    , constructUTxOIndex
+    )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( TxWitnessTag (..) )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation )
 import Ouroboros.Consensus.Util.IOLike
     ( MonadMonotonicTime, Time, diffTime, getMonotonicTime )
 import Statistics.Quantile
@@ -654,8 +655,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Write.ProtocolParameters as Write
-import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -664,6 +663,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 
 -- $Development
 -- __Naming Conventions__

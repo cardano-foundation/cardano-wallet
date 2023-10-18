@@ -26,7 +26,7 @@
 -- to the ledger types, and only caring about the two latest eras (Cf.
 -- 'RecentEra'). Intended to be used by things like balanceTx, constructTx and
 -- wallet migration.
-module Cardano.Write.Tx
+module Internal.Cardano.Write.Tx
     (
     -- * Eras
 

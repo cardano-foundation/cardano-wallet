@@ -23,7 +23,7 @@
 --
 -- Module containing logic relating to size estimation as needed, mainly for
 -- the purpose of coin selection.
-module Cardano.Write.Tx.SizeEstimation
+module Internal.Cardano.Write.Tx.SizeEstimation
     ( -- * Needed for normal coin selection for balanceTx
       estimateTxSize
     , estimateTxCost
@@ -55,18 +55,18 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Write.Tx
-    ( FeePerByte (..) )
-import Cardano.Write.Tx.Sign
-    ( estimateMaxWitnessRequiredPerInput )
-import Cardano.Write.UTxOAssumptions
-    ( UTxOAssumptions (..) )
 import Data.Generics.Labels
     ()
 import Data.Set
     ( Set )
 import GHC.Generics
     ( Generic )
+import Internal.Cardano.Write.Tx
+    ( FeePerByte (..) )
+import Internal.Cardano.Write.Tx.Sign
+    ( estimateMaxWitnessRequiredPerInput )
+import Internal.Cardano.Write.UTxOAssumptions
+    ( UTxOAssumptions (..) )
 import Numeric.Natural
     ( Natural )
 

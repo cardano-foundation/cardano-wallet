@@ -5,17 +5,17 @@
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
 --
-module Cardano.Write.Tx.Gen
+module Internal.Cardano.Write.Tx.Gen
     ( genDatumHash
     )
     where
 
 import Prelude
 
-import Cardano.Write.Tx
-    ( DatumHash, datumHashFromBytes )
 import Data.Maybe
     ( fromMaybe )
+import Internal.Cardano.Write.Tx
+    ( DatumHash, datumHashFromBytes )
 import Test.QuickCheck
     ( Gen, arbitrary, vectorOf )
 

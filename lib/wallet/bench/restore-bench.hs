@@ -170,8 +170,6 @@ import Cardano.Wallet.Transaction
     ( PreSelection (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
-import Cardano.Write.Tx
-    ( AnyRecentEra (..) )
 import Control.Arrow
     ( first )
 import Control.Exception
@@ -226,6 +224,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
+import Internal.Cardano.Write.Tx
+    ( AnyRecentEra (..) )
 import Numeric
     ( fromRat, showFFloat )
 import Ouroboros.Network.Client.Wallet
@@ -254,13 +254,13 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
-import qualified Cardano.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Internal.Cardano.Write.Tx as Write
 
 main :: IO ()
 main = execBenchWithNode argsNetworkConfig cardanoRestoreBench >>= exitWith

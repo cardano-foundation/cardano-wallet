@@ -14,7 +14,7 @@
 -- License: Apache-2.0
 --
 -- Module containing 'assignScriptRedeemers'
-module Cardano.Write.Tx.Redeemers
+module Internal.Cardano.Write.Tx.Redeemers
     ( assignScriptRedeemers
     , ErrAssignRedeemers (..)
     , Redeemer (..)
@@ -38,20 +38,6 @@ import Cardano.Slotting.EpochInfo
     ( EpochInfo, hoistEpochInfo )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Write.Tx
-    ( IsRecentEra (recentEra)
-    , PParams
-    , RecentEraLedgerConstraints
-    , ShelleyLedgerEra
-    , StandardCrypto
-    , UTxO
-    , fromCardanoTx
-    , shelleyBasedEra
-    , txBody
-    , withConstraints
-    )
-import Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -82,6 +68,20 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import Internal.Cardano.Write.Tx
+    ( IsRecentEra (recentEra)
+    , PParams
+    , RecentEraLedgerConstraints
+    , ShelleyLedgerEra
+    , StandardCrypto
+    , UTxO
+    , fromCardanoTx
+    , shelleyBasedEra
+    , txBody
+    , withConstraints
+    )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation, epochInfo, systemStartTime )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

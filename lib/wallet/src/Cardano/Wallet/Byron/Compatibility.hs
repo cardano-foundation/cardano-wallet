@@ -103,8 +103,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
-import qualified Cardano.Write.Tx as Write
 import qualified Data.Map.Strict as Map
+import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Block as O
 
 --------------------------------------------------------------------------------

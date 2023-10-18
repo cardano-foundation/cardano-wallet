@@ -23,7 +23,7 @@
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
-module Cardano.Write.Tx.Balance
+module Internal.Cardano.Write.Tx.Balance
     (
     -- * Balancing transactions
       balanceTransaction
@@ -100,50 +100,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
-import Cardano.Write.ProtocolParameters
-    ( ProtocolParameters (..) )
-import Cardano.Write.Tx
-    ( Address
-    , Coin (..)
-    , FeePerByte (..)
-    , IsRecentEra (..)
-    , KeyWitnessCount (..)
-    , PParams
-    , RecentEra (..)
-    , ShelleyLedgerEra
-    , TxBody
-    , TxIn
-    , TxOut
-    , UTxO (..)
-    , Value
-    , computeMinimumCoinForTxOut
-    , evaluateMinimumFee
-    , evaluateTransactionBalance
-    , feeOfBytes
-    , fromCardanoTx
-    , fromCardanoUTxO
-    , getFeePerByte
-    , isBelowMinimumCoinForTxOut
-    , maxScriptExecutionCost
-    , modifyLedgerBody
-    , modifyTxOutCoin
-    , outputs
-    , toCardanoValue
-    , txBody
-    , withConstraints
-    )
-import Cardano.Write.Tx.Balance.TokenBundleSize
-    ( mkTokenBundleSizeAssessor )
-import Cardano.Write.Tx.Redeemers
-    ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
-import Cardano.Write.Tx.Sign
-    ( estimateKeyWitnessCount, estimateSignedTxSize )
-import Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), assumedTxWitnessTag, estimateTxCost )
-import Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation )
-import Cardano.Write.UTxOAssumptions
-    ( UTxOAssumptions (..), assumedInputScriptTemplate )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -186,6 +142,38 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Internal.Cardano.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
+import Internal.Cardano.Write.Tx
+    ( Address
+    , Coin (..)
+    , FeePerByte (..)
+    , IsRecentEra (..)
+    , KeyWitnessCount (..)
+    , PParams
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , TxBody
+    , TxIn
+    , TxOut
+    , UTxO (..)
+    , Value
+    , computeMinimumCoinForTxOut
+    , evaluateMinimumFee
+    , evaluateTransactionBalance
+    , feeOfBytes
+    , fromCardanoTx
+    , fromCardanoUTxO
+    , getFeePerByte
+    , isBelowMinimumCoinForTxOut
+    , maxScriptExecutionCost
+    , modifyLedgerBody
+    , modifyTxOutCoin
+    , outputs
+    , toCardanoValue
+    , txBody
+    , withConstraints
+    )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
@@ -203,6 +191,18 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , toExternalUTxOMap
     , toInternalUTxOMap
     )
+import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+    ( mkTokenBundleSizeAssessor )
+import Internal.Cardano.Write.Tx.Redeemers
+    ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
+import Internal.Cardano.Write.Tx.Sign
+    ( estimateKeyWitnessCount, estimateSignedTxSize )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( TxSkeleton (..), assumedTxWitnessTag, estimateTxCost )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation )
+import Internal.Cardano.Write.UTxOAssumptions
+    ( UTxOAssumptions (..), assumedInputScriptTemplate )
 import Numeric.Natural
     ( Natural )
 import System.Random.StdGenSeed

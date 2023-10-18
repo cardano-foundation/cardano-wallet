@@ -90,8 +90,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StartTime (..)
     )
-import Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Monad
     ( ap, join, liftM, (>=>) )
 import Control.Monad.IO.Class
@@ -124,6 +122,8 @@ import Fmt
     ( blockListF', build, fmt, indentF )
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), SystemStart (SystemStart), addRelTime )
 import Ouroboros.Consensus.HardFork.History.EpochInfo

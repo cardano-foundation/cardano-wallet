@@ -36,7 +36,16 @@ flag release
 
 library
   import:          language, opts-lib
-  hs-source-dirs:  lib
+  hs-source-dirs:  lib/main
+  build-depends:
+    , cardano-balance-tx:internal
+  exposed-modules:
+    Cardano.Write.Tx
+
+library internal
+  import:          language, opts-lib
+  hs-source-dirs:  lib/internal
+  visibility:      public
   build-depends:
     , base
     , bytestring
@@ -78,18 +87,18 @@ library
     , text
     , transformers
   exposed-modules:
-    Cardano.Write.ProtocolParameters
-    Cardano.Write.Tx
-    Cardano.Write.Tx.Balance
-    Cardano.Write.Tx.Balance.TokenBundleSize
-    Cardano.Write.Tx.Gen
-    Cardano.Write.Tx.Redeemers
-    Cardano.Write.Tx.Sign
-    Cardano.Write.Tx.SizeEstimation
-    Cardano.Write.Tx.TimeTranslation
-    Cardano.Write.UTxOAssumptions
+    Internal.Cardano.Write.ProtocolParameters
+    Internal.Cardano.Write.Tx
+    Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection
     Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
+    Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+    Internal.Cardano.Write.Tx.Gen
+    Internal.Cardano.Write.Tx.Redeemers
+    Internal.Cardano.Write.Tx.Sign
+    Internal.Cardano.Write.Tx.SizeEstimation
+    Internal.Cardano.Write.Tx.TimeTranslation
+    Internal.Cardano.Write.UTxOAssumptions
 
 test-suite test
   import:             language, opts-exe
@@ -103,7 +112,7 @@ test-suite test
     , bytestring
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-coin-selection
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
@@ -123,7 +132,7 @@ test-suite test
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
-    Cardano.Write.TxSpec
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
+    Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
+    Internal.Cardano.Write.TxSpec
     Spec
