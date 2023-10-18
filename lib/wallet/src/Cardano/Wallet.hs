@@ -508,6 +508,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
+import Cardano.Write.Tx
+    ( balanceTransaction )
 import Control.Arrow
     ( (>>>) )
 import Control.DeepSeq
@@ -615,7 +617,6 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxUnableToCreateChangeError (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
-    , balanceTransaction
     , constructUTxOIndex
     )
 import Internal.Cardano.Write.Tx.SizeEstimation

@@ -68,7 +68,7 @@ library
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
-    , cardano-balance-tx:internal
+    , cardano-balance-tx:{cardano-balance-tx,internal}
     , cardano-binary
     , cardano-cli
     , cardano-coin-selection
