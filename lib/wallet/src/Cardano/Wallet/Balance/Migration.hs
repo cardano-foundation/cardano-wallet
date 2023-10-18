@@ -10,7 +10,7 @@
 --
 -- Use 'createPlan' to create a migration plan.
 --
-module Cardano.Wallet.Primitive.Migration
+module Cardano.Wallet.Balance.Migration
     (
     -- * Creating a migration plan
       createPlan
@@ -22,7 +22,7 @@ module Cardano.Wallet.Primitive.Migration
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Migration.Selection
+import Cardano.Wallet.Balance.Migration.Selection
     ( RewardWithdrawal (..), Selection (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
@@ -43,7 +43,7 @@ import Data.Generics.Labels
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
+import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 
 -- | Represents a plan for migrating a 'UTxO' set.
 --

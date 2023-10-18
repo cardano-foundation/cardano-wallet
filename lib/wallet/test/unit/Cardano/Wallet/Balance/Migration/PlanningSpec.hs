@@ -5,12 +5,12 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Primitive.Migration.PlanningSpec
+module Cardano.Wallet.Balance.Migration.PlanningSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Migration.Planning
+import Cardano.Wallet.Balance.Migration.Planning
     ( CategorizedUTxO (..)
     , MigrationPlan (..)
     , UTxOEntryCategory (..)
@@ -19,9 +19,9 @@ import Cardano.Wallet.Primitive.Migration.Planning
     , createPlan
     , uncategorizeUTxOEntries
     )
-import Cardano.Wallet.Primitive.Migration.Selection
+import Cardano.Wallet.Balance.Migration.Selection
     ( RewardWithdrawal (..), Selection (..) )
-import Cardano.Wallet.Primitive.Migration.SelectionSpec
+import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockInputId
     , MockTxConstraints (..)
     , genMockInput
@@ -73,7 +73,7 @@ import Test.QuickCheck.Extra
 import Test.Utils.Pretty
     ( Pretty (..) )
 
-import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
+import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -81,7 +81,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
+spec = describe "Cardano.Wallet.Balance.Migration.PlanningSpec" $
 
     modifyMaxSuccess (const 1_000) $ do
 

@@ -326,6 +326,8 @@ import Cardano.Wallet.Address.MaybeLight
     ( MaybeLight (maybeDiscover) )
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
+import Cardano.Wallet.Balance.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
@@ -378,8 +380,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Migration
-    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
@@ -639,12 +639,12 @@ import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
+import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.DB.WalletState as WS
-import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

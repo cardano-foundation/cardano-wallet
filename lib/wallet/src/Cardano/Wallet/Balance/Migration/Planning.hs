@@ -20,7 +20,7 @@
 --
 -- Use 'createPlan' to create a migration plan.
 --
-module Cardano.Wallet.Primitive.Migration.Planning
+module Cardano.Wallet.Balance.Migration.Planning
     (
     -- * Migration planning
       createPlan
@@ -39,7 +39,7 @@ module Cardano.Wallet.Primitive.Migration.Planning
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Migration.Selection
+import Cardano.Wallet.Balance.Migration.Selection
     ( RewardWithdrawal (..), Selection (..), SelectionError (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -64,7 +64,7 @@ import Data.Generics.Labels
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
+import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.List as L

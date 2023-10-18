@@ -19,7 +19,7 @@
 -- Use 'create' to create a selection with one or more inputs.
 -- Use 'extend' to extend a selection with an additional input.
 --
-module Cardano.Wallet.Primitive.Migration.Selection
+module Cardano.Wallet.Balance.Migration.Selection
     (
     -- * Types
       Selection (..)

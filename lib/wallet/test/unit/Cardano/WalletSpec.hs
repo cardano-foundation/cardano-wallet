@@ -59,6 +59,8 @@ import Cardano.Wallet.Address.States.Features
     ( TestFeatures (..), defaultTestFeatures )
 import Cardano.Wallet.Address.States.Test.State
     ( TestState (..) )
+import Cardano.Wallet.Balance.Migration.SelectionSpec
+    ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.DB
     ( DBFresh, DBLayer (..), hoistDBFresh, hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -81,8 +83,6 @@ import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Primitive.Passphrase
@@ -269,9 +269,9 @@ import UnliftIO.Concurrent
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
+import qualified Cardano.Wallet.Balance.Migration as Migration
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
-import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
