@@ -36,7 +36,7 @@ flag release
 
 library
   import:          language, opts-lib
-  hs-source-dirs:  lib
+  hs-source-dirs:  lib/main
   build-depends:
     , base
     , bytestring
