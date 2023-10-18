@@ -65,8 +65,8 @@ number of available UTXOs, the API returns a 'UTXONotEnoughFragmented' error.
 
 To make sure the source account has a sufficient level of UTXO fragmentation
 (i.e. number of UTXOs), the state of the UTXOs can be monitored via following wallet endpoints:
- - [UTxO Statistics](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getUTxOsStatistics)
- - [UTxO Snapshot](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getWalletUtxoSnapshot)
+ - [UTxO Statistics](https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getUTxOsStatistics)
+ - [UTxO Snapshot](https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getWalletUtxoSnapshot)
 
 The number of wallet UTXOs should be no less than the transaction outputs, and
 the sum of all UTXOs should be enough to cover the total transaction amount,

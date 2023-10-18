@@ -657,7 +657,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 > Try seaching for `applyBlocks` or `switchToFork`. What is the difference between `DB.Spec.Update.switchToFork` and `DB.AcidState.switchToFork`?
 >
 > Having a comment at the top of each module would be an easy-to-follow rule to better document this. It is also very appropriate for
-> generated [haddock docs](https://input-output-hk.github.io/cardano-wallet/haddock/).
+> generated [haddock docs](https://cardano-foundation.github.io/cardano-wallet/haddock/).
 >
 > If we re-design a module and forget to update the comment, the comment is no longer useful.
 
@@ -687,7 +687,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 -- intermediary between the three.
 ```
 
-(https://input-output-hk.github.io/cardano-wallet/haddock/cardano-wallet-2.0.0/Cardano-WalletLayer.html)
+(https://cardano-foundation.github.io/cardano-wallet/haddock/cardano-wallet-2.0.0/Cardano-WalletLayer.html)
 
 </details>
 
