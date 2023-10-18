@@ -148,10 +148,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( HasCallStack )
-import Cardano.Write.Tx.Balance
-    ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
-import Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -212,6 +208,10 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import Internal.Cardano.Write.Tx.Balance
+    ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( TxWitnessTag (..) )
 import System.Random
     ( Random )
 import Test.Hspec

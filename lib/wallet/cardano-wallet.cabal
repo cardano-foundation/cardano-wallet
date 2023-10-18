@@ -925,7 +925,7 @@ test-suite unit
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.WalletSpec
-    Cardano.Write.Tx.BalanceSpec
+    Internal.Cardano.Write.Tx.BalanceSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
     Data.Function.UtilsSpec

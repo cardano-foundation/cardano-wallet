@@ -104,19 +104,6 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
-import Cardano.Write.Tx.Balance
-    ( ErrAssignRedeemers (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxOutputError (..)
-    , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
-    , ErrUpdateSealedTx (..)
-    )
-import Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..) )
 import Control.Monad.Except
     ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except
@@ -137,6 +124,19 @@ import Data.Word
     ( Word32 )
 import Fmt
     ( blockListF', build, fmt, listF, pretty )
+import Internal.Cardano.Write.Tx.Balance
+    ( ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
+    , ErrUpdateSealedTx (..)
+    )
+import Internal.Cardano.Write.Tx.Sign
+    ( KeyWitnessCount (..) )
 import Network.HTTP.Media
     ( renderHeader )
 import Network.HTTP.Types
@@ -164,7 +164,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Cardano.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -172,6 +171,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Internal.Cardano.Write.Tx as Write
 
 -- | Maps types to servant error responses.
 class IsServerError e where

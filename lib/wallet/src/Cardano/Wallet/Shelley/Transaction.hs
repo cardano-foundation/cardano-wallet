@@ -160,10 +160,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError )
-import Cardano.Write.ProtocolParameters
-    ( ProtocolParameters (..) )
-import Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), TxWitnessTag (..), estimateTxCost, estimateTxSize )
 import Control.Arrow
     ( left, second )
 import Control.Lens
@@ -190,6 +186,10 @@ import Data.Type.Equality
     ( type (==) )
 import Data.Word
     ( Word64, Word8 )
+import Internal.Cardano.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( TxSkeleton (..), TxWitnessTag (..), estimateTxCost, estimateTxSize )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -208,15 +208,15 @@ import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
-import qualified Cardano.Write.Tx as Write
-import qualified Cardano.Write.Tx.Sign as Write
-import qualified Cardano.Write.Tx.SizeEstimation as Write
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Internal.Cardano.Write.Tx as Write
+import qualified Internal.Cardano.Write.Tx.Sign as Write
+import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.

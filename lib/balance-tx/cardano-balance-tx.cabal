@@ -76,16 +76,16 @@ library
     , text
     , transformers
   exposed-modules:
-    Cardano.Write.ProtocolParameters
-    Cardano.Write.Tx
-    Cardano.Write.Tx.Balance
-    Cardano.Write.Tx.Balance.TokenBundleSize
-    Cardano.Write.Tx.Gen
-    Cardano.Write.Tx.Redeemers
-    Cardano.Write.Tx.Sign
-    Cardano.Write.Tx.SizeEstimation
-    Cardano.Write.Tx.TimeTranslation
-    Cardano.Write.UTxOAssumptions
+    Internal.Cardano.Write.ProtocolParameters
+    Internal.Cardano.Write.Tx
+    Internal.Cardano.Write.Tx.Balance
+    Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+    Internal.Cardano.Write.Tx.Gen
+    Internal.Cardano.Write.Tx.Redeemers
+    Internal.Cardano.Write.Tx.Sign
+    Internal.Cardano.Write.Tx.SizeEstimation
+    Internal.Cardano.Write.Tx.TimeTranslation
+    Internal.Cardano.Write.UTxOAssumptions
 
 library internal
   import:          language, opts-lib
@@ -139,7 +139,7 @@ test-suite test
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Write.Tx.Balance.TokenBundleSizeSpec
-    Cardano.Write.TxSpec
+    Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
+    Internal.Cardano.Write.TxSpec
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Spec

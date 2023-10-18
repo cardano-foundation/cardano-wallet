@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 
-module Cardano.Write.Tx.TimeTranslation
+module Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
     , timeTranslationFromEpochInfo
     , systemStartTime

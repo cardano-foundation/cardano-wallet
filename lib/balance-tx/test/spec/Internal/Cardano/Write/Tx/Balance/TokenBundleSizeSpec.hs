@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
+module Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Prelude
 
@@ -20,21 +20,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
-import Cardano.Write.Tx
-    ( ProtVer (..)
-    , RecentEra (..)
-    , ShelleyLedgerEra
-    , StandardBabbage
-    , StandardConway
-    , Version
-    , withConstraints
-    )
-import Cardano.Write.Tx.Balance.TokenBundleSize
-    ( TokenBundleSizeAssessor
-    , assessTokenBundleSize
-    , computeTokenBundleSerializedLengthBytes
-    , mkTokenBundleSizeAssessor
-    )
 import Control.Lens
     ( (&), (.~) )
 import Data.Default
@@ -43,6 +28,21 @@ import Data.Monoid.Monus
     ( Monus ((<\>)) )
 import Data.Word
     ( Word64 )
+import Internal.Cardano.Write.Tx
+    ( ProtVer (..)
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , StandardBabbage
+    , StandardConway
+    , Version
+    , withConstraints
+    )
+import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+    ( TokenBundleSizeAssessor
+    , assessTokenBundleSize
+    , computeTokenBundleSerializedLengthBytes
+    , mkTokenBundleSizeAssessor
+    )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec

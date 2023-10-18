@@ -75,9 +75,9 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 
 import qualified Cardano.Api.Shelley as C
-import qualified Cardano.Write.ProtocolParameters as Write
-import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteString.Char8 as B8
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     Dummy values

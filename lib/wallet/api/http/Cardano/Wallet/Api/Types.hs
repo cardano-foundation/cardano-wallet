@@ -513,7 +513,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
-import qualified Cardano.Write.Tx as Write
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -528,6 +527,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
+import qualified Internal.Cardano.Write.Tx as Write
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets

@@ -81,7 +81,7 @@ import System.Random
     ( mkStdGen )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
-import qualified Cardano.Write.UTxOAssumptions as UTxOAssumptions
+import qualified Internal.Cardano.Write.UTxOAssumptions as UTxOAssumptions
 
 --------------------------------------------------------------------------------
 --

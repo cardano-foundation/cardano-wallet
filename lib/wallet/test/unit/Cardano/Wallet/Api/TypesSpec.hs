@@ -378,8 +378,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
-import Cardano.Write.Tx.Gen
-    ( genDatumHash )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -443,6 +441,8 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
+import Internal.Cardano.Write.Tx.Gen
+    ( genDatumHash )
 import Network.Ntp
     ( NtpStatusWithOffset (..) )
 import Network.URI

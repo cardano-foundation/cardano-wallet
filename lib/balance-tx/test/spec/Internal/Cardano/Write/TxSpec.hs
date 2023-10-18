@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Write.TxSpec where
+module Internal.Cardano.Write.TxSpec where
 
 import Prelude
 
@@ -14,7 +14,13 @@ import Cardano.Api.Gen
     ( genTxIn )
 import Cardano.Ledger.Api
     ( ppCoinsPerUTxOByteL )
-import Cardano.Write.Tx
+import Control.Lens
+    ( (&), (.~) )
+import Data.Aeson
+    ( (.=) )
+import Data.Default
+    ( Default (..) )
+import Internal.Cardano.Write.Tx
     ( AnyRecentEra
     , RecentEra (..)
     , computeMinimumCoinForTxOut
@@ -25,12 +31,6 @@ import Cardano.Write.Tx
     , modifyTxOutCoin
     , toCardanoUTxO
     )
-import Control.Lens
-    ( (&), (.~) )
-import Data.Aeson
-    ( (.=) )
-import Data.Default
-    ( Default (..) )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
 import Test.Cardano.Ledger.Babbage.Arbitrary

@@ -132,16 +132,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    , RecentEra (..)
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
-    )
-import Cardano.Write.Tx.Balance
-    ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
-import Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), estimateTxSize )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -182,6 +172,16 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable (..), pretty, (+||), (||+) )
+import Internal.Cardano.Write.Tx
+    ( AnyRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
+import Internal.Cardano.Write.Tx.Balance
+    ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
+import Internal.Cardano.Write.Tx.SizeEstimation
+    ( TxSkeleton (..), estimateTxSize )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Network.Block
@@ -239,8 +239,6 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Write.ProtocolParameters as Write
-import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -250,6 +248,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do

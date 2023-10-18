@@ -83,8 +83,6 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , toKeyRole
     )
-import Cardano.Write.Tx
-    ( BabbageTxOut, StandardBabbage )
 import Control.Lens
     ( folded, (<&>), (^.), (^..) )
 import Data.Map
@@ -93,6 +91,8 @@ import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Data.Word
     ( Word32 )
+import Internal.Cardano.Write.Tx
+    ( BabbageTxOut, StandardBabbage )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
