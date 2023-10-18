@@ -91,6 +91,13 @@ library
     Internal.Cardano.Write.Tx.Balance.CoinSelection
     Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
+library internal
+  import:          language, opts-lib
+  hs-source-dirs:  lib/internal
+  build-depends:
+    , base
+  exposed-modules:
+
 test-suite test
   import:             language, opts-exe
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
