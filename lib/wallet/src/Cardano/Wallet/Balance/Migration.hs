@@ -3,10 +3,11 @@
 {-# LANGUAGE OverloadedLabels #-}
 
 -- |
--- Copyright: © 2021 IOHK
+-- Copyright: © 2021–2023 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
 --
--- This module provides a public API for planning wallet migrations.
+-- This module provides an algorithm for migrating the entire balance of a
+-- wallet. (This is also known as "sweeping" a wallet.)
 --
 -- Use 'createPlan' to create a migration plan.
 --
