@@ -49,6 +49,7 @@ module Cardano.Wallet.Launch.Cluster
     , walletMinSeverityFromEnv
     , testMinSeverityFromEnv
     , testLogDirFromEnv
+    , genTopology
 
       -- * Faucets
     , Credential (..)
@@ -727,7 +728,7 @@ defaultPoolConfigs =
         $
         -- This pool should never retire:
         PoolRecipe
-            { pledgeAmt = 200 * millionAda
+            { pledgeAmt = 100 * millionAda
             , retirementEpoch = Nothing
             , poolMetadata =
                 Aeson.object
@@ -1137,38 +1138,61 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                 (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
                 (if postAlonzo then addGenesisPools else federalizeNetwork)
 
+        extraPort : poolsTcpPorts <-
+            randomUnusedTCPPorts (length cfgStakePools + 1)
+
         if postAlonzo
             then do
-                port0 : ports <- rotate <$> randomUnusedTCPPorts nPools
+                let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
                 let pool0 :| otherPools = configuredPools
 
                 let pool0Cfg =
                         NodeParams
                             genesisFiles
                             cfgLastHardFork
-                            port0
+                            pool0port
                             cfgNodeLogging
                 operatePool pool0 pool0Cfg $ \runningPool0 -> do
                     extraClusterSetupUsingNode configuredPools runningPool0
                     case NE.nonEmpty otherPools of
                         Nothing -> onClusterStart runningPool0
-                        Just others ->
+                        Just others -> do
+                            let relayNodeParams =
+                                    NodeParams
+                                    { nodeGenesisFiles = genesisFiles
+                                    , nodeHardForks = maxBound
+                                    , nodePeers = (extraPort, poolsTcpPorts)
+                                    , nodeLogConfig =
+                                        LogFileConfig
+                                        { minSeverityTerminal = Info
+                                        , extraLogDir = Nothing
+                                        , minSeverityFile = Info
+                                        }
+                                    }
                             launchPools
                                 others
                                 genesisFiles
-                                ports
+                                poolPorts
                                 runningPool0
-                                onClusterStart
+                                $ \_poolNode ->
+                                    withRelayNode
+                                        tr
+                                        cfgClusterDir
+                                        cfgClusterConfigs
+                                        relayNodeParams
+                                        onClusterStart
+
             else do
                 -- NOTE: We should soon be able to drop Alonzo support here
                 -- after the Vasil HF, which should enable some simplifications
                 -- of the logic in 'withCluster'.
-                ports <- rotate <$> randomUnusedTCPPorts (1 + nPools)
+                let bftNodePorts :| poolPorts =
+                        NE.fromList (rotate (extraPort : poolsTcpPorts))
                 let bftCfg =
                         NodeParams
                             genesisFiles
                             cfgLastHardFork
-                            (head ports)
+                            bftNodePorts
                             cfgNodeLogging
                 withBFTNode tr cfgClusterDir cfgClusterConfigs bftCfg $
                     \runningBFTNode -> do
@@ -1184,12 +1208,10 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                     launchPools
                         configuredPools
                         genesisFiles
-                        (tail ports)
+                        poolPorts
                         runningBFTNode
                         onClusterStart
   where
-    nPools = length cfgStakePools
-
     postAlonzo = cfgLastHardFork >= BabbageHardFork
 
     FaucetFunds adaFunds maFunds mirFunds = faucetFunds
@@ -1410,9 +1432,13 @@ withBFTNode tr clusterDir setupDir params action = do
 -- blocks, but has every other cluster node as its peer. Any transactions
 -- submitted to this node will be broadcast to every node in the cluster.
 --
--- FIXME: Do we really need the relay node? If so we should re-add it to
--- withCluster, rather than connecting the wallet to one of the pools.
-_withRelayNode
+-- Connecting wallet to a block-producing (pool) node could cause problems
+-- with the block production: wallet sends resource-heavy queries and that
+-- causes timeout and breaks connection with other nodes;
+--
+-- Connectiong wallet to a non-block producing (relay) node allows to avoid
+-- such problems.
+withRelayNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
     -> Tagged "cluster" FilePath
@@ -1424,7 +1450,7 @@ _withRelayNode
     -> (RunningNode -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-_withRelayNode tr clusterDir setupDir params act = do
+withRelayNode tr clusterDir setupDir params act = do
     let name = "node"
     let nodeDir = Tagged @"output" $ untag clusterDir </> name
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
@@ -1460,10 +1486,7 @@ _withRelayNode tr clusterDir setupDir params act = do
         withCardanoNodeProcess tr name cfg act'
 
 toTextPoolId :: PoolId -> Text
-toTextPoolId =
-    decodeUtf8
-        . convertToBase Base16
-        . getPoolId
+toTextPoolId = decodeUtf8 . convertToBase Base16 . getPoolId
 
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH

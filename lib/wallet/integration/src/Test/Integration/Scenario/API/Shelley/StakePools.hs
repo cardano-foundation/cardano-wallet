@@ -987,15 +987,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     `shouldBe` Set.singleton (Quantity 0)
 
                 setOf pools' (view #margin)
-                    `shouldBe`
-                    Set.singleton
-                        (Quantity $ unsafeMkPercentage 0.1)
+                    `shouldBe` Set.singleton (Quantity $ unsafeMkPercentage 0.1)
 
                 setOf pools' (view #pledge)
-                    `shouldBe`
-                    Set.fromList
+                    `shouldBe` Set.fromList
                         [ Quantity $ 100 * oneMillionAda
-                        , Quantity $ 200 * oneMillionAda
+                        , Quantity $ 100 * oneMillionAda
                         ]
 
         it "at least one pool eventually produces block" $ \ctx -> runResourceT $ do
