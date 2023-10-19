@@ -249,7 +249,7 @@ isValidSinglePoolCertificateSequence
         firstCertificateIsNotRetirement
   where
     allCertificatesReferToSamePool =
-        all (== sharedPoolId) (getPoolCertificatePoolId <$> certificates)
+        all ((== sharedPoolId) . getPoolCertificatePoolId) certificates
     firstCertificateIsNotRetirement = case certificates of
         []                 -> True
         Registration _ : _ -> True

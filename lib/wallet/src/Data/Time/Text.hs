@@ -51,9 +51,14 @@ utcTimeToText f = T.pack . formatTime defaultTimeLocale (timeFormatPattern f)
 --   'Nothing' if none of the formats matched.
 --
 utcTimeFromText :: [TimeFormat] -> Text -> Maybe UTCTime
-utcTimeFromText fs t = foldr (<|>) Nothing $
-    flip (parseTimeM False defaultTimeLocale) (T.unpack t) . timeFormatPattern
-        <$> fs
+utcTimeFromText fs t =
+    foldr
+        ( (<|>)
+        . flip (parseTimeM False defaultTimeLocale) (T.unpack t)
+        . timeFormatPattern
+        )
+        Nothing
+        fs
 
 -- | Represents a particular way of representing a moment in time in text.
 data TimeFormat = TimeFormat

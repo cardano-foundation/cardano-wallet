@@ -277,7 +277,7 @@ instance
             :: Applicative m
             => (l0 -> m l1) -> [(l0, r)] -> m [(l1, r)]
         traverseLeft fn xs =
-            fmap swap <$> traverse (traverse fn) (swap <$> xs)
+            fmap swap <$> traverse (traverse fn . swap) xs
 
 instance
     ( KnownSymbol h

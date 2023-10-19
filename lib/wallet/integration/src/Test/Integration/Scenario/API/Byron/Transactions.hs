@@ -795,14 +795,13 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 rl3 <- request @([ApiTransaction n]) ctx linkList3 Default Empty
                 verify rl3 [expectListSize 2]
   where
-    listTransactionsFilteredByAddress wallet addrM =
+    listTransactionsFilteredByAddress wallet =
         Link.listTransactions' @'Byron wallet
         Nothing
         Nothing
         Nothing
         Nothing
         Nothing
-        addrM
 
     oneAda :: Integer
     oneAda = 1_000_000

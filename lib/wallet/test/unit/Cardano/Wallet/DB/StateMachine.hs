@@ -1036,7 +1036,7 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
 
     sanityCheckShrink = \case
         []  -> pure ()
-        [x] -> sanityCheckShrink (concatMap shrinker [x])
+        [x] -> sanityCheckShrink (shrinker x)
         xs  -> sanityCheckShrink (concatMap shrinker [head xs, last xs])
 
 dbLayerUnused :: DBLayer m s

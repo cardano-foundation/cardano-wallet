@@ -533,17 +533,28 @@ prop_selectRandom_all index f = monadicIO $
             , F.foldl' (flip (uncurry UTxOIndex.insert)) indexReduced selected
                 === index
             , property
-                $ all (`UTxOIndex.member` index)
-                $ fst <$> selected
+                $ all
+                    ((`UTxOIndex.member` index) . fst)
+                    selected
             , property
-                $ all (not . (`UTxOIndex.member` indexReduced))
-                $ fst <$> selected
+                $ all
+                    (not . (`UTxOIndex.member` indexReduced) . fst)
+                    selected
             , property
-                $ all (selectionFilterMatchesBundleCategory f)
-                $ categorizeTokenBundle . snd <$> selected
+                $ all
+                    ( selectionFilterMatchesBundleCategory f
+                    . categorizeTokenBundle
+                    . snd
+                    )
+                    selected
             , property
-                $ all (not . selectionFilterMatchesBundleCategory f)
-                $ categorizeTokenBundle . snd <$> UTxOIndex.toList indexReduced
+                $ all
+                    ( not
+                    . selectionFilterMatchesBundleCategory f
+                    . categorizeTokenBundle
+                    . snd
+                    )
+                    (UTxOIndex.toList indexReduced)
             ]
 
 -- | Verify that priority order is respected when selecting with more than

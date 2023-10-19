@@ -577,7 +577,7 @@ withBodyContent era modTxBody cont =
 checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
 checkSubsetOf as bs = property
     $ counterexample counterexampleText
-    $ all (`Set.member` ys) (ShowOrd <$> as)
+    $ all ((`Set.member` ys) . ShowOrd) as
   where
     xs = Set.fromList (ShowOrd <$> as)
     ys = Set.fromList (ShowOrd <$> bs)

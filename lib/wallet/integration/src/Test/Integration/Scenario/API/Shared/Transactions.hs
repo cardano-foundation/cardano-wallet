@@ -2707,14 +2707,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rl1c <- request @([ApiTransaction n]) ctx linkList1a Default Empty
         verify rl1c [expectListSize 2]
   where
-     listTransactionsFilteredByAddress wallet addrM =
+     listTransactionsFilteredByAddress wallet =
          Link.listTransactions' @'Shared wallet
          Nothing
          Nothing
          Nothing
          Nothing
          Nothing
-         addrM
 
      oneAda :: Integer
      oneAda = 1_000_000
