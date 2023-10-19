@@ -2184,6 +2184,7 @@ block0 = W.Block
     , delegations = []
     }
 
+{- HLINT ignore costModelsForTesting "Use underscore" -}
 costModelsForTesting :: Alonzo.CostModels
 costModelsForTesting = either (error . show) id $ do
     v1 <- Alonzo.mkCostModel PlutusV1
