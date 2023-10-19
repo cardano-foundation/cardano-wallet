@@ -4486,14 +4486,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rl1c <- request @([ApiTransaction n]) ctx query1 Default Empty
         verify rl1c [expectListSize 2]
   where
-    listTransactionsFilteredByAddress wallet addrM =
+    listTransactionsFilteredByAddress wallet =
         Link.listTransactions' @'Shelley wallet
         Nothing
         Nothing
         Nothing
         Nothing
         Nothing
-        addrM
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
