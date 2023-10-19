@@ -33,7 +33,8 @@
 -- >>> quickCheck $ prop_sequential db
 
 module Cardano.Wallet.DB.LayerSpec
-    ( spec, withinCopiedFile
+    ( spec
+    , withinCopiedFile
     ) where
 
 import Prelude
