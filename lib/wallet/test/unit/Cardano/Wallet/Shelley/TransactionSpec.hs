@@ -132,6 +132,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Cardano.Write.Tx
+    ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -178,8 +180,6 @@ import Internal.Cardano.Write.Tx
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
     )
-import Internal.Cardano.Write.Tx.Balance
-    ( ErrBalanceTx (..), ErrBalanceTxUnableToCreateChangeError (..) )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..), estimateTxSize )
 import Numeric.Natural
