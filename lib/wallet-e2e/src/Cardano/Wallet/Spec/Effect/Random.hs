@@ -66,11 +66,14 @@ runRandom gen = reinterpret (evalState gen) \_ -> \case
     RandomMnemonic -> do
         randomByteString <- uniformByteStringM 32 stGen
         mnemonic <-
-            Mnemonic.unsafeFromList
-                . Cardano.mnemonicToText
-                . Cardano.entropyToMnemonic
-                <$> toEntropy @256 randomByteString
-                    & either (fail . show) pure
+            either
+                (fail . show)
+                (pure
+                    . Mnemonic.unsafeFromList
+                    . Cardano.mnemonicToText
+                    . Cardano.entropyToMnemonic
+                    )
+                (toEntropy @256 randomByteString)
         trace $ "Generated a random mnemonic: " <> Mnemonic.toText mnemonic
         pure mnemonic
     RandomWalletName (Tagged prefix) -> do

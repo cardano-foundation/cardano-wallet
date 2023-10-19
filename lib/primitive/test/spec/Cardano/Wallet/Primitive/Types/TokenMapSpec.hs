@@ -420,7 +420,7 @@ prop_adjustQuantity_hasQuantity b asset =
 prop_maximumQuantity_all
     :: TokenMap -> Property
 prop_maximumQuantity_all b =
-    property $ all (<= maxQ) (snd <$> TokenMap.toFlatList b)
+    property $ all ((<= maxQ) . snd) (TokenMap.toFlatList b)
   where
     maxQ = TokenMap.maximumQuantity b
 

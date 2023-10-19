@@ -59,8 +59,6 @@ import Cardano.Wallet.Transaction
     ( TokenMapWithScripts, ValidityIntervalExplicit )
 import Control.Category
     ( (<<<) )
-import Data.Function
-    ( (&) )
 import GHC.Generics
     ( Generic )
 import Servant.Server
@@ -111,5 +109,7 @@ txCBORParser = parser *.** deserializeTx
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
 parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR
 parseTxCBOR cbor =
-    extractEraValue <$> sequenceEraValue (applyEraFun txCBORParser cbor)
-        & either (liftE . ErrParseCBOR) pure
+    either
+        (liftE . ErrParseCBOR)
+        (pure . extractEraValue)
+        (sequenceEraValue (applyEraFun txCBORParser cbor))

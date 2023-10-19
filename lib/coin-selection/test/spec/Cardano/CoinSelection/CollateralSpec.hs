@@ -881,7 +881,7 @@ prop_subsequencesOfSize =
                         == Set.size subsets
                     , Set.unions (F.toList subsets)
                         == xs
-                    , all (== k) (length <$> subsequences)
+                    , all ((== k) . length) subsequences
                     ]
       where
         n = Set.size xs

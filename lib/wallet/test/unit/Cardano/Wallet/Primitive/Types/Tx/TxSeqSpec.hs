@@ -274,8 +274,8 @@ prop_dropGroupBoundary_isValid (getTxSeq -> txSeq) =
 prop_dropGroupBoundary_toTxs :: ShrinkableTxSeq -> Property
 prop_dropGroupBoundary_toTxs (getTxSeq -> txSeq) =
     all
-        (== TxSeq.toTxList txSeq)
-        (TxSeq.toTxList <$> TxSeq.dropGroupBoundary txSeq)
+        ((== TxSeq.toTxList txSeq) . TxSeq.toTxList)
+        (TxSeq.dropGroupBoundary txSeq)
     === True
 
 prop_dropGroupBoundary_txGroupCount_length
@@ -291,8 +291,8 @@ prop_dropGroupBoundary_txGroupCount_pred (getTxSeq -> txSeq)
     | txGroupCount == 0 =
         TxSeq.dropGroupBoundary txSeq === []
     | otherwise =
-        all (== pred txGroupCount)
-            (TxSeq.txGroupCount <$> TxSeq.dropGroupBoundary txSeq)
+        all ((== pred txGroupCount) . TxSeq.txGroupCount)
+            (TxSeq.dropGroupBoundary txSeq)
         === True
   where
     txGroupCount = TxSeq.txGroupCount txSeq
@@ -396,7 +396,7 @@ prop_shrinkTxSeq_genShrinkSequence_isValid :: Property
 prop_shrinkTxSeq_genShrinkSequence_isValid =
     forAll (genShrinkSequence shrinkTxSeq =<< genTxSeq genUTxO genAddress) $
         \txSeqShrinks ->
-            all TxSeq.isValid (getTxSeq <$> txSeqShrinks)
+            all (TxSeq.isValid . getTxSeq) txSeqShrinks
 
 prop_shrinkTxSeq_genShrinkSequence_length :: Property
 prop_shrinkTxSeq_genShrinkSequence_length =
