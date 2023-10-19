@@ -3,8 +3,36 @@
 -- License: Apache-2.0
 --
 module Cardano.Write.Tx
-    ( balanceTransaction
+    (
+    -- * Balancing transactions
+      balanceTransaction
+    , ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    , ErrUpdateSealedTx (..)
+
     ) where
 
 import Internal.Cardano.Write.Tx.Balance
-    ( balanceTransaction )
+    ( ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    , ErrUpdateSealedTx (..)
+    , balanceTransaction
+    )
