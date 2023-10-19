@@ -104,6 +104,17 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..) )
+import Cardano.Write.Tx
+    ( ErrAssignRedeemers (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInsufficientCollateralError (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxOutputError (..)
+    , ErrBalanceTxOutputErrorInfo (..)
+    , ErrBalanceTxOutputSizeExceedsLimitError (..)
+    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
+    , ErrUpdateSealedTx (..)
+    )
 import Control.Monad.Except
     ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except
@@ -124,17 +135,6 @@ import Data.Word
     ( Word32 )
 import Fmt
     ( blockListF', build, fmt, listF, pretty )
-import Internal.Cardano.Write.Tx.Balance
-    ( ErrAssignRedeemers (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxOutputError (..)
-    , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
-    , ErrUpdateSealedTx (..)
-    )
 import Internal.Cardano.Write.Tx.Sign
     ( KeyWitnessCount (..) )
 import Network.HTTP.Media

@@ -509,7 +509,11 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Cardano.Write.Tx
-    ( balanceTransaction )
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrBalanceTxUnableToCreateChangeError (..)
+    , balanceTransaction
+    )
 import Control.Arrow
     ( (>>>) )
 import Control.DeepSeq
@@ -612,9 +616,6 @@ import Internal.Cardano.Write.Tx
     ( recentEra )
 import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrBalanceTxUnableToCreateChangeError (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
     , constructUTxOIndex
