@@ -122,7 +122,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           lentil = { index-state = indexState; };
           weeder = {
             index-state = indexState;
-            version = "2.2.0";
+            version = "2.4.0";
            };
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
