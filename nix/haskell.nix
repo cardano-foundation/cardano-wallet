@@ -100,7 +100,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc928";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -145,11 +145,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           yq
           nixWrapped
           mdbook
-          (haskell-nix.tool "ghc8107" "hp2pretty" "latest")
-          (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
-          (haskell-nix.tool "ghc8107" "hlint" "3.3")
+          (haskell-nix.tool "ghc928" "hp2pretty" "latest")
+          (haskell-nix.tool "ghc928" "stylish-haskell" "0.11.0.3")
+          (haskell-nix.tool "ghc928" "hlint" "3.3")
           (haskell-nix.tool "ghc928" "fourmolu" "0.13.1.0")
-          (haskell-nix.tool "ghc8107" "haskell-language-server" ({pkgs, ...}: rec {
+          (haskell-nix.tool "ghc928" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
             src = pkgs.haskell-nix.sources."hls-2.0";
             # `tool` normally ignores the `cabal.project` (if there is one in the hackage source).
