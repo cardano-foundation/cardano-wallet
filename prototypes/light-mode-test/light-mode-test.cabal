@@ -38,7 +38,7 @@ library
     default-extensions:
         OverloadedStrings
     build-depends:
-        base ^>=4.14.3.0
+        base >=4.14.3.0
       , blockfrost-api
       , blockfrost-client
       , blockfrost-client-core

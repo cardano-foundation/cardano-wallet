@@ -27,7 +27,7 @@ library
   hs-source-dirs:     src
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
-    , base                   ^>=4.14.3.0
+    , base                    >=4.14.3.0
     , iohk-monitoring        ^>=0.1.11.3
     , iohk-monitoring-extra  ^>=0.1
     , temporary              ^>=1.3

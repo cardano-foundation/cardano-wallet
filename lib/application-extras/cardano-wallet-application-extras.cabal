@@ -31,7 +31,7 @@ library
 
   hs-source-dirs:     lib
   build-depends:
-    , base                   ^>=4.14.3.0
+    , base                    >=4.14.3.0
     , contra-tracer          ^>=0.1.0.2
     , iohk-monitoring        ^>=0.1.11.3
     , iohk-monitoring-extra  ^>=0.1

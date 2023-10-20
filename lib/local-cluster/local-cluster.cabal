@@ -54,19 +54,19 @@ library
 
   hs-source-dirs:  lib
   build-depends:
-    , aeson                              ^>=2.1.2.1
-    , aeson-qq                           ^>=0.8.4
+    , aeson                              >=2.1.2.1
+    , aeson-qq                           >=0.8.4
     , base
-    , base58-bytestring                  ^>=0.1
-    , bech32                             ^>=1.1.2
+    , base58-bytestring                  >=0.1
+    , bech32                             >=1.1.2
     , bech32-th
-    , binary                             ^>=0.8.8
-    , bytestring                         ^>=0.10.12
+    , binary                             >=0.8.8
+    , bytestring                         >=0.10.12
     , cardano-addresses
     , cardano-api
-    , cardano-binary                     ^>=1.7.0.1
+    , cardano-binary                     >=1.7.0.1
     , cardano-cli
-    , cardano-crypto                     ^>=1.1.2
+    , cardano-crypto                     >=1.1.2
     , cardano-data
     , cardano-ledger-api
     , cardano-ledger-core
@@ -75,40 +75,40 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cborg                              ^>=0.2.9
-    , containers                         ^>=0.6.5
+    , cborg                              >=0.2.9
+    , containers                         >=0.6.5
     , contra-tracer
-    , crypto-hash-extra                  ^>=0.1
-    , cryptonite                         ^>=0.30
+    , crypto-hash-extra                  >=0.1
+    , cryptonite                         >=0.30
     , directory
-    , extra                              ^>=1.7
+    , extra                              >=1.7
     , filepath
-    , generic-lens                       ^>=2.2.2
-    , int-cast                           ^>=0.2
+    , generic-lens                       >=2.2.2
+    , int-cast                           >=0.2
     , iohk-monitoring
     , iohk-monitoring-extra
-    , lens                               ^>=5.1.1
+    , lens                               >=5.1.1
     , lobemo-backend-ekg
-    , memory                             ^>=0.18
-    , network-uri                        ^>=2.6.4.2
-    , OddWord                            ^>=1.0.1
+    , memory                             >=0.18
+    , network-uri                        >=2.6.4.2
+    , OddWord                            >=1.0.1
     , optparse-applicative
-    , ouroboros-network                  ^>=0.8.1
-    , ouroboros-network-api              ^>=0.5
-    , path                               ^>=0.9.2
-    , path-io                            ^>=1.7.0
-    , resourcet                          ^>=1.3
-    , retry                              ^>=0.9.3.1
-    , tagged                             ^>=0.8.7
-    , temporary                          ^>=1.3
+    , ouroboros-network                  >=0.8.1
+    , ouroboros-network-api              >=0.5
+    , path                               >=0.9.2
+    , path-io                            >=1.7.0
+    , resourcet                          >=1.3
+    , retry                              >=0.9.3.1
+    , tagged                             >=0.8.7
+    , temporary                          >=1.3
     , temporary-extra
     , text
     , text-class
-    , time                               ^>=1.9.3
-    , typed-process                      ^>=0.2.11
-    , unliftio                           ^>=0.2
-    , with-utf8                          ^>=1.0.2.4
-    , yaml                               ^>=0.11.11
+    , time                               >=1.9.3
+    , typed-process                      >=0.2.11
+    , unliftio                           >=0.2
+    , with-utf8                          >=1.0.2.4
+    , yaml                               >=0.11.11
 
 executable local-cluster
   import:         language, opts-exe
