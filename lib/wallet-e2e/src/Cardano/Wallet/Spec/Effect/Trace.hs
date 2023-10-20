@@ -35,6 +35,7 @@ import Path.IO
 import Prelude hiding
     ( modify
     , runState
+    , trace
     )
 
 data FxTrace :: Effect where
