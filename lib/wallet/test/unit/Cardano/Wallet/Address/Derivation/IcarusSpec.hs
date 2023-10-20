@@ -15,9 +15,11 @@ module Cardano.Wallet.Address.Derivation.IcarusSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -37,19 +39,28 @@ import Cardano.Wallet.Address.Derivation.Icarus
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (IcarusKeyS) )
+    ( KeyFlavorS (IcarusKeyS)
+    )
 import Cardano.Wallet.Gen
-    ( genLegacyAddress )
+    ( genLegacyAddress
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+    ( SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property

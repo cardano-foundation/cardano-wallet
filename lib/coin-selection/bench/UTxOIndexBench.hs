@@ -12,35 +12,63 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
+    ( Hash (..)
+    , mockHash
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( rnf )
+    ( rnf
+    )
 import Control.Exception
-    ( evaluate )
+    ( evaluate
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Text.Format.Numbers
-    ( prettyI )
+    ( prettyI
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.QuickCheck
-    ( choose, frequency, oneof, vectorOf )
+    ( choose
+    , frequency
+    , oneof
+    , vectorOf
+    )
 import Test.QuickCheck.Extra
-    ( GenSeed (GenSeed), chooseNatural, genSizeDefault, generateWith )
+    ( GenSeed (GenSeed)
+    , chooseNatural
+    , genSizeDefault
+    , generateWith
+    )
 import Test.QuickCheck.Gen
-    ( Gen (..) )
+    ( Gen (..)
+    )
 import Test.Tasty.Bench
-    ( Benchmark, bench, bgroup, defaultMain, nf )
+    ( Benchmark
+    , bench
+    , bgroup
+    , defaultMain
+    , nf
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

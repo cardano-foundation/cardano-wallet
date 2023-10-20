@@ -33,9 +33,14 @@ module Internal.Cardano.Write.Tx.BalanceSpec
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (Policy) )
+    ( KeyHash (..)
+    , KeyRole (Policy)
+    )
 import Cardano.Api
-    ( CardanoEra (..), InAnyCardanoEra (..), IsCardanoEra (..) )
+    ( CardanoEra (..)
+    , InAnyCardanoEra (..)
+    , IsCardanoEra (..)
+    )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -51,11 +56,16 @@ import Cardano.Api.Gen
     , genValueForTxOut
     )
 import Cardano.Api.Shelley
-    ( fromShelleyLovelace )
+    ( fromShelleyLovelace
+    )
 import Cardano.Binary
-    ( ToCBOR, serialize', unsafeDeserialize' )
+    ( ToCBOR
+    , serialize'
+    , unsafeDeserialize'
+    )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
+    ( TranslationError (..)
+    )
 import Cardano.Ledger.Api
     ( AllegraEraTxBody (..)
     , AlonzoEraTxBody (..)
@@ -73,19 +83,29 @@ import Cardano.Ledger.Api
     , serialiseAddr
     )
 import Cardano.Ledger.Era
-    ( Era )
+    ( Era
+    )
 import Cardano.Ledger.Language
-    ( Language (..) )
+    ( Language (..)
+    )
 import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing), Withdrawals (..) )
+    ( StrictMaybe (SJust, SNothing)
+    , Withdrawals (..)
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
+    ( SomeMnemonic (SomeMnemonic)
+    , entropyToMnemonic
+    , mkEntropy
+    )
 import Cardano.Numeric.Util
-    ( power )
+    ( power
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet
-    ( defaultChangeAddressGen )
+    ( defaultChangeAddressGen
+    )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (delegationAddress)
     , Depth (..)
@@ -96,19 +116,32 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddress
     )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState, mkRndState )
+    ( RndState
+    , mkRndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState, defaultAddressPoolGap, purposeBIP44, purposeCIP1852 )
+    ( SeqState
+    , defaultAddressPoolGap
+    , purposeBIP44
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Address.Keys.SequentialAny
-    ( mkSeqStateFromRootXPrv )
+    ( mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, publicKey )
+    ( getRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet (..), unsafeInitWallet )
+    ( Wallet (..)
+    , unsafeInitWallet
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     , NetworkId (..)
@@ -116,11 +149,14 @@ import Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..) )
+    ( RootCredentials (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , cardanoTxIdeallyNoLaterThan
@@ -130,65 +166,116 @@ import Cardano.Wallet.Primitive.Types.Tx
     , serialisedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness, mkDelegationCertificates, _decodeSealedTx )
+    ( mkByronWitness
+    , mkDelegationCertificates
+    , _decodeSealedTx
+    )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), WitnessCountCtx (..) )
+    ( DelegationAction (..)
+    , WitnessCountCtx (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Lens
-    ( set, (%~), (.~), (^.) )
+    ( set
+    , (%~)
+    , (.~)
+    , (^.)
+    )
 import Control.Monad
-    ( forM, forM_, replicateM )
+    ( forM
+    , forM_
+    , replicateM
+    )
 import Control.Monad.Random
-    ( evalRand )
+    ( evalRand
+    )
 import Control.Monad.Trans.Except
-    ( runExcept, runExceptT )
+    ( runExcept
+    , runExceptT
+    )
 import Control.Monad.Trans.State.Strict
-    ( evalState, state )
+    ( evalState
+    , state
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Char
-    ( isDigit )
+    ( isDigit
+    )
 import Data.Default
-    ( Default (..) )
+    ( Default (..)
+    )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft
+    , isRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Identity
-    ( Identity )
+    ( Identity
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over
+    , view
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List
-    ( isSuffixOf, sortOn )
+    ( isSuffixOf
+    , sortOn
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( catMaybes, fromJust, fromMaybe )
+    ( catMaybes
+    , fromJust
+    , fromMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.SOP.Counting
-    ( exactlyOne )
+    ( exactlyOne
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Fmt
-    ( Buildable (..), blockListF, blockListF', fmt, nameF, pretty )
+    ( Buildable (..)
+    , blockListF
+    , blockListF'
+    , fmt
+    , nameF
+    , pretty
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     , Datum (..)
@@ -239,35 +326,62 @@ import Internal.Cardano.Write.Tx.Balance
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..), estimateKeyWitnessCount, estimateSignedTxSize )
+    ( KeyWitnessCount (..)
+    , estimateKeyWitnessCount
+    , estimateSignedTxSize
+    )
 import Internal.Cardano.Write.Tx.SizeEstimation
-    ( sizeOf_BootstrapWitnesses )
+    ( sizeOf_BootstrapWitnesses
+    )
 import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation, timeTranslationFromEpochInfo )
+    ( TimeTranslation
+    , timeTranslationFromEpochInfo
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
+    ( RelativeTime (..)
+    , mkSlotLength
+    )
 import Ouroboros.Consensus.Config
-    ( SecurityParam (..) )
+    ( SecurityParam (..)
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage )
+    ( StandardBabbage
+    )
 import Ouroboros.Network.Block
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import System.Directory
-    ( listDirectory )
+    ( listDirectory
+    )
 import System.FilePath
-    ( takeExtension, (</>) )
+    ( takeExtension
+    , (</>)
+    )
 import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed )
+    ( StdGenSeed (..)
+    , stdGenFromSeed
+    )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, pendingWith, runIO, shouldBe )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    , pendingWith
+    , runIO
+    , shouldBe
+    )
 import Test.Hspec.Core.Spec
-    ( SpecM )
+    ( SpecM
+    )
 import Test.Hspec.Golden
-    ( Golden (..) )
+    ( Golden (..)
+    )
 import Test.Hspec.QuickCheck
-    ( prop )
+    ( prop
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary2 (liftShrink2)
@@ -298,15 +412,22 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( report, shrinkNatural, (.>=.) )
+    ( report
+    , shrinkNatural
+    , (.>=.)
+    )
 import Test.QuickCheck.Gen
-    ( Gen (..) )
+    ( Gen (..)
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Pretty
-    ( Pretty (..) )
+    ( Pretty (..)
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -325,26 +446,35 @@ import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
-    ( Block (..), BlockHeader (..) )
+    ( Block (..)
+    , BlockHeader (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types as W.Block
-    ( header )
+    ( header
+    )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-    ( Address (..) )
+    ( Address (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-    ( Hash (..), mockHash )
+    ( Hash (..)
+    , mockHash
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
@@ -356,7 +486,8 @@ import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Quantity as W
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T

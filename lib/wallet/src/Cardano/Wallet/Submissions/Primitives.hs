@@ -37,11 +37,18 @@ import Cardano.Wallet.Submissions.Submissions
     , txStatus
     )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..), TxStatus (Expired, InLedger, InSubmission) )
+    ( HasTxId (..)
+    , TxStatus (Expired, InLedger, InSubmission)
+    )
 import Control.Lens
-    ( ix, (%~), (&), (.~) )
+    ( ix
+    , (%~)
+    , (&)
+    , (.~)
+    )
 import Data.Foldable
-    ( Foldable (..) )
+    ( Foldable (..)
+    )
 
 import qualified Data.Map.Strict as Map
 

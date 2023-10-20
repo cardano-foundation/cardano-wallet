@@ -10,17 +10,31 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress, shrinkAddress )
+    ( genAddress
+    , shrinkAddress
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, genTxInLargeRange, shrinkTxIn )
+    ( genTxIn
+    , genTxInLargeRange
+    , shrinkTxIn
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
-    ( WalletUTxO (..) )
+    ( WalletUTxO (..)
+    )
 import Test.QuickCheck
-    ( Gen, coarbitrary )
+    ( Gen
+    , coarbitrary
+    )
 import Test.QuickCheck.Extra
-    ( genFunction, genSized2, genericRoundRobinShrink, (<:>), (<@>) )
+    ( genFunction
+    , genSized2
+    , genericRoundRobinShrink
+    , (<:>)
+    , (<@>)
+    )
 
 --------------------------------------------------------------------------------
 -- Wallet UTxO identifiers chosen according to the size parameter

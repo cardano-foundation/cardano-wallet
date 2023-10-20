@@ -27,21 +27,32 @@ import Cardano.Wallet.Balance.Migration.Selection
     , minimizeFeeStep
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( chooseCoin )
+    ( chooseCoin
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle (..) )
+    ( Flat (..)
+    , TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , TxSize (..)
@@ -52,37 +63,56 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidTokenQuantities
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Semigroup
-    ( mtimesDefault, stimes )
+    ( mtimesDefault
+    , stimes
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -103,7 +133,9 @@ import Test.QuickCheck
     , withMaxSuccess
     )
 import Test.QuickCheck.Extra
-    ( report, verify )
+    ( report
+    , verify
+    )
 
 import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

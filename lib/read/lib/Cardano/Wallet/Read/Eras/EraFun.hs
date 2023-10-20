@@ -40,7 +40,9 @@ module Cardano.Wallet.Read.Eras.EraFun
   where
 
 import Prelude hiding
-    ( id, (.) )
+    ( id
+    , (.)
+    )
 
 import Cardano.Api
     ( AllegraEra
@@ -52,11 +54,14 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue (..) )
+    ( EraValue (..)
+    )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras )
+    ( KnownEras
+    )
 import Control.Category
-    ( Category (..) )
+    ( Category (..)
+    )
 import Generics.SOP
     ( (:.:) (..)
     , I (..)
@@ -70,13 +75,20 @@ import Generics.SOP
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( map_NP, pure_NP, trans_NP, zipWith_NP )
+    ( map_NP
+    , pure_NP
+    , trans_NP
+    , zipWith_NP
+    )
 import Generics.SOP.NS
-    ( ap_NS )
+    ( ap_NS
+    )
 import Generics.SOP.TH
-    ( deriveGeneric )
+    ( deriveGeneric
+    )
 import GHC.Generics
-    ( (:*:) (..) )
+    ( (:*:) (..)
+    )
 
 -- | A record of functions indexed by all known eras. This is the natural way
 -- of defining the vector.

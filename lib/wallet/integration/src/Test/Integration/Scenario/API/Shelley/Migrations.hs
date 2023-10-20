@@ -17,9 +17,13 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiEra (..)
@@ -32,39 +36,63 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     )
 import Cardano.Wallet.Faucet
-    ( bigDustWallet, onlyDustWallet )
+    ( bigDustWallet
+    , onlyDustWallet
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( unAddress )
+    ( unAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxStatus (..) )
+    ( TxStatus (..)
+    )
 import Control.Monad
-    ( forM_, replicateM_, void, when )
+    ( forM_
+    , replicateM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldSatisfy )
+    ( shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

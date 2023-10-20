@@ -18,17 +18,28 @@ module Cardano.Wallet.Primitive.TypesSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner (..), decodePoolIdBech32, encodePoolIdBech32 )
+    ( PoolId (..)
+    , PoolOwner (..)
+    , decodePoolIdBech32
+    , encodePoolIdBech32
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey, generateKeyFromSeed )
+    ( ShelleyKey
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( digest, publicKey )
+    ( digest
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ShelleyKeyS) )
+    ( KeyFlavorS (ShelleyKeyS)
+    )
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
@@ -52,7 +63,9 @@ import Cardano.Wallet.Primitive.Slotting.Legacy
     , slotSucc
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..), mkSyncTolerance )
+    ( SyncTolerance (..)
+    , mkSyncTolerance
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -89,27 +102,45 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin )
+    ( genCoin
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, shrinkTx )
+    ( genTx
+    , shrinkTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, shrinkTxMetadata )
+    ( genNestedTxMetadata
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxMetadata (..), TxMetadataValue (..) )
+    ( Tx (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..) )
+    ( Direction (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     , balance
@@ -120,45 +151,78 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , restrictedTo
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..) )
+    ( HistogramBar (..)
+    , UTxOStatistics (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic, unsafeFromHex )
+    ( someDummyMnemonic
+    , unsafeFromHex
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_
+    , replicateM
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Function.Utils
-    ( applyN )
+    ( applyN
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, mapMaybe )
+    ( fromMaybe
+    , isJust
+    , isNothing
+    , mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set, (\\) )
+    ( Set
+    , (\\)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText, toText )
+    ( TextDecodingError (..)
+    , fromText
+    , toText
+    )
 import Data.Time
-    ( Day (ModifiedJulianDay), UTCTime, toModifiedJulianDay, utctDay )
+    ( Day (ModifiedJulianDay)
+    , UTCTime
+    , toModifiedJulianDay
+    , utctDay
+    )
 import Data.Time.Utils
-    ( utcTimePred, utcTimeSucc )
+    ( utcTimePred
+    , utcTimeSucc
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Test.Hspec
     ( Spec
     , anyErrorCall
@@ -198,19 +262,31 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 import Test.QuickCheck.Classes
-    ( eqLaws, ordLaws )
+    ( eqLaws
+    , ordLaws
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Time
-    ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
+    ( genUniformTime
+    , genUniformTimeWithinRange
+    , getUniformTime
+    )
 import UnliftIO.Exception
-    ( evaluate )
+    ( evaluate
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

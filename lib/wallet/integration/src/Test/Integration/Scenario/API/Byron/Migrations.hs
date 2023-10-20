@@ -17,9 +17,12 @@ module Test.Integration.Scenario.API.Byron.Migrations
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy )
+    ( entropyToMnemonic
+    , genEntropy
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
@@ -33,31 +36,50 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxStatus (..) )
+    ( TxStatus (..)
+    )
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

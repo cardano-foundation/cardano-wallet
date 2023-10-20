@@ -17,7 +17,8 @@ module Cardano.Wallet.Primitive.Delegation.StateSpec where
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -45,25 +46,35 @@ import Cardano.Wallet.Primitive.Delegation.State
     , usableKeys
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+    ( SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -77,9 +88,14 @@ import Fmt
     , pretty
     )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -96,7 +112,8 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary )
+    ( genericArbitrary
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteString as BS

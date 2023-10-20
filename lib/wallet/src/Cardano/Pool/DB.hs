@@ -24,9 +24,13 @@ module Cardano.Pool.DB
 import Prelude
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata, StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , CertificatePublicationTime (..)
@@ -38,21 +42,29 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT )
+    ( ExceptT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import System.Random
-    ( StdGen )
+    ( StdGen
+    )
 
 -- | A Database interface for storing pool production in DB.
 --

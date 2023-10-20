@@ -25,25 +25,43 @@ module Cardano.Launcher.Node
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
+    ( LauncherLog
+    , ProcessHasExited
+    , withBackendCreateProcess
+    )
 import Control.Tracer
-    ( Tracer (..) )
+    ( Tracer (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.List
-    ( isPrefixOf )
+    ( isPrefixOf
+    )
 import Data.Maybe
-    ( fromMaybe, maybeToList )
+    ( fromMaybe
+    , maybeToList
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import System.Environment
-    ( getEnvironment )
+    ( getEnvironment
+    )
 import System.FilePath
-    ( isValid, takeFileName, (</>) )
+    ( isValid
+    , takeFileName
+    , (</>)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import UnliftIO.Process
-    ( CreateProcess (..), proc )
+    ( CreateProcess (..)
+    , proc
+    )
 
 import qualified Data.Text as T
 

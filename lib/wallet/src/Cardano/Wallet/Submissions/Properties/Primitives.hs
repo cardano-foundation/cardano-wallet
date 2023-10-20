@@ -10,22 +10,39 @@ module Cardano.Wallet.Submissions.Properties.Primitives
 import Prelude
 
 import Cardano.Wallet.Submissions.Primitives
-    ( Primitive (..) )
+    ( Primitive (..)
+    )
 import Cardano.Wallet.Submissions.Properties.Common
-    ( Step (Step), forAllIn, that, verify )
+    ( Step (Step)
+    , forAllIn
+    , that
+    , verify
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions, finality, tip, transactions )
+    ( Submissions
+    , finality
+    , tip
+    , transactions
+    )
 import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..)
     , TxStatus (Expired, InLedger, InSubmission, Unknown)
     , status
     )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Set
-    ( Set, singleton )
+    ( Set
+    , singleton
+    )
 import Test.QuickCheck
-    ( Property, counterexample, (.&&.), (.&.), (===) )
+    ( Property
+    , counterexample
+    , (.&&.)
+    , (.&.)
+    , (===)
+    )
 
 import qualified Data.Map.Strict as Map
 

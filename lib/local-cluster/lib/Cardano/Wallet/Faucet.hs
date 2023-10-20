@@ -44,10 +44,14 @@ module Cardano.Wallet.Faucet
     ) where
 
 import Prelude hiding
-    ( appendFile )
+    ( appendFile
+    )
 
 import Cardano.Address
-    ( Address, base58, unAddress )
+    ( Address
+    , base58
+    , unAddress
+    )
 import Cardano.Address.Derivation
     ( AccountIndexDerivationType
     , AddressIndexDerivationType
@@ -64,11 +68,14 @@ import Cardano.Address.Derivation
     , toXPub
     )
 import Cardano.Address.Style.Byron
-    ( Byron )
+    ( Byron
+    )
 import Cardano.Address.Style.Icarus
-    ( Icarus )
+    ( Icarus
+    )
 import Cardano.Address.Style.Shelley
-    ( Shelley )
+    ( Shelley
+    )
 import Cardano.Mnemonic
     ( EntropySize
     , Mnemonic
@@ -82,33 +89,56 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId, nullTokenName )
+    ( TokenName (..)
+    , TokenPolicyId
+    , nullTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeMkMnemonic )
+    ( unsafeFromText
+    , unsafeMkMnemonic
+    )
 import Control.Monad
-    ( forM, forM_, replicateM )
+    ( forM
+    , forM_
+    , replicateM
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.List
-    ( unfoldr )
+    ( unfoldr
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Tuple.Extra
-    ( dupe )
+    ( dupe
+    )
 import GHC.TypeLits
-    ( KnownNat, Nat, Symbol )
+    ( KnownNat
+    , Nat
+    , Symbol
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar )
+    ( MVar
+    , modifyMVar
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Byron as Byron

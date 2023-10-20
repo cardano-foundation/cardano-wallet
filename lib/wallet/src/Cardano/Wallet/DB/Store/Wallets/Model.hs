@@ -19,13 +19,20 @@ module Cardano.Wallet.DB.Store.Wallets.Model
 import Prelude
 
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( TxMetaHistory, mkTxMetaHistory )
+    ( TxMetaHistory
+    , mkTxMetaHistory
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..), mkTxSet )
+    ( TxSet (..)
+    , mkTxSet
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Fmt
-    ( Buildable, build )
+    ( Buildable
+    , build
+    )
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxStore

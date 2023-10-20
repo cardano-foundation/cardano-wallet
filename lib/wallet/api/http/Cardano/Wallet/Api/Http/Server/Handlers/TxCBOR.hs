@@ -16,17 +16,26 @@ module Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
 import Prelude
 
 import Cardano.Binary
-    ( DecoderError )
+    ( DecoderError
+    )
 import Cardano.Wallet.Api.Http.Server.Error
-    ( IsServerError (..), apiError, liftE, showT )
+    ( IsServerError (..)
+    , apiError
+    , liftE
+    , showT
+    )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (UnexpectedError) )
+    ( ApiErrorInfo (UnexpectedError)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate )
+    ( Certificate
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Cardano.Wallet.Read
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( (:.:)
     , EraFun (..)
@@ -38,31 +47,47 @@ import Cardano.Wallet.Read.Eras
     , (*.**)
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFunK (..) )
+    ( EraFunK (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, deserializeTx )
+    ( TxCBOR
+    , deserializeTx
+    )
 import Cardano.Wallet.Read.Tx.Certificates
-    ( getEraCertificates )
+    ( getEraCertificates
+    )
 import Cardano.Wallet.Read.Tx.ExtraSigs
-    ( getEraExtraSigs )
+    ( getEraExtraSigs
+    )
 import Cardano.Wallet.Read.Tx.Integrity
-    ( getEraIntegrity )
+    ( getEraIntegrity
+    )
 import Cardano.Wallet.Read.Tx.Mint
-    ( getEraMint )
+    ( getEraMint
+    )
 import Cardano.Wallet.Read.Tx.ReferenceInputs
-    ( getEraReferenceInputs )
+    ( getEraReferenceInputs
+    )
 import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity )
+    ( getEraValidity
+    )
 import Cardano.Wallet.Read.Tx.Witnesses
-    ( getEraWitnesses )
+    ( getEraWitnesses
+    )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts, ValidityIntervalExplicit )
+    ( TokenMapWithScripts
+    , ValidityIntervalExplicit
+    )
 import Control.Category
-    ( (<<<) )
+    ( (<<<)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Servant.Server
-    ( Handler, err500 )
+    ( Handler
+    , err500
+    )
 
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs as Feature

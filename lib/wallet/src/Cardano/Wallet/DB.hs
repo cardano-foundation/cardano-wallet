@@ -39,23 +39,39 @@ import Prelude
 
 import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( getInSubmissionTransaction, getInSubmissionTransactions )
+    ( getInSubmissionTransaction
+    , getInSubmissionTransactions
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..), TxSubmissions, TxSubmissionsStatus )
+    ( SubmissionMeta (..)
+    , TxSubmissions
+    , TxSubmissionsStatus
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( TxInDecorator )
+    ( TxInDecorator
+    )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfoFromReadTx )
+    ( mkTransactionInfoFromReadTx
+    )
 import Cardano.Wallet.DB.Store.Wallets.Layer
-    ( QueryTxWalletsHistory )
+    ( QueryTxWalletsHistory
+    )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory )
+    ( DeltaTxWalletsHistory
+    )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState, WalletState (submissions), updateSubmissions )
+    ( DeltaWalletState
+    , WalletState (submissions)
+    , updateSubmissions
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip )
+    ( Wallet
+    , currentTip
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+    ( TimeInterpreter
+    , hoistTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
@@ -68,49 +84,78 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, Tx (..) )
+    ( SealedTx
+    , Tx (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..) )
+    ( TransactionInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta (..), TxStatus )
+    ( TxMeta (..)
+    , TxStatus
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraValue )
+    ( EraValue
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Sealed
-    ( fromSealedTx )
+    ( fromSealedTx
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), txStatus )
+    ( TxStatusMeta (..)
+    , txStatus
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( _Expired, _InSubmission )
+    ( _Expired
+    , _InSubmission
+    )
 import Control.Lens
-    ( has )
+    ( has
+    )
 import Control.Monad
-    ( join )
+    ( join
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT )
+    ( ExceptT (..)
+    , mapExceptT
+    )
 import Data.DBVar
-    ( DBVar, readDBVar )
+    ( DBVar
+    , readDBVar
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Store
-    ( Store (..) )
+    ( Store (..)
+    )
 import Data.Traversable
-    ( for )
+    ( for
+    )
 import GHC.Num
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Sbms
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST

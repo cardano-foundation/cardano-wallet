@@ -18,7 +18,9 @@ module Cardano.Wallet.Address.Discovery.SharedSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
     , Script (..)
@@ -35,13 +37,21 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( unsafeGenerateKeyFromSeed )
+    ( unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..), constructAddressFromIx )
+    ( SharedKey (..)
+    , constructAddressFromIx
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..), KnownAddresses (..) )
+    ( IsOurs (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..), defaultAddressPoolGap, mkUnboundedAddressPoolGap )
+    ( AddressPoolGap (..)
+    , defaultAddressPoolGap
+    , mkUnboundedAddressPoolGap
+    )
 import Cardano.Wallet.Address.Discovery.Shared
     ( Readiness (..)
     , SharedAddressPool (..)
@@ -51,35 +61,59 @@ import Cardano.Wallet.Address.Discovery.Shared
     , liftPaymentAddress
     )
 import Cardano.Wallet.Address.Keys.Shared
-    ( mkSharedStateFromAccountXPub, mkSharedStateFromRootXPrv )
+    ( mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, publicKey )
+    ( getRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (SharedKeyS) )
+    ( KeyFlavorS (SharedKeyS)
+    )
 import Cardano.Wallet.Gen
-    ( genNatural, genScript, genScriptTemplate )
+    ( genNatural
+    , genScript
+    , genScriptTemplate
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Gen
-    ( genEncryptionPassphrase )
+    ( genEncryptionPassphrase
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..) )
+    ( RootCredentials (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic )
+    ( someDummyMnemonic
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word32
+    , Word8
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

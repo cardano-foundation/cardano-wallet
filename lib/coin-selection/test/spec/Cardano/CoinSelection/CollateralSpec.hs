@@ -24,7 +24,8 @@
 module Cardano.CoinSelection.CollateralSpec where
 
 import Prelude hiding
-    ( sequence )
+    ( sequence
+    )
 
 import Cardano.CoinSelection.Collateral
     ( PerformSelection
@@ -46,33 +47,50 @@ import Cardano.CoinSelection.Collateral
     , takeUntil
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive, shrinkCoinPositive )
+    ( genCoinPositive
+    , shrinkCoinPositive
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft
+    , isRight
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -96,9 +114,12 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
+    ( Hexadecimal (..)
+    , Quid
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.Bits as Bits
 import qualified Data.Foldable as F

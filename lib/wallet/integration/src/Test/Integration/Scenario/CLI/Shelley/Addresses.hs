@@ -12,37 +12,62 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+    ( defaultAddressPoolGap
+    , getAddressPoolGap
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath, ApiWallet, apiAddress )
+    ( ApiAddressWithPath
+    , ApiWallet
+    , apiAddress
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , deleteWalletViaCLI
@@ -61,7 +86,9 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet, falseWalletIds )
+    ( errMsg404NoWallet
+    , falseWalletIds
+    )
 
 import qualified Data.Text as T
 

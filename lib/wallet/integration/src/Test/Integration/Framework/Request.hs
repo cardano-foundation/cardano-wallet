@@ -21,21 +21,33 @@ module Test.Integration.Framework.Request
 import Prelude
 
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Data.Aeson
-    ( FromJSON, Value, eitherDecode, encode )
+    ( FromJSON
+    , Value
+    , eitherDecode
+    , encode
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent
@@ -50,17 +62,28 @@ import Network.HTTP.Client
     , responseStatus
     )
 import Network.HTTP.Types.Header
-    ( RequestHeaders )
+    ( RequestHeaders
+    )
 import Network.HTTP.Types.Method
-    ( Method )
+    ( Method
+    )
 import Network.HTTP.Types.Status
-    ( status400, status500, statusIsSuccessful )
+    ( status400
+    , status500
+    , statusIsSuccessful
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import Test.Integration.Framework.Context
-    ( Context )
+    ( Context
+    )
 import UnliftIO.Exception
-    ( Exception (..), fromEither, handle, throwIO )
+    ( Exception (..)
+    , fromEither
+    , handle
+    , throwIO
+    )
 
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP

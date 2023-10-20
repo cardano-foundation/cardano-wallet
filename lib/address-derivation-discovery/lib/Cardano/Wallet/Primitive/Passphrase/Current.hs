@@ -18,21 +18,32 @@ module Cardano.Wallet.Primitive.Passphrase.Current
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( ErrWrongPassphrase (..), Passphrase (..), PassphraseHash (..) )
+    ( ErrWrongPassphrase (..)
+    , Passphrase (..)
+    , PassphraseHash (..)
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Crypto.KDF.PBKDF2
-    ( Parameters (..), fastPBKDF2_SHA512 )
+    ( Parameters (..)
+    , fastPBKDF2_SHA512
+    )
 import Crypto.Random.Types
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.ByteArray
-    ( ScrubbedBytes )
+    ( ScrubbedBytes
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

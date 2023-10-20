@@ -5,11 +5,22 @@ module Cardano.Wallet.Primitive.Types.AddressSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity, genAddress )
+    ( Parity (..)
+    , addressParity
+    , genAddress
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Property, checkCoverage, cover, forAll, property )
+    ( Property
+    , checkCoverage
+    , cover
+    , forAll
+    , property
+    )
 
 spec :: Spec
 spec =

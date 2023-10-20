@@ -25,33 +25,51 @@ module Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxMetadata, TxScriptValidity )
+    ( Tx (..)
+    , TxMetadata
+    , TxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta, TxStatus, status )
+    ( TxMeta
+    , TxStatus
+    , status
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
+    ( TxCBOR
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 -- | Full expanded and resolved information about a transaction, suitable for
 -- presentation to the user.

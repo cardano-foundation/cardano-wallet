@@ -9,17 +9,27 @@ module Test.Utils.Roundtrip
 import Prelude
 
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Char
-    ( isAlphaNum )
+    ( isAlphaNum
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Typeable
-    ( Typeable, splitTyConApp, tyConName, typeRep )
+    ( Typeable
+    , splitTyConApp
+    , tyConName
+    , typeRep
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Settings
@@ -30,9 +40,11 @@ import Test.Aeson.GenericSpecs
     , useModuleNameAsSubDirectory
     )
 import Test.Aeson.Internal.GoldenSpecs
-    ( goldenSpecsWithNotePlain )
+    ( goldenSpecsWithNotePlain
+    )
 import Test.Aeson.Internal.RoundtripSpecs
-    ( roundtripSpecs )
+    ( roundtripSpecs
+    )
 import Test.Aeson.Internal.Utils
     ( RandomMismatchOption (RandomMismatchError)
     , TypeName (..)
@@ -40,13 +52,22 @@ import Test.Aeson.Internal.Utils
     , mkTypeNameInfo
     )
 import Test.Hspec
-    ( Spec, it, runIO, shouldBe )
+    ( Spec
+    , it
+    , runIO
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), property )
+    ( Arbitrary (..)
+    , property
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..)
+    , ToHttpApiData (..)
+    )
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked

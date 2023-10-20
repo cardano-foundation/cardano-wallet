@@ -10,21 +10,39 @@ module Data.StoreSpec
 import Prelude
 
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Store
-    ( Store (..), UpdateStore, newCachedStore, newStore )
+    ( Store (..)
+    , UpdateStore
+    , newCachedStore
+    , newStore
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec
+    , describe
+    , it
+    , parallel
+    )
 import Test.QuickCheck
-    ( elements, generate, (===) )
+    ( elements
+    , generate
+    , (===)
+    )
 import Test.QuickCheck.Gen
-    ( Gen, listOf )
+    ( Gen
+    , listOf
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = do

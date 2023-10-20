@@ -31,21 +31,29 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Babbage.TxBody
-    ( referenceInputsTxBodyL )
+    ( referenceInputsTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Ledger.Shelley.API as SH
 

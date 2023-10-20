@@ -80,47 +80,74 @@ module Cardano.Wallet.Address.Derivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic )
+    ( SomeMnemonic
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), SNetworkId )
+    ( HasSNetworkId (..)
+    , SNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Bits
-    ( (.&.) )
+    ( (.&.)
+    )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess )
+    ( ByteArray
+    , ByteArrayAccess
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Scientific
-    ( Scientific, toBoundedInteger )
+    ( Scientific
+    , toBoundedInteger
+    )
 import Data.String
-    ( fromString )
+    ( fromString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -130,23 +157,36 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..)
+    , testEquality
+    )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word32
+    , Word8
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 import Safe
-    ( readMay, toEnumMay )
+    ( readMay
+    , toEnumMay
+    )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T

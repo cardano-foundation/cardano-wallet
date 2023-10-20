@@ -9,11 +9,15 @@ module Cardano.Wallet.Api.Hex
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( fromHex, hex )
+    ( fromHex
+    , hex
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 
 import qualified Data.Text.Encoding as T
 

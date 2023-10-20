@@ -15,11 +15,17 @@ module Cardano.CoinSelection.UTxOSelectionSpec
 import Prelude
 
 import Cardano.CoinSelection.UTxOIndex
-    ( UTxOIndex )
+    ( UTxOIndex
+    )
 import Cardano.CoinSelection.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , shrinkUTxOIndex
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
+    ( IsUTxOSelection
+    , UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Cardano.CoinSelection.UTxOSelection.Gen
     ( genUTxOSelection
     , genUTxOSelectionNonEmpty
@@ -27,7 +33,10 @@ import Cardano.CoinSelection.UTxOSelection.Gen
     , shrinkUTxOSelectionNonEmpty
     )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -41,7 +50,10 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid, Size (..) )
+    ( Hexadecimal (..)
+    , Quid
+    , Size (..)
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection

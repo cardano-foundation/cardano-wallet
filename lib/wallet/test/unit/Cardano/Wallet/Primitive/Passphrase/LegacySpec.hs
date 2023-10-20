@@ -31,25 +31,45 @@ import Cardano.Wallet.Primitive.Passphrase.Legacy
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..) )
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.ByteArray
-    ( ByteArray )
+    ( ByteArray
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Test.Hspec
-    ( Spec, before_, describe, it, pendingWith, shouldBe )
+    ( Spec
+    , before_
+    , describe
+    , it
+    , pendingWith
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, (==>) )
+    ( Arbitrary (..)
+    , Property
+    , property
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( monadicIO
+    )
 
 spec :: Spec
 spec = do

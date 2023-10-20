@@ -21,25 +21,40 @@ import Cardano.Wallet.Api.Types
     , nextEpoch
     )
 import Cardano.Wallet.Launch.Cluster
-    ( TestnetMagic (testnetMagicToNatural) )
+    ( TestnetMagic (testnetMagicToNatural)
+    )
 import Cardano.Wallet.Pools
-    ( EpochInfo (..) )
+    ( EpochInfo (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( getCurrentTime
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe, shouldNotBe )
+    ( SpecWith
+    , describe
+    , pendingWith
+    , shouldBe
+    , shouldNotBe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -56,7 +71,8 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Utils.Paths
-    ( inNixBuild )
+    ( inNixBuild
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

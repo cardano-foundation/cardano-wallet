@@ -117,67 +117,107 @@ module Cardano.CoinSelection.Balance
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+    ( SelectionContext (..)
+    )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    )
 import Cardano.CoinSelection.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex (..) )
+    ( Asset (..)
+    , SelectionFilter (..)
+    , UTxOIndex (..)
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
+    ( IsUTxOSelection
+    , UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Cardano.Numeric.Util
-    ( padCoalesce )
+    ( padCoalesce
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Lexicographic (..), TokenMap )
+    ( AssetId
+    , Lexicographic (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.Monad.Extra
-    ( andM, (<=<) )
+    ( andM
+    , (<=<)
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Either.Extra
-    ( maybeToEither )
+    ( maybeToEither
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Semigroup
-    ( mtimesDefault )
+    ( mtimesDefault
+    )
 import Data.Semigroup.Cancellative
-    ( Reductive ((</>)) )
+    ( Reductive ((</>))
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (..), Builder, blockMapF )
+    ( Buildable (..)
+    , Builder
+    , blockMapF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection

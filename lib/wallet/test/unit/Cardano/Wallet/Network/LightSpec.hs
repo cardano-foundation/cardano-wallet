@@ -13,7 +13,8 @@ module Cardano.Wallet.Network.LightSpec where
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ChainFollower (..) )
+    ( ChainFollower (..)
+    )
 import Cardano.Wallet.Network.Light
     ( Consensual (Consensual, NotConsensual)
     , LightBlocks
@@ -22,7 +23,8 @@ import Cardano.Wallet.Network.Light
     , lightSync
     )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..) )
+    ( BlockSummary (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint (..)
@@ -30,31 +32,51 @@ import Cardano.Wallet.Primitive.Types
     , isGenesisBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.Monad
-    ( ap, forever, void )
+    ( ap
+    , forever
+    , void
+    )
 import Control.Monad.Class.MonadTimer
-    ( MonadDelay (..) )
+    ( MonadDelay (..)
+    )
 import Control.Monad.Trans.State.Strict
-    ( State, get, modify, runState )
+    ( State
+    , get
+    , modify
+    , runState
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Foldable
-    ( find )
+    ( find
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Encoding
-    ( decodeUtf8 )
+    ( decodeUtf8
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

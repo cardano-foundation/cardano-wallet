@@ -16,21 +16,37 @@ module Cardano.Wallet.DB.Store.Rewards.StoreSpec (
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext, runQuery )
+    ( ForeignKeysSetting (..)
+    , SqliteContext
+    , runQuery
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( logScale, withDBInMemory )
+    ( logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Rewards.Store
-    ( mkStoreRewards )
+    ( mkStoreRewards
+    )
 import Data.Delta
-    ( Replace (..) )
+    ( Replace (..)
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, Property, arbitrary, property )
+    ( Gen
+    , Property
+    , arbitrary
+    , property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

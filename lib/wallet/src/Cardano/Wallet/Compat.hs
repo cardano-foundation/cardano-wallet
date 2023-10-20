@@ -11,11 +11,14 @@ module Cardano.Wallet.Compat
 import Prelude
 
 import Control.Applicative
-    ( Const (..) )
+    ( Const (..)
+    )
 import Data.Monoid
-    ( First (..) )
+    ( First (..)
+    )
 import Data.Profunctor.Unsafe
-    ( ( #. ) )
+    ( ( #. )
+    )
 
 infixl 8 ^?
 (^?) :: s -> ((a -> Const (First a) a) -> s -> Const (First a) s) -> Maybe a

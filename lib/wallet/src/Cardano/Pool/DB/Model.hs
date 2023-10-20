@@ -73,11 +73,17 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Pool.DB
-    ( determinePoolLifeCycleStatus )
+    ( determinePoolLifeCycleStatus
+    )
 import Cardano.Pool.Types
-    ( PoolId, PoolOwner )
+    ( PoolId
+    , PoolOwner
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, interpretQuery )
+    ( TimeInterpreter
+    , epochOf
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
@@ -92,40 +98,61 @@ import Cardano.Wallet.Primitive.Types
     , defaultSettings
     )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.State.Strict
-    ( StateT )
+    ( StateT
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Const
-    ( Const (..) )
+    ( Const (..)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over
+    , view
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Random
-    ( StdGen, newStdGen )
+    ( StdGen
+    , newStdGen
+    )
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata, StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import qualified Control.Monad.Trans.State.Strict as State
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map

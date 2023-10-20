@@ -9,7 +9,10 @@ module Cardano.Wallet.Primitive.BlockSummarySpec
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genBlockHeader, genSlot, genSlotNo )
+    ( genBlockHeader
+    , genSlot
+    , genSlotNo
+    )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (BlockEvents, slot)
     , ChainEvents
@@ -22,13 +25,21 @@ import Cardano.Wallet.Primitive.BlockSummary
     , wholeList
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Slot, WithOrigin (..) )
+    ( BlockHeader (..)
+    , Slot
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx )
+    ( genTx
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

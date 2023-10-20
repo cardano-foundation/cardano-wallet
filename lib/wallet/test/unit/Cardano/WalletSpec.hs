@@ -25,11 +25,16 @@ module Cardano.WalletSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, xpubToBytes )
+    ( XPrv
+    , xpubToBytes
+    )
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..) )
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
@@ -50,25 +55,46 @@ import Cardano.Wallet.Address.Derivation
     , deriveAccountPrivateKey
     )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..)
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..), GenChange (..), IsOurs (..), KnownAddresses (..) )
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Address.States.Features
-    ( TestFeatures (..), defaultTestFeatures )
+    ( TestFeatures (..)
+    , defaultTestFeatures
+    )
 import Cardano.Wallet.Address.States.Test.State
-    ( TestState (..) )
+    ( TestState (..)
+    )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
-    ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
+    ( MockTxConstraints (..)
+    , genTokenBundleMixed
+    , unMockTxConstraints
+    )
 import Cardano.Wallet.DB
-    ( DBFresh, DBLayer (..), hoistDBFresh, hoistDBLayer, putTxHistory )
+    ( DBFresh
+    , DBLayer (..)
+    , hoistDBFresh
+    , hoistDBLayer
+    , putTxHistory
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( logScale' )
+    ( logScale'
+    )
 import Cardano.Wallet.DB.Layer
-    ( newDBFreshInMemory )
+    ( newDBFreshInMemory
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( TxSubmissionsStatus )
+    ( TxSubmissionsStatus
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkLayer
@@ -78,17 +104,28 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavorS (TestStateS) )
+    ( CredFromOf
+    , KeyFlavorS (ShelleyKeyS)
+    , KeyOf
+    , WalletFlavorS (TestStateS)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo )
+    ( genMnemonic
+    , genSlotNo
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (Mainnet) )
+    ( NetworkDiscriminant (Mainnet)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( ErrWrongPassphrase (..), Passphrase (..) )
+    ( ErrWrongPassphrase (..)
+    , Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Current
-    ( preparePassphrase )
+    ( preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (BlockHeader)
@@ -101,41 +138,65 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive )
+    ( genCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (TokenBundle), getAssets )
+    ( TokenBundle (TokenBundle)
+    , getAssets
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genAssetIdLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive )
+    ( genTokenQuantityPositive
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), mockSealedTx )
+    ( SealedTx (..)
+    , Tx (..)
+    , mockSealedTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin )
+    ( txOutMaxCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, shrinkTx )
+    ( genTx
+    , shrinkTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..) )
+    ( TransactionInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxInLargeRange )
+    ( genTxInLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..) )
+    ( Direction (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..)
     , Withdrawal (..)
@@ -143,79 +204,151 @@ import Cardano.Wallet.Transaction
     , emptyWitnessCount
     )
 import Cardano.Wallet.Transaction.Built
-    ( BuiltTx (..) )
+    ( BuiltTx (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeRunExceptT
+    )
 import Cardano.Wallet.Util
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Cardano.Write.Tx
-    ( ErrBalanceTx (..), ErrBalanceTxAssetsInsufficientError (..) )
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxAssetsInsufficientError (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( forM_, guard, replicateM, void )
+    ( forM_
+    , guard
+    , replicateM
+    , void
+    )
 import Control.Monad.Class.MonadTime
-    ( MonadMonotonicTimeNSec (..), MonadTime (..), UTCTime )
+    ( MonadMonotonicTimeNSec (..)
+    , MonadTime (..)
+    , UTCTime
+    )
 import Control.Monad.Class.MonadTime.SI
-    ( MonadMonotonicTime, Time (..), addTime, diffTime )
+    ( MonadMonotonicTime
+    , Time (..)
+    , addTime
+    , diffTime
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
+    ( MonadIO (..)
+    , MonadUnliftIO (..)
+    , wrappedWithRunInIO
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT )
+    ( ExceptT (..)
+    , except
+    , runExceptT
+    )
 import Control.Monad.Trans.Maybe
-    ( MaybeT (..) )
+    ( MaybeT (..)
+    )
 import Control.Monad.Trans.Reader
-    ( ReaderT (..), ask )
+    ( ReaderT (..)
+    , ask
+    )
 import Control.Monad.Trans.State.Strict
-    ( State, StateT (..), evalState, get, put, state )
+    ( State
+    , StateT (..)
+    , evalState
+    , get
+    , put
+    , state
+    )
 import Control.Tracer
-    ( natTracer, nullTracer )
+    ( natTracer
+    , nullTracer
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Either
-    ( isLeft )
+    ( isLeft
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL
-    ( iso, view, (^.) )
+    ( iso
+    , view
+    , (^.)
+    )
 import Data.List
-    ( nubBy, sort, sortOn )
+    ( nubBy
+    , sort
+    , sortOn
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
+    ( catMaybes
+    , fromMaybe
+    , isJust
+    , isNothing
+    , mapMaybe
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( DiffTime, diffTimeToPicoseconds, picosecondsToDiffTime )
+    ( DiffTime
+    , diffTimeToPicoseconds
+    , picosecondsToDiffTime
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag (..) )
+    ( TxWitnessTag (..)
+    )
 import System.Random
-    ( Random )
+    ( Random
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    , xit
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -247,13 +380,21 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( report )
+    ( report
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.Utils.Time
-    ( UniformTime )
+    ( UniformTime
+    )
 import Test.Utils.Trace
-    ( captureLogging' )
+    ( captureLogging'
+    )
 import UnliftIO.Concurrent
     ( MVar
     , modifyMVar

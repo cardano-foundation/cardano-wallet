@@ -29,15 +29,22 @@ module Data.Time.Text
 import Prelude
 
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Monad
-    ( join )
+    ( join
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
+    ( defaultTimeLocale
+    , formatTime
+    , parseTimeM
+    )
 
 import qualified Data.Text as T
 

@@ -13,23 +13,35 @@ module Data.Vector.Shuffle
 import Prelude
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.State.Strict
-    ( evalStateT, state )
+    ( evalStateT
+    , state
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( MD5 )
+    ( MD5
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Vector.Mutable
-    ( IOVector )
+    ( IOVector
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import System.Random
-    ( RandomGen, newStdGen, randomR )
+    ( RandomGen
+    , newStdGen
+    , randomR
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

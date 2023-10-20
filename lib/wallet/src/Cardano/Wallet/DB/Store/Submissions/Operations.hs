@@ -33,37 +33,65 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , SubmissionsSlots (SubmissionsSlots)
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId, TxSubmissionStatusEnum (..) )
+    ( TxId
+    , TxSubmissionStatusEnum (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..), WalletId )
+    ( SlotNo (..)
+    , WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta (..) )
+    ( TxMeta (..)
+    )
 import Cardano.Wallet.Submissions.Operations
-    ( applyOperations )
+    ( applyOperations
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), finality, tip, transactions, transactionsL )
+    ( TxStatusMeta (..)
+    , finality
+    , tip
+    , transactions
+    , transactionsL
+    )
 import Control.Exception
-    ( Exception, SomeException (..) )
+    ( Exception
+    , SomeException (..)
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist
-    ( Entity (..), PersistStoreWrite (delete, repsert), selectList, (==.) )
+    ( Entity (..)
+    , PersistStoreWrite (delete, repsert)
+    , selectList
+    , (==.)
+    )
 import Database.Persist.Sql
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

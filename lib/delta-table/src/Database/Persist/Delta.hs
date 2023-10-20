@@ -16,39 +16,74 @@ module Database.Persist.Delta (
     ) where
 
 import Prelude hiding
-    ( all )
+    ( all
+    )
 
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Data.Table
-    ( DeltaDB (..), Pile (..), Table (..) )
+    ( DeltaDB (..)
+    , Pile (..)
+    , Table (..)
+    )
 import Database.Persist
-    ( Filter, Key, PersistRecordBackend, ToBackendKey )
+    ( Filter
+    , Key
+    , PersistRecordBackend
+    , ToBackendKey
+    )
 import Database.Persist.Sql
-    ( SqlBackend, SqlPersistM, fromSqlKey, toSqlKey )
+    ( SqlBackend
+    , SqlPersistM
+    , fromSqlKey
+    , toSqlKey
+    )
 import Database.Schema
-    ( (:.) (..), Col (..), IsRow, Primary (..) )
+    ( (:.) (..)
+    , Col (..)
+    , IsRow
+    , Primary (..)
+    )
 import Say
-    ( say, sayShow )
+    ( say
+    , sayShow
+    )
 -- FIXME: Replace with IOSim stuff later.
 import Conduit
-    ( ResourceT )
+    ( ResourceT
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow )
+    ( MonadThrow
+    )
 import Control.Monad.Logger
-    ( NoLoggingT (..) )
+    ( NoLoggingT (..)
+    )
 import Data.IORef
-    ( newIORef, readIORef, writeIORef )
+    ( newIORef
+    , readIORef
+    , writeIORef
+    )
 
 import qualified Data.Table as Table
 import qualified Database.Persist as Persist

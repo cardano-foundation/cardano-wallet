@@ -21,28 +21,40 @@ module Cardano.Numeric.Util
     ) where
 
 import Prelude hiding
-    ( round )
+    ( round
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Ord
-    ( Down (..), comparing )
+    ( Down (..)
+    , comparing
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE

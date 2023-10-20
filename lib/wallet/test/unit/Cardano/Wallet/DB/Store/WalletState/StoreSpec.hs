@@ -12,23 +12,36 @@ module Cardano.Wallet.DB.Store.WalletState.StoreSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext, runQuery )
+    ( ForeignKeysSetting (..)
+    , SqliteContext
+    , runQuery
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, InitialCheckpoint (..) )
+    ( GenState
+    , InitialCheckpoint (..)
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWalletTable, withDBInMemory )
+    ( initializeWalletTable
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..) )
+    ( PersistAddressBook (..)
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
-    ( genDeltaCheckpoints )
+    ( genDeltaCheckpoints
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (WalletInfo) )
+    ( WalletInfo (WalletInfo)
+    )
 import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet )
+    ( mkStoreWallet
+    )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -37,23 +50,40 @@ import Cardano.Wallet.DB.WalletState
     , fromWallet
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+    ( dummyGenesisParameters
+    )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavorS (ShelleyWallet) )
+    ( KeyOf
+    , WalletFlavorS (ShelleyWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( WalletId (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, (^.) )
+    ( over
+    , (^.)
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property )
+    ( Arbitrary (..)
+    , Property
+    , property
+    )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = do

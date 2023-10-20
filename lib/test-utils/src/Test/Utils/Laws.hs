@@ -16,15 +16,24 @@ module Test.Utils.Laws
 import Prelude
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec
+    , describe
+    , it
+    , parallel
+    )
 import Test.QuickCheck.Classes
-    ( Laws (..) )
+    ( Laws (..)
+    )
 
 -- | Constructs a test to check that the given type class instance obeys the
 --   given set of laws.

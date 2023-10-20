@@ -13,21 +13,36 @@ module Test.Integration.Scenario.API.Shelley.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..), ApiNetworkParameters (..) )
+    ( ApiEra (..)
+    , ApiNetworkParameters (..)
+    )
 import Cardano.Wallet.Pools
-    ( EpochInfo (..) )
+    ( EpochInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( ExecutionUnitPrices (..) )
+    ( ExecutionUnitPrices (..)
+    )
 import Data.List
-    ( (\\) )
+    ( (\\)
+    )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Quantity (..)
+    , mkPercentage
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Test.Hspec
-    ( Expectation, SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
+    ( Expectation
+    , SpecWith
+    , describe
+    , shouldBe
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

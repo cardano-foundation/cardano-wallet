@@ -60,65 +60,108 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..), ScriptHash, ScriptTemplate )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script (..)
+    , ScriptHash
+    , ScriptTemplate
+    )
 import Cardano.Api
-    ( AnyCardanoEra )
+    ( AnyCardanoEra
+    )
 import Cardano.Api.Extra
     ()
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationIndex )
+    ( Depth (..)
+    , DerivationIndex
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate, ProtocolParameters, SlotNo (..) )
+    ( Certificate
+    , ProtocolParameters
+    , SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxMetadata )
+    ( Tx (..)
+    , TxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Monoid.Monus
-    ( (<\>) )
+    ( (<\>)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Fmt
-    ( Buildable (..), genericF )
+    ( Buildable (..)
+    , genericF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxWitnessTag )
+    ( TxWitnessTag
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

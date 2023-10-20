@@ -19,23 +19,38 @@ module Cardano.Wallet.DB.Store.Transactions.Layer
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( CBOR )
+    ( CBOR
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId )
+    ( TxId
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet, TxRelation (..), TxSet (..), fromTxCollateralOut, fromTxOut )
+    ( DeltaTxSet
+    , TxRelation (..)
+    , TxSet (..)
+    , fromTxCollateralOut
+    , fromTxOut
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import Data.Store
-    ( Query (..), Store, mkQueryStore )
+    ( Query (..)
+    , Store
+    , mkQueryStore
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Sql
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import Safe
-    ( atMay )
+    ( atMay
+    )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Store as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W

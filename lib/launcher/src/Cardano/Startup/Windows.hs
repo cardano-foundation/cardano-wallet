@@ -14,7 +14,8 @@ module Cardano.Startup.Windows
 import Prelude
 
 import System.Process
-    ( Pid )
+    ( Pid
+    )
 
 -- | Stub function for windows.
 installSignalHandlers :: IO () -> IO ()

@@ -10,9 +10,11 @@ module Cardano.Wallet.TokenMetadataSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -32,25 +34,46 @@ import Cardano.Wallet.TokenMetadata
     , newMetadataClient
     )
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( assetIdFromSubject, queryServerStatic, withMetadataServer )
+    ( assetIdFromSubject
+    , queryServerStatic
+    , withMetadataServer
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromBase64, unsafeFromHex, unsafeFromText )
+    ( unsafeFromBase64
+    , unsafeFromHex
+    , unsafeFromText
+    )
 import Data.Aeson
-    ( Value (..), eitherDecodeFileStrict )
+    ( Value (..)
+    , eitherDecodeFileStrict
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Maybe
-    ( isNothing )
+    ( isNothing
+    )
 import Network.URI
-    ( parseURI )
+    ( parseURI
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe, shouldReturn, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldNotBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Trace
-    ( traceSpec )
+    ( traceSpec
+    )
 
 spec :: Spec
 spec = do

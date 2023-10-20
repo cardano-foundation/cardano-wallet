@@ -29,11 +29,15 @@ module Cardano.Wallet.DB.Sqlite.Schema where
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, Script )
+    ( Cosigner
+    , Script
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType )
+    ( CredentialType
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockHeight
     , BlockId
@@ -43,23 +47,39 @@ import Cardano.Wallet.DB.Sqlite.Types
     , sqlSettings'
     )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( Pruned, Spent )
+    ( Pruned
+    , Spent
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Slot )
+    ( Slot
+    )
 import Data.Quantity
-    ( Percentage (..) )
+    ( Percentage (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16
+    , Word32
+    , Word64
+    , Word8
+    )
 import Database.Persist.TH
-    ( mkMigrate, mkPersist, persistLowerCase, share )
+    ( mkMigrate
+    , mkPersist
+    , persistLowerCase
+    , share
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 import System.Random
-    ( StdGen )
+    ( StdGen
+    )
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as W

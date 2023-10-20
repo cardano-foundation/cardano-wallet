@@ -16,19 +16,32 @@ module Cardano.Wallet.Api.Types.BlockHeader
 import Prelude
 
 import Cardano.Wallet.Api.Aeson
-    ( fromTextJSON, toTextJSON )
+    ( fromTextJSON
+    , toTextJSON
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotNo (..) )
+    ( BlockHeader (..)
+    , SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON), (.:), (.=) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    , (.:)
+    , (.=)
+    )
 import Data.Binary
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Quantity
-    ( Quantity (Quantity) )
+    ( Quantity (Quantity)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Aeson as Aeson
 

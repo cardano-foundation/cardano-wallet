@@ -8,17 +8,31 @@ module Cardano.Wallet.Read.Tx.CBORSpec
 import Prelude
 
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, parseTxFromCBOR, serializeTx )
+    ( TxCBOR
+    , parseTxFromCBOR
+    , serializeTx
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
+    ( Base (..)
+    , convertFromBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Lazy
-    ( fromStrict )
+    ( fromStrict
+    )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith )
+    ( Spec
+    , describe
+    , it
+    , pendingWith
+    )
 import Test.QuickCheck
-    ( Property, property, (===) )
+    ( Property
+    , property
+    , (===)
+    )
 
 import Cardano.Wallet.Read.Eras
     ( EraValue

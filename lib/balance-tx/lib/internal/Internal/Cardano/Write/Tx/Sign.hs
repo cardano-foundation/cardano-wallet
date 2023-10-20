@@ -36,19 +36,29 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Credential
-    ( Credential (..) )
+    ( Credential (..)
+    )
 import Cardano.Ledger.UTxO
-    ( txinLookup )
+    ( txinLookup
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Control.Lens
-    ( view, (&), (.~), (^.) )
+    ( view
+    , (&)
+    , (.~)
+    , (^.)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
@@ -61,7 +71,8 @@ import Internal.Cardano.Write.Tx
     , withConstraints
     )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano

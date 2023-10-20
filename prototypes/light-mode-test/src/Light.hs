@@ -41,7 +41,8 @@ module Light (
     ) where
 
 import Control.Monad
-    ( void )
+    ( void
+    )
 
 import Light.ReadBlocks
 import Light.StakePools

@@ -7,23 +7,40 @@ module Cardano.Wallet.Spec.Effect.Http where
 import qualified Network.HTTP.Client as HC
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Control.Exception
-    ( try )
+    ( try
+    )
 import Effectful
-    ( (:>), Eff, Effect, IOE )
+    ( (:>)
+    , Eff
+    , Effect
+    , IOE
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret )
+    ( interpret
+    )
 import Effectful.Fail
-    ( Fail )
+    ( Fail
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Prelude hiding
-    ( evalState, get, gets, modify, trace )
+    ( evalState
+    , get
+    , gets
+    , modify
+    , trace
+    )
 import Wallet
-    ( MonadHTTP )
+    ( MonadHTTP
+    )
 import Wallet.Common
-    ( MonadHTTP (..) )
+    ( MonadHTTP (..)
+    )
 
 data FxHttp :: Effect where
     HttpQuery :: HC.Request -> FxHttp m (HC.Response ByteString)

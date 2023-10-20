@@ -8,21 +8,40 @@ module Cardano.Wallet.Submissions.OperationsSpec
 import Prelude
 
 import Cardano.Wallet.Submissions.Gen
-    ( GenSubmissionsHistory (..), genSlot, genTx, prop_submissionHistory )
+    ( GenSubmissionsHistory (..)
+    , genSlot
+    , genTx
+    , prop_submissionHistory
+    )
 import Cardano.Wallet.Submissions.Operations
-    ( Operation (..), applyOperations )
+    ( Operation (..)
+    , applyOperations
+    )
 import Cardano.Wallet.Submissions.Properties.Operations
-    ( properties )
+    ( properties
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions )
+    ( Submissions
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..) )
+    ( HasTxId (..)
+    )
 import System.Random
-    ( Random )
+    ( Random
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary, Gen, Testable (..), frequency, listOf, scale )
+    ( Arbitrary
+    , Gen
+    , Testable (..)
+    , frequency
+    , listOf
+    , scale
+    )
 
 spec :: Spec
 spec = do

@@ -44,7 +44,8 @@ module Cardano.CoinSelection.BalanceSpec
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.CoinSelection.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -97,34 +98,60 @@ import Cardano.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.CoinSelection.Balance.Gen
-    ( genSelectionStrategy, shrinkSelectionStrategy )
+    ( genSelectionStrategy
+    , shrinkSelectionStrategy
+    )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    )
 import Cardano.CoinSelection.UTxOIndex
-    ( Asset (..), SelectionFilter (..), UTxOIndex )
+    ( Asset (..)
+    , SelectionFilter (..)
+    , UTxOIndex
+    )
 import Cardano.CoinSelection.UTxOIndex.Gen
-    ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , genUTxOIndexLarge
+    , genUTxOIndexLargeN
+    , shrinkUTxOIndex
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( UTxOSelection, UTxOSelectionNonEmpty )
+    ( UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Cardano.CoinSelection.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
+    ( genUTxOSelection
+    , shrinkUTxOSelection
+    )
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+    ( inAscendingPartialOrder
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle (..) )
+    ( Flat (..)
+    , TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId
     , genAssetIdLargeRange
@@ -133,59 +160,100 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName )
+    ( genTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
+    ( genTokenQuantityPositive
+    , shrinkTokenQuantityPositive
+    )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_
+    , replicateM
+    )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap
+    , second
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, listToMaybe )
+    ( fromMaybe
+    , isJust
+    , isNothing
+    , listToMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Tuple
-    ( swap )
+    ( swap
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Fmt
-    ( Buildable (..), blockListF, pretty )
+    ( Buildable (..)
+    , blockListF
+    , pretty
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 import Test.Hspec
-    ( Expectation, Spec, SpecWith, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , SpecWith
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -221,17 +289,34 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, ordLaws )
+    ( eqLaws
+    , ordLaws
+    )
 import Test.QuickCheck.Extra
-    ( genFunction, genericRoundRobinShrink, report, verify, (<:>), (<@>) )
+    ( genFunction
+    , genericRoundRobinShrink
+    , report
+    , verify
+    , (<:>)
+    , (<@>)
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM (..), assert, monadicIO, monitor, run )
+    ( PropertyM (..)
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid )
+    ( Hexadecimal (..)
+    , Quid
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Pretty
-    ( Pretty (..) )
+    ( Pretty (..)
+    )
 
 import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex

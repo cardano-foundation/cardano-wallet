@@ -84,68 +84,117 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     ) where
 
 import Prelude hiding
-    ( filter, subtract )
+    ( filter
+    , subtract
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Numeric.Util
-    ( equipartitionNatural )
+    ( equipartitionNatural
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( when, (<=<) )
+    ( when
+    , (<=<)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , camelTo2
+    , genericParseJSON
+    , genericToJSON
+    )
 import Data.Aeson.Types
-    ( Options (..), Parser )
+    ( Options (..)
+    , Parser
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Hashable
-    ( Hashable (..), hashUsing )
+    ( Hashable (..)
+    , hashUsing
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive ((</>)), RightReductive )
+    ( LeftReductive
+    , Reductive ((</>))
+    , RightReductive
+    )
 import Data.Monoid.GCD
-    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+    ( GCDMonoid
+    , LeftGCDMonoid
+    , RightGCDMonoid
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)), OverlappingGCDMonoid )
+    ( Monus ((<\>))
+    , OverlappingGCDMonoid
+    )
 import Data.Monoid.Null
-    ( MonoidNull )
+    ( MonoidNull
+    )
 import Data.MonoidMap
-    ( MonoidMap )
+    ( MonoidMap
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Fmt
-    ( Buildable (..), Builder, blockListF', blockMapF )
+    ( Buildable (..)
+    , Builder
+    , blockListF'
+    , blockMapF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( ErrorMessage (..), TypeError )
+    ( ErrorMessage (..)
+    , TypeError
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 import Safe
-    ( fromJustNote )
+    ( fromJustNote
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson

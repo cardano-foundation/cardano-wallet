@@ -32,27 +32,52 @@ module Cardano.Wallet.Address.Derivation.SharedKey
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), toScriptHash )
+    ( Cosigner
+    , KeyHash
+    , Script (..)
+    , ScriptTemplate (..)
+    , toScriptHash
+    )
 import Cardano.Address.Style.Shared
-    ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
+    ( deriveAddressPublicKey
+    , deriveDelegationPublicKey
+    , hashKey
+    , liftXPub
+    )
 import Cardano.Address.Style.Shelley
-    ( Credential (..), delegationAddress, paymentAddress )
+    ( Credential (..)
+    , delegationAddress
+    , paymentAddress
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..), Role (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (sNetworkId), SNetworkId (..) )
+    ( HasSNetworkId (sNetworkId)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( Iso, iso )
+    ( Iso
+    , iso
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA

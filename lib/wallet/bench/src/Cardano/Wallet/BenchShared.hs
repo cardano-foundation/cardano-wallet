@@ -31,15 +31,21 @@ module Cardano.Wallet.BenchShared
 import Prelude
 
 import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
+    ( defaultConfigStdout
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Extra
-    ( trMessageText )
+    ( trMessageText
+    )
 import Cardano.BM.Setup
-    ( setupTrace_ )
+    ( setupTrace_
+    )
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( Trace
+    , nullTracer
+    )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn
@@ -48,29 +54,46 @@ import Cardano.Launcher.Node
     , withCardanoNode
     )
 import Cardano.Startup
-    ( installSignalHandlers )
+    ( installSignalHandlers
+    )
 import Cardano.Wallet.Network.Ports
-    ( getRandomPort )
+    ( getRandomPort
+    )
 import Control.DeepSeq
-    ( NFData, rnf )
+    ( NFData
+    , rnf
+    )
 import Control.Monad
-    ( forM )
+    ( forM
+    )
 import Criterion.Measurement
-    ( getTime, initializeTime, secs )
+    ( getTime
+    , initializeTime
+    , secs
+    )
 import Data.Aeson
-    ( ToJSON (..) )
+    ( ToJSON (..)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Fmt
-    ( Buildable (..), nameF, pretty )
+    ( Buildable (..)
+    , nameF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( HasValue
@@ -93,23 +116,33 @@ import "optparse-applicative" Options.Applicative
     , value
     )
 import Say
-    ( sayErr )
+    ( sayErr
+    )
 import System.Directory
-    ( createDirectoryIfMissing )
+    ( createDirectoryIfMissing
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.Exit
-    ( ExitCode (..), die )
+    ( ExitCode (..)
+    , die
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Utils.Startup
-    ( withNoBuffering )
+    ( withNoBuffering
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( evaluate )
+    ( evaluate
+    )
 import UnliftIO.Temporary
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM

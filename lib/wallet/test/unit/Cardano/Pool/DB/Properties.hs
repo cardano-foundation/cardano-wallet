@@ -32,15 +32,23 @@ import Cardano.Pool.DB.Arbitrary
     , isValidSinglePoolCertificateSequence
     )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata (..) )
+    ( StakePoolMetadata (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), StakePoolTicker (..) )
+    ( PoolId (..)
+    , StakePoolTicker (..)
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+    ( dummyTimeInterpreter
+    )
 import Cardano.Wallet.Gen
-    ( genBlockHeader, genSlotNo )
+    ( genBlockHeader
+    , genSlotNo
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( epochOf, interpretQuery )
+    ( epochOf
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -56,41 +64,71 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeRunExceptT
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, void )
+    ( forM
+    , forM_
+    , replicateM
+    , unless
+    , void
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Function
-    ( on, (&) )
+    ( on
+    , (&)
+    )
 import Data.Functor.Identity
-    ( runIdentity )
+    ( runIdentity
+    )
 import Data.Generics.Internal.VL.Lens
-    ( set, view )
+    ( set
+    , view
+    )
 import Data.List.Extra
-    ( nubOrd, nubSortOn )
+    ( nubOrd
+    , nubSortOn
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
+    ( catMaybes
+    , fromMaybe
+    , isJust
+    , isNothing
+    , listToMaybe
+    , mapMaybe
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Test.Hspec
     ( Expectation
     , SpecWith
@@ -118,9 +156,16 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, pick, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , pick
+    , run
+    )
 import UnliftIO.Exception
-    ( evaluate )
+    ( evaluate
+    )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L

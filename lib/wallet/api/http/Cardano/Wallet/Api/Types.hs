@@ -252,7 +252,11 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
+    ( XPrv
+    , XPub
+    , xpubFromBytes
+    , xpubToBytes
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
@@ -277,31 +281,58 @@ import Cardano.Mnemonic
     , natVals
     )
 import Cardano.Pool.Metadata
-    ( HealthCheckSMASH, HealthStatusSMASH (..), SMASHPoolId (..) )
+    ( HealthCheckSMASH
+    , HealthStatusSMASH (..)
+    , SMASHPoolId (..)
+    )
 import Cardano.Pool.Metadata.Types
-    ( PoolMetadataGCStatus (..), StakePoolMetadata (..) )
+    ( PoolMetadataGCStatus (..)
+    , StakePoolMetadata (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), decodePoolIdBech32, encodePoolIdBech32 )
+    ( PoolId (..)
+    , decodePoolIdBech32
+    , encodePoolIdBech32
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationIndex (..), Index (..) )
+    ( Depth (..)
+    , DerivationIndex (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, SeqState, getAddressPoolGap )
+    ( AddressPoolGap
+    , SeqState
+    , getAddressPoolGap
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+    ( CredentialType (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, encodeAddress )
+    ( decodeAddress
+    , encodeAddress
+    )
 import Cardano.Wallet.Api.Aeson
-    ( eitherToParser )
+    ( eitherToParser
+    )
 import Cardano.Wallet.Api.Aeson.Variant
-    ( variant, variants )
+    ( variant
+    , variants
+    )
 import Cardano.Wallet.Api.Hex
-    ( fromHexText, hexText )
+    ( fromHexText
+    , hexText
+    )
 import Cardano.Wallet.Api.Lib.ApiAsArray
-    ( ApiAsArray (..) )
+    ( ApiAsArray (..)
+    )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..), fromTextApiT, toTextApiT )
+    ( ApiT (..)
+    , fromTextApiT
+    , toTextApiT
+    )
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
     , DefaultSum (..)
@@ -330,9 +361,13 @@ import Cardano.Wallet.Api.Types.Key
     , VerificationKeyHashing (..)
     )
 import Cardano.Wallet.Api.Types.MintBurn
-    ( ApiAssetMintBurn (..), ApiTokenAmountFingerprint (..), ApiTokens (..) )
+    ( ApiAssetMintBurn (..)
+    , ApiTokenAmountFingerprint (..)
+    , ApiTokens (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataWithSchema )
+    ( TxMetadataWithSchema
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -350,13 +385,22 @@ import Cardano.Wallet.Api.Types.Transaction
     , ResourceContext (..)
     )
 import Cardano.Wallet.Pools
-    ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
+    ( EpochInfo
+    , StakePool (..)
+    , StakePoolFlag
+    , StakePoolMetrics
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..) )
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -376,11 +420,16 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -389,27 +438,47 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction, TxStatus )
+    ( Direction
+    , TxStatus
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( BoundType, HistogramBar (..), UTxOStatistics (..) )
+    ( BoundType
+    , HistogramBar (..)
+    , UTxOStatistics (..)
+    )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataError (..) )
+    ( TokenMetadataError (..)
+    )
 import Cardano.Wallet.Transaction
-    ( ReferenceInput )
+    ( ReferenceInput
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), detectEncoding, encode )
+    ( AbstractEncoding (..)
+    , detectEncoding
+    , encode
+    )
 import Control.Applicative
-    ( optional, (<|>) )
+    ( optional
+    , (<|>)
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( guard, when, (<=<), (>=>) )
+    ( guard
+    , when
+    , (<=<)
+    , (>=>)
+    )
 import Data.Aeson.Types
     ( FromJSON (..)
     , Parser
@@ -432,43 +501,70 @@ import Data.Aeson.Types
     , (.=)
     )
 import Data.Bifunctor
-    ( bimap, first )
+    ( bimap
+    , first
+    )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess )
+    ( ByteArray
+    , ByteArrayAccess
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Char
-    ( toLower )
+    ( toLower
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Either.Combinators
-    ( maybeToRight )
+    ( maybeToRight
+    )
 import Data.Either.Extra
-    ( eitherToMaybe, maybeToEither )
+    ( eitherToMaybe
+    , maybeToEither
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List
-    ( intercalate )
+    ( intercalate
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage
+    , Quantity (..)
+    )
 import Data.String
-    ( IsString )
+    ( IsString
+    )
 import Data.Text
-    ( Text, split )
+    ( Text
+    , split
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -478,35 +574,64 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime )
+    ( NominalDiffTime
+    , UTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+    ( posixSecondsToUTCTime
+    , utcTimeToPOSIXSeconds
+    )
 import Data.Time.Text
-    ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
+    ( iso8601
+    , iso8601ExtendedUtc
+    , utcTimeFromText
+    , utcTimeToText
+    )
 import Data.Traversable
-    ( for )
+    ( for
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16
+    , Word32
+    , Word64
+    , Word8
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( Nat
+    , Symbol
+    )
 import Network.Ntp
-    ( NtpStatusWithOffset, NtpSyncingStatus (..) )
+    ( NtpStatusWithOffset
+    , NtpSyncingStatus (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 import Servant.API
-    ( MimeRender (..), MimeUnrender (..), OctetStream )
+    ( MimeRender (..)
+    , MimeUnrender (..)
+    , OctetStream
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..)
+    , ToHttpApiData (..)
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC

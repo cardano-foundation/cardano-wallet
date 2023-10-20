@@ -30,37 +30,64 @@ module Cardano.Wallet.DB.Store.Delegations.Migration.Schema where
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( sqlSettings' )
+    ( sqlSettings'
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, digestFromByteString )
+    ( Blake2b_160
+    , Digest
+    , digestFromByteString
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON), Value (String) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    , Value (String)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Data
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Database.Persist.Class
-    ( PersistField (..) )
+    ( PersistField (..)
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText, fromPersistValueRead )
+    ( fromPersistValueFromText
+    , fromPersistValueRead
+    )
 import Database.Persist.Sql
-    ( PersistFieldSql (..) )
+    ( PersistFieldSql (..)
+    )
 import Database.Persist.TH
-    ( mkPersist, persistLowerCase, share )
+    ( mkPersist
+    , persistLowerCase
+    , share
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 
 import qualified Data.Text.Encoding as T
 

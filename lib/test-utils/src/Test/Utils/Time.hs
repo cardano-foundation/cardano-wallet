@@ -23,7 +23,12 @@ import Data.Time
     , toModifiedJulianDay
     )
 import Test.QuickCheck
-    ( Arbitrary, Gen, arbitrary, choose, oneof )
+    ( Arbitrary
+    , Gen
+    , arbitrary
+    , choose
+    , oneof
+    )
 
 -- | A wrapper for 'UTCTime' whose 'Arbitrary' instance spans a uniform range
 --   of dates and a mixture of time precisions.

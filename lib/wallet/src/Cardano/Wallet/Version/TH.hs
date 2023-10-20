@@ -14,19 +14,34 @@ module Cardano.Wallet.Version.TH
 import Prelude
 
 import Fmt
-    ( fmt, (+|), (+||), (|+), (||+) )
+    ( fmt
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import Language.Haskell.TH
-    ( Exp (..), Lit (..), Q, runIO )
+    ( Exp (..)
+    , Lit (..)
+    , Q
+    , runIO
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( hPutStrLn, stderr )
+    ( hPutStrLn
+    , stderr
+    )
 import System.IO.Error
-    ( isDoesNotExistError )
+    ( isDoesNotExistError
+    )
 import UnliftIO.Exception
-    ( handle )
+    ( handle
+    )
 import UnliftIO.Process
-    ( readProcessWithExitCode )
+    ( readProcessWithExitCode
+    )
 
 -- | Git revision found by running @git rev-parse@. If @git@ could not be
 -- executed, then this will be an empty string.

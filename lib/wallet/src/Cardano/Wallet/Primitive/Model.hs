@@ -73,7 +73,8 @@ module Cardano.Wallet.Primitive.Model
 import Prelude
 
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..) )
+    ( IsOurs (..)
+    )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (..)
     , BlockSummary (..)
@@ -93,54 +94,94 @@ import Cardano.Wallet.Primitive.Types
     , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), distance )
+    ( Coin (..)
+    , distance
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), collateralInputs, inputs, txScriptInvalid )
+    ( Tx (..)
+    , collateralInputs
+    , inputs
+    , txScriptInvalid
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..) )
+    ( Direction (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
+    ( DeltaUTxO
+    , UTxO (..)
+    , balance
+    , excluding
+    , excludingD
+    , receiveD
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.DeepSeq
-    ( NFData (..), deepseq )
+    ( NFData (..)
+    , deepseq
+    )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, state )
+    ( State
+    , evalState
+    , state
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( Foldable (toList) )
+    ( Foldable (toList)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe
+    , isJust
+    )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..), indentF )
+    ( Buildable (..)
+    , indentF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import Cardano.Wallet.Address.MaybeLight
-    ( DiscoverTxs (discoverTxs) )
+    ( DiscoverTxs (discoverTxs)
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO

@@ -22,35 +22,56 @@ module Cardano.Wallet.Tracers
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation, HasSeverityAnnotation, filterSeverity )
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation
+    , filterSeverity
+    )
 import Cardano.BM.Extra
-    ( trMessageText )
+    ( trMessageText
+    )
 import Cardano.BM.Tracing
-    ( Severity (..), Trace, Tracer, appendName, nullTracer )
+    ( Severity (..)
+    , Trace
+    , Tracer
+    , appendName
+    , nullTracer
+    )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog )
+    ( PoolDbLog
+    )
 import Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog )
+    ( ApplicationLog
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( WalletEngineLog )
+    ( WalletEngineLog
+    )
 import Cardano.Wallet.DB.Layer
-    ( DBFactoryLog )
+    ( DBFactoryLog
+    )
 import Cardano.Wallet.Pools
-    ( StakePoolLog )
+    ( StakePoolLog
+    )
 import Cardano.Wallet.Shelley.Network
-    ( NetworkLayerLog )
+    ( NetworkLayerLog
+    )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataLog )
+    ( TokenMetadataLog
+    )
 import Control.Applicative
-    ( Const (..) )
+    ( Const (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText )
+    ( ToText
+    )
 import Network.NTP.Client
-    ( NtpTrace )
+    ( NtpTrace
+    )
 import Network.Wai.Middleware.Logging
-    ( ApiLog )
+    ( ApiLog
+    )
 
 import qualified Data.Text as T
 

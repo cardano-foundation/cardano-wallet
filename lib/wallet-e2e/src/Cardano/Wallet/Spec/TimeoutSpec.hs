@@ -3,25 +3,50 @@ module Cardano.Wallet.Spec.TimeoutSpec
     ) where
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, runAssertFailsFast )
+    ( FxAssert
+    , runAssertFailsFast
+    )
 import Cardano.Wallet.Spec.Effect.Timeout
-    ( FxTimeout, runTimeout, within )
+    ( FxTimeout
+    , runTimeout
+    , within
+    )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, runTracePure )
+    ( FxTrace
+    , runTracePure
+    )
 import Cardano.Wallet.Spec.Stories.Language
-    ( FxStory )
+    ( FxStory
+    )
 import Control.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import Data.Time.TimeSpan
-    ( milliseconds, seconds, toMicroseconds )
+    ( milliseconds
+    , seconds
+    , toMicroseconds
+    )
 import Effectful
-    ( Eff, IOE, runEff )
+    ( Eff
+    , IOE
+    , runEff
+    )
 import Effectful.Fail
-    ( Fail, runFail )
+    ( Fail
+    , runFail
+    )
 import Prelude hiding
-    ( State, evalState, get, modify )
+    ( State
+    , evalState
+    , get
+    , modify
+    )
 import Test.Syd
-    ( Spec, describe, expectationFailure, it )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    )
 
 -- | This story will not timeout as it takes less than 1 second.
 noTimeout :: FxStory fxs '[FxTimeout, IOE] ()

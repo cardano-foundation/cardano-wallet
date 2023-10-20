@@ -5,10 +5,16 @@ module Cardano.Wallet.DB.Sqlite.Migration.New
     ) where
 
 import Prelude hiding
-    ( id, (.) )
+    ( id
+    , (.)
+    )
 
 import Cardano.DB.Sqlite
-    ( DBHandle (..), DBLog, ReadDBHandle, withDBHandle )
+    ( DBHandle (..)
+    , DBLog
+    , ReadDBHandle
+    , withDBHandle
+    )
 import Cardano.Wallet.DB.Migration
     ( Migration
     , MigrationInterface (..)
@@ -17,21 +23,31 @@ import Cardano.Wallet.DB.Migration
     , runMigrations
     )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( getSchemaVersion, putSchemaVersion )
+    ( getSchemaVersion
+    , putSchemaVersion
+    )
 import Cardano.Wallet.DB.Store.Delegations.Migration
-    ( migrateDelegations )
+    ( migrateDelegations
+    )
 import Control.Category
-    ( Category (id), (.) )
+    ( Category (id)
+    , (.)
+    )
 import Control.Monad.Reader
-    ( withReaderT )
+    ( withReaderT
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import Database.Sqlite
-    ( Connection )
+    ( Connection
+    )
 import System.Directory
-    ( copyFile )
+    ( copyFile
+    )
 
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
 

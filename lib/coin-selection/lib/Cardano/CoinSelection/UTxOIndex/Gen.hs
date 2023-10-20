@@ -10,19 +10,33 @@ module Cardano.CoinSelection.UTxOIndex.Gen
 import Prelude
 
 import Cardano.CoinSelection.UTxOIndex
-    ( UTxOIndex )
+    ( UTxOIndex
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+    ( genTokenBundleSmallRangePositive
+    , shrinkTokenBundleSmallRangePositive
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Test.QuickCheck
-    ( Gen, choose, listOf, shrinkList, shrinkMapBy )
+    ( Gen
+    , choose
+    , listOf
+    , shrinkList
+    , shrinkMapBy
+    )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, (<:>), (<@>) )
+    ( genericRoundRobinShrink
+    , (<:>)
+    , (<@>)
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 

@@ -12,43 +12,76 @@ module Cardano.Wallet.DB.Sqlite.TypesSpec
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( stdGenFromString )
+    ( stdGenFromString
+    )
 import Cardano.Wallet.Gen
-    ( genSlotNo, shrinkSlotNo )
+    ( genSlotNo
+    , shrinkSlotNo
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SlotInEpoch (..), SlotNo )
+    ( EpochNo (..)
+    , SlotInEpoch (..)
+    , SlotNo
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+    ( genTokenQuantityFullRange
+    , shrinkTokenQuantityFullRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata, TxScriptValidity )
+    ( TxMetadata
+    , TxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxScriptValidity, shrinkTxScriptValidity )
+    ( genTxScriptValidity
+    , shrinkTxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, genSimpleTxMetadata, shrinkTxMetadata )
+    ( genNestedTxMetadata
+    , genSimpleTxMetadata
+    , shrinkTxMetadata
+    )
 import Data.Either
-    ( isLeft )
+    ( isLeft
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Database.Persist.Class
-    ( PersistField (..) )
+    ( PersistField (..)
+    )
 import System.Random
-    ( StdGen, mkStdGen )
+    ( StdGen
+    , mkStdGen
+    )
 import System.Random.Internal
-    ( StdGen (..) )
+    ( StdGen (..)
+    )
 import System.Random.SplitMix
-    ( seedSMGen )
+    ( seedSMGen
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)

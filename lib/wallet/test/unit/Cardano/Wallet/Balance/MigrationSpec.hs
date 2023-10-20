@@ -7,9 +7,13 @@ module Cardano.Wallet.Balance.MigrationSpec
 import Prelude
 
 import Cardano.Wallet.Balance.Migration
-    ( RewardWithdrawal (..), createPlan )
+    ( RewardWithdrawal (..)
+    , createPlan
+    )
 import Cardano.Wallet.Balance.Migration.Planning
-    ( categorizeUTxO, uncategorizeUTxO )
+    ( categorizeUTxO
+    , uncategorizeUTxO
+    )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockTxConstraints
     , genRewardWithdrawal
@@ -18,29 +22,47 @@ import Cardano.Wallet.Balance.Migration.SelectionSpec
     , unMockTxConstraints
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxInLargeRange )
+    ( genTxInLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Blind (..), Gen, Property, choose, forAllBlind, property )
+    ( Blind (..)
+    , Gen
+    , Property
+    , choose
+    , forAllBlind
+    , property
+    )
 import Test.QuickCheck.Extra
-    ( verify )
+    ( verify
+    )
 
 import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE

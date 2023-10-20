@@ -5,17 +5,23 @@ module Cardano.Wallet.Primitive.Delegation.UTxO
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Map as Map

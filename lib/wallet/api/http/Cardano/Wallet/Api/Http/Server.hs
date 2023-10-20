@@ -20,11 +20,15 @@ module Cardano.Wallet.Api.Http.Server
 import Prelude
 
 import Cardano.Address
-    ( unAddress )
+    ( unAddress
+    )
 import Cardano.Address.Script
-    ( prettyErrValidateScript, validateScript )
+    ( prettyErrValidateScript
+    , validateScript
+    )
 import Cardano.Api
-    ( NetworkId )
+    ( NetworkId
+    )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (NoSmashConfigured)
     , defaultManagerSettings
@@ -42,23 +46,35 @@ import Cardano.Wallet
     , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Derivation
-    ( Role (..), delegationAddressS, paymentAddressS )
+    ( Role (..)
+    , delegationAddressS
+    , paymentAddressS
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( constructAddressFromIx )
+    ( constructAddressFromIx
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..), SharedState )
+    ( CredentialType (..)
+    , SharedState
+    )
 import Cardano.Wallet.Address.Encoding
-    ( inspectAddress )
+    ( inspectAddress
+    )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
@@ -183,49 +199,80 @@ import Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Api.Types.BlockHeader
-    ( ApiBlockHeader )
+    ( ApiBlockHeader
+    )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (..) )
+    ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), parseSimpleMetadataFlag )
+    ( TxMetadataSchema (..)
+    , parseSimpleMetadataFlag
+    )
 import Cardano.Wallet.Flavor
-    ( WalletFlavorS (..) )
+    ( WalletFlavorS (..)
+    )
 import Cardano.Wallet.Pools
-    ( StakePoolLayer (..) )
+    ( StakePoolLayer (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), networkIdVal )
+    ( HasSNetworkId (..)
+    , networkIdVal
+    )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
+    ( PoolMetadataSource (..)
+    , SmashServer (..)
+    , poolMetadataSource
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( rewardAccountFromAddress )
+    ( rewardAccountFromAddress
+    )
 import Control.Applicative
-    ( liftA2 )
+    ( liftA2
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Except
-    ( except, throwE, withExceptT )
+    ( except
+    , throwE
+    , withExceptT
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Data.Text.Class
-    ( TextDecodingError (..) )
+    ( TextDecodingError (..)
+    )
 import Network.Ntp
-    ( NtpClient )
+    ( NtpClient
+    )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
+    ( (:<|>) (..)
+    , Handler (..)
+    , NoContent (..)
+    , Server
+    , err400
+    )
 import Servant.Server
-    ( ServerError (..) )
+    ( ServerError (..)
+    )
 
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA

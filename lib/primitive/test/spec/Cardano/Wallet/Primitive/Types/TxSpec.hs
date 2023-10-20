@@ -18,13 +18,19 @@ module Cardano.Wallet.Primitive.Types.TxSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
@@ -36,23 +42,37 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txRemoveAssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, shrinkTx )
+    ( genTx
+    , shrinkTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Data.ByteString
-    ( ByteString, pack )
+    ( ByteString
+    , pack
+    )
 import Data.Either
-    ( isLeft )
+    ( isLeft
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.QuickCheck
-    ( prop )
+    ( prop
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)

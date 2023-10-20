@@ -16,11 +16,15 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
 import Prelude
 
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid (..) )
+    ( IsValid (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( ScriptValidity (..) )
+    ( ScriptValidity (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 

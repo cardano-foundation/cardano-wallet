@@ -10,9 +10,12 @@ where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -25,35 +28,64 @@ import Cardano.Wallet.DB.Fixtures
     , withInitializedWalletProp
     )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (..) )
+    ( TxMeta (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+    ( TxId (TxId)
+    )
 import Cardano.Wallet.DB.Store.Meta.Layer
-    ( QueryTxMeta (..), mkQueryStoreTxMeta )
+    ( QueryTxMeta (..)
+    , mkQueryStoreTxMeta
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
+    ( DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.ModelSpec
-    ( genExpand, genRollback )
+    ( genExpand
+    , genRollback
+    )
 import Cardano.Wallet.DB.Store.Meta.Store
-    ( mkStoreMetaTransactions )
+    ( mkStoreMetaTransactions
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Range (..), SortOrder (Ascending, Descending), WalletId )
+    ( Range (..)
+    , SortOrder (Ascending, Descending)
+    , WalletId
+    )
 import Control.Monad
-    ( forM_, (<=<) )
+    ( forM_
+    , (<=<)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Store
-    ( Store (..) )
+    ( Store (..)
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, arbitrary, elements, frequency, property )
+    ( Gen
+    , arbitrary
+    , elements
+    , frequency
+    , property
+    )
 import Test.QuickCheck.Monadic
-    ( forAllM, pick )
+    ( forAllM
+    , pick
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 import qualified Data.Map.Strict as Map
 

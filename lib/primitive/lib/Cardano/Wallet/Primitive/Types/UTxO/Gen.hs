@@ -9,21 +9,36 @@ module Cardano.Wallet.Primitive.Types.UTxO.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, genTxInLargeRange, shrinkTxIn )
+    ( genTxIn
+    , genTxInLargeRange
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Test.QuickCheck
-    ( Gen, choose, shrinkList, sized )
+    ( Gen
+    , choose
+    , shrinkList
+    , sized
+    )
 import Test.QuickCheck.Extra
-    ( selectMapEntries, shrinkInterleaved )
+    ( selectMapEntries
+    , shrinkInterleaved
+    )
 
 import qualified Data.Map.Strict as Map
 

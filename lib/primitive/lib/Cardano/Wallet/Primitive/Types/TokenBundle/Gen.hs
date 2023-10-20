@@ -19,7 +19,8 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     , shrinkCoinPositive
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap
     , genTokenMapPartition
@@ -27,11 +28,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Test.QuickCheck
-    ( Gen )
+    ( Gen
+    )
 import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( shrinkInterleaved
+    )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE

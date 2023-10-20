@@ -16,9 +16,14 @@ module Cardano.Wallet.Address.DerivationSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
+    ( MkSomeMnemonic (..)
+    , MkSomeMnemonicError (..)
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -28,21 +33,32 @@ import Cardano.Wallet.Address.Derivation
     , getIndex
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
-    ( serializeXPrv, unsafeDeserializeXPrv )
+    ( serializeXPrv
+    , unsafeDeserializeXPrv
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, publicKey )
+    ( getRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseHash (..), preparePassphrase )
+    ( PassphraseHash (..)
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseMaxLength (..)
@@ -50,13 +66,21 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     , PassphraseScheme (..)
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -74,9 +98,11 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary )
+    ( genericArbitrary
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron

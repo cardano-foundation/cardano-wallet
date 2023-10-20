@@ -69,17 +69,24 @@ module Cardano.Wallet.Primitive.Types.Tx
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin, txOutMinCoin )
+    ( txOutMaxCoin
+    , txOutMinCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -115,11 +122,14 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , txScriptInvalid
     )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 

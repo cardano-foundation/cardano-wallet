@@ -48,39 +48,62 @@ module Cardano.Wallet.Address.Encoding
 import Prelude
 
 import Cardano.Address
-    ( unsafeMkAddress )
+    ( unsafeMkAddress
+    )
 import Cardano.Crypto.Hash.Class
-    ( hashToBytes )
+    ( hashToBytes
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+    ( SNetworkId (..)
+    )
 import Codec.Binary.Bech32
-    ( dataPartFromBytes, dataPartToBytes )
+    ( dataPartFromBytes
+    , dataPartToBytes
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Lens
-    ( (&) )
+    ( (&)
+    )
 import Control.Monad
-    ( when, (>=>) )
+    ( when
+    , (>=>)
+    )
 import Data.Binary.Put
-    ( putByteString, putWord8, runPut )
+    ( putByteString
+    , putWord8
+    , runPut
+    )
 import Data.Bits
-    ( (.&.), (.|.) )
+    ( (.&.)
+    , (.|.)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, encodeBase58 )
+    ( bitcoinAlphabet
+    , encodeBase58
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( TextDecodingError (..) )
+    ( TextDecodingError (..)
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA

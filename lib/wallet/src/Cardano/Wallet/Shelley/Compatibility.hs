@@ -139,9 +139,14 @@ module Cardano.Wallet.Shelley.Compatibility
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
+    ( XPub
+    , xpubPublicKey
+    )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script (..)
+    )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -171,13 +176,20 @@ import Cardano.Api.Shelley
     , ShelleyGenesis (..)
     )
 import Cardano.Chain.Block
-    ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
+    ( ABlockOrBoundary (ABOBBlock, ABOBBoundary)
+    , blockTxPayload
+    )
 import Cardano.Chain.UTxO
-    ( unTxPayload )
+    ( unTxPayload
+    )
 import Cardano.Crypto.Hash.Class
-    ( Hash (UnsafeHash), hashToBytes )
+    ( Hash (UnsafeHash)
+    , hashToBytes
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn, nodeSocketFile )
+    ( CardanoNodeConn
+    , nodeSocketFile
+    )
 import Cardano.Ledger.Api
     ( ppCollateralPercentageL
     , ppDL
@@ -192,27 +204,47 @@ import Cardano.Ledger.Api
     , ppPricesL
     )
 import Cardano.Ledger.BaseTypes
-    ( strictMaybeToMaybe, urlToText )
+    ( strictMaybeToMaybe
+    , urlToText
+    )
 import Cardano.Ledger.Binary
-    ( EncCBORGroup )
+    ( EncCBORGroup
+    )
 import Cardano.Ledger.Era
-    ( Era (..), TxSeq )
+    ( Era (..)
+    , TxSeq
+    )
 import Cardano.Ledger.PoolParams
-    ( PoolMetadata (..), PoolParams (..) )
+    ( PoolMetadata (..)
+    , PoolParams (..)
+    )
 import Cardano.Ledger.Shelley.Genesis
-    ( fromNominalDiffTimeMicro )
+    ( fromNominalDiffTimeMicro
+    )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner (..) )
+    ( PoolId (..)
+    , PoolOwner (..)
+    )
 import Cardano.Slotting.Slot
-    ( EpochNo (..), EpochSize (..) )
+    ( EpochNo (..)
+    , EpochSize (..)
+    )
 import Cardano.Slotting.Time
-    ( SystemStart (..) )
+    ( SystemStart (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( fromStakeCredential )
+    ( fromStakeCredential
+    )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
+    ( fromByronBlock
+    , fromTxAux
+    , maryTokenBundleMaxSize
+    , toByronBlockHeader
+    )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , PoolCertificate
@@ -221,71 +253,122 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx )
+    ( fromAllegraTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    ( fromAlonzoTx )
+    ( fromAlonzoTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx )
+    ( fromBabbageTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Conway
-    ( fromConwayTx )
+    ( fromConwayTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromCardanoValue, fromShelleyAddress, fromShelleyTxOut )
+    ( fromCardanoValue
+    , fromShelleyAddress
+    , fromShelleyTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromMaryTx )
+    ( fromMaryTx
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx )
+    ( fromShelleyTx
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId )
+    ( fromShelleyTxId
+    )
 import Cardano.Wallet.Transaction
-    ( WitnessCountCtx (..) )
+    ( WitnessCountCtx (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeIntToWord, unsafeMkPercentage )
+    ( unsafeIntToWord
+    , unsafeMkPercentage
+    )
 import Cardano.Wallet.Util
-    ( internalError, tina )
+    ( internalError
+    , tina
+    )
 import Control.Applicative
-    ( Const (..) )
+    ( Const (..)
+    )
 import Control.Lens
-    ( view, (&), (^.) )
+    ( view
+    , (&)
+    , (^.)
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Array
-    ( Array )
+    ( Array
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Short
-    ( fromShort, toShort )
+    ( fromShort
+    , toShort
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.List
-    ( unzip6 )
+    ( unzip6
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..), clipToPercentage, mkPercentage )
+    ( Percentage
+    , Quantity (..)
+    , clipToPercentage
+    , mkPercentage
+    )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..)
+    , testEquality
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Fmt
-    ( Buildable (..), Builder, (+|), (+||), (||+) )
+    ( Buildable (..)
+    , Builder
+    , (+|)
+    , (+||)
+    , (||+)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Byron.Ledger
-    ( byronBlockRaw )
+    ( byronBlockRaw
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
@@ -298,17 +381,28 @@ import Ouroboros.Consensus.Cardano.Block
     , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
-    ( OneEraHash (..) )
+    ( OneEraHash (..)
+    )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( Bound (..) )
+    ( Bound (..)
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( ShelleyCompatible, ShelleyHash (..) )
+    ( ShelleyCompatible
+    , ShelleyHash (..)
+    )
 import Ouroboros.Consensus.Shelley.Ledger.Block
-    ( ShelleyBlock (..) )
+    ( ShelleyBlock (..)
+    )
 import Ouroboros.Network.Block
-    ( BlockNo (..), ChainHash, Point (..), Tip (..), getTipPoint )
+    ( BlockNo (..)
+    , ChainHash
+    , Point (..)
+    , Tip (..)
+    , getTipPoint
+    )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
@@ -316,7 +410,8 @@ import Ouroboros.Network.NodeToClient
     , NodeToClientVersionData
     )
 import Ouroboros.Network.Point
-    ( WithOrigin (..) )
+    ( WithOrigin (..)
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -352,13 +447,18 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
-    ( SealedTx, cardanoTxIdeallyNoLaterThan )
+    ( SealedTx
+    , cardanoTxIdeallyNoLaterThan
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
+    ( TxIn (TxIn)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Array as Array

@@ -20,21 +20,31 @@ module Cardano.Wallet.Api.Lib.ApiT
 import Prelude
 
 import Cardano.Wallet.Api.Aeson
-    ( fromTextJSON, toTextJSON )
+    ( fromTextJSON
+    , toTextJSON
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson
-    ( Value )
+    ( Value
+    )
 import Data.Aeson.Types
-    ( Parser )
+    ( Parser
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Text.Class
-    ( FromText, ToText )
+    ( FromText
+    , ToText
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (Quiet) )
+    ( Quiet (Quiet)
+    )
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party lib
 -- types to avoid defining orphan instances and/or, undesirable instances on

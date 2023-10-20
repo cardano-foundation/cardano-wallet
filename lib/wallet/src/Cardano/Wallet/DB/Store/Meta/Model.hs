@@ -25,25 +25,35 @@ module Cardano.Wallet.DB.Store.Meta.Model
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (..) )
+    ( TxMeta (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (build) )
+    ( Buildable (build)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

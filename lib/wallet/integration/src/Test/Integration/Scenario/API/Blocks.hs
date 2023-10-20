@@ -10,11 +10,15 @@ module Test.Integration.Scenario.API.Blocks
 import Prelude
 
 import Cardano.Wallet.Api.Types.BlockHeader
-    ( ApiBlockHeader )
+    ( ApiBlockHeader
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

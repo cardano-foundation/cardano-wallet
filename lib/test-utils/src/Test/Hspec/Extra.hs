@@ -33,13 +33,18 @@ module Test.Hspec.Extra
 import Prelude
 
 import Control.Monad
-    ( void, (<=<) )
+    ( void
+    , (<=<)
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import Data.List
-    ( elemIndex )
+    ( elemIndex
+    )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( Parser
@@ -59,9 +64,12 @@ import "optparse-applicative" Options.Applicative
     , strArgument
     )
 import Say
-    ( sayString )
+    ( sayString
+    )
 import System.Environment
-    ( lookupEnv, withArgs )
+    ( lookupEnv
+    , withArgs
+    )
 import Test.Hspec
     ( ActionWith
     , HasCallStack
@@ -73,7 +81,12 @@ import Test.Hspec
     , specify
     )
 import Test.Hspec.Core.Runner
-    ( Config (..), Summary, defaultConfig, evaluateSummary, hspecWithResult )
+    ( Config (..)
+    , Summary
+    , defaultConfig
+    , evaluateSummary
+    , hspecWithResult
+    )
 import Test.HUnit.Lang
     ( FailureReason (..)
     , HUnitFailure (..)
@@ -81,21 +94,32 @@ import Test.HUnit.Lang
     , formatFailureReason
     )
 import Test.Utils.Env
-    ( withAddedEnv )
+    ( withAddedEnv
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
 import Test.Utils.Resource
-    ( unBracket )
+    ( unBracket
+    )
 import Test.Utils.Startup
-    ( withLineBuffering )
+    ( withLineBuffering
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( catch, throwIO )
+    ( catch
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, tryPutMVar, tryTakeMVar )
+    ( newEmptyMVar
+    , tryPutMVar
+    , tryTakeMVar
+    )
 
 import qualified Test.Hspec as Hspec
 

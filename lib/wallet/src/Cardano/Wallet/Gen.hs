@@ -30,13 +30,23 @@ module Cardano.Wallet.Gen
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubFromBytes )
+    ( XPub
+    , xpubFromBytes
+    )
 import Cardano.Address.Script
-    ( Cosigner (..), Script (..), ScriptTemplate (..) )
+    ( Cosigner (..)
+    , Script (..)
+    , ScriptTemplate (..)
+    )
 import Cardano.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+    ( ConsistentEntropy
+    , EntropySize
+    , Mnemonic
+    , entropyToMnemonic
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( retrieveAllCosigners )
+    ( retrieveAllCosigners
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -47,31 +57,49 @@ import Cardano.Wallet.Primitive.Types
     , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..) )
+    ( ProtocolMagic (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkEntropy, unsafeMkPercentage )
+    ( unsafeFromHex
+    , unsafeMkEntropy
+    , unsafeMkPercentage
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Ratio
-    ( denominator, numerator, (%) )
+    ( denominator
+    , numerator
+    , (%)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.TypeLits
-    ( natVal )
+    ( natVal
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

@@ -57,7 +57,8 @@ module Cardano.CoinSelection
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.CoinSelection.Balance
     ( SelectionBalanceError (..)
     , SelectionDelta (..)
@@ -65,49 +66,77 @@ import Cardano.CoinSelection.Balance
     , SelectionStrategy (..)
     )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+    ( SelectionContext (..)
+    )
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( UTxOSelection )
+    ( UTxOSelection
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Control.Monad.Random.NonRandom
-    ( NonRandom (..) )
+    ( NonRandom (..)
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, withExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    , withExceptT
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Semigroup
-    ( All (..), mtimesDefault )
+    ( All (..)
+    , mtimesDefault
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.CoinSelection.Collateral as Collateral

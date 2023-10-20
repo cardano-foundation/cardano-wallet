@@ -15,39 +15,76 @@ module Cardano.StartupSpec
 import Prelude
 
 import Cardano.Startup
-    ( ShutdownHandlerLog (..), withShutdownHandler' )
+    ( ShutdownHandlerLog (..)
+    , withShutdownHandler'
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Control.Tracer
-    ( Tracer, nullTracer )
+    ( Tracer
+    , nullTracer
+    )
 import System.IO
-    ( Handle, IOMode (..), hClose, hWaitForInput, stdin, withFile )
+    ( Handle
+    , IOMode (..)
+    , hClose
+    , hWaitForInput
+    , stdin
+    , withFile
+    )
 import System.IO.Error
-    ( isUserError )
+    ( isUserError
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldContain, shouldReturn, shouldThrow )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldContain
+    , shouldReturn
+    , shouldThrow
+    )
 import Test.Hspec.Core.Spec
-    ( ResultStatus (..) )
+    ( ResultStatus (..)
+    )
 import Test.Hspec.Expectations
-    ( Expectation, HasCallStack )
+    ( Expectation
+    , HasCallStack
+    )
 import Test.Utils.Platform
-    ( nullFileName, pendingOnWindows )
+    ( nullFileName
+    , pendingOnWindows
+    )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( IOException, bracket, catch, throwIO )
+    ( IOException
+    , bracket
+    , catch
+    , throwIO
+    )
 import UnliftIO.Process
-    ( createPipe )
+    ( createPipe
+    )
 
 #if defined(WINDOWS)
 import UnliftIO.Concurrent
-    ( forkIO )
+    ( forkIO
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 #endif
 
 import qualified Data.ByteString as BS

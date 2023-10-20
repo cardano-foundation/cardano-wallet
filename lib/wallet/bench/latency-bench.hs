@@ -15,23 +15,35 @@ module Main where
 import Prelude
 
 import Cardano.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.BM.Data.LogItem
-    ( LogObject )
+    ( LogObject
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( contramap, nullTracer )
+    ( contramap
+    , nullTracer
+    )
 import Cardano.BM.Extra
-    ( trMessage )
+    ( trMessage
+    )
 import Cardano.BM.Trace
-    ( traceInTVarIO )
+    ( traceInTVarIO
+    )
 import Cardano.CLI
-    ( Port (..) )
+    ( Port (..)
+    )
 import Cardano.Mnemonic
-    ( Mnemonic, SomeMnemonic (..), mnemonicToText )
+    ( Mnemonic
+    , SomeMnemonic (..)
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( Listen (ListenOnRandomPort) )
+    ( Listen (ListenOnRandomPort)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiAsset (..)
@@ -53,9 +65,15 @@ import Cardano.Wallet.Faucet
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Faucet.Shelley
-    ( initFaucet )
+    ( initFaucet
+    )
 import Cardano.Wallet.LatencyBenchShared
-    ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
+    ( LogCaptureFunc
+    , fmtResult
+    , fmtTitle
+    , measureApiLogs
+    , withLatencyLogging
+    )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
     , LogFileConfig (..)
@@ -64,41 +82,65 @@ import Cardano.Wallet.Launch.Cluster
     , withCluster
     )
 import Cardano.Wallet.Network.Ports
-    ( portFromURL )
+    ( portFromURL
+    )
 import Cardano.Wallet.Pools
-    ( StakePool )
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..) )
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Shelley
-    ( Tracers, Tracers' (..), nullTracers, serveWallet )
+    ( Tracers
+    , Tracers' (..)
+    , nullTracers
+    , serveWallet
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData )
+    ( fromGenesisData
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeMkMnemonic )
+    ( unsafeFromText
+    , unsafeMkMnemonic
+    )
 import Control.Monad
-    ( replicateM, replicateM_ )
+    ( replicateM
+    , replicateM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.Aeson
-    ( Value )
+    ( Value
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( NonEmpty ((:|))
+    )
 import Data.Tagged
-    ( Tagged (..) )
+    ( Tagged (..)
+    )
 import Fmt
-    ( build )
+    ( build
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -106,21 +148,30 @@ import Network.HTTP.Client
     , responseTimeoutMicro
     )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..) )
+    ( ApiLog (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
+    ( tunedForMainnetPipeliningStrategy
+    )
 import System.Directory
-    ( createDirectory )
+    ( createDirectory
+    )
 import System.Environment.Extended
-    ( isEnvSet )
+    ( isEnvSet
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO.Temp.Extra
-    ( SkipCleanup (..), withSystemTempDir )
+    ( SkipCleanup (..)
+    , withSystemTempDir
+    )
 import Test.Hspec
-    ( shouldBe )
+    ( shouldBe
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -147,11 +198,16 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import UnliftIO.Async
-    ( race_ )
+    ( race_
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 import UnliftIO.STM
-    ( TVar )
+    ( TVar
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link

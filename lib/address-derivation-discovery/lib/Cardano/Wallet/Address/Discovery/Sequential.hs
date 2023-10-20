@@ -69,11 +69,16 @@ module Cardano.Wallet.Address.Discovery.Sequential
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, xpubPublicKey )
+    ( XPrv
+    , xpubPublicKey
+    )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..) )
+    ( Cosigner (..)
+    , ScriptTemplate (..)
+    )
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , Depth (..)
@@ -107,41 +112,71 @@ import Cardano.Wallet.Address.Discovery
     , pendingIxsToList
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant
+    , NetworkDiscriminantCheck (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Codec.Binary.Encoding
-    ( AbstractEncoding (..), encode )
+    ( AbstractEncoding (..)
+    , encode
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.DeepSeq
-    ( NFData (..), deepseq )
+    ( NFData (..)
+    , deepseq
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Text.Read
-    ( decimal )
+    ( decimal
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
+    ( Buildable (..)
+    , blockListF'
+    , hexF
+    , indentF
+    , prefixF
+    , suffixF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Type.Reflection
-    ( Typeable )
+    ( Typeable
+    )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L

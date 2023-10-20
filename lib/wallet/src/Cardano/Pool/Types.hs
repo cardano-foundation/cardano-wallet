@@ -19,43 +19,72 @@ module Cardano.Pool.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.List
-    ( intercalate )
+    ( intercalate
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage )
+    ( Percentage
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (TextDecodingError), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (TextDecodingError)
+    , ToText (..)
+    )
 import Data.Text.Encoding
-    ( decodeUtf8, encodeUtf8 )
+    ( decodeUtf8
+    , encodeUtf8
+    )
 import Database.Persist.Class.PersistField
-    ( PersistField (..) )
+    ( PersistField (..)
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText )
+    ( fromPersistValueFromText
+    )
 import Database.Persist.Sqlite
-    ( PersistFieldSql (..) )
+    ( PersistFieldSql (..)
+    )
 import Fmt
-    ( Buildable (..), listF', mapF, prefixF, pretty )
+    ( Buildable (..)
+    , listF'
+    , mapF
+    , prefixF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32

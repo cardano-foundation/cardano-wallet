@@ -28,23 +28,32 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.Tx
-    ( ScriptIntegrityHash )
+    ( ScriptIntegrityHash
+    )
 import Cardano.Ledger.Alonzo.TxBody
-    ( scriptIntegrityHashTxBodyL )
+    ( scriptIntegrityHashTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Maybe.Strict
-    ( StrictMaybe )
+    ( StrictMaybe
+    )
 
 type family IntegrityType era where
     IntegrityType ByronEra = ()

@@ -30,43 +30,62 @@ module Cardano.Wallet.DB.Store.Transactions.Decoration
    ) where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..), TxIn (..), TxOut (..) )
+    ( TxCollateral (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (TxRelation, collateralIns, collateralOuts, ins, outs)
     , fromTxCollateralOut
     , fromTxOut
     )
 import Cardano.Wallet.Read.Eras
-    ( EraValue, extractEraValue )
+    ( EraValue
+    , extractEraValue
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun )
+    ( applyEraFun
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    ( getCollateralInputs )
+    ( getCollateralInputs
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs )
+    ( getInputs
+    )
 import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( getEraCollateralInputs )
+    ( getEraCollateralInputs
+    )
 import Cardano.Wallet.Read.Tx.Inputs
-    ( getEraInputs )
+    ( getEraInputs
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Monad
-    ( guard )
+    ( guard
+    )
 import Data.List
-    ( find )
+    ( find
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W

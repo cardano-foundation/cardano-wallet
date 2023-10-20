@@ -20,13 +20,18 @@ module Cardano.Wallet.Network.Light
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Wallet.Network
-    ( ChainFollower (..) )
+    ( ChainFollower (..)
+    )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..) )
+    ( BlockSummary (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint (..)
@@ -34,23 +39,35 @@ import Cardano.Wallet.Primitive.Types
     , compareSlot
     )
 import Control.Monad.Class.MonadTimer
-    ( MonadDelay (..) )
+    ( MonadDelay (..)
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.List
-    ( maximumBy, sortBy )
+    ( maximumBy
+    , sortBy
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Fmt
-    ( Buildable (build), pretty )
+    ( Buildable (build)
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Text as T
 

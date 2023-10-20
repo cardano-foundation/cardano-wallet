@@ -26,19 +26,29 @@ module Cardano.Ledger.Credential.Safe
 import Prelude
 
 import Cardano.Api
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Ledger.BaseTypes
-    ( CertIx, TxIx )
+    ( CertIx
+    , TxIx
+    )
 import Cardano.Ledger.Credential
-    ( Ptr (..) )
+    ( Ptr (..)
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 --------------------------------------------------------------------------------
 -- Safe public interface

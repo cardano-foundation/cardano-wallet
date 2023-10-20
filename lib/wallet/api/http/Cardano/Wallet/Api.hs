@@ -175,9 +175,14 @@ module Cardano.Wallet.Api
 import Prelude
 
 import Cardano.Wallet
-    ( TxSubmitLog, WalletLayer (..), WalletWorkerLog )
+    ( TxSubmitLog
+    , WalletLayer (..)
+    , WalletWorkerLog
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex, Role )
+    ( DerivationIndex
+    , Role
+    )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -243,17 +248,25 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Api.Types.BlockHeader
-    ( ApiBlockHeader )
+    ( ApiBlockHeader
+    )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit )
+    ( ApiLimit
+    )
 import Cardano.Wallet.DB
-    ( DBFactory, DBLayer )
+    ( DBFactory
+    , DBLayer
+    )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyOf )
+    ( CredFromOf
+    , KeyOf
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer )
+    ( NetworkLayer
+    )
 import Cardano.Wallet.Pools
-    ( StakePool )
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters
@@ -262,37 +275,57 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState )
+    ( AddressState
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx )
+    ( SealedTx
+    )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
+    ( HasWorkerCtx (..)
+    , WorkerLog
+    , WorkerRegistry
+    )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataClient )
+    ( TokenMetadataClient
+    )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer )
+    ( TransactionLayer
+    )
 import Control.Concurrent.Concierge
-    ( Concierge )
+    ( Concierge
+    )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer
+    , contramap
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Generics.Internal.VL.Lens
-    ( Lens' )
+    ( Lens'
+    )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Servant.API
     ( (:<|>)
     , (:>)

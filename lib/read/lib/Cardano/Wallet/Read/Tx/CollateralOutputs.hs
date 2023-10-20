@@ -37,21 +37,30 @@ import Cardano.Ledger.Babbage.Rules
 import Cardano.Ledger.Babbage.Tx
     ()
 import Cardano.Ledger.Babbage.TxBody
-    ( BabbageTxOut (..), collateralReturnTxBodyL )
+    ( BabbageTxOut (..)
+    , collateralReturnTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Maybe.Strict
-    ( StrictMaybe )
+    ( StrictMaybe
+    )
 
 import qualified Cardano.Ledger.Babbage as BA
 import qualified Cardano.Ledger.Conway as Conway

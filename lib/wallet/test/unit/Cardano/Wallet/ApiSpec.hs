@@ -39,9 +39,11 @@ module Cardano.Wallet.ApiSpec
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Api )
+    ( Api
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( IsServerError (..) )
+    ( IsServerError (..)
+    )
 import Cardano.Wallet.Api.Malformed
     ( BodyParam (..)
     , ExpectedError (..)
@@ -53,43 +55,70 @@ import Cardano.Wallet.Api.Malformed
     , wellformed
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.IORef
-    ( atomicModifyIORef, newIORef )
+    ( atomicModifyIORef
+    , newIORef
+    )
 import Data.List
-    ( delete, (\\) )
+    ( delete
+    , (\\)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Tuple
-    ( swap )
+    ( swap
+    )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..)
+    , testEquality
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import GHC.TypeLits
-    ( KnownSymbol, symbolVal )
+    ( KnownSymbol
+    , symbolVal
+    )
 import Network.HTTP.Media.RenderHeader
-    ( renderHeader )
+    ( renderHeader
+    )
 import Network.HTTP.Types.Header
-    ( hAccept, hContentType )
+    ( hAccept
+    , hContentType
+    )
 import Network.HTTP.Types.Method
-    ( Method, methodHead, renderStdMethod )
+    ( Method
+    , methodHead
+    , renderStdMethod
+    )
 import Network.Wai
     ( Request
     , RequestBodyLength (..)
@@ -101,7 +130,8 @@ import Network.Wai
     , requestMethod
     )
 import Network.Wai.Middleware.ServerError
-    ( handleRawError )
+    ( handleRawError
+    )
 import Network.Wai.Test
     ( SResponse
     , Session
@@ -112,15 +142,35 @@ import Network.Wai.Test
     , runSession
     )
 import Servant
-    ( Accept (..), Application, ReqBody, Server, StdMethod (..), Verb, serve )
+    ( Accept (..)
+    , Application
+    , ReqBody
+    , Server
+    , StdMethod (..)
+    , Verb
+    , serve
+    )
 import Servant.API
-    ( (:<|>) (..), (:>), Capture, OctetStream )
+    ( (:<|>) (..)
+    , (:>)
+    , Capture
+    , OctetStream
+    )
 import Servant.API.Verbs
-    ( NoContentVerb, ReflectMethod (..) )
+    ( NoContentVerb
+    , ReflectMethod (..)
+    )
 import Test.Hspec
-    ( HasCallStack, Spec, describe, it, runIO, xdescribe )
+    ( HasCallStack
+    , Spec
+    , describe
+    , it
+    , runIO
+    , xdescribe
+    )
 import Type.Reflection
-    ( typeOf )
+    ( typeOf
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

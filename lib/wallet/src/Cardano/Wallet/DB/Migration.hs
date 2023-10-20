@@ -30,26 +30,39 @@ module Cardano.Wallet.DB.Migration
     ) where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Control.Category
-    ( Category (..) )
+    ( Category (..)
+    )
 import Control.Exception
-    ( Exception )
+    ( Exception
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow (throwIO) )
+    ( MonadThrow (throwIO)
+    )
 import Control.Monad.Reader
-    ( ReaderT (runReaderT) )
+    ( ReaderT (runReaderT)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.TypeNats
-    ( type (+), KnownNat, Nat, natVal )
+    ( type (+)
+    , KnownNat
+    , Nat
+    , natVal
+    )
 
 --------------------------------------------------------------------------------
 -------  public ----------------------------------------------------------------

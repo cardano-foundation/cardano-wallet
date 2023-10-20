@@ -24,15 +24,21 @@ import Cardano.Api
     , metadataFromJson
     )
 import Data.Aeson
-    ( ToJSON (..) )
+    ( ToJSON (..)
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.List.Extra
-    ( nubOrdOn )
+    ( nubOrdOn
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

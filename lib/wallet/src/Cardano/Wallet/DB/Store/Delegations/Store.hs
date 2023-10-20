@@ -18,11 +18,14 @@ module Cardano.Wallet.DB.Store.Delegations.Store
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..) )
+    ( DelegationStatusEnum (..)
+    )
 import Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
     , EntityField (DelegationSlot)
@@ -30,17 +33,29 @@ import Cardano.Wallet.DB.Store.Delegations.Schema
     , resetDelegationTable
     )
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..), Status (..), slotOf )
+    ( History
+    , Operation (..)
+    , Status (..)
+    , slotOf
+    )
 import Control.Exception
-    ( Exception, SomeException (SomeException) )
+    ( Exception
+    , SomeException (SomeException)
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.Delta
-    ( Delta (apply) )
+    ( Delta (apply)
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Database.Persist
     ( Entity (..)
     , PersistQueryWrite (deleteWhere)
@@ -50,7 +65,9 @@ import Database.Persist
     , (>.)
     )
 import Database.Persist.Sql
-    ( SqlPersistT, insertMany_ )
+    ( SqlPersistT
+    , insertMany_
+    )
 
 import qualified Data.Map.Strict as Map
 

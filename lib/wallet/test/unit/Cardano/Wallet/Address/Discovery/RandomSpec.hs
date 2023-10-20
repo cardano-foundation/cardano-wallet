@@ -17,9 +17,12 @@ module Cardano.Wallet.Address.Discovery.RandomSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..), SomeMnemonic (..) )
+    ( MkSomeMnemonic (..)
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -36,41 +39,72 @@ import Cardano.Wallet.Address.Derivation.Byron
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Discovery
-    ( GenChange (..), IsOurs (..), KnownAddresses (..) )
+    ( GenChange (..)
+    , IsOurs (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..), findUnusedPath, mkRndState )
+    ( RndState (..)
+    , findUnusedPath
+    , mkRndState
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Address.States.IsOwned
-    ( isOwned )
+    ( isOwned
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ByronKeyS), WalletFlavorS (ByronWallet) )
+    ( KeyFlavorS (ByronKeyS)
+    , WalletFlavorS (ByronWallet)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
+    ( NetworkDiscriminant (..)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
+    ( Base (..)
+    , convertFromBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List
-    ( find )
+    ( find
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

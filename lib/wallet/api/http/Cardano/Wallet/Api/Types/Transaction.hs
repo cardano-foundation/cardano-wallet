@@ -39,48 +39,72 @@ module Cardano.Wallet.Api.Types.Transaction
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..) )
+    ( DerivationIndex (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, encodeAddress )
+    ( decodeAddress
+    , encodeAddress
+    )
 import Cardano.Wallet.Api.Aeson
-    ( eitherToParser )
+    ( eitherToParser
+    )
 import Cardano.Wallet.Api.Lib.ApiAsArray
-    ( ApiAsArray )
+    ( ApiAsArray
+    )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (ApiT) )
+    ( ApiT (ApiT)
+    )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (..) )
+    ( DefaultRecord (..)
+    )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiAnyCertificate, ApiRewardAccount )
+    ( ApiAnyCertificate
+    , ApiRewardAccount
+    )
 import Cardano.Wallet.Api.Types.MintBurn
-    ( ApiAssetMintBurn )
+    ( ApiAssetMintBurn
+    )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (unCoin) )
+    ( Coin (unCoin)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( coinIsValidForTxOut, txOutMaxCoin )
+    ( coinIsValidForTxOut
+    , txOutMaxCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxMetadata (..), TxScriptValidity, txMetadataIsNull )
+    ( TxMetadata (..)
+    , TxScriptValidity
+    , txMetadataIsNull
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson.Types
     ( FromJSON (..)
     , KeyValue (..)
@@ -94,29 +118,43 @@ import Data.Aeson.Types
     , (.:?)
     )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word32
+    , Word8
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (Quiet) )
+    ( Quiet (Quiet)
+    )
 import Servant
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..)
+    , ToHttpApiData (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W

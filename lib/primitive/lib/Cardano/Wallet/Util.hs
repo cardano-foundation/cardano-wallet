@@ -34,41 +34,72 @@ module Cardano.Wallet.Util
 import Prelude
 
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Error.Util
-    ( (??) )
+    ( (??)
+    )
 import Control.Exception
-    ( ErrorCall, displayException )
+    ( ErrorCall
+    , displayException
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT, throwE )
+    ( runExceptT
+    , throwE
+    )
 import Control.Monad.Trans.State.Strict
-    ( StateT, get, put )
+    ( StateT
+    , get
+    , put
+    )
 import Data.Foldable
-    ( asum )
+    ( asum
+    )
 import Data.Functor.Identity
-    ( runIdentity )
+    ( runIdentity
+    )
 import Data.List
-    ( isPrefixOf )
+    ( isPrefixOf
+    )
 import Data.Maybe
-    ( fromMaybe, isNothing )
+    ( fromMaybe
+    , isNothing
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( TextDecodingError (..) )
+    ( TextDecodingError (..)
+    )
 import Fmt
-    ( Buildable (..), Builder, fmt, (+|) )
+    ( Buildable (..)
+    , Builder
+    , fmt
+    , (+|)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Network.URI
-    ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
+    ( URI (..)
+    , parseAbsoluteURI
+    , uriQuery
+    , uriScheme
+    , uriToString
+    )
 import UnliftIO.Exception
-    ( evaluate, tryJust )
+    ( evaluate
+    , tryJust
+    )
 
 import qualified Data.Text as T
 

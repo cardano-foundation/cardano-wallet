@@ -10,19 +10,33 @@ module Cardano.Wallet.Spec.Effect.Timeout
     ) where
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assertFail )
+    ( FxAssert
+    , assertFail
+    )
 import Control.Exception
-    ( catch )
+    ( catch
+    )
 import Data.Time.TimeSpan
-    ( TimeSpan, timeoutTS )
+    ( TimeSpan
+    , timeoutTS
+    )
 import Effectful
-    ( (:>), Eff, Effect, IOE )
+    ( (:>)
+    , Eff
+    , Effect
+    , IOE
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret, localSeqLift, localSeqUnliftIO )
+    ( interpret
+    , localSeqLift
+    , localSeqUnliftIO
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import System.Timeout
-    ( Timeout )
+    ( Timeout
+    )
 
 -- | An effect for timing out computations.
 data FxTimeout :: Effect where

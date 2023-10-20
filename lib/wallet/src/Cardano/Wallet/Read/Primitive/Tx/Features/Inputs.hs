@@ -11,17 +11,27 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId )
+    ( fromShelleyTxId
+    )
 import Cardano.Wallet.Read.Tx.Inputs
-    ( Inputs (..), InputsType )
+    ( Inputs (..)
+    , InputsType
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Crypto.Hashing as CC

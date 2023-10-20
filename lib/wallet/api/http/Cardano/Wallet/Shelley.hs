@@ -28,29 +28,42 @@ module Cardano.Wallet.Shelley
 import Prelude
 
 import Cardano.Wallet
-    ( WalletException )
+    ( WalletException
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs )
+    ( IsOurs
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState )
+    ( SharedState
+    )
 import Cardano.Wallet.Address.MaybeLight
-    ( MaybeLight )
+    ( MaybeLight
+    )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2 )
+    ( ApiLayer
+    , ApiV2
+    )
 import Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog (..) )
+    ( ApplicationLog (..)
+    )
 import Cardano.Wallet.Api.Http.Server
-    ( server )
+    ( server
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference
     , Listen (..)
@@ -59,15 +72,25 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , toServerError
     )
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook )
+    ( PersistAddressBook
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( DefaultFieldValues (..) )
+    ( DefaultFieldValues (..)
+    )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyFlavorS (..), KeyOf, WalletFlavor (..) )
+    ( CredFromOf
+    , KeyFlavorS (..)
+    , KeyOf
+    , WalletFlavor (..)
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Pools
-    ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
+    ( StakePoolLayer (..)
+    , withNodeStakePoolLayer
+    , withStakePoolDbLayer
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkId
@@ -77,7 +100,8 @@ import Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( neverFails )
+    ( neverFails
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters (..)
@@ -89,25 +113,36 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx )
+    ( SealedTx
+    )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..) )
+    ( HasWorkerCtx (..)
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, StandardCrypto )
+    ( CardanoBlock
+    , StandardCrypto
+    )
 import Cardano.Wallet.Shelley.Network
-    ( withNetworkLayer )
+    ( withNetworkLayer
+    )
 import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
+    ( newTransactionLayer
+    )
 import Cardano.Wallet.TokenMetadata
-    ( newMetadataClient )
+    ( newMetadataClient
+    )
 import Cardano.Wallet.Tracers as Tracers
     ( TracerSeverities
     , Tracers
@@ -119,43 +154,68 @@ import Cardano.Wallet.Tracers as Tracers
     , tracerSeverities
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer )
+    ( TransactionLayer
+    )
 import Control.Exception.Extra
-    ( handle )
+    ( handle
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Cont
-    ( ContT (ContT), evalContT )
+    ( ContT (ContT)
+    , evalContT
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (ExceptT) )
+    ( ExceptT (ExceptT)
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL
-    ( view )
+    ( view
+    )
 import Data.Generics.Product
-    ( typed )
+    ( typed
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Network.Ntp
-    ( NtpClient (..), NtpTrace, withWalletNtpClient )
+    ( NtpClient (..)
+    , NtpTrace
+    , withWalletNtpClient
+    )
 import Network.Socket
-    ( Socket, getSocketName )
+    ( Socket
+    , getSocketName
+    )
 import Network.URI
-    ( URI (..), parseURI )
+    ( URI (..)
+    , parseURI
+    )
 import Network.Wai.Handler.Warp
-    ( setBeforeMainLoop )
+    ( setBeforeMainLoop
+    )
 import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy )
+    ( PipeliningStrategy
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IOManager
-    ( withIOManager )
+    ( withIOManager
+    )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server

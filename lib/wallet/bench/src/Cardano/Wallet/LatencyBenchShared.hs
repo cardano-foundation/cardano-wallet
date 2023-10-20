@@ -18,31 +18,61 @@ module Cardano.Wallet.LatencyBenchShared
 import Prelude
 
 import Cardano.BM.Backend.Switchboard
-    ( effectuate )
+    ( effectuate
+    )
 import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
+    ( defaultConfigStdout
+    )
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (..), LogObject (..) )
+    ( LOContent (..)
+    , LOMeta (..)
+    , LogObject (..)
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Setup
-    ( setupTrace_, shutdown )
+    ( setupTrace_
+    , shutdown
+    )
 import Control.Monad
-    ( replicateM_ )
+    ( replicateM_
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Time
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Time.Clock
-    ( diffUTCTime )
+    ( diffUTCTime
+    )
 import Fmt
-    ( Builder, build, fixedF, fmt, fmtLn, indentF, padLeftF, (+|), (|+) )
+    ( Builder
+    , build
+    , fixedF
+    , fmt
+    , fmtLn
+    , indentF
+    , padLeftF
+    , (+|)
+    , (|+)
+    )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..), HandlerLog (..) )
+    ( ApiLog (..)
+    , HandlerLog (..)
+    )
 import UnliftIO.Exception
-    ( bracket, onException )
+    ( bracket
+    , onException
+    )
 import UnliftIO.STM
-    ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
+    ( TVar
+    , atomically
+    , newTVarIO
+    , readTVarIO
+    , writeTVar
+    )
 
 import qualified Cardano.BM.Configuration.Model as CM
 

@@ -106,44 +106,72 @@ module Cardano.Wallet.Primitive.Types.Tx.TxSeq
     ) where
 
 import Prelude hiding
-    ( length, seq )
+    ( length
+    , seq
+    )
 
 import Cardano.Wallet.Primitive.Model
-    ( applyTxToUTxO )
+    ( applyTxToUTxO
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    ( StateDeltaSeq )
+    ( StateDeltaSeq
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), txAssetIds, txMapAssetIds, txMapTxIds, txRemoveAssetId )
+    ( Tx (..)
+    , txAssetIds
+    , txMapAssetIds
+    , txMapTxIds
+    , txRemoveAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Data.Bifoldable
-    ( Bifoldable (..) )
+    ( Bifoldable (..)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Either
-    ( isLeft, isRight, lefts, rights )
+    ( isLeft
+    , isRight
+    , lefts
+    , rights
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.StateDeltaSeq as Seq
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx

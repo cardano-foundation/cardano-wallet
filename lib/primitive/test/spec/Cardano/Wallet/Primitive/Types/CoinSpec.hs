@@ -7,7 +7,8 @@ module Cardano.Wallet.Primitive.Types.CoinSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin
     , genCoinPartition
@@ -16,11 +17,16 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     , shrinkCoinPositive
     )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -33,7 +39,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( genNonEmpty, shrinkNonEmpty )
+    ( genNonEmpty
+    , shrinkNonEmpty
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F

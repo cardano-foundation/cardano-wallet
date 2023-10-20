@@ -7,17 +7,23 @@ module Cardano.Wallet.Deposit.IO.Network.Type
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ChainFollower (..) )
+    ( ChainFollower (..)
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
 

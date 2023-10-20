@@ -51,47 +51,73 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script (..)
+    )
 import Cardano.Crypto.Hash
-    ( hashFromBytes, hashToBytes )
+    ( hashFromBytes
+    , hashToBytes
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Data.ByteString.Short
-    ( fromShort, toShort )
+    ( fromShort
+    , toShort
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo

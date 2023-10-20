@@ -56,7 +56,10 @@ import Cardano.Crypto.Wallet
     , unXPub
     )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
+    ( SomeMnemonic (..)
+    , entropyToBytes
+    , mnemonicToEntropy
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -67,31 +70,45 @@ import Cardano.Wallet.Address.Derivation
     , PaymentAddress (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..) )
+    ( SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( magicSNetworkId )
+    ( magicSNetworkId
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Lens
-    ( Lens, lens )
+    ( Lens
+    , lens
+    )
 import Crypto.Hash.Algorithms
-    ( SHA512 (..) )
+    ( SHA512 (..)
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.ByteArray
-    ( ScrubbedBytes )
+    ( ScrubbedBytes
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Address.Derivation as W

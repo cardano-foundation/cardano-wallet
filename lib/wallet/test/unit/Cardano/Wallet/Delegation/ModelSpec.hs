@@ -19,23 +19,47 @@ where
 import Prelude
 
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..), Status (Active) )
+    ( History
+    , Operation (..)
+    , Status (Active)
+    )
 import Cardano.Wallet.Delegation.Properties
-    ( Step (Step), properties )
+    ( Step (Step)
+    , properties
+    )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&)
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, elements, frequency, getSize, suchThat )
+    ( Arbitrary (..)
+    , Gen
+    , choose
+    , elements
+    , frequency
+    , getSize
+    , suchThat
+    )
 import Test.QuickCheck.Property
-    ( Property, Testable (property), conjoin, forAllShrinkShow, mapSize )
+    ( Property
+    , Testable (property)
+    , conjoin
+    , forAllShrinkShow
+    , mapSize
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as T

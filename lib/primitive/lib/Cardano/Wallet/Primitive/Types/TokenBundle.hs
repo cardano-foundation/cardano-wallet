@@ -71,28 +71,46 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     ) where
 
 import Prelude hiding
-    ( gcd, null, subtract )
+    ( gcd
+    , null
+    , subtract
+    )
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap )
+    ( AssetId (..)
+    , Flat (..)
+    , Lexicographic (..)
+    , Nested (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Monoid.Cancellative
     ( GCDMonoid (..)
     , LeftGCDMonoid (..)
@@ -103,23 +121,35 @@ import Data.Monoid.Cancellative
     , RightReductive (..)
     )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Monoid.Null
-    ( MonoidNull (..) )
+    ( MonoidNull (..)
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (..), Builder, blockMapF )
+    ( Buildable (..)
+    , Builder
+    , blockMapF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( ErrorMessage (..), TypeError )
+    ( ErrorMessage (..)
+    , TypeError
+    )
 import Safe
-    ( fromJustNote )
+    ( fromJustNote
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

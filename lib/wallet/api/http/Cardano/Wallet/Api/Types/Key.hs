@@ -31,39 +31,64 @@ module Cardano.Wallet.Api.Types.Key
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
+    ( XPub
+    , xpubPublicKey
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..), Role (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( purposeCIP1854 )
+    ( purposeCIP1854
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeCIP1852 )
+    ( purposeCIP1852
+    )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultSum (..) )
+    ( DefaultSum (..)
+    )
 import Codec.Binary.Bech32
-    ( dataPartFromBytes, dataPartToBytes )
+    ( dataPartFromBytes
+    , dataPartToBytes
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Aeson.Types
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.String
-    ( IsString )
+    ( IsString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (TextDecodingError), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (TextDecodingError)
+    , ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Servant.API
-    ( ToHttpApiData )
+    ( ToHttpApiData
+    )
 import Web.Internal.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson

@@ -39,7 +39,8 @@ module Cardano.Wallet.Address.Discovery
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -48,15 +49,21 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L

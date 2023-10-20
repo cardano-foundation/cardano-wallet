@@ -31,9 +31,12 @@ module Cardano.DB.Sqlite.Delete
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Control.Retry
     ( RetryPolicy
     , RetryStatus (..)
@@ -45,31 +48,50 @@ import Control.Retry
     , retrying
     )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Aeson
-    ( ToJSON )
+    ( ToJSON
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe
+    , isJust
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Directory
-    ( removePathForcibly )
+    ( removePathForcibly
+    )
 import UnliftIO.Exception
-    ( bracket_ )
+    ( bracket_
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( MVar
+    , modifyMVar
+    , modifyMVar_
+    , newMVar
+    , readMVar
+    )
 
 #if defined(mingw32_HOST_OS)
 import Control.Retry
-    ( logRetries, recovering )
+    ( logRetries
+    , recovering
+    )
 import System.IO.Error
-    ( isPermissionError )
+    ( isPermissionError
+    )
 #else
 #endif
 

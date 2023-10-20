@@ -8,19 +8,35 @@ import qualified Data.Set as Set
 import qualified Effectful.Error.Static as E
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, runAssertFailsFast )
+    ( FxAssert
+    , runAssertFailsFast
+    )
 import Cardano.Wallet.Spec.Effect.Query
-    ( FxQuery, runQueryMock )
+    ( FxQuery
+    , runQueryMock
+    )
 import Cardano.Wallet.Spec.Effect.Random
-    ( FxRandom, runRandomMock )
+    ( FxRandom
+    , runRandomMock
+    )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, recordTraceLog, runTracePure )
+    ( FxTrace
+    , recordTraceLog
+    , runTracePure
+    )
 import Effectful
-    ( Eff, runPureEff )
+    ( Eff
+    , runPureEff
+    )
 import Effectful.Fail
-    ( Fail, runFail )
+    ( Fail
+    , runFail
+    )
 import Test.Syd
-    ( TestDefM, expectationFailure, it )
+    ( TestDefM
+    , expectationFailure
+    , it
+    )
 
 type PureStory a =
     Eff

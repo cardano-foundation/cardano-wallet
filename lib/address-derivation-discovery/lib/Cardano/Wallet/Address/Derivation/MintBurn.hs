@@ -34,15 +34,20 @@ module Cardano.Wallet.Address.Derivation.MintBurn
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Address.Script
-    ( Script (..) )
+    ( Script (..)
+    )
 import Cardano.Crypto.Wallet
-    ( deriveXPrv )
+    ( deriveXPrv
+    )
 import Cardano.Crypto.Wallet.Types
-    ( DerivationScheme (DerivationScheme2) )
+    ( DerivationScheme (DerivationScheme2)
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -51,19 +56,27 @@ import Cardano.Wallet.Address.Derivation
     , getIndex
     )
 import Cardano.Wallet.Address.Discovery
-    ( coinTypeAda )
+    ( coinTypeAda
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Interval
-    ( Interval, (<=..<=) )
+    ( Interval
+    , (<=..<=)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Data.Interval as I
 import qualified Data.List as L

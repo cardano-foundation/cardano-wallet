@@ -103,39 +103,56 @@ module Cardano.CoinSelection.UTxOIndex.Internal
     ) where
 
 import Prelude hiding
-    ( filter, lookup, null )
+    ( filter
+    , lookup
+    , null
+    )
 
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad.Extra
-    ( firstJustM )
+    ( firstJustM
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.MonoidMap
-    ( MonoidMap )
+    ( MonoidMap
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId )
+    ( AssetId
+    )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

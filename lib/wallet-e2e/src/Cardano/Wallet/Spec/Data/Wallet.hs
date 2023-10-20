@@ -1,11 +1,14 @@
 module Cardano.Wallet.Spec.Data.Wallet where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
-    ( AdaBalance )
+    ( AdaBalance
+    )
 import Cardano.Wallet.Spec.Data.WalletId
-    ( WalletId )
+    ( WalletId
+    )
 import Cardano.Wallet.Spec.Data.WalletName
-    ( WalletName )
+    ( WalletName
+    )
 
 data Wallet = Wallet
     { walletId :: WalletId

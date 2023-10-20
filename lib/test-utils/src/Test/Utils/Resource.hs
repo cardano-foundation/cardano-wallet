@@ -15,17 +15,31 @@ module Test.Utils.Resource
 import Prelude
 
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import UnliftIO.Async
-    ( async, race, waitCatch )
+    ( async
+    , race
+    , waitCatch
+    )
 import UnliftIO.Exception
-    ( finally, throwIO, throwString )
+    ( finally
+    , throwIO
+    , throwString
+    )
 import UnliftIO.Memoize
-    ( memoizeMVar, runMemoized )
+    ( memoizeMVar
+    , runMemoized
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 
 -- | Decompose a bracket pattern resource acquisition function into two separate
 -- functions: "allocate" and "release".

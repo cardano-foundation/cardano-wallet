@@ -22,21 +22,31 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
 import Prelude
 
 import Cardano.Ledger.Allegra.TxAuxData
-    ( AllegraTxAuxData (..) )
+    ( AllegraTxAuxData (..)
+    )
 import Cardano.Ledger.Alonzo.TxAuxData
-    ( AlonzoTxAuxData (..) )
+    ( AlonzoTxAuxData (..)
+    )
 import Cardano.Ledger.BaseTypes
-    ( strictMaybeToMaybe )
+    ( strictMaybeToMaybe
+    )
 import Cardano.Ledger.Shelley.TxAuxData
-    ( Metadatum, ShelleyTxAuxData (..) )
+    ( Metadatum
+    , ShelleyTxAuxData (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Metadata
-    ( Metadata (..) )
+    ( Metadata (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo

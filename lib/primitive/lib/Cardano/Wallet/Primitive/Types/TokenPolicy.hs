@@ -39,43 +39,69 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_160 )
+    ( Blake2b_160
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray
-    ( convert )
+    ( convert
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.URI
-    ( URI, parseAbsoluteURI, uriScheme )
+    ( URI
+    , parseAbsoluteURI
+    , uriScheme
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS

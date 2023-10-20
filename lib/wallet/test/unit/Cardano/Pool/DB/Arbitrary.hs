@@ -32,9 +32,15 @@ import Cardano.Pool.Metadata.Types
     , StakePoolMetadataUrl (..)
     )
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
+    ( PoolId (..)
+    , PoolOwner (..)
+    , StakePoolTicker (..)
+    )
 import Cardano.Wallet.Gen
-    ( genPercentage, genSlotNo, shrinkSlotNo )
+    ( genPercentage
+    , genSlotNo
+    , shrinkSlotNo
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -52,35 +58,55 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutCoin, shrinkTxOutCoin )
+    ( genTxOutCoin
+    , shrinkTxOutCoin
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.Monad
-    ( foldM, replicateM )
+    ( foldM
+    , replicateM
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.URI
-    ( URI, parseURI )
+    ( URI
+    , parseURI
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -98,9 +124,12 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 import Test.QuickCheck.Extra
-    ( reasonablySized )
+    ( reasonablySized
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

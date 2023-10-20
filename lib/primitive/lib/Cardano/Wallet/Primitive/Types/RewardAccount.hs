@@ -16,23 +16,35 @@ module Cardano.Wallet.Primitive.Types.RewardAccount
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (String) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (String)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import Data.Text as T
 

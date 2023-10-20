@@ -14,17 +14,28 @@ module Network.Wai.Middleware.ServerError
 import Prelude
 
 import Control.Monad
-    ( guard )
+    ( guard
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 import Network.HTTP.Types.Status
-    ( statusCode, statusMessage )
+    ( statusCode
+    , statusMessage
+    )
 import Network.Wai
-    ( Middleware, responseHeaders, responseStatus )
+    ( Middleware
+    , responseHeaders
+    , responseStatus
+    )
 import Network.Wai.Internal
-    ( Request, Response (..) )
+    ( Request
+    , Response (..)
+    )
 import Servant.Server.Internal.ServerError
-    ( ServerError (..), responseServerError )
+    ( ServerError (..)
+    , responseServerError
+    )
 
 import qualified Data.Binary.Builder as Binary
 import qualified Data.ByteString.Char8 as B8

@@ -26,9 +26,13 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 import Prelude
 
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
+    ( TimeInterpreter
+    , hoistTimeInterpreter
+    , mkSingleEraInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -50,29 +54,44 @@ import Cardano.Wallet.Primitive.Types
     , emptyEraInfo
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
+    ( Hash (..)
+    , mockHash
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxMetadata (..), TxScriptValidity (..) )
+    ( Tx (..)
+    , TxMetadata (..)
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
+    ( TxCBOR
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 
 import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8

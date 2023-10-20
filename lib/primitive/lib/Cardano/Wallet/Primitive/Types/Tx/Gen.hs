@@ -18,33 +18,54 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive, shrinkCoinPositive )
+    ( genCoinPositive
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( mockHash )
+    ( mockHash
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
-    ( genRewardAccount, shrinkRewardAccount )
+    ( genRewardAccount
+    , shrinkRewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxMetadata (..), TxScriptValidity (..) )
+    ( Tx (..)
+    , TxMetadata (..)
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, shrinkTxMetadata )
+    ( genNestedTxMetadata
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Test.QuickCheck
     ( Gen
     , liftArbitrary
@@ -57,9 +78,16 @@ import Test.QuickCheck
     , shrinkMapBy
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 import Test.QuickCheck.Extra
-    ( genMapWith, genericRoundRobinShrink, shrinkMapWith, (<:>), (<@>) )
+    ( genMapWith
+    , genericRoundRobinShrink
+    , shrinkMapWith
+    , (<:>)
+    , (<@>)
+    )
 
 --------------------------------------------------------------------------------
 -- Transactions generated according to the size parameter

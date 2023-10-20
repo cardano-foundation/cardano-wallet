@@ -13,15 +13,22 @@ module Test.Utils.Paths
 import Prelude
 
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.FileEmbed
-    ( makeRelativeToProject )
+    ( makeRelativeToProject
+    )
 import Language.Haskell.TH.Syntax
-    ( Exp, Q, liftData )
+    ( Exp
+    , Q
+    , liftData
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 
 -- | A TH function to get the test data directory.
 --

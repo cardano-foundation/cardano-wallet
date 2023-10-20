@@ -24,13 +24,19 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Address.Derivation
-    ( HardDerivation (..), PersistPublicKey (..) )
+    ( HardDerivation (..)
+    , PersistPublicKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+    ( defaultAddressPoolGap
+    , getAddressPoolGap
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -43,27 +49,42 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (IcarusKeyS) )
+    ( KeyFlavorS (IcarusKeyS)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , pendingWith
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -90,7 +111,10 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NoRootKey, updateNamePayload, updatePassPayload )
+    ( errMsg403NoRootKey
+    , updateNamePayload
+    , updatePassPayload
+    )
 
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Api.Link as Link

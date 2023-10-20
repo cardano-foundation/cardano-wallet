@@ -18,7 +18,8 @@ module Internal.Cardano.Write.ProtocolParameters
 import Prelude
 
 import Data.Functor.Identity
-    ( Identity )
+    ( Identity
+    )
 
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Internal.Cardano.Write.Tx as Write

@@ -8,19 +8,32 @@ module Cardano.Numeric.UtilSpec
 import Prelude
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural, padCoalesce, partitionNatural, power )
+    ( equipartitionNatural
+    , padCoalesce
+    , partitionNatural
+    , power
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property

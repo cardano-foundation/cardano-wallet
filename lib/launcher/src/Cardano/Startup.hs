@@ -28,25 +28,45 @@ module Cardano.Startup
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import System.IO
-    ( Handle, hIsOpen, stdin )
+    ( Handle
+    , hIsOpen
+    , stdin
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( forkIO )
+    ( forkIO
+    )
 import UnliftIO.Exception
-    ( IOException, catch, handle, throwIO )
+    ( IOException
+    , catch
+    , handle
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows

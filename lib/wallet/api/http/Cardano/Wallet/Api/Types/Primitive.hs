@@ -17,7 +17,8 @@ module Cardano.Wallet.Api.Types.Primitive () where
 import Prelude
 
 import Cardano.Address.Script
-    ( ScriptHash (..) )
+    ( ScriptHash (..)
+    )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -25,21 +26,38 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import Cardano.Pool.Types
-    ( PoolId, PoolOwner, decodePoolIdBech32, encodePoolIdBech32 )
+    ( PoolId
+    , PoolOwner
+    , decodePoolIdBech32
+    , encodePoolIdBech32
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex )
+    ( DerivationIndex
+    )
 import Cardano.Wallet.Api.Aeson
-    ( eitherToParser )
+    ( eitherToParser
+    )
 import Cardano.Wallet.Api.Hex
-    ( fromHexText, hexText )
+    ( fromHexText
+    , hexText
+    )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..), fromTextApiT, toTextApiT )
+    ( ApiT (..)
+    , fromTextApiT
+    , toTextApiT
+    )
 import Cardano.Wallet.Api.Types.Key
-    ( parseBech32 )
+    ( parseBech32
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , NonWalletCertificate (..)
@@ -48,15 +66,22 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( coinIsValidForTxOut, txOutMaxCoin )
+    ( coinIsValidForTxOut
+    , txOutMaxCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxMetadata (..), TxScriptValidity )
+    ( TxMetadata (..)
+    , TxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -65,13 +90,18 @@ import Cardano.Wallet.Transaction
     , ScriptReference (..)
     )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Codec.Binary.Bech32
-    ( dataPartFromBytes )
+    ( dataPartFromBytes
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Control.Monad
-    ( when, (>=>) )
+    ( when
+    , (>=>)
+    )
 import Data.Aeson
     ( FromJSON (parseJSON)
     , KeyValue (..)
@@ -90,19 +120,29 @@ import Data.Aeson
     , (.=)
     )
 import Data.Aeson.Types
-    ( prependFailure )
+    ( prependFailure
+    )
 import Data.Bifunctor
-    ( Bifunctor (..) )
+    ( Bifunctor (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

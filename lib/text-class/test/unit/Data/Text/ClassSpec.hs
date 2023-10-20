@@ -10,15 +10,20 @@ module Data.Text.ClassSpec
 import Prelude
 
 import Data.Either
-    ( isLeft )
+    ( isLeft
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Maybe
-    ( isNothing )
+    ( isNothing
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -29,15 +34,23 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , UnicodeString (..)
@@ -54,7 +67,8 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Data.Text as T
 

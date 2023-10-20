@@ -5,9 +5,12 @@ module Cardano.Wallet.Faucet.Mnemonics where
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic, SomeMnemonic (..) )
+    ( Mnemonic
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeMkMnemonic
+    )
 
 sequential :: [Mnemonic 15]
 sequential =

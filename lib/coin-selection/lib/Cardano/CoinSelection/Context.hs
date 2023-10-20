@@ -19,7 +19,8 @@ module Cardano.CoinSelection.Context
 import Prelude
 
 import Fmt
-    ( Buildable )
+    ( Buildable
+    )
 
 -- | Provides a shared context for types used by coin selection.
 --

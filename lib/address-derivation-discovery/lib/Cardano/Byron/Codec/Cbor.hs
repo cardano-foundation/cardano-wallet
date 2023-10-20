@@ -44,39 +44,62 @@ module Cardano.Byron.Codec.Cbor
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubToBytes )
+    ( XPub
+    , xpubToBytes
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..) )
+    ( ProtocolMagic (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( unsafeCoinToTxOutCoinValue )
+    ( unsafeCoinToTxOutCoinValue
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.Monad
-    ( replicateM, when )
+    ( replicateM
+    , when
+    )
 import Crypto.Error
-    ( CryptoError (..), CryptoFailable (..) )
+    ( CryptoError (..)
+    , CryptoFailable (..)
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224, SHA3_256 )
+    ( Blake2b_224
+    , SHA3_256
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Digest.CRC32
-    ( crc32 )
+    ( crc32
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

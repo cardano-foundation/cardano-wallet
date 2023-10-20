@@ -32,11 +32,16 @@ import Cardano.Wallet.DB
     , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
+    ( GenState
+    , GenTxHistory (..)
+    , InitialCheckpoint (..)
+    )
 import Cardano.Wallet.DB.Pure.Implementation
-    ( filterTxHistory )
+    ( filterTxHistory
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
+    ( dummyGenesisParameters
+    )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -48,43 +53,69 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..), toTxHistory )
+    ( TransactionInfo (..)
+    , toTxHistory
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta (slotNo) )
+    ( TxMeta (slotNo)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeRunExceptT
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.Monad
-    ( forM_, void )
+    ( forM_
+    , void
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT
+    , runExceptT
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.Maybe
-    ( isNothing, mapMaybe )
+    ( isNothing
+    , mapMaybe
+    )
 import Fmt
-    ( Buildable, pretty )
+    ( Buildable
+    , pretty
+    )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldReturn )
+    ( SpecWith
+    , describe
+    , it
+    , shouldReturn
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -96,7 +127,13 @@ import Test.QuickCheck
     , property
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, pick, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , pick
+    , run
+    )
 
 import qualified Data.List as L
 

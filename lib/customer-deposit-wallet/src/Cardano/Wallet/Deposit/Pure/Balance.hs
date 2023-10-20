@@ -9,13 +9,20 @@ module Cardano.Wallet.Deposit.Pure.Balance
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure.UTxO
-    ( DeltaUTxO, UTxO, balance, excluding )
+    ( DeltaUTxO
+    , UTxO
+    , balance
+    , excluding
+    )
 import Cardano.Wallet.Primitive.Model
-    ( utxoFromTx )
+    ( utxoFromTx
+    )
 import Data.Foldable
-    ( foldMap' )
+    ( foldMap'
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read

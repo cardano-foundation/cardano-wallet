@@ -8,7 +8,8 @@ module Data.Function.Utils
 import Prelude
 
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Data.Set as Set
 

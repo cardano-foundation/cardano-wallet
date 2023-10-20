@@ -14,35 +14,52 @@ module Test.QuickCheck.ExtraSpec
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.List.Extra
-    ( dropEnd )
+    ( dropEnd
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Generics.SOP
-    ( NP (Nil) )
+    ( NP (Nil)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Fun (..)

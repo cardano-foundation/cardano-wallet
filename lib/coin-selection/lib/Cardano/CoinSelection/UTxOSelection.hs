@@ -87,29 +87,41 @@ module Cardano.CoinSelection.UTxOSelection
 import Prelude
 
 import Cardano.CoinSelection.UTxOIndex
-    ( UTxOIndex )
+    ( UTxOIndex
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Control.Monad
-    ( ap, (<=<) )
+    ( ap
+    , (<=<)
+    )
 import Data.Bool
-    ( bool )
+    ( bool
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over )
+    ( over
+    )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Tuple
-    ( swap )
+    ( swap
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F

@@ -17,29 +17,50 @@ where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty
+    , logScale
+    , withDBInMemory
+    , withInitializedWalletProp
+    )
 import Cardano.Wallet.DB.Store.Delegations.Store
-    ( mkStoreDelegations )
+    ( mkStoreDelegations
+    )
 import Cardano.Wallet.Delegation.Model
-    ( Operation (..), Status (..), status )
+    ( Operation (..)
+    , Status (..)
+    , status
+    )
 import Cardano.Wallet.Delegation.ModelSpec
-    ( Config (..), genDelta )
+    ( Config (..)
+    , genDelta
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.List
-    ( nub )
+    ( nub
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , choose

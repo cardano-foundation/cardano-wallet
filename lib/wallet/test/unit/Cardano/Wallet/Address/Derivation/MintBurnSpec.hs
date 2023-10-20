@@ -11,53 +11,103 @@ module Cardano.Wallet.Address.Derivation.MintBurnSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xprvToBytes )
+    ( XPrv
+    , XPub
+    , xprvToBytes
+    )
 import Cardano.Address.Script
-    ( KeyHash, KeyRole (..), Script (..), keyHashFromBytes )
+    ( KeyHash
+    , KeyRole (..)
+    , Script (..)
+    , keyHashFromBytes
+    )
 import Cardano.Mnemonic
-    ( Mnemonic, SomeMnemonic (..) )
+    ( Mnemonic
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey, scriptSlotIntervals, withinSlotInterval )
+    ( derivePolicyPrivateKey
+    , scriptSlotIntervals
+    , withinSlotInterval
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Keys.MintBurn
-    ( derivePolicyKeyAndHash )
+    ( derivePolicyKeyAndHash
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, hashVerificationKey, liftRawKey, publicKey )
+    ( getRawKey
+    , hashVerificationKey
+    , liftRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeBech32Decode, unsafeFromHex, unsafeMkMnemonic, unsafeXPrv )
+    ( unsafeBech32Decode
+    , unsafeFromHex
+    , unsafeMkMnemonic
+    , unsafeXPrv
+    )
 import Codec.Binary.Encoding
-    ( fromBase16 )
+    ( fromBase16
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Interval
-    ( Interval, empty, (<=..<=) )
+    ( Interval
+    , empty
+    , (<=..<=)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.TypeNats
-    ( KnownNat )
+    ( KnownNat
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, vector, (=/=), (===) )
+    ( Arbitrary (..)
+    , Property
+    , property
+    , vector
+    , (=/=)
+    , (===)
+    )
 import Test.QuickCheck.Arbitrary
-    ( arbitraryBoundedEnum )
+    ( arbitraryBoundedEnum
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley

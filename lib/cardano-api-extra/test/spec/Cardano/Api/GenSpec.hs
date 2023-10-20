@@ -81,7 +81,9 @@ import Cardano.Api
     , withdrawalsSupportedInEra
     )
 import Cardano.Api.Byron
-    ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
+    ( KeyWitness (ByronKeyWitness)
+    , WitnessNetworkIdOrByronAddress (..)
+    )
 import Cardano.Api.Gen
     ( genAddressInEra
     , genAlphaNum
@@ -148,31 +150,55 @@ import Cardano.Api.Shelley
     , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Chain.UTxO
-    ( TxInWitness (..) )
+    ( TxInWitness (..)
+    )
 import Cardano.Ledger.Credential.Safe
-    ( Ptr, SlotNo32, safePtr, safeUnwrapPtr )
+    ( Ptr
+    , SlotNo32
+    , safePtr
+    , safeUnwrapPtr
+    )
 import Cardano.Ledger.Shelley.API
-    ( MIRPot (..) )
+    ( MIRPot (..)
+    )
 import Data.Char
-    ( isAlphaNum, isDigit, isLower, isUpper )
+    ( isAlphaNum
+    , isDigit
+    , isLower
+    , isUpper
+    )
 import Data.Foldable
-    ( traverse_ )
+    ( traverse_
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Int
-    ( Int32 )
+    ( Int32
+    )
 import Data.List
-    ( (\\) )
+    ( (\\)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Ratio
-    ( denominator, numerator )
+    ( denominator
+    , numerator
+    )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word32
+    , Word64
+    , Word8
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary
     , Property
@@ -191,7 +217,9 @@ import Test.QuickCheck.Instances.ByteString
 
 import qualified Cardano.Ledger.Alonzo.Scripts as Ledger
 import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( CertIx (..), TxIx (..) )
+    ( CertIx (..)
+    , TxIx (..)
+    )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map

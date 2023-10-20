@@ -30,23 +30,42 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     , shrinkUserPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( haveScrypt )
+    ( haveScrypt
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
+    ( Arbitrary (..)
+    , Property
+    , counterexample
+    , property
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, run )
+    ( assert
+    , monadicIO
+    , run
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Data.ByteArray as BA
 

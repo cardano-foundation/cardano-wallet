@@ -14,13 +14,21 @@ where
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.DB.Store.Delegations.Model
-    ( Delegations, DeltaDelegations )
+    ( Delegations
+    , DeltaDelegations
+    )
 import Cardano.Wallet.Delegation.Model
-    ( Operation (..), Status (..) )
+    ( Operation (..)
+    , Status (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter
+    , firstSlotInEpoch
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( DelegationCertificate (..)
     , EpochNo
@@ -30,15 +38,21 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationStatus (..)
     )
 import Data.Foldable
-    ( find )
+    ( find
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( lookupMax )
+    ( lookupMax
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes
+    , fromMaybe
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Map.Strict as Map
 

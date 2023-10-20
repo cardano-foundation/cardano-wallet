@@ -39,19 +39,32 @@ import Cardano.Api
     , SlotNo (..)
     )
 import Cardano.Api.Shelley
-    ( toConsensusGenTx )
+    ( toConsensusGenTx
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( BracketLog, bracketTracer, produceTimings )
+    ( BracketLog
+    , bracketTracer
+    , produceTimings
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn, nodeSocketFile )
+    ( CardanoNodeConn
+    , nodeSocketFile
+    )
 import Cardano.Pool.Types
-    ( PoolId, StakePoolsSummary (..) )
+    ( PoolId
+    , StakePoolsSummary (..)
+    )
 import Cardano.Wallet.Byron.Compatibility
-    ( byronCodecConfig, protocolParametersFromUpdateState )
+    ( byronCodecConfig
+    , protocolParametersFromUpdateState
+    )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -69,11 +82,15 @@ import Cardano.Wallet.Primitive.Slotting
     , mkTimeInterpreter
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance )
+    ( SyncProgress (..)
+    , SyncTolerance
+    )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisParameters (..) )
+    ( GenesisParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..) )
+    ( SealedTx (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraPParams
@@ -99,7 +116,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , unsealShelleyTx
     )
 import Control.Applicative
-    ( liftA3 )
+    ( liftA3
+    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , STM
@@ -124,21 +142,36 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad
-    ( forever, unless, void, when )
+    ( forever
+    , unless
+    , void
+    , when
+    )
 import Control.Monad.Class.MonadAsync
-    ( MonadAsync )
+    ( MonadAsync
+    )
 import Control.Monad.Class.MonadST
-    ( MonadST )
+    ( MonadST
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow )
+    ( MonadThrow
+    )
 import Control.Monad.Class.MonadTimer
-    ( MonadTimer, threadDelay )
+    ( MonadTimer
+    , threadDelay
+    )
 import Control.Monad.Except
-    ( runExcept )
+    ( runExcept
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO, liftIO )
+    ( MonadIO
+    , MonadUnliftIO
+    , liftIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..)
+    , throwE
+    )
 import Control.Retry
     ( RetryAction (..)
     , RetryPolicyM
@@ -148,45 +181,78 @@ import Control.Retry
     , recoveringDynamic
     )
 import Control.Tracer
-    ( Tracer (..), contramap, nullTracer, traceWith )
+    ( Tracer (..)
+    , contramap
+    , nullTracer
+    , traceWith
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Functor.Contravariant
-    ( (>$<) )
+    ( (>$<)
+    )
 import Data.List
-    ( isInfixOf )
+    ( isInfixOf
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map
-    ( Map, (!) )
+    ( Map
+    , (!)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage )
+    ( Percentage
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( DiffTime )
+    ( DiffTime
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Fmt
-    ( Buildable (..), fmt, hexF, listF, mapF, pretty, (+|), (|+) )
+    ( Buildable (..)
+    , fmt
+    , hexF
+    , listF
+    , mapF
+    , pretty
+    , (+|)
+    , (|+)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Network.Mux
-    ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
+    ( MuxError (..)
+    , MuxErrorType (..)
+    , WithMuxBearer (..)
+    )
 import Ouroboros.Consensus.Cardano
-    ( CardanoBlock )
+    ( CardanoBlock
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( BlockQuery (..)
     , CardanoEras
@@ -200,29 +266,52 @@ import Ouroboros.Consensus.Cardano.Block
     , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( EraIndex (..), QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
+    ( EraIndex (..)
+    , QueryAnytime (..)
+    , QueryHardFork (..)
+    , eraIndexToInt
+    )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
-    ( MismatchEraInfo )
+    ( MismatchEraInfo
+    )
 import Ouroboros.Consensus.HardFork.History.Qry
-    ( Interpreter, PastHorizonException (..) )
+    ( Interpreter
+    , PastHorizonException (..)
+    )
 import Ouroboros.Consensus.Ledger.Query
-    ( Query (..) )
+    ( Query (..)
+    )
 import Ouroboros.Consensus.Ledger.SupportsMempool
-    ( ApplyTxErr )
+    ( ApplyTxErr
+    )
 import Ouroboros.Consensus.Network.NodeToClient
-    ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
+    ( ClientCodecs
+    , Codecs' (..)
+    , DefaultCodecs
+    , clientCodecs
+    , defaultCodecs
+    )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
-    ( HasNetworkProtocolVersion (..), SupportedNetworkProtocolVersion (..) )
+    ( HasNetworkProtocolVersion (..)
+    , SupportedNetworkProtocolVersion (..)
+    )
 import Ouroboros.Consensus.Protocol.Praos
-    ( Praos )
+    ( Praos
+    )
 import Ouroboros.Consensus.Protocol.TPraos
-    ( TPraos )
+    ( TPraos
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardConway )
+    ( StandardConway
+    )
 import Ouroboros.Consensus.Shelley.Ledger.Config
-    ( CodecConfig (..), getCompactGenesis )
+    ( CodecConfig (..)
+    , getCompactGenesis
+    )
 import Ouroboros.Network.Block
-    ( Point, Tip (..) )
+    ( Point
+    , Tip (..)
+    )
 import Ouroboros.Network.Client.Wallet
     ( LSQ (..)
     , LocalStateQueryCmd (..)
@@ -235,7 +324,10 @@ import Ouroboros.Network.Client.Wallet
     , send
     )
 import Ouroboros.Network.Driver.Simple
-    ( TraceSendRecv, runPeer, runPipelinedPeer )
+    ( TraceSendRecv
+    , runPeer
+    , runPipelinedPeer
+    )
 import Ouroboros.Network.Mux
     ( MuxMode (..)
     , MuxPeer (..)
@@ -255,29 +347,46 @@ import Ouroboros.Network.NodeToClient
     , withIOManager
     )
 import Ouroboros.Network.Protocol.ChainSync.Client
-    ( chainSyncClientPeer )
+    ( chainSyncClientPeer
+    )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
-    ( chainSyncClientPeerPipelined )
+    ( chainSyncClientPeerPipelined
+    )
 import Ouroboros.Network.Protocol.Handshake.Version
-    ( combineVersions, simpleSingletonVersions )
+    ( combineVersions
+    , simpleSingletonVersions
+    )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
-    ( localStateQueryClientPeer )
+    ( localStateQueryClientPeer
+    )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
-    ( LocalStateQuery )
+    ( LocalStateQuery
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
-    ( localTxSubmissionClientPeer )
+    ( localTxSubmissionClientPeer
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
-    ( LocalTxSubmission (..), SubmitResult (..) )
+    ( LocalTxSubmission (..)
+    , SubmitResult (..)
+    )
 import System.IO.Error
-    ( isDoesNotExistError, isResourceVanishedError )
+    ( isDoesNotExistError
+    , isResourceVanishedError
+    )
 import UnliftIO.Async
-    ( async, link )
+    ( async
+    , link
+    )
 import UnliftIO.Compat
-    ( coerceHandlers )
+    ( coerceHandlers
+    )
 import UnliftIO.Concurrent
-    ( ThreadId )
+    ( ThreadId
+    )
 import UnliftIO.Exception
-    ( Handler (..), IOException )
+    ( Handler (..)
+    , IOException
+    )
 
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Credential as SL

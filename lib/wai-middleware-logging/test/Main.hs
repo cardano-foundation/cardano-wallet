@@ -3,9 +3,11 @@ module Main where
 import Prelude
 
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Test.Hspec.Extra
-    ( hspecMain )
+    ( hspecMain
+    )
 
 import qualified Network.Wai.Middleware.LoggingSpec as LoggingSpec
 

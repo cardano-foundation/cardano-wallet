@@ -57,13 +57,17 @@ module Cardano.Wallet.Balance.Migration.Selection
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Constants
-    ( maxLengthAddress )
+    ( maxLengthAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..)
     , TxSize
@@ -73,23 +77,33 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidTokenQuantities
     )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Either.Extra
-    ( eitherToMaybe, maybeToEither )
+    ( eitherToMaybe
+    , maybeToEither
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( catMaybes, listToMaybe )
+    ( catMaybes
+    , listToMaybe
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

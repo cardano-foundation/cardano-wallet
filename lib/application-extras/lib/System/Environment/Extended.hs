@@ -10,13 +10,19 @@ import System.Environment as Reexport
 import Prelude
 
 import Control.Monad
-    ( mfilter )
+    ( mfilter
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError )
+    ( FromText (..)
+    , TextDecodingError
+    )
 import UnliftIO
-    ( MonadIO (liftIO), MonadUnliftIO )
+    ( MonadIO (liftIO)
+    , MonadUnliftIO
+    )
 
 import qualified Data.Text as T
 

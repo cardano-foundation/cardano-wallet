@@ -16,7 +16,8 @@ module Cardano.Wallet.Read.Primitive.Tx.Mary
 import Prelude
 
 import Cardano.Api
-    ( MaryEra )
+    ( MaryEra
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , auxDataTxL
@@ -32,31 +33,45 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Wallet.Read.Eras
-    ( inject, mary )
+    ( inject
+    , mary
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromMaryMetadata )
+    ( fromMaryMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( maryMint )
+    ( maryMint
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromMaryTxOut )
+    ( fromMaryTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (Tx) )
+    ( Tx (Tx)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript )
+    ( toWalletScript
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -67,7 +82,10 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL

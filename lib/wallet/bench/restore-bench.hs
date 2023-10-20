@@ -43,47 +43,78 @@ module Main where
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( trMessageText )
+    ( trMessageText
+    )
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( Trace
+    , nullTracer
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+    ( CardanoNodeConn
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToMnemonic )
+    ( SomeMnemonic (..)
+    , entropyToMnemonic
+    )
 import Cardano.Wallet
-    ( WalletLayer (..), WalletWorkerLog (..), dummyChangeAddressGen )
+    ( WalletLayer (..)
+    , WalletWorkerLog (..)
+    , dummyChangeAddressGen
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso )
+    ( AddressBookIso
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
+    ( ByronKey
+    )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( GenChange (..), IsOurs )
+    ( GenChange (..)
+    , IsOurs
+    )
 import Cardano.Wallet.Address.Discovery.RandomAny
-    ( RndAnyState, mkRndAnyState )
+    ( RndAnyState
+    , mkRndAnyState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, mkAddressPoolGap, purposeCIP1852 )
+    ( AddressPoolGap
+    , mkAddressPoolGap
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( SeqAnyState )
+    ( SeqAnyState
+    )
 import Cardano.Wallet.Address.Keys.SequentialAny
-    ( mkSeqAnyState )
+    ( mkSeqAnyState
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( digest, publicKey )
+    ( digest
+    , publicKey
+    )
 import Cardano.Wallet.Address.MaybeLight
-    ( MaybeLight )
+    ( MaybeLight
+    )
 import Cardano.Wallet.Api.Types
-    ( toApiUtxoStatistics )
+    ( toApiUtxoStatistics
+    )
 import Cardano.Wallet.BenchShared
     ( RestoreBenchArgs (..)
     , Time
@@ -95,9 +126,12 @@ import Cardano.Wallet.BenchShared
     , withTempSqliteFile
     )
 import Cardano.Wallet.DB
-    ( DBFresh )
+    ( DBFresh
+    )
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook, withDBFresh )
+    ( PersistAddressBook
+    , withDBFresh
+    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , Excluding
@@ -113,9 +147,16 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Network.Config
-    ( NetworkConfiguration (..), parseGenesisData )
+    ( NetworkConfiguration (..)
+    , parseGenesisData
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
+    ( Wallet
+    , availableUTxO
+    , currentTip
+    , getState
+    , totalUTxO
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
@@ -125,9 +166,14 @@ import Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, neverFails )
+    ( TimeInterpreter
+    , neverFails
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance, mkSyncTolerance )
+    ( SyncProgress (..)
+    , SyncTolerance
+    , mkSyncTolerance
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -140,19 +186,27 @@ import Cardano.Wallet.Primitive.Types
     , chainPointFromBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( ClearCredentials, RootCredentials (..) )
+    ( ClearCredentials
+    , RootCredentials (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx )
+    ( Tx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( UTxOStatistics (..) )
+    ( UTxOStatistics (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)
     , CardanoBlock
@@ -163,49 +217,83 @@ import Cardano.Wallet.Shelley.Compatibility
     , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Network.Node
-    ( withNetworkLayer )
+    ( withNetworkLayer
+    )
 import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
+    ( newTransactionLayer
+    )
 import Cardano.Wallet.Transaction
-    ( PreSelection (..), defaultTransactionCtx )
+    ( PreSelection (..)
+    , defaultTransactionCtx
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
+    ( unsafeMkEntropy
+    , unsafeMkPercentage
+    , unsafeRunExceptT
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Control.Exception
-    ( throwIO )
+    ( throwIO
+    )
 import Control.Monad
-    ( unless, void )
+    ( unless
+    , void
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT, withExceptT )
+    ( runExceptT
+    , withExceptT
+    )
 import Control.Tracer
-    ( Tracer (..), traceWith )
+    ( Tracer (..)
+    , traceWith
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.Aeson
-    ( ToJSON (..), genericToJSON, (.=) )
+    ( ToJSON (..)
+    , genericToJSON
+    , (.=)
+    )
 import Data.Functor.Contravariant
-    ( contramap )
+    ( contramap
+    )
 import Data.List
-    ( foldl' )
+    ( foldl'
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time
-    ( UTCTime, diffUTCTime )
+    ( UTCTime
+    , diffUTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime, getCurrentTime, utcTimeToPOSIXSeconds )
+    ( POSIXTime
+    , getCurrentTime
+    , utcTimeToPOSIXSeconds
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
     ( Buildable
     , blockListF'
@@ -219,31 +307,59 @@ import Fmt
     , (||+)
     )
 import GHC.Conc
-    ( retry )
+    ( retry
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownNat, Nat, natVal )
+    ( KnownNat
+    , Nat
+    , natVal
+    )
 import Internal.Cardano.Write.Tx
-    ( AnyRecentEra (..) )
+    ( AnyRecentEra (..)
+    )
 import Numeric
-    ( fromRat, showFFloat )
+    ( fromRat
+    , showFFloat
+    )
 import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy, tunedForMainnetPipeliningStrategy )
+    ( PipeliningStrategy
+    , tunedForMainnetPipeliningStrategy
+    )
 import Say
-    ( sayErr, sayShow )
+    ( sayErr
+    , sayShow
+    )
 import System.Exit
-    ( exitWith )
+    ( exitWith
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO
-    ( IOMode (..), hFlush, withFile )
+    ( IOMode (..)
+    , hFlush
+    , withFile
+    )
 import UnliftIO
-    ( async, atomically, cancel, newTVarIO, readTVar, readTVarIO, writeTVar )
+    ( async
+    , atomically
+    , cancel
+    , newTVarIO
+    , readTVar
+    , readTVarIO
+    , writeTVar
+    )
 import UnliftIO.Concurrent
-    ( forkIO, threadDelay )
+    ( forkIO
+    , threadDelay
+    )
 import UnliftIO.Exception
-    ( evaluate, throwString )
+    ( evaluate
+    , throwString
+    )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron

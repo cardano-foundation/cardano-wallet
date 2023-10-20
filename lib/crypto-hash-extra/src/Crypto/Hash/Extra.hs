@@ -8,13 +8,18 @@ module Crypto.Hash.Extra
 import Prelude
 
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224, Blake2b_256 )
+    ( Blake2b_224
+    , Blake2b_256
+    )
 import Data.ByteArray
-    ( ByteArrayAccess )
+    ( ByteArrayAccess
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 
 import qualified Data.ByteArray as BA
 

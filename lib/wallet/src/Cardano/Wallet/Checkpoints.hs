@@ -39,21 +39,32 @@ module Cardano.Wallet.Checkpoints
 import Prelude
 
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over
+    , view
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word32
+    , Word8
+    )
 import Fmt
-    ( Buildable (..), listF )
+    ( Buildable (..)
+    , listF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L

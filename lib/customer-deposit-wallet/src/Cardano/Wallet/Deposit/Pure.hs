@@ -39,19 +39,26 @@ module Cardano.Wallet.Deposit.Pure
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure.UTxOHistory
-    ( UTxOHistory )
+    ( UTxOHistory
+    )
 import Cardano.Wallet.Deposit.Read
-    ( Address )
+    ( Address
+    )
 import Data.Foldable
-    ( foldl' )
+    ( foldl'
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm

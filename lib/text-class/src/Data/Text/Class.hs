@@ -35,35 +35,55 @@ module Data.Text.Class
 import Prelude
 
 import Control.Monad
-    ( unless, (<=<) )
+    ( unless
+    , (<=<)
+    )
 import Data.Bifunctor
-    ( bimap, first )
+    ( bimap
+    , first
+    )
 import Data.List
-    ( find )
+    ( find
+    )
 import Data.List.Extra
-    ( enumerate )
+    ( enumerate
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Read
-    ( decimal, signed )
+    ( decimal
+    , signed
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Formatting
-    ( builder, sformat )
+    ( builder
+    , sformat
+    )
 import Formatting.Buildable
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Text.Read
-    ( readEither )
+    ( readEither
+    )
 
 import qualified Data.Char as C
 import qualified Data.Text as T

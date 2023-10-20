@@ -42,9 +42,12 @@ module Cardano.Wallet.DB.Layer
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
@@ -61,11 +64,14 @@ import Cardano.DB.Sqlite.Delete
     , withRef
     )
 import Cardano.Slotting.Slot
-    ( WithOrigin (..) )
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( keyTypeDescriptor )
+    ( keyTypeDescriptor
+    )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..) )
+    ( DeltaCheckpoints (..)
+    )
 import Cardano.Wallet.DB
     ( DBCheckpoints (..)
     , DBFactory (..)
@@ -82,9 +88,12 @@ import Cardano.Wallet.DB
     , transactionsStore
     )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations )
+    ( runNewStyleMigrations
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( DefaultFieldValues (..), migrateManually )
+    ( DefaultFieldValues (..)
+    , migrateManually
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
     , EntityField (..)
@@ -95,35 +104,49 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), TxId (..) )
+    ( BlockId (..)
+    , TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..), blockHeaderFromEntity )
+    ( PersistAddressBook (..)
+    , blockHeaderFromEntity
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (..) )
+    ( WalletInfo (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( mkTxMetaFromEntity )
+    ( mkTxMetaFromEntity
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( rollBackSubmissions )
+    ( rollBackSubmissions
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( submissionMetaFromTxMeta )
+    ( submissionMetaFromTxMeta
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut
     , decorateTxInsForRelationFromLookupTxOut
     )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..), txCBORPrism )
+    ( TxRelation (..)
+    , txCBORPrism
+    )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfoFromReadTx, mkTransactionInfoFromRelation )
+    ( mkTransactionInfoFromReadTx
+    , mkTransactionInfoFromRelation
+    )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( QueryStoreTxWalletsHistory
     , QueryTxWalletsHistory (..)
     , newQueryStoreTxWalletsHistory
     )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
+    ( DeltaTxWalletsHistory (..)
+    )
 import Cardano.Wallet.DB.Store.WalletState.Store
-    ( mkStoreWallet )
+    ( mkStoreWallet
+    )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -132,45 +155,80 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS, WalletFlavorS, keyOfWallet )
+    ( KeyFlavorS
+    , WalletFlavorS
+    , keyOfWallet
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+    ( TimeInterpreter
+    , hoistTimeInterpreter
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue )
+    ( EraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( parseTxFromCBOR )
+    ( parseTxFromCBOR
+    )
 import Control.DeepSeq
-    ( force )
+    ( force
+    )
 import Control.Exception
-    ( evaluate, throw )
+    ( evaluate
+    , throw
+    )
 import Control.Monad
-    ( forM, unless, when )
+    ( forM
+    , unless
+    , when
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( mapExceptT, throwE )
+    ( mapExceptT
+    , throwE
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.DBVar
-    ( DBVar, initDBVar, loadDBVar, readDBVar )
+    ( DBVar
+    , initDBVar
+    , loadDBVar
+    , readDBVar
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes
+    , fromMaybe
+    )
 import Data.Store
-    ( Store (..), UpdateStore )
+    ( Store (..)
+    , UpdateStore
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..), fromText )
+    ( ToText (..)
+    , fromText
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
@@ -180,19 +238,34 @@ import Database.Persist.Sql
     , (==.)
     )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import Fmt
-    ( pretty, (+|), (|+) )
+    ( pretty
+    , (+|)
+    , (|+)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Directory
-    ( doesFileExist, listDirectory )
+    ( doesFileExist
+    , listDirectory
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import UnliftIO.Exception
-    ( Exception, bracket, throwIO )
+    ( Exception
+    , bracket
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( modifyMVar
+    , modifyMVar_
+    , newMVar
+    , readMVar
+    )
 
 import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W

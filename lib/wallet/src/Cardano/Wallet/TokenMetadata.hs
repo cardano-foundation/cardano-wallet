@@ -74,9 +74,12 @@ module Cardano.Wallet.TokenMetadata
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
     ( BracketLog
     , BracketLog' (..)
@@ -85,11 +88,14 @@ import Cardano.BM.Extra
     , produceTimings
     )
 import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServer (..) )
+    ( TokenMetadataServer (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -105,13 +111,20 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , validateMetadataURL
     )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( when, (>=>) )
+    ( when
+    , (>=>)
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Aeson
     ( FromJSON (..)
     , Object
@@ -126,37 +139,59 @@ import Data.Aeson
     , (.:?)
     )
 import Data.Aeson.Types
-    ( Parser, fromJSON )
+    ( Parser
+    , fromJSON
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16, Base64), convertFromBase, convertToBase )
+    ( Base (Base16, Base64)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes
+    , mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.String
-    ( IsString (..) )
+    ( IsString (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( DiffTime )
+    ( DiffTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownSymbol
+    , Symbol
+    , symbolVal
+    )
 import Network.HTTP.Client
     ( HttpException
     , Manager
@@ -169,13 +204,20 @@ import Network.HTTP.Client
     , withResponse
     )
 import Network.HTTP.Client.TLS
-    ( newTlsManager )
+    ( newTlsManager
+    )
 import Network.URI
-    ( URI, relativeTo )
+    ( URI
+    , relativeTo
+    )
 import Network.URI.Static
-    ( relativeReference )
+    ( relativeReference
+    )
 import UnliftIO.Exception
-    ( SomeException, handle, handleAny )
+    ( SomeException
+    , handle
+    , handleAny
+    )
 
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Char8 as B8

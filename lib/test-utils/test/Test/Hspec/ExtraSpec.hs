@@ -6,27 +6,49 @@ module Test.Hspec.ExtraSpec (spec) where
 import Prelude
 
 import Control.Monad
-    ( forM_, unless )
+    ( forM_
+    , unless
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.IORef
-    ( IORef, newIORef, readIORef, writeIORef )
+    ( IORef
+    , newIORef
+    , readIORef
+    , writeIORef
+    )
 import Data.List
-    ( isPrefixOf, nubBy )
+    ( isPrefixOf
+    , nubBy
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Fmt
-    ( (+|), (+||), (|+), (||+) )
+    ( (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( stderr, stdout )
+    ( stderr
+    , stdout
+    )
 import System.IO.Silently
-    ( capture_, hCapture, silence )
+    ( capture_
+    , hCapture
+    , silence
+    )
 import Test.Hspec
     ( ActionWith
     , Expectation
@@ -41,15 +63,24 @@ import Test.Hspec
     , shouldContain
     )
 import Test.Hspec.Core.Runner
-    ( Summary (..), defaultConfig, runSpec )
+    ( Summary (..)
+    , defaultConfig
+    , runSpec
+    )
 import Test.Hspec.Core.Spec
-    ( runIO, sequential )
+    ( runIO
+    , sequential
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldReturn )
+    ( shouldReturn
+    )
 import Test.Hspec.Extra
-    ( aroundAll, hspecMain )
+    ( aroundAll
+    , hspecMain
+    )
 import Test.Hspec.QuickCheck
-    ( prop )
+    ( prop
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -61,17 +92,36 @@ import Test.QuickCheck
     , oneof
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.Utils.Env
-    ( withEnv )
+    ( withEnv
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Environment
-    ( lookupEnv, setEnv, withArgs )
+    ( lookupEnv
+    , setEnv
+    , withArgs
+    )
 import UnliftIO.Exception
-    ( bracket, throwString, tryAny, tryDeep )
+    ( bracket
+    , throwString
+    , tryAny
+    , tryDeep
+    )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, newMVar, putMVar, tryReadMVar, tryTakeMVar )
+    ( MVar
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , tryReadMVar
+    , tryTakeMVar
+    )
 
 import qualified Test.Hspec.Extra as Extra
 

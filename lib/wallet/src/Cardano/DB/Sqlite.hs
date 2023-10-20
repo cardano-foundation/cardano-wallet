@@ -61,25 +61,41 @@ module Cardano.DB.Sqlite
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( BracketLog, bracketTracer )
+    ( BracketLog
+    , bracketTracer
+    )
 import Cardano.Wallet.DB.Migration
-    ( ErrWrongVersion (..) )
+    ( ErrWrongVersion (..)
+    )
 import Control.Lens
-    ( strict, view )
+    ( strict
+    , view
+    )
 import Control.Monad
-    ( join, void, when )
+    ( join
+    , void
+    , when
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Control.Monad.Logger
-    ( LogLevel (..) )
+    ( LogLevel (..)
+    )
 import Control.Monad.Reader
-    ( ReaderT )
+    ( ReaderT
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Retry
     ( RetryStatus (..)
     , constantDelay
@@ -88,31 +104,49 @@ import Control.Retry
     , recovering
     )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Aeson
-    ( ToJSON (..) )
+    ( ToJSON (..)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>)
+    , (<&>)
+    )
 import Data.List
-    ( isInfixOf )
+    ( isInfixOf
+    )
 import Data.List.Split
-    ( chunksOf )
+    ( chunksOf
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Text.Lazy.Builder
-    ( toLazyText )
+    ( toLazyText
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Database.Persist.EntityDef
-    ( getEntityDBName, getEntityFields )
+    ( getEntityDBName
+    , getEntityFields
+    )
 import Database.Persist.Names
-    ( EntityNameDB (..), unFieldNameDB )
+    ( EntityNameDB (..)
+    , unFieldNameDB
+    )
 import Database.Persist.Sql
     ( EntityField
     , LogFunc
@@ -128,23 +162,46 @@ import Database.Persist.Sql
     , runSqlConn
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, wrapConnection )
+    ( SqlBackend
+    , wrapConnection
+    )
 import Database.Sqlite
-    ( Error (ErrorConstraint), SqliteException (SqliteException) )
+    ( Error (ErrorConstraint)
+    , SqliteException (SqliteException)
+    )
 import Fmt
-    ( Buildable (..), fmt, ordinalF, (+|), (+||), (|+), (||+) )
+    ( Buildable (..)
+    , fmt
+    , ordinalF
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.Log.FastLogger
-    ( fromLogStr )
+    ( fromLogStr
+    )
 import UnliftIO.Compat
-    ( handleIf )
+    ( handleIf
+    )
 import UnliftIO.Exception
-    ( Exception, bracket, bracket_, handleJust, tryJust )
+    ( Exception
+    , bracket
+    , bracket_
+    , handleJust
+    , tryJust
+    )
 import UnliftIO.MVar
-    ( newMVar, withMVar, withMVarMasked )
+    ( newMVar
+    , withMVar
+    , withMVarMasked
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

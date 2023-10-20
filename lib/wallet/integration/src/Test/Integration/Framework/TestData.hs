@@ -114,27 +114,47 @@ module Test.Integration.Framework.TestData
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAssetMetadata (ApiAssetMetadata), ApiT (..) )
+    ( ApiAssetMetadata (ApiAssetMetadata)
+    , ApiT (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText
+    )
 import Cardano.Wallet.Version
-    ( gitRevision, showFullVersion, version )
+    ( gitRevision
+    , showFullVersion
+    , version
+    )
 import Data.Text
-    ( Text, pack, unpack )
+    ( Text
+    , pack
+    , unpack
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Test.Integration.Framework.DSL
-    ( Payload (..), fixturePassphrase, json )
+    ( Payload (..)
+    , fixturePassphrase
+    , json
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Data.Map as Map

@@ -20,7 +20,8 @@ import Cardano.Api
     , Tx
     )
 import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
+    ( ShelleyLedgerEra
+    )
 
 import qualified Cardano.Ledger.Core as Ledger
 

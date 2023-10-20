@@ -18,47 +18,84 @@ import qualified Wallet.Operations.ListWallets as LW
 import qualified Wallet.Operations.PostWallet as PW
 
 import Cardano.Wallet.Cli.Launcher
-    ( walletInstanceApiUrl )
+    ( walletInstanceApiUrl
+    )
 import Cardano.Wallet.Spec.Data.AdaBalance
-    ( AdaBalance (..) )
+    ( AdaBalance (..)
+    )
 import Cardano.Wallet.Spec.Data.Mnemonic
-    ( Mnemonic )
+    ( Mnemonic
+    )
 import Cardano.Wallet.Spec.Data.Network.Info
-    ( NetworkInfo (..) )
+    ( NetworkInfo (..)
+    )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
-    ( NodeStatus (..) )
+    ( NodeStatus (..)
+    )
 import Cardano.Wallet.Spec.Data.Wallet
-    ( Wallet (..) )
+    ( Wallet (..)
+    )
 import Cardano.Wallet.Spec.Data.WalletId
-    ( WalletId (..) )
+    ( WalletId (..)
+    )
 import Cardano.Wallet.Spec.Data.WalletName
-    ( WalletName )
+    ( WalletName
+    )
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assert, assertEq )
+    ( FxAssert
+    , assert
+    , assertEq
+    )
 import Cardano.Wallet.Spec.Effect.Http
-    ( FxHttp )
+    ( FxHttp
+    )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig (..) )
+    ( NetworkConfig (..)
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( (:>)
+    , Eff
+    , Effect
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret, reinterpret )
+    ( interpret
+    , reinterpret
+    )
 import Effectful.Error.Static
-    ( runErrorNoCallStack )
+    ( runErrorNoCallStack
+    )
 import Effectful.Fail
-    ( Fail )
+    ( Fail
+    )
 import Effectful.State.Static.Local
-    ( evalState, get, gets, modify )
+    ( evalState
+    , get
+    , gets
+    , modify
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Network.HTTP.Client
-    ( responseBody, responseStatus )
+    ( responseBody
+    , responseStatus
+    )
 import Network.HTTP.Types
-    ( created201, noContent204, ok200 )
+    ( created201
+    , noContent204
+    , ok200
+    )
 import Prelude hiding
-    ( evalState, get, gets, modify, trace )
+    ( evalState
+    , get
+    , gets
+    , modify
+    , trace
+    )
 
 data FxQuery :: Effect where
     ListKnownWallets :: FxQuery m (Set Wallet)

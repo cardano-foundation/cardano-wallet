@@ -10,41 +10,71 @@ module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , Script (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange, genTokenPolicyIdLargeRange )
+    ( genTokenNameLargeRange
+    , genTokenPolicyIdLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+    ( genTokenQuantityFullRange
+    , shrinkTokenQuantityFullRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutCoin, shrinkTxOutCoin )
+    ( genTxOutCoin
+    , shrinkTxOutCoin
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..), toLedgerTimelockScript, toWalletScript )
+    ( Convert (..)
+    , toLedgerTimelockScript
+    , toWalletScript
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage )
+    ( StandardBabbage
+    )
 import Test.Cardano.Ledger.Allegra.Arbitrary
     ()
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

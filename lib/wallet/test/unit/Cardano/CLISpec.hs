@@ -42,19 +42,30 @@ import Cardano.Wallet.Api.Client
     , walletClient
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata, noSchemaMetadata )
+    ( detailedMetadata
+    , noSchemaMetadata
+    )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource )
+    ( PoolMetadataSource
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), toText )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , toText
+    )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserInfo
@@ -67,11 +78,17 @@ import "optparse-applicative" Options.Applicative
     , renderFailure
     )
 import System.Environment
-    ( getProgName )
+    ( getProgName
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO
-    ( Handle, IOMode (..), hClose, openFile )
+    ( Handle
+    , IOMode (..)
+    , hClose
+    , openFile
+    )
 import Test.Hspec
     ( HasCallStack
     , Spec
@@ -82,7 +99,9 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Hspec.Goldens
-    ( Settings (..), textGolden )
+    ( Settings (..)
+    , textGolden
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -92,15 +111,22 @@ import Test.QuickCheck
     , (===)
     )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import UnliftIO.Concurrent
-    ( forkFinally )
+    ( forkFinally
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 import UnliftIO.Temporary
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T

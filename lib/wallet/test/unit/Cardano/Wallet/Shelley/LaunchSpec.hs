@@ -10,13 +10,23 @@ import Prelude
 
 -- See ADP-1910
 import Cardano.Wallet.CLI
-    ( nodeSocketOption )
+    ( nodeSocketOption
+    )
 import "optparse-applicative" Options.Applicative
-    ( ParserResult (..), defaultPrefs, execParserPure, info )
+    ( ParserResult (..)
+    , defaultPrefs
+    , execParserPure
+    , info
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldSatisfy
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
 
 spec :: Spec
 spec = describe "Shelley CLI" $

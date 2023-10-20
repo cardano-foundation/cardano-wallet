@@ -27,7 +27,8 @@ module Cardano.Wallet.Address.Discovery.SequentialSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -41,11 +42,14 @@ import Cardano.Wallet.Address.Derivation
     , SoftDerivation (..)
     )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -71,49 +75,81 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Keys.SequentialAny
-    ( mkSeqStateFromRootXPrv )
+    ( mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Address.PoolSpec
-    ( genPool, shrinkPool )
+    ( genPool
+    , shrinkPool
+    )
 import Cardano.Wallet.Address.States.IsOwned
-    ( isOwned )
+    ( isOwned
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..), WalletFlavorS (ShelleyWallet) )
+    ( KeyFlavorS (..)
+    , WalletFlavorS (ShelleyWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
+    ( NetworkDiscriminant (..)
+    , SNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..) )
+    ( RootCredentials (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic )
+    ( someDummyMnemonic
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText )
+    ( TextDecodingError (..)
+    , fromText
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -135,11 +171,14 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary )
+    ( genericArbitrary
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( monadicIO
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley

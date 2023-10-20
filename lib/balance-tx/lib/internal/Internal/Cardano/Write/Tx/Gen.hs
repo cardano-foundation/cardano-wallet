@@ -13,11 +13,17 @@ module Internal.Cardano.Write.Tx.Gen
 import Prelude
 
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Internal.Cardano.Write.Tx
-    ( DatumHash, datumHashFromBytes )
+    ( DatumHash
+    , datumHashFromBytes
+    )
 import Test.QuickCheck
-    ( Gen, arbitrary, vectorOf )
+    ( Gen
+    , arbitrary
+    , vectorOf
+    )
 
 import qualified Data.ByteString as BS
 

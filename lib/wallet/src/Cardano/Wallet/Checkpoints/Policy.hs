@@ -26,7 +26,8 @@ module Cardano.Wallet.Checkpoints.Policy
 import Prelude
 
 import Data.List
-    ( unfoldr )
+    ( unfoldr
+    )
 
 {-------------------------------------------------------------------------------
     CheckpointPolicy, abstract data type

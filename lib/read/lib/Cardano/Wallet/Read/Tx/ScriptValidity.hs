@@ -30,15 +30,21 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid, isValidTxL )
+    ( IsValid
+    , isValidTxL
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 type family ScriptValidityType era where
   ScriptValidityType ByronEra = ()

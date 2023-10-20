@@ -14,15 +14,21 @@ module Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..), ordinalF )
+    ( Buildable (..)
+    , ordinalF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 data TxIn = TxIn
     { inputId

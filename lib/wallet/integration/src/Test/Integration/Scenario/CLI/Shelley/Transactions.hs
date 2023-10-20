@@ -14,59 +14,102 @@ module Test.Integration.Scenario.CLI.Shelley.Transactions
 import Prelude
 
 import Cardano.CLI
-    ( Port )
+    ( Port
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiFee (..), ApiTransaction, ApiWallet, apiAddress )
+    ( ApiFee (..)
+    , ApiTransaction
+    , ApiWallet
+    , apiAddress
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), detailedMetadata, noSchemaMetadata )
+    ( TxMetadataSchema (..)
+    , detailedMetadata
+    , noSchemaMetadata
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..) )
+    ( SortOrder (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Control.Monad
-    ( forM_, join )
+    ( forM_
+    , join
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Generics.Product.Typed
-    ( typed )
+    ( typed
+    )
 import Data.List.Extra
-    ( enumerate )
+    ( enumerate
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( showT )
+    ( showT
+    )
 import Data.Time.Utils
-    ( utcTimePred, utcTimeSucc )
+    ( utcTimePred
+    , utcTimeSucc
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldSatisfy )
+    ( shouldBe
+    , shouldContain
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , between
@@ -111,7 +154,8 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 import UnliftIO.Exception
-    ( throwString )
+    ( throwString
+    )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T

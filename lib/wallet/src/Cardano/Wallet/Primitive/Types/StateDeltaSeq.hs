@@ -97,30 +97,45 @@ module Cardano.Wallet.Primitive.Types.StateDeltaSeq
     ) where
 
 import Prelude hiding
-    ( head, iterate, seq, tail )
+    ( head
+    , iterate
+    , seq
+    , tail
+    )
 
 import Control.Applicative
-    ( ZipList (..) )
+    ( ZipList (..)
+    )
 import Control.Monad
-    ( foldM )
+    ( foldM
+    )
 import Control.Monad.Extra
-    ( allM )
+    ( allM
+    )
 import Control.Monad.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Bifoldable
-    ( Bifoldable (..) )
+    ( Bifoldable (..)
+    )
 import Data.Bifunctor
-    ( Bifunctor (..) )
+    ( Bifunctor (..)
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Sequence
-    ( Seq ((:<|), (:|>), Empty) )
+    ( Seq ((:<|), (:|>), Empty)
+    )
 
 import qualified Data.Foldable as F
 import qualified Data.List as L

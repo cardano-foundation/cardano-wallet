@@ -23,21 +23,31 @@ module System.Random.StdGenSeed
 import Prelude
 
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Bits
-    ( (.|.) )
+    ( (.|.)
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Data.Word.Odd
-    ( Lit, OddWord )
+    ( Lit
+    , OddWord
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 import System.Random.Internal
-    ( StdGen (..) )
+    ( StdGen (..)
+    )
 import System.Random.SplitMix
-    ( seedSMGen', unseedSMGen )
+    ( seedSMGen'
+    , unseedSMGen
+    )
 
 import qualified Data.Bits as Bits
 

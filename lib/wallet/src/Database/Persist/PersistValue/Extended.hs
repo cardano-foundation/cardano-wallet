@@ -8,17 +8,24 @@ import Database.Persist.PersistValue
 import Prelude
 
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class.Extended
-    ( FromText, fromText' )
+    ( FromText
+    , fromText'
+    )
 import Database.Persist
-    ( fromPersistValue )
+    ( fromPersistValue
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 
 import qualified Data.Text as T
 

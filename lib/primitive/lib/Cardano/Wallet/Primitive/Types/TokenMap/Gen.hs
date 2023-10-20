@@ -16,7 +16,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName
     , genTokenNameLargeRange
@@ -28,21 +30,32 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , testTokenPolicyIds
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantity, genTokenQuantityPartition, shrinkTokenQuantity )
+    ( genTokenQuantity
+    , genTokenQuantityPartition
+    , shrinkTokenQuantity
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.List
-    ( elemIndex, transpose )
+    ( elemIndex
+    , transpose
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Safe
-    ( fromJustNote )
+    ( fromJustNote
+    )
 import Test.QuickCheck
     ( CoArbitrary (..)
     , Function (..)
@@ -55,7 +68,9 @@ import Test.QuickCheck
     , variant
     )
 import Test.QuickCheck.Extra
-    ( genSized2With, shrinkInterleaved )
+    ( genSized2With
+    , shrinkInterleaved
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F

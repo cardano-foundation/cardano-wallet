@@ -16,23 +16,34 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs
 import Prelude
 
 import Cardano.Crypto.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Keys
-    ( KeyHash (..), KeyRole (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.ExtraSigs
-    ( ExtraSigs (..) )
+    ( ExtraSigs (..)
+    )
 import Data.ByteString.Short
-    ( fromShort )
+    ( fromShort
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 

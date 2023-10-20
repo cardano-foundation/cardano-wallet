@@ -79,13 +79,18 @@ module Internal.Cardano.Write.Tx.Balance
 import Prelude
 
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..) )
+    ( TokenBundleSizeAssessment (..)
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( UTxOSelection )
+    ( UTxOSelection
+    )
 import Cardano.Ledger.Alonzo.Core
-    ( ppCollateralPercentageL, ppMaxCollateralInputsL )
+    ( ppCollateralPercentageL
+    , ppMaxCollateralInputsL
+    )
 import Cardano.Ledger.Alonzo.Scripts
-    ( AlonzoScript (..) )
+    ( AlonzoScript (..)
+    )
 import Cardano.Ledger.Api
     ( bodyTxL
     , collateralInputsTxBodyL
@@ -95,55 +100,102 @@ import Cardano.Ledger.Api
     , ppMaxTxSizeL
     )
 import Cardano.Ledger.UTxO
-    ( txinLookup )
+    ( txinLookup
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, sealedTxFromCardano )
+    ( SealedTx
+    , sealedTxFromCardano
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
+    ( TxSize (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Monad
-    ( forM, unless, when )
+    ( forM
+    , unless
+    , when
+    )
 import Control.Monad.Random
-    ( MonadRandom, evalRand )
+    ( MonadRandom
+    , evalRand
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (ExceptT), catchE, except, runExceptT, throwE, withExceptT )
+    ( ExceptT (ExceptT)
+    , catchE
+    , except
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Monad.Trans.State
-    ( runState, state )
+    ( runState
+    , state
+    )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap
+    , second
+    )
 import Data.Bits
-    ( Bits )
+    ( Bits
+    )
 import Data.Either
-    ( lefts, partitionEithers )
+    ( lefts
+    , partitionEithers
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCastMaybe )
+    ( intCastMaybe
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Semigroup.Cancellative
-    ( Reductive ((</>)) )
+    ( Reductive ((</>))
+    )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..)
+    , testEquality
+    )
 import Fmt
-    ( Buildable, Builder, blockListF', build, nameF, pretty )
+    ( Buildable
+    , Builder
+    , blockListF'
+    , build
+    , nameF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Internal.Cardano.Write.ProtocolParameters
-    ( ProtocolParameters (..) )
+    ( ProtocolParameters (..)
+    )
 import Internal.Cardano.Write.Tx
     ( Address
     , Coin (..)
@@ -192,23 +244,40 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , toInternalUTxOMap
     )
 import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
-    ( mkTokenBundleSizeAssessor )
+    ( mkTokenBundleSizeAssessor
+    )
 import Internal.Cardano.Write.Tx.Redeemers
-    ( ErrAssignRedeemers (..), Redeemer (..), assignScriptRedeemers )
+    ( ErrAssignRedeemers (..)
+    , Redeemer (..)
+    , assignScriptRedeemers
+    )
 import Internal.Cardano.Write.Tx.Sign
-    ( estimateKeyWitnessCount, estimateSignedTxSize )
+    ( estimateKeyWitnessCount
+    , estimateSignedTxSize
+    )
 import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), assumedTxWitnessTag, estimateTxCost )
+    ( TxSkeleton (..)
+    , assumedTxWitnessTag
+    , estimateTxCost
+    )
 import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation )
+    ( TimeTranslation
+    )
 import Internal.Cardano.Write.UTxOAssumptions
-    ( UTxOAssumptions (..), assumedInputScriptTemplate )
+    ( UTxOAssumptions (..)
+    , assumedInputScriptTemplate
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
+    ( StdGenSeed (..)
+    , stdGenFromSeed
+    , stdGenSeed
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
@@ -219,26 +288,34 @@ import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-    ( Address )
+    ( Address
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId )
+    ( AssetId
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn )
+    ( TxIn
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.Foldable as F
 import qualified Data.List as L

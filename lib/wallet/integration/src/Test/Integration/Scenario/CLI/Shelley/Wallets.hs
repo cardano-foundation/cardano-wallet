@@ -15,11 +15,14 @@ module Test.Integration.Scenario.CLI.Shelley.Wallets
 import Prelude
 
 import Cardano.CLI
-    ( Port )
+    ( Port
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..) )
+    ( AddressPoolGap (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( ApiTransaction
     , ApiUtxoStatistics
@@ -29,43 +32,73 @@ import Cardano.Wallet.Api.Types
     , getApiT
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( getWalletName, walletNameMaxLength, walletNameMinLength )
+    ( getWalletName
+    , walletNameMaxLength
+    , walletNameMinLength
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Generics.Product.Typed
-    ( typed )
+    ( typed
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
+    ( shouldBe
+    , shouldContain
+    , shouldNotBe
+    , shouldNotContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , cardanoWalletCLI

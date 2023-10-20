@@ -15,35 +15,60 @@ import Prelude
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( elementsOrArbitrary, logScale )
+    ( elementsOrArbitrary
+    , logScale
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (..) )
+    ( TxMeta (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId )
+    ( TxId
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
+    ( DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
+    , mkTxMetaHistory
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (Incoming, Outgoing) )
+    ( Direction (Incoming, Outgoing)
+    )
 import Control.Arrow
-    ( (***) )
+    ( (***)
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, Property, arbitrary, cover, elements, listOf1, property )
+    ( Gen
+    , Property
+    , arbitrary
+    , cover
+    , elements
+    , listOf1
+    , property
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
-    ( Tx )
+    ( Tx
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

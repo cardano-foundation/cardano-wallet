@@ -11,15 +11,21 @@ module Internal.Cardano.Write.TxSpec where
 import Prelude
 
 import Cardano.Api.Gen
-    ( genTxIn )
+    ( genTxIn
+    )
 import Cardano.Ledger.Api
-    ( ppCoinsPerUTxOByteL )
+    ( ppCoinsPerUTxOByteL
+    )
 import Control.Lens
-    ( (&), (.~) )
+    ( (&)
+    , (.~)
+    )
 import Data.Aeson
-    ( (.=) )
+    ( (.=)
+    )
 import Data.Default
-    ( Default (..) )
+    ( Default (..)
+    )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra
     , RecentEra (..)
@@ -38,7 +44,12 @@ import Test.Cardano.Ledger.Babbage.Arbitrary
 import Test.Cardano.Ledger.Conway.Arbitrary
     ()
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldNotBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary1 (liftArbitrary)
@@ -51,9 +62,13 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Classes
-    ( boundedEnumLaws, eqLaws, showLaws )
+    ( boundedEnumLaws
+    , eqLaws
+    , showLaws
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano

@@ -41,20 +41,28 @@ module Cardano.Wallet.Address.Pool
   where
 
 import Prelude hiding
-    ( last, lookup )
+    ( last
+    , lookup
+    )
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map

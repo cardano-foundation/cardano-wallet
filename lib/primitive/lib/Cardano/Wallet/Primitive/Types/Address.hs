@@ -16,15 +16,22 @@ module Cardano.Wallet.Primitive.Types.Address
 import Prelude
 
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -34,11 +41,16 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Fmt
-    ( Buildable (..), prefixF, suffixF )
+    ( Buildable (..)
+    , prefixF
+    , suffixF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Data.Text.Encoding as T
 

@@ -7,9 +7,11 @@ import Data.Text.Class
 import Prelude
 
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 
 import qualified Data.Text as T
 

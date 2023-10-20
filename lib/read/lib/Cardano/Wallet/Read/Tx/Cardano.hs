@@ -24,9 +24,11 @@ import Cardano.Wallet.Read.Eras.EraValue
     , shelley
     )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano

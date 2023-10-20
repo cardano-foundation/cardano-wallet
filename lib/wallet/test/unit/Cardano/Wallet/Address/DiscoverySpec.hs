@@ -14,9 +14,11 @@ module Cardano.Wallet.Address.DiscoverySpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
@@ -24,19 +26,30 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( ByronKey
+    , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..), knownAddresses )
+    ( IsOurs (..)
+    , knownAddresses
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( mkRndState )
+    ( mkRndState
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ByronKeyS) )
+    ( KeyFlavorS (ByronKeyS)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (EncryptWithPBKDF2)
@@ -45,13 +58,20 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

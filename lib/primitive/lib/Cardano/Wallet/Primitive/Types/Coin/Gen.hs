@@ -10,17 +10,26 @@ module Cardano.Wallet.Primitive.Types.Coin.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Test.QuickCheck
-    ( Gen, choose, sized )
+    ( Gen
+    , choose
+    , sized
+    )
 import Test.QuickCheck.Extra
-    ( chooseNatural, shrinkNatural )
+    ( chooseNatural
+    , shrinkNatural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List.NonEmpty as NE

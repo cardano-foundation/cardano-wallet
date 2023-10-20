@@ -9,13 +9,17 @@ module Cardano.Wallet.Address.Keys.BoundedAddressLength
 import Prelude
 
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (Address) )
+    ( Address (Address)
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (ProtocolMagic) )
+    ( ProtocolMagic (ProtocolMagic)
+    )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC

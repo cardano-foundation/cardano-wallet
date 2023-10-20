@@ -11,11 +11,17 @@ module Test.Utils.FilePath
 import Prelude
 
 import System.FilePath.Windows
-    ( makeValid )
+    ( makeValid
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), elements, listOf1, scale )
+    ( Arbitrary (..)
+    , elements
+    , listOf1
+    , scale
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
 
 -- | A file or directory name. The 'Arbitrary' instance will generate values
 -- which are valid on Windows and POSIX.

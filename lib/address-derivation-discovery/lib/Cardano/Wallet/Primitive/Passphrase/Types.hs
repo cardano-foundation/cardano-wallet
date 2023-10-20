@@ -31,27 +31,43 @@ module Cardano.Wallet.Primitive.Passphrase.Types
 import Prelude
 
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Crypto.Random.Types
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
+    ( ByteArray
+    , ByteArrayAccess
+    , ScrubbedBytes
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.Text as T

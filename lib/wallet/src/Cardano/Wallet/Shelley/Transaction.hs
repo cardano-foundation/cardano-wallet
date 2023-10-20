@@ -53,7 +53,9 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, toXPub )
+    ( XPrv
+    , toXPub
+    )
 import Cardano.Address.Script
     ( KeyHash (..)
     , KeyRole (..)
@@ -73,41 +75,61 @@ import Cardano.Api
     , ToCBOR
     )
 import Cardano.Binary
-    ( serialize' )
+    ( serialize'
+    )
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Ledger.Allegra.Core
-    ( inputsTxBodyL )
+    ( inputsTxBodyL
+    )
 import Cardano.Ledger.Crypto
-    ( DSIGN )
+    ( DSIGN
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), RewardAccount (..) )
+    ( Depth (..)
+    , RewardAccount (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( replaceCosignersWithVerKeys )
+    ( replaceCosignersWithVerKeys
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( toRewardAccountRaw )
+    ( toRewardAccountRaw
+    )
 import Cardano.Wallet.Address.Encoding
-    ( toHDPayloadAddress )
+    ( toHDPayloadAddress
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey )
+    ( getRawKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate )
+    ( Certificate
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (TokenQuantity) )
+    ( TokenQuantity (TokenQuantity)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
@@ -115,13 +137,20 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..), TxSize (..), txOutMaxCoin, txOutMaxTokenQuantity )
+    ( TxConstraints (..)
+    , TxSize (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Read.Primitive.Tx
-    ( fromCardanoTx )
+    ( fromCardanoTx
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
     , fromCardanoAddress
@@ -138,7 +167,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toLedger) )
+    ( Convert (toLedger)
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -159,39 +189,64 @@ import Cardano.Wallet.Transaction
     , selectionDelta
     )
 import Cardano.Wallet.Util
-    ( HasCallStack, internalError )
+    ( HasCallStack
+    , internalError
+    )
 import Control.Arrow
-    ( left, second )
+    ( left
+    , second
+    )
 import Control.Lens
-    ( over )
+    ( over
+    )
 import Control.Monad
-    ( forM_, guard, when )
+    ( forM_
+    , guard
+    , when
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Internal.Cardano.Write.ProtocolParameters
-    ( ProtocolParameters (..) )
+    ( ProtocolParameters (..)
+    )
 import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..), TxWitnessTag (..), estimateTxCost, estimateTxSize )
+    ( TxSkeleton (..)
+    , TxWitnessTag (..)
+    , estimateTxCost
+    , estimateTxSize
+    )
 import Ouroboros.Network.Block
-    ( SlotNo )
+    ( SlotNo
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA

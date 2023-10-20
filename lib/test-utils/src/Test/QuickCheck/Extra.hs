@@ -89,24 +89,41 @@ module Test.QuickCheck.Extra
 import Prelude
 
 import Control.Monad
-    ( foldM, liftM2 )
+    ( foldM
+    , liftM2
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( listToMaybe, mapMaybe )
+    ( listToMaybe
+    , mapMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( indentF, (+|), (|+) )
+    ( indentF
+    , (+|)
+    , (|+)
+    )
 import Generics.SOP
 import GHC.TypeNats
-    ( type (<=), KnownNat, Nat, natVal )
+    ( type (<=)
+    , KnownNat
+    , Nat
+    , natVal
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -130,15 +147,20 @@ import Test.QuickCheck
     , (.&&.)
     )
 import Test.QuickCheck.Gen
-    ( Gen (MkGen) )
+    ( Gen (MkGen)
+    )
 import Test.QuickCheck.Gen.Unsafe
-    ( promote )
+    ( promote
+    )
 import Test.QuickCheck.Random
-    ( mkQCGen )
+    ( mkQCGen
+    )
 import Test.Utils.Pretty
-    ( pShowBuilder )
+    ( pShowBuilder
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

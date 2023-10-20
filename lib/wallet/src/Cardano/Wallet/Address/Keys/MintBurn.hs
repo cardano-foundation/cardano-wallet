@@ -13,33 +13,59 @@ module Cardano.Wallet.Address.Keys.MintBurn
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptHash (unScriptHash), toScriptHash )
+    ( Cosigner
+    , KeyHash
+    , Script (..)
+    , ScriptHash (unScriptHash)
+    , toScriptHash
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index
+    )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
+    ( derivePolicyPrivateKey
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron, getRawKey, hashVerificationKey, liftRawKey, publicKey )
+    ( AfterByron
+    , getRawKey
+    , hashVerificationKey
+    , liftRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+    ( KeyFlavorS
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId (..) )
+    ( TokenName
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map

@@ -29,11 +29,16 @@ module Test.Store
 import Prelude
 
 import Control.Exception
-    ( throwIO )
+    ( throwIO
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.RWS
-    ( RWST, evalRWST, lift )
+    ( RWST
+    , evalRWST
+    , lift
+    )
 import Control.Monad.RWS.Class
     ( MonadReader (ask)
     , MonadState (get, put)
@@ -41,13 +46,19 @@ import Control.Monad.RWS.Class
     , censor
     )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Store
-    ( Store (loadS, updateS, writeS) )
+    ( Store (loadS, updateS, writeS)
+    )
 import Fmt
-    ( Buildable, listF, pretty )
+    ( Buildable
+    , listF
+    , pretty
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -59,7 +70,11 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 
 {-----------------------------------------------------------------------------
     Store laws

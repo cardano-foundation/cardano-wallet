@@ -10,7 +10,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
 import Prelude hiding
-    ( toText )
+    ( toText
+    )
 
 newtype Mnemonic = Mnemonic (NonEmpty Text)
     deriving stock (Show)

@@ -13,9 +13,11 @@ module Cardano.Wallet.RegistrySpec
 import Prelude
 
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( nullTracer
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( WalletId (..)
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -26,29 +28,54 @@ import Cardano.Wallet.Registry
     , workerThread
     )
 import Control.Exception.Base
-    ( AsyncException (..), asyncExceptionFromException )
+    ( AsyncException (..)
+    , asyncExceptionFromException
+    )
 import Control.Monad
-    ( replicateM, void )
+    ( replicateM
+    , void
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldReturn )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Positive (..), Property, generate, property )
+    ( Arbitrary (..)
+    , Positive (..)
+    , Property
+    , generate
+    , property
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( threadDelay, throwTo )
+    ( threadDelay
+    , throwTo
+    )
 import UnliftIO.Exception
-    ( SomeException (..), throwIO )
+    ( SomeException (..)
+    , throwIO
+    )
 import UnliftIO.MVar
     ( modifyMVar_
     , newEmptyMVar

@@ -34,17 +34,29 @@ module Database.Schema (
 import Prelude
 
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Database.Persist
-    ( PersistField (..), PersistValue )
+    ( PersistField (..)
+    , PersistValue
+    )
 import Database.Persist.Sql
-    ( PersistFieldSql (..), RawSql (..), SqlPersistT, SqlType (..) )
+    ( PersistFieldSql (..)
+    , RawSql (..)
+    , SqlPersistT
+    , SqlType (..)
+    )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownSymbol
+    , Symbol
+    , symbolVal
+    )
 
 import qualified Data.Text as T
 import qualified Database.Persist.Sql as Persist

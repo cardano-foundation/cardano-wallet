@@ -44,7 +44,11 @@ import Cardano.Crypto.Wallet
     , xprv
     )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
+    ( SomeMnemonic (..)
+    , entropyToBytes
+    , mnemonicToEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -62,9 +66,14 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Discovery
-    ( GetPurpose (..), IsOurs (..) )
+    ( GetPurpose (..)
+    , IsOurs (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState, coinTypeAda, purposeBIP44 )
+    ( SeqState
+    , coinTypeAda
+    , purposeBIP44
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant
@@ -72,41 +81,65 @@ import Cardano.Wallet.Primitive.NetworkId
     , SNetworkId (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( magicSNetworkId )
+    ( magicSNetworkId
+    )
 import Control.Arrow
-    ( first, left )
+    ( first
+    , left
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( Iso, iso )
+    ( Iso
+    , iso
+    )
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Crypto.Error
-    ( eitherCryptoError )
+    ( eitherCryptoError
+    )
 import Crypto.Hash.Algorithms
-    ( SHA256 (..), SHA512 (..) )
+    ( SHA256 (..)
+    , SHA512 (..)
+    )
 import Crypto.MAC.HMAC
-    ( HMAC, hmac )
+    ( HMAC
+    , hmac
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Bits
-    ( clearBit, setBit, testBit )
+    ( clearBit
+    , setBit
+    , testBit
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC

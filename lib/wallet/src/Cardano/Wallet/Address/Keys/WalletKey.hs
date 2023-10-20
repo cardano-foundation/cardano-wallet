@@ -26,31 +26,59 @@ module Cardano.Wallet.Address.Keys.WalletKey
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, xpubPublicKey )
+    ( XPrv
+    , xpubPublicKey
+    )
 import Cardano.Address.Script
-    ( KeyHash (KeyHash), KeyRole )
+    ( KeyHash (KeyHash)
+    , KeyRole
+    )
 import Cardano.Crypto.Wallet
-    ( XPub, toXPub, unXPub )
+    ( XPub
+    , toXPub
+    , unXPub
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..), byronKey, hdPassphrase )
+    ( ByronKey (..)
+    , byronKey
+    , hdPassphrase
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..), icarusKey )
+    ( IcarusKey (..)
+    , icarusKey
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..), sharedKey )
+    ( SharedKey (..)
+    , sharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..), shelleyKey )
+    ( ShelleyKey (..)
+    , shelleyKey
+    )
 import Cardano.Wallet.Flavor
-    ( Excluding, KeyFlavorS (..) )
+    ( Excluding
+    , KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseScheme, changePassphraseXPrv )
+    ( PassphraseScheme
+    , changePassphraseXPrv
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Control.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Crypto.Hash
-    ( Digest, HashAlgorithm, hash )
+    ( Digest
+    , HashAlgorithm
+    , hash
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 
 -- | Re-encrypt a private key using a different passphrase.
 --

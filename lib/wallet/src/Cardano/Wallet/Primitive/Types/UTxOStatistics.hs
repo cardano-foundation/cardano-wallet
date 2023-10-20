@@ -18,19 +18,29 @@ module Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Fmt
-    ( Buildable (..), blockListF', padRightF, tupleF )
+    ( Buildable (..)
+    , blockListF'
+    , padRightF
+    , tupleF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut

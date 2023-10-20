@@ -15,17 +15,25 @@ module Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress, shrinkAddress )
+    ( genAddress
+    , shrinkAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genAssetIdLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( coinIsValidForTxOut
     , txOutMaxCoin
@@ -34,13 +42,24 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMinTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Test.QuickCheck
-    ( Gen, choose, frequency, oneof, shrinkMapBy, suchThat )
+    ( Gen
+    , choose
+    , frequency
+    , oneof
+    , shrinkMapBy
+    , suchThat
+    )
 import Test.QuickCheck.Extra
-    ( chooseNatural, shrinkInterleaved, shrinkNatural )
+    ( chooseNatural
+    , shrinkInterleaved
+    , shrinkNatural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

@@ -17,9 +17,16 @@ import Cardano.Wallet.Gen
     , shrinkSlotNo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, mkSingleEraInterpreter, slotToRelTime )
+    ( TimeInterpreter
+    , interpretQuery
+    , mkSingleEraInterpreter
+    , slotToRelTime
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance (..), syncProgress )
+    ( SyncProgress (..)
+    , SyncTolerance (..)
+    , syncProgress
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -30,27 +37,49 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.DeepSeq
-    ( deepseq )
+    ( deepseq
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..) )
+    ( RelativeTime (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), counterexample, property, withMaxSuccess )
+    ( Arbitrary (..)
+    , counterexample
+    , property
+    , withMaxSuccess
+    )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import UnliftIO.Exception
-    ( SomeException (..), evaluate, try )
+    ( SomeException (..)
+    , evaluate
+    , try
+    )
 
 spec :: Spec
 spec = do

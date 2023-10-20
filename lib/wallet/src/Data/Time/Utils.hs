@@ -12,7 +12,9 @@ module Data.Time.Utils
 import Prelude
 
 import Data.Time
-    ( UTCTime, addUTCTime )
+    ( UTCTime
+    , addUTCTime
+    )
 
 -- | For a given time 't0', get the closest representable time 't1' to 't0'
 --   for which 't0 < t1'.

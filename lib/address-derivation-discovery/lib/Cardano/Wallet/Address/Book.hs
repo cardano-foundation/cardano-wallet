@@ -37,19 +37,29 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address, AddressState (..) )
+    ( Address
+    , AddressState (..)
+    )
 import Control.Lens
-    ( Iso', iso, withIso )
+    ( Iso'
+    , iso
+    , withIso
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq

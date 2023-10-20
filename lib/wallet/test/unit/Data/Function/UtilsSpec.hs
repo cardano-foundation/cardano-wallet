@@ -7,11 +7,19 @@ module Data.Function.UtilsSpec
 import Prelude
 
 import Data.Function.Utils
-    ( applyN )
+    ( applyN
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( NonNegative (..), property, withMaxSuccess, (===) )
+    ( NonNegative (..)
+    , property
+    , withMaxSuccess
+    , (===)
+    )
 
 spec :: Spec
 spec = describe "Function utilities" $ do

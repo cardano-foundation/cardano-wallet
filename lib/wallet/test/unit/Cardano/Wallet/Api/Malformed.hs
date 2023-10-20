@@ -52,7 +52,9 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..), Role (..) )
+    ( DerivationIndex (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiAddressData
@@ -91,29 +93,45 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId, walletNameMaxLength )
+    ( WalletId
+    , walletNameMaxLength
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, SerialisedTx )
+    ( SealedTx
+    , SerialisedTx
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 import Data.String
-    ( IsString )
+    ( IsString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 import Servant
-    ( JSON, OctetStream )
+    ( JSON
+    , OctetStream
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS

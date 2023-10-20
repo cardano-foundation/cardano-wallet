@@ -10,19 +10,32 @@ module Test.Integration.Scenario.CLI.Miscellaneous
 import Prelude
 
 import Cardano.Wallet.Version
-    ( showVersionAsDate, version )
+    ( showVersionAsDate
+    , version
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith
+    , describe
+    , it
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI )
+    ( cardanoWalletCLI
+    )
 
 import qualified Data.List as L
 

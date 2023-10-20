@@ -12,11 +12,17 @@ module Cardano.Wallet.Api.ServerSpec (spec) where
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..), CardanoEra (..), NetworkId (..), NetworkMagic (..) )
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    , NetworkId (..)
+    , NetworkMagic (..)
+    )
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( nullTracer
+    )
 import Cardano.Slotting.Slot
-    ( EpochNo (..) )
+    ( EpochNo (..)
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
     , Listen (..)
@@ -27,13 +33,18 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , withListeningSocket
     )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..), ApiWalletMode (..) )
+    ( ApiNetworkInformation (..)
+    , ApiWalletMode (..)
+    )
 import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchWallet (..) )
+    ( ErrNoSuchWallet (..)
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyNetworkLayer )
+    ( dummyNetworkLayer
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , TimeInterpreter
@@ -42,27 +53,44 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
+    ( Block (..)
+    , BlockHeader (..)
+    , SlotNo (..)
+    , StartTime (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..)
+    , throwE
+    )
 import Data.Either
-    ( isLeft )
+    ( isLeft
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.SOP.Counting
-    ( exactlyOne )
+    ( exactlyOne
+    )
 import Data.Time.Clock
-    ( addUTCTime, getCurrentTime )
+    ( addUTCTime
+    , getCurrentTime
+    )
 import Network.Socket
     ( Family (..)
     , SockAddr (..)
@@ -75,25 +103,49 @@ import Network.Socket
     , tupleToHostAddress
     )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
+    ( RelativeTime (..)
+    , mkSlotLength
+    )
 import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
+    ( SecurityParam (..)
+    )
 import Servant.Server
-    ( ServerError (..), runHandler )
+    ( ServerError (..)
+    , runHandler
+    )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe, shouldReturn, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , pendingWith
+    , shouldBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 import Test.QuickCheck.Modifiers
-    ( NonNegative (..) )
+    ( NonNegative (..)
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.QuickCheck.Property
-    ( counterexample, property )
+    ( counterexample
+    , property
+    )
 import Test.Utils.Platform
-    ( skipOnWindows )
+    ( skipOnWindows
+    )
 import UnliftIO.Async
-    ( concurrently_, race_ )
+    ( concurrently_
+    , race_
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 
 import qualified Cardano.Wallet.Primitive.SyncProgress as S
 import qualified Data.ByteString.Char8 as B8

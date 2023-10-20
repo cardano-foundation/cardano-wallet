@@ -29,39 +29,59 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit (..) )
+    ( ApiLimit (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( mkTokenFingerprint )
+    ( mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( fromText )
+    ( fromText
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe )
+    ( shouldBe
+    , shouldNotBe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -100,7 +120,8 @@ import Test.Integration.Framework.DSL
     , (.>=)
     )
 import Test.Integration.Framework.Request
-    ( RequestException )
+    ( RequestException
+    )
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
     , errMsg403MinUTxOValue

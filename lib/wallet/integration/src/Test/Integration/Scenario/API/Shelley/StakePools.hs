@@ -13,18 +13,24 @@
 module Test.Integration.Scenario.API.Shelley.StakePools (spec) where
 
 import Prelude hiding
-    ( id )
+    ( id
+    )
 
 import Cardano.Mnemonic
-    ( mnemonicToText )
+    ( mnemonicToText
+    )
 import Cardano.Pool.Metadata
-    ( HealthCheckSMASH (..) )
+    ( HealthCheckSMASH (..)
+    )
 import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (NotApplicable)
     , StakePoolMetadata (StakePoolMetadata, description, homepage, name, ticker)
     )
 import Cardano.Pool.Types
-    ( PoolId (PoolId), StakePoolTicker (StakePoolTicker), decodePoolIdBech32 )
+    ( PoolId (PoolId)
+    , StakePoolTicker (StakePoolTicker)
+    , decodePoolIdBech32
+    )
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiEra (..)
@@ -41,57 +47,100 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Faucet
-    ( preregKeyWallet )
+    ( preregKeyWallet
+    )
 import Cardano.Wallet.Pools
-    ( StakePool (..), StakePoolFlag (Delisted) )
+    ( StakePool (..)
+    , StakePoolFlag (Delisted)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), LinearFunction (..), PoolMetadataSource (..) )
+    ( FeePolicy (..)
+    , LinearFunction (..)
+    , PoolMetadataSource (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkPercentage )
+    ( unsafeFromHex
+    , unsafeMkPercentage
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.IORef
-    ( readIORef )
+    ( readIORef
+    )
 import Data.List
-    ( find, sortOn )
+    ( find
+    , sortOn
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
+    ( fromMaybe
+    , isJust
+    , isNothing
+    , listToMaybe
+    , mapMaybe
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text.Class
-    ( showT, toText )
+    ( showT
+    , toText
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith
+    , describe
+    , pendingWith
+    )
 import Test.Hspec.Expectations.Lifted
-    ( expectationFailure, shouldBe, shouldSatisfy )
+    ( expectationFailure
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.Context
-    ( Context (..), PoolGarbageCollectionEvent (..) )
+    ( Context (..)
+    , PoolGarbageCollectionEvent (..)
+    )
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)

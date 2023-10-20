@@ -14,25 +14,40 @@ module Test.Integration.Scenario.API.Shelley.Settings
 import Prelude
 
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..) )
+    ( ApiT (..)
+    )
 import Cardano.Wallet.Pools
-    ( StakePool )
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), Settings )
+    ( PoolMetadataSource (..)
+    , Settings
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Text.Class
-    ( fromText )
+    ( fromText
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

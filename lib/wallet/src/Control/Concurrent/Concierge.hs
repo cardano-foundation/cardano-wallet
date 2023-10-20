@@ -30,13 +30,21 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad.Class.MonadFork
-    ( MonadThread, ThreadId, myThreadId )
+    ( MonadThread
+    , ThreadId
+    , myThreadId
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow, bracket )
+    ( MonadThrow
+    , bracket
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Data.Map.Strict as Map
 

@@ -19,19 +19,31 @@ module Cardano.Launcher.Wallet
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
+    ( LauncherLog
+    , ProcessHasExited
+    , withBackendCreateProcess
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn, nodeSocketFile )
+    ( CardanoNodeConn
+    , nodeSocketFile
+    )
 import Control.Tracer
-    ( Tracer (..) )
+    ( Tracer (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Network.Socket
-    ( PortNumber )
+    ( PortNumber
+    )
 import UnliftIO.Process
-    ( CreateProcess (..), proc )
+    ( CreateProcess (..)
+    , proc
+    )
 
 {-----------------------------------------------------------------------------
     Launching a `cardano-wallet` process

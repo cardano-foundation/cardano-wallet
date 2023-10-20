@@ -31,33 +31,54 @@ module Cardano.Wallet.Api.Types.Error
 import Prelude
 
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (..), defaultSumTypeOptions )
+    ( DefaultRecord (..)
+    , defaultSumTypeOptions
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..), ApiCredentialType (..), ApiEra )
+    ( ApiCosignerIndex (..)
+    , ApiCredentialType (..)
+    , ApiEra
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( genericParseJSON, genericToJSON )
+    ( genericParseJSON
+    , genericToJSON
+    )
 import Data.Aeson.Extra
-    ( objectUnion )
+    ( objectUnion
+    )
 import Data.Aeson.Types
-    ( FromJSON (..), Options (..), SumEncoding (..), ToJSON (..) )
+    ( FromJSON (..)
+    , Options (..)
+    , SumEncoding (..)
+    , ToJSON (..)
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 data ApiError = ApiError
     { info :: !ApiErrorInfo

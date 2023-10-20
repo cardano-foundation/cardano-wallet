@@ -21,9 +21,11 @@ module Test.Integration.Scenario.API.Shelley.CoinSelections
 import Prelude
 
 import Cardano.Mnemonic
-    ( mnemonicToText )
+    ( mnemonicToText
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeCIP1852 )
+    ( purposeCIP1852
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiCoinSelection
@@ -34,33 +36,52 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxTokenQuantity )
+    ( txOutMaxTokenQuantity
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( NonEmpty ((:|))
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

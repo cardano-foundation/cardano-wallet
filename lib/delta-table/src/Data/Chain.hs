@@ -26,24 +26,42 @@ module Data.Chain (
     ) where
 
 import Prelude hiding
-    ( lookup )
+    ( lookup
+    )
 
 import Control.Exception
-    ( Exception, toException )
+    ( Exception
+    , toException
+    )
 import Control.Monad
-    ( guard, join, (<=<) )
+    ( guard
+    , join
+    , (<=<)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Delta
-    ( Delta (..), Embedding, Embedding' (..), liftUpdates, mkEmbedding )
+    ( Delta (..)
+    , Embedding
+    , Embedding' (..)
+    , liftUpdates
+    , mkEmbedding
+    )
 import Data.List
-    ( unfoldr )
+    ( unfoldr
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Semigroupoid
-    ( o )
+    ( o
+    )
 import Data.Table
-    ( DeltaTable (..), Pile (..), Table )
+    ( DeltaTable (..)
+    , Pile (..)
+    , Table
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Table as Table

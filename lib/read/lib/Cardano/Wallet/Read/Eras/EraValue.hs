@@ -60,13 +60,20 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras )
+    ( KnownEras
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Generics.Internal.VL
-    ( Prism', build, match, prism )
+    ( Prism'
+    , build
+    , match
+    , prism
+    )
 import Generics.SOP
     ( (:.:)
     , All
@@ -82,9 +89,16 @@ import Generics.SOP
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( cmap_NP, pure_NP, zipWith_NP )
+    ( cmap_NP
+    , pure_NP
+    , zipWith_NP
+    )
 import Generics.SOP.NS
-    ( ap_NS, collapse_NS, index_NS, sequence'_NS )
+    ( ap_NS
+    , collapse_NS
+    , index_NS
+    , sequence'_NS
+    )
 
 import qualified GHC.Generics as GHC
 

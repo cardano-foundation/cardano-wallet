@@ -30,21 +30,32 @@ module Cardano.Wallet.Version
 import Prelude
 
 import Cardano.Wallet.Version.TH
-    ( gitRevFromGit )
+    ( gitRevFromGit
+    )
 import Data.FileEmbed
-    ( dummySpaceWith )
+    ( dummySpaceWith
+    )
 import Data.String
-    ( fromString )
+    ( fromString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Encoding
-    ( decodeLatin1 )
+    ( decodeLatin1
+    )
 import Data.Version
-    ( Version (..), showVersion )
+    ( Version (..)
+    , showVersion
+    )
 import Fmt
-    ( build, fmt, padLeftF )
+    ( build
+    , fmt
+    , padLeftF
+    )
 import Paths_cardano_wallet
-    ( version )
+    ( version
+    )
 
 import qualified Data.Text as T
 

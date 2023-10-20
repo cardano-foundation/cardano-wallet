@@ -43,9 +43,12 @@ module Cardano.Pool.Metadata
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadata
     , StakePoolMetadataHash (..)
@@ -53,21 +56,36 @@ import Cardano.Pool.Metadata.Types
     , UrlBuilder
     )
 import Cardano.Pool.Types
-    ( PoolId, decodePoolIdBech32 )
+    ( PoolId
+    , decodePoolIdBech32
+    )
 import Cardano.Wallet.Address.Derivation
-    ( hex )
+    ( hex
+    )
 import Control.Error
-    ( note )
+    ( note
+    )
 import Control.Monad
-    ( forM, when )
+    ( forM
+    , when
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+    ( ExceptT (..)
+    , except
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.Aeson
     ( FromJSON
     , Options (..)
@@ -77,23 +95,35 @@ import Data.Aeson
     , parseJSON
     )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.List
-    ( intercalate )
+    ( intercalate
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( TextDecodingError (..), ToText (..), fromText )
+    ( TextDecodingError (..)
+    , ToText (..)
+    , fromText
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
     ( HttpException (..)
     , Manager
@@ -108,11 +138,18 @@ import Network.HTTP.Client
     , withResponse
     )
 import Network.HTTP.Types.Status
-    ( status200, status404 )
+    ( status200
+    , status404
+    )
 import Network.URI
-    ( URI (..), parseURI )
+    ( URI (..)
+    , parseURI
+    )
 import UnliftIO.Exception
-    ( Exception (displayException), IOException, handle )
+    ( Exception (displayException)
+    , IOException
+    , handle
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS

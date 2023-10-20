@@ -30,29 +30,45 @@ module Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Lexicographic (..) )
+    ( AssetId
+    , Lexicographic (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over
+    , view
+    )
 import Data.Generics.Labels
     ()
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (..), blockMapF, prefixF, suffixF )
+    ( Buildable (..)
+    , blockMapF
+    , prefixF
+    , suffixF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

@@ -13,17 +13,23 @@ module Cardano.Wallet.Address.HasDelegation
 import Prelude
 
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+    ( RndState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState )
+    ( SharedState
+    )
 
 -- | Discriminate whether an address state supports delegation.
 class HasDelegation s where

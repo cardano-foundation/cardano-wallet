@@ -7,19 +7,30 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
 import Cardano.Wallet.Cli.Launcher
-    ( WalletApi (..) )
+    ( WalletApi (..)
+    )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
-    ( NodeStatus )
+    ( NodeStatus
+    )
 import Data.Aeson
-    ( withObject, (.:) )
+    ( withObject
+    , (.:)
+    )
 import Data.Aeson.Types
-    ( explicitParseField )
+    ( explicitParseField
+    )
 import Data.Time
-    ( UTCTime )
+    ( UTCTime
+    )
 import Prelude hiding
-    ( stderr, stdout )
+    ( stderr
+    , stdout
+    )
 import System.Process.Typed
-    ( ExitCode (..), readProcess, shell )
+    ( ExitCode (..)
+    , readProcess
+    , shell
+    )
 
 data Error
     = CliErrorDecode (Aeson.JSONPath, String) LByteString

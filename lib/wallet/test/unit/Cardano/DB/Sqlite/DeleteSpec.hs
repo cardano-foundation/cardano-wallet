@@ -9,19 +9,36 @@ module Cardano.DB.Sqlite.DeleteSpec (spec) where
 import Prelude
 
 import Cardano.DB.Sqlite.Delete
-    ( newRefCount, waitForFree', withRef )
+    ( newRefCount
+    , waitForFree'
+    , withRef
+    )
 import Control.Retry
-    ( RetryPolicy, constantDelay, limitRetries )
+    ( RetryPolicy
+    , constantDelay
+    , limitRetries
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldReturn )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    )
 import UnliftIO.Async
-    ( concurrently )
+    ( concurrently
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.MVar
-    ( isEmptyMVar, newEmptyMVar, putMVar )
+    ( isEmptyMVar
+    , newEmptyMVar
+    , putMVar
+    )
 
 spec :: Spec
 spec = describe "RefCount" $ do

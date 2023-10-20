@@ -17,13 +17,19 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Test.QuickCheck
-    ( Gen, arbitraryPrintableChar, choose )
+    ( Gen
+    , arbitraryPrintableChar
+    , choose
+    )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary )
+    ( genericArbitrary
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8

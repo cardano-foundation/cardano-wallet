@@ -14,13 +14,17 @@ module Cardano.Wallet.Primitive.Types.Address.Constants
 import Prelude
 
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
-    ( maxLengthAddressFor )
+    ( maxLengthAddressFor
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L

@@ -11,11 +11,15 @@ import "optparse-applicative" Options.Applicative
 import Prelude
 
 import Cardano.Wallet.Network.Config
-    ( NetworkConfiguration (..) )
+    ( NetworkConfiguration (..)
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (getTextDecodingError) )
+    ( FromText (..)
+    , TextDecodingError (getTextDecodingError)
+    )
 
 import qualified Data.Text as T
 

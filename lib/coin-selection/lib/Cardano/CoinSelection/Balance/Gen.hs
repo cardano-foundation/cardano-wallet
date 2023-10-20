@@ -12,19 +12,29 @@ module Cardano.CoinSelection.Balance.Gen
 import Prelude
 
 import Cardano.CoinSelection.Balance
-    ( SelectionSkeleton (..), SelectionStrategy (..) )
+    ( SelectionSkeleton (..)
+    , SelectionStrategy (..)
+    )
 import Cardano.CoinSelection.Context
-    ( SelectionContext (..) )
+    ( SelectionContext (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Test.QuickCheck
     ( Gen
     , NonNegative (..)
@@ -37,7 +47,10 @@ import Test.QuickCheck
     , suchThat
     )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, (<:>), (<@>) )
+    ( genericRoundRobinShrink
+    , (<:>)
+    , (<@>)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Set as Set

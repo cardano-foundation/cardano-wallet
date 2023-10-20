@@ -15,19 +15,31 @@ module Cardano.Wallet.Address.Keys.WitnessCount
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubToBytes )
+    ( xpubToBytes
+    )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), ScriptTemplate (..) )
+    ( KeyHash (..)
+    , KeyRole (..)
+    , ScriptTemplate (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Role (MutableAccount), deriveAddressPublicKey )
+    ( Role (MutableAccount)
+    , deriveAddressPublicKey
+    )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState, policyXPub )
+    ( SeqState
+    , policyXPub
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( delegationTemplate )
+    ( delegationTemplate
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, hashVerificationKey )
+    ( getRawKey
+    , hashVerificationKey
+    )
 import Cardano.Wallet.Flavor
     ( FlavorOf
     , IncludingStates
@@ -38,7 +50,8 @@ import Cardano.Wallet.Flavor
     , keyFlavorFromState
     )
 import Cardano.Wallet.Transaction
-    ( WitnessCountCtx (..) )
+    ( WitnessCountCtx (..)
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map

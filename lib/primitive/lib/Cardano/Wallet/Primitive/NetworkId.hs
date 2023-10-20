@@ -29,17 +29,27 @@ module Cardano.Wallet.Primitive.NetworkId
 import Prelude
 
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.TypeNats
-    ( KnownNat, Nat, SomeNat (..), natVal, someNatVal )
+    ( KnownNat
+    , Nat
+    , SomeNat (..)
+    , natVal
+    , someNatVal
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Data.Text as T

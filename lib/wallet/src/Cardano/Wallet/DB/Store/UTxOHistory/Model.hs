@@ -38,27 +38,44 @@ where
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo, WithOrigin (..) )
+    ( SlotNo
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
-    ( Pruned (..), UTxOHistory (..) )
+    ( Pruned (..)
+    , UTxOHistory (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Slot )
+    ( Slot
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO, dom, excluding )
+    ( DeltaUTxO (..)
+    , UTxO
+    , dom
+    , excluding
+    )
 import Control.Error
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Control.Monad
-    ( guard )
+    ( guard
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( fold, foldl' )
+    ( fold
+    , foldl'
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

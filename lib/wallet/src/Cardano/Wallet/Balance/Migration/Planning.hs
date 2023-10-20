@@ -40,29 +40,42 @@ module Cardano.Wallet.Balance.Migration.Planning
 import Prelude
 
 import Cardano.Wallet.Balance.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..), SelectionError (..) )
+    ( RewardWithdrawal (..)
+    , Selection (..)
+    , SelectionError (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..) )
+    ( TxConstraints (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

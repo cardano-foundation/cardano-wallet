@@ -8,11 +8,18 @@ module System.Random.StdGenSeedSpec
 import Prelude
 
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen
+    )
 import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
+    ( StdGenSeed (..)
+    , stdGenFromSeed
+    , stdGenToSeed
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

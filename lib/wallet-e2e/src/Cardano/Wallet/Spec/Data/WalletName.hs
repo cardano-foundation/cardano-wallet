@@ -5,7 +5,8 @@ module Cardano.Wallet.Spec.Data.WalletName
     ) where
 
 import Prelude hiding
-    ( toText )
+    ( toText
+    )
 
 newtype WalletName = WalletName Text
     deriving stock (Show, Eq, Ord)

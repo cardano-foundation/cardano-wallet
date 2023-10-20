@@ -11,7 +11,9 @@ module Cardano.Wallet.Read.Tx.Eras
     where
 
 import Cardano.Wallet.Read.Tx
-    ( Tx (..), TxT )
+    ( Tx (..)
+    , TxT
+    )
 
 -- | Act upon the 'TxT' type value of a 'Tx'
 onTx :: (TxT era -> t) -> Tx era -> t

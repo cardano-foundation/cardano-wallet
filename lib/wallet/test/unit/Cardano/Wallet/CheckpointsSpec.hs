@@ -6,15 +6,25 @@ module Cardano.Wallet.CheckpointsSpec
 import Prelude
 
 import Cardano.Wallet.Checkpoints
-    ( SparseCheckpointsConfig (..), gapSize, sparseCheckpoints )
+    ( SparseCheckpointsConfig (..)
+    , gapSize
+    , sparseCheckpoints
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

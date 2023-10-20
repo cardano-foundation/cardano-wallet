@@ -18,7 +18,8 @@ module Cardano.Wallet.Deposit.Pure.Submissions
 import Prelude
 
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Submissions.Operations as Sbm

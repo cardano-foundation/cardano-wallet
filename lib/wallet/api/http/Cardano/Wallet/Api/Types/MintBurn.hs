@@ -22,35 +22,57 @@ module Cardano.Wallet.Api.Types.MintBurn
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationIndex (..), DerivationType (..), Index, getIndex )
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , Index
+    , getIndex
+    )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..) )
+    ( ApiT (..)
+    )
 import Cardano.Wallet.Api.Lib.Options
-    ( DefaultRecord (DefaultRecord) )
+    ( DefaultRecord (DefaultRecord)
+    )
 import Cardano.Wallet.Api.Types.Key
-    ( ApiPolicyKey )
+    ( ApiPolicyKey
+    )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( toNestedList )
+    ( toNestedList
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId, mkTokenFingerprint )
+    ( TokenName
+    , TokenPolicyId
+    , mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (unTokenQuantity) )
+    ( TokenQuantity (unTokenQuantity)
+    )
 import Cardano.Wallet.Transaction
-    ( AnyScript, TokenMapWithScripts (..) )
+    ( AnyScript
+    , TokenMapWithScripts (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson.Types
-    ( FromJSON, ToJSON )
+    ( FromJSON
+    , ToJSON
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W

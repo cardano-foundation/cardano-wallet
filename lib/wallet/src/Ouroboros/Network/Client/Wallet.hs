@@ -48,11 +48,16 @@ module Ouroboros.Network.Client.Wallet
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Cardano.Slotting.Slot
-    ( WithOrigin (..) )
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.Network
-    ( ChainFollower (..), ChainSyncLog (..) )
+    ( ChainFollower (..)
+    , ChainSyncLog (..)
+    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , TQueue
@@ -66,33 +71,52 @@ import Control.Concurrent.Class.MonadSTM
     , writeTQueue
     )
 import Control.Monad
-    ( ap, liftM )
+    ( ap
+    , liftM
+    )
 import Control.Monad.Class.MonadThrow
-    ( Exception, MonadThrow, throwIO )
+    ( Exception
+    , MonadThrow
+    , throwIO
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List
-    ( sortBy )
+    ( sortBy
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Network.TypedProtocol.Pipelined
-    ( N (..), Nat (..), natToInt )
+    ( N (..)
+    , Nat (..)
+    , natToInt
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.HardFork.Combinator.Ledger.Query
-    ( BlockQuery )
+    ( BlockQuery
+    )
 import Ouroboros.Consensus.Ledger.Query
-    ( Query (..) )
+    ( Query (..)
+    )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , HasHeader (..)
@@ -106,7 +130,8 @@ import Ouroboros.Network.Block
     , pointSlot
     )
 import Ouroboros.Network.Point
-    ( blockPointSlot )
+    ( blockPointSlot
+    )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( ChainSyncClient (..)
     , ClientStIdle (..)
@@ -114,13 +139,19 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     , ClientStNext (..)
     )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
-    ( ChainSyncClientPipelined (..) )
+    ( ChainSyncClientPipelined (..)
+    )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
-    ( ClientStAcquiring (..), LocalStateQueryClient (..) )
+    ( ClientStAcquiring (..)
+    , LocalStateQueryClient (..)
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
-    ( LocalTxClientStIdle (..), LocalTxSubmissionClient (..) )
+    ( LocalTxClientStIdle (..)
+    , LocalTxSubmissionClient (..)
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
-    ( SubmitResult (..) )
+    ( SubmitResult (..)
+    )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T

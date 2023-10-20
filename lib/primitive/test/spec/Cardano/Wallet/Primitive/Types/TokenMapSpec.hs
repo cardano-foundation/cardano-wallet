@@ -20,11 +20,18 @@ module Cardano.Wallet.Primitive.Types.TokenMapSpec
 import Prelude
 
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+    ( inAscendingPartialOrder
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Lexicographic (..), Nested (..), TokenMap )
+    ( AssetId (..)
+    , Flat (..)
+    , Lexicographic (..)
+    , Nested (..)
+    , TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetId
@@ -35,11 +42,19 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId, mkTokenName )
+    ( TokenName
+    , TokenPolicyId
+    , mkTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName, genTokenPolicyId, shrinkTokenName, shrinkTokenPolicyId )
+    ( genTokenName
+    , genTokenPolicyId
+    , shrinkTokenName
+    , shrinkTokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantity
     , genTokenQuantityPositive
@@ -47,45 +62,73 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     , shrinkTokenQuantityPositive
     )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.Bifunctor
-    ( bimap, first, second )
+    ( bimap
+    , first
+    , second
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.String.QQ
-    ( s )
+    ( s
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( fromText, toText )
+    ( fromText
+    , toText
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -105,7 +148,12 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+    ( eqLaws
+    , monoidLaws
+    , ordLaws
+    , semigroupLaws
+    , semigroupMonoidLaws
+    )
 import Test.QuickCheck.Classes.Monoid.GCD
     ( gcdMonoidLaws
     , leftGCDMonoidLaws
@@ -113,19 +161,28 @@ import Test.QuickCheck.Classes.Monoid.GCD
     , rightGCDMonoidLaws
     )
 import Test.QuickCheck.Classes.Monoid.Monus
-    ( monusLaws )
+    ( monusLaws
+    )
 import Test.QuickCheck.Classes.Monoid.Null
-    ( monoidNullLaws )
+    ( monoidNullLaws
+    )
 import Test.QuickCheck.Classes.Semigroup.Cancellative
-    ( commutativeLaws, leftReductiveLaws, reductiveLaws, rightReductiveLaws )
+    ( commutativeLaws
+    , leftReductiveLaws
+    , reductiveLaws
+    , rightReductiveLaws
+    )
 import Test.QuickCheck.Instances.ByteString
     ()
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Laws.PartialOrd
-    ( partialOrdLaws )
+    ( partialOrdLaws
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity

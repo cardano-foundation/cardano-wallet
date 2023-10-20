@@ -19,29 +19,61 @@ module Cardano.Wallet.Submissions.Gen
 import Prelude
 
 import Cardano.Wallet.Submissions.Properties.Common
-    ( Step (..), newState )
+    ( Step (..)
+    , newState
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions (..), transactionsL, txStatus )
+    ( Submissions (..)
+    , transactionsL
+    , txStatus
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..), getTx, _Expired, _InLedger, _InSubmission )
+    ( HasTxId (..)
+    , getTx
+    , _Expired
+    , _InLedger
+    , _InSubmission
+    )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&)
+    )
 import Control.Lens
-    ( lastOf, to, view, (&), _2 )
+    ( lastOf
+    , to
+    , view
+    , (&)
+    , _2
+    )
 import Control.Lens.Extras
-    ( is )
+    ( is
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import System.Random
-    ( Random )
+    ( Random
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, elements, frequency, getSize )
+    ( Arbitrary (..)
+    , Gen
+    , choose
+    , elements
+    , frequency
+    , getSize
+    )
 import Test.QuickCheck.Property
-    ( Property, conjoin, cover, forAllShrinkShow, mapSize )
+    ( Property
+    , conjoin
+    , cover
+    , forAllShrinkShow
+    , mapSize
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as T

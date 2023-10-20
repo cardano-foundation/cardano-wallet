@@ -6,9 +6,18 @@ module Cardano.Node.Cli.Launcher where
 import Prelude
 
 import Path
-    ( Abs, Dir, File, Path, relfile, toFilePath, (</>) )
+    ( Abs
+    , Dir
+    , File
+    , Path
+    , relfile
+    , toFilePath
+    , (</>)
+    )
 import System.IO
-    ( IOMode (AppendMode), openFile )
+    ( IOMode (AppendMode)
+    , openFile
+    )
 import System.Process.Typed
     ( Process
     , proc

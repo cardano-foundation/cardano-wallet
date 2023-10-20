@@ -31,13 +31,17 @@ module Cardano.Wallet.Address.Discovery.RandomAny
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..) )
+    ( AddressBookIso (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -52,33 +56,54 @@ import Cardano.Wallet.Address.Discovery.Random
     , toDerivationIndexes
     )
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf, NetworkOf )
+    ( CredFromOf
+    , KeyOf
+    , NetworkOf
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger )
+    ( toLedger
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( iso, withIso )
+    ( iso
+    , withIso
+    )
 import Data.Digest.CRC32
-    ( crc32 )
+    ( crc32
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownNat, Nat, natVal )
+    ( KnownNat
+    , Nat
+    , natVal
+    )
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen
+    )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Internal.Cardano.Write.UTxOAssumptions as UTxOAssumptions

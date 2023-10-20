@@ -39,7 +39,8 @@ module Cardano.Wallet.Primitive.Delegation.State
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -51,25 +52,35 @@ import Cardano.Wallet.Address.Derivation
     , ToRewardAccount (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 

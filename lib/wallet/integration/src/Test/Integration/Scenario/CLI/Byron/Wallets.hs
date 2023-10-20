@@ -14,33 +14,58 @@ module Test.Integration.Scenario.CLI.Byron.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiUtxoStatistics )
+    ( ApiByronWallet
+    , ApiUtxoStatistics
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO )
+    ( SpecWith
+    , describe
+    , it
+    , runIO
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
+    ( shouldBe
+    , shouldContain
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , MnemonicLength (..)

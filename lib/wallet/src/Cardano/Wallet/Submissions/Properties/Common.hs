@@ -12,19 +12,31 @@ module Cardano.Wallet.Submissions.Properties.Common
 import Prelude
 
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions )
+    ( Submissions
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId )
+    ( HasTxId
+    )
 import Control.Lens
-    ( makeLenses )
+    ( makeLenses
+    )
 import Control.Monad.Trans.Writer
-    ( Writer, execWriter, tell )
+    ( Writer
+    , execWriter
+    , tell
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Test.QuickCheck
-    ( Property, Testable (..), conjoin, counterexample )
+    ( Property
+    , Testable (..)
+    , conjoin
+    , counterexample
+    )
 
 forAllIn
     :: Show a

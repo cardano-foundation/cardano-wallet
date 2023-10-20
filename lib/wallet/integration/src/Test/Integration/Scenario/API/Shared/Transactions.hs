@@ -22,13 +22,18 @@ module Test.Integration.Scenario.API.Shared.Transactions
 import Prelude
 
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..) )
+    ( MkSomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..), Index (..) )
+    ( DerivationIndex (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( replaceCosignersWithVerKeys )
+    ( replaceCosignersWithVerKeys
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+    ( CredentialType (..)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressWithPath (..)
@@ -54,19 +59,26 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (..) )
+    ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.Transaction
-    ( mkApiWitnessCount )
+    ( mkApiWitnessCount
+    )
 import Cardano.Wallet.Pools
-    ( StakePool )
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..) )
+    ( SortOrder (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..)
     , TxMetadataValue (..)
@@ -74,7 +86,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , cardanoTxIdeallyNoLaterThan
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -82,39 +96,66 @@ import Cardano.Wallet.Transaction
     , changeRoleInAnyExplicitScript
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..), liftIO )
+    ( MonadUnliftIO (..)
+    , liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Aeson
-    ( toJSON )
+    ( toJSON
+    )
 import Data.Either.Combinators
-    ( swapEither )
+    ( swapEither
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Generics.Wrapped
-    ( _Unwrapped )
+    ( _Unwrapped
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime )
+    ( UTCTime
+    , addUTCTime
+    )
 import Data.Time.Utils
-    ( utcTimePred, utcTimeSucc )
+    ( utcTimePred
+    , utcTimeSucc
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith
+    , describe
+    , pendingWith
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotContain, shouldSatisfy )
+    ( shouldBe
+    , shouldContain
+    , shouldNotContain
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -166,7 +207,8 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.Request
-    ( RequestException )
+    ( RequestException
+    )
 import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime

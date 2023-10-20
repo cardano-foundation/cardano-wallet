@@ -66,9 +66,12 @@ module Cardano.Wallet.Launch.Cluster
 import Prelude
 
 import Cardano.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
+    ( XPub
+    , xpubPublicKey
+    )
 import Cardano.Api
     ( AsType (AsStakeKey, AsStakePoolKey)
     , File (..)
@@ -76,9 +79,11 @@ import Cardano.Api
     , serialiseToCBOR
     )
 import Cardano.Api.Shelley
-    ( AsType (AsVrfKey) )
+    ( AsType (AsVrfKey)
+    )
 import Cardano.Binary
-    ( fromCBOR )
+    ( fromCBOR
+    )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -86,15 +91,24 @@ import Cardano.BM.Data.Output
     , ScribePrivacy (..)
     )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( BracketLog, bracketTracer )
+    ( BracketLog
+    , bracketTracer
+    )
 import Cardano.CLI.Shelley.Key
-    ( VerificationKeyOrFile (..), readVerificationKeyOrFile )
+    ( VerificationKeyOrFile (..)
+    , readVerificationKeyOrFile
+    )
 import Cardano.Launcher
-    ( LauncherLog, ProcessHasExited (..) )
+    ( LauncherLog
+    , ProcessHasExited (..)
+    )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn
@@ -133,81 +147,150 @@ import Cardano.Ledger.BaseTypes
     , textToUrl
     )
 import Cardano.Ledger.Shelley.API
-    ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
+    ( ShelleyGenesis (..)
+    , ShelleyGenesisStaking (sgsPools)
+    )
 import Cardano.Startup
-    ( restrictFileMode )
+    ( restrictFileMode
+    )
 import Cardano.Wallet.Network.Ports
-    ( randomUnusedTCPPorts )
+    ( randomUnusedTCPPorts
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId (..), TokenBundle (..) )
+    ( AssetId (..)
+    , TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..) )
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Cardano.Wallet.Util
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Control.Lens
-    ( over, set, (&), (.~), (<&>) )
+    ( over
+    , set
+    , (&)
+    , (.~)
+    , (<&>)
+    )
 import Control.Monad
-    ( forM, forM_, liftM2, replicateM, replicateM_, void, when, (>=>) )
+    ( forM
+    , forM_
+    , liftM2
+    , replicateM
+    , replicateM_
+    , void
+    , when
+    , (>=>)
+    )
 import Control.Retry
-    ( constantDelay, limitRetriesByCumulativeDelay, retrying )
+    ( constantDelay
+    , limitRetriesByCumulativeDelay
+    , retrying
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
+    ( Tracer (..)
+    , contramap
+    , traceWith
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.Aeson
-    ( object, toJSON, (.:), (.=) )
+    ( object
+    , toJSON
+    , (.:)
+    , (.=)
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
+    ( Base (..)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
+    ( bitcoinAlphabet
+    , decodeBase58
+    )
 import Data.Char
-    ( toLower )
+    ( toLower
+    )
 import Data.Either
-    ( fromRight, isLeft, isRight )
+    ( fromRight
+    , isLeft
+    , isRight
+    )
 import Data.Foldable
-    ( traverse_ )
+    ( traverse_
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.List
-    ( intercalate, isSuffixOf, nub, permutations, sort )
+    ( intercalate
+    , isSuffixOf
+    , nub
+    , permutations
+    , sort
+    )
 import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( NonEmpty ((:|))
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes
+    , fromMaybe
+    )
 import Data.Tagged
-    ( Tagged (..), retag, untag )
+    ( Tagged (..)
+    , retag
+    , untag
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Text.Encoding
-    ( decodeUtf8 )
+    ( decodeUtf8
+    )
 import Data.Time.Clock
-    ( addUTCTime, getCurrentTime )
+    ( addUTCTime
+    , getCurrentTime
+    )
 import Data.Time.Clock.POSIX
-    ( utcTimeToPOSIXSeconds )
+    ( utcTimeToPOSIXSeconds
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Network.Magic
-    ( NetworkMagic (..) )
+    ( NetworkMagic (..)
+    )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..) )
+    ( NodeToClientVersionData (..)
+    )
 import System.Directory
     ( copyFile
     , createDirectory
@@ -216,31 +299,61 @@ import System.Directory
     , makeAbsolute
     )
 import System.Environment
-    ( getEnvironment )
+    ( getEnvironment
+    )
 import System.Environment.Extended
-    ( lookupEnvNonEmpty )
+    ( lookupEnvNonEmpty
+    )
 import System.Exit
-    ( ExitCode (..), die )
+    ( ExitCode (..)
+    , die
+    )
 import System.FilePath
-    ( (<.>), (</>) )
+    ( (<.>)
+    , (</>)
+    )
 import System.IO.Temp
-    ( emptyTempFile )
+    ( emptyTempFile
+    )
 import System.IO.Temp.Extra
-    ( TempDirLog )
+    ( TempDirLog
+    )
 import System.IO.Unsafe
-    ( unsafePerformIO )
+    ( unsafePerformIO
+    )
 import System.Process.Typed
-    ( ProcessConfig, proc, readProcess, setEnv, setEnvInherit )
+    ( ProcessConfig
+    , proc
+    , readProcess
+    , setEnv
+    , setEnvInherit
+    )
 import Test.Utils.StaticServer
-    ( withStaticServer )
+    ( withStaticServer
+    )
 import UnliftIO.Async
-    ( async, link, wait )
+    ( async
+    , link
+    , wait
+    )
 import UnliftIO.Chan
-    ( newChan, readChan, writeChan )
+    ( newChan
+    , readChan
+    , writeChan
+    )
 import UnliftIO.Exception
-    ( SomeException, finally, handle, throwIO, throwString )
+    ( SomeException
+    , finally
+    , handle
+    , throwIO
+    , throwString
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar, swapMVar )
+    ( MVar
+    , modifyMVar
+    , newMVar
+    , swapMVar
+    )
 
 import qualified Cardano.Address as Address
 import qualified Cardano.Address as CA

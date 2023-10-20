@@ -47,35 +47,58 @@ import Cardano.Api
     , deserialiseFromCBOR
     )
 import Cardano.Binary
-    ( DecoderError )
+    ( DecoderError
+    )
 import Cardano.Wallet.Util
-    ( HasCallStack, internalError )
+    ( HasCallStack
+    , internalError
+    )
 import Control.DeepSeq
-    ( NFData (..), deepseq )
+    ( NFData (..)
+    , deepseq
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.ByteArray
-    ( ByteArray, ByteArrayAccess )
+    ( ByteArray
+    , ByteArrayAccess
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Data
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Either
-    ( partitionEithers )
+    ( partitionEithers
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..)
+    , testEquality
+    )
 import Fmt
-    ( Buildable (..), Builder, hexF, (+||), (||+) )
+    ( Buildable (..)
+    , Builder
+    , hexF
+    , (+||)
+    , (||+)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Text.Pretty.Simple
-    ( pShowNoColor )
+    ( pShowNoColor
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Data.ByteString.Char8 as B8

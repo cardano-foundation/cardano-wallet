@@ -15,27 +15,47 @@ module Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
-    ( ShrinkableTxSeq, genTxSeq, getShrinkPhase, getTxSeq, shrinkTxSeq )
+    ( ShrinkableTxSeq
+    , genTxSeq
+    , getShrinkPhase
+    , getTxSeq
+    , shrinkTxSeq
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO )
+    ( genUTxO
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Function.Utils
-    ( isInjectiveOver )
+    ( isInjectiveOver
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -54,7 +74,11 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( ScaleDiv (..), genShrinkSequence, labelInterval, shrinkWhile )
+    ( ScaleDiv (..)
+    , genShrinkSequence
+    , labelInterval
+    , shrinkWhile
+    )
 import Test.QuickCheck.Instances.ByteString
     ()
 

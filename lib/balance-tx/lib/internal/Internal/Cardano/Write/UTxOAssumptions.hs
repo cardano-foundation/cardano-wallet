@@ -19,9 +19,12 @@ module Internal.Cardano.Write.UTxOAssumptions
 import Prelude
 
 import Cardano.Ledger.Shelley.API
-    ( Addr (..), Credential (..) )
+    ( Addr (..)
+    , Credential (..)
+    )
 import Internal.Cardano.Write.Tx
-    ( Address )
+    ( Address
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W

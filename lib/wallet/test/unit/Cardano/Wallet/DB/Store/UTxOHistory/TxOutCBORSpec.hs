@@ -9,11 +9,18 @@ import Prelude
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
-    ( deserializeTxOut, serializeTxOut )
+    ( deserializeTxOut
+    , serializeTxOut
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Testable (property), (===) )
+    ( Testable (property)
+    , (===)
+    )
 
 spec :: Spec
 spec = do

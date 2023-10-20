@@ -17,19 +17,29 @@ import Cardano.Pool.Rank
     , redelegationWarning
     )
 import Cardano.Wallet.Gen
-    ( genPercentage )
+    ( genPercentage
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..) )
+    ( EpochNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin )
+    ( genCoin
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.Quantity
-    ( clipToPercentage )
+    ( clipToPercentage
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -47,7 +57,8 @@ import Test.QuickCheck
     )
 
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
 
