@@ -15,7 +15,12 @@ module Cardano.Wallet.Api.Aeson.Variant
 import Prelude
 
 import Data.Aeson.Types
-    ( Object, Parser, Value, modifyFailure, withObject )
+    ( Object
+    , Parser
+    , Value
+    , modifyFailure
+    , withObject
+    )
 
 -- | Specification of a JSON parser suitable for 'variants'.
 data Variant a = Variant

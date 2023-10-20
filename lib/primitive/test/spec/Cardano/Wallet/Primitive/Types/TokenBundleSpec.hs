@@ -10,29 +10,42 @@ module Cardano.Wallet.Primitive.Types.TokenBundleSpec
     ) where
 
 import Prelude hiding
-    ( subtract )
+    ( subtract
+    )
 
 import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
+    ( inAscendingPartialOrder
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Lexicographic (..), TokenBundle (..) )
+    ( Lexicographic (..)
+    , TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundlePartition
     , genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
+    ( genTokenQuantityPositive
+    , shrinkTokenQuantityPositive
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -44,7 +57,12 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+    ( eqLaws
+    , monoidLaws
+    , ordLaws
+    , semigroupLaws
+    , semigroupMonoidLaws
+    )
 import Test.QuickCheck.Classes.Monoid.GCD
     ( gcdMonoidLaws
     , leftGCDMonoidLaws
@@ -52,15 +70,23 @@ import Test.QuickCheck.Classes.Monoid.GCD
     , rightGCDMonoidLaws
     )
 import Test.QuickCheck.Classes.Monoid.Monus
-    ( monusLaws )
+    ( monusLaws
+    )
 import Test.QuickCheck.Classes.Monoid.Null
-    ( monoidNullLaws )
+    ( monoidNullLaws
+    )
 import Test.QuickCheck.Classes.Semigroup.Cancellative
-    ( commutativeLaws, leftReductiveLaws, reductiveLaws, rightReductiveLaws )
+    ( commutativeLaws
+    , leftReductiveLaws
+    , reductiveLaws
+    , rightReductiveLaws
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 import Test.Utils.Laws.PartialOrd
-    ( partialOrdLaws )
+    ( partialOrdLaws
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

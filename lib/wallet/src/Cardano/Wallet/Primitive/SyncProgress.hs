@@ -20,33 +20,55 @@ module Cardano.Wallet.Primitive.SyncProgress
 import Prelude
 
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, slotToRelTime )
+    ( TimeInterpreter
+    , interpretQuery
+    , slotToRelTime
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..), mkPercentage )
+    ( Percentage (..)
+    , Quantity (..)
+    , mkPercentage
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Fmt
-    ( Buildable, build )
+    ( Buildable
+    , build
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), diffRelTime )
+    ( RelativeTime (..)
+    , diffRelTime
+    )
 
 data SyncProgress
     = Ready

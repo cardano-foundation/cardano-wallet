@@ -17,11 +17,17 @@ module Test.Integration.Scenario.API.Shelley.Wallets
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..), Role (..) )
+    ( DerivationIndex (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..) )
+    ( AddressPoolGap (..)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiByronWallet
@@ -34,45 +40,73 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( walletNameMaxLength, walletNameMinLength )
+    ( walletNameMaxLength
+    , walletNameMinLength
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHexText, unsafeXPub )
+    ( unsafeFromHexText
+    , unsafeXPub
+    )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM
+    , forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Aeson
-    ( ToJSON (..) )
+    ( ToJSON (..)
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe )
+    ( shouldBe
+    , shouldNotBe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

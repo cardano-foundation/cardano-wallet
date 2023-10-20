@@ -47,28 +47,45 @@ module Cardano.BM.Extra
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LogObject (..), LoggerName, mkLOMeta )
+    ( LOContent (..)
+    , LogObject (..)
+    , LoggerName
+    , mkLOMeta
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     , Transformable (..)
     )
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.Catch
-    ( MonadMask )
+    ( MonadMask
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO )
+    ( MonadIO (..)
+    , MonadUnliftIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, nullTracer, traceWith )
+    ( Tracer (..)
+    , contramap
+    , nullTracer
+    , traceWith
+    )
 import Control.Tracer.Transformers.ObserveOutcome
     ( Outcome (..)
     , OutcomeFidelity (..)
@@ -76,27 +93,47 @@ import Control.Tracer.Transformers.ObserveOutcome
     , mkOutcomeExtractor
     )
 import Data.Aeson
-    ( ToJSON (..), Value (Null), object, (.=) )
+    ( ToJSON (..)
+    , Value (Null)
+    , object
+    , (.=)
+    )
 import Data.Foldable
-    ( forM_ )
+    ( forM_
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( DiffTime )
+    ( DiffTime
+    )
 import Data.Time.Clock.System
-    ( getSystemTime, systemToTAITime )
+    ( getSystemTime
+    , systemToTAITime
+    )
 import Data.Time.Clock.TAI
-    ( AbsoluteTime, diffAbsoluteTime )
+    ( AbsoluteTime
+    , diffAbsoluteTime
+    )
 import Fmt
-    ( Buildable (..), Builder, blockListF, blockMapF, nameF )
+    ( Buildable (..)
+    , Builder
+    , blockListF
+    , blockMapF
+    , nameF
+    )
 import GHC.Exts
-    ( IsList (..) )
+    ( IsList (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import UnliftIO.Exception
     ( Exception (..)
     , SomeException (..)

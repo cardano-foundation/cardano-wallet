@@ -25,15 +25,19 @@ module Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -42,11 +46,14 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Text.Lazy.Builder as Builder
 

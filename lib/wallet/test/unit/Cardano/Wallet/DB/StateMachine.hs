@@ -52,25 +52,40 @@ module Cardano.Wallet.DB.StateMachine
 import Prelude
 
 import Cardano.Address.Script
-    ( ScriptTemplate (..) )
+    ( ScriptTemplate (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso )
+    ( AddressBookIso
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationPrefix, Index, KeyFingerprint, Role (..) )
+    ( Depth (..)
+    , DerivationPrefix
+    , Index
+    , KeyFingerprint
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs, PendingIxs )
+    ( IsOurs
+    , PendingIxs
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, SeqState (..) )
+    ( AddressPoolGap
+    , SeqState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Shared
     ( Readiness
     , SharedAddressPool (..)
@@ -78,9 +93,14 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedState (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), DBLayerParams (..) )
+    ( DBLayer (..)
+    , DBLayerParams (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
+    ( GenState
+    , GenTxHistory (..)
+    , InitialCheckpoint (..)
+    )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database (..)
     , Err (..)
@@ -95,11 +115,15 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mRollbackTo
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters, dummyTimeInterpreter )
+    ( dummyGenesisParameters
+    , dummyTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -120,21 +144,31 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address, AddressState )
+    ( Address
+    , AddressState
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus (..)
     , SealedTx
@@ -145,61 +179,110 @@ import Cardano.Wallet.Primitive.Types.Tx
     , outputs
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo )
+    ( TransactionInfo
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction, TxMeta, TxStatus )
+    ( Direction
+    , TxMeta
+    , TxStatus
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( eraValueSerialize )
+    ( eraValueSerialize
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
+    ( TxCBOR
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Foldl
-    ( Fold (..) )
+    ( Fold (..)
+    )
 import Control.Monad
-    ( forM_, replicateM, void, when )
+    ( forM_
+    , replicateM
+    , void
+    , when
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO )
+    ( MonadIO
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, digestFromByteString, hash )
+    ( Blake2b_160
+    , Digest
+    , digestFromByteString
+    , hash
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Foldable
-    ( foldl', toList )
+    ( foldl'
+    , toList
+    )
 import Data.Functor.Classes
-    ( Eq1, Show1 )
+    ( Eq1
+    , Show1
+    )
 import Data.Generics.Internal.VL
-    ( build )
+    ( build
+    )
 import Data.List.Extra
-    ( enumerate )
+    ( enumerate
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( catMaybes, fromJust )
+    ( catMaybes
+    , fromJust
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Time.Clock
-    ( NominalDiffTime, diffUTCTime, getCurrentTime )
+    ( NominalDiffTime
+    , diffUTCTime
+    , getCurrentTime
+    )
 import Data.TreeDiff
-    ( ToExpr (..), defaultExprViaShow, genericToExpr )
+    ( ToExpr (..)
+    , defaultExprViaShow
+    , genericToExpr
+    )
 import Fmt
-    ( Buildable )
+    ( Buildable
+    )
 import GHC.Generics
-    ( Generic, Generic1 )
+    ( Generic
+    , Generic1
+    )
 import GHC.Stack
-    ( HasCallStack, callStack )
+    ( HasCallStack
+    , callStack
+    )
 import Test.Hspec
-    ( SpecWith, describe, expectationFailure, it )
+    ( SpecWith
+    , describe
+    , expectationFailure
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -212,7 +295,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 import Test.StateMachine
     ( CommandNames (..)
     , Concrete
@@ -230,13 +315,17 @@ import Test.StateMachine
     , (.==)
     )
 import Test.StateMachine.Types
-    ( Commands (..) )
+    ( Commands (..)
+    )
 import UnliftIO.Async
-    ( race_ )
+    ( race_
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( evaluate )
+    ( evaluate
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Pool as AddressPool

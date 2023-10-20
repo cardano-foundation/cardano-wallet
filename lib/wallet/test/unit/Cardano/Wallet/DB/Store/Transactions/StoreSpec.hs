@@ -18,9 +18,12 @@ module Cardano.Wallet.DB.Store.Transactions.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB
-    ( DBOpen (..) )
+    ( DBOpen (..)
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -32,9 +35,12 @@ import Cardano.Wallet.DB.Fixtures
     , withStoreProp
     )
 import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..), withDBOpenFromFile )
+    ( DefaultFieldValues (..)
+    , withDBOpenFromFile
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+    ( TxId (TxId)
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns
     , decorateTxInsForRelation
@@ -51,43 +57,70 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , mkTxSet
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
-    ( mkStoreTransactions, selectTx )
+    ( mkStoreTransactions
+    , selectTx
+    )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTxCBOR )
+    ( mkTxCBOR
+    )
 import Cardano.Wallet.Flavor
-    ( Flavored (..), WalletFlavorS (..) )
+    ( Flavored (..)
+    , WalletFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..) )
+    ( ActiveSlotCoefficient (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( roundTripTxCBor )
+    ( roundTripTxCBor
+    )
 import Control.Monad
-    ( forM_, (<=<), (>=>) )
+    ( forM_
+    , (<=<)
+    , (>=>)
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL
-    ( set )
+    ( set
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Store
-    ( Store (..) )
+    ( Store (..)
+    )
 import System.Directory
-    ( copyFile )
+    ( copyFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 import Test.Hspec
-    ( Spec, around, describe, it, shouldBe )
+    ( Spec
+    , around
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -101,11 +134,16 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( forAllM, pick )
+    ( forAllM
+    , pick
+    )
 import Test.Store
-    ( GenDelta, prop_StoreUpdate )
+    ( GenDelta
+    , prop_StoreUpdate
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

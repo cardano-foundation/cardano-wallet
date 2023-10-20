@@ -8,17 +8,25 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
 import Prelude
 
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromShelleyAddress )
+    ( fromShelleyAddress
+    )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( CollateralOutputs (..) )
+    ( CollateralOutputs (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletTokenBundle )
+    ( toWalletTokenBundle
+    )
 import Data.Maybe.Strict
-    ( strictMaybeToMaybe )
+    ( strictMaybeToMaybe
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage, StandardConway )
+    ( StandardBabbage
+    , StandardConway
+    )
 
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage

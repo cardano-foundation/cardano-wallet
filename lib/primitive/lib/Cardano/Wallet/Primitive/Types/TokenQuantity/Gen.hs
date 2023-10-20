@@ -14,19 +14,30 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrink, sized )
+    ( Gen
+    , choose
+    , frequency
+    , shrink
+    , sized
+    )
 import Test.QuickCheck.Extra
-    ( chooseNatural )
+    ( chooseNatural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.List.NonEmpty as NE

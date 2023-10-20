@@ -152,61 +152,109 @@ module Cardano.Wallet.Primitive.Types
 import Prelude
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import Cardano.Pool.Types
-    ( PoolId, PoolOwner )
+    ( PoolId
+    , PoolOwner
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..), WithOrigin (..) )
+    ( SlotNo (..)
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( WalletPassphraseInfo (..) )
+    ( WalletPassphraseInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..), parseURI, uriToText )
+    ( ShowFmt (..)
+    , parseURI
+    , uriToText
+    )
 import Control.Arrow
-    ( left, right )
+    ( left
+    , right
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( (<=<), (>=>) )
+    ( (<=<)
+    , (>=>)
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, digestFromByteString )
+    ( Blake2b_160
+    , Digest
+    , digestFromByteString
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value, object, withObject, (.:), (.=) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
 import Data.ByteArray
-    ( ByteArrayAccess )
+    ( ByteArrayAccess
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Data
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( set, view, (^.) )
+    ( set
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..), complementPercentage )
+    ( Percentage (..)
+    , Quantity (..)
+    , complementPercentage
+    )
 import Data.Scientific
-    ( fromRationalRepetendLimited )
+    ( fromRationalRepetendLimited
+    )
 import Data.String
-    ( fromString )
+    ( fromString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -216,21 +264,33 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime )
+    ( NominalDiffTime
+    , UTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime )
+    ( defaultTimeLocale
+    , formatTime
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Database.Persist.Class.PersistField
-    ( PersistField (fromPersistValue, toPersistValue) )
+    ( PersistField (fromPersistValue, toPersistValue)
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueRead )
+    ( fromPersistValueRead
+    )
 import Database.Persist.Sql
-    ( PersistFieldSql (sqlType) )
+    ( PersistFieldSql (sqlType)
+    )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -242,19 +302,28 @@ import Fmt
     , suffixF
     )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Internal.Cardano.Write.Tx
-    ( MaybeInRecentEra )
+    ( MaybeInRecentEra
+    )
 import Network.URI
-    ( URI (..), uriToString )
+    ( URI (..)
+    , uriToString
+    )
 import NoThunks.Class
-    ( NoThunks )
+    ( NoThunks
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), oneof )
+    ( Arbitrary (..)
+    , oneof
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T

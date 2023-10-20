@@ -28,27 +28,42 @@ module Cardano.Launcher
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Startup
-    ( killProcess )
+    ( killProcess
+    )
 import Control.Monad
-    ( join, void )
+    ( join
+    , void
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Either.Combinators
-    ( leftToMaybe )
+    ( leftToMaybe
+    )
 import Data.List
-    ( isPrefixOf )
+    ( isPrefixOf
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -61,17 +76,27 @@ import Fmt
     , (||+)
     )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( Handle )
+    ( Handle
+    )
 import System.Process
-    ( cleanupProcess, getPid )
+    ( cleanupProcess
+    , getPid
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Concurrent
-    ( forkIO, forkIOWithUnmask, killThread, threadDelay )
+    ( forkIO
+    , forkIOWithUnmask
+    , killThread
+    , threadDelay
+    )
 import UnliftIO.Exception
     ( Exception
     , IOException
@@ -82,7 +107,10 @@ import UnliftIO.Exception
     , tryJust
     )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, readMVar )
+    ( newEmptyMVar
+    , putMVar
+    , readMVar
+    )
 import UnliftIO.Process
     ( CmdSpec (..)
     , CreateProcess (..)

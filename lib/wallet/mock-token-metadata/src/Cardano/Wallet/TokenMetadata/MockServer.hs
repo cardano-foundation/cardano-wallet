@@ -29,11 +29,14 @@ module Cardano.Wallet.TokenMetadata.MockServer
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServer (..) )
+    ( TokenMetadataServer (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -53,9 +56,11 @@ import Cardano.Wallet.TokenMetadata
     , propertyName
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -65,23 +70,33 @@ import Data.Aeson
     , (.=)
     )
 import Data.ByteArray.Encoding
-    ( Base (Base16, Base64), convertToBase )
+    ( Base (Base16, Base64)
+    , convertToBase
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.HashSet
-    ( HashSet )
+    ( HashSet
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.TypeLits
-    ( KnownSymbol )
+    ( KnownSymbol
+    )
 import Network.URI
-    ( parseURI )
+    ( parseURI
+    )
 import Network.Wai
-    ( Middleware )
+    ( Middleware
+    )
 import Network.Wai.Handler.Warp
     ( Port
     , defaultSettings
@@ -91,15 +106,27 @@ import Network.Wai.Handler.Warp
     , withApplication
     )
 import Servant.API
-    ( (:>), JSON, Post, ReqBody )
+    ( (:>)
+    , JSON
+    , Post
+    , ReqBody
+    )
 import Servant.Server
-    ( Handler (..), Server, serve )
+    ( Handler (..)
+    , Server
+    , serve
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Exception
-    ( throwString )
+    ( throwString
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

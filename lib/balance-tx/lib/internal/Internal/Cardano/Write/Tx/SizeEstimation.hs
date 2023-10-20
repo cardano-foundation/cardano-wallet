@@ -44,31 +44,43 @@ module Internal.Cardano.Write.Tx.SizeEstimation
 import Prelude
 
 import Cardano.Address.Script
-    ( Script (..) )
+    ( Script (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..) )
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Data.Generics.Labels
     ()
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Internal.Cardano.Write.Tx
-    ( FeePerByte (..) )
+    ( FeePerByte (..)
+    )
 import Internal.Cardano.Write.Tx.Sign
-    ( estimateMaxWitnessRequiredPerInput )
+    ( estimateMaxWitnessRequiredPerInput
+    )
 import Internal.Cardano.Write.UTxOAssumptions
-    ( UTxOAssumptions (..) )
+    ( UTxOAssumptions (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

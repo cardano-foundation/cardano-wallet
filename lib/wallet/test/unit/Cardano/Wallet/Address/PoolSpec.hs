@@ -7,25 +7,43 @@ module Cardano.Wallet.Address.PoolSpec
 import Prelude
 
 import Cardano.Wallet.Address.Pool
-    ( Pool, addressFromIx, addresses, prop_consistent, prop_fresh, prop_gap )
+    ( Pool
+    , addressFromIx
+    , addresses
+    , prop_consistent
+    , prop_fresh
+    , prop_gap
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.List
-    ( foldl', sortOn )
+    ( foldl'
+    , sortOn
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Gen
     , Property

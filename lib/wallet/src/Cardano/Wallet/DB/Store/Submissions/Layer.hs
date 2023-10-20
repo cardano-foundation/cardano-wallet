@@ -29,12 +29,16 @@ module Cardano.Wallet.DB.Store.Submissions.Layer
     where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchTransaction (..), ErrRemoveTx (..) )
+    ( ErrNoSuchTransaction (..)
+    , ErrRemoveTx (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
@@ -43,27 +47,51 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     , submissionMetaFromTxMeta
     )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (SlotNo) )
+    ( SlotNo (SlotNo)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
+    ( LocalTxSubmissionStatus (LocalTxSubmissionStatus)
+    , SealedTx
+    )
 import Cardano.Wallet.Submissions.Operations
-    ( Operation (..) )
+    ( Operation (..)
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), mkEmpty, transactions, transactionsL, txStatus )
+    ( TxStatusMeta (..)
+    , mkEmpty
+    , transactions
+    , transactionsL
+    , txStatus
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( TxStatus (..), expirySlot, getTx, status, _InSubmission )
+    ( TxStatus (..)
+    , expirySlot
+    , getTx
+    , status
+    , _InSubmission
+    )
 import Cardano.Wallet.Transaction.Built
-    ( BuiltTx (..) )
+    ( BuiltTx (..)
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Lens
-    ( has, ix, (^.), (^..), (^?) )
+    ( has
+    , ix
+    , (^.)
+    , (^..)
+    , (^?)
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 
 import qualified Data.Map.Strict as Map
 

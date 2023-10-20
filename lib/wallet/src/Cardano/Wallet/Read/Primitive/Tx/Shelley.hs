@@ -17,9 +17,11 @@ module Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyRole (..) )
+    ( KeyRole (..)
+    )
 import Cardano.Api
-    ( ShelleyEra )
+    ( ShelleyEra
+    )
 import Cardano.Ledger.Core
     ( addrTxWitsL
     , auxDataTxL
@@ -32,31 +34,47 @@ import Cardano.Ledger.Core
     , witsTxL
     )
 import Cardano.Ledger.Shelley
-    ( ShelleyTx )
+    ( ShelleyTx
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL, ttlTxBodyL )
+    ( certsTxBodyL
+    , ttlTxBodyL
+    )
 import Cardano.Wallet.Read.Eras
-    ( inject, shelley )
+    ( inject
+    , shelley
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromShelleyMetadata )
+    ( fromShelleyMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromShelleyTxOut )
+    ( fromShelleyTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( shelleyValidityInterval )
+    ( shelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId, shelleyTxHash )
+    ( fromShelleyTxId
+    , shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScriptFromShelley )
+    ( toWalletScriptFromShelley
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -66,9 +84,15 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -77,7 +101,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
+    ( TxIn (TxIn)
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Set as Set
 

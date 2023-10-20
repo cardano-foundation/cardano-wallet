@@ -26,13 +26,17 @@ module Demo.Database where
 import Prelude
 
 import Conduit
-    ( ResourceT )
+    ( ResourceT
+    )
 import Control.Applicative
-    ( Alternative )
+    ( Alternative
+    )
 import Control.Monad
-    ( MonadPlus )
+    ( MonadPlus
+    )
 import Control.Monad.Class.MonadSTM.Internal
-    ( MonadSTM (..) )
+    ( MonadSTM (..)
+    )
 import Control.Monad.Class.MonadThrow
     ( ExitCase (..)
     , MonadCatch (..)
@@ -41,27 +45,45 @@ import Control.Monad.Class.MonadThrow
     , MonadThrow (..)
     )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Logger
-    ( NoLoggingT )
+    ( NoLoggingT
+    )
 import Data.Chain
-    ( DeltaChain (..), Edge (..), chainIntoTable )
+    ( DeltaChain (..)
+    , Edge (..)
+    , chainIntoTable
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Generics.Internal.VL
-    ( Iso', iso, withIso )
+    ( Iso'
+    , iso
+    , withIso
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Table
-    ( DeltaDB (..), Pile (..), tableIntoDatabase )
+    ( DeltaDB (..)
+    , Pile (..)
+    , tableIntoDatabase
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Delta
-    ( newEntityStore, newSqlStore )
+    ( newEntityStore
+    , newSqlStore
+    )
 import Database.Persist.Sql
-    ( SqlPersistM )
+    ( SqlPersistM
+    )
 import Database.Persist.TH
     ( mkMigrate
     , mkPersist
@@ -71,11 +93,17 @@ import Database.Persist.TH
     , sqlSettings
     )
 import Database.Schema
-    ( (:.) (..), Col (..), Primary, Table (..) )
+    ( (:.) (..)
+    , Col (..)
+    , Primary
+    , Table (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Say
-    ( sayShow )
+    ( sayShow
+    )
 
 import qualified Control.Monad.Catch as ResourceT
 import qualified Control.Monad.STM as STM

@@ -34,19 +34,30 @@ module Cardano.Pool.Rank
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo )
+    ( EpochNo
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Percentage (..), clipToPercentage )
+    ( Percentage (..)
+    , clipToPercentage
+    )
 import Fmt
-    ( Buildable (..), blockListF', listF', mapF )
+    ( Buildable (..)
+    , blockListF'
+    , listF'
+    , mapF
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L

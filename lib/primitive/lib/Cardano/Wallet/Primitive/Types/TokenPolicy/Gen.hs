@@ -21,15 +21,24 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..)
+    )
 import Test.QuickCheck
-    ( Gen, elements, sized, vector )
+    ( Gen
+    , elements
+    , sized
+    , vector
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

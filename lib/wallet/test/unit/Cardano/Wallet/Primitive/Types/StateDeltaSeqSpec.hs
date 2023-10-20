@@ -15,18 +15,26 @@ module Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
     ) where
 
 import Prelude hiding
-    ( seq )
+    ( seq
+    )
 
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    ( StateDeltaSeq )
+    ( StateDeltaSeq
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Safe
-    ( tailMay )
+    ( tailMay
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary
@@ -54,7 +62,8 @@ import Test.QuickCheck.Classes
     , showLaws
     )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.StateDeltaSeq as Seq
 import qualified Data.Foldable as F

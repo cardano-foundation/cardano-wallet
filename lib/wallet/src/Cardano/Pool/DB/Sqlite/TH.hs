@@ -25,29 +25,47 @@ module Cardano.Pool.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), StakePoolTicker )
+    ( PoolId (..)
+    , StakePoolTicker
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( sqlSettings' )
+    ( sqlSettings'
+    )
 import Cardano.Wallet.Primitive.Types
     ()
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word32
+    , Word64
+    , Word8
+    )
 import Database.Persist.TH
-    ( mkMigrate, mkPersist, persistLowerCase, share )
+    ( mkMigrate
+    , mkPersist
+    , persistLowerCase
+    , share
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 import System.Random
-    ( StdGen )
+    ( StdGen
+    )
 
 import qualified Cardano.Pool.Types as P
 import qualified Cardano.Wallet.DB.Sqlite.Types as W

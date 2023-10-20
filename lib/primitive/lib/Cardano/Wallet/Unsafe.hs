@@ -43,7 +43,9 @@ module Cardano.Wallet.Unsafe
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , Entropy
@@ -59,39 +61,66 @@ import Cardano.Mnemonic
     , mkMnemonic
     )
 import Cardano.Wallet.Util
-    ( internalError )
+    ( internalError
+    )
 import Control.Monad
-    ( (>=>) )
+    ( (>=>)
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Data.Binary.Get
-    ( Get, runGet )
+    ( Get
+    , runGet
+    )
 import Data.ByteArray
-    ( ByteArray )
+    ( ByteArray
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
+    ( Base (..)
+    , convertFromBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Char
-    ( isHexDigit )
+    ( isHexDigit
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage, mkPercentage )
+    ( Percentage
+    , mkPercentage
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..)
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Fmt
-    ( Buildable, Builder, build, (+||), (|+), (||+) )
+    ( Buildable
+    , Builder
+    , build
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import GHC.TypeLits
-    ( natVal )
+    ( natVal
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32

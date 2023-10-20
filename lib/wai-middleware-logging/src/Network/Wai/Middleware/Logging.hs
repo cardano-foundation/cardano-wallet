@@ -28,43 +28,80 @@ module Network.Wai.Middleware.Logging
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
+    ( PrivacyAnnotation (..)
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Tracing
-    ( ToObject )
+    ( ToObject
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Builder
-    ( Builder )
+    ( Builder
+    )
 import Data.IORef
-    ( IORef, atomicModifyIORef, modifyIORef, newIORef, readIORef )
+    ( IORef
+    , atomicModifyIORef
+    , modifyIORef
+    , newIORef
+    , readIORef
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( NominalDiffTime, diffUTCTime, getCurrentTime )
+    ( NominalDiffTime
+    , diffUTCTime
+    , getCurrentTime
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Types.Status
-    ( Status (..) )
+    ( Status (..)
+    )
 import Network.Wai
-    ( Middleware, Request (..), rawPathInfo, rawQueryString, requestMethod )
+    ( Middleware
+    , Request (..)
+    , rawPathInfo
+    , rawQueryString
+    , requestMethod
+    )
 import Network.Wai.Internal
-    ( Response (..), getRequestBodyChunk )
+    ( Response (..)
+    , getRequestBodyChunk
+    )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar )
+    ( MVar
+    , modifyMVar
+    , newMVar
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson

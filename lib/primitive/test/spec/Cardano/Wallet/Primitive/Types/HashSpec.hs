@@ -13,19 +13,32 @@ module Cardano.Wallet.Primitive.Types.HashSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText )
+    ( TextDecodingError (..)
+    , fromText
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), elements, vector, (===) )
+    ( Arbitrary (..)
+    , elements
+    , vector
+    , (===)
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Data.ByteString as BS
 

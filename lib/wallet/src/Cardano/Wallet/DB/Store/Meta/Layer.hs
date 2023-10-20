@@ -14,29 +14,46 @@ module Cardano.Wallet.DB.Store.Meta.Layer
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..), TxMeta (..) )
+    ( EntityField (..)
+    , TxMeta (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory, TxMetaHistory (..) )
+    ( DeltaTxMetaHistory
+    , TxMetaHistory (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Store
-    ( mkStoreMetaTransactions )
+    ( mkStoreMetaTransactions
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Range (..), SortOrder (..) )
+    ( Range (..)
+    , SortOrder (..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Store
-    ( Query (..), Store, mkQueryStore )
+    ( Query (..)
+    , Store
+    , mkQueryStore
+    )
 import Database.Persist.Sql
     ( Entity (entityVal)
     , Filter
@@ -50,7 +67,8 @@ import Database.Persist.Sql
     , (>=.)
     )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Types as W

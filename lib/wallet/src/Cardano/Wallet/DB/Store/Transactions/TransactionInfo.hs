@@ -9,78 +9,131 @@ module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ) where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
+    ( TxCollateral (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxWithdrawal (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( mkTxMetaFromEntity )
+    ( mkTxMetaFromEntity
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..) )
+    ( SubmissionMeta (..)
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( DecoratedTxIns, TxOutKey, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
+    ( DecoratedTxIns
+    , TxOutKey
+    , lookupTxOut
+    , mkTxOutKey
+    , mkTxOutKeyCollateral
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..), fromTxCollateralOut, fromTxOut, txCBORPrism )
+    ( TxRelation (..)
+    , fromTxCollateralOut
+    , fromTxOut
+    , txCBORPrism
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, slotToUTCTime )
+    ( TimeInterpreter
+    , interpretQuery
+    , slotToUTCTime
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun, EraValue, K, applyEraFun, extractEraValue )
+    ( EraFun
+    , EraValue
+    , K
+    , applyEraFun
+    , extractEraValue
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    ( getCollateralInputs )
+    ( getCollateralInputs
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
-    ( getCollateralOutputs )
+    ( getCollateralOutputs
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( getFee )
+    ( getFee
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs )
+    ( getInputs
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( getMetadata )
+    ( getMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( getOutputs )
+    ( getOutputs
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
-    ( getScriptValidity )
+    ( getScriptValidity
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( getValidity )
+    ( getValidity
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( getWithdrawals )
+    ( getWithdrawals
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR, renderTxToCBOR )
+    ( TxCBOR
+    , renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( getEraCollateralInputs )
+    ( getEraCollateralInputs
+    )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( getEraCollateralOutputs )
+    ( getEraCollateralOutputs
+    )
 import Cardano.Wallet.Read.Tx.Fee
-    ( getEraFee )
+    ( getEraFee
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash )
+    ( getEraTxHash
+    )
 import Cardano.Wallet.Read.Tx.Inputs
-    ( getEraInputs )
+    ( getEraInputs
+    )
 import Cardano.Wallet.Read.Tx.Metadata
-    ( getEraMetadata )
+    ( getEraMetadata
+    )
 import Cardano.Wallet.Read.Tx.Outputs
-    ( getEraOutputs )
+    ( getEraOutputs
+    )
 import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( getEraScriptValidity )
+    ( getEraScriptValidity
+    )
 import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity )
+    ( getEraValidity
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( getEraWithdrawals )
+    ( getEraWithdrawals
+    )
 import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (invalidHereafter) )
+    ( ValidityIntervalExplicit (invalidHereafter)
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Types as W

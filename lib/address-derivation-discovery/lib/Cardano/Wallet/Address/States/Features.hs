@@ -10,17 +10,23 @@ module Cardano.Wallet.Address.States.Features
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf )
+    ( CredFromOf
+    , KeyOf
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 
 type IsOwned s =
     s

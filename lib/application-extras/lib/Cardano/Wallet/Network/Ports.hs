@@ -29,21 +29,31 @@ module Cardano.Wallet.Network.Ports
 import Prelude
 
 import Control.Monad
-    ( filterM )
+    ( filterM
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.List
-    ( isInfixOf, sort )
+    ( isInfixOf
+    , sort
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Streaming.Network
-    ( bindRandomPortTCP )
+    ( bindRandomPortTCP
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Foreign.C.Error
-    ( Errno (..), eCONNREFUSED )
+    ( Errno (..)
+    , eCONNREFUSED
+    )
 import GHC.IO.Exception
-    ( IOException (..) )
+    ( IOException (..)
+    )
 import Network.Socket
     ( Family (AF_INET)
     , PortNumber
@@ -55,13 +65,20 @@ import Network.Socket
     , tupleToHostAddress
     )
 import Network.URI
-    ( URI (..), URIAuth (..) )
+    ( URI (..)
+    , URIAuth (..)
+    )
 import Safe
-    ( readMay )
+    ( readMay
+    )
 import System.Random.Shuffle
-    ( shuffleM )
+    ( shuffleM
+    )
 import UnliftIO.Exception
-    ( bracket, throwIO, try )
+    ( bracket
+    , throwIO
+    , try
+    )
 
 -- | Find a TCPv4 port which is likely to be free for listening on
 -- @localhost@. This binds a socket, receives an OS-assigned port, then closes

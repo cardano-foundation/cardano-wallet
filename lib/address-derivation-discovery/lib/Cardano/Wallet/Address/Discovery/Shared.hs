@@ -59,9 +59,14 @@ import Cardano.Address.Script
     , toScriptHash
     )
 import Cardano.Address.Style.Shelley
-    ( Credential (..), delegationAddress, paymentAddress )
+    ( Credential (..)
+    , delegationAddress
+    , paymentAddress
+    )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
@@ -84,9 +89,13 @@ import Cardano.Wallet.Address.Derivation
     , utxoInternal
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( constructAddressFromIx, replaceCosignersWithVerKeys, toNetworkTag )
+    ( constructAddressFromIx
+    , replaceCosignersWithVerKeys
+    , toNetworkTag
+    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -98,39 +107,63 @@ import Cardano.Wallet.Address.Discovery
     , pendingIxsToList
     )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..) )
+    ( AddressPoolGap (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant
+    , networkDiscriminantBits
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Control.Applicative
-    ( (<|>) )
+    ( (<|>)
+    )
 import Control.Arrow
-    ( first )
+    ( first
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( guard )
+    ( guard
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..), blockListF', indentF )
+    ( Buildable (..)
+    , blockListF'
+    , indentF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Type.Reflection
-    ( Typeable )
+    ( Typeable
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA

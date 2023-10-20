@@ -15,15 +15,21 @@ module Service where
 import Prelude
 
 import Cardano.Address.Style.Shelley
-    ( shelleyTestnet )
+    ( shelleyTestnet
+    )
 import Cardano.BM.Extra
-    ( stdoutTextTracer )
+    ( stdoutTextTracer
+    )
 import Cardano.Launcher.Node
-    ( nodeSocketFile )
+    ( nodeSocketFile
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Startup
-    ( installSignalHandlers, setDefaultFilePermissions )
+    ( installSignalHandlers
+    , setDefaultFilePermissions
+    )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , deriveShelleyRewardAccount
@@ -31,27 +37,41 @@ import Cardano.Wallet.Faucet
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Launch.Cluster
-    ( FaucetFunds (..) )
+    ( FaucetFunds (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Control.Monad.Trans.Resource
-    ( allocate, runResourceT )
+    ( allocate
+    , runResourceT
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Tagged
-    ( Tagged (..) )
+    ( Tagged (..)
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import System.Environment.Extended
-    ( isEnvSet, lookupEnvNonEmpty )
+    ( isEnvSet
+    , lookupEnvNonEmpty
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO.Temp.Extra
-    ( SkipCleanup (..), withSystemTempDir )
+    ( SkipCleanup (..)
+    , withSystemTempDir
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Node.Cli.Launcher as NC

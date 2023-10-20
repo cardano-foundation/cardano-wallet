@@ -24,25 +24,35 @@ module Cardano.Wallet.Balance.Migration
 import Prelude
 
 import Cardano.Wallet.Balance.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..) )
+    ( RewardWithdrawal (..)
+    , Selection (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..) )
+    ( TxConstraints (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Balance.Migration.Planning as Planning
 

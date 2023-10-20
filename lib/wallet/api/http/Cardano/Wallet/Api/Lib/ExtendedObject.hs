@@ -13,13 +13,22 @@ module Cardano.Wallet.Api.Lib.ExtendedObject
 import Prelude
 
 import Cardano.Wallet.Api.Lib.Options
-    ( defaultRecordTypeOptions )
+    ( defaultRecordTypeOptions
+    )
 import Data.Aeson.Types
-    ( Parser, Value (..), genericParseJSON, genericToJSON, object, withObject )
+    ( Parser
+    , Value (..)
+    , genericParseJSON
+    , genericToJSON
+    , object
+    , withObject
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson

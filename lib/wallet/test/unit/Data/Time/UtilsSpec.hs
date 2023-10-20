@@ -5,13 +5,22 @@ module Data.Time.UtilsSpec
 import Prelude
 
 import Data.Time.Utils
-    ( utcTimePred, utcTimeSucc )
+    ( utcTimePred
+    , utcTimeSucc
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( property, withMaxSuccess, (===) )
+    ( property
+    , withMaxSuccess
+    , (===)
+    )
 import Test.Utils.Time
-    ( getUniformTime )
+    ( getUniformTime
+    )
 
 spec :: Spec
 spec = describe "Manipulation of time values." $ do

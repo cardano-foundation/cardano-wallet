@@ -14,7 +14,8 @@ module Test.Integration.Scenario.API.Byron.CoinSelections
 import Prelude
 
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeBIP44 )
+    ( purposeBIP44
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
@@ -22,19 +23,29 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( NonEmpty ((:|))
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldSatisfy
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldBe
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -56,7 +67,9 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NotAnIcarusWallet, errMsg404NoWallet )
+    ( errMsg403NotAnIcarusWallet
+    , errMsg404NoWallet
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.HashSet as Set

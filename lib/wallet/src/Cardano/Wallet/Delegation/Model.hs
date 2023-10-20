@@ -16,11 +16,14 @@ module Cardano.Wallet.Delegation.Model
 import Prelude
 
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Data.Map.Strict as Map
 

@@ -7,7 +7,11 @@ module Data.DeltaSpec
 import Prelude
 
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec
+    , describe
+    , it
+    , parallel
+    )
 
 spec :: Spec
 spec = do

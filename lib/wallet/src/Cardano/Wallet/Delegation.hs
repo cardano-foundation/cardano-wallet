@@ -25,7 +25,8 @@ import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
 
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet
     ( ErrCannotQuit (..)
     , ErrStakePoolDelegation (..)
@@ -40,21 +41,32 @@ import Cardano.Wallet
     , transactionExpirySlot
     )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+    ( SeqState (..)
+    )
 import Cardano.Wallet.DB
-    ( DBLayer (..) )
+    ( DBLayer (..)
+    )
 import Cardano.Wallet.DB.Store.Delegations.Layer
-    ( CurrentEpochSlotting )
+    ( CurrentEpochSlotting
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
+    ( PastHorizonException
+    , TimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
-    ( IsDelegatingTo (..), PoolLifeCycleStatus, WalletDelegation (..) )
+    ( IsDelegatingTo (..)
+    , PoolLifeCycleStatus
+    , WalletDelegation (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
     , TransactionCtx
@@ -65,23 +77,38 @@ import Cardano.Wallet.Transaction
     , txWithdrawal
     )
 import Control.Error
-    ( lastMay )
+    ( lastMay
+    )
 import Control.Exception
-    ( throwIO )
+    ( throwIO
+    )
 import Control.Monad
-    ( forM_, unless, when, (>=>) )
+    ( forM_
+    , unless
+    , when
+    , (>=>)
+    )
 import Control.Monad.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT
+    , runExceptT
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans.Except
-    ( except )
+    ( except
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 -- | The data type that represents client's delegation request.
 -- Stake key registration is made implicit by design:

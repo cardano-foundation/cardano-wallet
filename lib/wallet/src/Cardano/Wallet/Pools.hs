@@ -43,13 +43,20 @@ module Cardano.Wallet.Pools
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , readPoolLifeCycleStatus
+    )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog )
+    ( PoolDbLog
+    )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..)
     , StakePoolMetadataFetchLog
@@ -62,13 +69,22 @@ import Cardano.Pool.Metadata
     , toHealthCheckSMASH
     )
 import Cardano.Pool.Metadata.Types
-    ( PoolMetadataGCStatus (..), StakePoolMetadata, StakePoolMetadataHash )
+    ( PoolMetadataGCStatus (..)
+    , StakePoolMetadata
+    , StakePoolMetadataHash
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), StakePoolsSummary (..) )
+    ( PoolId (..)
+    , StakePoolsSummary (..)
+    )
 import Cardano.Wallet.Byron.Compatibility
-    ( toByronBlockHeader )
+    ( toByronBlockHeader
+    )
 import Cardano.Wallet.Network
-    ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
+    ( ChainFollowLog (..)
+    , ChainFollower (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , Qry
@@ -101,9 +117,12 @@ import Cardano.Wallet.Primitive.Types
     , unSmashServer
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Registry
-    ( AfterThreadLog, traceAfterThread )
+    ( AfterThreadLog
+    , traceAfterThread
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraBlock
@@ -120,83 +139,151 @@ import Cardano.Wallet.Shelley.Compatibility
     , toShelleyBlockHeader
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( forM, forM_, forever, void, when, (>=>) )
+    ( forM
+    , forM_
+    , forever
+    , void
+    , when
+    , (>=>)
+    )
 import Control.Monad.Cont
-    ( ContT (ContT) )
+    ( ContT (ContT)
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Monad.Trans.State
-    ( State, evalState, state )
+    ( State
+    , evalState
+    , state
+    )
 import Control.Retry
-    ( RetryStatus (..), constantDelay, retrying )
+    ( RetryStatus (..)
+    , constantDelay
+    , retrying
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.List
-    ( nub, (\\) )
+    ( nub
+    , (\\)
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Map.Merge.Strict
-    ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
+    ( dropMissing
+    , traverseMissing
+    , zipWithAMatched
+    , zipWithMatched
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( getPOSIXTime, posixDayLength )
+    ( getPOSIXTime
+    , posixDayLength
+    )
 import Data.Tuple.Extra
-    ( dupe )
+    ( dupe
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Fmt
-    ( fixedF, pretty )
+    ( fixedF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
-    ( Manager )
+    ( Manager
+    )
 import Network.HTTP.Client.TLS
-    ( newTlsManager )
+    ( newTlsManager
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock, HardForkBlock (..) )
+    ( CardanoBlock
+    , HardForkBlock (..)
+    )
 import System.Exit
-    ( ExitCode )
+    ( ExitCode
+    )
 import System.Random
-    ( RandomGen, random )
+    ( RandomGen
+    , random
+    )
 import UnliftIO.Concurrent
-    ( forkFinally, forkIOWithUnmask, killThread, threadDelay )
+    ( forkFinally
+    , forkIOWithUnmask
+    , killThread
+    , threadDelay
+    )
 import UnliftIO.Exception
-    ( finally )
+    ( finally
+    )
 import UnliftIO.IORef
-    ( IORef, newIORef, readIORef, writeIORef )
+    ( IORef
+    , newIORef
+    , readIORef
+    , writeIORef
+    )
 import UnliftIO.MVar
-    ( modifyMVar_, newMVar )
+    ( modifyMVar_
+    , newMVar
+    )
 import UnliftIO.STM
     ( TBQueue
     , TVar

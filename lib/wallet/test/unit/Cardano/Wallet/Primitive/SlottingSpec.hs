@@ -12,13 +12,19 @@ module Cardano.Wallet.Primitive.SlottingSpec
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..), nullTracer )
+    ( HasSeverityAnnotation (..)
+    , nullTracer
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient, shrinkActiveSlotCoefficient )
+    ( genActiveSlotCoefficient
+    , shrinkActiveSlotCoefficient
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , Qry
@@ -54,41 +60,73 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft
+    , isRight
+    )
 import Data.Functor.Identity
-    ( runIdentity )
+    ( runIdentity
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.SOP.Counting
-    ( exactlyTwo )
+    ( exactlyTwo
+    )
 import Data.Time
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( getCurrentTime
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
+    ( RelativeTime (..)
+    , mkSlotLength
+    )
 import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
+    ( SecurityParam (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, runIO, shouldBe, shouldReturn, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , runIO
+    , shouldBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
+    ( Arbitrary (..)
+    , Property
+    , choose
+    , property
+    , withMaxSuccess
+    , (===)
+    )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 import Test.Utils.Time
-    ( genUniformTime )
+    ( genUniformTime
+    )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging
+    )
 import UnliftIO.Exception
-    ( try )
+    ( try
+    )
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF

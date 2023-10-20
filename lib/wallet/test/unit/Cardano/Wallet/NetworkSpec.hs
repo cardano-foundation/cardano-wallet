@@ -9,19 +9,38 @@ module Cardano.Wallet.NetworkSpec
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genBlockHeader, genChainPoint, genSlotNo )
+    ( genBlockHeader
+    , genChainPoint
+    , genSlotNo
+    )
 import Cardano.Wallet.Network
-    ( ChainSyncLog (..), ErrPostTx (..), emptyStats, updateStats )
+    ( ChainSyncLog (..)
+    , ErrPostTx (..)
+    , emptyStats
+    , updateStats
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), ChainPoint (..) )
+    ( BlockHeader (..)
+    , ChainPoint (..)
+    )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( getCurrentTime
+    )
 import NoThunks.Class
-    ( wNoThunks )
+    ( wNoThunks
+    )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), getNonEmpty, oneof, property )
+    ( Arbitrary (..)
+    , getNonEmpty
+    , oneof
+    , property
+    )
 
 import qualified Data.List.NonEmpty as NE
 

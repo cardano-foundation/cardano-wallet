@@ -5,11 +5,15 @@ module Cardano.Wallet.DB.Errors where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), WalletId (..) )
+    ( BlockHeader (..)
+    , WalletId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Control.Exception
-    ( Exception )
+    ( Exception
+    )
 
 -- | Can't read the database file because it's in a bad format
 -- (corrupted, too old, …)

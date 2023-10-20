@@ -31,23 +31,32 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Allegra.Scripts
-    ( ValidityInterval )
+    ( ValidityInterval
+    )
 import Cardano.Ledger.Allegra.TxBody
-    ( vldtTxBodyL )
+    ( vldtTxBodyL
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( ttlTxBodyL )
+    ( ttlTxBodyL
+    )
 import Cardano.Ledger.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 type family ValidityType era where
     ValidityType ByronEra = ()

@@ -3,9 +3,13 @@ module Cardano.Wallet.Spec.Network.Local
     ) where
 
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig (..) )
+    ( NetworkConfig (..)
+    )
 import Path
-    ( Abs, Dir, Path )
+    ( Abs
+    , Dir
+    , Path
+    )
 
 nodeWalletSetup :: Path Abs Dir -> (NetworkConfig -> IO ()) -> IO ()
 nodeWalletSetup _stateDir withNetworkConfig = do

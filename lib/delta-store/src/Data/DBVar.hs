@@ -27,13 +27,30 @@ module Data.DBVar (
 import Prelude
 
 import Control.Concurrent.Class.MonadSTM
-    ( MonadSTM, atomically, newTVarIO, readTVar, readTVarIO, retry, writeTVar )
+    ( MonadSTM
+    , atomically
+    , newTVarIO
+    , readTVar
+    , readTVarIO
+    , retry
+    , writeTVar
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadEvaluate, MonadMask, MonadThrow, bracket, evaluate, mask, throwIO )
+    ( MonadEvaluate
+    , MonadMask
+    , MonadThrow
+    , bracket
+    , evaluate
+    , mask
+    , throwIO
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Store
-    ( Store (..), UpdateStore )
+    ( Store (..)
+    , UpdateStore
+    )
 
 {-------------------------------------------------------------------------------
     DBVar

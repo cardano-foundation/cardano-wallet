@@ -35,7 +35,8 @@ import Cardano.CoinSelection
     , verifySelectionError
     )
 import Cardano.CoinSelection.Balance
-    ( SelectionSkeleton )
+    ( SelectionSkeleton
+    )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionSkeleton
     , genSelectionStrategy
@@ -60,47 +61,79 @@ import Cardano.CoinSelection.BalanceSpec
     , unMockComputeMinimumCost
     )
 import Cardano.CoinSelection.UTxOSelection
-    ( UTxOSelection )
+    ( UTxOSelection
+    )
 import Cardano.CoinSelection.UTxOSelection.Gen
-    ( genUTxOSelection, shrinkUTxOSelection )
+    ( genUTxOSelection
+    , shrinkUTxOSelection
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+    ( genCoin
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, genTokenMap, shrinkTokenMap )
+    ( genAssetId
+    , genTokenMap
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -135,7 +168,9 @@ import Test.QuickCheck.Extra
     , (<@>)
     )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( monadicIO
+    , run
+    )
 
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection

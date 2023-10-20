@@ -24,35 +24,59 @@ module Cardano.Wallet.Primitive.Types.Hash
 import Prelude
 
 import Cardano.Wallet.Util
-    ( mapFirst )
+    ( mapFirst
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Crypto.Hash
-    ( Blake2b_224, Blake2b_256, hash )
+    ( Blake2b_224
+    , Blake2b_256
+    , hash
+    )
 import Data.ByteArray
-    ( ByteArrayAccess )
+    ( ByteArrayAccess
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..), prefixF )
+    ( Buildable (..)
+    , prefixF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownSymbol
+    , Symbol
+    , symbolVal
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

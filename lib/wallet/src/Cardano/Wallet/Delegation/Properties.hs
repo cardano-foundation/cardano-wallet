@@ -17,9 +17,19 @@ where
 import Prelude
 
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..), Status (..), slotOf, status )
+    ( History
+    , Operation (..)
+    , Status (..)
+    , slotOf
+    , status
+    )
 import Test.QuickCheck
-    ( Gen, Property, counterexample, forAll, (===) )
+    ( Gen
+    , Property
+    , counterexample
+    , forAll
+    , (===)
+    )
 
 -- | A step of the history, with both states and the change to compute
 -- new from old.

@@ -35,33 +35,52 @@ import Cardano.DB.Sqlite
     , runQuery
     )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( Wallet (..), migrateAll )
+    ( Wallet (..)
+    , migrateAll
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..) )
+    ( BlockId (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( WalletId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Delta
-    ( Delta (Base) )
+    ( Delta (Base)
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Store
-    ( Query (..), Store (..), World )
+    ( Query (..)
+    , Store (..)
+    , World
+    )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Database.Persist.Sql
-    ( deleteWhere, insert_ )
+    ( deleteWhere
+    , insert_
+    )
 import Database.Persist.Sqlite
-    ( SqlPersistT, (==.) )
+    ( SqlPersistT
+    , (==.)
+    )
 import Test.QuickCheck
     ( Arbitrary
     , Gen
@@ -76,9 +95,15 @@ import Test.QuickCheck
     , suchThat
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import UnliftIO.Exception
-    ( bracket )
+    ( bracket
+    )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 

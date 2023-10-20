@@ -7,11 +7,16 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Fee
 import Prelude
 
 import Cardano.Ledger.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Fee
-    ( Fee (..), FeeType )
+    ( Fee (..)
+    , FeeType
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger

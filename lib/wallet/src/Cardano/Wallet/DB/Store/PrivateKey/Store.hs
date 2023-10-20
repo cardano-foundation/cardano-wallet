@@ -17,25 +17,42 @@ module Cardano.Wallet.DB.Store.PrivateKey.Store
 import Prelude
 
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
-    ( serializeXPrv, unsafeDeserializeXPrv )
+    ( serializeXPrv
+    , unsafeDeserializeXPrv
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+    ( KeyFlavorS
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials, RootCredentials (..) )
+    ( HashedCredentials
+    , RootCredentials (..)
+    )
 import Control.Exception
-    ( SomeException (..) )
+    ( SomeException (..)
+    )
 import Data.Delta
-    ( Replace )
+    ( Replace
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Store
-    ( SimpleStore, mkSimpleStore )
+    ( SimpleStore
+    , mkSimpleStore
+    )
 import Database.Persist
-    ( Entity (entityVal), Filter, PersistQueryRead (selectFirst), insert_ )
+    ( Entity (entityVal)
+    , Filter
+    , PersistQueryRead (selectFirst)
+    , insert_
+    )
 import Database.Persist.Sql
-    ( SqlPersistT, deleteWhere )
+    ( SqlPersistT
+    , deleteWhere
+    )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 

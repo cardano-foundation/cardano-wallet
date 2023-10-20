@@ -8,15 +8,25 @@ module Test.Text.Roundtrip
 import Prelude
 
 import Data.Proxy
-    ( Proxy )
+    ( Proxy
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable
+    , typeRep
+    )
 import Test.Hspec
-    ( Spec, it )
+    ( Spec
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), property, (===) )
+    ( Arbitrary (..)
+    , property
+    , (===)
+    )
 
 -- | Constructs a test to check that roundtrip textual encoding and decoding
 -- is possible for values of the given type.

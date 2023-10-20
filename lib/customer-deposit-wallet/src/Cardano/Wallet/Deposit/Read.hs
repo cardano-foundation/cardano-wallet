@@ -44,9 +44,11 @@ module Cardano.Wallet.Deposit.Read
 import Prelude
 
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Chain.Genesis as Byron
 import qualified Cardano.Wallet.Primitive.Types as W

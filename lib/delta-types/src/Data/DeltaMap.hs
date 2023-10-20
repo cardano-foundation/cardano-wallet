@@ -10,11 +10,14 @@ module Data.DeltaMap
 import Prelude
 
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 
 import qualified Data.Map.Strict as Map
 

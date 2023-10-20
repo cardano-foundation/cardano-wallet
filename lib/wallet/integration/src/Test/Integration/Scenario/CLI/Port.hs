@@ -13,25 +13,43 @@ module Test.Integration.Scenario.CLI.Port
 import Prelude
 
 import Cardano.CLI
-    ( Port (..), getPort )
+    ( Port (..)
+    , getPort
+    )
 import Control.Monad
-    ( forM_, void )
+    ( forM_
+    , void
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over )
+    ( over
+    )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import System.Command
-    ( Stderr (..), Stdout (..) )
+    ( Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( hClose, hFlush, hPutStr )
+    ( hClose
+    , hFlush
+    , hPutStr
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI
     , commandName
@@ -47,7 +65,9 @@ import Test.Integration.Framework.DSL
     , updateWalletNameViaCLI
     )
 import UnliftIO.Process
-    ( waitForProcess, withCreateProcess )
+    ( waitForProcess
+    , withCreateProcess
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

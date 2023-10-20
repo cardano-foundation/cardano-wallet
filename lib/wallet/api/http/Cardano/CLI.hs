@@ -101,20 +101,31 @@ module Cardano.CLI
     ) where
 
 import Prelude hiding
-    ( getLine )
+    ( getLine
+    )
 
 import Cardano.BM.Backend.Switchboard
-    ( Switchboard )
+    ( Switchboard
+    )
 import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
+    ( defaultConfigStdout
+    )
 import Cardano.BM.Counters
-    ( readCounters )
+    ( readCounters
+    )
 import Cardano.BM.Data.Configuration
-    ( Endpoint (..) )
+    ( Endpoint (..)
+    )
 import Cardano.BM.Data.Counter
-    ( Counter (..), nameCounter )
+    ( Counter (..)
+    , nameCounter
+    )
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LoggerName, PrivacyAnnotation (..), mkLOMeta )
+    ( LOContent (..)
+    , LoggerName
+    , PrivacyAnnotation (..)
+    , mkLOMeta
+    )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -123,19 +134,34 @@ import Cardano.BM.Data.Output
     , ScribePrivacy (..)
     )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.SubTrace
-    ( SubTrace (..) )
+    ( SubTrace (..)
+    )
 import Cardano.BM.Setup
-    ( setupTrace_, shutdown )
+    ( setupTrace_
+    , shutdown
+    )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, traceNamedObject )
+    ( Trace
+    , appendName
+    , logDebug
+    , traceNamedObject
+    )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..), SomeMnemonic (..) )
+    ( MkSomeMnemonic (..)
+    , SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, defaultAddressPoolGap )
+    ( AddressPoolGap
+    , defaultAddressPoolGap
+    )
 import Cardano.Wallet.Api.Client
     ( AddressClient (..)
     , NetworkClient (..)
@@ -144,7 +170,10 @@ import Cardano.Wallet.Api.Client
     , WalletClient (..)
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference, Listen (..), TlsConfiguration (..) )
+    ( HostPreference
+    , Listen (..)
+    , TlsConfiguration (..)
+    )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -172,13 +201,19 @@ import Cardano.Wallet.Api.Types
     , fmtAllowedWords
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), TxMetadataWithSchema )
+    ( TxMetadataSchema (..)
+    , TxMetadataWithSchema
+    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseMaxLength, PassphraseMinLength )
+    ( Passphrase (..)
+    , PassphraseMaxLength
+    , PassphraseMinLength
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
     , SortOrder
@@ -187,55 +222,97 @@ import Cardano.Wallet.Primitive.Types
     , WalletName
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState )
+    ( AddressState
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SerialisedTx (..) )
+    ( SerialisedTx (..)
+    )
 import Cardano.Wallet.Version
-    ( gitRevision, showFullVersion, version )
+    ( gitRevision
+    , showFullVersion
+    , version
+    )
 import Control.Applicative
-    ( optional, some, (<|>) )
+    ( optional
+    , some
+    , (<|>)
+    )
 import Control.Arrow
-    ( first, left )
+    ( first
+    , left
+    )
 import Control.Monad
-    ( forM_, forever, join, unless, void, when )
+    ( forM_
+    , forever
+    , join
+    , unless
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Data.Aeson
-    ( ToJSON (..), (.:), (.=) )
+    ( ToJSON (..)
+    , (.:)
+    , (.=)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Char
-    ( toLower )
+    ( toLower
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe
+    , isJust
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.String
-    ( IsString )
+    ( IsString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..), showT )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , showT
+    )
 import Data.Text.Read
-    ( decimal )
+    ( decimal
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Void
-    ( Void )
+    ( Void
+    )
 import Fmt
-    ( Buildable, pretty )
+    ( Buildable
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -244,9 +321,11 @@ import Network.HTTP.Client
     )
 -- See ADP-1910
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit (..) )
+    ( ApiLimit (..)
+    )
 import GHC.Num
-    ( Natural )
+    ( Natural
+    )
 import "optparse-applicative" Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -283,13 +362,23 @@ import "optparse-applicative" Options.Applicative
     , value
     )
 import "optparse-applicative" Options.Applicative.Types
-    ( ReadM (..), readerAsk )
+    ( ReadM (..)
+    , readerAsk
+    )
 import Prettyprinter
-    ( vsep )
+    ( vsep
+    )
 import Servant.Client
-    ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
+    ( BaseUrl (..)
+    , ClientM
+    , Scheme (..)
+    , mkClientEnv
+    , runClientM
+    )
 import Servant.Client.Core
-    ( ClientError (..), responseBody )
+    ( ClientError (..)
+    , responseBody
+    )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -307,13 +396,18 @@ import System.Directory
     , getXdgDirectory
     )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.Exit
-    ( exitFailure, exitSuccess )
+    ( exitFailure
+    , exitSuccess
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -329,9 +423,11 @@ import System.IO
     , stdout
     )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( bracket )
+    ( bracket
+    )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM

@@ -47,9 +47,14 @@ module Cardano.Wallet.Address.Discovery.Random
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, toXPub )
+    ( XPrv
+    , toXPub
+    )
 import Cardano.Byron.Codec.Cbor
-    ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
+    ( decodeAddressDerivationPath
+    , decodeAddressPayload
+    , deserialiseCbor
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -71,31 +76,52 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( over )
+    ( over
+    )
 import Control.Monad
-    ( join )
+    ( join
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( Buildable (..), blockMapF', indentF, tupleF )
+    ( Buildable (..)
+    , blockMapF'
+    , indentF
+    , tupleF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Random
-    ( RandomGen, StdGen, mkStdGen, randomR )
+    ( RandomGen
+    , StdGen
+    , mkStdGen
+    , randomR
+    )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map

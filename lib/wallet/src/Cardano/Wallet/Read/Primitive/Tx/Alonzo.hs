@@ -19,7 +19,8 @@ module Cardano.Wallet.Read.Primitive.Tx.Alonzo
 import Prelude
 
 import Cardano.Api
-    ( AlonzoEra )
+    ( AlonzoEra
+    )
 import Cardano.Ledger.Api
     ( addrTxWitsL
     , auxDataTxL
@@ -37,31 +38,46 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Wallet.Read.Eras
-    ( alonzo, inject )
+    ( alonzo
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
+    ( anyEraCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromAlonzoMetadata )
+    ( fromAlonzoMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( alonzoMint, fromLedgerScriptHash )
+    ( alonzoMint
+    , fromLedgerScriptHash
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromAlonzoTxOut )
+    ( fromAlonzoTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript )
+    ( toWalletScript
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -74,7 +90,10 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (^.), (^..) )
+    ( folded
+    , (^.)
+    , (^..)
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo

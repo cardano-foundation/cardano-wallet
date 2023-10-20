@@ -14,23 +14,35 @@ module Cardano.Pool.DB.Log
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( BracketLog )
+    ( BracketLog
+    )
 import Cardano.DB.Sqlite
-    ( DBLog (..) )
+    ( DBLog (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolRetirementCertificate )
+    ( EpochNo
+    , PoolRetirementCertificate
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..), toText )
+    ( ToText (..)
+    , toText
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 
 import qualified Data.Text as T
 

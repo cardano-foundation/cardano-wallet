@@ -17,25 +17,36 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
 import Prelude
 
 import Cardano.Binary
-    ( serialize' )
+    ( serialize'
+    )
 import Cardano.Chain.Common
-    ( unsafeGetLovelace )
+    ( unsafeGetLovelace
+    )
 import Cardano.Ledger.Alonzo
-    ( AlonzoScript )
+    ( AlonzoScript
+    )
 import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing) )
+    ( StrictMaybe (SJust, SNothing)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Outputs
-    ( Outputs (..) )
+    ( Outputs (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletTokenBundle )
+    ( toWalletTokenBundle
+    )
 import Cardano.Wallet.Util
-    ( internalError )
+    ( internalError
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo

@@ -17,9 +17,14 @@ module Test.Integration.Scenario.API.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..), Role (..) )
+    ( DerivationIndex (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
+    ( defaultAddressPoolGap
+    , getAddressPoolGap
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -31,31 +36,51 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxStatus (..) )
+    ( TxStatus (..)
+    )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM
+    , forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( runResourceT )
+    ( runResourceT
+    )
 import Data.Aeson
-    ( ToJSON (..), object, (.=) )
+    ( ToJSON (..)
+    , object
+    , (.=)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe, shouldSatisfy )
+    ( shouldBe
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

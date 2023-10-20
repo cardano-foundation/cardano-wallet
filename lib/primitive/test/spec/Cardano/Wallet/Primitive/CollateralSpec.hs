@@ -19,31 +19,52 @@ import Cardano.Wallet.Primitive.Collateral
     , putAddressType
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+    ( genTokenBundleSmallRangePositive
+    , shrinkTokenBundleSmallRangePositive
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeBech32Decode )
+    ( unsafeBech32Decode
+    )
 import Control.Monad
-    ( guard, replicateM_ )
+    ( guard
+    , replicateM_
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
+    ( bitcoinAlphabet
+    , decodeBase58
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Maybe
-    ( fromJust, isJust, isNothing )
+    ( fromJust
+    , isJust
+    , isNothing
+    )
 import Numeric
-    ( showHex )
+    ( showHex
+    )
 import Test.Cardano.Ledger.Core.Arbitrary
     ()
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

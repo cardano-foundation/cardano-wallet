@@ -32,21 +32,29 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Mary.Core
-    ( mintTxBodyL )
+    ( mintTxBodyL
+    )
 import Cardano.Ledger.Mary.Value
-    ( MultiAsset )
+    ( MultiAsset
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 
 type family MintType era where
   MintType ByronEra = ()

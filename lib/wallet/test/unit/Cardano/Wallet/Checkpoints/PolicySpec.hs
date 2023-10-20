@@ -6,9 +6,16 @@ module Cardano.Wallet.Checkpoints.PolicySpec
 import Prelude
 
 import Cardano.Wallet.Checkpoints.Policy
-    ( BlockHeight, CheckpointPolicy, nextCheckpoint, toListAtTip )
+    ( BlockHeight
+    , CheckpointPolicy
+    , nextCheckpoint
+    , toListAtTip
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

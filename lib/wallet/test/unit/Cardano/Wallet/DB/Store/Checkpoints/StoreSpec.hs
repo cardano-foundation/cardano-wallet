@@ -11,35 +11,64 @@ module Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext, runQuery )
+    ( ForeignKeysSetting (..)
+    , SqliteContext
+    , runQuery
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..), Prologue, getPrologue )
+    ( AddressBookIso (..)
+    , Prologue
+    , getPrologue
+    )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( Readiness (Pending), SharedState (..) )
+    ( Readiness (Pending)
+    , SharedState (..)
+    )
 import Cardano.Wallet.Checkpoints
-    ( Checkpoints, DeltaCheckpoints (..), checkpoints, getLatest )
+    ( Checkpoints
+    , DeltaCheckpoints (..)
+    , checkpoints
+    , getLatest
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWalletTable, withDBInMemory )
+    ( initializeWalletTable
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
-    ( PersistAddressBook (..) )
+    ( PersistAddressBook (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..), WalletId, WithOrigin (..) )
+    ( SlotNo (..)
+    , WalletId
+    , WithOrigin (..)
+    )
 import Fmt
-    ( Buildable (..), pretty )
+    ( Buildable (..)
+    , pretty
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -51,7 +80,12 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 
 import qualified Data.Map.Strict as Map
 

@@ -45,47 +45,78 @@ module Cardano.Wallet.DB.WalletState
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..), Discoveries, Prologue )
+    ( AddressBookIso (..)
+    , Discoveries
+    , Prologue
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+    ( Depth (RootK)
+    )
 import Cardano.Wallet.Checkpoints
-    ( Checkpoints )
+    ( Checkpoints
+    )
 import Cardano.Wallet.DB.Store.Delegations.Model
-    ( Delegations, DeltaDelegations )
+    ( Delegations
+    , DeltaDelegations
+    )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo, WalletInfo (..) )
+    ( DeltaWalletInfo
+    , WalletInfo (..)
+    )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( DeltaPrivateKey )
+    ( DeltaPrivateKey
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( emptyTxSubmissions )
+    ( emptyTxSubmissions
+    )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DeltaTxSubmissions, TxSubmissions )
+    ( DeltaTxSubmissions
+    , TxSubmissions
+    )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyOf
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader )
+    ( BlockHeader
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials )
+    ( HashedCredentials
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Data.Delta
-    ( Delta (..), Replace (..) )
+    ( Delta (..)
+    , Replace (..)
+    )
 import Data.Delta.Update
-    ( Update, updateField )
+    ( Update
+    , updateField
+    )
 import Data.Generics.Internal.VL
-    ( withIso )
+    ( withIso
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( Buildable (..), pretty )
+    ( Buildable (..)
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W

@@ -35,7 +35,8 @@ module Cardano.Pool.DB.Sqlite
 import Prelude
 
 import Cardano.BM.Extra
-    ( bracketTracer )
+    ( bracketTracer
+    )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -51,19 +52,36 @@ import Cardano.DB.Sqlite
     , withSqliteContextFile
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolLifeCycleStatus
+    )
 import Cardano.Pool.DB.Log
-    ( ParseFailure (..), PoolDbLog (..) )
+    ( ParseFailure (..)
+    , PoolDbLog (..)
+    )
 import Cardano.Pool.DB.Sqlite.TH hiding
-    ( BlockHeader, blockHeight )
+    ( BlockHeader
+    , blockHeight
+    )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadata (..), StakePoolMetadataHash )
+    ( StakePoolMetadata (..)
+    , StakePoolMetadataHash
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), fromMaybeHash, toMaybeHash )
+    ( BlockId (..)
+    , fromMaybeHash
+    , toMaybeHash
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter
+    , epochOf
+    , firstSlotInEpoch
+    , interpretQuery
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -74,39 +92,67 @@ import Cardano.Wallet.Primitive.Types
     , defaultSettings
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM
+    , forM_
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..)
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, natTracer, traceWith )
+    ( Tracer (..)
+    , contramap
+    , natTracer
+    , traceWith
+    )
 import Data.Either
-    ( partitionEithers, rights )
+    ( partitionEithers
+    , rights
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.List
-    ( foldl' )
+    ( foldl'
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Quantity
-    ( Percentage (..), Quantity (..) )
+    ( Percentage (..)
+    , Quantity (..)
+    )
 import Data.Ratio
-    ( denominator, numerator, (%) )
+    ( denominator
+    , numerator
+    , (%)
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime, getCurrentTime )
+    ( UTCTime
+    , addUTCTime
+    , getCurrentTime
+    )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64
+    , Word8
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -131,15 +177,22 @@ import Database.Persist.Sql
     , (>=.)
     )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import System.Directory
-    ( removeFile )
+    ( removeFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.Random
-    ( newStdGen )
+    ( newStdGen
+    )
 import UnliftIO.Exception
-    ( bracket, catch, throwIO )
+    ( bracket
+    , catch
+    , throwIO
+    )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W

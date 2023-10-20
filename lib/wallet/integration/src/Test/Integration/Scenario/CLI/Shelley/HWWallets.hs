@@ -12,9 +12,12 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 import Prelude
 
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+    ( defaultAddressPoolGap
+    , getAddressPoolGap
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiFee
@@ -24,33 +27,53 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..) )
+    ( TxMetadataSchema (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith
+    , describe
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , createWalletFromPublicKeyViaCLI
@@ -84,9 +107,13 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk, errMsg403NoRootKey )
+    ( cmdOk
+    , errMsg403NoRootKey
+    )
 import Test.Integration.Scenario.CLI.Shelley.Wallets
-    ( walletNames, walletNamesInvalid )
+    ( walletNames
+    , walletNamesInvalid
+    )
 
 import qualified Data.Text as T
 

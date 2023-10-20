@@ -26,23 +26,43 @@ module Test.Hspec.Goldens
 import Prelude
 
 import Data.Either.Combinators
-    ( rightToMaybe )
+    ( rightToMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Fmt
-    ( Builder, fmt, (+|), (+||), (|+), (||+) )
+    ( Builder
+    , fmt
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.FilePath
-    ( (<.>), (</>) )
+    ( (<.>)
+    , (</>)
+    )
 import System.IO.Error
-    ( ioeGetErrorType, isDoesNotExistErrorType )
+    ( ioeGetErrorType
+    , isDoesNotExistErrorType
+    )
 import Test.Hspec
-    ( Expectation, expectationFailure, shouldBe )
+    ( Expectation
+    , expectationFailure
+    , shouldBe
+    )
 import Test.Utils.Platform
-    ( isWindows )
+    ( isWindows
+    )
 import UnliftIO.Exception
-    ( IOException, try, tryJust )
+    ( IOException
+    , try
+    , tryJust
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

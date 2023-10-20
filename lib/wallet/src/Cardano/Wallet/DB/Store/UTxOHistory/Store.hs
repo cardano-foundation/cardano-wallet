@@ -10,9 +10,15 @@ module Cardano.Wallet.DB.Store.UTxOHistory.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( DeltaUTxOSlots (..), DeltaUTxOValue (..), EntityField (..), Key (..) )
+    ( DeltaUTxOSlots (..)
+    , DeltaUTxOValue (..)
+    , EntityField (..)
+    , Key (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..), getTxId )
+    ( TxId (..)
+    , getTxId
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
@@ -24,30 +30,51 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     , reverseMapOfSets
     )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
-    ( UTxOHistory (..) )
+    ( UTxOHistory (..)
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
-    ( deserializeTxOut, serializeTxOut )
+    ( deserializeTxOut
+    , serializeTxOut
+    )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId, WithOrigin (..) )
+    ( WalletId
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut )
+    ( TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO (..) )
+    ( DeltaUTxO (..)
+    , UTxO (..)
+    )
 import Control.Lens
-    ( lazy, strict, view, (<&>) )
+    ( lazy
+    , strict
+    , view
+    , (<&>)
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either.Extra
 import Data.Foldable
-    ( foldl', forM_ )
+    ( foldl'
+    , forM_
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Database.Persist.Sql
     ( PersistQueryWrite (deleteWhere)
     , SqlPersistT
@@ -64,9 +91,12 @@ import Database.Persist.Sql
     , (>.)
     )
 import GHC.Exception
-    ( Exception, SomeException )
+    ( Exception
+    , SomeException
+    )
 import GHC.Exception.Type
-    ( toException )
+    ( toException
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

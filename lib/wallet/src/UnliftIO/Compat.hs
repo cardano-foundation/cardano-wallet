@@ -23,11 +23,14 @@ module UnliftIO.Compat
 import Prelude
 
 import Control.Concurrent.Async
-    ( AsyncCancelled (..) )
+    ( AsyncCancelled (..)
+    )
 import Control.Exception.Base
-    ( Exception )
+    ( Exception
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadUnliftIO (..)
+    )
 
 import qualified Control.Monad.Catch as Exceptions
 import qualified UnliftIO.Exception as UnliftIO

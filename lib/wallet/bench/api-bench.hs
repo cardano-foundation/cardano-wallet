@@ -41,31 +41,50 @@ module Main where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Extra
-    ( trMessageText )
+    ( trMessageText
+    )
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace
+    )
 import Cardano.Wallet
-    ( WalletLayer (..), readWalletMeta )
+    ( WalletLayer (..)
+    , readWalletMeta
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..), Depth (..), delegationAddressS )
+    ( DelegationAddress (..)
+    , Depth (..)
+    , delegationAddressS
+    )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+    ( RndState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+    ( SeqState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState (..) )
+    ( SharedState (..)
+    )
 import Cardano.Wallet.BenchShared
-    ( Time, bench, initBenchmarkLogging, runBenchmarks )
+    ( Time
+    , bench
+    , initBenchmarkLogging
+    , runBenchmarks
+    )
 import Cardano.Wallet.DB
-    ( DBFresh (..) )
+    ( DBFresh (..)
+    )
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook )
+    ( PersistAddressBook
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer
     , dummyProtocolParameters
@@ -73,11 +92,17 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavor, KeyOf, WalletFlavor (..), keyFlavor )
+    ( KeyFlavor
+    , KeyOf
+    , WalletFlavor (..)
+    , keyFlavor
+    )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Model
-    ( totalUTxO )
+    ( totalUTxO
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminant (..)
@@ -87,37 +112,65 @@ import Cardano.Wallet.Primitive.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+    ( TimeInterpreter
+    , hoistTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId, WalletMetadata (..) )
+    ( SortOrder (..)
+    , WalletId
+    , WalletMetadata (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..) )
+    ( HistogramBar (..)
+    , UTxOStatistics (..)
+    )
 import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
+    ( newTransactionLayer
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeRunExceptT
+    )
 import Control.Monad
-    ( forM )
+    ( forM
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Data.Aeson
-    ( ToJSON (..), genericToJSON, (.=) )
+    ( ToJSON (..)
+    , genericToJSON
+    , (.=)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Fmt
-    ( Buildable, Builder, blockListF', build, genericF, nameF, pretty )
+    ( Buildable
+    , Builder
+    , blockListF'
+    , build
+    , genericF
+    , nameF
+    , pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Say
-    ( sayErr )
+    ( sayErr
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W

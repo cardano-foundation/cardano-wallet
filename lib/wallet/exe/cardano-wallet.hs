@@ -26,13 +26,23 @@ module Main where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Extra
-    ( trMessage, transformTextTrace )
+    ( trMessage
+    , transformTextTrace
+    )
 import Cardano.BM.Plugin
-    ( loadPlugin )
+    ( loadPlugin
+    )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
+    ( Trace
+    , appendName
+    , logDebug
+    , logError
+    , logInfo
+    , logNotice
+    )
 import Cardano.CLI
     ( LogOutput (..)
     , LoggingOptions
@@ -67,9 +77,13 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+    ( CardanoNodeConn
+    )
 import Cardano.Startup
-    ( ShutdownHandlerLog, installSignalHandlers, withShutdownHandler )
+    ( ShutdownHandlerLog
+    , installSignalHandlers
+    , withShutdownHandler
+    )
 import Cardano.Wallet.Api.Client
     ( addressClient
     , networkClient
@@ -78,13 +92,23 @@ import Cardano.Wallet.Api.Client
     , walletClient
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference, Listen (..), TlsConfiguration )
+    ( HostPreference
+    , Listen (..)
+    , TlsConfiguration
+    )
 import Cardano.Wallet.CLI
-    ( networkConfigurationOption, nodeSocketOption )
+    ( networkConfigurationOption
+    , nodeSocketOption
+    )
 import Cardano.Wallet.Network.Config
-    ( NetworkConfiguration (..), parseGenesisData )
+    ( NetworkConfiguration (..)
+    , parseGenesisData
+    )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
+    ( PoolMetadataSource (..)
+    , Settings (..)
+    , TokenMetadataServer (..)
+    )
 import Cardano.Wallet.Shelley
     ( TracerSeverities
     , Tracers
@@ -95,31 +119,48 @@ import Cardano.Wallet.Shelley
     , tracerLabels
     )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Version
-    ( GitRevision, Version, showFullVersion )
+    ( GitRevision
+    , Version
+    , showFullVersion
+    )
 import Control.Applicative
-    ( Const (..), optional )
+    ( Const (..)
+    , optional
+    )
 import Control.Exception.Base
-    ( AsyncException (..) )
+    ( AsyncException (..)
+    )
 import Control.Monad
-    ( void, when )
+    ( void
+    , when
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Control.Tracer
-    ( contramap )
+    ( contramap
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 import Data.Foldable
-    ( forM_ )
+    ( forM_
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import "optparse-applicative" Options.Applicative
     ( CommandFields
     , Mod
@@ -135,13 +176,19 @@ import "optparse-applicative" Options.Applicative
     , value
     )
 import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
+    ( tunedForMainnetPipeliningStrategy
+    )
 import System.Environment
-    ( getArgs, getExecutablePath )
+    ( getArgs
+    , getExecutablePath
+    )
 import System.Exit
-    ( ExitCode (..), exitWith )
+    ( ExitCode (..)
+    , exitWith
+    )
 import UnliftIO.Exception
-    ( withException )
+    ( withException
+    )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Version as V

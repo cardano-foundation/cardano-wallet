@@ -20,11 +20,16 @@ module Cardano.Wallet.DB.Store.Info.Store
 import Prelude
 
 import Cardano.Wallet.DB.Errors
-    ( ErrWalletNotInitialized (ErrWalletNotInitialized) )
+    ( ErrWalletNotInitialized (ErrWalletNotInitialized)
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..), Wallet (..) )
+    ( EntityField (..)
+    , Wallet (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (BlockId), getBlockId )
+    ( BlockId (BlockId)
+    , getBlockId
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (WalletPassphraseInfo, lastUpdatedAt, passphraseScheme)
     )
@@ -37,17 +42,26 @@ import Cardano.Wallet.Primitive.Types
     , getWalletName
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (Hash) )
+    ( Hash (Hash)
+    )
 import Control.Exception
-    ( SomeException (..) )
+    ( SomeException (..)
+    )
 import Control.Lens
-    ( to, (^.) )
+    ( to
+    , (^.)
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( throwIO
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore, updateLoad )
+    ( UpdateStore
+    , mkUpdateStore
+    , updateLoad
+    )
 import Database.Persist
     ( Entity (entityVal)
     , Filter
@@ -58,11 +72,15 @@ import Database.Persist
     , (=.)
     )
 import Database.Persist.Sql
-    ( SqlPersistT, deleteWhere )
+    ( SqlPersistT
+    , deleteWhere
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 mkWalletMetadataUpdate :: WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =

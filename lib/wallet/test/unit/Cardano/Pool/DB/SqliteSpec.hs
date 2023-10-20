@@ -14,31 +14,48 @@ module Cardano.Pool.DB.SqliteSpec
 import Prelude
 
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( nullTracer
+    )
 import Cardano.DB.Sqlite
-    ( DBLog (..) )
+    ( DBLog (..)
+    )
 import Cardano.Pool.DB
-    ( DBLayer (..) )
+    ( DBLayer (..)
+    )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog (..) )
+    ( PoolDbLog (..)
+    )
 import Cardano.Pool.DB.Properties
-    ( properties )
+    ( properties
+    )
 import Cardano.Pool.DB.Sqlite
-    ( withDBLayer )
+    ( withDBLayer
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+    ( dummyTimeInterpreter
+    )
 import System.Directory
-    ( copyFile )
+    ( copyFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec
-    ( Spec, around, describe, it, shouldBe )
+    ( Spec
+    , around
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging
+    )
 import UnliftIO.Temporary
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 
 withMemoryDBLayer
     :: (DBLayer IO -> IO a)

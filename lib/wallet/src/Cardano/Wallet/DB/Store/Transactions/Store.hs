@@ -38,7 +38,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxWithdrawal (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId )
+    ( TxId
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
     , TxRelation (..)
@@ -47,27 +48,43 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , tokenOutOrd
     )
 import Control.Arrow
-    ( Arrow ((&&&)) )
+    ( Arrow ((&&&))
+    )
 import Control.Monad.Reader
-    ( MonadIO, ReaderT )
+    ( MonadIO
+    , ReaderT
+    )
 import Data.Foldable
-    ( fold, toList )
+    ( fold
+    , toList
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.List.Split
-    ( chunksOf )
+    ( chunksOf
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( listToMaybe, maybeToList )
+    ( listToMaybe
+    , maybeToList
+    )
 import Data.Monoid
-    ( First (..), getFirst )
+    ( First (..)
+    , getFirst
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore )
+    ( UpdateStore
+    , mkUpdateStore
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Database.Persist.Sql
     ( BaseBackend
     , Entity

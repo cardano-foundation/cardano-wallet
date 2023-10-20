@@ -34,11 +34,14 @@ module Data.Quantity
 import Prelude
 
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -50,29 +53,48 @@ import Data.Aeson
     , (.=)
     )
 import Data.Aeson.Types
-    ( Parser )
+    ( Parser
+    )
 import Data.Data
-    ( Data )
+    ( Data
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Scientific
-    ( FPFormat (Fixed), Scientific (..), formatScientific )
+    ( FPFormat (Fixed)
+    , Scientific (..)
+    , formatScientific
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Data.Text.Read
-    ( rational )
+    ( rational
+    )
 import Fmt
-    ( Buildable (..), fmt )
+    ( Buildable (..)
+    , fmt
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownSymbol
+    , Symbol
+    , symbolVal
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Data.Text as T
 

@@ -31,25 +31,36 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.TxOut
-    ( AlonzoTxOut )
+    ( AlonzoTxOut
+    )
 import Cardano.Ledger.Babbage.TxOut
-    ( BabbageTxOut )
+    ( BabbageTxOut
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, outputsTxBodyL )
+    ( bodyTxL
+    , outputsTxBodyL
+    )
 import Cardano.Ledger.Shelley.TxOut
-    ( ShelleyTxOut )
+    ( ShelleyTxOut
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardAllegra
     , StandardAlonzo

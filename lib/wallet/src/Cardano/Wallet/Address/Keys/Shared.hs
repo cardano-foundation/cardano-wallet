@@ -40,7 +40,9 @@ import Cardano.Address.Script
     , validateScriptTemplate
     )
 import Cardano.Crypto.Wallet
-    ( XPub, unXPub )
+    ( XPub
+    , unXPub
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationPrefix (..)
@@ -49,11 +51,17 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..), purposeCIP1854, replaceCosignersWithVerKeys )
+    ( SharedKey (..)
+    , purposeCIP1854
+    , replaceCosignersWithVerKeys
+    )
 import Cardano.Wallet.Address.Discovery
-    ( coinTypeAda, emptyPendingIxs )
+    ( coinTypeAda
+    , emptyPendingIxs
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap (..) )
+    ( AddressPoolGap (..)
+    )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
@@ -66,25 +74,38 @@ import Cardano.Wallet.Address.Discovery.Shared
     , retrieveAllCosigners
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, publicKey )
+    ( getRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS )
+    ( KeyFlavorS
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, hash )
+    ( Blake2b_160
+    , Digest
+    , hash
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Either.Combinators
-    ( mapLeft )
+    ( mapLeft
+    )
 
 import Cardano.Address.Script.Parser
-    ( scriptToText )
+    ( scriptToText
+    )
 import qualified Cardano.Address.Style.Shelley as CA
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( ClearCredentials, RootCredentials (..) )
+    ( ClearCredentials
+    , RootCredentials (..)
+    )
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T

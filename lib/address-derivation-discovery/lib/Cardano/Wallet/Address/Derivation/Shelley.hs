@@ -54,7 +54,10 @@ import Cardano.Crypto.Wallet
     , xpub
     )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
+    ( SomeMnemonic (..)
+    , entropyToBytes
+    , mnemonicToEntropy
+    )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
@@ -79,7 +82,9 @@ import Cardano.Wallet.Address.Derivation
     , toAddressParts
     )
 import Cardano.Wallet.Address.Discovery
-    ( GetPurpose (..), IsOurs (..) )
+    ( GetPurpose (..)
+    , IsOurs (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
@@ -94,31 +99,50 @@ import Cardano.Wallet.Primitive.NetworkId
     , networkDiscriminantBits
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( Iso, iso, over, (^.) )
+    ( Iso
+    , iso
+    , over
+    , (^.)
+    )
 import Control.Monad
-    ( guard, (<=<) )
+    ( guard
+    , (<=<)
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..) )
+    ( Blake2b_224 (..)
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize) )
+    ( HashAlgorithm (hashDigestSize)
+    )
 import Data.Binary.Put
-    ( putByteString, putWord8, runPut )
+    ( putByteString
+    , putWord8
+    , runPut
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

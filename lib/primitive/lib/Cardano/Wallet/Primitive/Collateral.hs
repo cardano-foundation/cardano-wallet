@@ -36,15 +36,20 @@ module Cardano.Wallet.Primitive.Collateral
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Data.Word.Odd
-    ( Word4 )
+    ( Word4
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B

@@ -74,7 +74,8 @@ module Data.Store (
 import Prelude
 
 import Control.Applicative
-    ( liftA2 )
+    ( liftA2
+    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -86,11 +87,23 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Exception
-    ( Exception, SomeException (..), toException )
+    ( Exception
+    , SomeException (..)
+    , toException
+    )
 import Control.Monad
-    ( foldM_, join )
+    ( foldM_
+    , join
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadEvaluate, MonadMask, MonadThrow, evaluate, finally, mask, throwIO )
+    ( MonadEvaluate
+    , MonadMask
+    , MonadThrow
+    , evaluate
+    , finally
+    , mask
+    , throwIO
+    )
 import Data.Delta
     ( Delta (..)
     , Embedding
@@ -101,9 +114,11 @@ import Data.Delta
     , project
     )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import GHC.Generics
-    ( (:+:) (..) )
+    ( (:+:) (..)
+    )
 
 {-------------------------------------------------------------------------------
     Store

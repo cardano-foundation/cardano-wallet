@@ -14,17 +14,25 @@ module Control.Monad.UtilSpec
 import Prelude
 
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Control.Monad.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Control.Monad.Util
-    ( applyNM )
+    ( applyNM
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Function.Utils
-    ( applyN )
+    ( applyN
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Fun (..)
     , NonNegative (..)

@@ -13,9 +13,13 @@ module Cardano.Wallet.Primitive.Types.Address.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Test.QuickCheck
-    ( Gen, elements, sized )
+    ( Gen
+    , elements
+    , sized
+    )
 
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS

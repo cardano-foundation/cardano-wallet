@@ -12,9 +12,12 @@ module Test.Utils.StaticServer
 import Prelude
 
 import Network.Wai.Application.Static
-    ( defaultFileServerSettings, staticApp )
+    ( defaultFileServerSettings
+    , staticApp
+    )
 import Network.Wai.Handler.Warp
-    ( withApplication )
+    ( withApplication
+    )
 
 -- | Run a localhost HTTP file server on any free port, while executing the
 -- given action.

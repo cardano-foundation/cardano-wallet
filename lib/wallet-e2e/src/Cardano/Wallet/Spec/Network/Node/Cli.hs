@@ -6,15 +6,25 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.String as String
 
 import Cardano.Node.Cli.Launcher
-    ( NodeApi, nodeApiSocket )
+    ( NodeApi
+    , nodeApiSocket
+    )
 import Data.Aeson
-    ( withObject, (.:) )
+    ( withObject
+    , (.:)
+    )
 import Path
-    ( toFilePath )
+    ( toFilePath
+    )
 import Prelude hiding
-    ( stderr, stdout )
+    ( stderr
+    , stdout
+    )
 import System.Process.Typed
-    ( ExitCode (..), readProcess, shell )
+    ( ExitCode (..)
+    , readProcess
+    , shell
+    )
 
 data NodeTip = NodeTip
     { block :: Natural

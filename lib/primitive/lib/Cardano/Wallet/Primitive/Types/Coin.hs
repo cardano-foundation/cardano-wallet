@@ -47,50 +47,84 @@ module Cardano.Wallet.Primitive.Types.Coin
     ) where
 
 import Prelude hiding
-    ( fromIntegral, subtract, toInteger )
+    ( fromIntegral
+    , subtract
+    , toInteger
+    )
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural, partitionNatural )
+    ( equipartitionNatural
+    , partitionNatural
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Bits
-    ( Bits )
+    ( Bits
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.IntCast
-    ( IsIntSubType, intCast, intCastMaybe )
+    ( IsIntSubType
+    , intCast
+    , intCastMaybe
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive ((</>)), RightReductive )
+    ( LeftReductive
+    , Reductive ((</>))
+    , RightReductive
+    )
 import Data.Monoid.GCD
-    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+    ( GCDMonoid
+    , LeftGCDMonoid
+    , RightGCDMonoid
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)), OverlappingGCDMonoid )
+    ( Monus ((<\>))
+    , OverlappingGCDMonoid
+    )
 import Data.Monoid.Null
-    ( MonoidNull )
+    ( MonoidNull
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Fmt
-    ( Buildable (..), fixedF )
+    ( Buildable (..)
+    , fixedF
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Data.Text as T
 import qualified Prelude

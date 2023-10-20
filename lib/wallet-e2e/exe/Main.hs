@@ -4,9 +4,13 @@ import qualified Options.Applicative as OptParse
 import qualified Test.Syd.OptParse as SydTest
 
 import Cardano.Wallet.Spec
-    ( TestNetworkConfig (..), effectsSpec, walletSpec )
+    ( TestNetworkConfig (..)
+    , effectsSpec
+    , walletSpec
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Options.Applicative
     ( Parser
     , eitherReader
@@ -22,11 +26,16 @@ import Options.Applicative
     , short
     )
 import Path
-    ( Dir, SomeBase (..), parseSomeDir )
+    ( Dir
+    , SomeBase (..)
+    , parseSomeDir
+    )
 import Path.IO
-    ( AnyPath (makeAbsolute) )
+    ( AnyPath (makeAbsolute)
+    )
 import Test.Syd
-    ( sydTestWith )
+    ( sydTestWith
+    )
 
 main :: IO ()
 main = withUtf8 do

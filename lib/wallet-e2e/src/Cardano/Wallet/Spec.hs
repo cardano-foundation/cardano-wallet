@@ -9,17 +9,30 @@ import qualified Cardano.Wallet.Spec.Network.Manual as Manual
 import qualified Cardano.Wallet.Spec.Network.Preprod as Preprod
 
 import Cardano.Wallet.Spec.Interpreters.Effectfully
-    ( story )
+    ( story
+    )
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig )
+    ( NetworkConfig
+    )
 import Cardano.Wallet.Spec.Stories.Wallet
-    ( createdWalletHasZeroAda, createdWalletListed, createdWalletRetrievable )
+    ( createdWalletHasZeroAda
+    , createdWalletListed
+    , createdWalletRetrievable
+    )
 import Cardano.Wallet.Spec.TimeoutSpec
-    ( timeoutSpec )
+    ( timeoutSpec
+    )
 import Path
-    ( Abs, Dir, Path )
+    ( Abs
+    , Dir
+    , Path
+    )
 import Test.Syd
-    ( Spec, aroundAll, describe, sequential )
+    ( Spec
+    , aroundAll
+    , describe
+    , sequential
+    )
 
 walletSpec :: TestNetworkConfig -> Spec
 walletSpec networkConfig =

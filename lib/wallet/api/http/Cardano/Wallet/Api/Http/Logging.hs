@@ -16,21 +16,32 @@ module Cardano.Wallet.Api.Http.Logging
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( getSeverityAnnotation )
+    ( getSeverityAnnotation
+    )
 import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation, HasSeverityAnnotation, Severity (..) )
+    ( HasPrivacyAnnotation
+    , HasSeverityAnnotation
+    , Severity (..)
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+    ( CardanoNodeConn
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( ListenError (..) )
+    ( ListenError (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.URI
-    ( URI, uriToString )
+    ( URI
+    , uriToString
+    )
 
 import qualified Data.Text as T
 

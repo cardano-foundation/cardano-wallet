@@ -14,29 +14,49 @@ module Test.Integration.Scenario.CLI.Byron.Addresses
 import Prelude
 
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath, ApiByronWallet, ApiT (..) )
+    ( ApiAddressWithPath
+    , ApiByronWallet
+    , ApiT (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith
+    , describe
+    , it
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Integration.Framework.DSL
     ( Context
     , createAddressViaCLI
@@ -59,7 +79,11 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk, errMsg403NotAByronWallet, errMsg403WrongPass, errMsg404NoWallet )
+    ( cmdOk
+    , errMsg403NotAByronWallet
+    , errMsg403WrongPass
+    , errMsg404NoWallet
+    )
 
 import qualified Data.Text as T
 

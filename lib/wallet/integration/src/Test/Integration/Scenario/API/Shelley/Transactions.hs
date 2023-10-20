@@ -24,9 +24,13 @@ module Test.Integration.Scenario.API.Shelley.Transactions
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
@@ -45,63 +49,113 @@ import Cardano.Wallet.Api.Types
     , pendingSince
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (..) )
+    ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata )
+    ( detailedMetadata
+    )
 import Cardano.Wallet.Faucet
-    ( seaHorsePolicyId, seaHorseTokenName )
+    ( seaHorsePolicyId
+    , seaHorseTokenName
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId )
+    ( SortOrder (..)
+    , WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( unAddress )
+    ( unAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( mkTokenFingerprint )
+    ( mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText
+    )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM
+    , forM_
+    , when
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..), liftIO )
+    ( MonadIO (..)
+    , MonadUnliftIO (..)
+    , liftIO
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Aeson
-    ( (.=) )
+    ( (.=)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.Generics.Product.Typed
-    ( HasType )
+    ( HasType
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+    ( NominalDiffTime
+    , UTCTime
+    , addUTCTime
+    , getCurrentTime
+    )
 import Data.Time.Utils
-    ( utcTimePred, utcTimeSucc )
+    ( utcTimePred
+    , utcTimeSucc
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith
+    , describe
+    , pendingWith
+    )
 import Test.Hspec.Expectations.Lifted
-    ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
+    ( expectationFailure
+    , shouldBe
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (_mainEra, _mintSeaHorseAssets)
     , Headers (..)
@@ -155,7 +209,8 @@ import Test.Integration.Framework.DSL
     , (.>=)
     )
 import Test.Integration.Framework.Request
-    ( RequestException )
+    ( RequestException
+    )
 import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
@@ -174,7 +229,8 @@ import Test.Integration.Framework.TestData
     , txMetadata_ADP_1005
     )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link

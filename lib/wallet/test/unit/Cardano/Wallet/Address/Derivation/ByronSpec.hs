@@ -15,11 +15,16 @@ module Cardano.Wallet.Address.Derivation.ByronSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
     , generateKeyFromSeed
@@ -30,21 +35,39 @@ import Cardano.Wallet.Address.Derivation.Byron
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic, unsafeXPrv )
+    ( unsafeMkMnemonic
+    , unsafeXPrv
+    )
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
+    ( Base (Base16)
+    , convertFromBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation
+    , Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, vector )
+    ( Arbitrary (..)
+    , Property
+    , choose
+    , property
+    , vector
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA

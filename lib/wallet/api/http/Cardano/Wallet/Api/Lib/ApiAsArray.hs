@@ -18,19 +18,29 @@ module Cardano.Wallet.Api.Lib.ApiAsArray (ApiAsArray (..)) where
 import Prelude
 
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Maybe
-    ( maybeToList )
+    ( maybeToList
+    )
 import Data.Typeable
-    ( Proxy (..), Typeable )
+    ( Proxy (..)
+    , Typeable
+    )
 import GHC.Base
-    ( Symbol )
+    ( Symbol
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownSymbol, symbolVal )
+    ( KnownSymbol
+    , symbolVal
+    )
 
 -- | A wrapper that allows any type to be serialized as a JSON array.
 --

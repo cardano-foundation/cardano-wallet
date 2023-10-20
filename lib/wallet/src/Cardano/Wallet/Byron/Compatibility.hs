@@ -42,7 +42,9 @@ module Cardano.Wallet.Byron.Compatibility
 import Prelude
 
 import Cardano.Chain.Block
-    ( ABlockOrBoundary (..), blockTxPayload )
+    ( ABlockOrBoundary (..)
+    , blockTxPayload
+    )
 import Cardano.Chain.Common
     ( BlockCount (..)
     , Lovelace
@@ -51,45 +53,73 @@ import Cardano.Chain.Common
     , unsafeGetLovelace
     )
 import Cardano.Chain.Genesis
-    ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
+    ( GenesisData (..)
+    , GenesisHash (..)
+    , GenesisNonAvvmBalances (..)
+    )
 import Cardano.Chain.Slotting
-    ( EpochSlots (..) )
+    ( EpochSlots (..)
+    )
 import Cardano.Chain.Update
-    ( ProtocolParameters (..) )
+    ( ProtocolParameters (..)
+    )
 import Cardano.Chain.UTxO
-    ( TxOut (..), unTxPayload )
+    ( TxOut (..)
+    , unTxPayload
+    )
 import Cardano.Crypto.ProtocolMagic
-    ( ProtocolMagicId, unProtocolMagicId )
+    ( ProtocolMagicId
+    , unProtocolMagicId
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux )
+    ( fromTxAux
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromByronTxIn )
+    ( fromByronTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromByronTxOut )
+    ( fromByronTxOut
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Block.Abstract
-    ( headerPrevHash )
+    ( headerPrevHash
+    )
 import Ouroboros.Consensus.Byron.Ledger
-    ( ByronBlock (..), ByronHash (..) )
+    ( ByronBlock (..)
+    , ByronHash (..)
+    )
 import Ouroboros.Consensus.Byron.Ledger.Config
-    ( CodecConfig (..) )
+    ( CodecConfig (..)
+    )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( Bound (..) )
+    ( Bound (..)
+    )
 import Ouroboros.Network.Block
-    ( BlockNo (..), ChainHash, SlotNo (..) )
+    ( BlockNo (..)
+    , ChainHash
+    , SlotNo (..)
+    )
 
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
@@ -102,7 +132,8 @@ import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import qualified Data.Map.Strict as Map
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Block as O

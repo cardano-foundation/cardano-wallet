@@ -11,11 +11,14 @@ module Internal.Cardano.Write.Tx.TimeTranslation
 import Prelude
 
 import Cardano.Slotting.EpochInfo
-    ( EpochInfo )
+    ( EpochInfo
+    )
 import Cardano.Slotting.Time
-    ( SystemStart )
+    ( SystemStart
+    )
 import Ouroboros.Consensus.HardFork.History
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 
 data TimeTranslation = TimeTranslation
     (EpochInfo (Either PastHorizonException))

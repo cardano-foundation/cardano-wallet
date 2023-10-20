@@ -34,44 +34,71 @@ module Cardano.Wallet.Registry
     ) where
 
 import Prelude hiding
-    ( log, lookup )
+    ( log
+    , lookup
+    )
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( LoggedException (..) )
+    ( LoggedException (..)
+    )
 import Cardano.Wallet
-    ( HasLogger, logger )
+    ( HasLogger
+    , logger
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer
+    , contramap
+    , traceWith
+    )
 import Data.Foldable
-    ( traverse_ )
+    ( traverse_
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
-    ( HasType )
+    ( HasType
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import UnliftIO.Concurrent
-    ( ThreadId, forkFinally, killThread )
+    ( ThreadId
+    , forkFinally
+    , killThread
+    )
 import UnliftIO.Exception
-    ( SomeException, isSyncException, withException )
+    ( SomeException
+    , isSyncException
+    , withException
+    )
 import UnliftIO.MVar
     ( MVar
     , modifyMVar_

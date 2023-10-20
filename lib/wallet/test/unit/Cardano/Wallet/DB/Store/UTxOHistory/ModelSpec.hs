@@ -12,7 +12,9 @@ module Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..), WithOrigin (..) )
+    ( SlotNo (..)
+    , WithOrigin (..)
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
@@ -24,21 +26,36 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     , getUTxO
     )
 import Cardano.Wallet.Primitive.Types
-    ( Slot )
+    ( Slot
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO (..), dom, excludingD, receiveD, size )
+    ( DeltaUTxO (..)
+    , UTxO (..)
+    , dom
+    , excludingD
+    , receiveD
+    , size
+    )
 import Data.Delta
-    ( Delta (apply) )
+    ( Delta (apply)
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Gen
     , Property

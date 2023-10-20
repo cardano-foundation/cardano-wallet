@@ -2,20 +2,27 @@
 module Demo where
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Data.List
-    ( nub )
+    ( nub
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Clock
 import Light.ReadBlocks
 import Light.Types
 import Say
-    ( say, sayString )
+    ( say
+    , sayString
+    )
 
 import qualified Data.Set as Set
 import qualified Data.Text as T

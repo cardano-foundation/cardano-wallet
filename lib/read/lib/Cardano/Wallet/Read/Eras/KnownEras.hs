@@ -28,7 +28,9 @@ import Cardano.Api
     , ShelleyEra
     )
 import Generics.SOP
-    ( Proxy (..), lengthSList )
+    ( Proxy (..)
+    , lengthSList
+    )
 
 -- | Known eras, for simplicity we reuse the types from 'Cardano.API'.
 type KnownEras =

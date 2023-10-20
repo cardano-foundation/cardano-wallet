@@ -7,11 +7,15 @@ module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Trace
-    ( nullTracer, traceInTVarIO )
+    ( nullTracer
+    , traceInTVarIO
+    )
 import Cardano.Launcher.Node
-    ( CardanoNodeConn )
+    ( CardanoNodeConn
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
@@ -21,53 +25,104 @@ import Cardano.Wallet.Launch.Cluster
     , withCluster
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..) )
+    ( NetworkParameters (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData )
+    ( fromGenesisData
+    )
 import Cardano.Wallet.Shelley.Network.Node
-    ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
+    ( Observer (..)
+    , ObserverLog (..)
+    , newObserver
+    , withNetworkLayer
+    )
 import Control.Monad
-    ( replicateM, unless, void )
+    ( replicateM
+    , unless
+    , void
+    )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer
+    , contramap
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Tagged
-    ( Tagged (..) )
+    ( Tagged (..)
+    )
 import Fmt
-    ( build, fmt, indentF )
+    ( build
+    , fmt
+    , indentF
+    )
 import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData )
+    ( NodeToClientVersionData
+    )
 import System.Environment
-    ( getEnv )
+    ( getEnv
+    )
 import System.Environment.Extended
-    ( isEnvSet )
+    ( isEnvSet
+    )
 import System.IO.Temp.Extra
-    ( SkipCleanup (..), withSystemTempDir )
+    ( SkipCleanup (..)
+    , withSystemTempDir
+    )
 import Test.Hspec
-    ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
+    ( Spec
+    , beforeAll
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    )
 import Test.Hspec.Core.Spec
-    ( sequential )
+    ( sequential
+    )
 import Test.QuickCheck
-    ( counterexample, property )
+    ( counterexample
+    , property
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monadicIO, monitor, run )
+    ( PropertyM
+    , assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.Utils.Trace
-    ( traceSpec )
+    ( traceSpec
+    )
 import UnliftIO.Async
-    ( async, race_, waitAnyCancel )
+    ( async
+    , race_
+    , waitAnyCancel
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 import UnliftIO.STM
-    ( TVar, atomically, newTVarIO, readTVar, writeTVar )
+    ( TVar
+    , atomically
+    , newTVarIO
+    , readTVar
+    , writeTVar
+    )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Map as Map

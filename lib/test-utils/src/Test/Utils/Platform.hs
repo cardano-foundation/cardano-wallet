@@ -28,19 +28,30 @@ module Test.Utils.Platform
 import Prelude
 
 import Control.Monad
-    ( when )
+    ( when
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import Test.Hspec.Core.Spec
-    ( ResultStatus (..), pendingWith )
+    ( ResultStatus (..)
+    , pendingWith
+    )
 import Test.Hspec.Expectations
-    ( Expectation, HasCallStack )
+    ( Expectation
+    , HasCallStack
+    )
 import UnliftIO.Exception
-    ( IOException, handle, throwIO )
+    ( IOException
+    , handle
+    , throwIO
+    )
 import UnliftIO.Process
-    ( readProcessWithExitCode )
+    ( readProcessWithExitCode
+    )
 
 skipOnWindows :: HasCallStack => String -> Expectation
 skipOnWindows _reason = whenWindows $ throwIO Success

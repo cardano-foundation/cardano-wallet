@@ -12,17 +12,26 @@ module Cardano.Wallet.Spec.Effect.Assert
     ) where
 
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( (:>)
+    , Eff
+    , Effect
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret )
+    ( interpret
+    )
 import Effectful.Fail
-    ( Fail )
+    ( Fail
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Prelude hiding
-    ( trace )
+    ( trace
+    )
 
 data FxAssert :: Effect where
     Assert :: Text -> Bool -> FxAssert m ()

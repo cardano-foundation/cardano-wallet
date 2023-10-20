@@ -31,9 +31,12 @@ module Data.Delta.Update (
 import Prelude
 
 import Data.DBVar
-    ( DBVar, modifyDBMaybe )
+    ( DBVar
+    , modifyDBMaybe
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 
 {-------------------------------------------------------------------------------
     Update

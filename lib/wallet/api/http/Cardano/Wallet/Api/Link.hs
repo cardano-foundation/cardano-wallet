@@ -124,9 +124,12 @@ module Cardano.Wallet.Api.Link
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex, Role )
+    ( DerivationIndex
+    , Role
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+    ( CredentialType (..)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressInspectData (..)
@@ -139,39 +142,63 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), toSimpleMetadataFlag )
+    ( TxMetadataSchema (..)
+    , toSimpleMetadataFlag
+    )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit )
+    ( ApiLimit
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SmashServer, SortOrder, WalletId (..) )
+    ( SmashServer
+    , SortOrder
+    , WalletId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address, AddressState )
+    ( Address
+    , AddressState
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash )
+    ( Hash
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId, nullTokenName )
+    ( TokenName
+    , TokenPolicyId
+    , nullTokenName
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import GHC.TypeLits
-    ( Symbol )
+    ( Symbol
+    )
 import Network.HTTP.Types.Method
-    ( Method )
+    ( Method
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Servant.API
     ( (:>)
     , Capture'
@@ -185,9 +212,12 @@ import Servant.API
     , Verb
     )
 import Servant.Links
-    ( HasLink (..), safeLink' )
+    ( HasLink (..)
+    , safeLink'
+    )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Cardano.Wallet.Api as Api
 

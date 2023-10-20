@@ -19,44 +19,71 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
 import Prelude
 
 import Cardano.Api
-    ( ConwayEra )
+    ( ConwayEra
+    )
 import Cardano.Crypto.Hash.Class
-    ( hashToBytes )
+    ( hashToBytes
+    )
 import Cardano.Ledger.Api
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.BaseTypes
-    ( strictMaybeToMaybe, urlToText )
+    ( strictMaybeToMaybe
+    , urlToText
+    )
 import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert (..), ConwayDelegCert (..) )
+    ( ConwayDCert (..)
+    , ConwayDelegCert (..)
+    )
 import Cardano.Ledger.Shelley.API
-    ( PoolCert (..), PoolMetadata (..), PoolParams (..) )
+    ( PoolCert (..)
+    , PoolMetadata (..)
+    , PoolParams (..)
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert )
+    ( DCert
+    )
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (PoolId), PoolOwner (PoolOwner) )
+    ( PoolId (PoolId)
+    , PoolOwner (PoolOwner)
+    )
 import Cardano.Slotting.Slot
-    ( EpochNo (..) )
+    ( EpochNo (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Certificates
-    ( Certificates (..), CertificatesType )
+    ( Certificates (..)
+    , CertificatesType
+    )
 import Cardano.Wallet.Util
-    ( internalError )
+    ( internalError
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Quantity
-    ( Percentage, mkPercentage )
+    ( Percentage
+    , mkPercentage
+    )
 import Fmt
-    ( (+||), (||+) )
+    ( (+||)
+    , (||+)
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL

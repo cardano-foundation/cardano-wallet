@@ -18,11 +18,14 @@ module Test.Integration.Scenario.API.Byron.Addresses
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic )
+    ( Mnemonic
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( purposeBIP44 )
+    ( purposeBIP44
+    )
 import Cardano.Wallet.Address.Encoding
-    ( encodeAddress )
+    ( encodeAddress
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressWithPath
@@ -32,19 +35,30 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( AddressState (..)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( ResourceT
+    , runResourceT
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -79,7 +93,8 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP

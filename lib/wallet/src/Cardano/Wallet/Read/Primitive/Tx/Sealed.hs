@@ -14,19 +14,28 @@ module Cardano.Wallet.Read.Primitive.Tx.Sealed
 import Prelude
 
 import Cardano.Api
-    ( InAnyCardanoEra (..) )
+    ( InAnyCardanoEra (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (unsafeCardanoTx) )
+    ( SealedTx (unsafeCardanoTx)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraValue, K (..) )
+    ( EraValue
+    , K (..)
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun, applyEraFun )
+    ( EraFun
+    , applyEraFun
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( extractEraValue )
+    ( extractEraValue
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Cardano
-    ( fromCardanoApiTx )
+    ( fromCardanoApiTx
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
 

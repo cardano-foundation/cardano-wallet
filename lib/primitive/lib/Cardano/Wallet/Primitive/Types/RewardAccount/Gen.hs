@@ -7,11 +7,17 @@ module Cardano.Wallet.Primitive.Types.RewardAccount.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHashRewardAccount )
+    ( Hash (..)
+    , mockHashRewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Test.QuickCheck
-    ( Gen, elements, sized )
+    ( Gen
+    , elements
+    , sized
+    )
 
 import qualified Data.ByteString.Char8 as B8
 

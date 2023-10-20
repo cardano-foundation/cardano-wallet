@@ -23,17 +23,26 @@ module Cardano.Wallet.Network.Config
 import Prelude
 
 import Cardano.Chain.Genesis
-    ( GenesisData (..), readGenesisData )
+    ( GenesisData (..)
+    , readGenesisData
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkId (..) )
+    ( NetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), NetworkParameters (..) )
+    ( Block (..)
+    , NetworkParameters (..)
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), withExceptT )
+    ( ExceptT (..)
+    , withExceptT
+    )
 import Ouroboros.Network.Magic
-    ( NetworkMagic (..) )
+    ( NetworkMagic (..)
+    )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..) )
+    ( NodeToClientVersionData (..)
+    )
 
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W

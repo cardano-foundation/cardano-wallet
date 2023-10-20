@@ -6,31 +6,59 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
 import qualified Network.HTTP.Client as Http
 
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, runAssertFailsFast )
+    ( FxAssert
+    , runAssertFailsFast
+    )
 import Cardano.Wallet.Spec.Effect.Http
-    ( FxHttp, runHttpClient )
+    ( FxHttp
+    , runHttpClient
+    )
 import Cardano.Wallet.Spec.Effect.Query
-    ( FxQuery, runQuery )
+    ( FxQuery
+    , runQuery
+    )
 import Cardano.Wallet.Spec.Effect.Random
-    ( FxRandom, runRandom )
+    ( FxRandom
+    , runRandom
+    )
 import Cardano.Wallet.Spec.Effect.Timeout
-    ( FxTimeout, runTimeout )
+    ( FxTimeout
+    , runTimeout
+    )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, recordTraceLog, runTracePure )
+    ( FxTrace
+    , recordTraceLog
+    , runTracePure
+    )
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig )
+    ( NetworkConfig
+    )
 import Effectful
-    ( Eff, IOE, runEff )
+    ( Eff
+    , IOE
+    , runEff
+    )
 import Effectful.Fail
-    ( Fail, runFail )
+    ( Fail
+    , runFail
+    )
 import Network.HTTP.Client
-    ( ManagerSettings (managerResponseTimeout) )
+    ( ManagerSettings (managerResponseTimeout)
+    )
 import Prelude hiding
-    ( Show, State, evalState, show )
+    ( Show
+    , State
+    , evalState
+    , show
+    )
 import System.Random
-    ( initStdGen )
+    ( initStdGen
+    )
 import Test.Syd
-    ( TestDefM, expectationFailure, itWithOuter )
+    ( TestDefM
+    , expectationFailure
+    , itWithOuter
+    )
 
 type Story a =
     Eff

@@ -12,23 +12,33 @@ module Cardano.Wallet.Address.States.IsOwned
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
+    ( Depth (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf, NetworkOf )
+    ( CredFromOf
+    , KeyOf
+    , NetworkOf
+    )
 import Cardano.Wallet.Address.States.Features
-    ( TestFeatures (isOwnedTest) )
+    ( TestFeatures (isOwnedTest)
+    )
 import Cardano.Wallet.Flavor
-    ( WalletFlavorS (..) )
+    ( WalletFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq

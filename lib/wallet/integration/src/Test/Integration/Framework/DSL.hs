@@ -237,9 +237,13 @@ module Test.Integration.Framework.DSL
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubFromBytes, xpubToBytes )
+    ( XPub
+    , xpubFromBytes
+    , xpubToBytes
+    )
 import Cardano.CLI
-    ( Port (..) )
+    ( Port (..)
+    )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -252,9 +256,11 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Pool.Metadata.Types
-    ( PoolMetadataGCStatus (..) )
+    ( PoolMetadataGCStatus (..)
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -268,15 +274,22 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( coinTypeAda )
+    ( coinTypeAda
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+    ( CredentialType (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, encodeAddress )
+    ( decodeAddress
+    , encodeAddress
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, publicKey )
+    ( getRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -311,27 +324,43 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (..) )
+    ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema, toSimpleMetadataFlag )
+    ( TxMetadataSchema
+    , toSimpleMetadataFlag
+    )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiAddress (..), ApiLimit (..) )
+    ( ApiAddress (..)
+    , ApiLimit (..)
+    )
 import Cardano.Wallet.Compat
-    ( (^?) )
+    ( (^?)
+    )
 import Cardano.Wallet.Faucet
-    ( NextWallet, nextWallet )
+    ( NextWallet
+    , nextWallet
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Pools
-    ( EpochInfo, StakePool )
+    ( EpochInfo
+    , StakePool
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), preparePassphrase )
+    ( Passphrase (..)
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( encryptPassphraseTestingOnly )
+    ( encryptPassphraseTestingOnly
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -347,121 +376,226 @@ import Cardano.Wallet.Primitive.Types
     , unSlotInEpoch
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..) )
+    ( SealedTx (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin, txOutMinCoin )
+    ( txOutMaxCoin
+    , txOutMinCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxStatus (..) )
+    ( TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..) )
+    ( HistogramBar (..)
+    , UTxOStatistics (..)
+    )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), encode )
+    ( AbstractEncoding (..)
+    , encode
+    )
 import Control.Arrow
-    ( second )
+    ( second
+    )
 import Control.Monad
-    ( forM_, join, replicateM, unless, void, (>=>) )
+    ( forM_
+    , join
+    , replicateM
+    , unless
+    , void
+    , (>=>)
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO (..), liftIO )
+    ( MonadIO
+    , MonadUnliftIO (..)
+    , liftIO
+    )
 import Control.Monad.Loops
-    ( iterateUntilM )
+    ( iterateUntilM
+    )
 import Control.Monad.Trans.Resource
-    ( ResourceT, allocate, runResourceT )
+    ( ResourceT
+    , allocate
+    , runResourceT
+    )
 import Control.Retry
-    ( capDelay, constantDelay, retrying )
+    ( capDelay
+    , constantDelay
+    , retrying
+    )
 import Crypto.Hash
-    ( Blake2b_160, Digest, digestFromByteString )
+    ( Blake2b_160
+    , Digest
+    , digestFromByteString
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Aeson
-    ( FromJSON, ToJSON, Value, (.=) )
+    ( FromJSON
+    , ToJSON
+    , Value
+    , (.=)
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Either.Combinators
-    ( swapEither )
+    ( swapEither
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', lens, set, view, (^.) )
+    ( Lens'
+    , lens
+    , set
+    , view
+    , (^.)
+    )
 import Data.Generics.Internal.VL.Traversal
-    ( Traversal' )
+    ( Traversal'
+    )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType
+    , typed
+    )
 import Data.IORef
-    ( newIORef, readIORef, writeIORef )
+    ( newIORef
+    , readIORef
+    , writeIORef
+    )
 import Data.List
-    ( isPrefixOf )
+    ( isPrefixOf
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.List.NonEmpty.Extra
-    ( (!?) )
+    ( (!?)
+    )
 import Data.Maybe
-    ( catMaybes, fromJust, fromMaybe )
+    ( catMaybes
+    , fromJust
+    , fromMaybe
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Data.Time
-    ( NominalDiffTime, UTCTime )
+    ( NominalDiffTime
+    , UTCTime
+    )
 import Data.Time.Text
-    ( iso8601ExtendedUtc, utcTimeToText )
+    ( iso8601ExtendedUtc
+    , utcTimeToText
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Fmt
-    ( indentF, (+|), (|+) )
+    ( indentF
+    , (+|)
+    , (|+)
+    )
 import Language.Haskell.TH.Quote
-    ( QuasiQuoter )
+    ( QuasiQuoter
+    )
 import Network.HTTP.Types.Method
-    ( Method )
+    ( Method
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Command
-    ( CmdOption (..), CmdResult, Exit (..), Stderr, Stdout (..), command )
+    ( CmdOption (..)
+    , CmdResult
+    , Exit (..)
+    , Stderr
+    , Stdout (..)
+    , command
+    )
 import System.Directory
-    ( doesPathExist )
+    ( doesPathExist
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.IO
-    ( hClose, hFlush, hPutStr )
+    ( hClose
+    , hFlush
+    , hPutStr
+    )
 import Test.Hspec
-    ( Expectation, HasCallStack )
+    ( Expectation
+    , HasCallStack
+    )
 import Test.Hspec.Expectations.Lifted
-    ( expectationFailure, shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
+    ( expectationFailure
+    , shouldBe
+    , shouldContain
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Extra
-    ( appendFailureReason, counterexample )
+    ( appendFailureReason
+    , counterexample
+    )
 import Test.HUnit.Lang
-    ( HUnitFailure (..) )
+    ( HUnitFailure (..)
+    )
 import Test.Integration.Framework.Context
-    ( Context (..), TxDescription (..) )
+    ( Context (..)
+    , TxDescription (..)
+    )
 import Test.Integration.Framework.Request
     ( Headers (..)
     , Payload (..)
@@ -471,13 +605,25 @@ import Test.Integration.Framework.Request
     , unsafeRequest
     )
 import Test.Utils.Pretty
-    ( Pretty (..), pShowBuilder )
+    ( Pretty (..)
+    , pShowBuilder
+    )
 import UnliftIO.Async
-    ( async, race, wait )
+    ( async
+    , race
+    , wait
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( Exception (..), SomeException (..), catch, throwIO, throwString, try )
+    ( Exception (..)
+    , SomeException (..)
+    , catch
+    , throwIO
+    , throwString
+    , try
+    )
 import UnliftIO.Process
     ( CreateProcess (..)
     , StdStream (..)
@@ -486,7 +632,8 @@ import UnliftIO.Process
     , withCreateProcess
     )
 import Web.HttpApiData
-    ( ToHttpApiData (..) )
+    ( ToHttpApiData (..)
+    )
 
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus

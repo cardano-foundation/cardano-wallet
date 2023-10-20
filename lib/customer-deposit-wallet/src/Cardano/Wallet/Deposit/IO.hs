@@ -26,15 +26,22 @@ module Cardano.Wallet.Deposit.IO
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure
-    ( Customer, WalletState )
+    ( Customer
+    , WalletState
+    )
 import Cardano.Wallet.Deposit.Read
-    ( Address )
+    ( Address
+    )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer
+    , contramap
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 
 import qualified Cardano.Wallet.Deposit.IO.DB as DB
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
@@ -44,7 +51,8 @@ import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Control.Concurrent.Async as Async
 import qualified Data.DBVar as DBVar
 import qualified Data.Delta as Delta
-    ( Replace (..) )
+    ( Replace (..)
+    )
 import qualified Data.Delta.Update as Delta
 import qualified Data.Store as Store
 

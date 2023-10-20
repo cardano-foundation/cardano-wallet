@@ -35,9 +35,12 @@ module Data.Table (
 import Prelude
 
 import Control.Monad
-    ( forM )
+    ( forM
+    )
 import Control.Monad.Trans.State.Strict
-    ( evalState, state )
+    ( evalState
+    , state
+    )
 import Data.Delta
     ( Delta (..)
     , DeltaList (..)
@@ -48,13 +51,18 @@ import Data.Delta
     , mkEmbedding
     )
 import Data.IntMap.Strict
-    ( IntMap )
+    ( IntMap
+    )
 import Data.List
-    ( sort, sortOn )
+    ( sort
+    , sortOn
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Data.Delta as Delta
 import qualified Data.IntMap.Strict as Map

@@ -11,7 +11,8 @@ module Test.Integration.Scenario.CLI.Network
 import Prelude
 
 import Cardano.CLI
-    ( Port (..) )
+    ( Port (..)
+    )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -19,27 +20,43 @@ import Cardano.Wallet.Api.Types
     , NtpSyncingStatus (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..) )
+    ( EpochNo (..)
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Product.Typed
-    ( typed )
+    ( typed
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import System.Command
-    ( Exit (..), Stderr (..), Stdout (..) )
+    ( Exit (..)
+    , Stderr (..)
+    , Stdout (..)
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith
+    , describe
+    , pendingWith
+    )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe
+    , shouldContain
+    )
 import Test.Hspec.Extra
-    ( it )
+    ( it
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , cardanoWalletCLI
@@ -48,9 +65,11 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk )
+    ( cmdOk
+    )
 import Test.Utils.Paths
-    ( inNixBuild )
+    ( inNixBuild
+    )
 
 spec :: SpecWith Context
 spec = describe "COMMON_CLI_NETWORK" $ do

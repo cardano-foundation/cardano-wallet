@@ -31,11 +31,17 @@ module Cardano.Wallet.Submissions.Submissions
 import Prelude
 
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (TxId), TxStatus, TxStatuses )
+    ( HasTxId (TxId)
+    , TxStatus
+    , TxStatuses
+    )
 import Control.Lens
-    ( makeLenses, view )
+    ( makeLenses
+    , view
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Data.Map as Map
 

@@ -24,19 +24,28 @@ module Cardano.Wallet.Primitive.ModelSpec
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..) )
+    ( DerivationIndex (..)
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..) )
+    ( IsOurs (..)
+    )
 import Cardano.Wallet.Address.MaybeLight
-    ( DiscoverTxs (..), MaybeLight (..) )
+    ( DiscoverTxs (..)
+    , MaybeLight (..)
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0 )
+    ( block0
+    )
 import Cardano.Wallet.Gen
-    ( genSlot )
+    ( genSlot
+    )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents, summarizeOnTxOut )
+    ( ChainEvents
+    , summarizeOnTxOut
+    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , DeltaWallet
@@ -66,7 +75,8 @@ import Cardano.Wallet.Primitive.Model
     , utxoFromTxOutputs
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
-    ( flatSlot )
+    ( flatSlot
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -76,19 +86,29 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity, genAddress )
+    ( Parity (..)
+    , addressParity
+    , genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, shrinkCoin )
+    ( genCoin
+    , shrinkCoin
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxScriptValidity (..)
@@ -98,69 +118,130 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxScriptValidity, shrinkTx )
+    ( genTx
+    , genTxScriptValidity
+    , shrinkTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (Incoming), direction )
+    ( Direction (Incoming)
+    , direction
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq
-    ( TxSeq )
+    ( TxSeq
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
-    ( ShrinkableTxSeq, genTxSeq, getTxSeq, shrinkTxSeq )
+    ( ShrinkableTxSeq
+    , genTxSeq
+    , getTxSeq
+    , shrinkTxSeq
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), balance, dom, excluding, filterByAddress, restrictedTo )
+    ( UTxO (..)
+    , balance
+    , dom
+    , excluding
+    , filterByAddress
+    , restrictedTo
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, shrinkUTxO )
+    ( genUTxO
+    , shrinkUTxO
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.Applicative
-    ( ZipList (..) )
+    ( ZipList (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Monad
-    ( filterM, foldM, guard )
+    ( filterM
+    , foldM
+    , guard
+    )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, execState, runState, state )
+    ( State
+    , evalState
+    , execState
+    , runState
+    , state
+    )
 import Data.Delta
-    ( apply )
+    ( apply
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>) )
+    ( ($>)
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.List
-    ( elemIndex )
+    ( elemIndex
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes
+    , isJust
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Set
-    ( Set, (\\) )
+    ( Set
+    , (\\)
+    )
 import Data.Traversable
-    ( for )
+    ( for
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Fmt
-    ( Buildable, blockListF, pretty )
+    ( Buildable
+    , blockListF
+    , pretty
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -211,7 +292,8 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Instances.ByteString
     ()
 import Test.Utils.Pretty
-    ( (====) )
+    ( (====)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

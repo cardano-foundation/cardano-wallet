@@ -15,17 +15,28 @@ module Cardano.Wallet.Api.Http.Server.Tls
 import Prelude
 
 import Data.Default
-    ( Default (..) )
+    ( Default (..)
+    )
 import Data.X509
-    ( ExtKeyUsagePurpose (..), HashALG (..) )
+    ( ExtKeyUsagePurpose (..)
+    , HashALG (..)
+    )
 import Data.X509.CertificateStore
-    ( readCertificateStore )
+    ( readCertificateStore
+    )
 import Data.X509.Validation
-    ( ValidationChecks (..), ValidationHooks (..) )
+    ( ValidationChecks (..)
+    , ValidationHooks (..)
+    )
 import Network.TLS
-    ( CertificateRejectReason (..), CertificateUsage (..), ServerHooks (..) )
+    ( CertificateRejectReason (..)
+    , CertificateUsage (..)
+    , ServerHooks (..)
+    )
 import Network.Wai.Handler.WarpTLS
-    ( TLSSettings (..), tlsSettingsChain )
+    ( TLSSettings (..)
+    , tlsSettingsChain
+    )
 
 import qualified Data.X509.Validation as X509
 

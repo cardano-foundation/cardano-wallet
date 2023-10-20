@@ -31,17 +31,24 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, feeTxBodyL )
+    ( bodyTxL
+    , feeTxBodyL
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 type family FeeType era where
     FeeType ByronEra = ()

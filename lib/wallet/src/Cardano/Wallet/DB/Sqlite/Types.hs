@@ -25,7 +25,10 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, Script, ScriptHash (..) )
+    ( Cosigner
+    , Script
+    , ScriptHash (..)
+    )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -33,11 +36,14 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Role (..) )
+    ( Role (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -45,11 +51,16 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType )
+    ( CredentialType
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( Pruned (..), Spent (..) )
+    ( Pruned (..)
+    , Spent (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseScheme (..) )
+    ( Passphrase (..)
+    , PassphraseScheme (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
@@ -62,49 +73,85 @@ import Cardano.Wallet.Primitive.Types
     , unsafeToPMS
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx (..), persistSealedTx, unPersistSealedTx )
+    ( SealedTx (..)
+    , persistSealedTx
+    , unPersistSealedTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxMetadata, TxScriptValidity (..) )
+    ( TxMetadata
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxStatus (..) )
+    ( Direction (..)
+    , TxStatus (..)
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Lens
-    ( (&) )
+    ( (&)
+    )
 import Control.Monad
-    ( (<=<), (>=>) )
+    ( (<=<)
+    , (>=>)
+    )
 import Control.Monad.Fail.Extended
-    ( ReportFailure (..) )
+    ( ReportFailure (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.Bifunctor
-    ( bimap, first )
+    ( bimap
+    , first
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe
+    , mapMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage
+    , Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class.Extended
     ( FromText (..)
     , TextDecodingError (TextDecodingError)
@@ -113,37 +160,64 @@ import Data.Text.Class.Extended
     , fromTextMaybe
     )
 import Data.Text.Encoding
-    ( decodeUtf8, encodeUtf8 )
+    ( decodeUtf8
+    , encodeUtf8
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+    ( POSIXTime
+    , posixSecondsToUTCTime
+    , utcTimeToPOSIXSeconds
+    )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
+    ( defaultTimeLocale
+    , formatTime
+    , parseTimeM
+    )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32
+    , Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText )
+    ( fromPersistValueFromText
+    )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
+    ( PersistField (..)
+    , PersistFieldSql (..)
+    , PersistValue (..)
+    )
 import Database.Persist.TH
-    ( MkPersistSettings (..), sqlSettings )
+    ( MkPersistSettings (..)
+    , sqlSettings
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.Int
-    ( Int64 )
+    ( Int64
+    )
 import Network.URI
-    ( parseAbsoluteURI )
+    ( parseAbsoluteURI
+    )
 import System.Random.Internal
-    ( StdGen (..) )
+    ( StdGen (..)
+    )
 import System.Random.SplitMix
-    ( seedSMGen, unseedSMGen )
+    ( seedSMGen
+    , unseedSMGen
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..)
+    , ToHttpApiData (..)
+    )
 import Web.PathPieces
-    ( PathPiece (..) )
+    ( PathPiece (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson

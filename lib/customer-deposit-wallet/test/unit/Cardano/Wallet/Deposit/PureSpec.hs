@@ -5,17 +5,31 @@ module Cardano.Wallet.Deposit.PureSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq
-    ( toTxList )
+    ( toTxList
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
-    ( genTxSeq, getTxSeq )
+    ( genTxSeq
+    , getTxSeq
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO )
+    ( genUTxO
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Gen, Property, cover, forAll, property, suchThat )
+    ( Gen
+    , Property
+    , cover
+    , forAll
+    , property
+    , suchThat
+    )
 
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read

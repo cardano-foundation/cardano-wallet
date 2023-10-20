@@ -24,31 +24,51 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyRole (..), ScriptHash (..) )
+    ( KeyRole (..)
+    , ScriptHash (..)
+    )
 import Cardano.Crypto.Hash
-    ( hashToBytes )
+    ( hashToBytes
+    )
 import Cardano.Ledger.Alonzo.TxWits
-    ( AlonzoTxWits, txscripts' )
+    ( AlonzoTxWits
+    , txscripts'
+    )
 import Cardano.Ledger.Mary.Value
-    ( MultiAsset (..) )
+    ( MultiAsset (..)
+    )
 import Cardano.Ledger.Shelley.TxWits
-    ( ShelleyTxWits, scriptWits )
+    ( ShelleyTxWits
+    , scriptWits
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap, toNestedList, toNestedMap )
+    ( TokenMap
+    , toNestedList
+    , toNestedMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId (..) )
+    ( TokenPolicyId (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( (:*:) (..), EraFun (..), K (..) )
+    ( (:*:) (..)
+    , EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Tx.Mint
-    ( Mint (..) )
+    ( Mint (..)
+    )
 import Cardano.Wallet.Read.Tx.ReferenceInputs
-    ( ReferenceInputs (..) )
+    ( ReferenceInputs (..)
+    )
 import Cardano.Wallet.Read.Tx.Witnesses
-    ( Witnesses (..) )
+    ( Witnesses (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript
     , toWalletTokenName
@@ -65,15 +85,20 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo
     , StandardBabbage

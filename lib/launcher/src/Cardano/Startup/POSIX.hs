@@ -14,11 +14,18 @@ module Cardano.Startup.POSIX
 import Prelude
 
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Data.Bits
-    ( (.|.) )
+    ( (.|.)
+    )
 import System.Posix.Files
-    ( groupModes, otherModes, ownerReadMode, setFileCreationMask, setFileMode )
+    ( groupModes
+    , otherModes
+    , ownerReadMode
+    , setFileCreationMask
+    , setFileMode
+    )
 import System.Posix.Signals
     ( Handler (..)
     , installHandler
@@ -29,7 +36,8 @@ import System.Posix.Signals
     , softwareTermination
     )
 import System.Process
-    ( Pid )
+    ( Pid
+    )
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.

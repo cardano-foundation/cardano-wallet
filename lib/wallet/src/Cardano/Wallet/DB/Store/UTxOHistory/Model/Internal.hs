@@ -12,15 +12,21 @@ where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Slot, SlotNo )
+    ( Slot
+    , SlotNo
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 -- | The finality of the UTxO history.
 data Pruned = PrunedUpTo SlotNo | NotPruned

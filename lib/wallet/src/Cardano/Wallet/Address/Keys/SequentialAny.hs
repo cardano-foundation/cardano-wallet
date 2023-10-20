@@ -13,26 +13,46 @@ where
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), HardDerivation (..), Index (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
+    )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
+    ( derivePolicyPrivateKey
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, SeqState, SupportsDiscovery, mkSeqStateFromAccountXPub )
+    ( AddressPoolGap
+    , SeqState
+    , SupportsDiscovery
+    , mkSeqStateFromAccountXPub
+    )
 import Cardano.Wallet.Flavor
-    ( Excluding, KeyFlavorS )
+    ( Excluding
+    , KeyFlavorS
+    )
 import GHC.TypeLits
-    ( Nat )
+    ( Nat
+    )
 
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( SeqAnyState (..) )
+    ( SeqAnyState (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, liftRawKey, publicKey )
+    ( getRawKey
+    , liftRawKey
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( ClearCredentials, RootCredentials (..) )
+    ( ClearCredentials
+    , RootCredentials (..)
+    )
 
 
 

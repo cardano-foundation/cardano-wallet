@@ -27,9 +27,11 @@ module Cardano.Wallet.Api.Http.Server.Error
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..)
+    )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
+    ( TranslationError (..)
+    )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
@@ -74,11 +76,16 @@ import Cardano.Wallet
     , WalletException (..)
     )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationType (Hardened, Soft), Index (Index) )
+    ( DerivationType (Hardened, Soft)
+    , Index (Index)
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( ErrAddCosigner (..), ErrScriptTemplate (..) )
+    ( ErrAddCosigner (..)
+    , ErrScriptTemplate (..)
+    )
 import Cardano.Wallet.Api.Hex
-    ( hexText )
+    ( hexText
+    )
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
@@ -95,15 +102,23 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( Flat (..) )
+    ( Flat (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( serialisedTx )
+    ( serialisedTx
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toWallet), toWalletAddress, toWalletCoin, toWalletTokenBundle )
+    ( Convert (toWallet)
+    , toWalletAddress
+    , toWalletCoin
+    , toWalletTokenBundle
+    )
 import Cardano.Wallet.Transaction
-    ( ErrSignTx (..) )
+    ( ErrSignTx (..)
+    )
 import Cardano.Write.Tx
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
@@ -116,37 +131,65 @@ import Cardano.Write.Tx
     , ErrUpdateSealedTx (..)
     )
 import Control.Monad.Except
-    ( ExceptT, lift, withExceptT )
+    ( ExceptT
+    , lift
+    , withExceptT
+    )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( throwE
+    )
 import Data.Generics.Internal.VL
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.List
-    ( isInfixOf, isPrefixOf, isSubsequenceOf )
+    ( isInfixOf
+    , isPrefixOf
+    , isSubsequenceOf
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Fmt
-    ( blockListF', build, fmt, listF, pretty )
+    ( blockListF'
+    , build
+    , fmt
+    , listF
+    , pretty
+    )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..) )
+    ( KeyWitnessCount (..)
+    )
 import Network.HTTP.Media
-    ( renderHeader )
+    ( renderHeader
+    )
 import Network.HTTP.Types
-    ( hContentType )
+    ( hContentType
+    )
 import Network.Wai
-    ( Request (pathInfo) )
+    ( Request (pathInfo)
+    )
 import Safe
-    ( fromJustNote )
+    ( fromJustNote
+    )
 import Servant
-    ( Accept (contentType), JSON, Proxy (Proxy) )
+    ( Accept (contentType)
+    , JSON
+    , Proxy (Proxy)
+    )
 import Servant.Server
     ( Handler (Handler)
     , ServerError (..)

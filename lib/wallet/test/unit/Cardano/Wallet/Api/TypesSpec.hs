@@ -36,7 +36,8 @@
 module Cardano.Wallet.Api.TypesSpec (spec) where
 
 import Prelude hiding
-    ( id )
+    ( id
+    )
 
 import Cardano.Address.Script
     ( Cosigner (..)
@@ -48,9 +49,13 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     )
 import Cardano.Api
-    ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
+    ( StakeAddress
+    , deserialiseFromRawBytes
+    , proxyToAsType
+    )
 import Cardano.Api.Gen
-    ( genAddressAnyWithNetworkId )
+    ( genAddressAnyWithNetworkId
+    )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -64,10 +69,14 @@ import Cardano.Mnemonic
     , mkEntropy
     )
 import Cardano.Pool.Metadata
-    ( HealthCheckSMASH )
+    ( HealthCheckSMASH
+    )
 import Cardano.Pool.Metadata.Types
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
+    ( PoolId (..)
+    , PoolOwner (..)
+    , StakePoolTicker (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -78,19 +87,28 @@ import Cardano.Wallet.Address.Derivation
     , fromHex
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( purposeCIP1854 )
+    ( purposeCIP1854
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..)
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
+    ( AddressPoolGap
+    , getAddressPoolGap
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( retrieveAllCosigners )
+    ( retrieveAllCosigners
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Api
-    ( Api )
+    ( Api
+    )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
@@ -242,9 +260,11 @@ import Cardano.Wallet.Api.Types
     , toApiAsset
     )
 import Cardano.Wallet.Api.Types.BlockHeader
-    ( ApiBlockHeader )
+    ( ApiBlockHeader
+    )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiRewardAccount (..) )
+    ( ApiRewardAccount (..)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
@@ -255,7 +275,9 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
+    ( TxMetadataSchema (..)
+    , TxMetadataWithSchema (..)
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
     , ApiValidityIntervalExplicit (..)
@@ -263,7 +285,8 @@ import Cardano.Wallet.Api.Types.Transaction
     , mkApiWitnessCount
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ShelleyKeyS) )
+    ( KeyFlavorS (ShelleyKeyS)
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genMockXPub
@@ -280,7 +303,10 @@ import Cardano.Wallet.Pools
     , StakePoolMetrics (StakePoolMetrics)
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant (..), networkIdVal )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant (..)
+    , networkIdVal
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (PassphraseHash)
@@ -290,7 +316,8 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , ExecutionUnitPrices (..)
@@ -310,23 +337,37 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..)
+    , AddressState (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive )
+    ( genCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId (..), TokenBundle )
+    ( AssetId (..)
+    , TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, genTokenMapSmallRange, shrinkTokenMap )
+    ( genAssetId
+    , genTokenMapSmallRange
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -338,7 +379,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName )
+    ( genTokenName
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -347,25 +389,39 @@ import Cardano.Wallet.Primitive.Types.Tx
     , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin )
+    ( txOutMaxCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxScriptValidity, shrinkTxScriptValidity )
+    ( genTxScriptValidity
+    , shrinkTxScriptValidity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
-    ( genNestedTxMetadata, shrinkTxMetadata )
+    ( genNestedTxMetadata
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction, TxStatus (..) )
+    ( Direction
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutCoin )
+    ( genTxOutCoin
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..) )
+    ( HistogramBar (..)
+    , UTxOStatistics (..)
+    )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataError (..) )
+    ( TokenMetadataError (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -377,15 +433,24 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeXPrv )
+    ( unsafeFromText
+    , unsafeXPrv
+    )
 import Control.Lens
-    ( at, (?~) )
+    ( at
+    , (?~)
+    )
 import Control.Monad
-    ( forM, forM_, replicateM )
+    ( forM
+    , forM_
+    , replicateM
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.Aeson
     ( FromJSON (..)
     , Result (..)
@@ -396,59 +461,103 @@ import Data.Aeson
     , (.=)
     )
 import Data.Aeson.KeyMap
-    ( keys )
+    ( keys
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.Bifunctor
-    ( Bifunctor (..) )
+    ( Bifunctor (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Data
-    ( dataTypeConstrs, dataTypeOf, showConstr )
+    ( dataTypeConstrs
+    , dataTypeOf
+    , showConstr
+    )
 import Data.Either
-    ( lefts )
+    ( lefts
+    )
 import Data.Either.Combinators
-    ( fromRight' )
+    ( fromRight'
+    )
 import Data.FileEmbed
-    ( embedFile, makeRelativeToProject )
+    ( embedFile
+    , makeRelativeToProject
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.List
-    ( foldl', intercalate )
+    ( foldl'
+    , intercalate
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( fromJust
+    , fromMaybe
+    )
 import Data.OpenApi
-    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
+    ( Definitions
+    , NamedSchema (..)
+    , Schema
+    , ToSchema (..)
+    )
 import Data.OpenApi.Declare
-    ( Declare, declare, look )
+    ( Declare
+    , declare
+    , look
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage
+    , Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word32
+    , Word64
+    , Word8
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import GHC.TypeLits
-    ( KnownSymbol, natVal, symbolVal )
+    ( KnownSymbol
+    , natVal
+    , symbolVal
+    )
 import Internal.Cardano.Write.Tx.Gen
-    ( genDatumHash )
+    ( genDatumHash
+    )
 import Network.Ntp
-    ( NtpStatusWithOffset (..) )
+    ( NtpStatusWithOffset (..)
+    )
 import Network.URI
-    ( URI, parseURI )
+    ( URI
+    , parseURI
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Servant
     ( (:<|>)
     , (:>)
@@ -463,15 +572,25 @@ import Servant
     , Verb
     )
 import Servant.API.Verbs
-    ( NoContentVerb )
+    ( NoContentVerb
+    )
 import Servant.OpenApi.Test
-    ( validateEveryToJSON, validateEveryToJSONWithPatternChecker )
+    ( validateEveryToJSON
+    , validateEveryToJSONWithPatternChecker
+    )
 import System.Environment
-    ( lookupEnv )
+    ( lookupEnv
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec
+    , SpecWith
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary1 (..)
@@ -502,27 +621,41 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 import Test.QuickCheck.Extra
-    ( reasonablySized )
+    ( reasonablySized
+    )
 import Test.QuickCheck.Gen
-    ( sublistOf )
+    ( sublistOf
+    )
 import Test.QuickCheck.Instances
     ()
 import Test.QuickCheck.Modifiers
-    ( NonNegative (..) )
+    ( NonNegative (..)
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Roundtrip
-    ( httpApiDataRoundtrip )
+    ( httpApiDataRoundtrip
+    )
 import Test.Utils.Time
-    ( genUniformTime )
+    ( genUniformTime
+    )
 import Text.Regex.PCRE
-    ( compBlank, execBlank, makeRegexOpts, matchTest )
+    ( compBlank
+    , execBlank
+    , makeRegexOpts
+    , matchTest
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (..) )
+    ( FromHttpApiData (..)
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api

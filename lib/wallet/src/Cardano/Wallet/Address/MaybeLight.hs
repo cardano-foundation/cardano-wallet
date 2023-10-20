@@ -23,31 +23,45 @@ import Cardano.Wallet.Address.Derivation
     , liftPaymentAddressS
     )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( dropLowerPendingIxs )
+    ( dropLowerPendingIxs
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState )
+    ( RndState
+    )
 import Cardano.Wallet.Address.Discovery.RandomAny
-    ( RndAnyState )
+    ( RndAnyState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAddressPool (..), SeqState (..) )
+    ( SeqAddressPool (..)
+    , SeqState (..)
+    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( SeqAnyState )
+    ( SeqAnyState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState )
+    ( SharedState
+    )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents )
+    ( ChainEvents
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Data.Bifunctor
-    ( second )
+    ( second
+    )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 

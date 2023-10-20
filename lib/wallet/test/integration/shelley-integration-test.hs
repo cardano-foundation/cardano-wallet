@@ -17,15 +17,24 @@ module Main where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Extra
-    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
+    ( BracketLog
+    , bracketTracer
+    , stdoutTextTracer
+    , trMessageText
+    )
 import Cardano.BM.Plugin
-    ( loadPlugin )
+    ( loadPlugin
+    )
 import Cardano.BM.Trace
-    ( appendName )
+    ( appendName
+    )
 import Cardano.CLI
     ( LogOutput (..)
     , Port (..)
@@ -35,17 +44,24 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher
-    ( ProcessHasExited (..) )
+    ( ProcessHasExited (..)
+    )
 import Cardano.Ledger.Shelley.Genesis
-    ( sgNetworkMagic )
+    ( sgNetworkMagic
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Startup
-    ( installSignalHandlersNoLogging, setDefaultFilePermissions )
+    ( installSignalHandlersNoLogging
+    , setDefaultFilePermissions
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( walletListenFromEnv )
+    ( walletListenFromEnv
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..) )
+    ( ApiEra (..)
+    )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , deriveShelleyRewardAccount
@@ -55,7 +71,8 @@ import Cardano.Wallet.Faucet
     , shelleyIntegrationTestFunds
     )
 import Cardano.Wallet.Faucet.Shelley
-    ( initFaucet )
+    ( initFaucet
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
@@ -75,47 +92,77 @@ import Cardano.Wallet.Launch.Cluster
     , withSMASH
     )
 import Cardano.Wallet.Network.Ports
-    ( portFromURL )
+    ( portFromURL
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..) )
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance (..) )
+    ( SyncTolerance (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Shelley
-    ( Tracers, serveWallet, setupTracers, tracerSeverities )
+    ( Tracers
+    , serveWallet
+    , setupTracers
+    , tracerSeverities
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..) )
+    ( BlockchainSource (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData )
+    ( fromGenesisData
+    )
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( queryServerStatic, withMetadataServer )
+    ( queryServerStatic
+    , withMetadataServer
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
+    ( Tracer (..)
+    , contramap
+    , traceWith
+    )
 import Data.Either.Combinators
-    ( whenLeft )
+    ( whenLeft
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.IORef
-    ( IORef, atomicModifyIORef', newIORef )
+    ( IORef
+    , atomicModifyIORef'
+    , newIORef
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Tagged
-    ( Tagged (..) )
+    ( Tagged (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Typeable
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import GHC.TypeNats
-    ( natVal )
+    ( natVal
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -123,33 +170,64 @@ import Network.HTTP.Client
     , responseTimeoutMicro
     )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy )
+    ( tunedForMainnetPipeliningStrategy
+    )
 import System.Directory
-    ( createDirectory )
+    ( createDirectory
+    )
 import System.Environment
-    ( setEnv )
+    ( setEnv
+    )
 import System.Environment.Extended
-    ( envFromText, isEnvSet, lookupEnvNonEmpty )
+    ( envFromText
+    , isEnvSet
+    , lookupEnvNonEmpty
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO.Temp.Extra
-    ( SkipCleanup (..), withSystemTempDir )
+    ( SkipCleanup (..)
+    , withSystemTempDir
+    )
 import Test.Hspec.Core.Spec
-    ( Spec, SpecWith, describe, parallel, sequential )
+    ( Spec
+    , SpecWith
+    , describe
+    , parallel
+    , sequential
+    )
 import Test.Hspec.Extra
-    ( aroundAll, hspecMain )
+    ( aroundAll
+    , hspecMain
+    )
 import Test.Integration.Framework.Context
-    ( Context (..), PoolGarbageCollectionEvent (..) )
+    ( Context (..)
+    , PoolGarbageCollectionEvent (..)
+    )
 import Test.Utils.Paths
-    ( getTestData, inNixBuild )
+    ( getTestData
+    , inNixBuild
+    )
 import UnliftIO.Async
-    ( race )
+    ( race
+    )
 import UnliftIO.Exception
-    ( SomeException, isAsyncException, throwIO, withException )
+    ( SomeException
+    , isAsyncException
+    , throwIO
+    , withException
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
+    ( newEmptyMVar
+    , newMVar
+    , putMVar
+    , takeMVar
+    , withMVar
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as Shelley

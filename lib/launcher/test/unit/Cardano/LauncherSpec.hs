@@ -10,19 +10,31 @@ module Cardano.LauncherSpec
 import Prelude
 
 import Cardano.BM.Configuration.Model
-    ( setMinSeverity )
+    ( setMinSeverity
+    )
 import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
+    ( defaultConfigStdout
+    )
 import Cardano.BM.Data.LogItem
-    ( LOContent (LogMessage), LogObject (..), LoggerName, mkLOMeta )
+    ( LOContent (LogMessage)
+    , LogObject (..)
+    , LoggerName
+    , mkLOMeta
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Setup
-    ( setupTrace_, shutdown )
+    ( setupTrace_
+    , shutdown
+    )
 import Cardano.BM.Trace
-    ( logDebug )
+    ( logDebug
+    )
 import Cardano.Launcher
     ( Command (..)
     , LauncherLog
@@ -31,27 +43,43 @@ import Cardano.Launcher
     , withBackendProcess
     )
 import Control.Monad
-    ( forever )
+    ( forever
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..)
+    )
 import Control.Retry
-    ( constantDelay, limitRetriesByCumulativeDelay, recoverAll )
+    ( constantDelay
+    , limitRetriesByCumulativeDelay
+    , recoverAll
+    )
 import Control.Tracer
-    ( Tracer (..), nullTracer, traceWith )
+    ( Tracer (..)
+    , nullTracer
+    , traceWith
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( diffUTCTime, getCurrentTime )
+    ( diffUTCTime
+    , getCurrentTime
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..)
+    )
 import System.Info
-    ( os )
+    ( os
+    )
 import Test.Hspec
     ( Spec
     , beforeAll
@@ -62,13 +90,21 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Utils.Platform
-    ( isWindows, pendingOnWine, skipOnWindows )
+    ( isWindows
+    , pendingOnWine
+    , skipOnWindows
+    )
 import UnliftIO.Async
-    ( async, race_, waitAnyCancel )
+    ( async
+    , race_
+    , waitAnyCancel
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( bracket )
+    ( bracket
+    )
 import UnliftIO.MVar
     ( modifyMVar_
     , newEmptyMVar
@@ -79,7 +115,9 @@ import UnliftIO.MVar
     , tryReadMVar
     )
 import UnliftIO.Process
-    ( ProcessHandle, getProcessExitCode )
+    ( ProcessHandle
+    , getProcessExitCode
+    )
 
 {- HLINT ignore spec "Use head" -}
 

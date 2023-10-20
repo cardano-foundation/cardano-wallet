@@ -114,9 +114,12 @@ module Cardano.Api.Gen
 import Prelude
 
 import Cardano.Api hiding
-    ( txIns )
+    ( txIns
+    )
 import Cardano.Api.Byron
-    ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
+    ( KeyWitness (ByronKeyWitness)
+    , WitnessNetworkIdOrByronAddress (..)
+    )
 import Cardano.Api.Shelley
     ( Hash (..)
     , PlutusScript (..)
@@ -133,53 +136,86 @@ import Cardano.Api.Shelley
     , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Ledger.Alonzo.Language
-    ( Language (..) )
+    ( Language (..)
+    )
 import Cardano.Ledger.Credential.Safe
-    ( Ptr, SlotNo32 (..), safePtr )
+    ( Ptr
+    , SlotNo32 (..)
+    , safePtr
+    )
 import Cardano.Ledger.SafeHash
-    ( unsafeMakeSafeHash )
+    ( unsafeMakeSafeHash
+    )
 import Cardano.Ledger.Shelley.API
-    ( MIRPot (..) )
+    ( MIRPot (..)
+    )
 import Data.Aeson
-    ( ToJSON (..), (.=) )
+    ( ToJSON (..)
+    , (.=)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Int
-    ( Int64 )
+    ( Int64
+    )
 import Data.IntCast
-    ( intCast )
+    ( intCast
+    )
 import Data.IP
-    ( IPv4, IPv6, fromHostAddress, fromHostAddress6 )
+    ( IPv4
+    , IPv6
+    , fromHostAddress
+    , fromHostAddress6
+    )
 import Data.List
-    ( nub )
+    ( nub
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( isJust )
+    ( isJust
+    )
 import Data.Maybe.Strict
-    ( strictMaybeToMaybe )
+    ( strictMaybeToMaybe
+    )
 import Data.Ratio
-    ( Ratio, (%) )
+    ( Ratio
+    , (%)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.String
-    ( fromString )
+    ( fromString
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 import Network.Socket
-    ( PortNumber )
+    ( PortNumber
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import System.Random
-    ( Random )
+    ( Random
+    )
 import Test.Cardano.Chain.UTxO.Gen
-    ( genVKWitness )
+    ( genVKWitness
+    )
 import Test.Cardano.Crypto.Gen
-    ( genProtocolMagicId )
+    ( genProtocolMagicId
+    )
 import Test.QuickCheck
     ( Gen
     , Large (..)
@@ -208,9 +244,13 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Extra
-    ( GenSeed (..), genSizeDefault, generateWith )
+    ( GenSeed (..)
+    , genSizeDefault
+    , generateWith
+    )
 import Test.QuickCheck.Hedgehog
-    ( hedgehog )
+    ( hedgehog
+    )
 import Test.QuickCheck.Instances.ByteString
     ()
 

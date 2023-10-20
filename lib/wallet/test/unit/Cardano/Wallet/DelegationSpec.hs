@@ -12,11 +12,16 @@ module Cardano.Wallet.DelegationSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, xprvFromBytes, xprvToBytes )
+    ( XPrv
+    , xprvFromBytes
+    , xprvToBytes
+    )
 import Cardano.Pool.Types
-    ( PoolId (..) )
+    ( PoolId (..)
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..) )
+    ( DerivationIndex (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , WalletDelegation (..)
@@ -24,27 +29,42 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationStatus (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive )
+    ( genCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Transaction
-    ( Withdrawal (..) )
+    ( Withdrawal (..)
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromJust, isNothing )
+    ( fromJust
+    , isNothing
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Data.Word.Odd
-    ( Word31 )
+    ( Word31
+    )
 import Hedgehog.Corpus
-    ( metasyntactic )
+    ( metasyntactic
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -64,7 +84,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary
+    , genericShrink
+    )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Delegation as WD

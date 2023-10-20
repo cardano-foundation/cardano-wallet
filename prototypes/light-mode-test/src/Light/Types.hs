@@ -2,11 +2,14 @@ module Light.Types where
 
 import Blockfrost.Client
 import Data.Foldable
-    ( maximumBy )
+    ( maximumBy
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 
 type Blocks = [Block]
 type Coin = Lovelaces

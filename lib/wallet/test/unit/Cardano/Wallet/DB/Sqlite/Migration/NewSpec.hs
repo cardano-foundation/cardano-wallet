@@ -10,27 +10,42 @@ module Cardano.Wallet.DB.Sqlite.Migration.NewSpec
     ) where
 
 import Cardano.DB.Sqlite
-    ( DBHandle (dbBackend) )
+    ( DBHandle (dbBackend)
+    )
 import Cardano.Wallet.DB.Migration
-    ( MigrationInterface (..), Version (..) )
+    ( MigrationInterface (..)
+    , Version (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( newMigrationInterface )
+    ( newMigrationInterface
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.List
-    ( sort )
+    ( sort
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 import System.Directory
-    ( listDirectory )
+    ( listDirectory
+    )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+    ( Spec
+    , describe
+    , it
+    , shouldReturn
+    )
 import UnliftIO
-    ( MonadUnliftIO )
+    ( MonadUnliftIO
+    )
 
 import qualified Database.Persist.Sqlite as Sqlite
 

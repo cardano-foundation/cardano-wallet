@@ -11,15 +11,24 @@ module Cardano.Wallet.Deposit.IO.DB
 import Prelude
 
 import Cardano.BM.Extra
-    ( bracketTracer )
+    ( bracketTracer
+    )
 import Cardano.DB.Sqlite
-    ( DBLog (..), dbBackend, withDBHandle )
+    ( DBLog (..)
+    , dbBackend
+    , withDBHandle
+    )
 import Control.Concurrent.MVar
-    ( newMVar, withMVar )
+    ( newMVar
+    , withMVar
+    )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer
+    , contramap
+    )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( NominalDiffTime
+    )
 
 import qualified Database.Persist.Sql as Persistent
 

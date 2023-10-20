@@ -35,17 +35,23 @@ module Data.Delta (
 import Prelude
 
 import Control.Exception
-    ( SomeException )
+    ( SomeException
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Semigroupoid
-    ( Semigroupoid (..) )
+    ( Semigroupoid (..)
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import qualified Data.Set as Set
 

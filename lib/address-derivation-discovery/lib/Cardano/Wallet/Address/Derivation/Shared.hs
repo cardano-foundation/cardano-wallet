@@ -34,11 +34,17 @@ module Cardano.Wallet.Address.Derivation.Shared
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey )
+    ( xpubPublicKey
+    )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, unXPub, xpub )
+    ( XPrv
+    , XPub
+    , unXPub
+    , xpub
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic )
+    ( SomeMnemonic
+    )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , Depth (..)
@@ -54,7 +60,9 @@ import Cardano.Wallet.Address.Derivation
     , toAddressParts
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..), purposeCIP1854 )
+    ( SharedKey (..)
+    , purposeCIP1854
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
@@ -62,25 +70,35 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , unsafeGenerateKeyFromSeedShelley
     )
 import Cardano.Wallet.Address.Discovery
-    ( GetPurpose (..) )
+    ( GetPurpose (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
+    ( Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..) )
+    ( Blake2b_224 (..)
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize) )
+    ( HashAlgorithm (hashDigestSize)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 
 import qualified Data.ByteString as BS
 

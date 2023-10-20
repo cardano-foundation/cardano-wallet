@@ -11,11 +11,17 @@ module Test.Utils.Env
 import Prelude
 
 import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO (..) )
+    ( MonadIO
+    , MonadUnliftIO (..)
+    )
 import UnliftIO.Environment
-    ( getEnvironment, setEnv, unsetEnv )
+    ( getEnvironment
+    , setEnv
+    , unsetEnv
+    )
 import UnliftIO.Exception
-    ( bracket )
+    ( bracket
+    )
 
 -- | Runs an IO action with exactly the given environment variables.
 -- After the action finishes, the original environment variables are restored.

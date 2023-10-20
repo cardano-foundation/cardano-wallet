@@ -10,33 +10,49 @@ module Test.Integration.Framework.Context
 import Prelude
 
 import Cardano.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.CLI
-    ( Port (..) )
+    ( Port (..)
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiEra )
+    ( ApiEra
+    )
 import Cardano.Wallet.Faucet
-    ( Faucet )
+    ( Faucet
+    )
 import Cardano.Wallet.Launch.Cluster
-    ( TestnetMagic )
+    ( TestnetMagic
+    )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, NetworkParameters, PoolRetirementCertificate )
+    ( EpochNo
+    , NetworkParameters
+    , PoolRetirementCertificate
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Transaction
-    ( DelegationAction )
+    ( DelegationAction
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.IORef
-    ( IORef )
+    ( IORef
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
-    ( Manager )
+    ( Manager
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 
 -- | Context for integration tests.
 --

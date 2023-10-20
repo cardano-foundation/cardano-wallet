@@ -23,51 +23,85 @@ module Internal.Cardano.Write.Tx.Redeemers
 import Prelude
 
 import Cardano.Api
-    ( StakeAddress, serialiseToBech32 )
+    ( StakeAddress
+    , serialiseToBech32
+    )
 import Cardano.Crypto.Hash.Class
-    ( Hash )
+    ( Hash
+    )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError )
+    ( TranslationError
+    )
 import Cardano.Ledger.Api
-    ( Tx, bodyTxL, rdmrsTxWitsL, scriptIntegrityHashTxBodyL, witsTxL )
+    ( Tx
+    , bodyTxL
+    , rdmrsTxWitsL
+    , scriptIntegrityHashTxBodyL
+    , witsTxL
+    )
 import Cardano.Ledger.Mary.Value
-    ( PolicyID (..) )
+    ( PolicyID (..)
+    )
 import Cardano.Ledger.Shelley.API
-    ( ScriptHash (..), StrictMaybe (..) )
+    ( ScriptHash (..)
+    , StrictMaybe (..)
+    )
 import Cardano.Slotting.EpochInfo
-    ( EpochInfo, hoistEpochInfo )
+    ( EpochInfo
+    , hoistEpochInfo
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId
+    )
 import Codec.Serialise
-    ( deserialiseOrFail )
+    ( deserialiseOrFail
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Control.Lens
-    ( (.~) )
+    ( (.~)
+    )
 import Control.Monad
-    ( forM )
+    ( forM
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.State.Strict
-    ( StateT (..), execStateT, get, modify', put )
+    ( StateT (..)
+    , execStateT
+    , get
+    , modify'
+    , put
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.Map.Strict
-    ( Map, (!) )
+    ( Map
+    , (!)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (recentEra)
     , PParams
@@ -81,7 +115,10 @@ import Internal.Cardano.Write.Tx
     , withConstraints
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation, epochInfo, systemStartTime )
+    ( TimeTranslation
+    , epochInfo
+    , systemStartTime
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

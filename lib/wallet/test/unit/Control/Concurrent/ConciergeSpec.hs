@@ -10,21 +10,36 @@ module Control.Concurrent.ConciergeSpec
 import Prelude
 
 import Control.Concurrent.Concierge
-    ( atomicallyWithLifted, newConcierge )
+    ( atomicallyWithLifted
+    , newConcierge
+    )
 import Control.Monad.Class.MonadFork
-    ( forkIO )
+    ( forkIO
+    )
 import Control.Monad.Class.MonadSay
-    ( say )
+    ( say
+    )
 import Control.Monad.Class.MonadThrow
-    ( throwIO, try )
+    ( throwIO
+    , try
+    )
 import Control.Monad.Class.MonadTimer
-    ( threadDelay )
+    ( threadDelay
+    )
 import Control.Monad.IOSim
-    ( IOSim, runSimTrace, selectTraceEventsSay )
+    ( IOSim
+    , runSimTrace
+    , selectTraceEventsSay
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Property, (===) )
+    ( Property
+    , (===)
+    )
 
 spec :: Spec
 spec =

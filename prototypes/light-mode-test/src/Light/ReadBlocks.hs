@@ -4,22 +4,33 @@
 module Light.ReadBlocks where
 
 import Control.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import Control.Monad
-    ( forM )
+    ( forM
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Control.Monad.Trans.Except
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromJust, fromMaybe, listToMaybe )
+    ( fromJust
+    , fromMaybe
+    , listToMaybe
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Say
-    ( sayString )
+    ( sayString
+    )
 import System.Random
-    ( randomRIO )
+    ( randomRIO
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

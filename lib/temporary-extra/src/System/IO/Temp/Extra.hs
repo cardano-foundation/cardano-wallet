@@ -15,22 +15,33 @@ import qualified Data.Text as T
 import Prelude
 
 import Cardano.BM.Extra
-    ( BracketLog, BracketLog' (BracketStart), bracketTracer )
+    ( BracketLog
+    , BracketLog' (BracketStart)
+    , bracketTracer
+    )
 import Cardano.BM.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation
     , HasSeverityAnnotation (..)
     , Severity (Debug, Notice)
     )
 import Data.Functor.Contravariant
-    ( (>$<) )
+    ( (>$<)
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import System.IO.Temp
-    ( createTempDirectory, getCanonicalTemporaryDirectory )
+    ( createTempDirectory
+    , getCanonicalTemporaryDirectory
+    )
 import UnliftIO
-    ( MonadIO (liftIO), MonadUnliftIO, withTempDirectory )
+    ( MonadIO (liftIO)
+    , MonadUnliftIO
+    , withTempDirectory
+    )
 
 newtype SkipCleanup = SkipCleanup Bool
     deriving stock (Show, Eq)

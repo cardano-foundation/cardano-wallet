@@ -9,15 +9,23 @@ module Test.Utils.Pretty
 import Prelude
 
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Text.Lazy.Builder
-    ( Builder, fromLazyText )
+    ( Builder
+    , fromLazyText
+    )
 import Formatting.Buildable
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, (===) )
+    ( Arbitrary (..)
+    , Property
+    , (===)
+    )
 import Text.Pretty.Simple
-    ( pShow )
+    ( pShow
+    )
 
 import qualified Data.Text.Lazy as TL
 

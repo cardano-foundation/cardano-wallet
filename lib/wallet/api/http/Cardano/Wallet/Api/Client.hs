@@ -96,35 +96,56 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( TxMetadataSchema, toSimpleMetadataFlag )
+    ( TxMetadataSchema
+    , toSimpleMetadataFlag
+    )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit )
+    ( ApiLimit
+    )
 import Cardano.Wallet.Pools
-    ( StakePool )
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder, WalletId )
+    ( SortOrder
+    , WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState )
+    ( AddressState
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, SerialisedTx (..), unsafeSealedTxFromBytes )
+    ( SealedTx
+    , SerialisedTx (..)
+    , unsafeSealedTxFromBytes
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Servant
-    ( (:<|>) (..), (:>), NoContent )
+    ( (:<|>) (..)
+    , (:>)
+    , NoContent
+    )
 import Servant.Client
-    ( ClientM, client )
+    ( ClientM
+    , client
+    )
 import UnliftIO.Exception
-    ( throwString )
+    ( throwString
+    )
 
 import qualified Data.Aeson as Aeson
 

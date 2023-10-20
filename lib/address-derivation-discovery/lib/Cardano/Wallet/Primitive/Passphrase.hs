@@ -35,10 +35,13 @@ module Cardano.Wallet.Primitive.Passphrase
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, xPrvChangePass )
+    ( XPrv
+    , xPrvChangePass
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
 import Crypto.Random.Types
-    ( MonadRandom )
+    ( MonadRandom
+    )
 
 import qualified Cardano.Wallet.Primitive.Passphrase.Current as PBKDF2
 import qualified Cardano.Wallet.Primitive.Passphrase.Legacy as Scrypt

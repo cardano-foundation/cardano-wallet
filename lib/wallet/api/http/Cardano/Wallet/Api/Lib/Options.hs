@@ -35,7 +35,9 @@ import Data.Aeson
     , genericToJSON
     )
 import GHC.Generics
-    ( Generic, Rep )
+    ( Generic
+    , Rep
+    )
 
 import qualified Data.Aeson as Aeson
 

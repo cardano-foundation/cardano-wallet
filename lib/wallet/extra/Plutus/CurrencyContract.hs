@@ -19,11 +19,18 @@ module CurrencyContract where
 import Prelude
 
 import Codec.Serialise
-    ( serialise )
+    ( serialise
+    )
 import Ledger
-    ( MintingPolicy (..), Script, TxId (..), TxOutRef (..) )
+    ( MintingPolicy (..)
+    , Script
+    , TxId (..)
+    , TxOutRef (..)
+    )
 import Plutus.Contracts.Currency as Example
-    ( OneShotCurrency (..), curPolicy )
+    ( OneShotCurrency (..)
+    , curPolicy
+    )
 import PlutusTx.Builtins.Class
 
 import qualified Data.ByteString as BS

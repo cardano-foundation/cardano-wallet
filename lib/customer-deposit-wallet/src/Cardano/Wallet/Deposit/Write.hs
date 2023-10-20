@@ -17,12 +17,16 @@ module Cardano.Wallet.Deposit.Write
 import Prelude
 
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 
 import Cardano.Wallet.Deposit.Read hiding
-    ( Tx, TxBody )
+    ( Tx
+    , TxBody
+    )
 
 {-----------------------------------------------------------------------------
     Type definitions

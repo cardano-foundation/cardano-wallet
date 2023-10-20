@@ -44,9 +44,11 @@ module Cardano.Wallet.Address.Discovery.SequentialAny
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Wallet.Address.Book
-    ( AddressBookIso (..) )
+    ( AddressBookIso (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -57,39 +59,67 @@ import Cardano.Wallet.Address.Derivation
     , SoftDerivation (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..), GenChange (..), IsOurs (..), KnownAddresses (..) )
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqAddressPool (..), SeqState (..), SupportsDiscovery )
+    ( SeqAddressPool (..)
+    , SeqState (..)
+    , SupportsDiscovery
+    )
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf, NetworkOf )
+    ( CredFromOf
+    , KeyOf
+    , NetworkOf
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger )
+    ( toLedger
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Control.Lens
-    ( iso, withIso )
+    ( iso
+    , withIso
+    )
 import Data.Digest.CRC32
-    ( crc32 )
+    ( crc32
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownNat, Nat, natVal )
+    ( KnownNat
+    , Nat
+    , natVal
+    )
 
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Pool as AddressPool

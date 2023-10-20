@@ -20,19 +20,30 @@ module Cardano.Wallet.DB.Store.Wallets.Store
 import Prelude
 
 import Cardano.Wallet.DB.Store.Meta.Layer
-    ( QueryTxMeta (..) )
+    ( QueryTxMeta (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory, mkTxMetaHistory )
+    ( DeltaTxMetaHistory
+    , mkTxMetaHistory
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (..), mkTxSet )
+    ( DeltaTxSet (..)
+    , mkTxSet
+    )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
+    ( DeltaTxWalletsHistory (..)
+    )
 import Control.Applicative
-    ( liftA2 )
+    ( liftA2
+    )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore )
+    ( Store (..)
+    , UpdateStore
+    , mkUpdateStore
+    )
 import Database.Persist.Sql
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 

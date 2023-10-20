@@ -14,21 +14,32 @@ module Cardano.Wallet.Read.Primitive.Tx.Byron
 import Prelude
 
 import Cardano.Chain.UTxO
-    ( ATxAux (..), Tx (..), taTx )
+    ( ATxAux (..)
+    , Tx (..)
+    , taTx
+    )
 import Cardano.Wallet.Read.Eras
-    ( byron, inject )
+    ( byron
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromByronTxIn )
+    ( fromByronTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromByronTxOut )
+    ( fromByronTxOut
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( byronTxHash )
+    ( byronTxHash
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

@@ -37,17 +37,26 @@ module Cardano.Wallet.Primitive.Passphrase.Legacy
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..) )
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    )
 import Crypto.Hash.Extra
-    ( blake2b256 )
+    ( blake2b256
+    )
 import Crypto.Random.Types
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -55,11 +64,15 @@ import qualified Crypto.KDF.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 
 #if HAVE_SCRYPT
 import Crypto.Scrypt
-    ( EncryptedPass (..), Pass (..), verifyPass' )
+    ( EncryptedPass (..)
+    , Pass (..)
+    , verifyPass'
+    )
 
 -- | Verify a wallet spending password using the legacy Byron scrypt encryption
 -- scheme.

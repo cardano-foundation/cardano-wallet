@@ -34,25 +34,41 @@ where
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo )
+    ( SlotNo
+    )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..), sqlSettings' )
+    ( DelegationStatusEnum (..)
+    , sqlSettings'
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Database.Persist
-    ( PersistEntity (EntityField, Key, entityDef) )
+    ( PersistEntity (EntityField, Key, entityDef)
+    )
 import Database.Persist.Sql
-    ( Migration, SqlPersistT, rawExecute, runMigrationUnsafeQuiet )
+    ( Migration
+    , SqlPersistT
+    , rawExecute
+    , runMigrationUnsafeQuiet
+    )
 import Database.Persist.TH
-    ( migrateModels, mkPersist, persistLowerCase )
+    ( migrateModels
+    , mkPersist
+    , persistLowerCase
+    )
 import GHC.Generics
-    ( Generic (..) )
+    ( Generic (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 

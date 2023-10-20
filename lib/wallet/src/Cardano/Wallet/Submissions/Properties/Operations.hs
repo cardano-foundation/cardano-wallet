@@ -7,19 +7,37 @@ module Cardano.Wallet.Submissions.Properties.Operations
 import Prelude
 
 import Cardano.Wallet.Submissions.Operations
-    ( Operation (..) )
+    ( Operation (..)
+    )
 import Cardano.Wallet.Submissions.Properties.Common
-    ( Step (Step), forAllIn, that, verify )
+    ( Step (Step)
+    , forAllIn
+    , that
+    , verify
+    )
 import Cardano.Wallet.Submissions.Properties.Primitives
-    ( txIds )
+    ( txIds
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions, finality, tip, transactions )
+    ( Submissions
+    , finality
+    , tip
+    , transactions
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (TxId), TxStatus (Expired, InLedger, InSubmission), status )
+    ( HasTxId (TxId)
+    , TxStatus (Expired, InLedger, InSubmission)
+    , status
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Test.QuickCheck
-    ( Property, counterexample, property, (.&.) )
+    ( Property
+    , counterexample
+    , property
+    , (.&.)
+    )
 
 status' :: Ord (TxId tx) => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
 status' x = status x . transactions

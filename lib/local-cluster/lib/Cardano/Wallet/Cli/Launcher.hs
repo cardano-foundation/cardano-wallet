@@ -14,15 +14,28 @@ import Prelude
 import qualified Data.Text as T
 
 import Cardano.Node.Cli.Launcher
-    ( NodeApi, nodeApiSocket )
+    ( NodeApi
+    , nodeApiSocket
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Path
-    ( Abs, Dir, File, Path, relfile, toFilePath, (</>) )
+    ( Abs
+    , Dir
+    , File
+    , Path
+    , relfile
+    , toFilePath
+    , (</>)
+    )
 import System.IO
-    ( IOMode (AppendMode), openFile )
+    ( IOMode (AppendMode)
+    , openFile
+    )
 import System.Process.Typed
     ( Process
     , proc

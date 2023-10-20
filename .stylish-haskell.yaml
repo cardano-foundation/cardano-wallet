@@ -4,7 +4,7 @@
 # https://github.com/jaspervdj/stylish-haskell/blob/master/data/stylish-haskell.yaml
 # for usage.
 
-columns: 80 # Should match .editorconfig
+columns: 1 # Force diff-friendly import style (one line per symbol).
 steps:
   - imports:
       align: none

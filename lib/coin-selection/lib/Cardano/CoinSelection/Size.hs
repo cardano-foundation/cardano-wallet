@@ -14,9 +14,11 @@ module Cardano.CoinSelection.Size
     where
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import Prelude
 

@@ -23,23 +23,34 @@ module Cardano.Wallet.Read.Tx.Hash
 import Prelude
 
 import Cardano.Chain.UTxO
-    ( ATxAux, taTx )
+    ( ATxAux
+    , taTx
+    )
 import Cardano.Crypto
-    ( serializeCborHash )
+    ( serializeCborHash
+    )
 import Cardano.Ledger.Block
-    ( txid )
+    ( txid
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.TxIn
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.Read
-    ( Tx )
+    ( Tx
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto

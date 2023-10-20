@@ -149,73 +149,118 @@ module Internal.Cardano.Write.Tx
 import Prelude
 
 import Cardano.Api
-    ( BabbageEra, ConwayEra )
+    ( BabbageEra
+    , ConwayEra
+    )
 import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
+    ( ShelleyLedgerEra
+    )
 import Cardano.Crypto.Hash
-    ( Hash (UnsafeHash) )
+    ( Hash (UnsafeHash)
+    )
 import Cardano.Ledger.Allegra.Scripts
-    ( translateTimelock )
+    ( translateTimelock
+    )
 import Cardano.Ledger.Alonzo.Scripts
-    ( AlonzoScript (..) )
+    ( AlonzoScript (..)
+    )
 import Cardano.Ledger.Alonzo.Scripts.Data
-    ( BinaryData, Datum (..) )
+    ( BinaryData
+    , Datum (..)
+    )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( ExtendedUTxO )
+    ( ExtendedUTxO
+    )
 import Cardano.Ledger.Alonzo.TxWits
-    ( AlonzoTxWits )
+    ( AlonzoTxWits
+    )
 import Cardano.Ledger.Alonzo.UTxO
-    ( AlonzoScriptsNeeded )
+    ( AlonzoScriptsNeeded
+    )
 import Cardano.Ledger.Api.UTxO
-    ( EraUTxO (ScriptsNeeded) )
+    ( EraUTxO (ScriptsNeeded)
+    )
 import Cardano.Ledger.Babbage.TxBody
-    ( BabbageTxOut (..) )
+    ( BabbageTxOut (..)
+    )
 import Cardano.Ledger.BaseTypes
-    ( ProtVer (..), Version, maybeToStrictMaybe )
+    ( ProtVer (..)
+    , Version
+    , maybeToStrictMaybe
+    )
 import Cardano.Ledger.Binary
-    ( Sized (..) )
+    ( Sized (..)
+    )
 import Cardano.Ledger.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Mary
-    ( MaryValue )
+    ( MaryValue
+    )
 import Cardano.Ledger.SafeHash
-    ( SafeHash, extractHash, unsafeMakeSafeHash )
+    ( SafeHash
+    , extractHash
+    , unsafeMakeSafeHash
+    )
 import Cardano.Ledger.Val
-    ( coin, modifyCoin )
+    ( coin
+    , modifyCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin )
+    ( txOutMaxCoin
+    )
 import Control.Arrow
-    ( second, (>>>) )
+    ( second
+    , (>>>)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Short
-    ( toShort )
+    ( toShort
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCast
+    , intCastMaybe
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe
+    , isJust
+    )
 import Data.Type.Equality
-    ( (:~:) (Refl), TestEquality (testEquality) )
+    ( (:~:) (Refl)
+    , TestEquality (testEquality)
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage, StandardConway )
+    ( StandardBabbage
+    , StandardConway
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano

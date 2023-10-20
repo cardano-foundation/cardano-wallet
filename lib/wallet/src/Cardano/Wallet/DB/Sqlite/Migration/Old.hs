@@ -43,41 +43,68 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..) )
+    ( EntityField (..)
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseScheme (..) )
+    ( PassphraseScheme (..)
+    )
 import Control.Monad
-    ( forM_, guard, void, when )
+    ( forM_
+    , guard
+    , void
+    , when
+    )
 import Control.Monad.Trans
-    ( lift )
+    ( lift
+    )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer
+    , traceWith
+    )
 import Data.Foldable
-    ( for_ )
+    ( for_
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..), fromText )
+    ( ToText (..)
+    , fromText
+    )
 import Data.Word
-    ( Word16 )
+    ( Word16
+    )
 import Database.Persist.Class
-    ( toPersistValue )
+    ( toPersistValue
+    )
 import Database.Persist.Types
-    ( PersistValue (..), fromPersistValueText )
+    ( PersistValue (..)
+    , fromPersistValueText
+    )
 import List.Transformer
-    ( runListT, select )
+    ( runListT
+    , select
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import UnliftIO.Exception
-    ( Exception, throwIO, throwString )
+    ( Exception
+    , throwIO
+    , throwString
+    )
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq

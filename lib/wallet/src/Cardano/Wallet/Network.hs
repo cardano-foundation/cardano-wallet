@@ -38,21 +38,31 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra )
+    ( AnyCardanoEra
+    )
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Pool.Types
-    ( StakePoolsSummary )
+    ( StakePoolsSummary
+    )
 import Cardano.Wallet.Checkpoints.Policy
-    ( CheckpointPolicy )
+    ( CheckpointPolicy
+    )
 import Cardano.Wallet.Primitive.BlockSummary
-    ( LightSummary )
+    ( LightSummary
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
+    ( PastHorizonException
+    , TimeInterpreter
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..) )
+    ( SyncProgress (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
@@ -62,45 +72,73 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( SealedTx )
+    ( SealedTx
+    )
 import Control.Concurrent.Class.MonadSTM
-    ( atomically )
+    ( atomically
+    )
 import Control.Concurrent.Class.MonadSTM.Strict
-    ( StrictTMVar, newTMVarIO, putTMVar, takeTMVar )
+    ( StrictTMVar
+    , newTMVarIO
+    , putTMVar
+    , takeTMVar
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..)
+    )
 import Control.Tracer
-    ( Tracer, contramapM, traceWith )
+    ( Tracer
+    , contramapM
+    , traceWith
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Data.Time.Clock
-    ( UTCTime, diffUTCTime, getCurrentTime )
+    ( UTCTime
+    , diffUTCTime
+    , getCurrentTime
+    )
 import Fmt
-    ( pretty )
+    ( pretty
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import NoThunks.Class
-    ( AllowThunksIn (..), NoThunks (..) )
+    ( AllowThunksIn (..)
+    , NoThunks (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( headMay )
+    ( headMay
+    )
 import UnliftIO.Async
-    ( race_ )
+    ( race_
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 
 import qualified Data.List.NonEmpty as NE
 

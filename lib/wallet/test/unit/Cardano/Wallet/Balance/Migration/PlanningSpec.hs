@@ -20,7 +20,9 @@ import Cardano.Wallet.Balance.Migration.Planning
     , uncategorizeUTxOEntries
     )
 import Cardano.Wallet.Balance.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..) )
+    ( RewardWithdrawal (..)
+    , Selection (..)
+    )
 import Cardano.Wallet.Balance.Migration.SelectionSpec
     ( MockInputId
     , MockTxConstraints (..)
@@ -32,27 +34,41 @@ import Cardano.Wallet.Balance.Migration.SelectionSpec
     , unMockTxConstraints
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft
+    , isRight
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Generics.Labels
     ()
 import Data.Set
-    ( Set )
+    ( Set
+    )
 import Fmt
-    ( padLeftF, pretty )
+    ( padLeftF
+    , pretty
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Core.QuickCheck
-    ( modifyMaxSuccess )
+    ( modifyMaxSuccess
+    )
 import Test.QuickCheck
     ( Blind (..)
     , Gen
@@ -69,9 +85,12 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( report, verify )
+    ( report
+    , verify
+    )
 import Test.Utils.Pretty
-    ( Pretty (..) )
+    ( Pretty (..)
+    )
 
 import qualified Cardano.Wallet.Balance.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

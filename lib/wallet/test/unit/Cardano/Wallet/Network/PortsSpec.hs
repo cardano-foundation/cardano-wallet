@@ -5,15 +5,25 @@ module Cardano.Wallet.Network.PortsSpec
 import Prelude
 
 import Cardano.Wallet.Network.Ports
-    ( getRandomPort, isPortOpen, simpleSockAddr )
+    ( getRandomPort
+    , isPortOpen
+    , simpleSockAddr
+    )
 import Network.HTTP.Types
-    ( status200 )
+    ( status200
+    )
 import Network.Wai
-    ( responseLBS )
+    ( responseLBS
+    )
 import Network.Wai.Handler.Warp
-    ( withApplication )
+    ( withApplication
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+    ( Spec
+    , describe
+    , it
+    , shouldReturn
+    )
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Network.Ports" $ do

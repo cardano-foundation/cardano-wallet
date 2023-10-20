@@ -16,29 +16,43 @@ module Cardano.Wallet.DB.Pure.ImplementationSpec
 import Prelude
 
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs (..) )
+    ( IsOurs (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..) )
+    ( SeqState (..)
+    )
 import Cardano.Wallet.DB.Properties
-    ( properties )
+    ( properties
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+    ( dummyTimeInterpreter
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Test.Hspec
-    ( Spec, before, describe )
+    ( Spec
+    , before
+    , describe
+    )
 import Test.QuickCheck
-    ( Arbitrary (..) )
+    ( Arbitrary (..)
+    )
 import Test.Utils.Platform
-    ( pendingOnMacOS )
+    ( pendingOnMacOS
+    )
 
 import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 

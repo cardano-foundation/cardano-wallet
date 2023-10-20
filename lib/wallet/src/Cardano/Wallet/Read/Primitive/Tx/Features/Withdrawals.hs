@@ -16,15 +16,21 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( Withdrawals (..) )
+    ( Withdrawals (..)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger

@@ -11,23 +11,44 @@ import qualified Cardano.Wallet.Spec.Network.Node.Cli as NodeCli
 import qualified Cardano.Wallet.Spec.Network.Wallet.Cli as WalletCli
 
 import Cardano.Node.Cli.Launcher
-    ( NodeApi, NodeProcessConfig (..) )
+    ( NodeApi
+    , NodeProcessConfig (..)
+    )
 import Cardano.Wallet.Cli.Launcher
-    ( WalletApi, WalletProcessConfig (..) )
+    ( WalletApi
+    , WalletProcessConfig (..)
+    )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
-    ( NodeStatus (..) )
+    ( NodeStatus (..)
+    )
 import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig (..) )
+    ( NetworkConfig (..)
+    )
 import Cardano.Wallet.Spec.Network.Node.Cli
-    ( CliError, NodeTip )
+    ( CliError
+    , NodeTip
+    )
 import Cardano.Wallet.Spec.Network.Wallet.Cli
-    ( NetworkInformation )
+    ( NetworkInformation
+    )
 import Control.Monad.Trans.Resource
-    ( allocate, runResourceT )
+    ( allocate
+    , runResourceT
+    )
 import Control.Retry
-    ( RetryStatus, capDelay, fibonacciBackoff, retrying )
+    ( RetryStatus
+    , capDelay
+    , fibonacciBackoff
+    , retrying
+    )
 import Path
-    ( Abs, Dir, Path, reldir, relfile, (</>) )
+    ( Abs
+    , Dir
+    , Path
+    , reldir
+    , relfile
+    , (</>)
+    )
 
 nodeWalletSetup
     :: Path Abs Dir

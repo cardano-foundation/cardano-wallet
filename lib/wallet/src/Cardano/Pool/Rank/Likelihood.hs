@@ -38,27 +38,38 @@ import Cardano.Wallet.Primitive.Types
     , getFederationPercentage
     )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Foldable
-    ( find )
+    ( find
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.List
-    ( foldl' )
+    ( foldl'
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Quantity
-    ( Percentage (..) )
+    ( Percentage (..)
+    )
 import Data.Sequence
-    ( Seq )
+    ( Seq
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import NoThunks.Class
-    ( NoThunks (..) )
+    ( NoThunks (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
 
 import qualified Data.Sequence as Seq

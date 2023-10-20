@@ -7,37 +7,62 @@ where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (TokenBundle) )
+    ( TokenBundle (TokenBundle)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (AssetId), fromFlatList, toFlatList )
+    ( AssetId (AssetId)
+    , fromFlatList
+    , toFlatList
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (UnsafeTokenName), TokenPolicyId (UnsafeTokenPolicyId) )
+    ( TokenName (UnsafeTokenName)
+    , TokenPolicyId (UnsafeTokenPolicyId)
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (TokenQuantity) )
+    ( TokenQuantity (TokenQuantity)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import Codec.CBOR.Decoding
-    ( Decoder, decodeBytes, decodeInteger, decodeListLen )
+    ( Decoder
+    , decodeBytes
+    , decodeInteger
+    , decodeListLen
+    )
 import Codec.CBOR.Encoding
-    ( Encoding, encodeBytes, encodeInteger, encodeListLen )
+    ( Encoding
+    , encodeBytes
+    , encodeInteger
+    , encodeListLen
+    )
 import Codec.CBOR.Read
-    ( deserialiseFromBytes )
+    ( deserialiseFromBytes
+    )
 import Codec.CBOR.Write
-    ( toLazyByteString )
+    ( toLazyByteString
+    )
 import Codec.Serialise
-    ( DeserialiseFailure )
+    ( DeserialiseFailure
+    )
 import Control.Exception
-    ( Exception )
+    ( Exception
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 
 -- | Signal a failure to decode a 'TxOut' from a ByteString.
 data FailedDecodingDeltaUTxO

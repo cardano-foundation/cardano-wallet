@@ -19,21 +19,36 @@ module Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Control.Monad
-    ( replicateM )
+    ( replicateM
+    )
 import Data.Either
-    ( fromRight )
+    ( fromRight
+    )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..)
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Test.QuickCheck
-    ( Gen, arbitrary, coarbitrary, elements, sized )
+    ( Gen
+    , arbitrary
+    , coarbitrary
+    , elements
+    , sized
+    )
 import Test.QuickCheck.Extra
-    ( genFunction, genSized2With, shrinkInterleaved )
+    ( genFunction
+    , genSized2With
+    , shrinkInterleaved
+    )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T

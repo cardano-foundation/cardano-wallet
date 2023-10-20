@@ -12,31 +12,53 @@ import qualified Data.Text as T
 import qualified Effectful.State.Static.Local as State
 
 import Cardano.Wallet.Spec.Data.Mnemonic
-    ( Mnemonic )
+    ( Mnemonic
+    )
 import Cardano.Wallet.Spec.Data.WalletName
-    ( WalletName )
+    ( WalletName
+    )
 import Cardano.Wallet.Spec.Effect.Trace
-    ( FxTrace, trace )
+    ( FxTrace
+    , trace
+    )
 import Crypto.Encoding.BIP39
-    ( toEntropy )
+    ( toEntropy
+    )
 import Data.Tagged
-    ( Tagged (..) )
+    ( Tagged (..)
+    )
 import Effectful
-    ( (:>), Eff, Effect )
+    ( (:>)
+    , Eff
+    , Effect
+    )
 import Effectful.Dispatch.Dynamic
-    ( interpret, reinterpret )
+    ( interpret
+    , reinterpret
+    )
 import Effectful.Fail
-    ( Fail )
+    ( Fail
+    )
 import Effectful.State.Static.Local
-    ( State, evalState )
+    ( State
+    , evalState
+    )
 import Effectful.TH
-    ( makeEffect )
+    ( makeEffect
+    )
 import Prelude hiding
-    ( State, evalState, get, trace )
+    ( State
+    , evalState
+    , get
+    , trace
+    )
 import System.Random
-    ( StdGen )
+    ( StdGen
+    )
 import System.Random.Stateful
-    ( StateGenM (..), uniformByteStringM )
+    ( StateGenM (..)
+    , uniformByteStringM
+    )
 
 data FxRandom :: Effect where
     RandomMnemonic :: FxRandom m Mnemonic

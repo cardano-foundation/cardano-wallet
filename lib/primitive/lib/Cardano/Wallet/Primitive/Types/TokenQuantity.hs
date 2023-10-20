@@ -31,42 +31,70 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     ) where
 
 import Prelude hiding
-    ( pred, subtract, succ )
+    ( pred
+    , subtract
+    , succ
+    )
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural, partitionNatural )
+    ( equipartitionNatural
+    , partitionNatural
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Hashable
-    ( Hashable )
+    ( Hashable
+    )
 import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( NonEmpty (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive ((</>)), RightReductive )
+    ( LeftReductive
+    , Reductive ((</>))
+    , RightReductive
+    )
 import Data.Monoid.GCD
-    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+    ( GCDMonoid
+    , LeftGCDMonoid
+    , RightGCDMonoid
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)), OverlappingGCDMonoid )
+    ( Monus ((<\>))
+    , OverlappingGCDMonoid
+    )
 import Data.Monoid.Null
-    ( MonoidNull )
+    ( MonoidNull
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 --------------------------------------------------------------------------------
 -- Type

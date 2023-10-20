@@ -39,37 +39,60 @@ module Cardano.Wallet.DB.LayerSpec
 import Prelude
 
 import Cardano.BM.Configuration.Static
-    ( defaultConfigTesting )
+    ( defaultConfigTesting
+    )
 import Cardano.BM.Data.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Cardano.BM.Extra
-    ( trMessageText )
+    ( trMessageText
+    )
 import Cardano.BM.Setup
-    ( setupTrace )
+    ( setupTrace
+    )
 import Cardano.BM.Trace
-    ( traceInTVarIO )
+    ( traceInTVarIO
+    )
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.DB.Sqlite
-    ( DBField, DBLog (..), fieldName )
+    ( DBField
+    , DBLog (..)
+    , fieldName
+    )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet
-    ( putPrivateKey, readPrivateKey, readWalletMeta )
+    ( putPrivateKey
+    , readPrivateKey
+    , readWalletMeta
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index, PaymentAddress (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index
+    , PaymentAddress (..)
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey
+    )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..)
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Address.Discovery
-    ( KnownAddresses (..) )
+    ( KnownAddresses (..)
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+    ( RndState (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
@@ -79,11 +102,17 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState )
+    ( SharedState
+    )
 import Cardano.Wallet.Address.Keys.SequentialAny
-    ( mkSeqStateFromRootXPrv )
+    ( mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.DB
-    ( DBFactory (..), DBFresh (..), DBLayer (..), DBLayerParams (..) )
+    ( DBFactory (..)
+    , DBFresh (..)
+    , DBLayer (..)
+    , DBLayerParams (..)
+    )
 import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
@@ -97,15 +126,27 @@ import Cardano.Wallet.DB.Layer
     , withDBOpenFromFile
     )
 import Cardano.Wallet.DB.Properties
-    ( properties )
+    ( properties
+    )
 import Cardano.Wallet.DB.StateMachine
-    ( TestConstraints, prop_sequential, validateGenerators )
+    ( TestConstraints
+    , prop_sequential
+    , validateGenerators
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, dummyTimeInterpreter )
+    ( block0
+    , dummyGenesisParameters
+    , dummyTimeInterpreter
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..), KeyOf, WalletFlavor (..), WalletFlavorS (..) )
+    ( KeyFlavorS (..)
+    , KeyOf
+    , WalletFlavor (..)
+    , WalletFlavorS (..)
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic
+    )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet
@@ -116,9 +157,12 @@ import Cardano.Wallet.Primitive.Model
     , initWallet
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase
-    ( encryptPassphrase, preparePassphrase )
+    ( encryptPassphrase
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (..)
@@ -141,85 +185,147 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..) )
+    ( RootCredentials (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
+    ( Hash (..)
+    , mockHash
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxScriptValidity (..) )
+    ( Tx (..)
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..), toTxHistory )
+    ( TransactionInfo (..)
+    , toTxHistory
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..) )
+    ( Direction (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeRunExceptT )
+    ( unsafeFromHex
+    , unsafeRunExceptT
+    )
 import Control.Monad
-    ( forM_, forever, replicateM_, unless, void )
+    ( forM_
+    , forever
+    , replicateM_
+    , unless
+    , void
+    )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO
+    , liftIO
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Crypto.Hash
-    ( hash )
+    ( hash
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over
+    , view
+    , (^.)
+    )
 import Data.Generics.Labels
     ()
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Maybe
-    ( isJust, isNothing, mapMaybe )
+    ( isJust
+    , isNothing
+    , mapMaybe
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( getCurrentTime
+    )
 import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+    ( posixSecondsToUTCTime
+    )
 import Data.Typeable
-    ( Typeable, typeOf )
+    ( Typeable
+    , typeOf
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Database.Persist.Sql
-    ( FieldNameDB (..), PersistEntity (..), fieldDB )
+    ( FieldNameDB (..)
+    , PersistEntity (..)
+    , fieldDB
+    )
 import Database.Persist.Sqlite
-    ( Single (..) )
+    ( Single (..)
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Safe
-    ( headMay )
+    ( headMay
+    )
 import System.Directory
-    ( copyFile, doesFileExist, listDirectory, removeFile )
+    ( copyFile
+    , doesFileExist
+    , listDirectory
+    , removeFile
+    )
 import System.FilePath
-    ( (</>) )
+    ( (</>)
+    )
 import System.IO
-    ( IOMode (..), hClose, withFile )
+    ( IOMode (..)
+    , hClose
+    , withFile
+    )
 import System.IO.Error
-    ( isUserError )
+    ( isUserError
+    )
 import System.IO.Temp
-    ( emptySystemTempFile )
+    ( emptySystemTempFile
+    )
 import System.IO.Unsafe
-    ( unsafePerformIO )
+    ( unsafePerformIO
+    )
 import System.Random
-    ( randomRIO )
+    ( randomRIO
+    )
 import Test.Hspec
     ( Expectation
     , Spec
@@ -237,25 +343,49 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( Property, generate, property, (==>) )
+    ( Property
+    , generate
+    , property
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( monadicIO
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging
+    )
 import UnliftIO.Async
-    ( concurrently, concurrently_ )
+    ( concurrently
+    , concurrently_
+    )
 import UnliftIO.Concurrent
-    ( forkIO, killThread, threadDelay )
+    ( forkIO
+    , killThread
+    , threadDelay
+    )
 import UnliftIO.Exception
-    ( SomeException, handle, throwIO )
+    ( SomeException
+    , handle
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
+    ( isEmptyMVar
+    , newEmptyMVar
+    , putMVar
+    , takeMVar
+    )
 import UnliftIO.STM
-    ( newTVarIO, readTVarIO, writeTVar )
+    ( newTVarIO
+    , readTVarIO
+    , writeTVar
+    )
 import UnliftIO.Temporary
-    ( withSystemTempDirectory, withSystemTempFile )
+    ( withSystemTempDirectory
+    , withSystemTempFile
+    )
 
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.Checkpoints as Checkpoints

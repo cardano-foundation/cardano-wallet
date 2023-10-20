@@ -11,7 +11,10 @@ module Cardano.Wallet.Api.Server.TlsSpec
 import Prelude
 
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( Listen (..), TlsConfiguration (..), withListeningSocket )
+    ( Listen (..)
+    , TlsConfiguration (..)
+    , withListeningSocket
+    )
 import Cardano.X509.Configuration
     ( CertDescription (..)
     , ConfigurationKey (..)
@@ -21,25 +24,37 @@ import Cardano.X509.Configuration
     , genCertificate
     )
 import Control.Monad
-    ( unless )
+    ( unless
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.ByteString.Lazy
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Default
-    ( def )
+    ( def
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.X509
-    ( CertificateChain (..) )
+    ( CertificateChain (..)
+    )
 import Data.X509.CertificateStore
-    ( makeCertificateStore )
+    ( makeCertificateStore
+    )
 import Data.X509.Extra
-    ( encodePEM, genRSA256KeyPair )
+    ( encodePEM
+    , genRSA256KeyPair
+    )
 import Data.X509.File
-    ( readKeyFile, readSignedObject )
+    ( readKeyFile
+    , readSignedObject
+    )
 import Network.Connection
-    ( TLSSettings (..) )
+    ( TLSSettings (..)
+    )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent (..)
@@ -52,9 +67,11 @@ import Network.HTTP.Client
     , responseStatus
     )
 import Network.HTTP.Client.TLS
-    ( mkManagerSettings )
+    ( mkManagerSettings
+    )
 import Network.HTTP.Types.Status
-    ( Status (..) )
+    ( Status (..)
+    )
 import Network.TLS
     ( AlertDescription (..)
     , ClientHooks (..)
@@ -67,25 +84,44 @@ import Network.TLS
     , noSessionManager
     )
 import Network.TLS.Extra.Cipher
-    ( ciphersuite_default )
+    ( ciphersuite_default
+    )
 import Network.Wai
-    ( responseLBS )
+    ( responseLBS
+    )
 import System.Directory
-    ( createDirectoryIfMissing, doesDirectoryExist )
+    ( createDirectoryIfMissing
+    , doesDirectoryExist
+    )
 import System.FilePath
-    ( takeFileName, (<.>), (</>) )
+    ( takeFileName
+    , (<.>)
+    , (</>)
+    )
 import System.IO
-    ( hPutStrLn, stderr )
+    ( hPutStrLn
+    , stderr
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldThrow )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldThrow
+    )
 import Test.Utils.Paths
-    ( getTestData )
+    ( getTestData
+    )
 import Test.Utils.Platform
-    ( pendingOnWine )
+    ( pendingOnWine
+    )
 import UnliftIO.Async
-    ( async, link )
+    ( async
+    , link
+    )
 import UnliftIO.Exception
-    ( fromException )
+    ( fromException
+    )
 
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Data.ByteString as BS

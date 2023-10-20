@@ -22,15 +22,21 @@ module Cardano.Wallet.Submissions.Operations
 import Prelude
 
 import Cardano.Wallet.Submissions.Primitives
-    ( Primitive (MoveFinality, MoveTip), applyPrimitive )
+    ( Primitive (MoveFinality, MoveTip)
+    , applyPrimitive
+    )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions )
+    ( Submissions
+    )
 import Cardano.Wallet.Submissions.TxStatus
-    ( HasTxId (..) )
+    ( HasTxId (..)
+    )
 import Data.Foldable
-    ( Foldable (..) )
+    ( Foldable (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 
 import qualified Cardano.Wallet.Submissions.Primitives as DP
 

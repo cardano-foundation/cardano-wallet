@@ -13,13 +13,19 @@ module Test.Utils.Laws.PartialOrd
 import Prelude
 
 import Algebra.PartialOrd
-    ( PartialOrd (..) )
+    ( PartialOrd (..)
+    )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy
+    )
 import Test.QuickCheck
-    ( Arbitrary, Property, property )
+    ( Arbitrary
+    , Property
+    , property
+    )
 import Test.QuickCheck.Classes
-    ( Laws (..) )
+    ( Laws (..)
+    )
 
 partialOrdLaws :: (PartialOrd a, Arbitrary a, Show a) => Proxy a -> Laws
 partialOrdLaws p = Laws "PartialOrd"

@@ -30,21 +30,30 @@ module Network.Ntp
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.NTP.Client
     ( IPVersion (..)
     , NtpClient (..)
@@ -55,9 +64,12 @@ import Network.NTP.Client
     , withNtpClient
     )
 import System.IOManager
-    ( IOManager )
+    ( IOManager
+    )
 import UnliftIO.STM
-    ( atomically, checkSTM )
+    ( atomically
+    , checkSTM
+    )
 
 import qualified Data.Text as T
 

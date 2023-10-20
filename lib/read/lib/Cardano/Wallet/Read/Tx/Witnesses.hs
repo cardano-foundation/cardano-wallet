@@ -30,19 +30,26 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Alonzo.TxWits
-    ( AlonzoTxWits )
+    ( AlonzoTxWits
+    )
 import Cardano.Ledger.Core
-    ( witsTxL )
+    ( witsTxL
+    )
 import Cardano.Ledger.Shelley.TxWits
-    ( ShelleyTxWits )
+    ( ShelleyTxWits
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo

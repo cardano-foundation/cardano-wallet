@@ -19,31 +19,54 @@ where
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
+    ( Depth (RootK)
+    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory )
+    ( WalletProperty
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( DeltaPrivateKey, mkStorePrivateKey )
+    ( DeltaPrivateKey
+    , mkStorePrivateKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( HashedCredentials, RootCredentials (RootCredentials) )
+    ( HashedCredentials
+    , RootCredentials (RootCredentials)
+    )
 import Data.Delta
-    ( Replace (..) )
+    ( Replace (..)
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( Arbitrary, Gen, arbitrary, property )
+    ( Arbitrary
+    , Gen
+    , arbitrary
+    , property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 spec :: Spec
 spec =

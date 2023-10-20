@@ -10,19 +10,32 @@ module Cardano.Wallet.DB.Store.Wallets.LayerSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), runQuery )
+    ( ForeignKeysSetting (..)
+    , runQuery
+    )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory )
+    ( WalletProperty
+    , logScale
+    , withDBInMemory
+    )
 import Cardano.Wallet.DB.Store.Wallets.Layer
-    ( newQueryStoreTxWalletsHistory )
+    ( newQueryStoreTxWalletsHistory
+    )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
-    ( genDeltaTxWallets )
+    ( genDeltaTxWallets
+    )
 import Test.Hspec
-    ( Spec, around, describe, it )
+    ( Spec
+    , around
+    , describe
+    , it
+    )
 import Test.QuickCheck
-    ( property )
+    ( property
+    )
 import Test.Store
-    ( prop_StoreUpdate )
+    ( prop_StoreUpdate
+    )
 
 spec :: Spec
 spec = do

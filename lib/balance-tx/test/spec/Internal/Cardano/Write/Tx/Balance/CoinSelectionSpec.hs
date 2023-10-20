@@ -7,29 +7,48 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( genAddress
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, shrinkCoin )
+    ( genCoin
+    , shrinkCoin
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundle, shrinkTokenBundle )
+    ( genTokenBundle
+    , shrinkTokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap, shrinkTokenMap )
+    ( genTokenMap
+    , shrinkTokenMap
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn
+    , shrinkTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxOut
+    , shrinkTxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, genUTxOLarge, shrinkUTxO )
+    ( genUTxO
+    , genUTxOLarge
+    , shrinkUTxO
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Generics.SOP
-    ( NP (..) )
+    ( NP (..)
+    )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
     , SelectionOf (..)
@@ -41,9 +60,13 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , toInternalUTxOMap
     )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.Hspec.Extra
-    ( parallel )
+    ( parallel
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -56,9 +79,15 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( genNonEmpty, genericRoundRobinShrink, shrinkNonEmpty, (<:>), (<@>) )
+    ( genNonEmpty
+    , genericRoundRobinShrink
+    , shrinkNonEmpty
+    , (<:>)
+    , (<@>)
+    )
 import Test.Utils.Pretty
-    ( (====) )
+    ( (====)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 

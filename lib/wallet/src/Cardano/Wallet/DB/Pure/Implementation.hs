@@ -68,13 +68,20 @@ module Cardano.Wallet.DB.Pure.Implementation
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.DB
-    ( DBLayerParams (..) )
+    ( DBLayerParams (..)
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip )
+    ( Wallet
+    , currentTip
+    )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpretQuery, slotToUTCTime )
+    ( TimeInterpreter
+    , interpretQuery
+    , slotToUTCTime
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , ChainPoint
@@ -92,45 +99,68 @@ import Cardano.Wallet.Primitive.Types
     , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..) )
+    ( SealedTx (..)
+    , Tx (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..) )
+    ( TransactionInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxMeta (TxMeta, blockHeight, expiry, slotNo, status)
     , TxStatus (Expired, Pending)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( join )
+    ( join
+    )
 import Data.Bifunctor
-    ( first )
+    ( first
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view
+    , (^.)
+    )
 import Data.List
-    ( sort, sortOn )
+    ( sort
+    , sortOn
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( catMaybes, fromMaybe, mapMaybe )
+    ( catMaybes
+    , fromMaybe
+    , mapMaybe
+    )
 import Data.Ord
-    ( Down (..) )
+    ( Down (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Data.Map.Strict as Map
 

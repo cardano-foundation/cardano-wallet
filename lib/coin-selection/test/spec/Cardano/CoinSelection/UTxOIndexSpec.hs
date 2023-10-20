@@ -18,7 +18,9 @@ module Cardano.CoinSelection.UTxOIndexSpec
 import Prelude
 
 import Cardano.CoinSelection.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , shrinkUTxOIndex
+    )
 import Cardano.CoinSelection.UTxOIndex.Internal
     ( Asset (..)
     , BundleCategory (..)
@@ -29,31 +31,49 @@ import Cardano.CoinSelection.UTxOIndex.Internal
     , checkInvariant
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
+    ( genTokenBundleSmallRangePositive
+    , shrinkTokenBundleSmallRangePositive
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Control.Monad
-    ( void )
+    ( void
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust
+    , isNothing
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -75,13 +95,22 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws )
+    ( eqLaws
+    )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 import Test.QuickCheck.Quid
-    ( Hexadecimal (..), Quid, Size (..) )
+    ( Hexadecimal (..)
+    , Quid
+    , Size (..)
+    )
 import Test.Utils.Laws
-    ( testLawsMany )
+    ( testLawsMany
+    )
 
 import qualified Cardano.CoinSelection.UTxOIndex.Internal as UTxOIndex
 import qualified Data.Foldable as F

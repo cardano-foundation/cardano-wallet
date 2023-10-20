@@ -12,37 +12,59 @@ module Network.Wai.Middleware.LoggingSpec (spec) where
 import Prelude
 
 import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..) )
+    ( HasSeverityAnnotation (..)
+    )
 import Cardano.BM.Trace
-    ( traceInTVarIO )
+    ( traceInTVarIO
+    )
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_
+    , void
+    , when
+    )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( liftIO
+    )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>)
+    , (<&>)
+    )
 import Data.List
-    ( isInfixOf )
+    ( isInfixOf
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Streaming.Network
-    ( HostPreference, bindPortTCP, bindRandomPortTCP )
+    ( HostPreference
+    , bindPortTCP
+    , bindRandomPortTCP
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
     ( Manager
     , Request
@@ -56,11 +78,17 @@ import Network.HTTP.Client
     , requestHeaders
     )
 import Network.HTTP.Types.Header
-    ( hContentType )
+    ( hContentType
+    )
 import Network.Socket
-    ( Socket, close )
+    ( Socket
+    , close
+    )
 import Network.Wai.Handler.Warp
-    ( Port, runSettingsSocket, setBeforeMainLoop )
+    ( Port
+    , runSettingsSocket
+    , setBeforeMainLoop
+    )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..)
     , ApiLoggerSettings
@@ -88,7 +116,8 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler )
+    ( Handler
+    )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -97,21 +126,46 @@ import System.IO.Error
     , isUserError
     )
 import Test.Hspec
-    ( Spec, after, before, describe, it, shouldBe, shouldContain )
+    ( Spec
+    , after
+    , before
+    , describe
+    , it
+    , shouldBe
+    , shouldContain
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), choose )
+    ( Arbitrary (..)
+    , choose
+    )
 import UnliftIO
-    ( IOException, bracket, tryJust )
+    ( IOException
+    , bracket
+    , tryJust
+    )
 import UnliftIO.Async
-    ( Async, async, cancel )
+    ( Async
+    , async
+    , cancel
+    )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import UnliftIO.Exception
-    ( onException, throwString )
+    ( onException
+    , throwString
+    )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, readMVar, tryPutMVar )
+    ( newEmptyMVar
+    , putMVar
+    , readMVar
+    , tryPutMVar
+    )
 import UnliftIO.STM
-    ( TVar, newTVarIO, readTVarIO )
+    ( TVar
+    , newTVarIO
+    , readTVarIO
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T

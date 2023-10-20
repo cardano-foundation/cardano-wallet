@@ -8,45 +8,76 @@ module Cardano.Pool.Metadata.Types where
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId, StakePoolTicker (unStakePoolTicker) )
+    ( PoolId
+    , StakePoolTicker (unStakePoolTicker)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), hashFromText )
+    ( Hash (..)
+    , hashFromText
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Control.Monad
-    ( when )
+    ( when
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), withObject, (.:), (.:?) )
+    ( FromJSON (parseJSON)
+    , withObject
+    , (.:)
+    , (.:?)
+    )
 import Data.Aeson.Extra
-    ( aesonFromText )
+    ( aesonFromText
+    )
 import Data.Aeson.Types
-    ( ToJSON (toJSON), Value (String) )
+    ( ToJSON (toJSON)
+    , Value (String)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.Proxy
-    ( Proxy (Proxy) )
+    ( Proxy (Proxy)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class.Extended
-    ( FromText (fromText), ToText (toText), fromText', fromTextMaybe )
+    ( FromText (fromText)
+    , ToText (toText)
+    , fromText'
+    , fromTextMaybe
+    )
 import Data.Time.Clock.POSIX
-    ( POSIXTime )
+    ( POSIXTime
+    )
 import Database.Persist.PersistValue.Extended
-    ( fromPersistValueFromText )
+    ( fromPersistValueFromText
+    )
 import Database.Persist.Sql
-    ( PersistField (..), PersistFieldSql (..) )
+    ( PersistField (..)
+    , PersistFieldSql (..)
+    )
 import Fmt
-    ( Buildable (build) )
+    ( Buildable (build)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Network.HTTP.Client
-    ( HttpException )
+    ( HttpException
+    )
 import Network.URI
-    ( URI )
+    ( URI
+    )
 import Web.HttpApiData
-    ( FromHttpApiData (parseUrlPiece), ToHttpApiData (toUrlPiece) )
+    ( FromHttpApiData (parseUrlPiece)
+    , ToHttpApiData (toUrlPiece)
+    )
 import Web.PathPieces
-    ( PathPiece (..) )
+    ( PathPiece (..)
+    )
 
 import qualified Data.Text as T
 

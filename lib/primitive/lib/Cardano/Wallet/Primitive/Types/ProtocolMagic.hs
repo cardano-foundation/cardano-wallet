@@ -22,23 +22,36 @@ module Cardano.Wallet.Primitive.Types.ProtocolMagic
 import Prelude
 
 import Cardano.Wallet.Primitive.NetworkId
-    ( SNetworkId (..), fromSNat )
+    ( SNetworkId (..)
+    , fromSNat
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    )
 import Data.Int
-    ( Int32 )
+    ( Int32
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..)
+    , ToText (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import GHC.TypeLits
-    ( KnownNat, natVal )
+    ( KnownNat
+    , natVal
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Data.Text as T
 

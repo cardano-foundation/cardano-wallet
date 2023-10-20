@@ -12,13 +12,21 @@ module Test.Integration.Scenario.API.Byron.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkParameters (..) )
+    ( ApiNetworkParameters (..)
+    )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Quantity (..)
+    , mkPercentage
+    )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith
+    , describe
+    , it
+    , shouldBe
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

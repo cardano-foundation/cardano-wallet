@@ -1,7 +1,8 @@
 module Light.StakePools where
 
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Light.Types
 
 -- | Summary of stake distribution and stake pools obtained from network

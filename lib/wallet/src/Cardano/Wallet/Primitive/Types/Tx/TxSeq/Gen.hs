@@ -35,39 +35,66 @@ module Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( chooseCoin, genCoinPositive )
+    ( chooseCoin
+    , genCoinPositive
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
-    ( genRewardAccount )
+    ( genRewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundlePartitionNonNull )
+    ( genTokenBundlePartitionNonNull
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxScriptValidity (..) )
+    ( Tx (..)
+    , TxScriptValidity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( TxWithoutId (..), txWithoutIdToTx )
+    ( TxWithoutId (..)
+    , txWithoutIdToTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq
-    ( TxSeq )
+    ( TxSeq
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( selectUTxOEntries )
+    ( selectUTxOEntries
+    )
 import Control.Monad.Util
-    ( applyNM )
+    ( applyNM
+    )
 import Data.Function
-    ( on )
+    ( on
+    )
 import Data.Maybe
-    ( fromMaybe, listToMaybe, mapMaybe )
+    ( fromMaybe
+    , listToMaybe
+    , mapMaybe
+    )
 import Test.QuickCheck
-    ( Gen, chooseInt, elements, frequency, sized, vectorOf )
+    ( Gen
+    , chooseInt
+    , elements
+    , frequency
+    , sized
+    , vectorOf
+    )
 import Test.QuickCheck.Extra
-    ( genMapWith )
+    ( genMapWith
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxSeq as TxSeq

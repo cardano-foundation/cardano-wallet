@@ -18,11 +18,15 @@ module Data.Aeson.Extra
 import Prelude
 
 import Data.Aeson
-    ( Value (Number, Object), withText )
+    ( Value (Number, Object)
+    , withText
+    )
 import Data.Aeson.Types
-    ( Parser )
+    ( Parser
+    )
 import Data.Text.Class
-    ( FromText (fromText) )
+    ( FromText (fromText)
+    )
 
 import qualified Data.Scientific as Scientific
 

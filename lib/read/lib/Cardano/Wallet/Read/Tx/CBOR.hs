@@ -27,9 +27,11 @@ module Cardano.Wallet.Read.Tx.CBOR
 import Prelude
 
 import Cardano.Ledger.Api
-    ( eraProtVerLow )
+    ( eraProtVerLow
+    )
 import Cardano.Ledger.Binary
-    ( EncCBOR )
+    ( EncCBOR
+    )
 import Cardano.Ledger.Binary.Decoding
     ( DecCBOR (decCBOR)
     , DecoderError
@@ -48,17 +50,25 @@ import Cardano.Wallet.Read.Eras
     , sequenceEraValue
     )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..), TxT )
+    ( Tx (..)
+    , TxT
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16)
+    , convertToBase
+    )
 import Data.ByteString.Lazy
-    ( toStrict )
+    ( toStrict
+    )
 import Data.Text.Class
-    ( ToText )
+    ( ToText
+    )
 import Data.Text.Encoding
-    ( decodeUtf8 )
+    ( decodeUtf8
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo

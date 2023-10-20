@@ -9,21 +9,36 @@ module Internal.Cardano.Write.Tx.Balance.TokenBundleSize
 import Prelude
 
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    )
 import Cardano.Ledger.Api
-    ( ppMaxValSizeL, ppProtocolVersionL )
+    ( ppMaxValSizeL
+    , ppProtocolVersionL
+    )
 import Cardano.Ledger.BaseTypes
-    ( ProtVer (pvMajor) )
+    ( ProtVer (pvMajor)
+    )
 import Cardano.Ledger.Binary
-    ( serialize )
+    ( serialize
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..)
+    )
 import Control.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.IntCast
-    ( intCastMaybe )
+    ( intCastMaybe
+    )
 import Internal.Cardano.Write.Tx
-    ( PParams, RecentEra, ShelleyLedgerEra, Value, Version, withConstraints )
+    ( PParams
+    , RecentEra
+    , ShelleyLedgerEra
+    , Value
+    , Version
+    , withConstraints
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert

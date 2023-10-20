@@ -8,9 +8,11 @@ module Cardano.Wallet.Faucet.Shelley
 import Prelude
 
 import Cardano.Wallet.Faucet
-    ( Faucet (..) )
+    ( Faucet (..)
+    )
 import UnliftIO.MVar
-    ( newMVar )
+    ( newMVar
+    )
 
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 

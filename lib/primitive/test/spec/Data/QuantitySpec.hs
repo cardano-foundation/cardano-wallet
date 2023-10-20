@@ -11,13 +11,17 @@ module Data.QuantitySpec
 import Prelude
 
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.Either
-    ( isRight )
+    ( isRight
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
     ( MkPercentageError (..)
     , Percentage (..)
@@ -26,15 +30,31 @@ import Data.Quantity
     , percentageToDouble
     )
 import Data.Ratio
-    ( (%) )
+    ( (%)
+    )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
-    ( Arbitrary (..), checkCoverage, choose, cover, property, (===) )
+    ( Arbitrary (..)
+    , checkCoverage
+    , choose
+    , cover
+    , property
+    , (===)
+    )
 import Test.Text.Roundtrip
-    ( textRoundtrip )
+    ( textRoundtrip
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

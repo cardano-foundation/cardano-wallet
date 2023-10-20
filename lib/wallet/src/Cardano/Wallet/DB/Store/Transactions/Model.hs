@@ -48,57 +48,91 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxWithdrawal (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (..) )
+    ( TxId (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (AssetId) )
+    ( AssetId (AssetId)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName
+    , TokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (txCBOR) )
+    ( Tx (txCBOR)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( eraValueSerialize )
+    ( eraValueSerialize
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR )
+    ( TxCBOR
+    )
 import Control.Arrow
-    ( (&&&), (***) )
+    ( (&&&)
+    , (***)
+    )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Lazy.Char8
-    ( fromStrict, toStrict )
+    ( fromStrict
+    , toStrict
+    )
 import Data.Delta
-    ( Delta (..) )
+    ( Delta (..)
+    )
 import Data.Foldable
-    ( fold )
+    ( fold
+    )
 import Data.Generics.Internal.VL
-    ( Iso', Prism, fromIso, iso, match, prism, view, (^.) )
+    ( Iso'
+    , Prism
+    , fromIso
+    , iso
+    , match
+    , prism
+    , view
+    , (^.)
+    )
 import Data.List
-    ( sortOn )
+    ( sortOn
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16
+    , Word32
+    )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
-    ( Tx )
+    ( Tx
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn )
+    ( TxIn
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Generics.Internal.VL as L

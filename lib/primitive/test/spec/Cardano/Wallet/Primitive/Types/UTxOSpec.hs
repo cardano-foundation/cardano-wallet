@@ -16,23 +16,36 @@ module Cardano.Wallet.Primitive.Types.UTxOSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity )
+    ( Parity (..)
+    , addressParity
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
+    ( Hash (..)
+    , mockHash
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, shrinkAssetId )
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( coarbitraryTxIn )
+    ( coarbitraryTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
+    ( TxOut (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     , dom
@@ -43,19 +56,29 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , receiveD
     )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO, shrinkUTxO )
+    ( genUTxO
+    , shrinkUTxO
+    )
 import Data.Delta
-    ( apply )
+    ( apply
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Functor.Identity
-    ( runIdentity )
+    ( runIdentity
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.Maybe
-    ( listToMaybe )
+    ( listToMaybe
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)

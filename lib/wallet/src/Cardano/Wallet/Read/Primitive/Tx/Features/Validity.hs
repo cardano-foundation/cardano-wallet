@@ -18,17 +18,24 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Validity
 import Prelude
 
 import Cardano.Ledger.Api
-    ( ValidityInterval (..) )
+    ( ValidityInterval (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..), K (..) )
+    ( EraFun (..)
+    , K (..)
+    )
 import Cardano.Wallet.Read.Tx.Validity
-    ( Validity (..) )
+    ( Validity (..)
+    )
 import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (ValidityIntervalExplicit) )
+    ( ValidityIntervalExplicit (ValidityIntervalExplicit)
+    )
 import Data.Maybe.Strict
-    ( StrictMaybe (..) )
+    ( StrictMaybe (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 
 import qualified Ouroboros.Network.Block as O
 

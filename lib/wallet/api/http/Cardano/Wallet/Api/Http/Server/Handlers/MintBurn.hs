@@ -12,30 +12,47 @@ module Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
   where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet
-    ( WalletLayer, readPolicyPublicKey )
+    ( WalletLayer
+    , readPolicyPublicKey
+    )
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
-    ( ParsedTxCBOR (..) )
+    ( ParsedTxCBOR (..)
+    )
 import Cardano.Wallet.Api.Types.Key
-    ( ApiPolicyKey (ApiPolicyKey), computeKeyPayload )
+    ( ApiPolicyKey (ApiPolicyKey)
+    , computeKeyPayload
+    )
 import Cardano.Wallet.Api.Types.MintBurn
-    ( ApiAssetMintBurn (..), includePolicyKeyInfo, policyIx, toApiTokens )
+    ( ApiAssetMintBurn (..)
+    , includePolicyKeyInfo
+    , policyIx
+    , toApiTokens
+    )
 import Cardano.Wallet.Flavor
-    ( WalletFlavor )
+    ( WalletFlavor
+    )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..) )
+    ( TokenMapWithScripts (..)
+    )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Monad.IO.Class
-    ( MonadIO (liftIO) )
+    ( MonadIO (liftIO)
+    )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT
+    )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( eitherToMaybe
+    )
 import Servant
-    ( Handler )
+    ( Handler
+    )
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn

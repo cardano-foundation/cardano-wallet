@@ -6,15 +6,21 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServer (..) )
+    ( TokenMetadataServer (..)
+    )
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( queryServerReloading, withMetadataServerOptions )
+    ( queryServerReloading
+    , withMetadataServerOptions
+    )
 import Control.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import Control.Monad
-    ( forever )
+    ( forever
+    )
 import Network.Wai.Middleware.RequestLogger
-    ( logStdoutDev )
+    ( logStdoutDev
+    )
 -- See ADP-1910
 import "optparse-applicative" Options.Applicative
     ( ParserInfo
@@ -36,7 +42,13 @@ import "optparse-applicative" Options.Applicative
     , str
     )
 import Prettyprinter
-    ( Doc, Pretty (..), hang, indent, line, softline )
+    ( Doc
+    , Pretty (..)
+    , hang
+    , indent
+    , line
+    , softline
+    )
 
 
 data MetadataServerArgs = MetadataServerArgs

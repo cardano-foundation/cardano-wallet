@@ -12,15 +12,27 @@ module Cardano.CoinSelection.UTxOSelection.Gen
 import Prelude
 
 import Cardano.CoinSelection.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
+    ( genUTxOIndex
+    , shrinkUTxOIndex
+    )
 import Cardano.CoinSelection.UTxOSelection
-    ( UTxOSelection, UTxOSelectionNonEmpty )
+    ( UTxOSelection
+    , UTxOSelectionNonEmpty
+    )
 import Data.Maybe
-    ( mapMaybe )
+    ( mapMaybe
+    )
 import Test.QuickCheck
-    ( Gen, arbitrary, coarbitrary, liftShrink2, shrinkMapBy, suchThatMap )
+    ( Gen
+    , arbitrary
+    , coarbitrary
+    , liftShrink2
+    , shrinkMapBy
+    , suchThatMap
+    )
 import Test.QuickCheck.Extra
-    ( genFunction )
+    ( genFunction
+    )
 
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 

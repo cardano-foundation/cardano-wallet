@@ -6,23 +6,35 @@ module Cardano.Wallet.DB.Store.Delegations.MigrationSpec where
 import Prelude
 
 import Cardano.Wallet.DB.LayerSpec
-    ( withinCopiedFile )
+    ( withinCopiedFile
+    )
 import Cardano.Wallet.DB.Migration
-    ( runMigrations )
+    ( runMigrations
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( newMigrationInterface )
+    ( newMigrationInterface
+    )
 import Cardano.Wallet.DB.Store.Delegations.Migration
-    ( migrateDelegations )
+    ( migrateDelegations
+    )
 import Control.Tracer
-    ( nullTracer )
+    ( nullTracer
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Database.Persist.Sql
-    ( Single (Single) )
+    ( Single (Single)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    )
 
 import qualified Data.Text as T
 import qualified Database.Persist.Sqlite as Sqlite

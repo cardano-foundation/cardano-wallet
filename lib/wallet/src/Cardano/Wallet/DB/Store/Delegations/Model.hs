@@ -10,13 +10,19 @@ module Cardano.Wallet.DB.Store.Delegations.Model
 import Prelude
 
 import Cardano.Pool.Types
-    ( PoolId )
+    ( PoolId
+    )
 import Cardano.Wallet.Delegation.Model
-    ( History, Operation (..) )
+    ( History
+    , Operation (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo )
+    ( SlotNo
+    )
 import Fmt
-    ( Buildable (..), listF' )
+    ( Buildable (..)
+    , listF'
+    )
 
 -- | Wallet delegation history
 type Delegations = History SlotNo PoolId

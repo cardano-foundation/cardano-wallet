@@ -30,11 +30,14 @@ module Cardano.Wallet.Submissions.TxStatus
 import Prelude
 
 import Control.Lens
-    ( makePrisms )
+    ( makePrisms
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 
 import qualified Data.Map.Strict as Map
 

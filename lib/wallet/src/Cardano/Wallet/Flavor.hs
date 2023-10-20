@@ -41,31 +41,47 @@ where
 import Prelude
 
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
+    ( ByronKey
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey )
+    ( SharedKey
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey
+    )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+    ( RndState (..)
+    )
 import Cardano.Wallet.Address.Discovery.RandomAny
-    ( RndAnyState )
+    ( RndAnyState
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqState
+    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( SeqAnyState )
+    ( SeqAnyState
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( SharedState (..) )
+    ( SharedState (..)
+    )
 import Cardano.Wallet.Address.States.Families
-    ( CredFromOf, KeyOf, NetworkOf )
+    ( CredFromOf
+    , KeyOf
+    , NetworkOf
+    )
 import Cardano.Wallet.Address.States.Features
-    ( TestFeatures )
+    ( TestFeatures
+    )
 import Cardano.Wallet.Address.States.Test.State
-    ( TestState )
+    ( TestState
+    )
 import Cardano.Wallet.TypeLevel
-    ( Excluding, Including )
+    ( Excluding
+    , Including
+    )
 
 -- | A singleton type to capture the flavor of a state.
 data WalletFlavorS s where

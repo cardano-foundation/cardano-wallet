@@ -22,21 +22,35 @@ import Prelude
 
 
 import Cardano.BM.Trace
-    ( traceInTVarIO )
+    ( traceInTVarIO
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..) )
+    ( MonadIO (..)
+    , MonadUnliftIO (..)
+    )
 import Control.Tracer
-    ( Tracer, natTracer )
+    ( Tracer
+    , natTracer
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Say
-    ( say )
+    ( say
+    )
 import Test.Hspec
-    ( HasCallStack, Spec, SpecWith, around )
+    ( HasCallStack
+    , Spec
+    , SpecWith
+    , around
+    )
 import UnliftIO.Exception
-    ( onException )
+    ( onException
+    )
 import UnliftIO.STM
-    ( newTVarIO, readTVarIO )
+    ( newTVarIO
+    , readTVarIO
+    )
 
 -- | Run an action with a logging 'Trace' object, and a function to get all
 -- messages that have been traced.

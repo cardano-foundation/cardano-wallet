@@ -8,11 +8,15 @@ module FlatInteger where
 import Prelude
 
 import Data.Bits
-    ( (.&.), (.|.) )
+    ( (.&.)
+    , (.|.)
+    )
 import Data.Word
-    ( Word8 )
+    ( Word8
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Data.Bits as Bits
 

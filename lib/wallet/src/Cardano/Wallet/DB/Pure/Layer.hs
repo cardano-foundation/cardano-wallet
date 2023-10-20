@@ -36,25 +36,46 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( TimeInterpreter
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId, wholeRange )
+    ( SortOrder (..)
+    , WalletId
+    , wholeRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( TransactionInfo (..) )
+    ( TransactionInfo (..)
+    )
 import Control.Monad
-    ( join, unless )
+    ( join
+    , unless
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..) )
+    ( MonadIO (..)
+    , MonadUnliftIO (..)
+    )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( throwE
+    )
 import Data.Functor.Identity
-    ( Identity (..) )
+    ( Identity (..)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import UnliftIO.Exception
-    ( Exception, throwIO )
+    ( Exception
+    , throwIO
+    )
 import UnliftIO.MVar
-    ( MVar, isEmptyMVar, modifyMVar, newEmptyMVar, newMVar, putMVar, withMVar )
+    ( MVar
+    , isEmptyMVar
+    , modifyMVar
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , withMVar
+    )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.

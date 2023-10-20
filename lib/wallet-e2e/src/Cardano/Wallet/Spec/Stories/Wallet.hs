@@ -6,15 +6,23 @@ module Cardano.Wallet.Spec.Stories.Wallet
     ) where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
-    ( zeroAdaBalance )
+    ( zeroAdaBalance
+    )
 import Cardano.Wallet.Spec.Data.Network.Info
-    ( NetworkInfo (..) )
+    ( NetworkInfo (..)
+    )
 import Cardano.Wallet.Spec.Data.Network.NodeStatus
-    ( NodeStatus (..) )
+    ( NodeStatus (..)
+    )
 import Cardano.Wallet.Spec.Data.Wallet
-    ( Wallet (..), walletId )
+    ( Wallet (..)
+    , walletId
+    )
 import Cardano.Wallet.Spec.Effect.Assert
-    ( FxAssert, assert, assertEq )
+    ( FxAssert
+    , assert
+    , assertEq
+    )
 import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery
     , createWalletFromMnemonic
@@ -24,15 +32,24 @@ import Cardano.Wallet.Spec.Effect.Query
     , queryNetworkInfo
     )
 import Cardano.Wallet.Spec.Effect.Random
-    ( FxRandom, randomMnemonic, randomWalletName )
+    ( FxRandom
+    , randomMnemonic
+    , randomWalletName
+    )
 import Cardano.Wallet.Spec.Effect.Timeout
-    ( FxTimeout, within )
+    ( FxTimeout
+    , within
+    )
 import Cardano.Wallet.Spec.Stories.Language
-    ( FxStory )
+    ( FxStory
+    )
 import Data.Set
-    ( member, notMember )
+    ( member
+    , notMember
+    )
 import Data.Time.TimeSpan
-    ( minutes )
+    ( minutes
+    )
 
 testEnvironmentIsReady :: FxStory fxs '[FxQuery, FxRandom, FxAssert] ()
 testEnvironmentIsReady = do

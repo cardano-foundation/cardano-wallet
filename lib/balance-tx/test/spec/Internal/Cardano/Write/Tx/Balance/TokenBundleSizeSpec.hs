@@ -7,27 +7,45 @@ module Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
 import Prelude
 
 import Cardano.CoinSelection.Size
-    ( TokenBundleSizeAssessment (..) )
+    ( TokenBundleSizeAssessment (..)
+    )
 import Cardano.Ledger.Api.Era
-    ( eraProtVerLow )
+    ( eraProtVerLow
+    )
 import Cardano.Ledger.Api.PParams
-    ( PParams, ppMaxValSizeL, ppProtocolVersionL )
+    ( PParams
+    , ppMaxValSizeL
+    , ppProtocolVersionL
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin, txOutMinCoin )
+    ( TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutTokenBundle )
+    ( genTxOutTokenBundle
+    )
 import Control.Lens
-    ( (&), (.~) )
+    ( (&)
+    , (.~)
+    )
 import Data.Default
-    ( def )
+    ( def
+    )
 import Data.Monoid.Monus
-    ( Monus ((<\>)) )
+    ( Monus ((<\>))
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import Internal.Cardano.Write.Tx
     ( ProtVer (..)
     , RecentEra (..)
@@ -44,9 +62,13 @@ import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     , mkTokenBundleSizeAssessor
     )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)

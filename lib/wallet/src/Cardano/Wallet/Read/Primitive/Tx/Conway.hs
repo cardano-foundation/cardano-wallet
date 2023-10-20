@@ -19,9 +19,11 @@ module Cardano.Wallet.Read.Primitive.Tx.Conway
 import Prelude
 
 import Cardano.Api
-    ( ConwayEra )
+    ( ConwayEra
+    )
 import Cardano.Ledger.Alonzo.Scripts
-    ( AlonzoScript )
+    ( AlonzoScript
+    )
 import Cardano.Ledger.Api
     ( StandardCrypto
     , addrTxWitsL
@@ -42,37 +44,56 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Ledger.Babbage
-    ( BabbageTxOut )
+    ( BabbageTxOut
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId (..) )
+    ( TokenPolicyId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..) )
+    ( TxIn (..)
+    )
 import Cardano.Wallet.Read.Eras
-    ( conway, inject )
+    ( conway
+    , inject
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( fromConwayCerts )
+    ( fromConwayCerts
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn )
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromConwayMetadata )
+    ( fromConwayMetadata
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( conwayMint, fromLedgerScriptHash )
+    ( conwayMint
+    , fromLedgerScriptHash
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromConwayTxOut )
+    ( fromConwayTxOut
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval )
+    ( afterShelleyValidityInterval
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR )
+    ( renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash )
+    ( shelleyTxHash
+    )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals )
+    ( shelleyWithdrawals
+    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript, toWalletTokenPolicyId )
+    ( toWalletScript
+    , toWalletTokenPolicyId
+    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -86,17 +107,26 @@ import Cardano.Wallet.Transaction
     , toKeyRole
     )
 import Control.Lens
-    ( folded, (<&>), (^.), (^..) )
+    ( folded
+    , (<&>)
+    , (^.)
+    , (^..)
+    )
 import Data.Foldable
-    ( toList )
+    ( toList
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 import Data.Maybe.Strict
-    ( strictMaybeToMaybe )
+    ( strictMaybeToMaybe
+    )
 import Data.Word
-    ( Word32 )
+    ( Word32
+    )
 import Ouroboros.Consensus.Cardano.Block
-    ( StandardConway )
+    ( StandardConway
+    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo

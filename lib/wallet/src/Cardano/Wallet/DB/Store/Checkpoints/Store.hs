@@ -29,11 +29,15 @@ module Cardano.Wallet.DB.Store.Checkpoints.Store
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub )
+    ( XPub
+    )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..) )
+    ( Cosigner (..)
+    , ScriptTemplate (..)
+    )
 import Cardano.DB.Sqlite
-    ( dbChunked )
+    ( dbChunked
+    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
     , Discoveries (..)
@@ -53,21 +57,36 @@ import Cardano.Wallet.Address.Derivation
     , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Discovery
-    ( PendingIxs, pendingIxsFromList, pendingIxsToList )
+    ( PendingIxs
+    , pendingIxsFromList
+    , pendingIxsToList
+    )
 import Cardano.Wallet.Address.Discovery.RandomAny
-    ( Discoveries (..), Prologue (..) )
+    ( Discoveries (..)
+    , Prologue (..)
+    )
 import Cardano.Wallet.Address.Discovery.SequentialAny
-    ( Discoveries (..), Prologue (..) )
+    ( Discoveries (..)
+    , Prologue (..)
+    )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..) )
+    ( CredentialType (..)
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, liftRawKey )
+    ( getRawKey
+    , liftRawKey
+    )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
+    ( DeltaCheckpoints (..)
+    , DeltasCheckpoints
+    , loadCheckpoints
+    )
 import Cardano.Wallet.DB.Errors
-    ( ErrBadFormat (..) )
+    ( ErrBadFormat (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
     , CosignerKey (..)
@@ -93,43 +112,72 @@ import Cardano.Wallet.DB.Sqlite.Types
     , toMaybeHash
     )
 import Cardano.Wallet.DB.WalletState
-    ( WalletCheckpoint (..), getSlot )
+    ( WalletCheckpoint (..)
+    , getSlot
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminantCheck )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminantCheck
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..)
+    )
 import Control.Monad
-    ( forM, forM_, unless, void, when )
+    ( forM
+    , forM_
+    , unless
+    , void
+    , when
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Maybe
-    ( MaybeT (..) )
+    ( MaybeT (..)
+    )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap
+    , second
+    )
 import Data.Functor
-    ( (<&>) )
+    ( (<&>)
+    )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( (^.)
+    )
 import Data.Kind
-    ( Type )
+    ( Type
+    )
 import Data.Map.Strict
-    ( Map )
+    ( Map
+    )
 import Data.Maybe
-    ( fromJust, isJust, isNothing )
+    ( fromJust
+    , isJust
+    , isNothing
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..)
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore )
+    ( UpdateStore
+    , mkUpdateStore
+    )
 import Data.Type.Equality
-    ( type (==) )
+    ( type (==)
+    )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable
+    )
 import Database.Persist.Sql
     ( Entity (..)
     , SelectOpt (..)
@@ -145,9 +193,11 @@ import Database.Persist.Sql
     , (>.)
     )
 import Database.Persist.Sqlite
-    ( SqlPersistT )
+    ( SqlPersistT
+    )
 import UnliftIO.Exception
-    ( toException )
+    ( toException
+    )
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
@@ -160,9 +210,11 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
+    ( TxIn (TxIn)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
+    ( TxOut (TxOut)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.Map.Merge.Strict as Map

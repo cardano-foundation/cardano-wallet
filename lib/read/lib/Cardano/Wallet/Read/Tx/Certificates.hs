@@ -32,25 +32,36 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Conway.Core
-    ( conwayCertsTxBodyL )
+    ( conwayCertsTxBodyL
+    )
 import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert )
+    ( ConwayDCert
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert, certsTxBodyL )
+    ( DCert
+    , certsTxBodyL
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.Sequence.Strict
-    ( StrictSeq )
+    ( StrictSeq
+    )
 
 type family CertificatesType era where
     CertificatesType ByronEra = ()

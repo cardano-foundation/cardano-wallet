@@ -33,39 +33,61 @@ module Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( TokenMap
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Int
-    ( Int64 )
+    ( Int64
+    )
 import Data.Monoid
-    ( Sum (..) )
+    ( Sum (..)
+    )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive, RightReductive )
+    ( LeftReductive
+    , Reductive
+    , RightReductive
+    )
 import Data.Monoid.GCD
-    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+    ( GCDMonoid
+    , LeftGCDMonoid
+    , RightGCDMonoid
+    )
 import Data.Monoid.Monus
-    ( Monus, OverlappingGCDMonoid )
+    ( Monus
+    , OverlappingGCDMonoid
+    )
 import Data.Monoid.Null
-    ( MonoidNull )
+    ( MonoidNull
+    )
 import Data.Semigroup.Commutative
-    ( Commutative )
+    ( Commutative
+    )
 import Data.Word
-    ( Word64 )
+    ( Word64
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 import Quiet
-    ( Quiet (..) )
+    ( Quiet (..)
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

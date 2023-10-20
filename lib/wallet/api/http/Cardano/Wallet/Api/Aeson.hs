@@ -10,13 +10,20 @@ module Cardano.Wallet.Api.Aeson
 import Prelude
 
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Data.Aeson
-    ( ToJSON (..), Value, withText )
+    ( ToJSON (..)
+    , Value
+    , withText
+    )
 import Data.Bifunctor
-    ( Bifunctor (..) )
+    ( Bifunctor (..)
+    )
 import Data.Text.Class
-    ( FromText (..), ToText (toText) )
+    ( FromText (..)
+    , ToText (toText)
+    )
 
 import qualified Data.Aeson.Types as Aeson
 

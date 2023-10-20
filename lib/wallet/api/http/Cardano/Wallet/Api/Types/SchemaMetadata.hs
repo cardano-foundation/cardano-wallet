@@ -23,15 +23,22 @@ import Cardano.Api
     , metadataToJson
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata )
+    ( TxMetadata
+    )
 import Control.Applicative
-    ( liftA2, (<|>) )
+    ( liftA2
+    , (<|>)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson
-    ( FromJSON (parseJSON), ToJSON (toJSON) )
+    ( FromJSON (parseJSON)
+    , ToJSON (toJSON)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Prelude
 
 -- | A tag to select the json codec

@@ -5,13 +5,18 @@ module Data.Time.TextSpec
 import Prelude
 
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.List
-    ( (\\) )
+    ( (\\)
+    )
 import Data.Maybe
-    ( isJust, maybeToList )
+    ( isJust
+    , maybeToList
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Time.Text
     ( TimeFormat (..)
     , iso8601
@@ -23,11 +28,20 @@ import Data.Time.Text
     , utcTimeToText
     )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
-    ( property, (.&&.), (===) )
+    ( property
+    , (.&&.)
+    , (===)
+    )
 import Test.Utils.Time
-    ( getUniformTime )
+    ( getUniformTime
+    )
 
 import qualified Data.Text as T
 

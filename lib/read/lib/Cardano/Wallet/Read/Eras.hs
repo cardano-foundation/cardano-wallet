@@ -46,7 +46,11 @@ module Cardano.Wallet.Read.Eras
   where
 
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..), applyEraFun, (*&&&*), (*.**) )
+    ( EraFun (..)
+    , applyEraFun
+    , (*&&&*)
+    , (*.**)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
     , MkEraValue (..)
@@ -64,10 +68,17 @@ import Cardano.Wallet.Read.Eras.EraValue
     , shelley
     )
 import Cardano.Wallet.Read.Eras.InAnyCardanoEra
-    ( isoInAnyCardanoEra )
+    ( isoInAnyCardanoEra
+    )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras, knownEraIndices )
+    ( KnownEras
+    , knownEraIndices
+    )
 import Generics.SOP
-    ( (:.:) (..), K (..), unK )
+    ( (:.:) (..)
+    , K (..)
+    , unK
+    )
 import GHC.Generics
-    ( (:*:) (..) )
+    ( (:*:) (..)
+    )

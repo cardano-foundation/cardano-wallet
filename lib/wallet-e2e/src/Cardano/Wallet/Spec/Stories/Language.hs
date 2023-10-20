@@ -1,7 +1,9 @@
 module Cardano.Wallet.Spec.Stories.Language (FxStory) where
 
 import Effectful
-    ( (:>), Eff )
+    ( (:>)
+    , Eff
+    )
 
 type FxStory otherEffects knownEffects a =
     Fxs otherEffects knownEffects => Eff otherEffects a

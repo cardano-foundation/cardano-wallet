@@ -7,11 +7,18 @@ module Data.Vector.ShuffleSpec
 import Prelude
 
 import Data.Vector.Shuffle
-    ( mkSeed, shuffle, shuffleWith )
+    ( mkSeed
+    , shuffle
+    , shuffleWith
+    )
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen
+    )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec
+    , describe
+    , it
+    )
 import Test.QuickCheck
     ( Confidence (..)
     , NonEmptyList (..)
@@ -26,7 +33,12 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, pick, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , pick
+    , run
+    )
 
 import qualified Data.List as L
 import qualified Data.Text as T

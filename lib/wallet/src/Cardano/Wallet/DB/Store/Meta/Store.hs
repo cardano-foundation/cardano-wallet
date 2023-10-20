@@ -15,21 +15,32 @@ module Cardano.Wallet.DB.Store.Meta.Store ( mkStoreMetaTransactions ) where
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..), TxMeta (..) )
+    ( EntityField (..)
+    , TxMeta (..)
+    )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
+    ( DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
+    )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&)
+    )
 import Control.Exception
-    ( SomeException )
+    ( SomeException
+    )
 import Data.Foldable
-    ( Foldable (toList) )
+    ( Foldable (toList)
+    )
 import Data.List.Split
-    ( chunksOf )
+    ( chunksOf
+    )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust
+    )
 import Data.Store
-    ( UpdateStore, mkUpdateStore )
+    ( UpdateStore
+    , mkUpdateStore
+    )
 import Database.Persist.Sql
     ( Entity (entityVal)
     , PersistEntity (keyFromRecordM)

@@ -13,27 +13,42 @@ module Cardano.Wallet.Address.Keys.PersistPrivateKey
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv
+    )
 import Cardano.Crypto.Wallet
-    ( unXPrv, xprv )
+    ( unXPrv
+    , xprv
+    )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK), fromHex, hex )
+    ( Depth (RootK)
+    , fromHex
+    , hex
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey (..) )
+    ( IcarusKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..)
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..) )
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    )
 import Control.Monad
-    ( (<=<) )
+    ( (<=<)
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus

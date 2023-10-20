@@ -5,31 +5,50 @@
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Cardano.Startup
-    ( installSignalHandlers )
+    ( installSignalHandlers
+    )
 import Control.Concurrent
-    ( threadDelay )
+    ( threadDelay
+    )
 import Control.Monad
-    ( unless, void, when )
+    ( unless
+    , void
+    , when
+    )
 import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
+    ( Tracer (..)
+    , contramap
+    , traceWith
+    )
 import Data.List
-    ( intersperse )
+    ( intersperse
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..)
+    )
 import Main.Utf8
-    ( withUtf8 )
+    ( withUtf8
+    )
 import System.FilePath
-    ( takeBaseName, (</>) )
+    ( takeBaseName
+    , (</>)
+    )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory
+    )
 import Text.Read
-    ( readMaybe )
+    ( readMaybe
+    )
 
 import qualified Cardano.BM.Configuration.Model as Log
 import qualified Cardano.BM.Configuration.Static as Log

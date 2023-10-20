@@ -13,19 +13,31 @@ module Cardano.Wallet.Orphans where
 import Prelude
 
 import Cardano.Api
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( TxMetadata (..)
+    , TxMetadataValue (..)
+    )
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..)
+    )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..)
+    )
 import Data.Ord
-    ( comparing )
+    ( comparing
+    )
 import Fmt
-    ( Buildable (..), blockListF, hexF, nameF, unlinesF )
+    ( Buildable (..)
+    , blockListF
+    , hexF
+    , nameF
+    , unlinesF
+    )
 import Ouroboros.Consensus.HardFork.History.Qry
-    ( PastHorizonException )
+    ( PastHorizonException
+    )
 import UnliftIO.Exception
-    ( displayException )
+    ( displayException
+    )
 
 import qualified Data.Map as Map
 

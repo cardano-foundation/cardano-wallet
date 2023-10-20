@@ -29,31 +29,48 @@ module Cardano.Wallet.Api.Types.Certificate
 import Prelude
 
 import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+    ( StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner )
+    ( PoolId (..)
+    , PoolOwner
+    )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..) )
+    ( DerivationIndex (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( decodeStakeAddress, encodeStakeAddress )
+    ( decodeStakeAddress
+    , encodeStakeAddress
+    )
 import Cardano.Wallet.Api.Aeson
-    ( eitherToParser )
+    ( eitherToParser
+    )
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (..) )
+    ( ApiT (..)
+    )
 import Cardano.Wallet.Api.Lib.ExtendedObject
-    ( extendAesonObject, parseExtendedAesonObject )
+    ( extendAesonObject
+    , parseExtendedAesonObject
+    )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
+    ( HasSNetworkId (sNetworkId)
+    , NetworkDiscriminant
+    )
 import Cardano.Wallet.Primitive.Types
-    ( NonWalletCertificate )
+    ( NonWalletCertificate
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( unCoin )
+    ( unCoin
+    )
 import Cardano.Wallet.Util
-    ( ShowFmt (..) )
+    ( ShowFmt (..)
+    )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData
+    )
 import Data.Aeson.Types
     ( FromJSON (parseJSON)
     , KeyValue ((.=))
@@ -69,15 +86,21 @@ import Data.Aeson.Types
     , (.:)
     )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap
+    )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty
+    )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage
+    , Quantity (..)
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import Numeric.Natural
-    ( Natural )
+    ( Natural
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W

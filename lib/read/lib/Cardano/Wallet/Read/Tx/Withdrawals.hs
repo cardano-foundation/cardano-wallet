@@ -32,23 +32,34 @@ import Cardano.Api
     , ShelleyEra
     )
 import Cardano.Ledger.Address
-    ( RewardAcnt, unWithdrawals )
+    ( RewardAcnt
+    , unWithdrawals
+    )
 import Cardano.Ledger.Coin
-    ( Coin )
+    ( Coin
+    )
 import Cardano.Ledger.Core
-    ( bodyTxL, withdrawalsTxBodyL )
+    ( bodyTxL
+    , withdrawalsTxBodyL
+    )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
+    ( StandardCrypto
+    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..) )
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Tx.Eras
-    ( onTx )
+    ( onTx
+    )
 import Control.Lens
-    ( view )
+    ( view
+    )
 import Data.Map
-    ( Map )
+    ( Map
+    )
 
 import qualified Cardano.Ledger.Api as Ledger
 

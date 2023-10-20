@@ -15,15 +15,26 @@ module Cardano.Wallet.DB.Store.Rewards.Store (
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( DelegationReward (..) )
+    ( DelegationReward (..)
+    )
 import Control.Exception
-    ( SomeException (SomeException) )
+    ( SomeException (SomeException)
+    )
 import Data.Delta
-    ( Replace )
+    ( Replace
+    )
 import Data.Store
-    ( UpdateStore, mkSimpleStore )
+    ( UpdateStore
+    , mkSimpleStore
+    )
 import Database.Persist.Sql
-    ( Entity (..), Filter, SqlPersistT, deleteWhere, insert_, selectList )
+    ( Entity (..)
+    , Filter
+    , SqlPersistT
+    , deleteWhere
+    , insert_
+    , selectList
+    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

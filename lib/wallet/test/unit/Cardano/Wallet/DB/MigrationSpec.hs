@@ -9,7 +9,8 @@
 module Cardano.Wallet.DB.MigrationSpec where
 
 import Prelude hiding
-    ( (.) )
+    ( (.)
+    )
 
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (ErrWrongVersion)
@@ -20,23 +21,42 @@ import Cardano.Wallet.DB.Migration
     , runMigrations
     )
 import Control.Category
-    ( (.) )
+    ( (.)
+    )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow (..), SomeException, toException )
+    ( MonadThrow (..)
+    , SomeException
+    , toException
+    )
 import Control.Monad.Trans.Class
-    ( lift )
+    ( lift
+    )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Monad.Trans.Reader
-    ( ReaderT )
+    ( ReaderT
+    )
 import Control.Monad.Trans.State
-    ( State, get, modify, runState )
+    ( State
+    , get
+    , modify
+    , runState
+    )
 import GHC.Natural
-    ( Natural )
+    ( Natural
+    )
 import GHC.TypeNats
-    ( KnownNat )
+    ( KnownNat
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn, shouldThrow )
+    ( Spec
+    , describe
+    , it
+    , shouldReturn
+    , shouldThrow
+    )
 
 data Database = Database
     { version :: Version

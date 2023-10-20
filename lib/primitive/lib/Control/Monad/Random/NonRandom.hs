@@ -19,15 +19,21 @@ module Control.Monad.Random.NonRandom
 import Prelude
 
 import Control.Applicative
-    ( Applicative (..) )
+    ( Applicative (..)
+    )
 import Control.Monad.Random.Class
-    ( MonadRandom (..) )
+    ( MonadRandom (..)
+    )
 import Data.Coerce
-    ( coerce )
+    ( coerce
+    )
 import GHC.Generics
-    ( Generic )
+    ( Generic
+    )
 import System.Random
-    ( Random (..), RandomGen (..) )
+    ( Random (..)
+    , RandomGen (..)
+    )
 
 -- | Provides a stateless context for computations that must be non-random.
 --

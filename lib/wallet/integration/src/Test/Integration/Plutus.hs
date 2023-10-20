@@ -34,36 +34,54 @@ module Test.Integration.Plutus
 
 {- HLINT ignore "Avoid restricted qualification" -}
 import Prelude hiding
-    ( id )
+    ( id
+    )
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiWalletInput (..) )
+    ( ApiT (..)
+    , ApiWalletInput (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId )
+    ( HasSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHexText, unsafeRight )
+    ( unsafeFromHexText
+    , unsafeRight
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Codec.Serialise
-    ( serialise )
+    ( serialise
+    )
 import Control.Arrow
-    ( left )
+    ( left
+    )
 import Crypto.Hash.Extra
-    ( blake2b224 )
+    ( blake2b224
+    )
 import Data.Aeson
-    ( (.=) )
+    ( (.=)
+    )
 import Data.Aeson.QQ
-    ( aesonQQ )
+    ( aesonQQ
+    )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view
+    )
 import Data.String.Interpolate
-    ( i )
+    ( i
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Text.Microstache
-    ( compileMustacheText, renderMustache )
+    ( compileMustacheText
+    , renderMustache
+    )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Term as CBOR

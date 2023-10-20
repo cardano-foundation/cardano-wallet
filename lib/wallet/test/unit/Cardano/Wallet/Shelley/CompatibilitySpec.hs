@@ -16,7 +16,9 @@ module Cardano.Wallet.Shelley.CompatibilitySpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv
+    , XPub
+    )
 import Cardano.Address.Script
     ( KeyHash
     , KeyRole (..)
@@ -27,11 +29,15 @@ import Cardano.Address.Script
     , toScriptHash
     )
 import Cardano.Crypto.Hash.Class
-    ( digest )
+    ( digest
+    )
 import Cardano.Ledger.Core
-    ( PParams, ppDL )
+    ( PParams
+    , ppDL
+    )
 import Cardano.Ledger.Crypto
-    ( Crypto (..) )
+    ( Crypto (..)
+    )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -40,35 +46,62 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), Index (getIndex), PaymentAddress (..), delegationAddress )
+    ( Depth (..)
+    , Index (getIndex)
+    , PaymentAddress (..)
+    , delegationAddress
+    )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
+    ( ByronKey (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey (..)
+    )
 import Cardano.Wallet.Address.Encoding
-    ( decodeAddress, decodeStakeAddress, encodeStakeAddress, inspectAddress )
+    ( decodeAddress
+    , decodeStakeAddress
+    , encodeStakeAddress
+    , inspectAddress
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey )
+    ( publicKey
+    )
 import Cardano.Wallet.Flavor
-    ( KeyFlavor, keyFlavor )
+    ( KeyFlavor
+    , keyFlavor
+    )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkId (..), SNetworkId (..), withSNetworkId )
+    ( NetworkId (..)
+    , SNetworkId (..)
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), getDecentralizationLevel )
+    ( SlotId (..)
+    , getDecentralizationLevel
+    )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutTokenBundle )
+    ( genTxOutTokenBundle
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -83,47 +116,80 @@ import Cardano.Wallet.Shelley.Compatibility
     , toTip
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeIntToWord, unsafeMkEntropy )
+    ( unsafeIntToWord
+    , unsafeMkEntropy
+    )
 import Cardano.Wallet.Util
-    ( tryInternalError )
+    ( tryInternalError
+    )
 import Codec.Binary.Bech32.TH
-    ( humanReadablePart )
+    ( humanReadablePart
+    )
 import Codec.Binary.Encoding
-    ( fromBase16 )
+    ( fromBase16
+    )
 import Control.Lens
-    ( (.~) )
+    ( (.~)
+    )
 import Control.Monad
-    ( forM_ )
+    ( forM_
+    )
 import Data.ByteString
-    ( ByteString )
+    ( ByteString
+    )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, encodeBase58 )
+    ( bitcoinAlphabet
+    , encodeBase58
+    )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft
+    , isRight
+    )
 import Data.Function
-    ( (&) )
+    ( (&)
+    )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe
+    )
 import Data.Proxy
-    ( Proxy (..) )
+    ( Proxy (..)
+    )
 import Data.Ratio
-    ( Ratio, (%) )
+    ( Ratio
+    , (%)
+    )
 import Data.Text
-    ( Text )
+    ( Text
+    )
 import Data.Text.Class
-    ( toText )
+    ( toText
+    )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16
+    , Word32
+    , Word64
+    )
 import GHC.TypeLits
-    ( natVal )
+    ( natVal
+    )
 import Ouroboros.Network.Block
-    ( BlockNo (..), SlotNo (..), Tip (..) )
+    ( BlockNo (..)
+    , SlotNo (..)
+    , Tip (..)
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.Hspec.Core.Spec
-    ( SpecWith )
+    ( SpecWith
+    )
 import Test.Hspec.QuickCheck
-    ( prop )
+    ( prop
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -143,7 +209,11 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert
+    , monadicIO
+    , monitor
+    , run
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
