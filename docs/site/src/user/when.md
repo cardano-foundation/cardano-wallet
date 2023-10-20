@@ -47,7 +47,7 @@ If computing resources on a single machine are not sufficient, you can run multi
 
 ### Transaction throughput
 
-If you want to submit frequent transactions to the Carano blockchain, the wallet is typically not a bottleneck — rather, the transactions per seconds that can be accepted by the Cardano blockchain is the limiting factor. That said, transactions per second are not directly relevant to your end-users, see [Performance engineering: Lies, damned lies and (TPS) benchmarks][neil] for a thorough discussion of performance on Cardano.
+If you want to submit frequent transactions to the Cardano blockchain, the wallet is typically not a bottleneck — rather, the transactions per seconds that can be accepted by the Cardano blockchain is the limiting factor. That said, transactions per second are not directly relevant to your end-users, see [Performance engineering: Lies, damned lies and (TPS) benchmarks][neil] for a thorough discussion of performance on Cardano.
 
 In general, note that the more your transactions depend on each other, the less they can be processed in parellel, reducing throughput and increasing latency.
 
