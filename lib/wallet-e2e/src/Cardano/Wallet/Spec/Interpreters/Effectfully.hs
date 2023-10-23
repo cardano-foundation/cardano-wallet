@@ -30,8 +30,8 @@ import Cardano.Wallet.Spec.Effect.Trace
     , recordTraceLog
     , runTracePure
     )
-import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig
+import Cardano.Wallet.Spec.Network.Configured
+    ( ConfiguredNetwork
     )
 import Effectful
     ( Eff
@@ -73,7 +73,7 @@ type Story a =
         ]
         a
 
-story :: String -> Story () -> TestDefM '[NetworkConfig] () ()
+story :: String -> Story () -> TestDefM '[ConfiguredNetwork] () ()
 story label story' =
     itWithOuter label \network -> do
         interpretStory network story' >>= \(result, log) -> do
@@ -83,10 +83,10 @@ story label story' =
                 Right () -> pass
 
 interpretStory
-    :: NetworkConfig
+    :: ConfiguredNetwork
     -> Story a
     -> IO (Either String a, Seq Text)
-interpretStory networkConfig story' = do
+interpretStory configuredNetwork story' = do
     connectionManager <-
         Http.newManager
             Http.defaultManagerSettings
@@ -94,7 +94,7 @@ interpretStory networkConfig story' = do
                 }
     stdGen <- initStdGen
     story'
-        & runQuery networkConfig
+        & runQuery configuredNetwork
         & runHttpClient connectionManager
         & runRandom stdGen
         & runTimeout

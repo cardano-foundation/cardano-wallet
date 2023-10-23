@@ -105,11 +105,12 @@ library
     Cardano.Wallet.Spec.Effect.Trace
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
-    Cardano.Wallet.Spec.Network.Config
+    Cardano.Wallet.Spec.Network.Configured
     Cardano.Wallet.Spec.Network.Local
     Cardano.Wallet.Spec.Network.Manual
     Cardano.Wallet.Spec.Network.Node.Cli
     Cardano.Wallet.Spec.Network.Preprod
+    Cardano.Wallet.Spec.Network.Wait
     Cardano.Wallet.Spec.Network.Wallet.Cli
     Cardano.Wallet.Spec.Stories.Language
     Cardano.Wallet.Spec.Stories.Wallet

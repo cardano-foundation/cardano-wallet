@@ -69,11 +69,12 @@ testNetworkOptionsToConfig = \case
     TestNetworkOptionManual ->
         pure TestNetworkManual
     TestNetworkOptionLocal stateDir nodeConfigsDir -> do
-        absStateDir <- makeDirAbsolute (untag stateDir)
-        pure (TestNetworkLocal absStateDir)
+        absStateDir <- traverse makeDirAbsolute stateDir
+        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
+        pure (TestNetworkLocal absStateDir absNodeConfigsDir)
     TestNetworkOptionPreprod stateDir nodeConfigsDir -> do
-        absStateDir <- makeDirAbsolute (untag stateDir)
-        absNodeConfigsDir <- makeDirAbsolute (untag nodeConfigsDir)
+        absStateDir <- traverse makeDirAbsolute stateDir
+        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
         pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
   where
     makeDirAbsolute = \case

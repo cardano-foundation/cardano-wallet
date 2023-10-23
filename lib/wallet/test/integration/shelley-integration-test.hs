@@ -237,8 +237,8 @@ import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Cardano.Wallet.LocalCluster as LocalCluster
 import qualified Data.Text as T
-import qualified Service as ClusterService
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoinSelections
@@ -441,7 +441,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
-            cfgClusterConfigs <- ClusterService.getClusterConfigsPath
+            cfgClusterConfigs <- LocalCluster.getClusterConfigsPathFromEnv
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = Cluster.defaultPoolConfigs
                     , Cluster.cfgLastHardFork = BabbageHardFork
