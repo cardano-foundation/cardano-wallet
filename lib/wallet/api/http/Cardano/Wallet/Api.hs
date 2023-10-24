@@ -1251,7 +1251,7 @@ data ApiLayer s
         { tracerTxSubmit :: Tracer IO TxSubmitLog
         , tracerWalletWorker :: Tracer IO (WorkerLog WalletId WalletWorkerLog)
         , netParams :: (Block, NetworkParameters)
-        , netLayer :: NetworkLayer IO Read.Block
+        , netLayer :: NetworkLayer IO Read.ConsensusBlock
         , txLayer :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
         , _dbFactory :: DBFactory IO s
         , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
