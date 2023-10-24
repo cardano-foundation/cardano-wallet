@@ -220,7 +220,7 @@ steps:
   - label: "Run E2E tests"
     depends_on: trigger-e2e-tests
     key: run-e2e-tests
-    command: 'nix develop --command bash -c "cd lib/wallet-e2e && just run-local"'
+    command: 'nix develop --command bash -c "just e2e-local"'
     agents:
       system: ${linux}
     env:
