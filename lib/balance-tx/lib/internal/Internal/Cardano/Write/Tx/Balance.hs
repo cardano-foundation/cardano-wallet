@@ -59,6 +59,7 @@ module Internal.Cardano.Write.Tx.Balance
     -- * Utilities
     , posAndNegFromCardanoApiValue
     , fromWalletUTxO
+    , toWalletUTxO
 
     -- ** updateTx
     , TxUpdate (..)
@@ -365,15 +366,20 @@ instance Buildable (BuildableInAnyEra a) where
 --
 data ErrBalanceTxInsufficientCollateralError era =
     ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: W.UTxO
+    { largestCombinationAvailable :: UTxO (ShelleyLedgerEra era)
         -- ^ The largest available combination of pure ada UTxOs.
     , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
     deriving Generic
 
-deriving instance Eq (ErrBalanceTxInsufficientCollateralError era)
-deriving instance Show (ErrBalanceTxInsufficientCollateralError era)
+deriving instance
+    IsRecentEra era =>
+    Eq (ErrBalanceTxInsufficientCollateralError era)
+
+deriving instance
+    IsRecentEra era =>
+    Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
 --
@@ -1547,7 +1553,7 @@ coinSelectionErrorToBalanceTxError
     :: RecentEra era
     -> SelectionError WalletSelectionContext
     -> ErrBalanceTx era
-coinSelectionErrorToBalanceTxError _era = \case
+coinSelectionErrorToBalanceTxError era = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
@@ -1579,6 +1585,7 @@ coinSelectionErrorToBalanceTxError _era = \case
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
+                & fromWalletUTxO era
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }

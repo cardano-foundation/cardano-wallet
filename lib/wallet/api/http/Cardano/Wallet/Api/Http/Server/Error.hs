@@ -215,6 +215,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
+import qualified Internal.Cardano.Write.Tx.Balance as Write
 
 -- | Maps types to servant error responses.
 class IsServerError e where
@@ -1034,7 +1035,10 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "your wallet before trying again."
                 ]
 
-instance IsServerError (ErrBalanceTxInsufficientCollateralError era) where
+instance
+    Write.IsRecentEra era =>
+    IsServerError (ErrBalanceTxInsufficientCollateralError era)
+  where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"
@@ -1046,6 +1050,7 @@ instance IsServerError (ErrBalanceTxInsufficientCollateralError era) where
             , pretty $ listF $ L.sort
                 $ fmap (view #coin . view #tokens . snd)
                 $ UTxO.toList
+                $ Write.toWalletUTxO (Write.recentEra @era)
                 $ view #largestCombinationAvailable e
             , "To fix this, you'll need to add one or more pure ada UTxOs"
             , "to your wallet that can cover the minimum amount required."
