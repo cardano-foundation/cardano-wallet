@@ -363,7 +363,7 @@ instance Buildable (BuildableInAnyEra a) where
 
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
-data ErrBalanceTxInsufficientCollateralError =
+data ErrBalanceTxInsufficientCollateralError era =
     ErrBalanceTxInsufficientCollateralError
     { largestCombinationAvailable :: W.UTxO
         -- ^ The largest available combination of pure ada UTxOs.
@@ -426,7 +426,8 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
-    | ErrBalanceTxInsufficientCollateral ErrBalanceTxInsufficientCollateralError
+    | ErrBalanceTxInsufficientCollateral
+        (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError

@@ -1034,7 +1034,7 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "your wallet before trying again."
                 ]
 
-instance IsServerError ErrBalanceTxInsufficientCollateralError where
+instance IsServerError (ErrBalanceTxInsufficientCollateralError era) where
     toServerError e =
         apiError err403 InsufficientCollateral $ T.unwords
             [ "I'm unable to create this transaction because the balance"
