@@ -2619,7 +2619,7 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction api argGenChange knownPools poolStatus apiWalletId body = do
-    body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _) ->
+    body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
         case body of
@@ -2627,10 +2627,17 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 { payments = Nothing
                 , withdrawal = Nothing
                 , metadata = Nothing
+                , encryptMetadata = Nothing
                 , mintBurn = Nothing
                 , delegations = Nothing
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
+
+    when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
+        liftHandler $ throwE ErrConstructTxWrongPayload
+
+    when (isJust (body ^. #encryptMetadata)) $
+        liftHandler $ throwE ErrConstructTxNotImplemented
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval

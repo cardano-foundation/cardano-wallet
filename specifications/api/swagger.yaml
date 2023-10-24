@@ -1722,8 +1722,8 @@ x-transactionMetadata: &transactionMetadata
             example:
               0: "cardano"
               1: 14
-              3: [14, 42 , "1337" ]
-              4: {"key1": "value" , "key2": 42 }
+              2: [14, 42 , "1337" ]
+              3: {"key1": "value" , "key2": 42 }
 
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
@@ -1740,7 +1740,7 @@ x-encryptMetadata: &encryptMetadata
   required:
     - passphrase
   properties:
-    passphrase: *walletPassphrase
+    passphrase: *lenientPassphrase
 
 x-transactionTTL: &transactionTTL
   description: |

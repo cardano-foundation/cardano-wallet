@@ -150,6 +150,7 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
+    , ApiEncryptMetadata (..)
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
@@ -1969,10 +1970,14 @@ instance Arbitrary TxMetadataWithSchema where
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 
+instance Arbitrary ApiEncryptMetadata where
+    arbitrary = ApiEncryptMetadata <$> arbitrary
+
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
         <*> elements [Just SelfWithdraw, Nothing]
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

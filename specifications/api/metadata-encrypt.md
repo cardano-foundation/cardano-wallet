@@ -3,7 +3,7 @@
 This document specifies those aspects of the "Transactions New > Construct" HTTP endpoint that relate to publishing of encrypted metadata.
 In addition "Transactions New > Decode" HTTP endpoint is described in the context of decrypting the metadata.
 
-## Metadata encryptiion
+## Metadata encryption
 
 Encryption of metadata is optional and when chosen the metadata in transaction is to be encrypted
 via AEAD scheme using ChaCha20 and Poly1305 (see [RFC 7539][ref]). PBKDF2 password stretching is used to get a 32-byte symmetric key

@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
+    , ApiEncryptMetadata (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCosignerIndex (..)
@@ -1198,12 +1199,19 @@ data ApiMultiDelegationAction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+newtype ApiEncryptMetadata = ApiEncryptMetadata
+    { passphrase :: (ApiT (Passphrase "lenient")) }
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
+    deriving anyclass NFData
+
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) =
     ApiConstructTransactionData
     { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiSelfWithdrawalPostData)
     , metadata :: !(Maybe TxMetadataWithSchema)
+    , encryptMetadata :: !(Maybe ApiEncryptMetadata)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
