@@ -1022,7 +1022,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     performSelection'
         :: Either (ErrBalanceTx era) Selection
     performSelection'
-        = left coinSelectionErrorToBalanceTxError
+        = left (coinSelectionErrorToBalanceTxError era)
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
 
@@ -1541,9 +1541,10 @@ toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
 -- | Maps an error from the coin selection API to a balanceTx error.
 --
 coinSelectionErrorToBalanceTxError
-    :: SelectionError WalletSelectionContext
+    :: RecentEra era
+    -> SelectionError WalletSelectionContext
     -> ErrBalanceTx era
-coinSelectionErrorToBalanceTxError = \case
+coinSelectionErrorToBalanceTxError _era = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
