@@ -370,7 +370,10 @@ data ErrBalanceTxInsufficientCollateralError era =
     , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
-    deriving (Eq, Generic, Show)
+    deriving Generic
+
+deriving instance Eq (ErrBalanceTxInsufficientCollateralError era)
+deriving instance Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
 --
