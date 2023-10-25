@@ -48,6 +48,7 @@ library
     exposed-modules:
         Cardano.Wallet.Read
         Cardano.Wallet.Read.Block
+        Cardano.Wallet.Read.Block.SlotNo
         Cardano.Wallet.Read.Eras
         Cardano.Wallet.Read.Eras.EraFun
         Cardano.Wallet.Read.Eras.EraValue
@@ -90,6 +91,7 @@ library
         , cardano-ledger-core
         , cardano-ledger-mary
         , cardano-ledger-shelley
+        , cardano-protocol-tpraos
         , cardano-strict-containers
         , containers
         , deepseq
@@ -99,6 +101,7 @@ library
         , generics-sop
         , lens
         , memory
+        , ouroboros-network-api
         , ouroboros-consensus-cardano
         , ouroboros-consensus-protocol
         , text
