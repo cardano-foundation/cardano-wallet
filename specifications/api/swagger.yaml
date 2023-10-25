@@ -2537,7 +2537,6 @@ components:
         - transaction
       properties:
         transaction: *serialisedTransactionEncoded
-        encrypt_metadata: *encryptMetadata
 
     ApiTokenAmountFingerprint: &ApiTokenAmountFingerprint
       type: object
@@ -3519,6 +3518,17 @@ components:
         new_passphrase:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+    ApiDecodeTransactionPostData: &ApiDecodeTransactionPostData
+      type: object
+      required:
+        - encrypt_metadata
+        - transaction
+      properties:
+        encrypt_metadata:
+          <<: *encryptMetadata
+          description: The metadata passphrase for decryption.
+        transaction: *serialisedTransactionEncoded
 
     ApiSignTransactionPostData: &ApiSignTransactionPostData
       type: object
@@ -6666,7 +6676,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSerialisedTransactionEncoded
+            schema: *ApiDecodeTransactionPostData
       responses: *responsesDecodedTransaction
 
   /wallets/{walletId}/transactions-submit:
@@ -7826,7 +7836,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSerialisedTransactionEncoded
+            schema: *ApiDecodeTransactionPostData
       responses: *responsesDecodedTransaction
 
   /shared-wallets/{walletId}/transactions-sign:
