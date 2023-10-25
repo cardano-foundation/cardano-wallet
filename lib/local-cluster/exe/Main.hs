@@ -1,6 +1,6 @@
-import qualified Service
+import qualified Cardano.Wallet.LocalCluster as LocalCluster
 
 import Prelude
 
 main :: IO ()
-main = Service.main
+main = LocalCluster.main

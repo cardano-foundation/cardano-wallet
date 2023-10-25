@@ -11,8 +11,8 @@ import qualified Cardano.Wallet.Spec.Network.Preprod as Preprod
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story
     )
-import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig
+import Cardano.Wallet.Spec.Network.Configured
+    ( ConfiguredNetwork
     )
 import Cardano.Wallet.Spec.Stories.Wallet
     ( createdWalletHasZeroAda
@@ -21,6 +21,12 @@ import Cardano.Wallet.Spec.Stories.Wallet
     )
 import Cardano.Wallet.Spec.TimeoutSpec
     ( timeoutSpec
+    )
+import Control.Monad.Trans.Resource
+    ( runResourceT
+    )
+import Data.Tagged
+    ( Tagged
     )
 import Path
     ( Abs
@@ -35,12 +41,11 @@ import Test.Syd
     )
 
 walletSpec :: TestNetworkConfig -> Spec
-walletSpec networkConfig =
-    aroundAll (setupForNetwork networkConfig) do
-        describe "Wallet Backend API" $ sequential do
-            story "Created wallet is listed" createdWalletListed
-            story "Created wallet can be retrieved by id" createdWalletRetrievable
-            story "Created wallet has zero ADA balance" createdWalletHasZeroAda
+walletSpec config = aroundAll (configureTestNet config) do
+    describe "Wallet Backend API" $ sequential do
+        story "Created wallet is listed" createdWalletListed
+        story "Created wallet can be retrieved by id" createdWalletRetrievable
+        story "Created wallet has zero ADA balance" createdWalletHasZeroAda
 
 effectsSpec :: Spec
 effectsSpec = describe "Effect interpreters" do
@@ -51,14 +56,20 @@ effectsSpec = describe "Effect interpreters" do
 
 data TestNetworkConfig
     = TestNetworkManual
-    | TestNetworkLocal !(Path Abs Dir)
-    | TestNetworkPreprod !(Path Abs Dir) !(Path Abs Dir)
+    | TestNetworkLocal
+        (Tagged "state" (Path Abs Dir))
+        (Tagged "config" (Path Abs Dir))
+    | TestNetworkPreprod
+        (Tagged "state" (Path Abs Dir))
+        (Tagged "config" (Path Abs Dir))
 
-setupForNetwork :: TestNetworkConfig -> (NetworkConfig -> IO ()) -> IO ()
-setupForNetwork = \case
-    TestNetworkManual ->
-        Manual.nodeWalletSetup
-    TestNetworkLocal stateDir ->
-        Local.nodeWalletSetup stateDir
-    TestNetworkPreprod stateDir nodeConfigDir ->
-        Preprod.nodeWalletSetup stateDir nodeConfigDir
+configureTestNet :: TestNetworkConfig -> (ConfiguredNetwork -> IO ()) -> IO ()
+configureTestNet testNetworkConfig withConfiguredNetwork = runResourceT $ do
+    config <- case testNetworkConfig of
+        TestNetworkManual ->
+            pure Manual.configuredNetwork
+        TestNetworkLocal stateDir nodeConfigDir ->
+            Local.configuredNetwork stateDir nodeConfigDir
+        TestNetworkPreprod stateDir nodeConfigDir ->
+            Preprod.configuredNetwork stateDir nodeConfigDir
+    liftIO $ withConfiguredNetwork config

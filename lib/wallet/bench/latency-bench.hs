@@ -212,10 +212,10 @@ import UnliftIO.STM
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Cardano.Wallet.LocalCluster as LocalCluster
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Service as ClusterService
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withUtf8 $
@@ -555,7 +555,7 @@ withShelleyServer tracers action = do
         withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            cfgClusterConfigs <- ClusterService.getClusterConfigsPath
+            cfgClusterConfigs <- LocalCluster.getClusterConfigsPathFromEnv
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = NE.head defaultPoolConfigs :| []
                     , Cluster.cfgLastHardFork = maxBound

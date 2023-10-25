@@ -10,7 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Service where
+module Cardano.Wallet.LocalCluster where
 
 import Prelude
 
@@ -41,6 +41,10 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Control.Applicative
+    ( optional
+    , (<**>)
     )
 import Control.Monad.Trans.Resource
     ( allocate
@@ -78,6 +82,7 @@ import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Options.Applicative as O
 import qualified Path
 import qualified Path.IO as PathIO
 
@@ -213,7 +218,9 @@ main = withUtf8 $ do
         cfgNodeLogging <-
             Cluster.logFileConfigFromEnv
                 (Just (Cluster.clusterEraToString clusterEra))
-        cfgClusterConfigs <- getClusterConfigsPath
+        cfgClusterConfigs <- parseCommandLineOptions >>= \case
+            CommandLineOptions Nothing -> getClusterConfigsPathFromEnv
+            CommandLineOptions (Just path) -> pure path
         let clusterCfg = Cluster.Config
                 { cfgStakePools = Cluster.defaultPoolConfigs
                 , cfgLastHardFork = clusterEra
@@ -270,8 +277,25 @@ main = withUtf8 $ do
 -- | Returns a path to the local cluster configuration, which is usually relative to the
 -- package sources, but can be overridden by the @LOCAL_CLUSTER_CONFIGS@ environment
 -- variable.
-getClusterConfigsPath :: IO (Tagged "cluster-configs" FilePath)
-getClusterConfigsPath =
+getClusterConfigsPathFromEnv :: IO (Tagged "cluster-configs" FilePath)
+getClusterConfigsPathFromEnv =
     lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS" <&> Tagged . \case
         Nothing -> $(getTestData) </> "cluster-configs"
         Just fp -> fp
+
+
+newtype CommandLineOptions = CommandLineOptions
+    { clusterConfigsDir :: Maybe (Tagged "cluster-configs" FilePath)
+    }
+
+parseCommandLineOptions :: IO CommandLineOptions
+parseCommandLineOptions = O.execParser $
+    O.info (parser <**> O.helper) (O.progDesc "Local Cluster for testing")
+  where
+    parser = CommandLineOptions <$> optional (
+        Tagged <$> O.strOption
+            ( O.long "cluster-configs"
+            <> O.metavar "LOCAL_CLUSTER_CONFIGS"
+            <> O.help "Path to the local cluster configuration directory"
+            )
+        )

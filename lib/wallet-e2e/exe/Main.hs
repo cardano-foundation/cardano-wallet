@@ -8,6 +8,9 @@ import Cardano.Wallet.Spec
     , effectsSpec
     , walletSpec
     )
+import Data.Tagged
+    ( Tagged (..)
+    )
 import Main.Utf8
     ( withUtf8
     )
@@ -54,19 +57,24 @@ main = withUtf8 do
 
 data TestNetworkOptions
     = TestNetworkOptionManual
-    | TestNetworkOptionLocal !(SomeBase Dir)
-    | TestNetworkOptionPreprod !(SomeBase Dir) !(SomeBase Dir)
+    | TestNetworkOptionLocal
+        (Tagged "state" (SomeBase Dir))
+        (Tagged "config" (SomeBase Dir))
+    | TestNetworkOptionPreprod
+        (Tagged "state" (SomeBase Dir))
+        (Tagged "config" (SomeBase Dir))
 
 testNetworkOptionsToConfig :: TestNetworkOptions -> IO TestNetworkConfig
 testNetworkOptionsToConfig = \case
     TestNetworkOptionManual ->
         pure TestNetworkManual
-    TestNetworkOptionLocal stateDir -> do
-        absStateDir <- makeDirAbsolute stateDir
-        pure (TestNetworkLocal absStateDir)
+    TestNetworkOptionLocal stateDir nodeConfigsDir -> do
+        absStateDir <- traverse makeDirAbsolute stateDir
+        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
+        pure (TestNetworkLocal absStateDir absNodeConfigsDir)
     TestNetworkOptionPreprod stateDir nodeConfigsDir -> do
-        absStateDir <- makeDirAbsolute stateDir
-        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
+        absStateDir <- traverse makeDirAbsolute stateDir
+        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
         pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
   where
     makeDirAbsolute = \case
@@ -89,7 +97,10 @@ parser = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
         OptParse.command
             "local"
             ( OptParse.info
-                (TestNetworkOptionLocal <$> stateDirOption)
+                ( TestNetworkOptionLocal
+                    <$> stateDirOption
+                    <*> nodeConfigsDirOption
+                )
                 (OptParse.progDesc "Automatically starts a local test cluster.")
             )
     cmdPreprod =
@@ -98,27 +109,29 @@ parser = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
             ( OptParse.info
                 ( TestNetworkOptionPreprod
                     <$> stateDirOption
-                    <*> option
-                        (eitherReader (first show . parseSomeDir))
-                        ( long "node-configs-dir"
-                            <> short 'c'
-                            <> metavar "NODE_CONFIGS_DIR"
-                            <> help
-                                "Absolute or relative directory path \
-                                \ to a directory with node configs"
-                        )
+                    <*> nodeConfigsDirOption
                 )
                 ( OptParse.progDesc
                     "Automatically starts a preprod node and wallet."
                 )
             )
-    stateDirOption =
+    stateDirOption :: Parser (Tagged "state" (SomeBase Dir)) =
         option
-            (eitherReader (first show . parseSomeDir))
+            (eitherReader (bimap show Tagged . parseSomeDir))
             ( long "state-dir"
                 <> short 's'
                 <> metavar "STATE_DIR"
                 <> help
                     "Absolute or relative directory path \
                     \ to save node and wallet state"
+            )
+    nodeConfigsDirOption :: Parser (Tagged "config" (SomeBase Dir)) =
+        option
+            (eitherReader (bimap show Tagged . parseSomeDir))
+            ( long "node-configs-dir"
+                <> short 'c'
+                <> metavar "NODE_CONFIGS_DIR"
+                <> help
+                    "Absolute or relative directory path \
+                    \ to a directory with node configs"
             )

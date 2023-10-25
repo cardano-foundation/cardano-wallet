@@ -53,8 +53,8 @@ import Cardano.Wallet.Spec.Effect.Trace
     ( FxTrace
     , trace
     )
-import Cardano.Wallet.Spec.Network.Config
-    ( NetworkConfig (..)
+import Cardano.Wallet.Spec.Network.Configured
+    ( ConfiguredNetwork (..)
     )
 import Effectful
     ( (:>)
@@ -158,10 +158,10 @@ runQuery
        , FxAssert :> es
        , FxTrace :> es
        )
-    => NetworkConfig
+    => ConfiguredNetwork
     -> Eff (FxQuery : es) a
     -> Eff es a
-runQuery networkConfig = interpret \_ -> \case
+runQuery configuredNetwork = interpret \_ -> \case
     ListKnownWallets -> do
         resp <- runClient LW.listWallets
         assert "ListKnownWallets response status"
@@ -321,20 +321,20 @@ runQuery networkConfig = interpret \_ -> \case
             >>= \case
                 Left (e :: SomeException) ->
                     environmentException
-                        $ WalletNetworkInfoException networkConfig e
+                        $ WalletNetworkInfoException configuredNetwork e
                 Right resp | status <- responseStatus resp -> do
                     unless (status == ok200) do
                         environmentException
-                            $ WalletNetworkInfoStatus networkConfig status
+                            $ WalletNetworkInfoStatus configuredNetwork status
                     case responseBody resp of
                         W.GetNetworkInformationResponseError err ->
                             environmentException
-                                $ WalletNetworkInfoError networkConfig (toText err)
+                                $ WalletNetworkInfoError configuredNetwork (toText err)
                         W.GetNetworkInformationResponse406
                             W.GetNetworkInformationResponseBody406{..} ->
                                 environmentException
                                     $ WalletNetworkInfoError
-                                        networkConfig
+                                        configuredNetwork
                                         getNetworkInformationResponseBody406Message
                         W.GetNetworkInformationResponse200
                             W.GetNetworkInformationResponseBody200{..} -> do
@@ -342,7 +342,7 @@ runQuery networkConfig = interpret \_ -> \case
                                     NodeStatus.fromClientResponse getNetworkInformationResponseBody200Sync_progress
                                         & maybe
                                             ( environmentException
-                                                $ WalletNetworkInfoUnknownNodeStatus networkConfig
+                                                $ WalletNetworkInfoUnknownNodeStatus configuredNetwork
                                             )
                                             pure
                                 pure NetworkInfo{nodeStatus}
@@ -352,7 +352,7 @@ runQuery networkConfig = interpret \_ -> \case
         WC.runWithConfiguration
             WC.Configuration
                 { WC.configBaseURL =
-                    walletInstanceApiUrl (networkConfigWallet networkConfig)
+                    walletInstanceApiUrl (configuredNetworkWallet configuredNetwork)
                 , WC.configSecurityScheme = WC.anonymousSecurityScheme
                 , WC.configIncludeUserAgent = False
                 , WC.configApplicationName = ""
@@ -362,33 +362,33 @@ environmentException :: (Fail :> es) => ExecutionEnvironmentException -> Eff es 
 environmentException = fail . displayException
 
 data ExecutionEnvironmentException
-    = WalletNetworkInfoException NetworkConfig SomeException
-    | WalletNetworkInfoStatus NetworkConfig Http.Status
-    | WalletNetworkInfoError NetworkConfig Text
-    | NodeIsNotReady NetworkConfig
-    | WalletNetworkInfoUnknownNodeStatus NetworkConfig
+    = WalletNetworkInfoException ConfiguredNetwork SomeException
+    | WalletNetworkInfoStatus ConfiguredNetwork Http.Status
+    | WalletNetworkInfoError ConfiguredNetwork Text
+    | NodeIsNotReady ConfiguredNetwork
+    | WalletNetworkInfoUnknownNodeStatus ConfiguredNetwork
     deriving anyclass (Exception)
 
 instance Show ExecutionEnvironmentException where
     show = \case
-        WalletNetworkInfoException networkConfig se ->
-            requirement networkConfig
+        WalletNetworkInfoException configuredNetwork se ->
+            requirement configuredNetwork
                 <> "However, an exception happened when trying to retrieve \n\
                    \network information from the wallet backend: \n\n"
                 <> displayException se
-        WalletNetworkInfoUnknownNodeStatus networkConfig ->
-            requirement networkConfig
-        WalletNetworkInfoStatus networkConfig _ ->
-            requirement networkConfig
-        WalletNetworkInfoError networkConfig _ ->
-            requirement networkConfig
-        NodeIsNotReady networkConfig ->
-            requirement networkConfig
+        WalletNetworkInfoUnknownNodeStatus configuredNetwork ->
+            requirement configuredNetwork
+        WalletNetworkInfoStatus configuredNetwork _ ->
+            requirement configuredNetwork
+        WalletNetworkInfoError configuredNetwork _ ->
+            requirement configuredNetwork
+        NodeIsNotReady configuredNetwork ->
+            requirement configuredNetwork
       where
-        requirement :: NetworkConfig -> String
+        requirement :: ConfiguredNetwork -> String
         requirement configuration =
             "E2E test suite requires a running cardano-wallet instance \n\
             \connected to a running cardano-node and listenting on "
                 <> show
-                    (walletInstanceApiUrl (networkConfigWallet configuration))
+                    (walletInstanceApiUrl (configuredNetworkWallet configuration))
                 <> "\n\n"
