@@ -49,6 +49,7 @@ library
         Cardano.Wallet.Read
         Cardano.Wallet.Read.Block
         Cardano.Wallet.Read.Block.BlockNo
+        Cardano.Wallet.Read.Block.HeaderHash
         Cardano.Wallet.Read.Block.SlotNo
         Cardano.Wallet.Read.Eras
         Cardano.Wallet.Read.Eras.EraFun
