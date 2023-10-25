@@ -2044,7 +2044,7 @@ addExtraTxIns extraIns =
 -- updated 'changeState'. Does /not/ specify mock values for things like
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
-    :: IsRecentEra era
+    :: forall era. IsRecentEra era
     => Wallet'
     -> Write.ProtocolParameters era
     -> TimeTranslation
@@ -2063,11 +2063,13 @@ balanceTx
                 utxoAssumptions
                 protocolParameters
                 timeTranslation
-                (constructUTxOIndex utxo)
+                utxoIndex
                 genChange
                 s
                 partialTx
         pure transactionInEra
+  where
+    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -2083,11 +2085,13 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
             utxoAssumptions
             mockPParamsForBalancing
             dummyTimeTranslation
-            (constructUTxOIndex utxo)
+            utxoIndex
             dummyChangeAddrGen
             (getState $ unsafeInitWallet utxo (W.Block.header block0)
                 DummyChangeState { nextUnusedIndex = 0 })
             partialTx
+  where
+    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
 cardanoTx :: SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
 cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
