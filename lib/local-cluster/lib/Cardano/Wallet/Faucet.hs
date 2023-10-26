@@ -33,11 +33,10 @@ module Cardano.Wallet.Faucet
     , hwLedgerTestFunds
     , seaHorseTestAssets
 
+    , byronAddresses
+    , icarusAddresses
+
       -- * Internals
-    , genByronFaucets
-    , genIcarusFaucets
-    , genShelleyFaucets
-    , genMAFaucets
     , genMnemonics
     , deriveShelleyAddresses
     , deriveShelleyRewardAccount
@@ -49,8 +48,6 @@ import Prelude hiding
 
 import Cardano.Address
     ( Address
-    , base58
-    , unAddress
     )
 import Cardano.Address.Derivation
     ( AccountIndexDerivationType
@@ -86,7 +83,6 @@ import Cardano.Mnemonic
     , ValidMnemonicSentence
     , entropyToMnemonic
     , genEntropy
-    , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -107,25 +103,16 @@ import Cardano.Wallet.Unsafe
     , unsafeMkMnemonic
     )
 import Control.Monad
-    ( forM
-    , forM_
-    , replicateM
+    ( replicateM
     )
 import Data.Bifunctor
     ( first
-    )
-import Data.ByteArray.Encoding
-    ( Base (..)
-    , convertToBase
     )
 import Data.ByteString
     ( ByteString
     )
 import Data.List
     ( unfoldr
-    )
-import Data.Text
-    ( Text
     )
 import Data.Tuple.Extra
     ( dupe
@@ -149,8 +136,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
 
 -- | An opaque 'Faucet' type from which one can get a wallet with funds
 data Faucet = Faucet
@@ -209,12 +194,6 @@ instance NextWallet "ma" where
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
 nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
 
--- | Generate faucets addresses and mnemonics to a file.
---
--- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
-genByronFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 12] -> IO [[Text]]
-genByronFaucets = genFaucet base58 . byronAddresses
-
 byronAddresses :: KnownNat mw => CA.NetworkTag -> Mnemonic mw -> [Address]
 byronAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
@@ -237,12 +216,6 @@ byronAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
                 accountIx :: Index (AddressIndexDerivationType Byron) AccountK =
                     coerceWholeDomainIndex (minBound :: Index Hardened AccountK)
 
--- | Generate faucets addresses and mnemonics to a file.
---
--- >>> genMnemonics 100 >>= genIcarusFaucets (CA.NetworkTag 42) "icarus-faucets.yaml"
-genIcarusFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 15] -> IO [[Text]]
-genIcarusFaucets = genFaucet base58 . icarusAddresses
-
 icarusAddresses :: CA.NetworkTag -> Mnemonic 15 -> [Address]
 icarusAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
@@ -262,22 +235,6 @@ icarusAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
                 accountIx :: Index (AccountIndexDerivationType Icarus) AccountK =
                     minBound
                 masterKey = genMasterKeyFromMnemonic (SomeMnemonic mw) mempty
-
--- | Generate faucet addresses and mnemonics to a file.
---
--- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
-genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO [[Text]]
-genShelleyFaucets =
-    genFaucet encodeAddressHex (deriveShelleyAddresses . SomeMnemonic)
-
--- | Generate faucet addresses and mnemonics to a file.
---
--- >>> genMnemonics 100 >>= genMAFaucets "ma-faucets.yaml"
-genMAFaucets :: FilePath -> [Mnemonic 24] -> IO [[Text]]
-genMAFaucets = genFaucet encodeAddressHex (deriveShelleyAddresses . SomeMnemonic)
-
-encodeAddressHex :: Address -> Text
-encodeAddressHex = T.decodeUtf8 . convertToBase Base16 . unAddress
 
 deriveShelleyAddresses :: SomeMnemonic -> [Address]
 deriveShelleyAddresses mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
@@ -307,39 +264,6 @@ deriveShelleyAccountKey mnemonic = deriveAccountPrivateKey masterKey accountIx
   where
     accountIx :: Index 'Hardened 'AccountK = minBound
     masterKey = genMasterKeyFromMnemonic mnemonic mempty
-
--- | Abstract function for generating a faucet as a YAML file.
---
--- Returns the generated mnemonics as Text.
-genFaucet
-    :: forall a mw
-     . (a -> Text)
-    -> (Mnemonic mw -> [a])
-    -> FilePath
-    -> [Mnemonic mw]
-    -> IO [[Text]]
-genFaucet encodeAddress genAddresses file mnemonics = do
-    TIO.writeFile file ""
-    forM [(mnemonicToText m, take 10 (genAddresses m)) | m <- mnemonics]
-        $ \(mnem, addrs) -> do
-            let comment = ("# " <>)
-                    $ T.intercalate ", "
-                    $ map (surroundedBy '"') mnem
-            appendFile file comment
-            forM_ addrs (appendFile file . encodeFaucet)
-            pure mnem
-  where
-    surroundedBy :: Char -> Text -> Text
-    surroundedBy c txt = T.singleton c <> txt <> T.singleton c
-
-    encodeFaucet :: a -> Text
-    encodeFaucet addr =
-        "  " <> encodeAddress addr <> ": " <> T.pack (show faucetAmount)
-      where
-        faucetAmount :: Int = ada 100_000 where ada = (* 1000_000)
-
-    appendFile :: FilePath -> Text -> IO ()
-    appendFile f txt = TIO.appendFile f (txt <> "\n")
 
 genMnemonics
     :: forall mw ent csz
