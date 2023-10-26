@@ -3522,10 +3522,9 @@ components:
     ApiDecodeTransactionPostData: &ApiDecodeTransactionPostData
       type: object
       required:
-        - encrypt_metadata
         - transaction
       properties:
-        encrypt_metadata:
+        decrypt_metadata:
           <<: *encryptMetadata
           description: The metadata passphrase for decryption.
         transaction: *serialisedTransactionEncoded

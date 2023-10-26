@@ -353,6 +353,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -446,6 +447,7 @@ import Cardano.Wallet.Api.Types
     , XPubOrSelf (..)
     , getApiMnemonicT
     , toApiAsset
+    , toApiDecodeTransactionPostData
     , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
@@ -2808,7 +2810,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     , encoding = body ^. #encoding
                     }
 
-        apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
+        apiDecoded <- decodeTransaction @_ @n api apiWalletId
+                      (toApiDecodeTransactionPostData balancedTx)
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
@@ -3228,7 +3231,8 @@ constructSharedTransaction
                         , encoding = body ^. #encoding
                         }
 
-                apiDecoded <- decodeSharedTransaction api (ApiT wid) balancedTx
+                apiDecoded <- decodeSharedTransaction api (ApiT wid)
+                              (toApiDecodeTransactionPostData balancedTx)
                 let deposits = case optionalDelegationAction of
                         Just (JoinRegisteringKey _poolId) ->
                             [W.getStakeKeyDeposit pp]
@@ -3284,9 +3288,10 @@ decodeSharedTransaction
     :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey)
     -> ApiT WalletId
-    -> ApiSerialisedTransaction
+    -> ApiDecodeTransactionPostData
     -> Handler (ApiDecodedTransaction n)
-decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
+decodeSharedTransaction ctx (ApiT wid) postData = do
+    let (ApiDecodeTransactionPostData (ApiT sealed) _ ) = postData
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
         , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)
@@ -3446,10 +3451,11 @@ decodeTransaction
        )
     => ApiLayer s
     -> ApiT WalletId
-    -> ApiSerialisedTransaction
+    -> ApiDecodeTransactionPostData
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction
-    ctx@ApiLayer{..} (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
+    ctx@ApiLayer{..} (ApiT wid) postData = do
+    let (ApiDecodeTransactionPostData (ApiT sealed) _ ) = postData
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
@@ -3582,7 +3588,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
 
-    apiDecoded <- decodeTransaction @s @n ctx apiw apitx
+    apiDecoded <- decodeTransaction @s @n ctx apiw
+                  (toApiDecodeTransactionPostData apitx)
     when (isForeign apiDecoded) $
         liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded
@@ -3716,7 +3723,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
 
-    apiDecoded <- decodeSharedTransaction @n ctx apiw apitx
+    apiDecoded <- decodeSharedTransaction @n ctx apiw
+                  (toApiDecodeTransactionPostData apitx)
     when (isForeign apiDecoded) $
         liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded

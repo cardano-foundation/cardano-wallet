@@ -189,6 +189,9 @@ module Cardano.Wallet.Api.Types
     , WalletPutPassphraseMnemonicData (..)
     , WalletPutPassphraseOldPassphraseData (..)
     , XPubOrSelf (..)
+    , ApiDecodeTransactionPostData (..)
+    , fromApiDecodeTransactionPostData
+    , toApiDecodeTransactionPostData
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1250,6 +1253,24 @@ data ApiValidityBound
     -- ^ Absolute slot number.
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+data ApiDecodeTransactionPostData = ApiDecodeTransactionPostData
+    { transaction :: !(ApiT SealedTx)
+    , decrypt_metadata :: !(Maybe ApiEncryptMetadata)
+    }
+    deriving (Eq, Generic, Show)
+
+fromApiDecodeTransactionPostData
+    :: ApiDecodeTransactionPostData
+    -> ApiSerialisedTransaction
+fromApiDecodeTransactionPostData (ApiDecodeTransactionPostData sealedtx _) =
+    ApiSerialisedTransaction sealedtx HexEncoded
+
+toApiDecodeTransactionPostData
+    :: ApiSerialisedTransaction
+    -> ApiDecodeTransactionPostData
+toApiDecodeTransactionPostData (ApiSerialisedTransaction sealedTx _) =
+    ApiDecodeTransactionPostData sealedTx Nothing
 
 data ApiSignTransactionPostData = ApiSignTransactionPostData
     { transaction :: !(ApiT SealedTx)
@@ -2576,6 +2597,11 @@ instance ToJSON ApiSerialisedTransaction where
                        Base64Encoded ->
                            sealedTxBytesValue @'Base64 . getApiT $ tx
                ]
+
+instance FromJSON ApiDecodeTransactionPostData where
+    parseJSON = genericParseJSON strictRecordTypeOptions
+instance ToJSON ApiDecodeTransactionPostData where
+    toJSON = genericToJSON strictRecordTypeOptions
 
 instance FromJSON ApiSignTransactionPostData where
     parseJSON = genericParseJSON strictRecordTypeOptions

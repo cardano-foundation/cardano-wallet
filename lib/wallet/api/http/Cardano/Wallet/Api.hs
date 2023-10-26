@@ -198,6 +198,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
     , ApiFee
     , ApiHealthCheck
@@ -674,7 +675,7 @@ type BalanceTransaction n = "wallets"
 type DecodeTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-decode"
-    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> ReqBody '[JSON] ApiDecodeTransactionPostData
     :> PostAccepted '[JSON] (ApiDecodedTransactionT n)
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/submitTransaction
@@ -1196,7 +1197,7 @@ type SignSharedTransaction n = "shared-wallets"
 type DecodeSharedTransaction n = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-decode"
-    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> ReqBody '[JSON] ApiDecodeTransactionPostData
     :> PostAccepted '[JSON] (ApiDecodedTransactionT n)
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/submitSharedTransaction
