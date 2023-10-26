@@ -91,6 +91,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     )
+import Cardano.Wallet.Read.Primitive.Block.Header
+    ( getBlockHeader
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraPParams
@@ -108,7 +111,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , nodeToClientVersions
     , optimumNumberOfPools
     , slottingParametersFromGenesis
-    , toCardanoBlockHeader
     , toCardanoEra
     , toLedgerStakeCredential
     , toPoint
@@ -487,7 +489,7 @@ withNodeNetworkLayerBase
                                 trFollowLog
                                 (_syncProgress interpreterVar)
                     withStats $ \trChainSyncLog -> do
-                        let mapB = toCardanoBlockHeader gp
+                        let mapB = getBlockHeader getGenesisBlockHash
                             mapP = fromPoint
                         let blockHeader = fromTip' gp
                         let client =

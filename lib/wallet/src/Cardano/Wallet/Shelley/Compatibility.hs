@@ -103,7 +103,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromBlockNo
     , fromCardanoBlock
     , toCardanoEra
-    , toCardanoBlockHeader
     , toShelleyBlockHeader
     , toBabbageBlockHeader
     , toConwayBlockHeader
@@ -243,7 +242,6 @@ import Cardano.Wallet.Byron.Compatibility
     ( fromByronBlock
     , fromTxAux
     , maryTokenBundleMaxSize
-    , toByronBlockHeader
     )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
@@ -528,26 +526,6 @@ toPoint (ChainPoint slot h) = O.BlockPoint slot (toCardanoHash h)
 fromPoint :: O.Point (CardanoBlock sc) -> W.ChainPoint
 fromPoint O.GenesisPoint = ChainPointAtGenesis
 fromPoint (O.BlockPoint slot h) = ChainPoint slot (fromCardanoHash h)
-
-toCardanoBlockHeader
-    :: W.GenesisParameters
-    -> CardanoBlock StandardCrypto
-    -> W.BlockHeader
-toCardanoBlockHeader gp = \case
-    BlockByron blk ->
-        toByronBlockHeader gp blk
-    BlockShelley blk ->
-        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockAllegra blk ->
-        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockMary blk ->
-        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockAlonzo blk ->
-        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockBabbage blk ->
-        toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockConway blk ->
-        toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
     :: (ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
