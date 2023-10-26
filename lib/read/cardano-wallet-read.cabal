@@ -104,6 +104,7 @@ library
         , lens
         , memory
         , ouroboros-network-api
+        , ouroboros-consensus
         , ouroboros-consensus-cardano
         , ouroboros-consensus-protocol
         , text
