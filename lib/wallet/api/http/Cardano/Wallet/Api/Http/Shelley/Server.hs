@@ -3291,7 +3291,8 @@ decodeSharedTransaction
     -> ApiDecodeTransactionPostData
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) postData = do
-    let (ApiDecodeTransactionPostData (ApiT sealed) _ ) = postData
+    let (ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata ) = postData
+    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
         , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)
@@ -3455,7 +3456,8 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) postData = do
-    let (ApiDecodeTransactionPostData (ApiT sealed) _ ) = postData
+    let (ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata ) = postData
+    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk

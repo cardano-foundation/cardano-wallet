@@ -21,7 +21,7 @@ Specifically:
 
     In the `encrypt_metadata` field, passphrase used in encryption is established. `metadata` field to be encrypted is required.
 
-    Example `POST` data for the endpoint:
+    Example `POST` data for the endpoint, ie.,   /wallets/{walletId}/transactions-construct`:
 
     ```
     {
@@ -42,13 +42,19 @@ Specifically:
     ...
     }
     ```
-    The same is the case for `GET` transaction.
+    The same is the case for `GET` transaction. `encrypt_metadata` is an object as we might want to introduce
+    optional choice of encryption method in the future. In that case the new enhancement to api will be introduced in
+    nonintrusive way.
 
-2. Decoding transaction with encrypted metadata is possible by using the same passphrase as upon encryption in `encrypt_metadata` field. It is realized by calling `POST` on `  /wallets/{walletId}/transactions-decode` endpoint with `POST` data:
+    Metadata encryption can be used for shared wallet style when calling `/shared-wallets/{walletId}/transactions-construct` endpoint with the same `POST` payload.
+
+## Metadata decryption
+
+2. Decoding transaction with encrypted metadata is possible by using the same passphrase as upon encryption in `encrypt_metadata` field. It is realized by calling `POST` on `/wallets/{walletId}/transactions-decode` endpoint with `POST` data:
 
     ```
     {
-      "encrypt_metadata":
+      "decrypt_metadata":
           { "passphrase": "my secret encryption password"
           },
       "transaction": ....
@@ -63,3 +69,5 @@ Specifically:
     ...
     }
     ```
+
+    Metadata decryption can be used for shared wallet style when calling `/shared-wallets/{walletId}/transactions-decode` endpoint with the same `POST` payload.
