@@ -77,9 +77,6 @@ import Cardano.Pool.Types
     ( PoolId (..)
     , StakePoolsSummary (..)
     )
-import Cardano.Wallet.Byron.Compatibility
-    ( toByronBlockHeader
-    )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower (..)
@@ -119,6 +116,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Read.Primitive.Block.Header
+    ( getBlockHeader
+    )
 import Cardano.Wallet.Registry
     ( AfterThreadLog
     , traceAfterThread
@@ -134,9 +134,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , getBabbageProducer
     , getConwayProducer
     , getProducer
-    , toBabbageBlockHeader
-    , toConwayBlockHeader
-    , toShelleyBlockHeader
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage
@@ -748,21 +745,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
                 forEachShelleyBlock
                     (fromConwayBlock gp blk) (getConwayProducer blk)
 
-        forLastBlock = \case
-            BlockByron blk ->
-                putHeader (toByronBlockHeader gp blk)
-            BlockShelley blk ->
-                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockAllegra blk ->
-                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockMary blk ->
-                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockAlonzo blk ->
-                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockBabbage blk ->
-                putHeader (toBabbageBlockHeader getGenesisBlockHash blk)
-            BlockConway blk ->
-                putHeader (toConwayBlockHeader getGenesisBlockHash blk)
+        forLastBlock = putHeader . getBlockHeader getGenesisBlockHash
 
         forEachShelleyBlock (blk, certificates) poolId = do
             let header = view #header blk

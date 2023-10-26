@@ -27,7 +27,6 @@ module Cardano.Wallet.Byron.Compatibility
       -- * Conversions
     , fromBlockNo
     , fromByronBlock
-    , toByronBlockHeader
     , fromByronHash
     , fromChainHash
     , fromGenesisData
