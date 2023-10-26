@@ -103,9 +103,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromBlockNo
     , fromCardanoBlock
     , toCardanoEra
-    , toShelleyBlockHeader
-    , toBabbageBlockHeader
-    , toConwayBlockHeader
     , fromShelleyHash
     , fromShelleyTxOut
     , fromCardanoHash

@@ -25,10 +25,7 @@ module Cardano.Wallet.Byron.Compatibility
     , genesisBlockFromTxOuts
 
       -- * Conversions
-    , fromBlockNo
     , fromByronBlock
-    , fromByronHash
-    , fromChainHash
     , fromGenesisData
     , byronCodecConfig
     , fromProtocolMagicId
