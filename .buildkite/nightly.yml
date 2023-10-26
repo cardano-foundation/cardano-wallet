@@ -5,6 +5,16 @@ env:
   # Per-host variables - shared across containers on host
   macos: "x86_64-darwin"
 
+notify:
+  - slack:
+      if: "build.state == 'failing'"
+      channels: [ "#hal-dev-alert" ]
+      message: "Nightly pipeline failing..."
+  - slack:
+      if: "build.state == 'failed'"
+      channels: [ "#hal-dev-alert" ]
+      message: "Nightly pipeline failed."
+
 steps:
   - label: 'Check auto-generated Nix on macos'
     key: macos-nix
