@@ -54,6 +54,7 @@ library
     Cardano.Wallet.Read.Block.Gen.Shelley
     Cardano.Wallet.Read.Block.HeaderHash
     Cardano.Wallet.Read.Block.SlotNo
+    Cardano.Wallet.Read.Block.Txs
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Eras.EraFun
     Cardano.Wallet.Read.Eras.EraValue
