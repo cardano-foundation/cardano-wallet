@@ -282,7 +282,6 @@ import Text.Pretty.Simple
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
-import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
@@ -1265,7 +1264,7 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
                 scriptData
                 aux
                 val
-        Byron.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
+        Cardano.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
 
     TxUpdate _ _ _ extraInputScripts _ = extraContent
 
