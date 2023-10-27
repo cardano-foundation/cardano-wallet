@@ -215,7 +215,7 @@ import Internal.Cardano.Write.Tx
     , evaluateTransactionBalance
     , feeOfBytes
     , fromCardanoApiTx
-    , fromCardanoUTxO
+    , fromCardanoApiUTxO
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -879,7 +879,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: CardanoApi.UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoUTxO u'
+        let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoApiUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `W.UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
@@ -897,7 +897,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ fromCardanoUTxO inputUTxO
+         [ fromCardanoApiUTxO inputUTxO
          , walletLedgerUTxO
          ]
 

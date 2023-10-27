@@ -29,7 +29,7 @@ import Internal.Cardano.Write.Tx
     , computeMinimumCoinForTxOut
     , datumHashFromBytes
     , datumHashToBytes
-    , fromCardanoUTxO
+    , fromCardanoApiUTxO
     , isBelowMinimumCoinForTxOut
     , modifyTxOutCoin
     , toCardanoApiUTxO
@@ -129,8 +129,8 @@ spec = do
                     (toCardanoApiUTxO @CardanoApi.BabbageEra)
                     "toCardanoApiUTxO")
                 (NamedFun
-                    (fromCardanoUTxO @CardanoApi.BabbageEra)
-                    "fromCardanoUTxO")
+                    (fromCardanoApiUTxO @CardanoApi.BabbageEra)
+                    "fromCardanoApiUTxO")
                 id
 
 --------------------------------------------------------------------------------

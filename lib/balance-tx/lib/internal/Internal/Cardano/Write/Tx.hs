@@ -53,7 +53,7 @@ module Internal.Cardano.Write.Tx
     , shelleyBasedEraFromRecentEra
     , fromCardanoApiTx
     , toCardanoApiUTxO
-    , fromCardanoUTxO
+    , fromCardanoApiUTxO
     , toCardanoValue
     , toCardanoLovelace
     , toCardanoApiTx
@@ -834,11 +834,11 @@ toCardanoApiUTxO = withConstraints (recentEra @era) $
   where
     unUTxO (Shelley.UTxO m) = m
 
-fromCardanoUTxO
+fromCardanoApiUTxO
     :: forall era. IsRecentEra era
     => CardanoApi.UTxO era
     -> Shelley.UTxO (CardanoApi.ShelleyLedgerEra era)
-fromCardanoUTxO = withConstraints (recentEra @era) $
+fromCardanoApiUTxO = withConstraints (recentEra @era) $
     Shelley.UTxO
     . Map.mapKeys CardanoApi.toShelleyTxIn
     . Map.map (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
