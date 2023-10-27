@@ -1175,8 +1175,8 @@ posAndNegFromCardanoValue
     -> (W.TokenBundle, W.TokenBundle)
 posAndNegFromCardanoValue
     = bimap
-        (fromCardanoValue . CardanoApi.valueFromList)
-        (fromCardanoValue . CardanoApi.valueFromList . L.map (second negate))
+        (fromCardanoApiValue . CardanoApi.valueFromList)
+        (fromCardanoApiValue . CardanoApi.valueFromList . L.map (second negate))
     . L.partition ((>= 0) . snd)
     . CardanoApi.valueToList
 
@@ -1714,5 +1714,5 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
         (fst output)
         (snd output ^. #tokens)
 
-fromCardanoValue :: CardanoApi.Value -> W.TokenBundle
-fromCardanoValue = Convert.toWalletTokenBundle . CardanoApi.toMaryValue
+fromCardanoApiValue :: CardanoApi.Value -> W.TokenBundle
+fromCardanoApiValue = Convert.toWalletTokenBundle . CardanoApi.toMaryValue
