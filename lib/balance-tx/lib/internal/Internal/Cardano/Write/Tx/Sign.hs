@@ -76,7 +76,7 @@ import Numeric.Natural
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Byron as Byron
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -229,7 +229,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
   where
     scripts = case txbody of
         Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
-        Byron.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
+        Cardano.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
 
     dummyKeyRole = CA.Payment
 
