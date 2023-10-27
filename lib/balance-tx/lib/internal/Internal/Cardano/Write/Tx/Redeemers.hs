@@ -22,10 +22,6 @@ module Internal.Cardano.Write.Tx.Redeemers
 
 import Prelude
 
-import Cardano.Api
-    ( StakeAddress
-    , serialiseToBech32
-    )
 import Cardano.Crypto.Hash.Class
     ( Hash
     )
@@ -286,7 +282,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
 data Redeemer
     = RedeemerSpending ByteString W.TxIn
     | RedeemerMinting ByteString TokenPolicyId
-    | RedeemerRewarding ByteString StakeAddress
+    | RedeemerRewarding ByteString Cardano.StakeAddress
     deriving (Eq, Generic, Show)
 
 instance Buildable Redeemer where
@@ -296,7 +292,7 @@ instance Buildable Redeemer where
         RedeemerMinting _ pid ->
             "minting(" <> build pid <> ")"
         RedeemerRewarding _ addr ->
-            "rewarding(" <> build (serialiseToBech32 addr) <> ")"
+            "rewarding(" <> build (Cardano.serialiseToBech32 addr) <> ")"
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case
