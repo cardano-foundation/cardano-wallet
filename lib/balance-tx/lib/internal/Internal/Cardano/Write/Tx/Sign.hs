@@ -76,7 +76,7 @@ import Numeric.Natural
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Byron as Byron
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -198,11 +198,11 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
-        -- when wallets uses reference input it means script containing
-        -- its policy key was already published in previous tx
-        -- if so we need to add one witness that will stem from policy signing
-        -- key. As it is not allowed to publish and consume in the same transaction
-        -- we are not going to double count.
+        -- when wallets uses reference input it means script containing its
+        -- policy key was already published in previous tx if so we need to add
+        -- one witness that will stem from policy signing key. As it is not
+        -- allowed to publish and consume in the same transaction we are not
+        -- going to double count.
         txRefInpsWit = case Cardano.txInsReference txbodycontent of
             Cardano.TxInsReferenceNone -> 0
             Cardano.TxInsReference{} ->
@@ -229,7 +229,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
   where
     scripts = case txbody of
         Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
-        Byron.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
+        Cardano.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
 
     dummyKeyRole = CA.Payment
 
@@ -335,7 +335,8 @@ estimateMaxWitnessRequiredPerInput = \case
     -- however we'd then need to adjust signTx accordingly such that it still
     -- doesn't add more witnesses than we plan for.
     --
-    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
+    -- Partially related task:
+    -- https://cardanofoundation.atlassian.net/browse/ADP-2676
     CA.RequireSomeOf _m xs   ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     -- Estimate (and tx fees) could be lowered with:
@@ -347,6 +348,7 @@ estimateMaxWitnessRequiredPerInput = \case
     -- however we'd then need to adjust signTx accordingly such that it still
     -- doesn't add more witnesses than we plan for.
     --
-    -- Partially related task: https://cardanofoundation.atlassian.net/browse/ADP-2676
+    -- Partially related task:
+    -- https://cardanofoundation.atlassian.net/browse/ADP-2676
     CA.ActiveFromSlot _     -> 0
     CA.ActiveUntilSlot _    -> 0
