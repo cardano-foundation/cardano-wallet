@@ -34,6 +34,7 @@
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
     , txConstraints
+    , mkUnsignedTransaction
 
     -- * Internals
     , TxPayload (..)
@@ -627,59 +628,80 @@ newTransactionLayer keyF networkId = TransactionLayer
                     policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-    , mkUnsignedTransaction = \stakeCred ctx selection -> do
-        let ttl   = txValidityInterval ctx
-        let wdrl  = view #txWithdrawal ctx
-        let delta = case selection of
-                Right selOf -> selectionDelta selOf
-                Left _preSel -> Coin 0
-        let assetsToBeMinted = view #txAssetsToMint ctx
-        let assetsToBeBurned = view #txAssetsToBurn ctx
-        let inpsScripts = view #txNativeScriptInputs ctx
-        let refScriptM = view #txReferenceScript ctx
-        let stakingScriptM =
-                flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
-                view #txStakingCredentialScriptTemplate ctx
-        case view #txDelegationAction ctx of
-            Nothing -> do
-                let md = view #txMetadata ctx
-                let ourRewardAcctM = FromScriptHash . unScriptHash . toScriptHash <$> stakingScriptM
-                case wdrl of
-                    WithdrawalSelf rewardAcct _ _ ->
-                        if ourRewardAcctM == Just rewardAcct then
-                            constructUnsignedTx networkId (md, []) ttl wdrl
-                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                            stakingScriptM refScriptM
-                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
-                        else
-                            constructUnsignedTx networkId (md, []) ttl wdrl
-                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                            Nothing refScriptM
-                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
-                    _ ->
-                        constructUnsignedTx networkId (md, []) ttl wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                        Nothing refScriptM
-                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
-            Just action -> do
-                let certs = case stakeCred of
-                        Left xpub ->
-                            mkDelegationCertificates action (Left xpub)
-                        Right (Just script) ->
-                            mkDelegationCertificates action (Right script)
-                        Right Nothing ->
-                            error $ "stakeCred in mkUnsignedTransaction must be either "
-                            <> "xpub or script when there is delegation action"
-                let payload = (view #txMetadata ctx, certs)
-                constructUnsignedTx networkId payload ttl wdrl
-                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    stakingScriptM refScriptM
-                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
 
     , decodeTx = _decodeSealedTx
 
     , transactionWitnessTag = txWitnessTagForKey keyF
     }
+
+
+mkUnsignedTransaction
+    :: forall era
+     . Write.IsRecentEra era
+    => NetworkId
+    -> Either XPub (Maybe (Script KeyHash))
+        -- Reward account public key or optional script hash
+    -> TransactionCtx
+        -- An additional context about the transaction
+    -> Either PreSelection (SelectionOf TxOut)
+        -- A balanced coin selection where all change addresses have been
+        -- assigned.
+    -> Either ErrMkTransaction (Cardano.TxBody era)
+    -- ^ Construct a standard unsigned transaction
+    --
+    -- " Standard " here refers to the fact that we do not deal with redemption,
+    -- multisignature transactions, etc.
+    --
+    -- The function returns CBOR-ed transaction body to be signed in another step.
+mkUnsignedTransaction networkId stakeCred ctx selection = do
+    let ttl   = txValidityInterval ctx
+    let wdrl  = view #txWithdrawal ctx
+    let delta = case selection of
+            Right selOf -> selectionDelta selOf
+            Left _preSel -> Coin 0
+    let assetsToBeMinted = view #txAssetsToMint ctx
+    let assetsToBeBurned = view #txAssetsToBurn ctx
+    let inpsScripts = view #txNativeScriptInputs ctx
+    let refScriptM = view #txReferenceScript ctx
+    let stakingScriptM =
+            flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
+            view #txStakingCredentialScriptTemplate ctx
+    case view #txDelegationAction ctx of
+        Nothing -> do
+            let md = view #txMetadata ctx
+            let ourRewardAcctM = FromScriptHash . unScriptHash . toScriptHash <$> stakingScriptM
+            case wdrl of
+                WithdrawalSelf rewardAcct _ _ ->
+                    if ourRewardAcctM == Just rewardAcct then
+                        constructUnsignedTx networkId (md, []) ttl wdrl
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                        stakingScriptM refScriptM
+                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                    else
+                        constructUnsignedTx networkId (md, []) ttl wdrl
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                        Nothing refScriptM
+                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                _ ->
+                    constructUnsignedTx networkId (md, []) ttl wdrl
+                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    Nothing refScriptM
+                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+        Just action -> do
+            let certs = case stakeCred of
+                    Left xpub ->
+                        mkDelegationCertificates action (Left xpub)
+                    Right (Just script) ->
+                        mkDelegationCertificates action (Right script)
+                    Right Nothing ->
+                        error $ "stakeCred in mkUnsignedTransaction must be either "
+                        <> "xpub or script when there is delegation action"
+            let payload = (view #txMetadata ctx, certs)
+            constructUnsignedTx networkId payload ttl wdrl
+                selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                stakingScriptM refScriptM
+                (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+
 
 _decodeSealedTx
     :: AnyCardanoEra

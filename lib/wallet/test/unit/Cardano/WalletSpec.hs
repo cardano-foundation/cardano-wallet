@@ -1425,8 +1425,6 @@ dummyTransactionLayer = TransactionLayer
 
     , addVkWitnesses =
         error "dummyTransactionLayer: addVkWitnesses not implemented"
-    , mkUnsignedTransaction =
-        error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
     , decodeTx = \_era _witCtx _sealed ->
         ( Tx
             { txId = Hash ""
