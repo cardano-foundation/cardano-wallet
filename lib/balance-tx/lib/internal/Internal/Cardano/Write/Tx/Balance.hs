@@ -687,7 +687,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 balance0
-                (fromCardanoLovelace minfee0)
+                (fromCardanoApiLovelace minfee0)
                 randomSeed
                 genChange
                 selectionStrategy
@@ -979,7 +979,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             CardanoApi.TxReturnCollateral _ _ ->
                throwE ErrBalanceTxExistingReturnCollateral
 
-    fromCardanoLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
+    fromCardanoApiLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
 
 -- | Select assets to cover the specified balance and fee.
 --
