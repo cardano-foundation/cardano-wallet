@@ -214,7 +214,7 @@ import Internal.Cardano.Write.Tx
     , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
-    , fromCardanoTx
+    , fromCardanoApiTx
     , fromCardanoUTxO
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
@@ -819,7 +819,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns = withConstraints (recentEra @era) $
-            Set.toList $ (fromCardanoTx tx) ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ (fromCardanoApiTx tx) ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
@@ -827,7 +827,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era)
     guardTxSize witCount cardanoTx =
         withConstraints era $ do
-            let tx = fromCardanoTx cardanoTx
+            let tx = fromCardanoApiTx cardanoTx
             let maxSize = TxSize (pp ^. ppMaxTxSizeL)
             when (estimateSignedTxSize era pp witCount tx > maxSize) $
                 throwE ErrBalanceTxMaxSizeLimitExceeded
@@ -847,7 +847,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         = toCardanoValue @era
         . evaluateTransactionBalance era pp combinedUTxO
         . txBody era
-        . fromCardanoTx
+        . fromCardanoApiTx
 
     balanceAfterSettingMinFee
         :: CardanoApi.Tx era
@@ -856,7 +856,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
             minfee = Convert.toWalletCoin $ evaluateMinimumFee
-                era pp (fromCardanoTx tx) witCount
+                era pp (fromCardanoApiTx tx) witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'

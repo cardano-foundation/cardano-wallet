@@ -105,7 +105,7 @@ import Internal.Cardano.Write.Tx
     , ShelleyLedgerEra
     , StandardCrypto
     , UTxO
-    , fromCardanoTx
+    , fromCardanoApiTx
     , shelleyBasedEra
     , txBody
     , withConstraints
@@ -154,7 +154,7 @@ assignScriptRedeemers
     -> Either ErrAssignRedeemers (CardanoApi.Tx era)
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     withConstraints (recentEra @era) $ do
-        let ledgerTx = fromCardanoTx tx
+        let ledgerTx = fromCardanoApiTx tx
         ledgerTx' <- flip execStateT ledgerTx $ do
             indexedRedeemers <- StateT assignNullRedeemers
             executionUnits <- get

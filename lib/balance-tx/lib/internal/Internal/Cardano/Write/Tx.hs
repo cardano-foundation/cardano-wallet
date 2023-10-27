@@ -51,7 +51,7 @@ module Internal.Cardano.Write.Tx
     , CardanoApi.ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
-    , fromCardanoTx
+    , fromCardanoApiTx
     , toCardanoUTxO
     , fromCardanoUTxO
     , toCardanoValue
@@ -804,11 +804,11 @@ emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 -- Compatibility
 --------------------------------------------------------------------------------
 
-fromCardanoTx
+fromCardanoApiTx
     :: forall era. IsRecentEra era
     => CardanoApi.Tx era
     -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
-fromCardanoTx = \case
+fromCardanoApiTx = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
     CardanoApi.ByronTx {} ->
