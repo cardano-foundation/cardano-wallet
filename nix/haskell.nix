@@ -258,6 +258,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   postInstall = ''
                     wrapProgram $out/bin/* \
                       --run "cd ${srcAll}/lib/wallet" \
+                      --add-flags --cluster-configs="${localClusterConfigs}" \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };
@@ -275,18 +276,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   '';
                 };
 
-
-              packages.cardano-wallet.components.exes.local-cluster =
-                if (stdenv.hostPlatform.isWindows) then {
-                  postInstall = ''
-                    mkdir -p $out/bin/test/data
-                    cp -Rv ${localClusterConfigs} $out/bin/test/data
-                  '';
-                } else {
+              packages.cardano-wallet.components.exes.local-cluster = {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
-                    wrapProgram $out/bin/local-cluster \
-                      --set LOCAL_CLUSTER_CONFIGS ${localClusterConfigs} \
+                    wrapProgram $out/bin/* \
+                      --add-flags --cluster-configs="${localClusterConfigs}" \
                       --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
                   '';
                 };

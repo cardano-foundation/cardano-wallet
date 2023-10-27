@@ -2,6 +2,6 @@
 
 set -euo pipefail
 
-echo "+++ Build & run benchmark - shelley"
+echo "+++ Build & run latency benchmark"
 
 nix run .#ci.benchmarks.latency

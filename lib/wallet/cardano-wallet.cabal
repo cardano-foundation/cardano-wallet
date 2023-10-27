@@ -68,7 +68,7 @@ library
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
-    , cardano-balance-tx:{cardano-balance-tx,internal}
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
     , cardano-cli
     , cardano-coin-selection
@@ -136,7 +136,7 @@ library
     , int-cast
     , io-classes
     , iohk-monitoring
-    , iohk-monitoring-extra              ^>=0.1
+    , iohk-monitoring-extra                              ^>=0.1
     , iproute
     , lattices
     , lens
@@ -165,14 +165,14 @@ library
     , ouroboros-network-framework
     , ouroboros-network-protocols
     , path-pieces
-    , persistent                         ^>=2.13
-    , persistent-sqlite                  ^>=2.13
-    , persistent-template                ^>=2.12
+    , persistent                                         ^>=2.13
+    , persistent-sqlite                                  ^>=2.13
+    , persistent-template                                ^>=2.12
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
     , profunctors
-    , QuickCheck                         ^>=2.14.3
+    , QuickCheck                                         ^>=2.14.3
     , quickcheck-instances
     , quiet
     , random
@@ -386,7 +386,7 @@ library cardano-wallet-api-http
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
-    , cardano-balance-tx:{cardano-balance-tx,internal}
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
     , cardano-cli
     , cardano-crypto
@@ -424,7 +424,7 @@ library cardano-wallet-api-http
     , http-types
     , int-cast
     , iohk-monitoring
-    , iohk-monitoring-extra              ^>=0.1
+    , iohk-monitoring-extra                              ^>=0.1
     , lens
     , memory
     , mtl
@@ -708,7 +708,7 @@ test-suite unit
     , cardano-addresses
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx:{cardano-balance-tx,internal}
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
     , cardano-coin-selection
     , cardano-crypto
@@ -868,9 +868,9 @@ test-suite unit
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
-    Cardano.Wallet.Balance.MigrationSpec
     Cardano.Wallet.Balance.Migration.PlanningSpec
     Cardano.Wallet.Balance.Migration.SelectionSpec
+    Cardano.Wallet.Balance.MigrationSpec
     Cardano.Wallet.Checkpoints.PolicySpec
     Cardano.Wallet.CheckpointsSpec
     Cardano.Wallet.DB.Arbitrary
@@ -925,13 +925,13 @@ test-suite unit
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.WalletSpec
-    Internal.Cardano.Write.Tx.BalanceSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
     Data.Function.UtilsSpec
     Data.Time.TextSpec
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
+    Internal.Cardano.Write.Tx.BalanceSpec
     Spec
     SpecHook
 
@@ -972,6 +972,7 @@ test-suite integration
     , text-class
     , unliftio
     , with-utf8
+
   build-tool-depends: cardano-wallet:cardano-wallet
 
 benchmark restore
@@ -1035,6 +1036,7 @@ benchmark latency
     , iohk-monitoring
     , iohk-monitoring-extra
     , local-cluster
+    , optparse-applicative
     , tagged                             ^>=0.8.7
     , temporary-extra
     , text
@@ -1042,6 +1044,7 @@ benchmark latency
     , unliftio
     , wai-middleware-logging
     , with-utf8
+
   other-modules:  Cardano.Wallet.LatencyBenchShared
 
 benchmark db
@@ -1081,6 +1084,7 @@ benchmark db
     , transformers
     , unliftio
     , with-utf8
+
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
 
 benchmark api

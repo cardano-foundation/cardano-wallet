@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -81,6 +83,9 @@ import Cardano.Wallet.Launch.Cluster
     , defaultPoolConfigs
     , withCluster
     )
+import Cardano.Wallet.LocalCluster
+    ( clusterConfigsDirParser
+    )
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
@@ -112,6 +117,9 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
     , unsafeMkMnemonic
+    )
+import Control.Applicative
+    ( (<**>)
     )
 import Control.Monad
     ( replicateM
@@ -212,13 +220,13 @@ import UnliftIO.STM
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
-import qualified Cardano.Wallet.LocalCluster as LocalCluster
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Options.Applicative as O
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withUtf8 $
+main = withUtf8 $ do
     withLatencyLogging setupTracers $ \tracers capture ->
         withShelleyServer tracers $ \ctx -> do
             walletApiBench @n capture ctx
@@ -555,13 +563,13 @@ withShelleyServer tracers action = do
         withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            cfgClusterConfigs <- LocalCluster.getClusterConfigsPathFromEnv
+            CommandLineOptions { clusterConfigsDir } <- parseCommandLineOptions
             let clusterConfig = Cluster.Config
                     { Cluster.cfgStakePools = NE.head defaultPoolConfigs :| []
                     , Cluster.cfgLastHardFork = maxBound
                     , Cluster.cfgNodeLogging = LogFileConfig Error Nothing Error
                     , Cluster.cfgClusterDir = Tagged @"cluster" dir
-                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
+                    , Cluster.cfgClusterConfigs = clusterConfigsDir
                     , Cluster.cfgTestnetMagic = testnetMagic
                     }
             withCluster
@@ -624,3 +632,17 @@ massiveWalletAmt = ada 1_000
 
 era :: ApiEra
 era = maxBound
+
+
+--------------------------------------------------------------------------------
+-- Command line options --------------------------------------------------------
+
+newtype CommandLineOptions = CommandLineOptions
+    { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
+    deriving stock (Show)
+
+parseCommandLineOptions :: IO CommandLineOptions
+parseCommandLineOptions = O.execParser $
+    O.info
+        (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+        (O.progDesc "Cardano Wallet's Latency Benchmark")
