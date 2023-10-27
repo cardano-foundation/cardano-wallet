@@ -55,7 +55,7 @@ module Internal.Cardano.Write.Tx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
     , toCardanoApiValue
-    , toCardanoLovelace
+    , toCardanoApiLovelace
     , toCardanoApiTx
 
     -- ** Existential wrapper
@@ -850,8 +850,8 @@ toCardanoApiValue
     -> CardanoApi.Value
 toCardanoApiValue = withConstraints (recentEra @era) CardanoApi.fromMaryValue
 
-toCardanoLovelace :: Coin -> CardanoApi.Lovelace
-toCardanoLovelace = CardanoApi.fromShelleyLovelace
+toCardanoApiLovelace :: Coin -> CardanoApi.Lovelace
+toCardanoApiLovelace = CardanoApi.fromShelleyLovelace
 
 --------------------------------------------------------------------------------
 -- PParams

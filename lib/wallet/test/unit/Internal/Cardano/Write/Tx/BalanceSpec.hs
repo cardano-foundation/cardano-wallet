@@ -1581,7 +1581,7 @@ prop_balanceTransactionValid
         :: CardanoApi.Tx era
         -> UTxO (ShelleyLedgerEra era)
         -> CardanoApi.Lovelace
-    minFee tx@(CardanoApi.Tx body _) utxo = Write.toCardanoLovelace
+    minFee tx@(CardanoApi.Tx body _) utxo = Write.toCardanoApiLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
             (fromCardanoApiTx tx)
             (estimateKeyWitnessCount utxo body)
@@ -2246,7 +2246,7 @@ txMinFee
     -> CardanoApi.UTxO CardanoApi.BabbageEra
     -> CardanoApi.Lovelace
 txMinFee tx@(CardanoApi.Tx body _) u =
-    Write.toCardanoLovelace $
+    Write.toCardanoApiLovelace $
     Write.evaluateMinimumFee
         RecentEraBabbage
         (Write.pparamsLedger $ mockPParamsForBalancing @CardanoApi.BabbageEra)
