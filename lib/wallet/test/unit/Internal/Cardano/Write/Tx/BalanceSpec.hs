@@ -271,7 +271,7 @@ import Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , fromCardanoUTxO
     , recentEra
-    , toCardanoTx
+    , toCardanoApiTx
     , toCardanoUTxO
     , utxoFromTxOutsInRecentEra
     , withConstraints
@@ -1636,7 +1636,7 @@ prop_bootstrapWitnesses
   where
     emptyCardanoTxBody = body
       where
-        CardanoApi.Tx body _ = toCardanoTx $ Write.emptyTx era
+        CardanoApi.Tx body _ = toCardanoApiTx $ Write.emptyTx era
 
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty

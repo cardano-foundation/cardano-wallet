@@ -56,7 +56,7 @@ module Internal.Cardano.Write.Tx
     , fromCardanoUTxO
     , toCardanoValue
     , toCardanoLovelace
-    , toCardanoTx
+    , toCardanoApiTx
 
     -- ** Existential wrapper
     , AnyRecentEra (..)
@@ -815,11 +815,11 @@ fromCardanoApiTx = \case
         case (recentEra @era) of
             {}
 
-toCardanoTx
+toCardanoApiTx
     :: forall era. IsRecentEra era
     => Core.Tx (CardanoApi.ShelleyLedgerEra era)
     -> CardanoApi.Tx era
-toCardanoTx = CardanoApi.ShelleyTx
+toCardanoApiTx = CardanoApi.ShelleyTx
     (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 toCardanoUTxO
