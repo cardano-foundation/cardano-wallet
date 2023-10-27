@@ -116,8 +116,8 @@ import Internal.Cardano.Write.Tx.TimeTranslation
     , systemStartTime
     )
 
-import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api as CardanoApi
+import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
@@ -150,8 +150,8 @@ assignScriptRedeemers
     -> TimeTranslation
     -> UTxO (ShelleyLedgerEra era)
     -> [Redeemer]
-    -> Cardano.Tx era
-    -> Either ErrAssignRedeemers (Cardano.Tx era)
+    -> CardanoApi.Tx era
+    -> Either ErrAssignRedeemers (CardanoApi.Tx era)
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     withConstraints (recentEra @era) $ do
         let ledgerTx = fromCardanoTx tx
@@ -161,7 +161,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 >>= lift . evaluateExecutionUnits indexedRedeemers
             modifyM (assignExecutionUnits executionUnits)
             modify' addScriptIntegrityHash
-        pure $ Cardano.ShelleyTx shelleyBasedEra ledgerTx'
+        pure $ CardanoApi.ShelleyTx shelleyBasedEra ledgerTx'
   where
     epochInformation :: EpochInfo (Either T.Text)
     epochInformation =
@@ -209,7 +209,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     evaluateExecutionUnits
         :: RecentEraLedgerConstraints (ShelleyLedgerEra era)
         => Map Alonzo.RdmrPtr Redeemer
-        -> Tx (Cardano.ShelleyLedgerEra era)
+        -> Tx (CardanoApi.ShelleyLedgerEra era)
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
@@ -282,7 +282,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
 data Redeemer
     = RedeemerSpending ByteString W.TxIn
     | RedeemerMinting ByteString TokenPolicyId
-    | RedeemerRewarding ByteString Cardano.StakeAddress
+    | RedeemerRewarding ByteString CardanoApi.StakeAddress
     deriving (Eq, Generic, Show)
 
 instance Buildable Redeemer where
@@ -292,7 +292,7 @@ instance Buildable Redeemer where
         RedeemerMinting _ pid ->
             "minting(" <> build pid <> ")"
         RedeemerRewarding _ addr ->
-            "rewarding(" <> build (Cardano.serialiseToBech32 addr) <> ")"
+            "rewarding(" <> build (CardanoApi.serialiseToBech32 addr) <> ")"
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case
@@ -306,7 +306,7 @@ toScriptPurpose = \case
         Alonzo.Spending (Convert.toLedger txin)
     RedeemerMinting _ pid ->
         Alonzo.Minting (toPolicyID pid)
-    RedeemerRewarding _ (Cardano.StakeAddress ntwrk acct) ->
+    RedeemerRewarding _ (CardanoApi.StakeAddress ntwrk acct) ->
         Alonzo.Rewarding (Ledger.RewardAcnt ntwrk acct)
 
 toPolicyID :: W.TokenPolicyId -> PolicyID StandardCrypto

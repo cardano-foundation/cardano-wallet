@@ -67,8 +67,8 @@ import Test.Utils.Laws
     ( testLawsMany
     )
 
-import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Gen as Cardano
+import qualified Cardano.Api as CardanoApi
+import qualified Cardano.Api.Gen as CardanoApi
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
@@ -123,13 +123,13 @@ spec = do
                         === False
 
     describe "UTxO" $ do
-        it "is isomorphic to Cardano.UTxO" $ do
+        it "is isomorphic to CardanoApi.UTxO" $ do
             testIsomorphism
                 (NamedFun
-                    (toCardanoUTxO @Cardano.BabbageEra)
+                    (toCardanoUTxO @CardanoApi.BabbageEra)
                     "toCardanoUTxO")
                 (NamedFun
-                    (fromCardanoUTxO @Cardano.BabbageEra)
+                    (fromCardanoUTxO @CardanoApi.BabbageEra)
                     "fromCardanoUTxO")
                 id
 
@@ -141,12 +141,12 @@ instance Arbitrary AnyRecentEra where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
 
-instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
-    arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
+instance Arbitrary (CardanoApi.UTxO CardanoApi.BabbageEra) where
+    arbitrary = CardanoApi.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)
-            <$> Cardano.genTxIn
-            <*> Cardano.genTxOut Cardano.BabbageEra
+            <$> CardanoApi.genTxIn
+            <*> CardanoApi.genTxOut CardanoApi.BabbageEra
 
 --------------------------------------------------------------------------------
 -- Helpers

@@ -75,9 +75,9 @@ import Numeric.Natural
     )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Byron as Cardano
-import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Api as CardanoApi
+import qualified Cardano.Api.Byron as CardanoApi
+import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
@@ -164,35 +164,35 @@ estimateKeyWitnessCount
     => UTxO (ShelleyLedgerEra era)
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
-    -> Cardano.TxBody era
+    -> CardanoApi.TxBody era
     -> KeyWitnessCount
-estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
-    let txIns = map fst $ Cardano.txIns txbodycontent
+estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
+    let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
-            case Cardano.txInsCollateral txbodycontent of
-                Cardano.TxInsCollateral _ ins -> ins
-                Cardano.TxInsCollateralNone -> []
+            case CardanoApi.txInsCollateral txbodycontent of
+                CardanoApi.TxInsCollateral _ ins -> ins
+                CardanoApi.TxInsCollateralNone -> []
         vkInsUnique = L.nub $ filter (not . hasScriptCred utxo) $
-            map Cardano.toShelleyTxIn $
+            map CardanoApi.toShelleyTxIn $
             txIns ++ txInsCollateral
-        txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
+        txExtraKeyWits = CardanoApi.txExtraKeyWits txbodycontent
         txExtraKeyWits' = case txExtraKeyWits of
-            Cardano.TxExtraKeyWitnesses _ khs -> khs
+            CardanoApi.TxExtraKeyWitnesses _ khs -> khs
             _ -> []
-        txWithdrawals = Cardano.txWithdrawals txbodycontent
+        txWithdrawals = CardanoApi.txWithdrawals txbodycontent
         txWithdrawals' = case txWithdrawals of
-            Cardano.TxWithdrawals _ wdls ->
-                [ () | (_, _, Cardano.ViewTx) <- wdls ]
+            CardanoApi.TxWithdrawals _ wdls ->
+                [ () | (_, _, CardanoApi.ViewTx) <- wdls ]
             _ -> []
-        txUpdateProposal = Cardano.txUpdateProposal txbodycontent
+        txUpdateProposal = CardanoApi.txUpdateProposal txbodycontent
         txUpdateProposal' = case txUpdateProposal of
-            Cardano.TxUpdateProposal _
-                (Cardano.UpdateProposal updatePerGenesisKey _) ->
+            CardanoApi.TxUpdateProposal _
+                (CardanoApi.UpdateProposal updatePerGenesisKey _) ->
                     Map.size updatePerGenesisKey
             _ -> 0
-        txCerts = case Cardano.txCertificates txbodycontent of
-            Cardano.TxCertificatesNone -> 0
-            Cardano.TxCertificates _ certs _ ->
+        txCerts = case CardanoApi.txCertificates txbodycontent of
+            CardanoApi.TxCertificatesNone -> 0
+            CardanoApi.TxCertificates _ certs _ ->
                 sumVia estimateDelegSigningKeys certs
         scriptVkWitsUpperBound =
             fromIntegral
@@ -203,12 +203,12 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         -- one witness that will stem from policy signing key. As it is not
         -- allowed to publish and consume in the same transaction we are not
         -- going to double count.
-        txRefInpsWit = case Cardano.txInsReference txbodycontent of
-            Cardano.TxInsReferenceNone -> 0
-            Cardano.TxInsReference{} ->
-                case Cardano.txMintValue txbodycontent of
-                    Cardano.TxMintNone -> 0
-                    Cardano.TxMintValue{} -> 1
+        txRefInpsWit = case CardanoApi.txInsReference txbodycontent of
+            CardanoApi.TxInsReferenceNone -> 0
+            CardanoApi.TxInsReference{} ->
+                case CardanoApi.txMintValue txbodycontent of
+                    CardanoApi.TxMintNone -> 0
+                    CardanoApi.TxMintValue{} -> 1
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
@@ -228,27 +228,27 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
             nonInputWits <> inputWits
   where
     scripts = case txbody of
-        Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
-        Cardano.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
+        CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
+        CardanoApi.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
 
     dummyKeyRole = CA.Payment
 
-    estimateDelegSigningKeys :: Cardano.Certificate -> Integer
+    estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
     estimateDelegSigningKeys = \case
-        Cardano.StakeAddressRegistrationCertificate _ -> 0
-        Cardano.StakeAddressDeregistrationCertificate cred ->
+        CardanoApi.StakeAddressRegistrationCertificate _ -> 0
+        CardanoApi.StakeAddressDeregistrationCertificate cred ->
             estimateWitNumForCred cred
-        Cardano.StakeAddressPoolDelegationCertificate cred _ ->
+        CardanoApi.StakeAddressPoolDelegationCertificate cred _ ->
             estimateWitNumForCred cred
         _ -> 1
       where
         -- Does not include the key witness needed for script credentials.
         -- They are accounted for separately in @scriptVkWitsUpperBound@.
         estimateWitNumForCred = \case
-            Cardano.StakeCredentialByKey _ -> 1
-            Cardano.StakeCredentialByScript _ -> 0
+            CardanoApi.StakeCredentialByKey _ -> 1
+            CardanoApi.StakeCredentialByScript _ -> 0
     toTimelockScript
-        :: Ledger.Script (Cardano.ShelleyLedgerEra era)
+        :: Ledger.Script (CardanoApi.ShelleyLedgerEra era)
         -> Maybe (CA.Script CA.KeyHash)
     toTimelockScript anyScript = case recentEra @era of
         RecentEraConway ->
