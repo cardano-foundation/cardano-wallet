@@ -494,8 +494,8 @@ balanceTransaction
         )
     => UTxOAssumptions
     -> ProtocolParameters era
-    -- ^ 'CardanoApi.ProtocolParameters' can be retrieved via a Local State Query
-    -- to a local node.
+    -- ^ 'CardanoApi.ProtocolParameters' can be retrieved via a Local State
+    -- Query to a local node.
     --
     -- If passed an incorrect value, a phase 1 script integrity hash mismatch
     -- will protect against collateral being forfeited.
@@ -774,7 +774,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     era = recentEra @era
 
     toSealed :: CardanoApi.Tx era -> SealedTx
-    toSealed = sealedTxFromCardano . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
+    toSealed
+        = sealedTxFromCardano
+        . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
@@ -868,11 +870,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    -- The @CardanoApi.UTxO era@ is allowed to contain additional information, like
-    -- datum hashes, which the wallet UTxO cannot represent.
+    -- The @CardanoApi.UTxO era@ is allowed to contain additional information,
+    -- like datum hashes, which the wallet UTxO cannot represent.
     --
-    -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make this
-    -- check easier, even if it may be useful in other regards.
+    -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make
+    -- this check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
         :: CardanoApi.UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
@@ -945,7 +947,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         when conflictingWdrlNetworks $
             throwE ErrBalanceTxConflictingNetworks
 
-    guardExistingCollateral :: CardanoApi.Tx era -> ExceptT (ErrBalanceTx era) m ()
+    guardExistingCollateral
+        :: CardanoApi.Tx era
+        -> ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
@@ -1331,6 +1335,7 @@ mapTxFeeAndChange
     -- ^ The transformed fee and change
 mapTxFeeAndChange mapFee mapChange TxFeeAndChange {fee, change} =
     TxFeeAndChange (mapFee fee) (mapChange change)
+
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
 --

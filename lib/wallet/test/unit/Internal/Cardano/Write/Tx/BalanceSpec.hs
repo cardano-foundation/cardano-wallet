@@ -867,7 +867,10 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             dir = $(getTestData) </> "balanceTx"
 
-        mkGolden :: PartialTx CardanoApi.BabbageEra -> W.Coin -> BalanceTxGolden
+        mkGolden
+            :: PartialTx CardanoApi.BabbageEra
+            -> W.Coin
+            -> BalanceTxGolden
         mkGolden ptx c =
             let
                 walletUTxO = utxo [c]
@@ -1947,7 +1950,8 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
-prop_posAndNegFromCardanoValueRoundtrip = forAll CardanoApi.genSignedValue $ \v ->
+prop_posAndNegFromCardanoValueRoundtrip =
+    forAll CardanoApi.genSignedValue $ \v ->
     let
         (pos, neg) = posAndNegFromCardanoValue v
     in
@@ -2120,7 +2124,8 @@ modifyBabbageTxBody
     :: ( Babbage.BabbageTxBody StandardBabbage ->
          Babbage.BabbageTxBody StandardBabbage
        )
-    -> CardanoApi.Tx CardanoApi.BabbageEra -> CardanoApi.Tx CardanoApi.BabbageEra
+    -> CardanoApi.Tx CardanoApi.BabbageEra
+    -> CardanoApi.Tx CardanoApi.BabbageEra
 modifyBabbageTxBody
     f
     (CardanoApi.Tx
@@ -2216,7 +2221,10 @@ sealedOutputs =
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
-serializedSize :: forall era. CardanoApi.IsCardanoEra era => CardanoApi.Tx era -> Int
+serializedSize
+    :: forall era. CardanoApi.IsCardanoEra era
+    => CardanoApi.Tx era
+    -> Int
 serializedSize = BS.length
     . serialisedTx
     . sealedTxFromCardano
@@ -2239,11 +2247,11 @@ txMinFee
     -> CardanoApi.Lovelace
 txMinFee tx@(CardanoApi.Tx body _) u =
     Write.toCardanoLovelace $
-        Write.evaluateMinimumFee
-            RecentEraBabbage
-            (Write.pparamsLedger $ mockPParamsForBalancing @CardanoApi.BabbageEra)
-            (fromCardanoTx tx)
-            (estimateKeyWitnessCount (fromCardanoUTxO u) body)
+    Write.evaluateMinimumFee
+        RecentEraBabbage
+        (Write.pparamsLedger $ mockPParamsForBalancing @CardanoApi.BabbageEra)
+        (fromCardanoTx tx)
+        (estimateKeyWitnessCount (fromCardanoUTxO u) body)
 
 unsafeSealedTxFromHex :: ByteString -> IO SealedTx
 unsafeSealedTxFromHex =
@@ -2454,9 +2462,12 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamExtraPraosEntropy = Nothing
     , CardanoApi.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
     , CardanoApi.protocolParamMaxBlockBodySize = 100_000
-    , CardanoApi.protocolParamStakeAddressDeposit = CardanoApi.Lovelace 2_000_000
-    , CardanoApi.protocolParamStakePoolDeposit = CardanoApi.Lovelace 500_000_000
-    , CardanoApi.protocolParamMinPoolCost = CardanoApi.Lovelace 32_000_000
+    , CardanoApi.protocolParamStakeAddressDeposit =
+        CardanoApi.Lovelace 2_000_000
+    , CardanoApi.protocolParamStakePoolDeposit =
+        CardanoApi.Lovelace 500_000_000
+    , CardanoApi.protocolParamMinPoolCost =
+        CardanoApi.Lovelace 32_000_000
     , CardanoApi.protocolParamPoolRetireMaxEpoch = CardanoApi.EpochNo 2
     , CardanoApi.protocolParamStakePoolTargetNum = 100
     , CardanoApi.protocolParamPoolPledgeInfluence = 0
@@ -2578,7 +2589,10 @@ instance Arbitrary CardanoApi.NetworkId where
         , CardanoApi.Testnet . CardanoApi.NetworkMagic <$> arbitrary
         ]
 
-instance CardanoApi.IsCardanoEra era => Arbitrary (CardanoApi.TxOut ctx era) where
+instance
+    CardanoApi.IsCardanoEra era =>
+    Arbitrary (CardanoApi.TxOut ctx era)
+  where
     arbitrary = CardanoApi.genTxOut CardanoApi.cardanoEra
     shrink (CardanoApi.TxOut addr val dat refScript) = tail
         [ CardanoApi.TxOut addr' val' dat' refScript'
@@ -2590,7 +2604,10 @@ instance CardanoApi.IsCardanoEra era => Arbitrary (CardanoApi.TxOut ctx era) whe
 
 -- NOTE: We should constrain by @IsRecentEra era@ instead, where @RecentEra@ is
 -- the two latest eras.
-instance CardanoApi.IsCardanoEra era => Arbitrary (CardanoApi.TxOutValue era) where
+instance
+    CardanoApi.IsCardanoEra era =>
+    Arbitrary (CardanoApi.TxOutValue era)
+  where
     arbitrary = case CardanoApi.cardanoEra @era of
        CardanoApi.AlonzoEra ->
            CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
@@ -2648,13 +2665,14 @@ instance Arbitrary (PartialTx CardanoApi.BabbageEra) where
         tx <- CardanoApi.genTxForBalancing era
         let (CardanoApi.Tx (CardanoApi.TxBody content) _) = tx
         let inputs = CardanoApi.txIns content
-        inputUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i -> do
-            -- NOTE: genTxOut does not generate quantities larger than
-            -- `maxBound :: Word64`, however users could supply these.
-            -- We should ideally test what happens, and make it clear what code,
-            -- if any, should validate.
-            o <- CardanoApi.genTxOut CardanoApi.BabbageEra
-            return (fst i, o)
+        inputUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
+            do
+                -- NOTE: genTxOut does not generate quantities larger than
+                -- `maxBound :: Word64`, however users could supply these. We
+                -- should ideally test what happens, and make it clear what
+                -- code, if any, should validate.
+                o <- CardanoApi.genTxOut CardanoApi.BabbageEra
+                return (fst i, o)
         let redeemers = []
         return $ PartialTx tx inputUTxO redeemers
     shrink (PartialTx tx inputUTxO redeemers) =
@@ -2733,7 +2751,8 @@ instance Arbitrary Wallet' where
                 <*> CardanoApi.genStakeAddressReference)
 
         genByronVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
-        genByronVkAddr = CardanoApi.byronAddressInEra <$> CardanoApi.genAddressByron
+        genByronVkAddr = CardanoApi.byronAddressInEra
+            <$> CardanoApi.genAddressByron
 
         genWalletUTxO genAddr = scale (* 2) $
             W.UTxO . Map.fromList <$> listOf genEntry
@@ -2837,17 +2856,22 @@ shrinkTxBabbage (CardanoApi.Tx bod wits) =
 shrinkTxBodyBabbage
     :: CardanoApi.TxBody CardanoApi.BabbageEra
     -> [CardanoApi.TxBody CardanoApi.BabbageEra]
-shrinkTxBodyBabbage (CardanoApi.ShelleyTxBody e bod scripts scriptData aux val) =
+shrinkTxBodyBabbage
+    (CardanoApi.ShelleyTxBody e bod scripts scriptData aux val) =
     tail
         [ CardanoApi.ShelleyTxBody e bod' scripts' scriptData' aux' val'
         | bod' <- prependOriginal shrinkLedgerTxBody bod
         , aux' <- aux : filter (/= aux) [Nothing]
         , scriptData' <- prependOriginal shrinkScriptData scriptData
         , scripts' <- prependOriginal (shrinkList (const [])) scripts
-        , val' <- case CardanoApi.txScriptValiditySupportedInShelleyBasedEra e of
-            Nothing -> [val]
-            Just txsvsie -> val : filter (/= val)
-                [ CardanoApi.TxScriptValidity txsvsie CardanoApi.ScriptValid ]
+        , val' <-
+            case CardanoApi.txScriptValiditySupportedInShelleyBasedEra e of
+                Nothing -> [val]
+                Just txsvsie -> val : filter (/= val)
+                    [ CardanoApi.TxScriptValidity
+                        txsvsie
+                        CardanoApi.ScriptValid
+                    ]
         ]
   where
     shrinkLedgerTxBody

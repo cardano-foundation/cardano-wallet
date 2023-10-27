@@ -228,8 +228,10 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
             nonInputWits <> inputWits
   where
     scripts = case txbody of
-        CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
-        CardanoApi.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
+        CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ ->
+            shelleyBodyScripts
+        CardanoApi.ByronTxBody {} ->
+            error "estimateKeyWitnessCount: ByronTxBody"
 
     dummyKeyRole = CA.Payment
 
