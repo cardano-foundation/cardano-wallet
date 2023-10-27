@@ -505,7 +505,10 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let coinSelectionEstimatedSize :: Natural -> Natural
             coinSelectionEstimatedSize = unTxSize . sizeOf_BootstrapWitnesses
 
-        let measuredWitSize :: Cardano.IsCardanoEra era => Cardano.Tx era -> Natural
+        let measuredWitSize
+                :: Cardano.IsCardanoEra era
+                => Cardano.Tx era
+                -> Natural
             measuredWitSize (Cardano.Tx body wits) = fromIntegral
                 $ serializedSize (Cardano.Tx body wits)
                 - serializedSize (Cardano.Tx body [])
@@ -2557,10 +2560,16 @@ instance Arbitrary AnyRecentEra where
         , AnyRecentEra RecentEraConway
         ]
 
-instance Cardano.IsCardanoEra era => Arbitrary (Cardano.AddressInEra era) where
+instance
+    Cardano.IsCardanoEra era =>
+    Arbitrary (Cardano.AddressInEra era)
+  where
     arbitrary = Cardano.genAddressInEra Cardano.cardanoEra
 
-instance Cardano.IsCardanoEra era => Arbitrary (Cardano.TxOutDatum ctx era) where
+instance
+    Cardano.IsCardanoEra era =>
+    Arbitrary (Cardano.TxOutDatum ctx era)
+  where
     arbitrary = Cardano.genTxOutDatum Cardano.cardanoEra
 
 instance Arbitrary Cardano.NetworkId where

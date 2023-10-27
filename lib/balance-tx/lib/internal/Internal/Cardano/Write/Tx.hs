@@ -743,8 +743,8 @@ outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 
 -- NOTE: To reduce the need for the caller to deal with @CardanoApiEra
--- (Cardano.ShelleyLedgerEra era) ~ era@, we quantify this function over @cardanoEra@
--- instead of @era@.
+-- (Cardano.ShelleyLedgerEra era) ~ era@, we quantify this function over
+-- @cardanoEra@ instead of @era@.
 --
 -- TODO [ADP-2353] Move to @cardano-api@ related module
 modifyLedgerBody
