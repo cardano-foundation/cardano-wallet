@@ -10,9 +10,6 @@ module Internal.Cardano.Write.TxSpec where
 
 import Prelude
 
-import Cardano.Api.Gen
-    ( genTxIn
-    )
 import Cardano.Ledger.Api
     ( ppCoinsPerUTxOByteL
     )
@@ -148,7 +145,7 @@ instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)
-            <$> genTxIn
+            <$> Cardano.genTxIn
             <*> Cardano.genTxOut Cardano.BabbageEra
 
 --------------------------------------------------------------------------------
