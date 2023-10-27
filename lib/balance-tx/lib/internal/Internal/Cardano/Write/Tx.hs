@@ -54,7 +54,7 @@ module Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
-    , toCardanoValue
+    , toCardanoApiValue
     , toCardanoLovelace
     , toCardanoApiTx
 
@@ -844,11 +844,11 @@ fromCardanoApiUTxO = withConstraints (recentEra @era) $
     . Map.map (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
     . CardanoApi.unUTxO
 
-toCardanoValue
+toCardanoApiValue
     :: forall era. IsRecentEra era
     => Core.Value (CardanoApi.ShelleyLedgerEra era)
     -> CardanoApi.Value
-toCardanoValue = withConstraints (recentEra @era) CardanoApi.fromMaryValue
+toCardanoApiValue = withConstraints (recentEra @era) CardanoApi.fromMaryValue
 
 toCardanoLovelace :: Coin -> CardanoApi.Lovelace
 toCardanoLovelace = CardanoApi.fromShelleyLovelace

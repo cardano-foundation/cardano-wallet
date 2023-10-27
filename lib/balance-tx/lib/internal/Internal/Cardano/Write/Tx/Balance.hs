@@ -222,7 +222,7 @@ import Internal.Cardano.Write.Tx
     , modifyLedgerBody
     , modifyTxOutCoin
     , outputs
-    , toCardanoValue
+    , toCardanoApiValue
     , txBody
     , withConstraints
     )
@@ -844,7 +844,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: CardanoApi.Tx era -> CardanoApi.Value
     txBalance
-        = toCardanoValue @era
+        = toCardanoApiValue @era
         . evaluateTransactionBalance era pp combinedUTxO
         . txBody era
         . fromCardanoApiTx

@@ -564,7 +564,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     balanceTransactionGoldenSpec
 
     describe "posAndNegFromCardanoValue" $
-        it "roundtrips with toCardanoValue" $
+        it "roundtrips with toCardanoApiValue" $
             property prop_posAndNegFromCardanoValueRoundtrip
 
     describe "change address generation" $ do
@@ -1590,7 +1590,7 @@ prop_balanceTransactionValid
         :: CardanoApi.Tx era
         -> UTxO (ShelleyLedgerEra era)
         -> CardanoApi.Value
-    txBalance tx u = Write.toCardanoValue @era $
+    txBalance tx u = Write.toCardanoApiValue @era $
         Write.evaluateTransactionBalance
             era
             ledgerPParams
