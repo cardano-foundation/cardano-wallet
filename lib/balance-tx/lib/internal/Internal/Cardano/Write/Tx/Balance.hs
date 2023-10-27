@@ -56,7 +56,7 @@ module Internal.Cardano.Write.Tx.Balance
     , constructUTxOIndex
 
     -- * Utilities
-    , posAndNegFromCardanoValue
+    , posAndNegFromCardanoApiValue
     , fromWalletUTxO
 
     -- ** updateTx
@@ -1076,7 +1076,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         , selectionStrategy = selectionStrategy
         }
       where
-        (balancePositive, balanceNegative) = posAndNegFromCardanoValue balance
+        (balancePositive, balanceNegative) =
+            posAndNegFromCardanoApiValue balance
         valueOfOutputs = F.foldMap' (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
@@ -1170,10 +1171,10 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
 -- | Convert a 'CardanoApi.Value' into a positive and negative component. Useful
 -- to convert the potentially negative balance of a partial tx into
 -- TokenBundles.
-posAndNegFromCardanoValue
+posAndNegFromCardanoApiValue
     :: CardanoApi.Value
     -> (W.TokenBundle, W.TokenBundle)
-posAndNegFromCardanoValue
+posAndNegFromCardanoApiValue
     = bimap
         (fromCardanoApiValue . CardanoApi.valueFromList)
         (fromCardanoApiValue . CardanoApi.valueFromList . L.map (second negate))

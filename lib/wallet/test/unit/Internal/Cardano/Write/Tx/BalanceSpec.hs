@@ -299,7 +299,7 @@ import Internal.Cardano.Write.Tx.Balance
     , fromWalletUTxO
     , maximumCostOfIncreasingCoin
     , noTxUpdate
-    , posAndNegFromCardanoValue
+    , posAndNegFromCardanoApiValue
     , sizeOfCoin
     , updateTx
     )
@@ -563,9 +563,9 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     balanceTransactionGoldenSpec
 
-    describe "posAndNegFromCardanoValue" $
+    describe "posAndNegFromCardanoApiValue" $
         it "roundtrips with toCardanoApiValue" $
-            property prop_posAndNegFromCardanoValueRoundtrip
+            property prop_posAndNegFromCardanoApiValueRoundtrip
 
     describe "change address generation" $ do
         let balance' =
@@ -1949,11 +1949,11 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
         feePolicy surplus (TxFeeAndChange fee0 change0)
     maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
-prop_posAndNegFromCardanoValueRoundtrip :: Property
-prop_posAndNegFromCardanoValueRoundtrip =
+prop_posAndNegFromCardanoApiValueRoundtrip :: Property
+prop_posAndNegFromCardanoApiValueRoundtrip =
     forAll CardanoApi.genSignedValue $ \v ->
     let
-        (pos, neg) = posAndNegFromCardanoValue v
+        (pos, neg) = posAndNegFromCardanoApiValue v
     in
         walletToCardanoValue pos <>
         (CardanoApi.negateValue (walletToCardanoValue neg))
