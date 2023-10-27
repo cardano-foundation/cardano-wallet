@@ -32,7 +32,7 @@ import Internal.Cardano.Write.Tx
     , fromCardanoUTxO
     , isBelowMinimumCoinForTxOut
     , modifyTxOutCoin
-    , toCardanoUTxO
+    , toCardanoApiUTxO
     )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
@@ -126,8 +126,8 @@ spec = do
         it "is isomorphic to CardanoApi.UTxO" $ do
             testIsomorphism
                 (NamedFun
-                    (toCardanoUTxO @CardanoApi.BabbageEra)
-                    "toCardanoUTxO")
+                    (toCardanoApiUTxO @CardanoApi.BabbageEra)
+                    "toCardanoApiUTxO")
                 (NamedFun
                     (fromCardanoUTxO @CardanoApi.BabbageEra)
                     "fromCardanoUTxO")
