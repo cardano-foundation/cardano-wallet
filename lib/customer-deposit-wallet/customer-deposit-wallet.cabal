@@ -13,7 +13,7 @@ copyright:          2023 Cardano Foundation
 category:           Web
 
 extra-source-files:
-  spec/**/*.agda
+  spec/**/*.lagda.md
 
 common language
   default-language:
