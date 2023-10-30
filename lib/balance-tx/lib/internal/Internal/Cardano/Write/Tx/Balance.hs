@@ -649,7 +649,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingCollateral partialLedgerTx
     guardExistingTotalCollateral partialLedgerTx
     guardExistingReturnCollateral partialLedgerTx
-    guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
@@ -926,31 +925,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
                 pp timeTranslation combinedUTxO redeemers tx'
-
-    guardConflictingWithdrawalNetworks
-        :: Cardano.Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardConflictingWithdrawalNetworks
-        (Cardano.Tx (Cardano.TxBody body) _) = do
-        -- Use of withdrawals with different networks breaks balancing.
-        --
-        -- For instance the partial tx might contain two withdrawals with the
-        -- same key but different networks:
-        -- [ (Mainnet, pkh1, coin1)
-        -- , (Testnet, pkh1, coin2)
-        -- ]
-        --
-        -- Even though this is absurd, the node/ledger
-        -- @evaluateTransactionBalance@ will count @coin1+coin2@ towards the
-        -- total balance. Because the wallet does not consider the network tag,
-        -- it will drop one of the two, leading to a discrepancy.
-        let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
-            conflictingWdrlNetworks = case Cardano.txWithdrawals body of
-                Cardano.TxWithdrawalsNone -> False
-                Cardano.TxWithdrawals _ wdrls -> Set.size
-                    (Set.fromList $ map networkOfWdrl wdrls) > 1
-        when conflictingWdrlNetworks $
-            throwE ErrBalanceTxConflictingNetworks
 
     guardExistingCollateral
         :: Tx (ShelleyLedgerEra era)
