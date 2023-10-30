@@ -205,6 +205,7 @@ import Internal.Cardano.Write.Tx
     , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
+    , Tx
     , TxBody
     , TxIn
     , TxOut
@@ -639,7 +640,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    guardExistingCollateral partialTx
+    let partialLedgerTx = fromCardanoTx partialTx
+    guardExistingCollateral partialLedgerTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
     guardConflictingWithdrawalNetworks partialTx
@@ -948,18 +950,16 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             throwE ErrBalanceTxConflictingNetworks
 
     guardExistingCollateral
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) = do
+    guardExistingCollateral tx = withConstraints era $ do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        case CardanoApi.txInsCollateral body of
-            CardanoApi.TxInsCollateralNone -> return ()
-            CardanoApi.TxInsCollateral _ [] -> return ()
-            CardanoApi.TxInsCollateral _ _ ->
-                throwE ErrBalanceTxExistingCollateral
+        let collIns = tx ^. (bodyTxL . collateralInputsTxBodyL)
+        unless (null collIns) $
+            throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral
         :: CardanoApi.Tx era
