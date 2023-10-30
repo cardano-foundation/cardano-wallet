@@ -33,8 +33,10 @@ module Internal.Cardano.Write.Tx.SizeEstimation
     , TxWitnessTag (..)
     , assumedTxWitnessTag
 
-     -- * Needed for estimateSignedTxSize
+     -- * Needed for estimateSignedTxSize and the wallet
     , sizeOf_BootstrapWitnesses
+
+     -- * Needed for the wallet
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
     )
