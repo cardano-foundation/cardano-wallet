@@ -120,7 +120,6 @@ import Cardano.Wallet.DB.Layer
     , newDBFactory
     , newDBFreshInMemory
     , withDBFresh
-    , withDBFreshFromDBOpen
     , withDBFreshInMemory
     , withLoadDBLayerFromFile
     )

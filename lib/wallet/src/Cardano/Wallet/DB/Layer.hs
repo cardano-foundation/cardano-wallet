@@ -24,18 +24,15 @@ module Cardano.Wallet.DB.Layer
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Open a database
-    , withLoadDBLayerFromFile
-    , newDBOpenInMemory
-    , retrieveWalletId
-    , WalletDBLog (..)
-    , DefaultFieldValues (..)
-
-    -- * Database for a specific 'WalletId'
+    -- * Open a database for a specific 'WalletId'
     , withDBFresh
     , withDBFreshInMemory
     , newDBFreshInMemory
-    , withDBFreshFromDBOpen
+
+    -- * Open a database for testing
+    , withLoadDBLayerFromFile
+    , WalletDBLog (..)
+    , DefaultFieldValues (..)
 
     -- * Interfaces
     , PersistAddressBook (..)
