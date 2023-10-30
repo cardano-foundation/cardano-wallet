@@ -337,6 +337,7 @@ type RecentEraLedgerConstraints era =
     , Alonzo.AlonzoEraTxBody era
     , Babbage.ShelleyEraTxBody era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
+    , Babbage.BabbageEraTxBody era
     , Shelley.EraUTxO era
     )
 
