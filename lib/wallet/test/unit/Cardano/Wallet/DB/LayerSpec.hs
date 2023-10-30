@@ -119,11 +119,10 @@ import Cardano.Wallet.DB.Layer
     , WalletDBLog (..)
     , newDBFactory
     , newDBFreshInMemory
-    , retrieveWalletId
     , withDBFresh
     , withDBFreshFromDBOpen
     , withDBFreshInMemory
-    , withDBOpenFromFile
+    , withLoadDBLayerFromFile
     )
 import Cardano.Wallet.DB.Properties
     ( properties
@@ -1311,18 +1310,9 @@ withDBLayerFromCopiedFile
         -- ^ Action to run.
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
-withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
-    $ \path tr -> withDBOpenFromFile (walletFlavor @s) tr
-        (Just defaultFieldValues) path
-    $ \db -> do
-        mwid <- retrieveWalletId db
-        case mwid of
-            Nothing -> fail "No wallet id found in database"
-            Just wid -> do
-                let action' DBFresh{loadDBLayer} = do
-                        unsafeRunExceptT loadDBLayer >>= action
-                withDBFreshFromDBOpen (walletFlavor @s)
-                    dummyTimeInterpreter wid action' db
+withDBLayerFromCopiedFile dbName action =
+    withinCopiedFile dbName $ \path tr ->
+        withLoadDBLayerFromFile tr dummyTimeInterpreter path action
 
 withinCopiedFile
     :: FilePath

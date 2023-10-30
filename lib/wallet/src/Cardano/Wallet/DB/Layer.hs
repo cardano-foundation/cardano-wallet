@@ -4,10 +4,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -23,7 +25,7 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Open a database
-    , withDBOpenFromFile
+    , withLoadDBLayerFromFile
     , newDBOpenInMemory
     , retrieveWalletId
     , WalletDBLog (..)
@@ -156,6 +158,7 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS
+    , WalletFlavor (..)
     , WalletFlavorS
     , keyOfWallet
     )
@@ -163,11 +166,17 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , hoistTimeInterpreter
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT
     )
 import Control.DeepSeq
     ( force
@@ -735,6 +744,51 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTxFromLookupTxOut lookupTxOut
   where
     lookupTxOut = queryS transactionsQS . GetTxOut
+
+{-------------------------------------------------------------------------------
+    DBLayer
+-------------------------------------------------------------------------------}
+-- | For the purpose of testing,
+-- open a given @.sqlite@ file, load it into a `DBLayer`
+-- (possibly triggering migrations), and run an action on it.
+--
+-- Useful for testing the logs and results of migrations.
+withLoadDBLayerFromFile
+    :: forall s a.
+        ( PersistAddressBook s
+        , WalletFlavor s
+        )
+    => Tracer IO WalletDBLog
+        -- ^ Tracer for logging
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> FilePath
+        -- ^ Filename of the @.sqlite@ file to load.
+    -> (DBLayer IO s -> IO a)
+        -- ^ Action to run.
+    -> IO a
+        -- ^ Result of the action.
+withLoadDBLayerFromFile tr ti path action =
+    withDBOpenFromFile (walletFlavor @s) tr (Just testDefaultFieldValues) path
+    $ \db -> do
+        mwid <- retrieveWalletId db
+        case mwid of
+            Nothing -> fail "No wallet id found in database"
+            Just wid -> do
+                let action' DBFresh{loadDBLayer} = do
+                        unsafeRunExceptT loadDBLayer >>= action
+                withDBFreshFromDBOpen (walletFlavor @s) ti wid action' db
+
+-- | Default field values used when testing,
+-- in the context of 'withLoadDBLayerFromFile'.
+testDefaultFieldValues :: DefaultFieldValues
+testDefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 0
+    , defaultMinimumUTxOValue = Coin 1_000_000
+    , defaultHardforkEpoch = Nothing
+    , defaultKeyDeposit = Coin 2_000_000
+    }
 
 {-------------------------------------------------------------------------------
     Conversion between types
