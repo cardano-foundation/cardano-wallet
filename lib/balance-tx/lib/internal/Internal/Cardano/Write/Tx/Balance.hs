@@ -95,6 +95,7 @@ import Cardano.Ledger.Api
     ( BabbageEraTxBody (totalCollateralTxBodyL)
     , bodyTxL
     , collateralInputsTxBodyL
+    , collateralReturnTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
@@ -647,7 +648,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     let partialLedgerTx = fromCardanoTx partialTx
     guardExistingCollateral partialLedgerTx
     guardExistingTotalCollateral partialLedgerTx
-    guardExistingReturnCollateral partialTx
+    guardExistingReturnCollateral partialLedgerTx
     guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
@@ -973,13 +974,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral
-        :: Cardano.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral (Cardano.Tx (Cardano.TxBody body) _) =
-        case Cardano.txReturnCollateral body of
-            Cardano.TxReturnCollateralNone -> return ()
-            Cardano.TxReturnCollateral _ _ ->
-               throwE ErrBalanceTxExistingReturnCollateral
+    guardExistingReturnCollateral tx = withConstraints era $ do
+        let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
+        case collRet of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
     fromCardanoLovelace (Cardano.Lovelace l) = W.Coin.unsafeFromIntegral l
 
