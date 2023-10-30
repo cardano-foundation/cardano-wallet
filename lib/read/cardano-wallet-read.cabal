@@ -109,6 +109,11 @@ library
         , ouroboros-consensus-protocol
         , text
         , text-class
+        , cardano-ledger-byron-test
+        , cardano-ledger-shelley-test
+        , cardano-ledger-shelley-ma-test
+        , cardano-ledger-alonzo-test
+        , cardano-ledger-babbage-test
 
     hs-source-dirs:   lib
     default-language: Haskell2010
