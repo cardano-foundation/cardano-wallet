@@ -93,13 +93,21 @@ import Cardano.Ledger.Alonzo.Scripts
     )
 import Cardano.Ledger.Api
     ( BabbageEraTxBody (totalCollateralTxBodyL)
+    , Script
+    , ScriptHash
+    , StandardCrypto
+    , addrTxWitsL
     , bodyTxL
+    , bootAddrTxWitsL
     , collateralInputsTxBodyL
     , collateralReturnTxBodyL
     , feeTxBodyL
+    , hashScript
     , inputsTxBodyL
     , outputsTxBodyL
     , ppMaxTxSizeL
+    , scriptTxWitsL
+    , witsTxL
     )
 import Cardano.Ledger.BaseTypes
     ( StrictMaybe (..)
@@ -170,6 +178,9 @@ import Data.IntCast
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
+import Data.Map
+    ( Map
+    )
 import Data.Maybe
     ( fromMaybe
     , mapMaybe
@@ -228,6 +239,7 @@ import Internal.Cardano.Write.Tx
     , modifyLedgerBody
     , modifyTxOutCoin
     , outputs
+    , toCardanoApiTx
     , toCardanoApiValue
     , txBody
     , withConstraints
@@ -645,13 +657,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    let partialLedgerTx = fromCardanoApiTx partialTx
     guardExistingCollateral partialLedgerTx
     guardExistingTotalCollateral partialLedgerTx
     guardExistingReturnCollateral partialLedgerTx
     guardWalletUTxOConsistencyWith inputUTxO
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialLedgerTx
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -766,7 +777,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap (, s') . guardTxSize witCount
+    fmap ((, s') . toCardanoApiTx) . guardTxSize witCount
         =<< guardTxBalanced
         =<< assembleTransaction
         TxUpdate
@@ -779,10 +790,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
   where
     era = recentEra @era
 
-    toSealed :: CardanoApi.Tx era -> SealedTx
-    toSealed
-        = sealedTxFromCardano
+    partialLedgerTx = fromCardanoApiTx partialTx
+
+    toSealed :: Tx (ShelleyLedgerEra era) -> SealedTx
+    toSealed = sealedTxFromCardano
         . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
+        . toCardanoApiTx @era
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
@@ -829,47 +842,48 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     guardTxSize
         :: KeyWitnessCount
-        -> CardanoApi.Tx era
-        -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era)
-    guardTxSize witCount cardanoTx =
+        -> Tx (ShelleyLedgerEra era)
+        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
+    guardTxSize witCount tx =
         withConstraints era $ do
-            let tx = fromCardanoApiTx cardanoTx
             let maxSize = TxSize (pp ^. ppMaxTxSizeL)
             when (estimateSignedTxSize era pp witCount tx > maxSize) $
                 throwE ErrBalanceTxMaxSizeLimitExceeded
-            pure cardanoTx
+            pure tx
 
     guardTxBalanced
-        :: CardanoApi.Tx era
-        -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era)
+        :: Tx (ShelleyLedgerEra era)
+        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
     guardTxBalanced tx = do
         let bal = txBalance tx
         if bal == mempty
             then pure tx
             else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
 
-    txBalance :: CardanoApi.Tx era -> CardanoApi.Value
+    txBalance :: Tx (ShelleyLedgerEra era) -> CardanoApi.Value
     txBalance
         = toCardanoApiValue @era
         . evaluateTransactionBalance era pp combinedUTxO
         . txBody era
-        . fromCardanoApiTx
 
     balanceAfterSettingMinFee
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m
             (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
+        let witCount = estimateKeyWitnessCount combinedUTxO cardanoApiTxBody
             minfee = Convert.toWalletCoin $ evaluateMinimumFee
-                era pp (fromCardanoApiTx tx) witCount
+                era pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx era tx update
         let balance = txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
       where
-        getBody (CardanoApi.Tx body _) = body
+        cardanoApiTxBody :: CardanoApi.TxBody era
+        cardanoApiTxBody =
+            let CardanoApi.Tx body _ = toCardanoApiTx tx
+            in body
 
     -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
     --
@@ -921,12 +935,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     assembleTransaction
         :: TxUpdate
-        -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era)
+        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialLedgerTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
-                pp timeTranslation combinedUTxO redeemers tx'
+                era pp timeTranslation combinedUTxO redeemers tx'
 
     guardExistingCollateral
         :: Tx (ShelleyLedgerEra era)
@@ -1220,37 +1234,34 @@ newtype ErrUpdateSealedTx
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateTx
-    :: forall era. IsRecentEra era
-    => CardanoApi.Tx era
+    :: forall era. RecentEra era
+    -> Tx (ShelleyLedgerEra era)
     -> TxUpdate
-    -> Either ErrUpdateSealedTx (CardanoApi.Tx era)
-updateTx (CardanoApi.Tx body existingKeyWits) extraContent = do
-    -- NOTE: The script witnesses are carried along with the cardano-api
-    -- `anyEraBody`.
-    body' <- modifyTxBody extraContent body
+    -> Either ErrUpdateSealedTx (Tx (ShelleyLedgerEra era))
+updateTx era tx extraContent = withConstraints era $ do
+    let tx' = tx
+            & over bodyTxL (modifyShelleyTxBody extraContent era)
+            & over (witsTxL . scriptTxWitsL) (<> extraInputScripts')
 
-    if null existingKeyWits
-       then Right $ CardanoApi.Tx body' mempty
-       else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
+    case numberOfExistingKeyWits of
+        0 -> Right tx'
+        n -> Left $ ErrExistingKeyWitnesses n
   where
-    era = recentEra @era
-
-    modifyTxBody
-        :: TxUpdate
-        -> CardanoApi.TxBody era
-        -> Either ErrUpdateSealedTx (CardanoApi.TxBody era)
-    modifyTxBody ebc = \case
-        CardanoApi.ShelleyTxBody shelleyEra bod scripts scriptData aux val ->
-            Right $ CardanoApi.ShelleyTxBody shelleyEra
-                (modifyShelleyTxBody ebc era bod)
-                (scripts ++ (flip toLedgerScript era
-                    <$> extraInputScripts))
-                scriptData
-                aux
-                val
-        CardanoApi.ByronTxBody _ -> case CardanoApi.shelleyBasedEra @era of {}
+    numberOfExistingKeyWits :: Int
+    numberOfExistingKeyWits = withConstraints era $ sum
+        [ Set.size $ tx ^. (witsTxL . addrTxWitsL)
+        , Set.size $ tx ^. (witsTxL . bootAddrTxWitsL)
+        ]
 
     TxUpdate _ _ _ extraInputScripts _ = extraContent
+
+    extraInputScripts'
+        :: Map (ScriptHash StandardCrypto) (Script (ShelleyLedgerEra era))
+    extraInputScripts' = withConstraints era $
+        Map.fromList $ map (pairWithHash . convert) extraInputScripts
+      where
+        pairWithHash s = (hashScript s, s)
+        convert = flip toLedgerScript era
 
     toLedgerScript
         :: CA.Script CA.KeyHash
@@ -1259,7 +1270,6 @@ updateTx (CardanoApi.Tx body existingKeyWits) extraContent = do
     toLedgerScript s = \case
         RecentEraBabbage -> TimelockScript $ Convert.toLedgerTimelockScript s
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
-
 
 modifyShelleyTxBody
     :: forall era. TxUpdate

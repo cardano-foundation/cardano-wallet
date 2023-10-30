@@ -1218,8 +1218,13 @@ spec_updateTx = describe "updateTx" $ do
             let anyRecentEraTx
                     = fromJust $ Write.asAnyRecentEra $ cardanoTx sealedTx
             it ("without TxUpdate: " <> filepath) $ do
-                Write.withInAnyRecentEra anyRecentEraTx $ \tx ->
-                    case updateTx tx noTxUpdate of
+                Write.withInAnyRecentEra anyRecentEraTx
+                    $ \(tx :: CardanoApi.Tx era) -> do
+                    let res = toCardanoApiTx <$> updateTx
+                            (recentEra @era)
+                            (fromCardanoApiTx tx)
+                            noTxUpdate
+                    case res of
                         Left e ->
                             expectationFailure $
                             "expected update to succeed but failed: "
@@ -1268,9 +1273,15 @@ spec_updateTx = describe "updateTx" $ do
             -- Could be argued that it should instead return `Right tx`.
             let anyRecentEraTx = recentEraTxFromBytes
                     $ snd $ head signedTxs
-            Write.withInAnyRecentEra anyRecentEraTx $ \tx ->
-                updateTx tx noTxUpdate
-                    `shouldBe` Left (ErrExistingKeyWitnesses 1)
+            Write.withInAnyRecentEra anyRecentEraTx
+                $ \(tx :: CardanoApi.Tx era) -> do
+                    let res = toCardanoApiTx @era
+                            <$> updateTx
+                                (recentEra @era)
+                                (fromCardanoApiTx @era tx)
+                                noTxUpdate
+
+                    res `shouldBe` Left (ErrExistingKeyWitnesses 1)
 
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
@@ -1967,12 +1978,12 @@ prop_updateTx
     -> W.Coin
     -> Property
 prop_updateTx
-    (InAnyRecentEra _era tx)
+    (InAnyRecentEra era tx)
     extraIns extraCol extraOuts newFee =
     do
         let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
-        let tx' = either (error . show) id
-                $ updateTx tx extra
+        let tx' = either (error . show) toCardanoApiTx
+                $ updateTx era (fromCardanoApiTx tx) extra
         conjoin
             [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
             , outputs tx' === outputs tx <> Set.fromList extraOuts
