@@ -8,6 +8,7 @@
 
 module Cardano.Wallet.DB.Fixtures
     ( withDBInMemory
+    , withDBFromFile
     , initializeWalletTable
     , assertWith
     , RunQuery
@@ -33,6 +34,7 @@ import Cardano.DB.Sqlite
     , newInMemorySqliteContext
     , noManualMigration
     , runQuery
+    , withSqliteContextFile
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..)
@@ -110,13 +112,37 @@ import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
 {-------------------------------------------------------------------------------
     DB setup
 -------------------------------------------------------------------------------}
+-- | For the purpose of testing 'Store',
+-- create a database in memory.
+-- All tables from the current schema will be created.
 withDBInMemory :: ForeignKeysSetting -> (SqliteContext -> IO a) -> IO a
-withDBInMemory disableFK action = bracket (newDBInMemory disableFK) fst (action . snd)
+withDBInMemory disableFK action =
+    bracket (newDBInMemory disableFK) fst (action . snd)
 
 newDBInMemory :: ForeignKeysSetting -> IO (IO (), SqliteContext)
-newDBInMemory = newInMemorySqliteContext nullTracer
-    noManualMigration
-    migrateAll
+newDBInMemory =
+    newInMemorySqliteContext
+        nullTracer
+        noManualMigration
+        migrateAll
+
+-- | For the purpose of testing 'Store',
+-- open a database from a file.
+-- No migrations will be run - make sure that the test file contains
+-- the relevant tables from the current schema.
+withDBFromFile :: FilePath -> (SqliteContext -> IO a) -> IO a
+withDBFromFile dbFile action =
+    either (error . show) id <$>
+        withSqliteContextFile
+            nullTracer
+            dbFile
+            noManualMigration
+            noMigration
+            noNewStyleMigrations
+            action
+  where
+    noMigration = pure ()
+    noNewStyleMigrations _ _ = pure ()
 
 initializeWalletTable :: WalletId -> SqlPersistT IO ()
 initializeWalletTable wid = do
