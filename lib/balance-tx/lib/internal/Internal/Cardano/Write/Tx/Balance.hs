@@ -92,7 +92,8 @@ import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..)
     )
 import Cardano.Ledger.Api
-    ( bodyTxL
+    ( BabbageEraTxBody (totalCollateralTxBodyL)
+    , bodyTxL
     , collateralInputsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
@@ -286,6 +287,9 @@ import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
+    )
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
@@ -642,7 +646,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     = do
     let partialLedgerTx = fromCardanoTx partialTx
     guardExistingCollateral partialLedgerTx
-    guardExistingTotalCollateral partialTx
+    guardExistingTotalCollateral partialLedgerTx
     guardExistingReturnCollateral partialTx
     guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
@@ -962,13 +966,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) =
-        case CardanoApi.txTotalCollateral body of
-            CardanoApi.TxTotalCollateralNone -> return ()
-            CardanoApi.TxTotalCollateral _ _ ->
-               throwE ErrBalanceTxExistingTotalCollateral
+    guardExistingTotalCollateral tx = withConstraints era $ do
+        let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
+        case totColl of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral
         :: CardanoApi.Tx era
