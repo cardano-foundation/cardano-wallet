@@ -634,7 +634,6 @@ newTransactionLayer keyF networkId = TransactionLayer
     , transactionWitnessTag = txWitnessTagForKey keyF
     }
 
-
 mkUnsignedTransaction
     :: forall era
      . Write.IsRecentEra era
@@ -654,8 +653,8 @@ mkUnsignedTransaction
     --
     -- The function returns CBOR-ed transaction body to be signed in another step.
 mkUnsignedTransaction networkId stakeCred ctx selection = do
-    let ttl   = txValidityInterval ctx
-    let wdrl  = view #txWithdrawal ctx
+    let ttl = txValidityInterval ctx
+    let wdrl = view #txWithdrawal ctx
     let delta = case selection of
             Right selOf -> selectionDelta selOf
             Left _preSel -> Coin 0
@@ -669,22 +668,30 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
     case view #txDelegationAction ctx of
         Nothing -> do
             let md = view #txMetadata ctx
-            let ourRewardAcctM = FromScriptHash . unScriptHash . toScriptHash <$> stakingScriptM
+            let ourRewardAcctM
+                    = FromScriptHash
+                    . unScriptHash
+                    . toScriptHash <$> stakingScriptM
             case wdrl of
                 WithdrawalSelf rewardAcct _ _ ->
-                    if ourRewardAcctM == Just rewardAcct then
-                        constructUnsignedTx networkId (md, []) ttl wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                        stakingScriptM refScriptM
-                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                    if ourRewardAcctM == Just rewardAcct
+                    then
+                        constructUnsignedTx
+                            networkId (md, []) ttl wdrl selection delta
+                            assetsToBeMinted assetsToBeBurned
+                            inpsScripts stakingScriptM refScriptM
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
                     else
-                        constructUnsignedTx networkId (md, []) ttl wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                        Nothing refScriptM
-                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                        constructUnsignedTx
+                            networkId (md, []) ttl wdrl selection delta
+                            assetsToBeMinted assetsToBeBurned
+                            inpsScripts Nothing refScriptM
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
                 _ ->
-                    constructUnsignedTx networkId (md, []) ttl wdrl
-                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    constructUnsignedTx
+                        networkId (md, []) ttl wdrl
+                        selection delta assetsToBeMinted assetsToBeBurned
+                        inpsScripts
                     Nothing refScriptM
                     (Write.shelleyBasedEraFromRecentEra Write.recentEra)
         Just action -> do
@@ -694,14 +701,16 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                     Right (Just script) ->
                         mkDelegationCertificates action (Right script)
                     Right Nothing ->
-                        error $ "stakeCred in mkUnsignedTransaction must be either "
-                        <> "xpub or script when there is delegation action"
+                        error $ unwords
+                            [ "stakeCred in mkUnsignedTransaction must be"
+                            , "either xpub or script when there is delegation"
+                            , "action"
+                            ]
             let payload = (view #txMetadata ctx, certs)
             constructUnsignedTx networkId payload ttl wdrl
                 selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                 stakingScriptM refScriptM
                 (Write.shelleyBasedEraFromRecentEra Write.recentEra)
-
 
 _decodeSealedTx
     :: AnyCardanoEra
