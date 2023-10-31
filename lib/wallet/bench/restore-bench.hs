@@ -133,10 +133,10 @@ import Cardano.Wallet.DB.Layer
     , withDBFresh
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
-    , Excluding
+    ( Excluding
     , KeyFlavorS (..)
     , KeyOf
+    , NetworkOf
     , WalletFlavor (..)
     , keyFlavorFromState
     )
@@ -1143,12 +1143,12 @@ benchEstimateTxFee
         ( AddressBookIso s
         , WalletFlavor s
         , Excluding '[SharedKey] (KeyOf s)
-        , CredFromOf s ~ 'CredFromKeyK
+        , HasSNetworkId (NetworkOf s)
         )
     => SNetworkId n
     -> WalletLayer IO s
     -> IO Time
-benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
+benchEstimateTxFee network (WalletLayer _ _ netLayer _ dbLayer) =
     fmap snd <$> bench "estimate tx fee" $ do
         (Write.InAnyRecentEra _era protocolParams, timeTranslation)
             <- W.readNodeTipStateForTxWrite netLayer
@@ -1160,7 +1160,6 @@ benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
         W.transactionFee @s
             dbLayer
             protocolParams
-            txLayer
             timeTranslation
             dummyChangeAddressGen
             defaultTransactionCtx

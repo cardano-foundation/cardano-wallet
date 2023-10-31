@@ -441,6 +441,7 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
+    , networkIdVal
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (..)
@@ -559,7 +560,8 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletCoin
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( txConstraints
+    ( mkUnsignedTransaction
+    , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
     )
@@ -2211,7 +2213,6 @@ buildAndSignTransactionPure
             wallet
             timeTranslation
             utxoIndex
-            txLayer
             changeAddrGen
             pp
             preSelection
@@ -2287,17 +2288,17 @@ buildTransaction
         ( WalletFlavor s
         , Write.IsRecentEra era
         , AddressBookIso s
+        , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
         )
     => DBLayer IO s
-    -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
     -> ChangeAddressGen s
     -> Write.ProtocolParameters era
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
-buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
+buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
@@ -2314,7 +2315,6 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 wallet
                 timeTranslation
                 utxo
-                txLayer
                 changeAddrGen
                 protocolParameters
                 PreSelection { outputs = paymentOuts }
@@ -2329,11 +2329,11 @@ buildTransactionPure
         ( Write.IsRecentEra era
         , WalletFlavor s
         , Excluding '[SharedKey] (KeyOf s)
+        , HasSNetworkId (NetworkOf s)
         )
     => Wallet s
     -> TimeTranslation
     -> UTxO
-    -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> Write.ProtocolParameters era
     -> PreSelection
@@ -2343,11 +2343,12 @@ buildTransactionPure
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet timeTranslation utxo txLayer changeAddrGen pparams preSelection txCtx
+    wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
     = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction txLayer @era
+            mkUnsignedTransaction @era
+                (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
@@ -2454,29 +2455,29 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall n ktype era
-     . Write.IsRecentEra era
-    => TransactionLayer ShelleyKey ktype SealedTx
-    -> DBLayer IO (SeqState n ShelleyKey)
+    :: forall n era
+     . (Write.IsRecentEra era, HasSNetworkId n)
+    => DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
-constructTransaction txLayer db txCtx preSel = do
+constructTransaction db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction txLayer (Left $ fromJust xpub) txCtx (Left preSel)
+    mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
+  where
+    netId = networkIdVal $ sNetworkId @n
 
 constructUnbalancedSharedTransaction
-    :: forall n ktype era
+    :: forall n era
      . ( Write.IsRecentEra era
        , HasSNetworkId n)
-    => TransactionLayer SharedKey ktype SealedTx
-    -> DBLayer IO (SharedState n SharedKey)
+    => DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
         (Cardano.TxBody era, (Address -> CA.Script KeyHash))
-constructUnbalancedSharedTransaction txLayer db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2496,8 +2497,10 @@ constructUnbalancedSharedTransaction txLayer db txCtx sel = db & \DBLayer{..} ->
                 in replaceCosignersWithVerKeys role' template ix
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction txLayer (Right scriptM) txCtx (Left sel)
+            mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)
     pure (sealedTx, getScript)
+  where
+    netId = networkIdVal $ sNetworkId @n
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -2923,17 +2926,17 @@ delegationFee
      . ( AddressBookIso s
        , WalletFlavor s
        , Excluding '[SharedKey] (KeyOf s)
+       , HasSNetworkId (NetworkOf s)
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
-    -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> IO DelegationFee
-delegationFee db@DBLayer{..} netLayer txLayer changeAddressGen = do
+delegationFee db@DBLayer{..} netLayer changeAddressGen = do
     (Write.InAnyRecentEra era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
     feePercentiles <- transactionFee
-        db protocolParams txLayer timeTranslation changeAddressGen
+        db protocolParams timeTranslation changeAddressGen
         defaultTransactionCtx
         -- It would seem that we should add a delegation action
         -- to the partial tx we construct, this was not done
@@ -2952,17 +2955,17 @@ transactionFee
      . ( AddressBookIso s
        , Write.IsRecentEra era
        , WalletFlavor s
+       , HasSNetworkId (NetworkOf s)
        , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
     -> Write.ProtocolParameters era
-    -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
     -> ChangeAddressGen s
     -> TransactionCtx
     -> PreSelection
     -> IO (Percentile 10 Fee, Percentile 90 Fee)
-transactionFee DBLayer{atomically, walletState} protocolParams txLayer
+transactionFee DBLayer{atomically, walletState} protocolParams
     timeTranslation changeAddressGen txCtx preSelection = do
         wallet <- liftIO . atomically
             $ readDBVar walletState <&> WalletState.getLatest
@@ -2983,7 +2986,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             --
             evaluate $ constructUTxOIndex $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
-            mkUnsignedTransaction txLayer @era
+            mkUnsignedTransaction @era
+                (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)

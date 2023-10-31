@@ -201,7 +201,6 @@ import Cardano.Wallet
     , networkLayer
     , readPrivateKey
     , readWalletMeta
-    , transactionLayer
     , txWitnessTagForKey
     , utxoAssumptionsForWallet
     )
@@ -1965,6 +1964,7 @@ selectCoins
         , WalletFlavor s
         , Excluding '[SharedKey] k
         , s ~ SeqState n k
+        , HasSNetworkId (NetworkOf s)
         , AddressBookIso s
         , GenChange s
         )
@@ -1995,7 +1995,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 }
 
         (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s
-            db txLayer timeTranslation genChange pp txCtx paymentOuts
+            db timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @n
@@ -2060,7 +2060,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s
-            db txLayer timeTranslation changeAddrGen pp txCtx
+            db timeTranslation changeAddrGen pp txCtx
             paymentOuts
 
         let W.CoinSelection{..} =
@@ -2117,7 +2117,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s
-            db txLayer timeTranslation changeAddrGen pp txCtx paymentOuts
+            db timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @n
@@ -2547,6 +2547,7 @@ postTransactionFeeOld
        , AddressBookIso s
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
+       , HasSNetworkId (NetworkOf s)
        )
     => ApiLayer s
     -> ApiT WalletId
@@ -2574,7 +2575,6 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
         feePercentiles <- liftIO $ W.transactionFee @s
             db
             pp
-            txLayer
             timeTranslation
             dummyChangeAddressGen
             defaultTransactionCtx
@@ -2659,7 +2659,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer @_ @'CredFromKeyK
             trWorker = MsgWallet >$< wrk ^. logger
 
         (Write.InAnyRecentEra (_era :: Write.RecentEra era) pp, _)
@@ -2792,8 +2791,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Nothing -> []
 
         unbalancedTx <- liftHandler $
-            W.constructTransaction @n @'CredFromKeyK @era
-                txLayer db transactionCtx3
+            W.constructTransaction @n @era
+                db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
@@ -3164,7 +3163,6 @@ constructSharedTransaction
     withWorkerCtx api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
@@ -3210,8 +3208,8 @@ constructSharedTransaction
                         Just (ApiPaymentAddresses content) ->
                             F.toList (addressAmountToTxOut <$> content)
                 (unbalancedTx, scriptLookup) <- liftHandler $
-                    W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
-                    txLayer db txCtx PreSelection {outputs = outs}
+                    W.constructUnbalancedSharedTransaction @n @era
+                    db txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
                     balanceTransaction api argGenChange
@@ -3880,7 +3878,6 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
             W.delegationFee @s
                 (workerCtx ^. dbLayer)
                 netLayer
-                txLayer
                 (W.defaultChangeAddressGen (delegationAddressS @n))
         pure $ mkApiFee (Just deposit) [] feePercentiles
 

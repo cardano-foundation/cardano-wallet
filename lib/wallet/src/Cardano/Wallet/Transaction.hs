@@ -61,7 +61,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
-    , XPub
     )
 import Cardano.Address.Script
     ( KeyHash (..)
@@ -163,13 +162,11 @@ import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag
     )
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Internal.Cardano.Write.Tx as Write
 
 data TransactionLayer k ktype tx = TransactionLayer
     { mkTransaction
@@ -216,24 +213,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         --
         -- If inputs can't be resolved, they are simply skipped, hence why this
         -- function cannot fail.
-
-    , mkUnsignedTransaction
-        :: forall era
-         . Write.IsRecentEra era
-        => Either XPub (Maybe (Script KeyHash))
-            -- Reward account public key or optional script hash
-        -> TransactionCtx
-            -- An additional context about the transaction
-        -> Either PreSelection (SelectionOf TxOut)
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> Either ErrMkTransaction (Cardano.TxBody era)
-        -- ^ Construct a standard unsigned transaction
-        --
-        -- " Standard " here refers to the fact that we do not deal with redemption,
-        -- multisignature transactions, etc.
-        --
-        -- The function returns CBOR-ed transaction body to be signed in another step.
 
     , decodeTx
         :: AnyCardanoEra

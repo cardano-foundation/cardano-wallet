@@ -311,7 +311,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         W.delegationFee
-            (W.dbLayer_ ctx) (W.networkLayer_ ctx) (W.transactionLayer_ ctx)
+            (W.dbLayer_ ctx) (W.networkLayer_ ctx)
             (W.defaultChangeAddressGen (delegationAddressS @n))
 
     pure BenchSeqResults
