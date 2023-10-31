@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -13,6 +12,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Conway
     ( fromConwayTx
+    , fromConwayTx'
     )
     where
 
@@ -48,6 +48,9 @@ import Cardano.Ledger.Babbage
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (txId)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -155,32 +158,7 @@ fromConwayTx
        , WitnessCount
        )
 fromConwayTx tx witCtx =
-    ( W.Tx
-        { txId
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject conway $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.collateralInputsTxBodyL.folded
-        , outputs =
-            fst . fromConwayTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            strictMaybeToMaybe $
-                fst . fromConwayTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromConwayMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Just $ case tx ^. isValidTxL of
-                Alonzo.IsValid True -> W.TxScriptValid
-                Alonzo.IsValid False -> W.TxScriptInvalid
-        }
+    ( tx'
     , fmap fromConwayCerts . toList $ tx ^. bodyTxL . conwayCertsTxBodyL
     , assetsToMint
     , assetsToBurn
@@ -191,7 +169,8 @@ fromConwayTx tx witCtx =
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
-    txId = W.Hash $ shelleyTxHash tx
+    tx' = fromConwayTx' tx
+    txId' = txId tx'
 
     anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromTxOuts =
@@ -211,7 +190,7 @@ fromConwayTx tx witCtx =
                 )
         scriptWithHashIx ix txout =
             snd (fromConwayTxOut txout) <&> \script ->
-                ( ViaReferenceInput (ReferenceInput (TxIn txId ix))
+                ( ViaReferenceInput (ReferenceInput (TxIn txId' ix))
                 , hashConwayScript script
                 , script
                 )
@@ -255,3 +234,32 @@ fromConwayTx tx witCtx =
         toPlutusVer Language.PlutusV3 = PlutusVersionV3
 
     hashConwayScript = Core.hashScript @(Cardano.ShelleyLedgerEra ConwayEra)
+
+fromConwayTx' :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra) -> W.Tx
+fromConwayTx' tx =
+    W.Tx
+        { txId = W.Hash $ shelleyTxHash tx
+        , txCBOR =
+            Just $ renderTxToCBOR $ inject conway $ Tx tx
+        , fee =
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
+        , resolvedInputs =
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL . inputsTxBodyL . folded
+        , resolvedCollateralInputs =
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL . collateralInputsTxBodyL . folded
+        , outputs =
+            fst . fromConwayTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
+        , collateralOutput =
+            strictMaybeToMaybe $
+                fst . fromConwayTxOut <$> tx ^. bodyTxL . collateralReturnTxBodyL
+        , withdrawals =
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
+        , metadata =
+            fromConwayMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+        , scriptValidity =
+            Just $ case tx ^. isValidTxL of
+                Alonzo.IsValid True -> W.TxScriptValid
+                Alonzo.IsValid False -> W.TxScriptInvalid
+        }

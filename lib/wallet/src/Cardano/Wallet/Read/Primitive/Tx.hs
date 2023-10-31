@@ -4,35 +4,45 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
-module Cardano.Wallet.Read.Primitive.Tx
-    ( fromCardanoTx
-    )
-    where
+module Cardano.Wallet.Read.Primitive.Tx (
+    fromCardanoTx,
+    primitiveTx,
+) where
 
 import Prelude
 
+import Cardano.Wallet.Read
+    ( Tx (..)
+    )
+import Cardano.Wallet.Read.Eras
+    ( EraFun (..)
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx
+    , fromAllegraTx'
     )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx
+    , fromAlonzoTx'
     )
 import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx
+    , fromBabbageTx'
     )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
     ( fromTxAux
     )
 import Cardano.Wallet.Read.Primitive.Tx.Conway
     ( fromConwayTx
+    , fromConwayTx'
     )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx
+    , fromMaryTx'
     )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTx
+    , fromShelleyTx'
     )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
@@ -41,6 +51,9 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , emptyTokenMapWithScripts
     , emptyWitnessCount
+    )
+import Generics.SOP
+    ( K (..)
     )
 
 import qualified Cardano.Api as Cardano
@@ -51,16 +64,16 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
-fromCardanoTx
-    :: WitnessCountCtx
-    -> Cardano.Tx era
-    ->  ( W.Tx
-        , TokenMapWithScripts
-        , TokenMapWithScripts
-        , [W.Certificate]
-        , Maybe ValidityIntervalExplicit
-        , WitnessCount
-        )
+fromCardanoTx ::
+    WitnessCountCtx ->
+    Cardano.Tx era ->
+    ( W.Tx
+    , TokenMapWithScripts
+    , TokenMapWithScripts
+    , [W.Certificate]
+    , Maybe ValidityIntervalExplicit
+    , WitnessCount
+    )
 fromCardanoTx witCtx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->
@@ -86,3 +99,15 @@ fromCardanoTx witCtx = \case
   where
     extract (tx, certs, mint, burn, validity, wits) =
         (tx, mint, burn, certs, validity, wits)
+
+primitiveTx :: EraFun Tx (K W.Tx)
+primitiveTx =
+    EraFun
+        { byronFun = \(Tx tx) -> K . fromTxAux $ tx
+        , shelleyFun = \(Tx tx) -> K . fromShelleyTx' $ tx
+        , allegraFun = \(Tx tx) -> K . fromAllegraTx' $ tx
+        , maryFun = \(Tx tx) -> K . fromMaryTx' $ tx
+        , alonzoFun = \(Tx tx) -> K . fromAlonzoTx' $ tx
+        , babbageFun = \(Tx tx) -> K . fromBabbageTx' $ tx
+        , conwayFun = \(Tx tx) -> K . fromConwayTx' $ tx
+        }

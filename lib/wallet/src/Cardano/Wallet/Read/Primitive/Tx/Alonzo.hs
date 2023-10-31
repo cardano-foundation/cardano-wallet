@@ -13,6 +13,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx
+    , fromAlonzoTx'
     )
     where
 
@@ -118,31 +119,7 @@ fromAlonzoTx
        , WitnessCount
        )
 fromAlonzoTx tx witCtx =
-    ( W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject alonzo $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            (,Nothing) . fromShelleyTxIn <$>
-                tx ^.. bodyTxL.collateralInputsTxBodyL.folded
-        , outputs =
-            fromAlonzoTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Alonzo.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromAlonzoMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Just $ case tx ^. isValidTxL of
-                Alonzo.IsValid True -> W.TxScriptValid
-                Alonzo.IsValid False -> W.TxScriptInvalid
-        }
+    ( fromAlonzoTx' tx
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
@@ -173,3 +150,31 @@ fromAlonzoTx tx witCtx =
             hashAlonzoScript =
                 fromLedgerScriptHash
                     . Core.hashScript @(Cardano.ShelleyLedgerEra AlonzoEra)
+
+fromAlonzoTx' :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra AlonzoEra) -> W.Tx
+fromAlonzoTx' tx =
+    W.Tx
+        { txId =
+            W.Hash $ shelleyTxHash tx
+        , txCBOR =
+            Just $ renderTxToCBOR $ inject alonzo $ Tx tx
+        , fee =
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
+        , resolvedInputs =
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
+        , resolvedCollateralInputs =
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL . collateralInputsTxBodyL . folded
+        , outputs =
+            fromAlonzoTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
+        , collateralOutput =
+            Nothing -- Collateral outputs are not supported in Alonzo.
+        , withdrawals =
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
+        , metadata =
+            fromAlonzoMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+        , scriptValidity =
+            Just $ case tx ^. isValidTxL of
+                Alonzo.IsValid True -> W.TxScriptValid
+                Alonzo.IsValid False -> W.TxScriptInvalid
+        }

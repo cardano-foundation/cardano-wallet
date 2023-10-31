@@ -1,9 +1,11 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Cardano.Wallet.Read.Primitive.Block.Header
     ( getBlockHeader
+    , primitiveBlockHeader
     )
 where
 
@@ -56,9 +58,6 @@ import Data.Coerce
 import Data.Quantity
     ( Quantity (..)
     )
-import Data.Word
-    ( Word32
-    )
 import Generics.SOP
     ( K (..)
     )
@@ -78,24 +77,30 @@ import qualified Ouroboros.Network.Block as O
 fromByronHash :: ByronHash -> W.Hash tag
 fromByronHash = W.Hash . CC.hashToBytes . unByronHash
 
+-- | Get a wallet primitive block header from a ledger block
 getBlockHeader :: W.Hash "Genesis" -> ConsensusBlock -> W.BlockHeader
 getBlockHeader gp =
     extractEraValue
-        . applyEraFun (fromEraFunK $ getBlockHeaderEra gp)
+        . applyEraFun (primitiveBlockHeader gp)
         . fromConsensusBlock
 
-getBlockHeaderEra :: W.Hash "Genesis" -> EraFunK Block W.BlockHeader
-getBlockHeaderEra gp =
-    W.BlockHeader
-        <$> (O.SlotNo . fromIntegral . unSlotNo <$> EraFunK getEraSlotNo)
-        <*> getEraBlockNoK
-        <*> EraFunK (primitiveHash . getEraHeaderHash)
-        <*> (Just <$> EraFunK (primitivePrevHash gp . getEraPrevHeaderHash))
+-- | Compute a wallet primitive block header from a ledger
+primitiveBlockHeader :: W.Hash "Genesis" -> EraFun Block (K W.BlockHeader)
+primitiveBlockHeader gp =
+    fromEraFunK $ do
+        slotNo <- fromSlotNo <$> EraFunK getEraSlotNo
+        blockNo <- fromBlockNo <$> EraFunK getEraBlockNo
+        headerHash <- EraFunK (primitiveHash . getEraHeaderHash)
+        prevHeaderHash <-
+            Just
+                <$> EraFunK (primitivePrevHash gp . getEraPrevHeaderHash)
+        pure $ W.BlockHeader slotNo blockNo headerHash prevHeaderHash
 
-getEraBlockNoK :: EraFunK Block (Quantity "block" Word32)
-getEraBlockNoK = fromBlockNo <$> EraFunK getEraBlockNo
-  where
-    fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
+fromBlockNo :: Num a => BlockNo -> Quantity unit a
+fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
+
+fromSlotNo :: SlotNo -> O.SlotNo
+fromSlotNo (SlotNo s) = O.SlotNo $ fromIntegral s
 
 primitiveHash :: EraFun HeaderHash (K (W.Hash "BlockHeader"))
 primitiveHash =

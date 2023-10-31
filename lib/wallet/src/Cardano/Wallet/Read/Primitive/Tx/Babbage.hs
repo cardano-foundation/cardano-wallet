@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -13,6 +12,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx
+    , fromBabbageTx'
     )
     where
 
@@ -45,6 +45,9 @@ import Cardano.Ledger.Api
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (txId)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -150,32 +153,7 @@ fromBabbageTx
        , WitnessCount
        )
 fromBabbageTx tx witCtx =
-    ( W.Tx
-        { txId
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject babbage $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> tx ^.. bodyTxL.collateralInputsTxBodyL.folded
-        , outputs =
-            fst . fromBabbageTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            strictMaybeToMaybe $
-                fst . fromBabbageTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromBabbageMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Just $ case tx ^. isValidTxL of
-                Alonzo.IsValid True -> W.TxScriptValid
-                Alonzo.IsValid False -> W.TxScriptInvalid
-        }
+    ( tx'
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
@@ -186,7 +164,8 @@ fromBabbageTx tx witCtx =
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
-    txId = W.Hash $ shelleyTxHash tx
+    tx' = fromBabbageTx' tx
+    txId' = txId tx'
 
     anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromTxOuts =
@@ -206,7 +185,7 @@ fromBabbageTx tx witCtx =
                 )
         scriptWithHashIx ix txout =
             snd (fromBabbageTxOut txout) <&> \script ->
-                ( ViaReferenceInput (ReferenceInput (TxIn txId ix))
+                ( ViaReferenceInput (ReferenceInput (TxIn txId' ix))
                 , hashBabbageScript script
                 , script
                 )
@@ -250,3 +229,32 @@ fromBabbageTx tx witCtx =
         toPlutusVer Language.PlutusV3 = PlutusVersionV3
 
     hashBabbageScript = Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
+
+fromBabbageTx' :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra BabbageEra) -> W.Tx
+fromBabbageTx' tx =
+    W.Tx
+        { txId = W.Hash $ shelleyTxHash tx
+        , txCBOR =
+            Just $ renderTxToCBOR $ inject babbage $ Tx tx
+        , fee =
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
+        , resolvedInputs =
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+        , resolvedCollateralInputs =
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL.collateralInputsTxBodyL.folded
+        , outputs =
+            fst . fromBabbageTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
+        , collateralOutput =
+            strictMaybeToMaybe $
+                fst . fromBabbageTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
+        , withdrawals =
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
+        , metadata =
+            fromBabbageMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+        , scriptValidity =
+            Just $ case tx ^. isValidTxL of
+                Alonzo.IsValid True -> W.TxScriptValid
+                Alonzo.IsValid False -> W.TxScriptInvalid
+        }

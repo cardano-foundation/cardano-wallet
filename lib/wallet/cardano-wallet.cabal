@@ -310,6 +310,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
+    Cardano.Wallet.Read.Primitive.Block
     Cardano.Wallet.Read.Primitive.Block.Header
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra

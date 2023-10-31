@@ -1,12 +1,9 @@
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Read.Block.Txs
-    ( getTxs
-    , getTxsForEra
-    , txsFromBlock
+    ( getEraTransactions
     ) where
 
 import Prelude
@@ -14,23 +11,15 @@ import Prelude
 import Cardano.Api
     ( ByronEra
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     )
 import Cardano.Wallet.Read.Block
     ( Block (..)
-    , fromConsensusBlock
     )
 import Cardano.Wallet.Read.Eras
     ( (:.:) (..)
     , EraFun (..)
-    , EraValue
-    , MkEraValue
-    , applyEraFun
-    , project
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -38,9 +27,6 @@ import Cardano.Wallet.Read.Tx
     )
 import Data.Foldable
     ( toList
-    )
-import Generics.SOP
-    ( unComp
     )
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyProtocolHeader
@@ -53,12 +39,11 @@ import qualified Cardano.Ledger.Era as Shelley
 import qualified Cardano.Ledger.Shelley.API as Shelley
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Byron.Ledger as O
-import qualified Ouroboros.Consensus.Cardano.Block as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
--- | Get sequence of transactions in the block.
-txsFromBlock :: EraFun Block ([] :.: Tx)
-txsFromBlock =
+-- | Get the list of transactions in the block.
+getEraTransactions :: EraFun Block ([] :.: Tx)
+getEraTransactions =
     EraFun
         { byronFun = getTxs' getTxsFromBlockByron
         , shelleyFun = getTxs' getTxsFromBlockShelleyAndOn
@@ -84,12 +69,3 @@ getTxsFromBlockShelleyAndOn
     -> [Ledger.Tx era]
 getTxsFromBlockShelleyAndOn (O.ShelleyBlock (Shelley.Block _ txs) _) =
     toList (Shelley.fromTxSeq txs)
-
-getTxs :: O.CardanoBlock StandardCrypto -> EraValue ([] :.: Tx)
-getTxs = applyEraFun txsFromBlock . fromConsensusBlock
-
-getTxsForEra
-    :: MkEraValue ([] :.: Tx) p
-    -> O.CardanoBlock StandardCrypto
-    -> Maybe [Tx p]
-getTxsForEra ew = fmap unComp . project ew . getTxs

@@ -11,6 +11,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTx
+    , fromShelleyTx'
     )
     where
 
@@ -135,28 +136,7 @@ fromShelleyTx
        , WitnessCount
        )
 fromShelleyTx tx =
-    ( W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject shelley $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            fromShelleyTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Shelley.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Nothing
-        }
+    ( fromShelleyTx' tx
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
@@ -168,3 +148,28 @@ fromShelleyTx tx =
             <$> tx ^.. witsTxL.scriptTxWitsL.folded)
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
+
+fromShelleyTx' :: SL.ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra) -> W.Tx
+fromShelleyTx' tx =
+    W.Tx
+        { txId =
+            W.Hash $ shelleyTxHash tx
+        , txCBOR =
+            Just $ renderTxToCBOR $ inject shelley $ Tx tx
+        , fee =
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
+        , resolvedInputs =
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
+        , resolvedCollateralInputs =
+            []
+        , outputs =
+            fromShelleyTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
+        , collateralOutput =
+            Nothing -- Collateral outputs are not supported in Shelley.
+        , withdrawals =
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
+        , metadata =
+            fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+        , scriptValidity =
+            Nothing
+        }
