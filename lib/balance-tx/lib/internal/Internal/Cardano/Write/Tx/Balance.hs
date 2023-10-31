@@ -92,12 +92,17 @@ import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..)
     )
 import Cardano.Ledger.Api
-    ( bodyTxL
+    ( BabbageEraTxBody (totalCollateralTxBodyL)
+    , bodyTxL
     , collateralInputsTxBodyL
+    , collateralReturnTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
     , ppMaxTxSizeL
+    )
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
     )
 import Cardano.Ledger.UTxO
     ( txinLookup
@@ -205,6 +210,7 @@ import Internal.Cardano.Write.Tx
     , PParams
     , RecentEra (..)
     , ShelleyLedgerEra
+    , Tx
     , TxBody
     , TxIn
     , TxOut
@@ -639,10 +645,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    guardExistingCollateral partialTx
-    guardExistingTotalCollateral partialTx
-    guardExistingReturnCollateral partialTx
-    guardConflictingWithdrawalNetworks partialTx
+    let partialLedgerTx = fromCardanoApiTx partialTx
+    guardExistingCollateral partialLedgerTx
+    guardExistingTotalCollateral partialLedgerTx
+    guardExistingReturnCollateral partialLedgerTx
     guardWalletUTxOConsistencyWith inputUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
@@ -922,62 +928,35 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             assignScriptRedeemers
                 pp timeTranslation combinedUTxO redeemers tx'
 
-    guardConflictingWithdrawalNetworks
-        :: CardanoApi.Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardConflictingWithdrawalNetworks
-        (CardanoApi.Tx (CardanoApi.TxBody body) _) = do
-        -- Use of withdrawals with different networks breaks balancing.
-        --
-        -- For instance the partial tx might contain two withdrawals with the
-        -- same key but different networks:
-        -- [ (Mainnet, pkh1, coin1)
-        -- , (Testnet, pkh1, coin2)
-        -- ]
-        --
-        -- Even though this is absurd, the node/ledger
-        -- @evaluateTransactionBalance@ will count @coin1+coin2@ towards the
-        -- total balance. Because the wallet does not consider the network tag,
-        -- it will drop one of the two, leading to a discrepancy.
-        let networkOfWdrl ((CardanoApi.StakeAddress nw _), _, _) = nw
-            conflictingWdrlNetworks = case CardanoApi.txWithdrawals body of
-                CardanoApi.TxWithdrawalsNone -> False
-                CardanoApi.TxWithdrawals _ wdrls -> Set.size
-                    (Set.fromList $ map networkOfWdrl wdrls) > 1
-        when conflictingWdrlNetworks $
-            throwE ErrBalanceTxConflictingNetworks
-
     guardExistingCollateral
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) = do
+    guardExistingCollateral tx = withConstraints era $ do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        case CardanoApi.txInsCollateral body of
-            CardanoApi.TxInsCollateralNone -> return ()
-            CardanoApi.TxInsCollateral _ [] -> return ()
-            CardanoApi.TxInsCollateral _ _ ->
-                throwE ErrBalanceTxExistingCollateral
+        let collIns = tx ^. (bodyTxL . collateralInputsTxBodyL)
+        unless (null collIns) $
+            throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) =
-        case CardanoApi.txTotalCollateral body of
-            CardanoApi.TxTotalCollateralNone -> return ()
-            CardanoApi.TxTotalCollateral _ _ ->
-               throwE ErrBalanceTxExistingTotalCollateral
+    guardExistingTotalCollateral tx = withConstraints era $ do
+        let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
+        case totColl of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral
-        :: CardanoApi.Tx era
+        :: Tx (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral (CardanoApi.Tx (CardanoApi.TxBody body) _) =
-        case CardanoApi.txReturnCollateral body of
-            CardanoApi.TxReturnCollateralNone -> return ()
-            CardanoApi.TxReturnCollateral _ _ ->
-               throwE ErrBalanceTxExistingReturnCollateral
+    guardExistingReturnCollateral tx = withConstraints era $ do
+        let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
+        case collRet of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
     fromCardanoApiLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
 

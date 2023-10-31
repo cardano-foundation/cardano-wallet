@@ -334,9 +334,8 @@ type RecentEraLedgerConstraints era =
     , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
-    , Alonzo.AlonzoEraTxBody era
-    , Babbage.ShelleyEraTxBody era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
+    , Babbage.BabbageEraTxBody era
     , Shelley.EraUTxO era
     )
 
