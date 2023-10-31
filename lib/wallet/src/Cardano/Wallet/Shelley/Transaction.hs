@@ -634,24 +634,26 @@ newTransactionLayer keyF networkId = TransactionLayer
     , transactionWitnessTag = txWitnessTagForKey keyF
     }
 
+-- | Construct a standard unsigned transaction.
+--
+-- The term "standard" refers to the fact that we do not deal with redemption,
+-- multi-signature transactions, etc.
+--
+-- This function returns a CBOR-ed transaction body, which should be signed
+-- in separate step.
+--
 mkUnsignedTransaction
     :: forall era
      . Write.IsRecentEra era
     => NetworkId
     -> Either XPub (Maybe (Script KeyHash))
-        -- Reward account public key or optional script hash
+    -- ^ Reward account public key or optional script hash.
     -> TransactionCtx
-        -- An additional context about the transaction
+    -- ^ Additional context about the transaction.
     -> Either PreSelection (SelectionOf TxOut)
-        -- A balanced coin selection where all change addresses have been
-        -- assigned.
+    -- ^ A balanced coin selection where all change addresses have been
+    -- assigned.
     -> Either ErrMkTransaction (Cardano.TxBody era)
-    -- ^ Construct a standard unsigned transaction
-    --
-    -- " Standard " here refers to the fact that we do not deal with redemption,
-    -- multisignature transactions, etc.
-    --
-    -- The function returns CBOR-ed transaction body to be signed in another step.
 mkUnsignedTransaction networkId stakeCred ctx selection = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
