@@ -4,6 +4,7 @@
 module Crypto.Encryption.ChaChaPoly1305
     ( encryptPayload
     , decryptPayload
+    , toSymmetricKey
     ) where
 
 import Prelude
@@ -15,6 +16,9 @@ import Crypto.Error
     ( CryptoError (..)
     , CryptoFailable (..)
     )
+import Crypto.Hash.Algorithms
+    ( SHA512 (..)
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -22,6 +26,7 @@ import Data.ByteString
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
+import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
@@ -72,3 +77,15 @@ decryptPayload passphrase nonce bytes = do
     when (BA.convert (Poly.finalize st2) /= tag) $
         CryptoFailed CryptoError_MacKeyInvalid
     return out
+
+-- | Derive a symmetric key for encrypting .
+-- | PBKDF2 encryption using HMAC with the hash algorithm SHA512 is employed.
+toSymmetricKey
+    :: ByteString
+    -> ByteString
+toSymmetricKey rawKey =
+    PBKDF2.generate
+    (PBKDF2.prfHMAC SHA512)
+    (PBKDF2.Parameters 500 32)
+    rawKey
+    ("metadata-encryption-" :: ByteString)
