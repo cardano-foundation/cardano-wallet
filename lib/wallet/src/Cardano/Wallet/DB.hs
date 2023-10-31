@@ -38,6 +38,9 @@ module Cardano.Wallet.DB
 import Prelude
 
 import Cardano.Wallet.DB.Errors
+import Cardano.Wallet.DB.Migration
+    ( Version
+    )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction
     , getInSubmissionTransactions
@@ -320,6 +323,11 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- point of rollback but can't be guaranteed to be exactly the same
         -- because the database may only keep sparse checkpoints.
 
+    , getSchemaVersion
+        :: stm Version
+        -- ^ Get the version of the schema currently stored in the database.
+        -- Only used for internal consistency checks.
+
     , atomically
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
@@ -388,6 +396,7 @@ to delete them wholesale rather than maintaining them.
 data DBLayerCollection stm m s = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
     , dbTxHistory :: DBTxHistory stm
+    , getSchemaVersion_ :: stm Version
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -464,6 +473,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 $ \_ -> Sbms.rollForwardTxSubmissions tip txs
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
+    , getSchemaVersion = getSchemaVersion_
     , atomically = atomically_
     }
   where

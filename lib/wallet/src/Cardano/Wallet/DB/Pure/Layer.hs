@@ -125,12 +125,6 @@ newDBFresh timeInterpreter wid = do
             . mRollbackTo
 
         {-----------------------------------------------------------------------
-                                   Wallet Metadata
-        -----------------------------------------------------------------------}
-
-        -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
-
-        {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
@@ -182,6 +176,9 @@ newDBFresh timeInterpreter wid = do
         {-----------------------------------------------------------------------
                                       Execution
         -----------------------------------------------------------------------}
+
+        , getSchemaVersion =
+            error "getSchemaVersion not tested in State Machine tests"
 
         , atomically = \action -> withMVar lock $ \() -> action
         }

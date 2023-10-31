@@ -50,9 +50,9 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
+    , ManualMigration (..)
     , SqliteContext (..)
     , newInMemorySqliteContext
-    , noManualMigration
     , withSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
@@ -86,12 +86,19 @@ import Cardano.Wallet.DB
     , mkDBLayerFromParts
     , transactionsStore
     )
+import Cardano.Wallet.DB.Migration
+    ( Version (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations
+    ( latestVersion
+    , runNewStyleMigrations
     )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
+    , SchemaVersion (..)
+    , createSchemaVersionTableIfMissing
     , migrateManually
+    , putSchemaVersion
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
@@ -284,6 +291,7 @@ import qualified Data.Delta.Update as Delta
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Database.Persist.Sqlite as Sqlite
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -436,6 +444,23 @@ instance ToText DBFactoryLog where
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
+    Database Schema Version
+-------------------------------------------------------------------------------}
+getSchemaVersion' :: SqlPersistT IO Version
+getSchemaVersion' = do
+    [Sqlite.Single (Sqlite.PersistInt64 version)]
+        <- Sqlite.rawSql
+            "SELECT version FROM database_schema_version" []
+    pure $ Version (fromIntegral version)
+
+createSchemaVersionTableIfMissing' :: ManualMigration
+createSchemaVersionTableIfMissing' =
+    ManualMigration $ \conn -> do
+        _ <- createSchemaVersionTableIfMissing conn
+        let Version latest = latestVersion
+        putSchemaVersion conn (SchemaVersion latest)
+
+{-------------------------------------------------------------------------------
     DBOpen
 -------------------------------------------------------------------------------}
 -- | Open an SQLite database file and run an action on it.
@@ -459,7 +484,7 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
     let manualMigrations =
             maybe
-                noManualMigration
+                createSchemaVersionTableIfMissing'
                 (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
@@ -481,7 +506,11 @@ newDBOpenInMemory
 newDBOpenInMemory tr = do
     let tr' = contramap MsgDB tr
     (destroy, sqliteContext) <-
-        newInMemorySqliteContext tr' noManualMigration migrateAll ForeignKeysEnabled
+        newInMemorySqliteContext
+            tr'
+            createSchemaVersionTableIfMissing'
+            migrateAll
+            ForeignKeysEnabled
     pure (destroy, DBOpen { atomically = runQuery sqliteContext})
 
 -- | Retrieve the wallet id from the database if it's initialized.
@@ -608,6 +637,7 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
     dbLayerCollection walletState = DBLayerCollection{..}
       where
         transactionsStore_ = transactionsQS
+        getSchemaVersion_ = getSchemaVersion'
 
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)

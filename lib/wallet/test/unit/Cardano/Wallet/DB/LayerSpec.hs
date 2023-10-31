@@ -126,6 +126,9 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Properties
     ( properties
     )
+import Cardano.Wallet.DB.Sqlite.Migration.New
+    ( latestVersion
+    )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints
     , prop_sequential
@@ -243,6 +246,9 @@ import Data.ByteString
     )
 import Data.Coerce
     ( coerce
+    )
+import Data.Function
+    ( (&)
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -413,6 +419,7 @@ spec =
             propertiesSpecSeq
             loggingSpec
             fileModeSpec
+            dbFreshSpec
             manualMigrationsSpec
 
 stateMachineSpec
@@ -1131,6 +1138,27 @@ cutRandomly = iter []
             chunksNum <- randomRIO (1, L.length rest)
             let chunk = L.take chunksNum rest
             iter (chunk:acc) (L.drop chunksNum rest)
+
+{-------------------------------------------------------------------------------
+    DBFresh tests
+-------------------------------------------------------------------------------}
+
+dbFreshSpec :: Spec
+dbFreshSpec = do
+    describe "bootDBLayer" $ do
+        it "Database schema version is up to date"
+            testSchemaVersionUpToDate
+
+testSchemaVersionUpToDate :: IO ()
+testSchemaVersionUpToDate =
+    withDBFreshInMemory ShelleyWallet nullTracer dummyTimeInterpreter testWid
+        $ \DBFresh{bootDBLayer} -> do
+            db <- unsafeRunExceptT
+                $ bootDBLayer
+                $ DBLayerParams testCpSeq testMetadata mempty gp
+            db & \DBLayer{..} -> do
+                version <- atomically getSchemaVersion
+                version `shouldBe` latestVersion
 
 {-------------------------------------------------------------------------------
                             Manual migrations tests
