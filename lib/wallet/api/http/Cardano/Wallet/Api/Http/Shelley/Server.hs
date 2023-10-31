@@ -3416,7 +3416,7 @@ balanceTransaction
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
-        let externalUTxO = Write.toCardanoUTxO
+        let externalUTxO = Write.toCardanoApiUTxO
                 $ Write.utxoFromTxOutsInRecentEra era
                 $ map fromExternalInput
                 $ body ^. #inputs
