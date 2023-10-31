@@ -101,6 +101,9 @@ import Cardano.Ledger.Api
     , outputsTxBodyL
     , ppMaxTxSizeL
     )
+import Cardano.Ledger.BaseTypes
+    ( StrictMaybe (..)
+    )
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
@@ -288,9 +291,6 @@ import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
-import Cardano.Ledger.BaseTypes
-    ( StrictMaybe (..)
-    )
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
