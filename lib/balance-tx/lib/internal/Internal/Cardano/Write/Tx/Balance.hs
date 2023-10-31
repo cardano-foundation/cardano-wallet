@@ -645,7 +645,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    let partialLedgerTx = fromCardanoTx partialTx
+    let partialLedgerTx = fromCardanoApiTx partialTx
     guardExistingCollateral partialLedgerTx
     guardExistingTotalCollateral partialLedgerTx
     guardExistingReturnCollateral partialLedgerTx
