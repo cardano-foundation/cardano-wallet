@@ -99,14 +99,12 @@ import GHC.Generics
     ( Generic
     )
 import Internal.Cardano.Write.Tx
-    ( IsRecentEra (recentEra)
-    , PParams
+    ( PParams
+    , RecentEra
     , RecentEraLedgerConstraints
     , ShelleyLedgerEra
     , StandardCrypto
     , UTxO
-    , fromCardanoApiTx
-    , shelleyBasedEra
     , txBody
     , withConstraints
     )
@@ -145,23 +143,21 @@ data ErrAssignRedeemers
     deriving (Generic, Eq, Show)
 
 assignScriptRedeemers
-    :: forall era. IsRecentEra era
-    => PParams (ShelleyLedgerEra era)
+    :: forall era. RecentEra era
+    -> PParams (ShelleyLedgerEra era)
     -> TimeTranslation
     -> UTxO (ShelleyLedgerEra era)
     -> [Redeemer]
-    -> CardanoApi.Tx era
-    -> Either ErrAssignRedeemers (CardanoApi.Tx era)
-assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
-    withConstraints (recentEra @era) $ do
-        let ledgerTx = fromCardanoApiTx tx
-        ledgerTx' <- flip execStateT ledgerTx $ do
+    -> Tx (ShelleyLedgerEra era)
+    -> Either ErrAssignRedeemers (Tx (ShelleyLedgerEra era))
+assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
+    withConstraints era $ do
+        flip execStateT tx $ do
             indexedRedeemers <- StateT assignNullRedeemers
             executionUnits <- get
                 >>= lift . evaluateExecutionUnits indexedRedeemers
             modifyM (assignExecutionUnits executionUnits)
             modify' addScriptIntegrityHash
-        pure $ CardanoApi.ShelleyTx shelleyBasedEra ledgerTx'
   where
     epochInformation :: EpochInfo (Either T.Text)
     epochInformation =
@@ -192,7 +188,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
       where
         parseRedeemer rd = do
             let mPtr = Alonzo.rdptr
-                    (txBody (recentEra @era) ledgerTx)
+                    (txBody era ledgerTx)
                     (toScriptPurpose rd)
             ptr <- case mPtr of
                 SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
