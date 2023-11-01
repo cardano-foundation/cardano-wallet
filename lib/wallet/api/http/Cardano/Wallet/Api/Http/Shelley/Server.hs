@@ -488,7 +488,6 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBFresh
     , DBLayer
-    , loadDBLayer
     )
 import Cardano.Wallet.Flavor
     ( CredFromOf
@@ -1799,9 +1798,9 @@ getWallet ctx mkApiWallet (ApiT wid) = do
         (, meta ^. #creationTime)
             <$> mkApiWallet ctx wid cp meta delegation pending progress
 
-    whenNotResponding _ = Handler $ ExceptT $ withDatabase dbfa wid
-        $ \df -> runHandler $ do
-            db <- liftHandler $ loadDBLayer df
+    whenNotResponding _ = Handler $ ExceptT
+        $ withDatabaseLoad dbfa wid
+        $ \db -> runHandler $ do
             let wrk = hoistResource db (MsgFromWorker wid) ctx
             (cp, (meta, delegation), pending)
                 <- handler $ W.readWallet wrk
