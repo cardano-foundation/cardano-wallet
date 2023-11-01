@@ -90,7 +90,7 @@ import Cardano.Wallet.DB.Fixtures
     ( logScale'
     )
 import Cardano.Wallet.DB.Layer
-    ( newDBFreshInMemory
+    ( newBootDBLayerInMemory
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus
@@ -1365,10 +1365,15 @@ setupFixture
     => WalletFlavorS s
     -> (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
-setupFixture wF wd@(wid,  _wname, _wstate) = do
-    (_kill, dbf) <-
-        liftIO $ newDBFreshInMemory wF nullTracer dummyTimeInterpreter wid
-    db <- liftIO $ unsafeRunExceptT $ createFixtureWallet dbf wd
+setupFixture wF (wid,wname,wstate) = do
+    params <- liftIO
+        $ W.createWallet (block0, dummyNetworkParameters) wid wname wstate
+    (_kill, db) <- liftIO
+        $ newBootDBLayerInMemory wF
+            nullTracer
+            dummyTimeInterpreter
+            wid
+            params
     let db' = hoistDBLayer liftIO db
         wl =
             WalletLayer
@@ -1378,7 +1383,7 @@ setupFixture wF wd@(wid,  _wname, _wstate) = do
                 dummyTransactionLayer
                 db'
         wal = walletId_ db
-    pure $ WalletLayerFixture (hoistDBFresh liftIO dbf) db' wl wal
+    pure $ WalletLayerFixture (error "DBFresh no longer in use") db' wl wal
 
 slotNoTime :: SlotNo -> UTCTime
 slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
