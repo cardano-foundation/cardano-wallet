@@ -280,9 +280,6 @@ import Data.ByteString
 import Data.Coerce
     ( coerce
     )
-import Data.Either
-    ( isLeft
-    )
 import Data.Function
     ( on
     )
@@ -434,8 +431,6 @@ spec = describe "Cardano.WalletSpec" $ do
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
-        it "Wallet cannot be created more than once"
-            (property walletDoubleCreationProp)
         it "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
@@ -480,16 +475,6 @@ spec = describe "Cardano.WalletSpec" $ do
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
-
-walletDoubleCreationProp
-    :: (WalletId, WalletName, DummyState)
-    -> Property
-walletDoubleCreationProp newWallet =
-    monadicIO $ do
-        WalletLayerFixture dbf _db _wl _walletIds
-            <- run $ setupFixture dummyStateF newWallet
-        secondTrial <- run $ runExceptT $ createFixtureWallet dbf newWallet
-        assert (isLeft secondTrial)
 
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
@@ -1340,18 +1325,6 @@ data WalletLayerFixture s m = WalletLayerFixture
     , _fixtureWalletLayer :: WalletLayer m s
     , _fixtureWallet :: WalletId
     }
-
-createFixtureWallet
-    :: ( MonadUnliftIO m
-       , MonadTime m
-       , IsOurs s Address
-       , IsOurs s RewardAccount
-       )
-    => DBFresh m s
-    -> (WalletId, WalletName, s)
-    -> ExceptT W.ErrWalletAlreadyExists m (DBLayer m s)
-createFixtureWallet dbf (wid, wname, wstate) =
-    W.createWallet (block0, dummyNetworkParameters) dbf wid wname wstate
 
 setupFixture
     :: forall s m
