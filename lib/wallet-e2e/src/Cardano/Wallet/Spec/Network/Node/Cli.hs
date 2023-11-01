@@ -94,4 +94,3 @@ checkSocket nodeApi = do
     case exitCode of
         ExitSuccess -> pure True
         ExitFailure _code -> pure False
-

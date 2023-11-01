@@ -38,4 +38,3 @@ spec = describe "Cardano.Wallet.Network.Ports" $ do
 
   where
     localhost = simpleSockAddr (127,0,0,1)
-
