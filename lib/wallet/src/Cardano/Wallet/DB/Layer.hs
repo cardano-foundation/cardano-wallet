@@ -4,10 +4,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -22,18 +24,15 @@ module Cardano.Wallet.DB.Layer
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Open a database
-    , withDBOpenFromFile
-    , newDBOpenInMemory
-    , retrieveWalletId
-    , WalletDBLog (..)
-    , DefaultFieldValues (..)
-
-    -- * Database for a specific 'WalletId'
+    -- * Open a database for a specific 'WalletId'
     , withDBFresh
     , withDBFreshInMemory
     , newDBFreshInMemory
-    , withDBFreshFromDBOpen
+
+    -- * Open a database for testing
+    , withLoadDBLayerFromFile
+    , WalletDBLog (..)
+    , DefaultFieldValues (..)
 
     -- * Interfaces
     , PersistAddressBook (..)
@@ -51,9 +50,9 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
+    , ManualMigration (..)
     , SqliteContext (..)
     , newInMemorySqliteContext
-    , noManualMigration
     , withSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
@@ -87,12 +86,19 @@ import Cardano.Wallet.DB
     , mkDBLayerFromParts
     , transactionsStore
     )
+import Cardano.Wallet.DB.Migration
+    ( Version (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations
+    ( latestVersion
+    , runNewStyleMigrations
     )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
+    , SchemaVersion (..)
+    , createSchemaVersionTableIfMissing
     , migrateManually
+    , putSchemaVersion
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
@@ -156,6 +162,7 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS
+    , WalletFlavor (..)
     , WalletFlavorS
     , keyOfWallet
     )
@@ -163,11 +170,17 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , hoistTimeInterpreter
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT
     )
 import Control.DeepSeq
     ( force
@@ -278,6 +291,7 @@ import qualified Data.Delta.Update as Delta
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Database.Persist.Sqlite as Sqlite
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -430,6 +444,23 @@ instance ToText DBFactoryLog where
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
+    Database Schema Version
+-------------------------------------------------------------------------------}
+getSchemaVersion' :: SqlPersistT IO Version
+getSchemaVersion' = do
+    [Sqlite.Single (Sqlite.PersistInt64 version)]
+        <- Sqlite.rawSql
+            "SELECT version FROM database_schema_version" []
+    pure $ Version (fromIntegral version)
+
+createSchemaVersionTableIfMissing' :: ManualMigration
+createSchemaVersionTableIfMissing' =
+    ManualMigration $ \conn -> do
+        _ <- createSchemaVersionTableIfMissing conn
+        let Version latest = latestVersion
+        putSchemaVersion conn (SchemaVersion latest)
+
+{-------------------------------------------------------------------------------
     DBOpen
 -------------------------------------------------------------------------------}
 -- | Open an SQLite database file and run an action on it.
@@ -453,7 +484,7 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
     let manualMigrations =
             maybe
-                noManualMigration
+                createSchemaVersionTableIfMissing'
                 (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
@@ -475,7 +506,11 @@ newDBOpenInMemory
 newDBOpenInMemory tr = do
     let tr' = contramap MsgDB tr
     (destroy, sqliteContext) <-
-        newInMemorySqliteContext tr' noManualMigration migrateAll ForeignKeysEnabled
+        newInMemorySqliteContext
+            tr'
+            createSchemaVersionTableIfMissing'
+            migrateAll
+            ForeignKeysEnabled
     pure (destroy, DBOpen { atomically = runQuery sqliteContext})
 
 -- | Retrieve the wallet id from the database if it's initialized.
@@ -602,6 +637,7 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
     dbLayerCollection walletState = DBLayerCollection{..}
       where
         transactionsStore_ = transactionsQS
+        getSchemaVersion_ = getSchemaVersion'
 
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)
@@ -735,6 +771,51 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTxFromLookupTxOut lookupTxOut
   where
     lookupTxOut = queryS transactionsQS . GetTxOut
+
+{-------------------------------------------------------------------------------
+    DBLayer
+-------------------------------------------------------------------------------}
+-- | For the purpose of testing,
+-- open a given @.sqlite@ file, load it into a `DBLayer`
+-- (possibly triggering migrations), and run an action on it.
+--
+-- Useful for testing the logs and results of migrations.
+withLoadDBLayerFromFile
+    :: forall s a.
+        ( PersistAddressBook s
+        , WalletFlavor s
+        )
+    => Tracer IO WalletDBLog
+        -- ^ Tracer for logging
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> FilePath
+        -- ^ Filename of the @.sqlite@ file to load.
+    -> (DBLayer IO s -> IO a)
+        -- ^ Action to run.
+    -> IO a
+        -- ^ Result of the action.
+withLoadDBLayerFromFile tr ti path action =
+    withDBOpenFromFile (walletFlavor @s) tr (Just testDefaultFieldValues) path
+    $ \db -> do
+        mwid <- retrieveWalletId db
+        case mwid of
+            Nothing -> fail "No wallet id found in database"
+            Just wid -> do
+                let action' DBFresh{loadDBLayer} = do
+                        unsafeRunExceptT loadDBLayer >>= action
+                withDBFreshFromDBOpen (walletFlavor @s) ti wid action' db
+
+-- | Default field values used when testing,
+-- in the context of 'withLoadDBLayerFromFile'.
+testDefaultFieldValues :: DefaultFieldValues
+testDefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = W.ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 0
+    , defaultMinimumUTxOValue = Coin 1_000_000
+    , defaultHardforkEpoch = Nothing
+    , defaultKeyDeposit = Coin 2_000_000
+    }
 
 {-------------------------------------------------------------------------------
     Conversion between types

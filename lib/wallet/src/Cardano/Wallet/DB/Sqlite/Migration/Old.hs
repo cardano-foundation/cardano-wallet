@@ -18,11 +18,13 @@
 module Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     , migrateManually
+
     , SchemaVersion (..)
-    , currentSchemaVersion
     , InvalidDatabaseSchemaVersion (..)
+    , createSchemaVersionTableIfMissing
     , putSchemaVersion
     , getSchemaVersion
+
     , isFieldPresent
     , isFieldPresentByName
     , onFieldPresent
@@ -215,20 +217,6 @@ migrateManually tr key defaultFieldValues =
                         }
                     LT -> putSchemaVersion conn currentSchemaVersion
                     EQ -> pure ()
-
-    createSchemaVersionTableIfMissing ::
-        Sqlite.Connection -> IO TableCreationResult
-    createSchemaVersionTableIfMissing conn = do
-        res <- runSql conn
-            "SELECT name FROM sqlite_master \
-            \WHERE type='table' AND name='database_schema_version'"
-        case res of
-           [] -> TableCreated <$ runSql conn
-            "CREATE TABLE database_schema_version\
-            \( name TEXT PRIMARY KEY \
-            \, version INTEGER NOT NULL \
-            \)"
-           _ -> pure TableExisted
 
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
@@ -924,6 +912,46 @@ migrateManually tr key defaultFieldValues =
             ColumnMissing -> pure ()
             ColumnPresent -> pure ()
 
+{-----------------------------------------------------------------------------
+    Operations on table 'database_schema_version'
+------------------------------------------------------------------------------}
+
+createSchemaVersionTableIfMissing ::
+    Sqlite.Connection -> IO TableCreationResult
+createSchemaVersionTableIfMissing conn = do
+    res <- runSql conn
+        "SELECT name FROM sqlite_master \
+        \WHERE type='table' AND name='database_schema_version'"
+    case res of
+        [] -> TableCreated <$ runSql conn
+            "CREATE TABLE database_schema_version\
+            \( name TEXT PRIMARY KEY \
+            \, version INTEGER NOT NULL \
+            \)"
+        _ -> pure TableExisted
+
+putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
+putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
+    [ "INSERT INTO database_schema_version (name, version)"
+    , "VALUES ('schema',"
+    , version
+    , ") ON CONFLICT (name) DO UPDATE SET version ="
+    , version
+    ]
+    where
+    version = T.pack $ show schemaVersion
+
+getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
+getSchemaVersion conn =
+    runSql conn "SELECT version FROM database_schema_version" >>= \case
+        [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
+            $ fromIntegral int
+        _ -> throwString "Database metadata table is corrupt"
+
+{-----------------------------------------------------------------------------
+    SQL helpers
+------------------------------------------------------------------------------}
+
 quotes :: Text -> Text
 quotes x = "\"" <> x <> "\""
 
@@ -944,24 +972,6 @@ runSql conn raw = do
                 collect query (result : acc)
             Sqlite.Done -> do
                 return (reverse acc)
-
-putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
-putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
-    [ "INSERT INTO database_schema_version (name, version)"
-    , "VALUES ('schema',"
-    , version
-    , ") ON CONFLICT (name) DO UPDATE SET version ="
-    , version
-    ]
-    where
-    version = T.pack $ show schemaVersion
-
-getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
-getSchemaVersion conn =
-    runSql conn "SELECT version FROM database_schema_version" >>= \case
-        [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
-            $ fromIntegral int
-        _ -> throwString "Database metadata table is corrupt"
 
 onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
 onFieldPresent conn field action = do

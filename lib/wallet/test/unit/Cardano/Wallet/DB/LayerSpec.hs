@@ -119,14 +119,15 @@ import Cardano.Wallet.DB.Layer
     , WalletDBLog (..)
     , newDBFactory
     , newDBFreshInMemory
-    , retrieveWalletId
     , withDBFresh
-    , withDBFreshFromDBOpen
     , withDBFreshInMemory
-    , withDBOpenFromFile
+    , withLoadDBLayerFromFile
     )
 import Cardano.Wallet.DB.Properties
     ( properties
+    )
+import Cardano.Wallet.DB.Sqlite.Migration.New
+    ( latestVersion
     )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints
@@ -245,6 +246,9 @@ import Data.ByteString
     )
 import Data.Coerce
     ( coerce
+    )
+import Data.Function
+    ( (&)
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -415,6 +419,7 @@ spec =
             propertiesSpecSeq
             loggingSpec
             fileModeSpec
+            dbFreshSpec
             manualMigrationsSpec
 
 stateMachineSpec
@@ -1135,6 +1140,27 @@ cutRandomly = iter []
             iter (chunk:acc) (L.drop chunksNum rest)
 
 {-------------------------------------------------------------------------------
+    DBFresh tests
+-------------------------------------------------------------------------------}
+
+dbFreshSpec :: Spec
+dbFreshSpec = do
+    describe "bootDBLayer" $ do
+        it "Database schema version is up to date"
+            testSchemaVersionUpToDate
+
+testSchemaVersionUpToDate :: IO ()
+testSchemaVersionUpToDate =
+    withDBFreshInMemory ShelleyWallet nullTracer dummyTimeInterpreter testWid
+        $ \DBFresh{bootDBLayer} -> do
+            db <- unsafeRunExceptT
+                $ bootDBLayer
+                $ DBLayerParams testCpSeq testMetadata mempty gp
+            db & \DBLayer{..} -> do
+                version <- atomically getSchemaVersion
+                version `shouldBe` latestVersion
+
+{-------------------------------------------------------------------------------
                             Manual migrations tests
 -------------------------------------------------------------------------------}
 
@@ -1311,18 +1337,9 @@ withDBLayerFromCopiedFile
         -- ^ Action to run.
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
-withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
-    $ \path tr -> withDBOpenFromFile (walletFlavor @s) tr
-        (Just defaultFieldValues) path
-    $ \db -> do
-        mwid <- retrieveWalletId db
-        case mwid of
-            Nothing -> fail "No wallet id found in database"
-            Just wid -> do
-                let action' DBFresh{loadDBLayer} = do
-                        unsafeRunExceptT loadDBLayer >>= action
-                withDBFreshFromDBOpen (walletFlavor @s)
-                    dummyTimeInterpreter wid action' db
+withDBLayerFromCopiedFile dbName action =
+    withinCopiedFile dbName $ \path tr ->
+        withLoadDBLayerFromFile tr dummyTimeInterpreter path action
 
 withinCopiedFile
     :: FilePath

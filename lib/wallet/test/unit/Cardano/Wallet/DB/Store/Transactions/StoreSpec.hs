@@ -21,9 +21,6 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
-import Cardano.Wallet.DB
-    ( DBOpen (..)
-    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -31,12 +28,9 @@ import Cardano.Wallet.DB.Fixtures
     , assertWith
     , logScale
     , queryLaw
+    , withDBFromFile
     , withDBInMemory
     , withStoreProp
-    )
-import Cardano.Wallet.DB.Layer
-    ( DefaultFieldValues (..)
-    , withDBOpenFromFile
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId)
@@ -63,16 +57,6 @@ import Cardano.Wallet.DB.Store.Transactions.Store
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTxCBOR
     )
-import Cardano.Wallet.Flavor
-    ( Flavored (..)
-    , WalletFlavorS (..)
-    )
-import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     )
@@ -83,9 +67,6 @@ import Control.Monad
     ( forM_
     , (<=<)
     , (>=>)
-    )
-import Control.Tracer
-    ( nullTracer
     )
 import Data.Delta
     ( Delta (..)
@@ -176,32 +157,19 @@ spec = do
 
     describe "Transaction CBOR roundtrip" $ do
         it "works on a golden files" $ forM_
-            [ Flavored SharedWallet
-                "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
-            , Flavored ShelleyWallet
-                "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
-            , Flavored ByronWallet
-                "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
-            ] $ \(Flavored wF relPath) ->
-            withinCopiedFile relPath
-                $ \path -> withDBOpenFromFile wF nullTracer
-                    (Just defaultFieldValues) path
-                $ \DBOpen{atomically} -> do
+            [ "api-bench/sha.a1d5337305630db051fac6da5f8038abf4067068.sqlite"
+            , "api-bench/she.1ceb45b37a94c7022837b5ca14045f11a5927c65.sqlite"
+            , "api-bench/rnd.423b423718660431ebfe9c761cd72e64ee5065ac.sqlite"
+            ]
+                $ \relPath -> withinCopiedFile relPath
+                $ \path -> withDBFromFile path
+                $ \db -> do
                     Right (TxSet txSet) <-
-                        atomically $ loadS mkStoreTransactions
+                        runQuery db $ loadS mkStoreTransactions
                     let cbors =
                             mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
                         Right cbors' = mapM roundTripTxCBor cbors
                     cbors `shouldBe` cbors'
-
-defaultFieldValues :: DefaultFieldValues
-defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
-    , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 1_000_000
-    , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 2_000_000
-    }
 
 withinCopiedFile
     :: FilePath

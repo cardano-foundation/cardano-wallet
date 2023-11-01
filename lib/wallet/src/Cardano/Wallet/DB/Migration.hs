@@ -18,15 +18,16 @@
 module Cardano.Wallet.DB.Migration
     ( -- * Build migrations
       Migration
-    , mkMigration
     , VersionT
+    , mkMigration
+    , hoistMigration
 
       -- * Run migrations
     , Version (..)
+    , getTargetVersion
     , MigrationInterface (..)
     , runMigrations
     , ErrWrongVersion (..)
-    , hoistMigration
     ) where
 
 import Prelude hiding
@@ -97,6 +98,14 @@ mkMigration m = Migration [m]
 instance Category (Migration m) where
     id = Migration []
     Migration s2 . Migration s1 = Migration (s1 <> s2)
+
+-- | Target version of a 'Migration', on the value level.
+getTargetVersion
+    :: forall m vmin vtarget
+     . KnownNat vtarget
+    => Migration m vmin vtarget
+    -> Version
+getTargetVersion _ = Version $ natVal (Proxy :: Proxy vtarget)
 
 -- | Functions to interact with the database.
 data MigrationInterface m handle = MigrationInterface

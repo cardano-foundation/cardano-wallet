@@ -1,7 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 
 module Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations, newMigrationInterface
+    ( -- * Specific migrations
+      newStyleMigrations
+    , latestVersion
+    , runNewStyleMigrations
+
+    -- * Operating on database
+    , newMigrationInterface
     ) where
 
 import Prelude hiding
@@ -19,6 +25,7 @@ import Cardano.Wallet.DB.Migration
     ( Migration
     , MigrationInterface (..)
     , Version (..)
+    , getTargetVersion
     , hoistMigration
     , runMigrations
     )
@@ -30,8 +37,7 @@ import Cardano.Wallet.DB.Store.Delegations.Migration
     ( migrateDelegations
     )
 import Control.Category
-    ( Category (id)
-    , (.)
+    ( (.)
     )
 import Control.Monad.Reader
     ( withReaderT
@@ -50,6 +56,30 @@ import System.Directory
     )
 
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
+
+{-----------------------------------------------------------------------------
+    Specific migrations
+------------------------------------------------------------------------------}
+
+newStyleMigrations :: Migration (ReadDBHandle IO) 2 3
+newStyleMigrations =
+    migrateDelegations
+
+latestVersion :: Version
+latestVersion = getTargetVersion newStyleMigrations
+
+runNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
+runNewStyleMigrations tr fp =
+    runMigrations (newMigrationInterface tr) fp newStyleMigrations
+
+_useSqlBackend
+    :: Migration (SqlPersistT m) from to
+    -> Migration (ReadDBHandle m) from to
+_useSqlBackend = hoistMigration $ withReaderT dbBackend
+
+{-----------------------------------------------------------------------------
+    Migration Interface
+------------------------------------------------------------------------------}
 
 newMigrationInterface
     :: Tracer IO DBLog
@@ -75,16 +105,3 @@ getVersionNew = fmap oldToNewSchemaVersion . getSchemaVersion
 
 setVersionNew :: Connection -> Version -> IO ()
 setVersionNew conn = putSchemaVersion conn . newToOldSchemaVersion
-
-noMigrations :: Migration m 2 2
-noMigrations = id
-
-_useSqlBackend
-    :: Migration (SqlPersistT m) from to
-    -> Migration (ReadDBHandle m) from to
-_useSqlBackend = hoistMigration $ withReaderT dbBackend
-
-runNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
-runNewStyleMigrations tr fp =
-    runMigrations (newMigrationInterface tr) fp
-        $ migrateDelegations . noMigrations
