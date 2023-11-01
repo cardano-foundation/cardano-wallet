@@ -190,7 +190,6 @@ import Cardano.Wallet
     , HasNetworkLayer
     , Percentile (..)
     , TxSubmitLog
-    , WalletException (..)
     , WalletWorkerLog (..)
     , dbLayer
     , dummyChangeAddressGen
@@ -671,7 +670,6 @@ import Control.Monad
     , join
     , void
     , when
-    , (>=>)
     )
 import Control.Monad.Error.Class
     ( throwError
@@ -862,7 +860,6 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException
     , bracket
-    , throwIO
     , tryAnyDeep
     , tryJust
     )
@@ -4987,18 +4984,15 @@ startWalletWorker
         -- ^ Action to run concurrently with restore
     -> WalletId
     -> IO ()
-startWalletWorker ctx coworker = void . registerWorker ctx before coworker
+startWalletWorker ctx coworker wid =
+    void $ registerWorker ctx acquire coworker wid
   where
-    before dbf wid = do
-        edb <- runExceptT $ loadDBLayer dbf
-        case edb of
-            Left _ ->
-                throwIO
-                    $ ExceptionNoSuchWallet
-                    $ ErrNoSuchWallet wid
-            Right db -> do
-                W.checkWalletIntegrity db gp
-                pure db
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action =
+        withDatabaseLoad (ctx ^. dbFactory) wid
+            $ \dblayer -> do
+                W.checkWalletIntegrity dblayer gp
+                action dblayer
     (_, NetworkParameters gp _ _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
@@ -5025,11 +5019,16 @@ createWalletWorker ctx wid createWallet coworker =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (registerWorker ctx before coworker wid) >>= \case
+            liftIO (registerWorker ctx acquire coworker wid) >>= \case
                 Nothing -> throwE ErrCreateWalletFailedToCreateWorker
                 Just _ -> pure wid
   where
-    before ctx' _ = unsafeRunExceptT $ createWallet ctx'
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action =
+        withDatabase (ctx ^. dbFactory) wid
+            $ \dbfresh -> do
+                dblayer <- unsafeRunExceptT $ createWallet dbfresh
+                action dblayer
     re = ctx ^. workerRegistry @s
 
 createNonRestoringWalletWorker
@@ -5050,11 +5049,16 @@ createNonRestoringWalletWorker ctx wid createWallet =
                 Nothing -> throwE ErrCreateWalletFailedToCreateWorker
                 Just _ -> pure wid
   where
-    before ctx' = unsafeRunExceptT $ createWallet ctx'
     re = ctx ^. workerRegistry @s
-    df = ctx ^. dbFactory
+
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action =
+        withDatabase (ctx ^. dbFactory) wid
+            $ \dbfresh -> do
+                dblayer <- unsafeRunExceptT $ createWallet dbfresh
+                action dblayer
     config = MkWorker
-        { workerAcquire = \k -> withDatabase df wid $ before >=> k
+        { workerAcquire = acquire
         , workerBefore = \_ _ -> pure ()
         , workerAfter = defaultWorkerAfter
         , workerMain = idleWorker
@@ -5073,19 +5077,18 @@ registerWorker
         , MaybeLight s
         )
     => ctx
-    -> (DBFresh IO s -> WalletId -> IO (DBLayer IO s))
-        -- ^ First action to run after starting the worker thread.
+    -> (forall a. (DBLayer IO s -> IO a) -> IO a)
+        -- ^ Method to acquire a 'DBLayer'.
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore.
     -> WalletId
     -> IO (Maybe ctx)
-registerWorker ctx before coworker wid =
+registerWorker ctx acquire coworker wid =
     fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
   where
     re = ctx ^. workerRegistry @s
-    dbfa = ctx ^. dbFactory
     config = MkWorker
-        { workerAcquire = \k -> withDatabase dbfa wid $ \df -> before df wid >>= k
+        { workerAcquire = acquire
         , workerBefore = \_ _ -> pure ()
         , workerAfter = defaultWorkerAfter
         -- fixme: ADP-641 Review error handling here
