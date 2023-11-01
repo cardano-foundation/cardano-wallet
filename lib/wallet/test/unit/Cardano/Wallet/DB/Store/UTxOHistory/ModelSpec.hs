@@ -204,7 +204,6 @@ prop_rollback_reset_history =
                         then history' === empty mempty
                         else property True
 
-
 slotIsAfterFinality :: SlotNo -> Pruned -> Bool
 slotIsAfterFinality _slot NotPruned = True
 slotIsAfterFinality slot (PrunedUpTo slot') = slot > slot'

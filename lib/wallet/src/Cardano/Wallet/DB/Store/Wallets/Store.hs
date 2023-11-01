@@ -47,7 +47,6 @@ import Database.Persist.Sql
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 
-
 mkStoreTxWalletsHistory
     :: Store (SqlPersistT IO) q DeltaTxSet
     -> Store (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory

@@ -289,7 +289,6 @@ legacySlottingTest legacyImpl newImpl t0 sp slotNo = withMaxSuccess 10000 $ do
             (unSlotNo slotNo)
     res === legacy
 
-
 {-------------------------------------------------------------------------------
                               Arbitrary instances
 -------------------------------------------------------------------------------}

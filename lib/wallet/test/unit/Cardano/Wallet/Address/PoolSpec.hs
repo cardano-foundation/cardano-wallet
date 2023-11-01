@@ -87,7 +87,6 @@ spec = do
         it "nextIndex always points to an unused address"
             prop_next_is_unused
 
-
     describe "Address discovery" $ do
         it "discover by query = discover in sequence" $
             prop_discover (AddressPool.new (*2) (6::Int))

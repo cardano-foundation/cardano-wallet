@@ -230,7 +230,6 @@ encryptPasswordWithScrypt
     -> IO PassphraseHash
 encryptPasswordWithScrypt = encryptPassphrase' EncryptWithScrypt
 
-
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
     shrink = shrinkUserPassphrase

@@ -1022,7 +1022,6 @@ createIcarusWallet
             $ bootDBLayer
             $ DBLayerParams cp meta hist gp
 
-
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s -> GenesisParameters -> IO ()
 checkWalletIntegrity db gp = db & \DBLayer{..} -> do
@@ -1541,7 +1540,6 @@ putWalletCheckpoints DBLayer{..} = atomically . mapM_ putCheckpoint
                     , WalletState.ReplacePrologue prologue
                 ]
 
-
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-shared
 -- or a non-shared wallet state.
@@ -1612,7 +1610,6 @@ manageRewardBalance tr' netLayer db = do
     traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'
-
 
 handleRewardAccountQuery
     :: Monad m
@@ -3482,7 +3479,6 @@ data ErrInvalidDerivationIndex derivation level
     = ErrIndexOutOfBound (Index derivation level) (Index derivation level) DerivationIndex
     deriving (Eq, Show)
 
-
 -- | Errors that can occur when signing a transaction.
 data ErrSignPayment
     = ErrSignPaymentMkTx ErrMkTransaction
@@ -3718,7 +3714,6 @@ data WalletFollowLog
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
     | MsgStoringCBOR TxCBOR
     deriving (Show, Eq)
-
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog

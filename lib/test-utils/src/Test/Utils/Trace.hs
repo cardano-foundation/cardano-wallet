@@ -20,7 +20,6 @@ module Test.Utils.Trace
 
 import Prelude
 
-
 import Cardano.BM.Trace
     ( traceInTVarIO
     )

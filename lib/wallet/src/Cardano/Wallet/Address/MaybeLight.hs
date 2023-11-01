@@ -87,7 +87,6 @@ instance MaybeLight (RndState n) where
 instance MaybeLight (RndAnyState n p) where
     maybeDiscover = Nothing
 
-
 instance MaybeLight (SeqAnyState n k p) where
     maybeDiscover = Nothing
 

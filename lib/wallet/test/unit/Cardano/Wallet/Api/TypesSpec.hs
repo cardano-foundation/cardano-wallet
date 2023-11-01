@@ -1149,7 +1149,6 @@ instance FromJSON SchemaApiErrorInfo where
         toSchemaName [] = []
         toSchemaName xs = "x-err" <> xs
 
-
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}

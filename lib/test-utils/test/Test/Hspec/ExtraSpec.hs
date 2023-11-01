@@ -125,7 +125,6 @@ import UnliftIO.MVar
 
 import qualified Test.Hspec.Extra as Extra
 
-
 spec :: Spec
 spec = do
     itSpec

@@ -470,7 +470,6 @@ spec = describe "Cardano.WalletSpec" $ do
         it "LocalTxSubmission updates are limited in frequency"
             (property prop_throttle)
 
-
     describe "Migration" $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
             it "Target addresses are cycled correctly." $
@@ -481,7 +480,6 @@ spec = describe "Cardano.WalletSpec" $ do
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
-
 
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -628,7 +626,6 @@ walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
                 | (tx, meta) <- history ]
         times `shouldBe` expTimes
 
-
 genLimit :: (Random a, Integral a) => a -> Gen a
 genLimit n =
     frequency
@@ -708,8 +705,6 @@ instance IsOurs DummyStateWithAddresses Address where
 instance IsOurs DummyStateWithAddresses RewardAccount where
     isOurs _ s = (Nothing, s)
 
-
-
 instance Sqlite.AddressBookIso DummyStateWithAddresses where
     data Prologue DummyStateWithAddresses = DummyWithAddressPrologue
     data Discoveries DummyStateWithAddresses
@@ -729,7 +724,6 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
     insertDiscoveries _ _ _ = pure ()
     loadPrologue _ = error "DummyStateWithAddresses.loadPrologue: not implemented"
     loadDiscoveries _ _ = error "DummyStateWithAddresses.loadDiscoveries: not implemented"
-
 
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
@@ -829,7 +823,6 @@ prop_calculateFeePercentiles (NonEmpty coins) =
     closeTo a b =
         counterexample (show a <> " & " <> show b <> " are not close enough") $
         property $ abs (a - b) < (1/5)
-
 
 {-------------------------------------------------------------------------------
                                LocalTxSubmission

@@ -503,7 +503,6 @@ cardanoRestoreBench tr c socketFile = do
     mkSeqAnyState' _ _ credentials =
         mkSeqAnyState @p @n ShelleyKeyS credentials purposeCIP1852
 
-
     mkRndAnyState'
         :: forall (p :: Nat) n. ()
         => Proxy p

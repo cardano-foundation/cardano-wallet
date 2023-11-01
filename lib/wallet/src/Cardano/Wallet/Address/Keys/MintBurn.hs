@@ -125,7 +125,6 @@ replaceCosigner kf cosignerMap = \case
         Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
         Nothing -> error "Impossible: cosigner without xpub."
 
-
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.
 derivePolicyKeyAndHash

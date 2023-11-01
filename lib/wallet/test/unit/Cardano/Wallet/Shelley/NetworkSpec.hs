@@ -288,7 +288,6 @@ observerSpec = sequential $ describe "Observer" $ do
             $ Set.toList keys
         fetch False _ = pure Nothing
 
-
     -- Assert equiality in monadic properties with nice counterexamples
     --
     -- E.g.

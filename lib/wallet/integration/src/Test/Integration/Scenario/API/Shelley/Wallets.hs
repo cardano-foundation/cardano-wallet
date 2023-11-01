@@ -551,7 +551,6 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- postWallet' ctx headers payload
             verify r expectations
 
-
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
@@ -1300,7 +1299,6 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-
 
         let payload = [json|
               { "passphrase": #{fixturePassphrase}

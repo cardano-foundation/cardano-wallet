@@ -324,7 +324,6 @@ pair (Embedding inject1 project1) (Embedding inject2 project2) =
         (a2, m2) <- project2 b2
         pure ((a1,a2), pairMachine m1 m2)
 
-
 -- | Lift a sequence of updates through an 'Embedding'.
 liftUpdates
     :: Delta da

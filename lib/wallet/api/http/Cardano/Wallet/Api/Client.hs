@@ -274,7 +274,6 @@ data StakePoolClient = StakePoolClient
         -> ClientM (ApiTransactionT Aeson.Value)
     }
 
-
 data NetworkClient = NetworkClient
     { networkInformation
         :: ClientM ApiNetworkInformation

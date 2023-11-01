@@ -347,9 +347,6 @@ fromTxCollateralOut (out,tokens) =
         , txCollateralOutTokenQuantity token
         )
 
-
-
-
 type TxCBORRaw = (BL.ByteString, Int)
 
 i :: Iso' (BL.ByteString, Int) (ByteString, Word16)

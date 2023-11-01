@@ -370,7 +370,6 @@ setPortfolioOf ds minUTxOVal mkAddress isReg n =
         else [RegisterKey (acct ix),  Delegate (acct ix)]
         )
 
-
     dereg :: [Index 'Soft 'CredFromKeyK] -> [Cert]
     dereg ixs =
         [ DeRegisterKey (acct ix)

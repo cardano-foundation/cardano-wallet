@@ -648,7 +648,6 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- $ cat recovery-phrase.txt
     --- east student silly already breeze enact seat trade few way online skin grass humble electric
 
-
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \
     --- > | cardano-address key public --without-chain-code
@@ -668,7 +667,6 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u" :: Text
         toJSON (getResponse r) `shouldBe` object ["address" .= goldenAddr ]
-
 
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
     --- > | cardano-address key child 1852H/1815H/0H/0/0 \

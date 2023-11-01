@@ -67,4 +67,3 @@ getExtraSigs
 getExtraSigs es =
     toList es <&> \(KeyHash (UnsafeHash h)) -> W.Hash $ fromShort h
 
-

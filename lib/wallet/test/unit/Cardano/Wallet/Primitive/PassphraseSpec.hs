@@ -154,7 +154,6 @@ pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do
         checkPassphrase EncryptWithPBKDF2 (passphrase g) (hash g)
             `shouldBe` Right ()
 
-
   where
     -- Generated with 'genSalt'
     salt :: Passphrase "salt"

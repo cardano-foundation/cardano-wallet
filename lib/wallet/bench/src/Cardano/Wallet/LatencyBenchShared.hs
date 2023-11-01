@@ -145,7 +145,6 @@ extractTimings isStart isFinish msgs = map2 mkDiff filtered
         _ -> Nothing
     getTimestamp = tstamp . loMeta
 
-
 type LogCaptureFunc msg b = IO b -> IO ([LogObject msg], b)
 
 withLatencyLogging

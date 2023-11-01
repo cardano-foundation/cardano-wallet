@@ -289,7 +289,6 @@ type LatestLedgerEra = StandardConway
 -- RecentEra
 --------------------------------------------------------------------------------
 
-
 -- | 'RecentEra' respresents the eras we care about constructing transactions
 -- for.
 --

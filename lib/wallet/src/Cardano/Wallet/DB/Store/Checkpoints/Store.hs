@@ -286,7 +286,6 @@ selectAllCheckpoints wid = do
         [] -> Left ErrBadFormatCheckpoints
         _  -> Right cps
 
-
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO ([UTxO], [UTxOToken])

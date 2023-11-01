@@ -479,8 +479,6 @@ decoratePath st r ix = NE.fromList
         { derivationPrefix = DerivationPrefix (purpose, coinType, accountIx)
         } = st
 
-
-
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
 -- BIP-44 account discovery algorithm is only specified for the external

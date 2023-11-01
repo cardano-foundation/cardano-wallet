@@ -133,7 +133,6 @@ import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
-
 spec :: Spec
 spec = do
     describe "isShared for Catalyst" $ do

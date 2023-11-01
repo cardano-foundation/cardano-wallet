@@ -230,8 +230,6 @@ migrateManually tr key defaultFieldValues =
             \)"
            _ -> pure TableExisted
 
-
-
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
     -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state

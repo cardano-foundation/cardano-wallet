@@ -250,7 +250,6 @@ accountXPubCondition
 accountXPubCondition kF accXPub (ScriptTemplate cosignerKeys _) =
     getRawKey kF accXPub `F.elem` cosignerKeys
 
-
 validateScriptTemplates
     :: KeyFlavorS k
     -> k 'AccountK XPub

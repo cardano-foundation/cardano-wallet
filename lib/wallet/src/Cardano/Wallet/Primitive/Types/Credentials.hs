@@ -10,7 +10,6 @@ module Cardano.Wallet.Primitive.Types.Credentials
 
 import Prelude
 
-
 import Cardano.Address.Derivation
     ( XPrv
     )

@@ -62,7 +62,6 @@ import Cardano.Pool.Types
 import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
 
-
 spec :: Spec
 spec = do
     describe "Relegation warning" $ do

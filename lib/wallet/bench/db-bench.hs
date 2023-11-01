@@ -374,7 +374,6 @@ bgroupWriteUTxO tr = bgroup "UTxO (Write)"
       where lbl | a == 0    = n|+" CP (ada-only) x "+|s|+" UTxO"
                 | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
-
 bgroupReadUTxO :: Tracer IO WalletDBLog -> Benchmark
 bgroupReadUTxO tr = bgroup "UTxO (Read)"
     --      #Checkpoints   UTxO Size   #NAssets
@@ -579,7 +578,6 @@ bgroupWriteTxHistory tr = bgroup "TxHistory (Write)"
         lbl = n|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
         inf = head r
         sup = last r
-
 
 bgroupReadTxHistory :: Tracer IO WalletDBLog -> Benchmark
 bgroupReadTxHistory tr = bgroup "TxHistory (Read)"

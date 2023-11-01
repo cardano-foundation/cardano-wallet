@@ -68,7 +68,6 @@ spec = do
         it "merging is commutative" $
             property prop_merge_commutative
 
-
     describe "ChainEvents" $ do
         it "conversion to and from [BlockEvents]" $
             property prop_toFromBlocks

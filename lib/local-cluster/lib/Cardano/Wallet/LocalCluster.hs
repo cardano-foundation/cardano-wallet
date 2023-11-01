@@ -283,7 +283,6 @@ getClusterConfigsPathFromEnv =
         Nothing -> $(getTestData) </> "cluster-configs"
         Just fp -> fp
 
-
 newtype CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: Maybe (Tagged "cluster-configs" FilePath)
     }

@@ -302,7 +302,6 @@ isConsecutiveRange (a:b:t)
     | b == a + 1 = isConsecutiveRange (b:t)
     | otherwise  = False
 
-
 --
 -- Mock Stake Keys
 --
@@ -440,7 +439,6 @@ instance Buildable Env where
       where
         txF tx = build (txid tx) <> ": " <> build tx
 
-
 rewardAccountF :: RewardAccount -> Builder
 rewardAccountF (FromKeyHash a) = build (B8.unpack a)
 rewardAccountF (FromScriptHash a) = build (B8.unpack a)
@@ -528,7 +526,6 @@ tryApplyTx tx env = case ledgerApplyTx tx h (ledger env) of
   where
     h = txid tx
 
-
 applyCmds :: Env -> [Cmd] -> Env
 applyCmds = foldl (flip stepCmd)
 
@@ -537,7 +534,6 @@ applyTxs = foldl (flip tryApplyTx)
 
 txid :: Tx -> Hash "Tx"
 txid = Hash . BS.take 4 . blake2b224 . B8.pack . show
-
 
 --
 -- Mock ledger

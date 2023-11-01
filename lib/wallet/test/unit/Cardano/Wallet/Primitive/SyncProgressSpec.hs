@@ -92,7 +92,6 @@ spec = do
             }
     let st = SyncTolerance 10
 
-
     let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     let runQry = runIdentity . interpretQuery ti
     describe "syncProgress" $ do
@@ -172,7 +171,6 @@ spec = do
                 res <- run (try @IO @SomeException $ evaluate x)
                 monitor (counterexample $ "Result: " ++ show res)
                 assert (isRight res)
-
 
 instance Arbitrary BlockHeader where
     shrink _ = []

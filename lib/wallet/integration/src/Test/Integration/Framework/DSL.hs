@@ -1037,7 +1037,6 @@ isValidRandomDerivationPath path =
       ] `isPrefixOf` NE.toList path
     )
 
-
 pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
 pickAnAsset tm = case TokenMap.toFlatList tm of
     (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
@@ -1445,7 +1444,6 @@ x .< bound
             , ")"
             ]
 
-
 (.>=) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
 a .>= b
     | a >= b
@@ -1652,7 +1650,6 @@ postWallet
     -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
 postWallet ctx = postWallet' ctx Default
 
-
 postByronWallet
     :: MonadUnliftIO m
     => Context
@@ -1700,7 +1697,6 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
     r <- postByronWallet ctx payload
     expectResponseCode HTTP.status201 r
     return (getResponse r)
-
 
 emptyWalletAndMnemonic
     :: MonadUnliftIO m
@@ -2241,7 +2237,6 @@ fixturePassphraseEncrypted =
     \51303054356c654751794279732f7662753367526d726c316c657a7150\
     \43676d364e6758476d4d2f4b6438343265304b4945773d3d"
 
-
 -- | Restore a faucet and wait until funds are available.
 --
 -- Note: @ResourceT@ is used to allow automatic garbage collection of unused
@@ -2359,9 +2354,6 @@ fixtureIcarusWalletAddrs
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureIcarusWalletAddrs =
     fmap (second (icarusAddresses @n)) . fixtureIcarusWalletMws
-
-
-
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
@@ -2530,7 +2522,6 @@ moveByronCoins ctx src (dest, addrs) coins = do
             (Link.getWallet @'Byron src) Default Empty
         getFromResponse (#balance . #available) ra
             `shouldBe` getFromResponse (#balance . #total) ra
-
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural
@@ -3548,7 +3539,6 @@ delegating
 delegating pidActive nexts = (notDelegating nexts)
     { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing
     }
-
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo
 getRetirementEpoch = fmap (view #epochNumber) . view #retirement

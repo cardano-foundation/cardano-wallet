@@ -140,7 +140,6 @@ share
     ]
     [persistLowerCase|
 
-
 -- Track whether the wallet's stake key is registered or not.
 StakeKeyCertificate
     stakeKeyCertWalletId             WalletId            sql=wallet_id

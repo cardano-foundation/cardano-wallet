@@ -100,7 +100,6 @@ preparePassphrase = Passphrase . hashMaybe . unPassphrase
         | pw == mempty = mempty
         | otherwise = BA.convert $ blake2b256 pw
 
-
 -- | This is for use by test cases only. Use only the implementation from the
 -- @scrypt@ package for application code.
 checkPassphraseTestingOnly :: Passphrase "encryption" -> PassphraseHash -> Bool

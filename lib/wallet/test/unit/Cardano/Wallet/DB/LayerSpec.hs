@@ -1134,7 +1134,6 @@ cutRandomly = iter []
             let chunk = L.take chunksNum rest
             iter (chunk:acc) (L.drop chunksNum rest)
 
-
 {-------------------------------------------------------------------------------
                             Manual migrations tests
 -------------------------------------------------------------------------------}
@@ -1501,7 +1500,6 @@ isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
     let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
     in  fieldName field == unFieldNameDB fieldInDB
 
-
 localTxSubmissionTableExists :: Text
 localTxSubmissionTableExists = [i|
     SELECT EXISTS (
@@ -1565,7 +1563,6 @@ testMigrationSubmissionsEncoding dbName = do
                 $ Sqlite.rawSql "SELECT status FROM tx_meta" []
             forM_ metas $ \(Single status) ->
                 status `shouldBe` ("in_ledger" :: Text)
-
 
 {-------------------------------------------------------------------------------
                                    Test data

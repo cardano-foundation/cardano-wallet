@@ -381,7 +381,6 @@ instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (1, 10) >>= vector
         pure $ KeyValPairs $ L.sortOn fst pairs
 
-
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory txs) = GenTxHistory <$> shrinkList shrinkOne txs
       where

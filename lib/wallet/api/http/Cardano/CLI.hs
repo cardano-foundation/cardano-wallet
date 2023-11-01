@@ -1759,7 +1759,6 @@ data LogOutput
     | LogToFile FilePath Severity
     deriving (Eq, Show)
 
-
 mkScribe :: LogOutput -> [ScribeDefinition]
 mkScribe (LogToFile path sev) = pure $ ScribeDefinition
     { scName = T.pack path
@@ -1785,7 +1784,6 @@ mkScribe (LogToStdStreams sev) =
         , scPrivacy = ScPublic
         , scRotation = Nothing
         }
-
 
 mkScribeId :: LogOutput -> [ScribeId]
 mkScribeId (LogToStdStreams _) = ["StdoutSK::text", "StderrSK::text"]

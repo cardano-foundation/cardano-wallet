@@ -59,8 +59,6 @@ module Cardano.Wallet.Address.Derivation
     , hex
     , fromHex
 
-
-
     -- * Backends Interoperability
     , PaymentAddress(..)
     , DelegationAddress(..)

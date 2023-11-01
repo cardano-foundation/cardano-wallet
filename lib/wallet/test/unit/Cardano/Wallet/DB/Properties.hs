@@ -143,7 +143,6 @@ type WithDBFresh s
     -> (DBFresh IO s -> PropertyM IO ())
     -> PropertyM IO ()
 
-
 withFreshWallet
     :: GenState s
     => WalletId

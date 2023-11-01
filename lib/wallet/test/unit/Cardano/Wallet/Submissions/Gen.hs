@@ -156,7 +156,6 @@ shrinkByInit :: [a] -> [[a]]
 shrinkByInit [] = []
 shrinkByInit xs = [init xs]
 
-
 prop_submissionHistory
     :: Show (delta () Slot Tx)
     => GenSubmissionsHistory delta

@@ -264,7 +264,6 @@ unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
 
-
 {-------------------------------------------------------------------------------
                                  HD derivation
 -------------------------------------------------------------------------------}

@@ -18,6 +18,5 @@ import Cardano.Wallet.Shelley.Compatibility
     ( NodeToClientVersionData
     )
 
-
 data BlockchainSource
     = NodeSource CardanoNodeConn NodeToClientVersionData SyncTolerance
