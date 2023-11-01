@@ -414,7 +414,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
 
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
-    | ErrFailedBalancing CardanoApi.Value
+    | ErrFailedBalancing Value
     deriving (Show, Eq)
 
 -- | Errors that can occur when balancing transactions.
@@ -861,8 +861,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             then pure tx
             else throwE
                 $ ErrBalanceTxInternalError
-                $ ErrFailedBalancing
-                $ CardanoApi.fromMaryValue bal
+                $ ErrFailedBalancing bal
 
     txBalance :: Tx (ShelleyLedgerEra era) -> Value
     txBalance
