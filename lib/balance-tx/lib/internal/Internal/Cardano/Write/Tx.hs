@@ -142,6 +142,7 @@ module Internal.Cardano.Write.Tx
 
     -- * Policy and asset identifiers
     , PolicyId
+    , AssetName
 
     -- * Balancing
     , evaluateMinimumFee
@@ -197,7 +198,8 @@ import Cardano.Ledger.Mary
     ( MaryValue
     )
 import Cardano.Ledger.Mary.Value
-    ( PolicyID
+    ( AssetName
+    , PolicyID
     )
 import Cardano.Ledger.SafeHash
     ( SafeHash
