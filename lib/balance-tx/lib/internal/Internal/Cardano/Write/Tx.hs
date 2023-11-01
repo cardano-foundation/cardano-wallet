@@ -575,9 +575,9 @@ modifyTxOutValue
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 
 modifyTxOutCoin
     :: RecentEra era
@@ -586,10 +586,7 @@ modifyTxOutCoin
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
 modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 
-txOutValue
-    :: RecentEra era
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> Value
+txOutValue :: RecentEra era -> TxOut (CardanoApi.ShelleyLedgerEra era) -> Value
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
