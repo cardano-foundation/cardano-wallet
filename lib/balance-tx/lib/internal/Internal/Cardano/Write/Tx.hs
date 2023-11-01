@@ -627,7 +627,7 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 data TxOutInRecentEra =
     TxOutInRecentEra
         Address
-        (MaryValue StandardCrypto)
+        Value
         (Datum LatestLedgerEra)
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
