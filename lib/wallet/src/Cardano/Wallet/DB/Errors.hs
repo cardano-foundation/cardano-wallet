@@ -52,6 +52,8 @@ newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
+instance Exception ErrNoSuchWallet
+
 -- | Can't perform given operation because there's no wallet in the db
 data ErrWalletNotInitialized = ErrWalletNotInitialized
     deriving (Eq, Show)

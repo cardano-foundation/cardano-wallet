@@ -84,6 +84,7 @@ import Cardano.Wallet.DB
     , DBLayerParams (..)
     , DBOpen (..)
     , DBTxHistory (..)
+    , ErrNoSuchWallet (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
@@ -340,6 +341,10 @@ newDBFactory wf tr defaultFieldValues ti = \case
                         (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
                         pure (Map.insert wid db m, db)
                 action db
+
+            , withDatabaseLoad = \wid _action -> do
+                throw $ ErrNoSuchWallet wid
+
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
@@ -359,6 +364,16 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     (Just defaultFieldValues)
                     (databaseFile wid)
                     action
+
+            , withDatabaseLoad = \wid action -> withRef refs wid
+                $ withLoadDBLayerFromFile wf
+                    (contramap (MsgWalletDB (databaseFile wid)) tr)
+                    ti
+                    wid
+                    (Just defaultFieldValues)
+                    (databaseFile wid)
+                    action
+
             , removeDatabase = \wid -> do
                 let widp = pretty wid
                 -- try to wait for all 'withDatabase' calls to finish before
@@ -372,6 +387,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     traceWith tr $ MsgRemoving widp
                     let trDel = contramap (MsgRemovingDatabaseFile widp) tr
                     deleteSqliteDatabase trDel (databaseFile wid)
+
             , listDatabases =
                 findDatabases key tr databaseDir
             }

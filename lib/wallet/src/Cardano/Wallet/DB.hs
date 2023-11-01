@@ -181,6 +181,10 @@ data DBFactory m s = DBFactory
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
+    , withDatabaseLoad :: forall a. WalletId -> (DBLayer m s -> IO a) -> IO a
+        -- ^ Open an existing database, maintaining an open
+        -- connection so long as necessary.
+
     , removeDatabase :: WalletId -> IO ()
         -- ^ Erase any trace of the database
 
