@@ -589,7 +589,7 @@ modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 txOutValue
     :: RecentEra era
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> MaryValue StandardCrypto
+    -> Value
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
