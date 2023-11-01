@@ -133,7 +133,7 @@ import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
-    , withDBFresh
+    , withDBFreshFromFile
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
@@ -844,8 +844,12 @@ setupDB tr = do
     uncurry (BenchEnv destroyPool) <$> createPool
   where
     withSetup action = withTempSqliteFile $ \fp -> do
-        withDBFresh (walletFlavor @s)
-            tr (Just defaultFieldValues) fp singleEraInterpreter testWid
+        withDBFreshFromFile (walletFlavor @s)
+            tr
+            singleEraInterpreter
+            testWid
+            (Just defaultFieldValues)
+            fp
                 $ \db -> action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO

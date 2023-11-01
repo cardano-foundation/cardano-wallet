@@ -119,7 +119,7 @@ import Cardano.Wallet.DB.Layer
     , WalletDBLog (..)
     , newDBFactory
     , newDBFreshInMemory
-    , withDBFresh
+    , withDBFreshFromFile
     , withDBFreshInMemory
     , withLoadDBLayerFromFile
     )
@@ -1027,12 +1027,12 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBFresh ShelleyWallet
+        withDBFreshFromFile ShelleyWallet
             (trMessageText trace)
-            (Just defaultFieldValues)
-            fp
             ti
             testWid
+            (Just defaultFieldValues)
+            fp
             action
         expectations fp
   where
@@ -1068,13 +1068,12 @@ withShelleyFileDBFresh
     => FilePath
     -> (DBFresh IO s -> IO a)
     -> IO a
-withShelleyFileDBFresh fp =
-    withDBFresh (walletFlavor @s)
+withShelleyFileDBFresh =
+    withDBFreshFromFile (walletFlavor @s)
         nullTracer -- fixme: capture logging
-        (Just defaultFieldValues)
-        fp
         dummyTimeInterpreter
         testWid
+        (Just defaultFieldValues)
 
 withShelleyFileLoadedDBLayer
     :: forall s a
@@ -1534,9 +1533,13 @@ testMigrationSubmissionsEncoding
     :: FilePath -> IO ()
 testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
-          withDBFresh ShelleyWallet
-            nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
-                testWid $ \(_  :: TestDBSeqFresh) -> pure ()
+          withDBFreshFromFile ShelleyWallet
+            nullTracer
+            dummyTimeInterpreter
+            testWid
+            (Just defaultFieldValues)
+            path
+                $ \(_  :: TestDBSeqFresh) -> pure ()
         testOnCopiedAndMigrated test = fmap snd
             $ withinCopiedFile dbName $ \path _  -> do
                 performMigrations path

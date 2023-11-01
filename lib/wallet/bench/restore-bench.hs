@@ -130,7 +130,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook
-    , withDBFresh
+    , withDBFreshFromFile
     )
 import Cardano.Wallet.Flavor
     ( Excluding
@@ -953,8 +953,14 @@ withBenchDBLayer
     -> IO a
 withBenchDBLayer ti tr wid action =
     withTempSqliteFile $ \dbFile ->
-        withDBFresh (walletFlavor @s) tr'
-            (Just migrationDefaultValues) dbFile ti wid action
+        withDBFreshFromFile
+            tr'
+            ti
+            (walletFlavor @s)
+            wid
+            (Just migrationDefaultValues)
+            dbFile
+            action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

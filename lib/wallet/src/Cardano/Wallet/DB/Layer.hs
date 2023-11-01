@@ -25,7 +25,7 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Open a database for a specific 'WalletId'
-    , withDBFresh
+    , withDBFreshFromFile
     , withDBFreshInMemory
     , newDBFreshInMemory
 
@@ -346,13 +346,14 @@ newDBFactory wf tr defaultFieldValues ti = \case
     Just databaseDir -> do
         refs <- newRefCount
         pure DBFactory
-            { withDatabase = \wid action -> withRef refs wid $ withDBFresh wf
-                (contramap (MsgWalletDB (databaseFile wid)) tr)
-                (Just defaultFieldValues)
-                (databaseFile wid)
-                ti
-                wid
-                action
+            { withDatabase = \wid action -> withRef refs wid
+                $ withDBFreshFromFile wf
+                    (contramap (MsgWalletDB (databaseFile wid)) tr)
+                    ti
+                    wid
+                    (Just defaultFieldValues)
+                    (databaseFile wid)
+                    action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
                 -- try to wait for all 'withDatabase' calls to finish before
@@ -546,28 +547,28 @@ withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 --
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
-withDBFresh
+withDBFreshFromFile
     :: forall s a
      . PersistAddressBook s
     => WalletFlavorS s
-    -- ^ Wallet flavor
+        -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
        -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
     -> Maybe DefaultFieldValues
        -- ^ Default database field values, used during manual migration.
        -- Use 'Nothing' to skip manual migrations.
     -> FilePath
        -- ^ Path to database file
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-         -- ^ Wallet ID of the database.
     -> (DBFresh IO s -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBFresh wf tr defaultFieldValues dbFile ti wid action =
-    withDBOpenFromFile wf tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen wf ti wid
+withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
+    withDBOpenFromFile walletF tr defaultFieldValues dbFile
+        $  action . newDBFreshFromDBOpen walletF ti wid
 
 -- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
 -- database.
