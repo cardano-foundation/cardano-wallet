@@ -362,9 +362,6 @@ data Readiness a
 
 instance (NFData a) => NFData (Readiness a)
 
-
-
-
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
     = NoDelegationTemplate
@@ -383,7 +380,6 @@ data ErrAddCosigner
         -- belonging to the shared wallet.
     deriving (Eq, Show)
 
-
 retrieveAllCosigners :: Script Cosigner -> [Cosigner]
 retrieveAllCosigners = foldScript (:) []
 
@@ -398,7 +394,6 @@ data ErrScriptTemplate =
 
 instance ToText ErrValidateScriptTemplate where
     toText = T.pack . prettyErrValidateScriptTemplate
-
 
 {-------------------------------------------------------------------------------
     Address discovery

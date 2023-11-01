@@ -589,8 +589,6 @@ isSubrangeOf r1 r2 =
     rangeLowerBound r1 >= rangeLowerBound r2 &&
     rangeUpperBound r1 <= rangeUpperBound r2
 
-
-
 {-------------------------------------------------------------------------------
                                     Block
 -------------------------------------------------------------------------------}
@@ -1177,7 +1175,6 @@ unsafeEpochNo epochNo
   where
     maxEpochNo :: Word32
     maxEpochNo = fromIntegral @Word31 $ unEpochNo maxBound
-
 
 instance NFData SlotId
 

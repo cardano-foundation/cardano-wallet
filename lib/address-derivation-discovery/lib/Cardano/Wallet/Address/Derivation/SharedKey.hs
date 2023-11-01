@@ -85,7 +85,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
-
 -- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
 -- CIP-1854 Multi-signature Wallets.
 --

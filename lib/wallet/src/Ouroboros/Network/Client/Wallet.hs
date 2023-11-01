@@ -690,7 +690,6 @@ instance Monad (LSQ block m) where
 --
 -- LocalTxSubmission
 
-
 -- | Type of commands that are stored in a queue for localTxSubmission.
 data LocalTxSubmissionCmd tx err (m :: Type -> Type)
     = CmdSubmitTx tx (SubmitResult err -> m ())

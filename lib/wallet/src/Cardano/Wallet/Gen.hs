@@ -166,7 +166,6 @@ genLegacyAddress pm = do
 -- Slotting
 --
 
-
 -- | Don't generate /too/ large slots
 genSlotNo :: Gen SlotNo
 genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32

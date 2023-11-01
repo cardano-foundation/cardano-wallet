@@ -741,7 +741,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-
         let txid = getFromResponse #id submittedTx
         let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
         eventually "Target wallet balance is decreased by amt + fee" $ do

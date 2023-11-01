@@ -675,7 +675,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-
 mkDBFreshFromParts
     :: forall stm m s
      . ( PersistAddressBook s
@@ -743,7 +742,6 @@ mkDecorator transactionsQS =
         and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
 -------------------------------------------------------------------------------}
 
-
 genesisParametersFromEntity
     :: Wallet
     -> W.GenesisParameters
@@ -752,8 +750,6 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
         { W.getGenesisBlockHash = coerce (getBlockId hash)
         , W.getGenesisBlockDate = W.StartTime startTime
         }
-
-
 
 {-------------------------------------------------------------------------------
     SQLite database operations

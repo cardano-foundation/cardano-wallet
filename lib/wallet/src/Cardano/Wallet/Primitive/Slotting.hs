@@ -517,7 +517,6 @@ instance ToText TimeInterpreterLog where
             [ build $ show epoch
             ]
 
-
 -- | Run a query.
 interpretQuery
     :: HasCallStack

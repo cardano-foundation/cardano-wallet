@@ -330,7 +330,6 @@ randomIndex g = (Index ix, g')
   where
     (ix, g') = randomR (getIndex (minBound @ix), getIndex (maxBound @ix)) g
 
-
 -- | Use the key material in 'RndState' to derive a change address for a given
 -- derivation path.
 deriveCredFromKeyKeyFromPath
@@ -362,7 +361,6 @@ deriveRndStateAddress k passphrase path =
 -- derivation scheme won't be ordered in any particular order.
 instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
-
 
 instance KnownAddresses (RndState n) where
     knownAddresses s = mconcat

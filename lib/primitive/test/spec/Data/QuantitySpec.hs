@@ -61,7 +61,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
-
 spec :: Spec
 spec = do
     describe "Quantity" $ do
@@ -135,7 +134,6 @@ spec = do
                 case mkPercentage (n / 10) of
                     Left _  -> property False
                     Right _ -> property True
-
 
         it "mkPercentage $ getPercentage maxBound succeeds" $ do
             mkPercentage (getPercentage minBound) `shouldSatisfy` isRight

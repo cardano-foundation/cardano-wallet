@@ -256,7 +256,6 @@ TxWithdrawal
     Primary txWithdrawalTxId txWithdrawalAccount
     deriving Show Generic Eq
 
-
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint

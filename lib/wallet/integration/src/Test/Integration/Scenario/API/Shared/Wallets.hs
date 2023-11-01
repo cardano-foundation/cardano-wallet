@@ -424,7 +424,6 @@ spec = describe "SHARED_WALLETS" $ do
         toText (getApiT $ walActive ^. #id)  `shouldBe`
             "654a69cd246ab08aeb4d44837ff5d5ceddfbce20"
 
-
     it "SHARED_WALLETS_CREATE_02 - \
         \Create a pending shared wallet from root xprv" $
         \ctx -> runResourceT $ do

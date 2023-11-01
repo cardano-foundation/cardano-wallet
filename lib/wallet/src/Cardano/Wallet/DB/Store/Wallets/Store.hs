@@ -1,4 +1,3 @@
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
@@ -46,7 +45,6 @@ import Database.Persist.Sql
     )
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
-
 
 mkStoreTxWalletsHistory
     :: Store (SqlPersistT IO) q DeltaTxSet

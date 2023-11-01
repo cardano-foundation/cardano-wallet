@@ -626,7 +626,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             return $ getFromResponse
                 (#balance . #available . #getQuantity) response
 
-
         -- Create an empty target wallet:
         targetWallet <- emptyWallet ctx
         targetAddresses <- listAddresses @n ctx targetWallet
@@ -737,7 +736,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     if _mainEra ctx >= ApiBabbage
                     then 255_100
                     else 254_900
-
 
             -- Restore a source wallet with funds:
             sourceWallet <- fixtureWallet ctx

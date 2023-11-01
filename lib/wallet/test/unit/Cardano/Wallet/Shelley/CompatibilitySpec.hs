@@ -707,7 +707,6 @@ genMnemonic = do
 instance Show XPrv where
     show _ = "<xprv>"
 
-
 instance Arbitrary TokenBundle.TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange

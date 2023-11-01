@@ -115,7 +115,6 @@ testMigrationDelegationsTable dbName = do
             );
             |]
 
-
         expectedValues :: [(Single Int, Single Text, Maybe (Single Text))]
         expectedValues =
             [

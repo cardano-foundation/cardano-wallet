@@ -123,7 +123,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
-
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
@@ -154,7 +153,6 @@ fromStakeCredential = \case
     SL.KeyHashObj (SL.KeyHash h) ->
         W.FromKeyHash (hashToBytes h)
 
-
 shelleyEncodeStakeAddress :: SL.Network -> W.RewardAccount -> Text
 shelleyEncodeStakeAddress network acct =
     Bech32.encodeLenient hrp (dataPartFromBytes (bytes acct))
@@ -175,7 +173,6 @@ shelleyEncodeStakeAddress network acct =
                     $ (networkIdMask .&. toNetworkId network)
                         .|. scripthashStakeAddressPrefix
                 putByteString bs
-
 
 -- necessary evil for use of MonadFail in a library
 newtype ReportFailure a = ReportFailure { reportFailure :: Either String a }
@@ -315,7 +312,6 @@ guardNetwork addrNetwork serverNetwork =
             <> " but got "
             <> show addrNetwork
             <> "."
-
 
 encodeStakeAddress :: SNetworkId n -> W.RewardAccount -> Text
 encodeStakeAddress = shelleyEncodeStakeAddress . sToNetwork

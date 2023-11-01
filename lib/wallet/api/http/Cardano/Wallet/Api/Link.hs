@@ -926,7 +926,6 @@ patchSharedWallet w cred =
 getBlocksLatestHeader :: (Method, Text)
 getBlocksLatestHeader = endpoint @Api.GetBlocksLatestHeader id
 
-
 --
 -- Internals
 --

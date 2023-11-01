@@ -78,7 +78,6 @@ instance Buildable TxMetaHistory where
     Operations
 ------------------------------------------------------------------------------}
 
-
 -- | All meta-transactions changes, including the addition of new
 -- meta-transactions, which has to be done in sync with the transactions store.
 data DeltaTxMetaHistory

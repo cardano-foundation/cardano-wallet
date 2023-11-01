@@ -382,7 +382,6 @@ import qualified Data.Text.Encoding.Error as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
 
-
 newtype PoolId = PoolId {getPoolId :: ByteString}
     deriving stock (Generic, Eq, Show, Ord)
 

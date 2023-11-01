@@ -858,7 +858,6 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         o2 `shouldBe` mempty
         c2 `shouldBe` ExitFailure 1
 
-
     it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx

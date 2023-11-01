@@ -60,4 +60,3 @@ genPassphraseScheme = genericArbitrary
 genEncryptionPassphrase :: Gen (Passphrase "encryption")
 genEncryptionPassphrase = preparePassphrase EncryptWithPBKDF2
     <$> genUserPassphrase
-

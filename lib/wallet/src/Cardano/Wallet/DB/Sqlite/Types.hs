@@ -732,7 +732,6 @@ instance PersistFieldSql AddressState where
 ----------------------------------------------------------------------------
 -- PoolMetadataSource
 
-
 instance PersistField PoolMetadataSource where
     toPersistValue = toPersistValue . toText
     -- be more permissive than fromText here

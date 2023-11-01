@@ -105,7 +105,6 @@ newDBFresh timeInterpreter wid = do
               }
       dbl = DBLayer
 
-
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
@@ -130,7 +129,6 @@ newDBFresh timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
-
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -180,7 +178,6 @@ newDBFresh timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
-
 
         {-----------------------------------------------------------------------
                                       Execution

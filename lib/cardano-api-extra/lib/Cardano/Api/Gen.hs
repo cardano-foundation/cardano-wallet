@@ -386,7 +386,6 @@ genEncodingBoundaryLovelace = do
         ]
     pure $ Lovelace <$> max 0 $ boundary + offset
 
-
 genTxFee :: CardanoEra era -> Gen (TxFee era)
 genTxFee era =
   case txFeesExplicitInEra era of
@@ -731,7 +730,6 @@ genScriptData =
                     <$> genConstructorIx
                     <*> vectorOf k smallerGen
                 ]
-
 
         -- NOTE: Negative values would trigger "Impossible" errors to be
         -- thrown. This seems expected and fine:

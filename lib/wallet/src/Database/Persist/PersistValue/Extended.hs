@@ -40,4 +40,3 @@ fromPersistValueRead pv = fromPersistValue pv >>= readWithErr
   where
     readWithErr = toEither . readMaybe . T.unpack
     toEither = maybe (Left $ "not a valid value: " <> T.pack (show pv)) Right
-

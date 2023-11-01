@@ -75,7 +75,6 @@ instance FromText RewardAccount where
         _ -> -- Hash is hex encoded so 0-9af
             fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt
 
-
 instance ToJSON RewardAccount where
     toJSON = String . toText
 

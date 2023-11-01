@@ -50,7 +50,6 @@ import Prettyprinter
     , softline
     )
 
-
 data MetadataServerArgs = MetadataServerArgs
     { sourceJson :: FilePath
     , port :: Maybe Int

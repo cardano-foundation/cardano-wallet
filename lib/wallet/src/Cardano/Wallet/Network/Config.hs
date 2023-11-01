@@ -47,7 +47,6 @@ import Ouroboros.Network.NodeToClient
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 
-
 -- | Shelley hard fork network configuration has two genesis data.
 -- As a special case for mainnet, we hardcode the byron genesis data.
 data NetworkConfiguration where
@@ -61,7 +60,6 @@ data NetworkConfiguration where
         -- ^ Genesis data in JSON format, for byron era.
         -> NetworkConfiguration
   deriving (Show, Eq)
-
 
 parseGenesisData
     :: NetworkConfiguration

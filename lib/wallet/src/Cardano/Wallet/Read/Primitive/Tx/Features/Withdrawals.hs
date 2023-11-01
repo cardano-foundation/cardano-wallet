@@ -39,7 +39,6 @@ import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certi
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Map as Map
 
-
 getWithdrawals :: EraFun Withdrawals (K (Maybe (Map RewardAccount Coin)))
 getWithdrawals =
     EraFun

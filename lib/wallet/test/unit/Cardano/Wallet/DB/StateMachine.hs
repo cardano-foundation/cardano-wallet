@@ -367,7 +367,6 @@ unMockWid (MWid wid) = WalletId m
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
-
 {-------------------------------------------------------------------------------
   Language
 -------------------------------------------------------------------------------}
@@ -487,7 +486,6 @@ runIO DBLayer{..} = fmap Resp . go
         ReadGenesisParameters -> Right . GenesisParams <$>
             atomically readGenesisParameters
         RollbackTo _wid sl -> runDBSuccess atomically Point $ rollbackTo sl
-
 
 {-------------------------------------------------------------------------------
   Working with references

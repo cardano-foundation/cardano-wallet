@@ -296,7 +296,6 @@ deriveShelleyAddresses mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
                 Shelley.UTxOExternal
                 paymentAddrIx
 
-
 deriveShelleyRewardAccount
     :: SomeMnemonic -> (Shelley DelegationK XPub, Shelley DelegationK XPrv)
 deriveShelleyRewardAccount mnemonic = (toXPub <$> xPrv, xPrv)

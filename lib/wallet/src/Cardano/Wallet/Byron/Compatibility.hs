@@ -221,7 +221,6 @@ emptyGenesis gp = W.Block
 --
 -- Genesis
 
-
 -- | Construct a ("fake") genesis block from genesis transaction outputs.
 --
 -- The genesis data on haskell nodes is not a block at all, unlike the block0 on

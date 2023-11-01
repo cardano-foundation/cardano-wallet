@@ -595,7 +595,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
             let targetAddressIds = targetAddresses <&>
                     (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
-
             -- Attempt a migration:
             let ep = Link.migrateWallet @'Byron sourceWallet
             responseMigrate <- request @[ApiTransaction n] ctx ep Default $

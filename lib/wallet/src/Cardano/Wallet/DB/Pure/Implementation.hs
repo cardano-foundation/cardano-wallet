@@ -256,7 +256,6 @@ mInitializeWallet wid (DBLayerParams cp meta txs0 gp) =
 mGetWalletId :: ModelOp wid s xprv wid
 mGetWalletId db@(Database wid _wallet _) = (Right wid, db)
 
-
 mReadCheckpoint
     :: ModelOp wid s xprv (Wallet s)
 mReadCheckpoint db@(Database _ wallet _)
@@ -350,7 +349,6 @@ mPutDelegationCertificate cert slot = alterModelNoTxs'
                     Map.insert slot StakeKeyRegistration stakeKeys
             }
 
-
 mIsStakeKeyRegistered
     ::  ModelOp wid s xprv Bool
 mIsStakeKeyRegistered = alterModelNoTxs $ \wal@WalletDatabase{stakeKeys} ->
@@ -443,7 +441,6 @@ mReadPrivateKey = fmapModelOp join $ readWalletModelMaybe $ \wal -> xprv wal
 mReadGenesisParameters
     :: ModelOp wid s xprv (Maybe GenesisParameters)
 mReadGenesisParameters = readWalletModelMaybe $ \wal -> genesisParameters wal
-
 
 mPutDelegationRewardBalance
     :: Coin -> ModelOp wid s xprv ()

@@ -380,7 +380,6 @@ instance GenericApiSpec (Map [Text] [Method])
             [ "stake-pools", "*", "wallets", _ ] -> method /= "DELETE"
             _ -> False
 
-
 --
 -- Construct test cases from the API
 --
@@ -500,7 +499,6 @@ instance
              , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]
              }
         ]
-
 
 instance
     ( ReflectMethod m

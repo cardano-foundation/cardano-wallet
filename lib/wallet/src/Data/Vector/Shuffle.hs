@@ -49,7 +49,6 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
 
-
 -- | Generate a random generator seed from a text string
 mkSeed :: Text -> Int
 mkSeed = toInt . quickHash . T.encodeUtf16LE

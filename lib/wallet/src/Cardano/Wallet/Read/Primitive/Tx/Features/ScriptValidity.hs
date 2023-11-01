@@ -43,4 +43,3 @@ getScriptValidity = EraFun
         yesScriptValidity (ScriptValidity (IsValid b))
             | b = K . Just $ W.TxScriptValid
             | otherwise = K . Just $ W.TxScriptInvalid
-

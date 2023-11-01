@@ -423,7 +423,6 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                 , " ... 45000000000000000 0\n"
                 ]
 
-
     let sp = SlotParameters
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
@@ -1043,7 +1042,6 @@ prop_2_1_9 (ins, u) =
   where
     cond = not $ dom u `Set.disjoint` ins
     prop = (u `excluding` ins) === u `restrictedBy` (dom u \\ ins)
-
 
 {-------------------------------------------------------------------------------
        Wallet Specification - Lemma 2.6 - Properties of Balance

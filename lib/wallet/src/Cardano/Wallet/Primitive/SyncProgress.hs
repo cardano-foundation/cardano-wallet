@@ -97,7 +97,6 @@ instance Buildable SyncProgress where
         NotResponding ->
             "not responding"
 
-
 newtype SyncTolerance = SyncTolerance NominalDiffTime
     deriving stock (Generic, Eq, Show)
 

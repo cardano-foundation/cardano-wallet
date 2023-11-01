@@ -3,4 +3,3 @@ module Cardano.Wallet.Deposit.HTTP
     ) where
 
 import qualified Cardano.Wallet.Deposit.IO as Wallet
-

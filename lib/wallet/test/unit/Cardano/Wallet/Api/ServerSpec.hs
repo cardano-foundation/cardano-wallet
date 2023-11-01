@@ -295,8 +295,6 @@ networkInfoSpec = describe "getNetworkInformation" $ do
             int = HF.mkInterpreter summary
         in mkTimeInterpreter nullTracer startTime (pure int)
 
-
-
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do
     let testWalletHandler

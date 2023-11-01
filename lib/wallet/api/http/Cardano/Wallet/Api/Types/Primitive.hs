@@ -386,7 +386,6 @@ instance ToJSON (ApiT TxScriptValidity) where
     toJSON = genericToJSON Aeson.defaultOptions
         { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
 
-
 instance FromJSON (ApiT PoolId) where
     parseJSON = parseJSON >=> eitherToParser
            . bimap ShowFmt ApiT

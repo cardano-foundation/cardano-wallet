@@ -257,7 +257,6 @@ instance MonadSTM (NoLoggingT (ResourceT IO)) where
     unGetTChan        = WrapSTM .: unGetTChan
     isEmptyTChan      = WrapSTM .  isEmptyTChan
 
-
 (.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 (f .: g) x y = f (g x y)
 
@@ -287,7 +286,6 @@ instance MonadCatch (NoLoggingT (ResourceT IO)) where
 instance MonadMask (NoLoggingT (ResourceT IO)) where
     mask = ResourceT.mask
     uninterruptibleMask = ResourceT.uninterruptibleMask
-
 
 newStoreAddressSql :: SqlPersistM StoreAddress
 newStoreAddressSql = do

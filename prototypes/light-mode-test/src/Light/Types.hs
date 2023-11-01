@@ -48,4 +48,3 @@ fromBlock :: Block -> ChainPoint
 fromBlock b = case _blockHeight b of
     Nothing -> Origin
     Just height -> At height (_blockHash b)
-

@@ -54,8 +54,6 @@ import Cardano.Wallet.Primitive.Types.Credentials
     , RootCredentials (..)
     )
 
-
-
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
 --

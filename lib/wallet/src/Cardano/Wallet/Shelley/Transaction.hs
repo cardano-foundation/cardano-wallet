@@ -301,7 +301,6 @@ type EraConstraints era =
     , (era == ByronEra) ~ 'False
     )
 
-
 constructUnsignedTx
     :: forall era
      . IsShelleyBasedEra era
@@ -627,7 +626,6 @@ newTransactionLayer keyF networkId = TransactionLayer
                     signTransaction keyF networkId witCountCtx acctResolver policyResolver
                     policyKeyM stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
-
 
     , decodeTx = _decodeSealedTx
 

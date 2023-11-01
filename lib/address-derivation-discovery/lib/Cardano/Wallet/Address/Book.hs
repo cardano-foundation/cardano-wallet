@@ -159,7 +159,6 @@ newtype SharedAddressMap (c :: Role) (key :: Depth -> Type -> Type) =
         )
     deriving Eq
 
-
 -- | Isomorphism for multi-sig address book.
 instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
   where

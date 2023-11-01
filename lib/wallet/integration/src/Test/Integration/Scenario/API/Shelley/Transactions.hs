@@ -2534,7 +2534,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldSatisfy` (not . null))
             ]
 
-
         let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
         let fee = computeApiCoinSelectionFee apiCoinSelection
         let withinToleranceTo (Quantity expected) tol

@@ -41,7 +41,6 @@ import Test.QuickCheck
 
 import qualified Data.List as L
 
-
 spec :: Spec
 spec = do
     describe "sparseCheckpoints" $ do

@@ -89,7 +89,6 @@ import qualified Data.Table as Table
 import qualified Database.Persist as Persist
 import qualified Database.Schema as Sql
 
-
 {-------------------------------------------------------------------------------
     Database operations
 -------------------------------------------------------------------------------}
@@ -152,7 +151,6 @@ sqlDB = Database
 --
 -- The unique IDs will be stored in a column "id" at the end of
 -- each row in the database table.
-
 
 newSqlStore
     :: ( MonadIO m

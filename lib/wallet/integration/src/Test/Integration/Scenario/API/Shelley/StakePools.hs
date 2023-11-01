@@ -361,7 +361,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                       (#balance . #reward) (`shouldBe` walletRewards)
                   ]
 
-
         -- Listing stake keys shows
         request @(ApiStakeKeys n) ctx (Link.listStakeKeys src) Default Empty
             >>= flip verify
