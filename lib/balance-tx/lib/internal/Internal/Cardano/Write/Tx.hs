@@ -336,7 +336,7 @@ type RecentEraLedgerConstraints era =
     , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
-    , Core.Value era ~ MaryValue StandardCrypto
+    , Core.Value era ~ Value
     , Core.TxWits era ~ AlonzoTxWits era
     , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
@@ -578,13 +578,13 @@ type TxOut era = Core.TxOut era
 
 modifyTxOutValue
     :: RecentEra era
-    -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
+    -> (Value -> Value)
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
-        BabbageTxOut addr (f val) dat script
+    BabbageTxOut addr (f val) dat script
 
 modifyTxOutCoin
     :: RecentEra era
@@ -593,10 +593,7 @@ modifyTxOutCoin
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
 modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 
-txOutValue
-    :: RecentEra era
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> MaryValue StandardCrypto
+txOutValue :: RecentEra era -> TxOut (CardanoApi.ShelleyLedgerEra era) -> Value
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
@@ -622,19 +619,19 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 
 -- | Type representing a TxOut in the latest or previous era.
 --
--- The underlying respresentation is isomorphic to 'TxOut LatestLedgerEra'.
+-- The underlying representation is isomorphic to 'TxOut LatestLedgerEra'.
 --
 -- Can be unwrapped using 'unwrapTxOutInRecentEra' or
 -- 'utxoFromTxOutsInRecentEra'.
 --
 -- Implementation assumes @TxOut latestEra ⊇ TxOut prevEra@ in the sense that
--- the latest era has not removed information from the @TxOut@. This is allows
+-- the latest era has not removed information from the @TxOut@. This allows
 -- e.g. @ToJSON@ / @FromJSON@ instances to be written for two eras using only
 -- one implementation.
 data TxOutInRecentEra =
     TxOutInRecentEra
         Address
-        (MaryValue StandardCrypto)
+        Value
         (Datum LatestLedgerEra)
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
