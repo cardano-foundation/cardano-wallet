@@ -345,6 +345,16 @@ newDBFactory wf tr defaultFieldValues ti = \case
             , withDatabaseLoad = \wid _action -> do
                 throw $ ErrNoSuchWallet wid
 
+            , withDatabaseBoot = \wid params action -> do
+                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                    Just db -> pure (m, db)
+                    Nothing -> do
+                        let tr' = contramap (MsgWalletDB "") tr
+                        (_cleanup, db) <-
+                            newBootDBLayerInMemory wf tr' ti wid params
+                        pure (Map.insert wid db m, db)
+                action db
+
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
@@ -371,6 +381,16 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     ti
                     wid
                     (Just defaultFieldValues)
+                    (databaseFile wid)
+                    action
+
+            , withDatabaseBoot = \wid params action -> withRef refs wid
+                $ withBootDBLayerFromFile wf
+                    (contramap (MsgWalletDB (databaseFile wid)) tr)
+                    ti
+                    wid
+                    (Just defaultFieldValues)
+                    params
                     (databaseFile wid)
                     action
 
