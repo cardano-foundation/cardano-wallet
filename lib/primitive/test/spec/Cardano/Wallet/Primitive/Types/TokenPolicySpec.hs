@@ -1,4 +1,3 @@
-
 module Cardano.Wallet.Primitive.Types.TokenPolicySpec
     ( spec
     ) where

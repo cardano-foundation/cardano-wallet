@@ -1,4 +1,3 @@
-
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
