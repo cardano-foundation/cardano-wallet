@@ -214,11 +214,13 @@ import Internal.Cardano.Write.ProtocolParameters
     )
 import Internal.Cardano.Write.Tx
     ( Address
+    , AssetName
     , Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
+    , PolicyId
     , RecentEra (..)
     , ShelleyLedgerEra
     , Tx
@@ -317,10 +319,10 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId
+    ( AssetId (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
-    ( TokenQuantity
+    ( TokenQuantity (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn
@@ -1607,11 +1609,13 @@ data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
     ErrBalanceTxOutputTokenQuantityExceedsLimitError
     { address :: Address
       -- ^ The address to which this token quantity was to be sent.
-    , asset :: W.AssetId
-      -- ^ The asset identifier to which this token quantity corresponds.
-    , quantity :: W.TokenQuantity
+    , policyId :: PolicyId
+      -- ^ The policy identifier to which this token quantity corresponds.
+    , assetName :: AssetName
+      -- ^ The asset name to which this token quantity corresponds.
+    , quantity :: Natural
       -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: W.TokenQuantity
+    , quantityMaxBound :: Natural
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
@@ -1671,11 +1675,15 @@ validateTxOutputTokenQuantities
     -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
 validateTxOutputTokenQuantities out =
     [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
-        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+        {address, policyId, assetName, quantity, quantityMaxBound}
     | let address = Convert.toLedgerAddress $ fst out
-    , (asset, quantity) <- W.TokenMap.toFlatList $ (snd out) ^. #tokens
-    , quantity > txOutMaxTokenQuantity
+    , (W.AssetId p a, W.TokenQuantity quantity) <-
+        W.TokenMap.toFlatList $ (snd out) ^. #tokens
+    , let (policyId, assetName) = (Convert.toLedger p, Convert.toLedger a)
+    , quantity > quantityMaxBound
     ]
+  where
+    quantityMaxBound = W.unTokenQuantity txOutMaxTokenQuantity
 
 -- | Validates the ada quantity associated with a transaction output.
 --
