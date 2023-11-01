@@ -140,6 +140,9 @@ module Internal.Cardano.Write.Tx
     , utxoFromTxOutsInRecentEra
     , utxoFromTxOuts
 
+    -- * Policy and asset identifiers
+    , PolicyId
+
     -- * Balancing
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -192,6 +195,9 @@ import Cardano.Ledger.Crypto
     )
 import Cardano.Ledger.Mary
     ( MaryValue
+    )
+import Cardano.Ledger.Mary.Value
+    ( PolicyID
     )
 import Cardano.Ledger.SafeHash
     ( SafeHash
@@ -971,3 +977,9 @@ evaluateTransactionBalance era pp utxo = withConstraints era $
         isRegPoolId _keyHash = True
 
     in Ledger.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
+
+--------------------------------------------------------------------------------
+-- Policy and asset identifiers
+--------------------------------------------------------------------------------
+
+type PolicyId = PolicyID StandardCrypto
