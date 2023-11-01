@@ -29,6 +29,10 @@ module Cardano.Wallet.DB.Layer
     , withDBFreshInMemory
     , newDBFreshInMemory
 
+    , withLoadDBLayerFromFile
+    , withBootDBLayerFromFile
+    , newBootDBLayerInMemory
+
     -- * Open a database for testing
     , withTestLoadDBLayerFromFile
     , WalletDBLog (..)
@@ -202,6 +206,7 @@ import Control.Monad.Trans
     )
 import Control.Monad.Trans.Except
     ( mapExceptT
+    , runExceptT
     , throwE
     )
 import Control.Tracer
@@ -460,6 +465,104 @@ createSchemaVersionTableIfMissing' =
         _ <- createSchemaVersionTableIfMissing conn
         let Version latest = latestVersion
         putSchemaVersion conn (SchemaVersion latest)
+
+{-------------------------------------------------------------------------------
+    DBLayer
+-------------------------------------------------------------------------------}
+-- | Load a 'DBLayer' from a file.
+--
+-- Perform migrations as necessary; throw an exception if that fails.
+withLoadDBLayerFromFile
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- Use 'Nothing' to skip manual migrations.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBLayer IO s -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action =
+    withDBOpenFromFile wF tr defaultFieldValues dbFile
+        $ \dbopen -> ($ newDBFreshFromDBOpen wF ti wid dbopen)
+        $ \dbfresh -> do
+            e <- runExceptT $ loadDBLayer dbfresh
+            case e of
+                Left err -> throw err
+                Right dblayer -> action dblayer
+
+-- | Create a 'DBLayer' in a file.
+--
+-- Create tables corresponding to the current schema.
+-- Throw an exception if this fails because the file already contains data.
+withBootDBLayerFromFile
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- TODO: No migrations should be performed, remove.
+    -> DBLayerParams s
+       -- ^ Parameters required to initialize a database.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBLayer IO s -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withBootDBLayerFromFile wF tr ti wid defaultFieldValues params dbFile action =
+    withDBOpenFromFile wF tr defaultFieldValues dbFile
+        $ \dbopen -> ($ newDBFreshFromDBOpen wF ti wid dbopen)
+        $ \dbfresh -> do
+            e <- runExceptT $ bootDBLayer dbfresh params
+            case e of
+                Left err -> throw err
+                Right dblayer -> action dblayer
+
+-- | Create a 'DBLayer' in memory.
+--
+-- Create tables corresponding to the current schema.
+newBootDBLayerInMemory
+    :: forall s
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> DBLayerParams s
+       -- ^ Parameters required to initialize a database.
+    -> IO (IO (), DBLayer IO s)
+        -- ^ ( Function to destroy the wallet database, 'DBLayer' )
+newBootDBLayerInMemory wF tr ti wid params =
+    do
+        (destroy, dbopen) <- newDBOpenInMemory tr
+        let dbfresh = newDBFreshFromDBOpen wF ti wid dbopen
+        e <- runExceptT $ bootDBLayer dbfresh params
+        case e of
+            Left err -> do
+                destroy
+                throw err
+            Right dblayer ->
+                pure (destroy, dblayer)
 
 {-------------------------------------------------------------------------------
     DBOpen

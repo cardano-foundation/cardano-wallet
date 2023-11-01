@@ -62,6 +62,8 @@ instance Exception ErrWalletNotInitialized
 data ErrWalletAlreadyInitialized = ErrWalletAlreadyInitialized
     deriving (Eq, Show)
 
+instance Exception ErrWalletAlreadyInitialized
+
 newtype ErrNotGenesisBlockHeader = ErrNotGenesisBlockHeader BlockHeader
     deriving (Eq, Show)
 
