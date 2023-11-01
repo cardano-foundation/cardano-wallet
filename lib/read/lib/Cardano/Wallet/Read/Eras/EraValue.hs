@@ -42,6 +42,7 @@ module Cardano.Wallet.Read.Eras.EraValue
 
   -- * Internals
   , cardanoEras
+  , prisms
   )
   where
 
@@ -176,6 +177,9 @@ byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
         project' e vb@(EraValue v) = case unComp $ apFn e (K v) of
           Nothing -> Left vb
           Just r -> Right r
+
+prisms :: NP (MkEraValue f) KnownEras
+prisms = byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
 
 -- | Inject a value into its era position.
 inject :: MkEraValue f era -> f era -> EraValue f

@@ -1,8 +1,10 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -99,6 +101,9 @@ type family BlockT era where
         O.ShelleyBlock (Praos StandardCrypto) (O.ConwayEra StandardCrypto)
 
 newtype Block era = Block {unBlock :: BlockT era}
+
+deriving instance Show (BlockT era) => Show (Block era)
+deriving instance Eq (BlockT era) => Eq (Block era)
 
 -- | Get sequence of transactions in the block.
 txsFromBlockE :: EraFun Block ([] :.: Tx)

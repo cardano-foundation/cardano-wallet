@@ -50,6 +50,10 @@ library
         Cardano.Wallet.Read.Block
         Cardano.Wallet.Read.Block.BlockNo
         Cardano.Wallet.Read.Block.Gen.BlockParameters
+        Cardano.Wallet.Read.Block.Gen
+        Cardano.Wallet.Read.Block.Gen.Babbage
+        Cardano.Wallet.Read.Block.Gen.Byron
+        Cardano.Wallet.Read.Block.Gen.Shelley
         Cardano.Wallet.Read.Block.HeaderHash
         Cardano.Wallet.Read.Block.SlotNo
         Cardano.Wallet.Read.Eras
@@ -83,6 +87,7 @@ library
         , cardano-api
         , cardano-crypto
         , cardano-crypto-class
+        , cardano-crypto-praos
         , cardano-crypto-wrapper
         , cardano-ledger-allegra
         , cardano-ledger-alonzo
@@ -115,6 +120,13 @@ library
         , cardano-ledger-shelley-ma-test
         , cardano-ledger-alonzo-test
         , cardano-ledger-babbage-test
+        , QuickCheck
+        , small-steps-test
+        , small-steps
+        , hedgehog
+        , data-array-byte
+        , memory
+        , cardano-crypto-test
 
     hs-source-dirs:   lib
     default-language: Haskell2010
