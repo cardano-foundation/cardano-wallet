@@ -371,9 +371,7 @@ import UnliftIO.Concurrent
     , threadDelay
     )
 import UnliftIO.Exception
-    ( SomeException
-    , handle
-    , throwIO
+    ( throwIO
     )
 import UnliftIO.MVar
     ( isEmptyMVar
@@ -575,17 +573,14 @@ fileModeSpec =  do
                     (withFile f ReadMode (\_ -> putMVar opened () >> threadDelay delay))
                     (takeMVar opened >> action)
 
-        it "withDatabase *> removeDatabase works and remove files" $ do
+        it "withDatabaseBoot *> removeDatabase works and remove files" $ do
             withDBFactory $ \dir DBFactory{..} -> do
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
                 pid <- forkIO
-                    $ withDatabase testWid
-                    $ \(DBFresh{..} :: TestDBSeqFresh) ->
-                    handle @IO @SomeException (const (pure ())) $ do
-                        DBLayer{..} <-
-                            unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                    $ withDatabaseBoot testWid testDBLayerParams
+                    $ \(DBLayer{..} :: DBLayer IO TestState) ->
                         forever $ do
                             atomically $ do
                                 liftIO $ threadDelay 10_000
@@ -597,7 +592,8 @@ fileModeSpec =  do
         it "removeDatabase still works if file is opened" $ do
             withDBFactory $ \dir DBFactory{..} -> do
                 -- set up a database file
-                withDatabase testWid $ \(_ :: TestDBSeqFresh) -> pure ()
+                withDatabaseBoot testWid testDBLayerParams
+                    $ \(_ :: DBLayer IO TestState) -> pure ()
                 openfs <- listDirectory dir
                 let dbfile = "she." <> show (getWalletId testWid) <> ".sqlite"
                 openfs `shouldContain` [dbfile]
@@ -615,9 +611,10 @@ fileModeSpec =  do
                 closed <- newEmptyMVar
 
                 let conn =
-                        withDatabase testWid $ \(_ :: TestDBSeqFresh) -> do
-                            threadDelay 500_000
-                            putMVar closed ()
+                        withDatabaseBoot testWid testDBLayerParams
+                            $ \(_ :: DBLayer IO TestState) -> do
+                                threadDelay 500_000
+                                putMVar closed ()
                 let rm = do
                         removeDatabase testWid
                         isEmptyMVar closed
