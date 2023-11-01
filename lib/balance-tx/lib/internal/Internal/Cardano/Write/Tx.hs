@@ -571,7 +571,7 @@ type TxOut era = Core.TxOut era
 
 modifyTxOutValue
     :: RecentEra era
-    -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
+    -> (Value -> Value)
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
     -> TxOut (CardanoApi.ShelleyLedgerEra era)
 modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
