@@ -242,7 +242,6 @@ import Internal.Cardano.Write.Tx
     , modifyTxOutCoin
     , outputs
     , toCardanoApiTx
-    , toCardanoApiValue
     , txBody
     , withConstraints
     )
@@ -415,7 +414,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
 
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
-    | ErrFailedBalancing CardanoApi.Value
+    | ErrFailedBalancing Value
     deriving (Show, Eq)
 
 -- | Errors that can occur when balancing transactions.
@@ -860,11 +859,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let bal = txBalance tx
         if bal == mempty
             then pure tx
-            else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
+            else throwE
+                $ ErrBalanceTxInternalError
+                $ ErrFailedBalancing bal
 
-    txBalance :: Tx (ShelleyLedgerEra era) -> CardanoApi.Value
+    txBalance :: Tx (ShelleyLedgerEra era) -> Value
     txBalance
-        = toCardanoApiValue @era
+        = withConstraints era
         . evaluateTransactionBalance era pp combinedUTxO
         . txBody era
 
@@ -878,7 +879,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 era pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx era tx update
-        let balance = txBalance tx'
+        let balance = CardanoApi.fromMaryValue $ txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
       where
