@@ -322,27 +322,20 @@ newDBFactory wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
         -- For the in-memory database, we do actually preserve the database
-        -- after the 'action' is done. This allows for calling 'withDatabase'
+        -- after the 'action' is done. This allows for calling
+        -- 'withDatabaseBoot'
         -- several times within the same execution and get back the same
         -- database. The memory is only cleaned up when calling
         -- 'removeDatabase', to mimic the way the file database works!
         --
         -- NOTE2
-        -- The in-memory withDatabase will leak memory unless removeDatabase is
+        -- The in-memory 'withDatabaseBoot' will leak memory unless
+        -- removeDatabase is
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
         pure DBFactory
-            { withDatabase = \wid action -> do
-                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                    Just db -> pure (m, db)
-                    Nothing -> do
-                        let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
-                        pure (Map.insert wid db m, db)
-                action db
-
-            , withDatabaseLoad = \wid _action -> do
+            { withDatabaseLoad = \wid _action -> do
                 throw $ ErrNoSuchWallet wid
 
             , withDatabaseBoot = \wid params action -> do
@@ -366,16 +359,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
     Just databaseDir -> do
         refs <- newRefCount
         pure DBFactory
-            { withDatabase = \wid action -> withRef refs wid
-                $ withDBFreshFromFile wf
-                    (contramap (MsgWalletDB (databaseFile wid)) tr)
-                    ti
-                    wid
-                    (Just defaultFieldValues)
-                    (databaseFile wid)
-                    action
-
-            , withDatabaseLoad = \wid action -> withRef refs wid
+            { withDatabaseLoad = \wid action -> withRef refs wid
                 $ withLoadDBLayerFromFile wf
                     (contramap (MsgWalletDB (databaseFile wid)) tr)
                     ti
@@ -396,7 +380,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
 
             , removeDatabase = \wid -> do
                 let widp = pretty wid
-                -- try to wait for all 'withDatabase' calls to finish before
+                -- try to wait for all 'withDatabaseBoot' calls to finish before
                 -- deleting database file.
                 let trWait = contramap (MsgWaitingForDatabase widp) tr
                 -- TODO: rather than refcounting, why not keep retrying the
@@ -479,9 +463,10 @@ instance ToText DBFactoryLog where
         MsgWaitingForDatabase wid Nothing ->
             "Database "+|wid|+" is ready to be deleted"
         MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+            "Waiting for "+|count|+" withDatabaseBoot "+|wid|+" call(s) to finish"
         MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Timed out waiting for "+|count|+
+            " withDatabaseBoot "+|wid|+" call(s) to finish. " <>
             "Attempting to remove the database anyway."
         MsgWalletDB _file msg -> toText msg
 
