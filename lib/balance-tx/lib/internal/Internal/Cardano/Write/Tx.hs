@@ -612,13 +612,13 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 
 -- | Type representing a TxOut in the latest or previous era.
 --
--- The underlying respresentation is isomorphic to 'TxOut LatestLedgerEra'.
+-- The underlying representation is isomorphic to 'TxOut LatestLedgerEra'.
 --
 -- Can be unwrapped using 'unwrapTxOutInRecentEra' or
 -- 'utxoFromTxOutsInRecentEra'.
 --
 -- Implementation assumes @TxOut latestEra ⊇ TxOut prevEra@ in the sense that
--- the latest era has not removed information from the @TxOut@. This is allows
+-- the latest era has not removed information from the @TxOut@. This allows
 -- e.g. @ToJSON@ / @FromJSON@ instances to be written for two eras using only
 -- one implementation.
 data TxOutInRecentEra =
