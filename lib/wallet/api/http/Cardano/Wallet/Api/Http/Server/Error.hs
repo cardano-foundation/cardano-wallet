@@ -1013,9 +1013,9 @@ instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
         , "Destination address: "
         , pretty (toWalletAddress (view #address e))
         , ". Token policy identifier: "
-        , pretty (view (#asset . #tokenPolicyId) e)
+        , pretty (show (view #policyId e))
         , ". Asset name: "
-        , pretty (view (#asset . #tokenName) e)
+        , pretty (show (view #assetName e))
         , ". Token quantity specified: "
         , pretty (view #quantity e)
         , ". Maximum allowable token quantity: "
