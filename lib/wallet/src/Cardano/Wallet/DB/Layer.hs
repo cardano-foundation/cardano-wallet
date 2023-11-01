@@ -30,7 +30,7 @@ module Cardano.Wallet.DB.Layer
     , newDBFreshInMemory
 
     -- * Open a database for testing
-    , withLoadDBLayerFromFile
+    , withTestLoadDBLayerFromFile
     , WalletDBLog (..)
     , DefaultFieldValues (..)
 
@@ -781,7 +781,7 @@ mkDecorator transactionsQS =
 -- (possibly triggering migrations), and run an action on it.
 --
 -- Useful for testing the logs and results of migrations.
-withLoadDBLayerFromFile
+withTestLoadDBLayerFromFile
     :: forall s a.
         ( PersistAddressBook s
         , WalletFlavor s
@@ -796,7 +796,7 @@ withLoadDBLayerFromFile
         -- ^ Action to run.
     -> IO a
         -- ^ Result of the action.
-withLoadDBLayerFromFile tr ti path action =
+withTestLoadDBLayerFromFile tr ti path action =
     withDBOpenFromFile (walletFlavor @s) tr (Just testDefaultFieldValues) path
     $ \db -> do
         mwid <- retrieveWalletId db
