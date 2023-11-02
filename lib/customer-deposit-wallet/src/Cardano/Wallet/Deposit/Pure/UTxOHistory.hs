@@ -23,9 +23,11 @@ in 'UTxOHistory.Model'.
 
 import Prelude
 
-import Cardano.Wallet.Deposit.Pure.UTxO
+import Cardano.Wallet.Deposit.Pure.DeltaUTxO
     ( DeltaUTxO
-    , UTxO
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO
+    ( UTxO
     )
 import Data.Delta
     ( Delta (..)

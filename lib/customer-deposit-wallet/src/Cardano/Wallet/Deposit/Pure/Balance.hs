@@ -8,9 +8,11 @@ module Cardano.Wallet.Deposit.Pure.Balance
 
 import Prelude
 
-import Cardano.Wallet.Deposit.Pure.UTxO
+import Cardano.Wallet.Deposit.Pure.DeltaUTxO
     ( DeltaUTxO
-    , UTxO
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO
+    ( UTxO
     , balance
     , excluding
     )
@@ -24,6 +26,7 @@ import Data.Set
     ( Set
     )
 
+import qualified Cardano.Wallet.Deposit.Pure.DeltaUTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
