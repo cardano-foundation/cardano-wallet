@@ -4957,7 +4957,7 @@ newApiLayer
         )
     => Tracer IO WalletEngineLog
     -> (Block, NetworkParameters)
-    -> NetworkLayer IO Read.Block
+    -> NetworkLayer IO Read.ConsensusBlock
     -> TransactionLayer k (CredFromOf s) W.SealedTx
     -> DBFactory IO s
     -> TokenMetadataClient IO

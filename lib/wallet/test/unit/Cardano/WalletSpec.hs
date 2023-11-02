@@ -992,7 +992,7 @@ prop_localTxSubmission tc = monadicIO $ do
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
 
-    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.Block
+    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.ConsensusBlock
     mockNetwork var = dummyNetworkLayer
         { currentSlottingParameters = pure (testSlottingParameters tc)
         , postTx = \tx -> ExceptT $ do

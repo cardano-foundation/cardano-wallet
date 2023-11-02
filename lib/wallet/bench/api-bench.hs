@@ -525,7 +525,7 @@ benchmarkWallets benchName dir walletTr networkId action = do
     saveBenchmarkPoints benchname =
         Aeson.encodeFile (T.unpack benchname <> ".json")
 
-mockNetworkLayer :: NetworkLayer IO Read.Block
+mockNetworkLayer :: NetworkLayer IO Read.ConsensusBlock
 mockNetworkLayer = dummyNetworkLayer
     { timeInterpreter = hoistTimeInterpreter liftIO mockTimeInterpreter
     , currentSlottingParameters = pure dummySlottingParameters

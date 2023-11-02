@@ -870,7 +870,7 @@ data WalletLayer m s =
     WalletLayer
         { logger_ :: Tracer m WalletWorkerLog
         , genesisData_ :: (Block, NetworkParameters)
-        , networkLayer_ :: NetworkLayer m Read.Block
+        , networkLayer_ :: NetworkLayer m Read.ConsensusBlock
         , transactionLayer_ :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
         , dbLayer_ :: DBLayer m s
         }
@@ -913,7 +913,7 @@ type HasLogger m msg = HasType (Tracer m msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer m = HasType (NetworkLayer m Read.Block)
+type HasNetworkLayer m = HasType (NetworkLayer m Read.ConsensusBlock)
 
 type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
@@ -928,8 +928,8 @@ logger :: forall m msg ctx. HasLogger m msg ctx => Lens' ctx (Tracer m msg)
 logger = typed @(Tracer m msg)
 
 networkLayer ::
-    forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Read.Block)
-networkLayer = typed @(NetworkLayer m Read.Block)
+    forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Read.ConsensusBlock)
+networkLayer = typed @(NetworkLayer m Read.ConsensusBlock)
 
 transactionLayer ::
     forall k ktype ctx. (HasTransactionLayer k ktype ctx)
@@ -2096,7 +2096,7 @@ buildSignSubmitTransaction
        , Excluding '[SharedKey] k
        )
     => DBLayer IO s
-    -> NetworkLayer IO Read.Block
+    -> NetworkLayer IO Read.ConsensusBlock
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> Passphrase "user"
     -> WalletId
@@ -2926,7 +2926,7 @@ delegationFee
        , HasSNetworkId (NetworkOf s)
        )
     => DBLayer IO s
-    -> NetworkLayer IO Read.Block
+    -> NetworkLayer IO Read.ConsensusBlock
     -> ChangeAddressGen s
     -> IO DelegationFee
 delegationFee db@DBLayer{..} netLayer changeAddressGen = do
