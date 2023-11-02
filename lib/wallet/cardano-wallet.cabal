@@ -69,7 +69,7 @@ library
     , cborg
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , cryptonite
     , deepseq
     , delta-store
@@ -293,7 +293,7 @@ library cardano-wallet-api-http
     , cardano-wallet-read
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , data-default
     , deepseq
     , directory
@@ -401,7 +401,7 @@ library cardano-wallet-integration
     , cborg
     , command
     , containers
-    , crypto-hash-extra
+    , crypto-primitives
     , cryptonite
     , directory
     , either
@@ -593,7 +593,7 @@ test-suite unit
     , connection
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , cryptonite
     , data-default
     , data-interval
@@ -824,7 +824,8 @@ benchmark restore
     , cardano-wallet-primitive
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
+    , deepseq
     , filepath
     , fmt
     , iohk-monitoring
