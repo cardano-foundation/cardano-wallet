@@ -27,7 +27,7 @@ import Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO
     ( DeltaUTxO
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxO
-    ( UTxO
+    ( UTxO (..)
     )
 import Data.Delta
     ( Delta (..)
@@ -44,8 +44,8 @@ newtype UTxOHistory
     deriving (Eq, Show)
 
 -- | An empty UTxO history.
-empty :: UTxO -> UTxOHistory
-empty = UTxOHistory
+empty :: Read.UTxO -> UTxOHistory
+empty = UTxOHistory . UTxO
 
 -- | Returns the most recent UTxO.
 getUTxO :: UTxOHistory -> UTxO

@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
+
 -- | Indirection module that re-exports types
 -- used for reading data from the blockchain,
 -- from all eras.
@@ -15,6 +17,8 @@ module Cardano.Wallet.Deposit.Read
     , Ix
     , TxIn (..)
     , TxOut
+    , address
+    , value
     , Value
     , UTxO
 
@@ -59,9 +63,9 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as WTx
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as WTxOut
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
 -- import qualified Ouroboros.Consensus.Cardano.Block as O
 
 {-----------------------------------------------------------------------------
@@ -92,12 +96,18 @@ type Ix = Natural
 -- type TxIn = (TxId, Ix)
 
 -- type TxOut = (Addr, Value)
-type TxOut = W.TxOut
+type TxOut = WTxOut.TxOut
+
+address :: WTxOut.TxOut -> Addr
+address = WTxOut.address
+
+value :: WTxOut.TxOut -> Value
+value = WTxOut.tokens
 
 type Value = W.TokenBundle
 
 -- type UTxO = Map TxIn TxOut
-type UTxO = W.UTxO
+type UTxO = Map.Map TxIn TxOut
 
 -- | A 'TxId' is a cryptographic hash of a 'Tx'.
 type TxId = W.Hash "Tx"
