@@ -363,6 +363,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
+    , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -711,6 +712,10 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
+import Crypto.Encryption.ChaChaPoly1305
+    ( encryptPayload
+    , toSymmetricKey
+    )
 import Data.Bifunctor
     ( first
     )
@@ -917,7 +922,10 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -3099,6 +3107,41 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+-- When encryption is enabled we do the following:
+-- (a) toJSON on metadata,
+-- (b) encrypt it
+-- (c) and create new tx metadata
+--     (0, TxMetaBytes chunk1)
+--     (1, TxMetaBytes chunk2)
+--     until encrypted metadata is accommodated
+toMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> TxMetadataWithSchema
+    -> TxMetadataWithSchema
+toMetadataEncrypted apiEncrypt =
+    toMetadata . encrypt . toBytes
+  where
+    toBytes = BL.toStrict . Aeson.encode
+
+    nonce = "encrypt-data"
+    (ApiEncryptMetadata (ApiT passphrase)) = apiEncrypt
+    symmetricKey = toSymmetricKey (BA.convert $ unPassphrase passphrase)
+    encrypt = encryptPayload symmetricKey nonce
+
+    toChunks bs res =
+        if bs == BS.empty then
+            reverse res
+        else
+            let (front, back) = BS.splitAt 64 bs
+            in toChunks back (front:res)
+    toMetadata =
+        TxMetadataWithSchema TxMetadataNoSchema .
+        Cardano.TxMetadata .
+        Map.fromList .
+        zipWith (,) [0..] .
+        map Cardano.TxMetaBytes .
+        flip toChunks []
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)

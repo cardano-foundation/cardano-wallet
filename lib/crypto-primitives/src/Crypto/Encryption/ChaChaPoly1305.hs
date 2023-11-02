@@ -88,4 +88,4 @@ toSymmetricKey rawKey =
     (PBKDF2.prfHMAC SHA512)
     (PBKDF2.Parameters 500 32)
     rawKey
-    ("metadata-encryption-" :: ByteString)
+    ("metadata-encryption" :: ByteString)
