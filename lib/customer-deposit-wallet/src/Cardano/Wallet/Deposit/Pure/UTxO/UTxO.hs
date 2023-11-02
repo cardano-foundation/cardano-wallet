@@ -1,4 +1,4 @@
-module Cardano.Wallet.Deposit.Pure.UTxO
+module Cardano.Wallet.Deposit.Pure.UTxO.UTxO
     ( UTxO (..)
     , balance
     , excluding

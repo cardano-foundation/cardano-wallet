@@ -1,4 +1,4 @@
-module Cardano.Wallet.Deposit.Pure.DeltaUTxO
+module Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO
     ( DeltaUTxO
     , excludingD
     , receiveD

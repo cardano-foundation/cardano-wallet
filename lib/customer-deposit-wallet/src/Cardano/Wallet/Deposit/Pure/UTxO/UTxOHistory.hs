@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
-module Cardano.Wallet.Deposit.Pure.UTxOHistory
+module Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
     , empty
 
@@ -23,10 +23,10 @@ in 'UTxOHistory.Model'.
 
 import Prelude
 
-import Cardano.Wallet.Deposit.Pure.DeltaUTxO
+import Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO
     ( DeltaUTxO
     )
-import Cardano.Wallet.Deposit.Pure.UTxO
+import Cardano.Wallet.Deposit.Pure.UTxO.UTxO
     ( UTxO
     )
 import Data.Delta

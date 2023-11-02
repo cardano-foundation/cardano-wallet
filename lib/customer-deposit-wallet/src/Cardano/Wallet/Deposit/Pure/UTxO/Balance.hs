@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
 -- | Wallet balance.
-module Cardano.Wallet.Deposit.Pure.Balance
+module Cardano.Wallet.Deposit.Pure.UTxO.Balance
     ( balance
     , availableUTxO
     , applyBlock
@@ -9,10 +9,10 @@ module Cardano.Wallet.Deposit.Pure.Balance
 
 import Prelude
 
-import Cardano.Wallet.Deposit.Pure.DeltaUTxO
+import Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO
     ( DeltaUTxO
     )
-import Cardano.Wallet.Deposit.Pure.UTxO
+import Cardano.Wallet.Deposit.Pure.UTxO.UTxO
     ( UTxO (..)
     , balance
     , excluding
@@ -25,8 +25,8 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Wallet.Deposit.Pure.DeltaUTxO as UTxO
-import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO as UTxO
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Map as Map

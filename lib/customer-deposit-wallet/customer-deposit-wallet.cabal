@@ -80,10 +80,10 @@ library
     Cardano.Wallet.Deposit.IO.DB
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.Pure
-    Cardano.Wallet.Deposit.Pure.Balance
-    Cardano.Wallet.Deposit.Pure.DeltaUTxO
-    Cardano.Wallet.Deposit.Pure.UTxO
-    Cardano.Wallet.Deposit.Pure.UTxOHistory
+    Cardano.Wallet.Deposit.Pure.UTxO.Balance
+    Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO
+    Cardano.Wallet.Deposit.Pure.UTxO.UTxO
+    Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Read
     Cardano.Wallet.Deposit.Write
