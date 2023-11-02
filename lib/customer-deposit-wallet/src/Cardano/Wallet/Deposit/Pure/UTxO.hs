@@ -1,5 +1,5 @@
 module Cardano.Wallet.Deposit.Pure.UTxO
-    ( UTxO
+    ( UTxO (..)
     , balance
     , excluding
     , filterByAddress

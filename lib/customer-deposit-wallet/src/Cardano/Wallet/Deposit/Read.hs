@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 -- | Indirection module that re-exports types
 -- used for reading data from the blockchain,
 -- from all eras.
@@ -12,13 +13,14 @@ module Cardano.Wallet.Deposit.Read
     , Address
 
     , Ix
-    , TxIn
+    , TxIn (..)
     , TxOut
     , Value
     , UTxO
 
     , TxId
     , Tx
+    , toTxId
     , W.txScriptInvalid
     , W.collateralInputs
     , W.inputs
@@ -43,8 +45,8 @@ module Cardano.Wallet.Deposit.Read
 
 import Prelude
 
-import Data.ByteString
-    ( ByteString
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..)
     )
 import Numeric.Natural
     ( Natural
@@ -53,9 +55,10 @@ import Numeric.Natural
 import qualified Cardano.Chain.Genesis as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as WTx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
@@ -87,7 +90,6 @@ dummyAddress = W.Address . BS.pack $ replicate 32 0
 type Ix = Natural
 
 -- type TxIn = (TxId, Ix)
-type TxIn = W.TxIn
 
 -- type TxOut = (Addr, Value)
 type TxOut = W.TxOut
@@ -97,9 +99,14 @@ type Value = W.TokenBundle
 -- type UTxO = Map TxIn TxOut
 type UTxO = W.UTxO
 
-type TxId = ByteString
+-- | A 'TxId' is a cryptographic hash of a 'Tx'.
+type TxId = W.Hash "Tx"
 
 type Tx = W.Tx
+
+-- | Compute the 'TxId' of a 'Tx'.
+toTxId :: W.Tx -> TxId
+toTxId = WTx.txId
 
 type TxBody = ()
 

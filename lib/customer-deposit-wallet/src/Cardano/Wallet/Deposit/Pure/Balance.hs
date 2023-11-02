@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TupleSections #-}
 -- | Wallet balance.
 module Cardano.Wallet.Deposit.Pure.Balance
     ( balance
@@ -12,15 +13,13 @@ import Cardano.Wallet.Deposit.Pure.DeltaUTxO
     ( DeltaUTxO
     )
 import Cardano.Wallet.Deposit.Pure.UTxO
-    ( UTxO
+    ( UTxO (..)
     , balance
     , excluding
     )
-import Cardano.Wallet.Primitive.Model
-    ( utxoFromTx
-    )
 import Data.Foldable
     ( foldMap'
+    , toList
     )
 import Data.Set
     ( Set
@@ -30,6 +29,7 @@ import qualified Cardano.Wallet.Deposit.Pure.DeltaUTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
@@ -103,6 +103,70 @@ spendTxD tx !u =
         if Read.txScriptInvalid tx
         then Read.collateralInputs tx
         else Read.inputs tx
+
+-- | Generates a UTxO set from a transaction.
+--
+-- The generated UTxO set corresponds to the value provided by the transaction.
+--
+-- It is important for transaction outputs to be ordered correctly, as their
+-- indices within this ordering will determine how they are referenced as
+-- transaction inputs in subsequent blocks.
+--
+-- Assuming the transaction is not marked as having an invalid script, the
+-- following properties should hold:
+--
+-- prop> balance (utxoFromTx tx) == foldMap tokens (outputs tx)
+-- prop> size    (utxoFromTx tx) == length         (outputs tx)
+-- prop> toList  (utxoFromTx tx) == toList         (outputs tx)
+--
+-- However, if the transaction is marked as having an invalid script, then the
+-- following properties should hold:
+--
+-- prop> balance (utxoFromTx tx) == foldMap tokens (collateralOutput tx)
+-- prop> size    (utxoFromTx tx) == length         (collateralOutput tx)
+-- prop> toList  (utxoFromTx tx) == toList         (collateralOutput tx)
+--
+utxoFromTx :: Read.Tx -> UTxO
+utxoFromTx tx =
+    if Read.txScriptInvalid tx
+    then utxoFromTxCollateralOutputs tx
+    else utxoFromTxOutputs tx
+
+-- | Generates a UTxO set from the ordinary outputs of a transaction.
+--
+-- This function ignores the transaction's script validity.
+--
+utxoFromTxOutputs :: Read.Tx -> UTxO
+utxoFromTxOutputs tx =
+    UTxO
+        $ Map.fromList
+        $ zip (Read.TxIn txid <$> [0..])
+        $ Read.outputs tx
+  where
+    txid = Read.toTxId tx
+
+-- | Generates a UTxO set from the collateral outputs of a transaction.
+--
+-- This function ignores the transaction's script validity.
+--
+utxoFromTxCollateralOutputs :: Read.Tx -> UTxO
+utxoFromTxCollateralOutputs tx =
+    UTxO
+        $ Map.fromList
+        $ toList
+        $ (Read.TxIn txid index,) <$> Read.collateralOutput tx
+  where
+    txid = Read.toTxId tx
+
+    -- To reference a collateral output within transaction t, we specify an
+    -- output index that is equal to the number of ordinary outputs within t.
+    --
+    -- See definition of function "collOuts" within "Formal Specification of
+    -- the Cardano Ledger for the Babbage era".
+    --
+    -- https://hydra.iohk.io/build/14336206/download/1/babbage-changes.pdf
+    --
+    index = fromIntegral (length $ Read.outputs tx)
 
 {-----------------------------------------------------------------------------
     Helpers
