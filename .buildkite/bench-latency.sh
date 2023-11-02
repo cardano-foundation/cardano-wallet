@@ -4,4 +4,9 @@ set -euo pipefail
 
 echo "+++ Build & run latency benchmark"
 
-nix run .#ci.benchmarks.latency
+nix shell \
+  '.#local-cluster' \
+  '.#cardano-node' \
+  '.#cardano-wallet' \
+  '.#ci.benchmarks.latency' \
+  -c latency

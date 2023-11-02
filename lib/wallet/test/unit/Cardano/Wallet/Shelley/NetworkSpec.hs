@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -19,6 +20,7 @@ import Cardano.Launcher.Node
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
+    , Config (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
@@ -319,12 +321,13 @@ withTestNode tr action = do
             cfgClusterConfigs <-
                 Tagged @"cluster-configs" <$> getEnv "LOCAL_CLUSTER_CONFIGS"
             let clusterConfig = Cluster.Config
-                    { Cluster.cfgStakePools = defaultPoolConfigs
-                    , Cluster.cfgLastHardFork = BabbageHardFork
-                    , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , Cluster.cfgClusterDir = Tagged @"cluster" dir
-                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
-                    , Cluster.cfgTestnetMagic = Cluster.TestnetMagic 42
+                    { cfgStakePools = defaultPoolConfigs
+                    , cfgLastHardFork = BabbageHardFork
+                    , cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , cfgClusterDir = Tagged @"cluster" dir
+                    , cfgClusterConfigs
+                    , cfgTestnetMagic = Cluster.TestnetMagic 42
+                    , cfgShelleyGenesisMods = []
                     }
             withCluster tr clusterConfig mempty $
                 \(RunningNode sock genesisData vData) -> do

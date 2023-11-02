@@ -1025,6 +1025,7 @@ benchmark latency
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-integration
+    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , directory
     , filepath

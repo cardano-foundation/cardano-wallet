@@ -26,6 +26,7 @@ module Cardano.Wallet.Launch.Cluster
     ( -- * Local test cluster launcher
       withCluster
     , Config (..)
+    , ShelleyGenesisModifier
     , TestnetMagic (..)
     , ClusterEra (..)
     , FaucetFunds (..)
@@ -188,6 +189,7 @@ import Control.Monad
     , liftM2
     , replicateM
     , replicateM_
+    , unless
     , void
     , when
     , (>=>)
@@ -1040,6 +1042,9 @@ clusterEraToString = \case
 newtype TestnetMagic = TestnetMagic { testnetMagicToNatural :: Natural }
     deriving stock (Show)
 
+type ShelleyGenesisModifier =
+    ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto
+
 data Config = Config
     { cfgStakePools :: NonEmpty PoolRecipe
     -- ^ Stake pools to register.
@@ -1052,7 +1057,10 @@ data Config = Config
     , cfgClusterConfigs :: Tagged "cluster-configs" FilePath
     -- ^ Directory containing data for cluster setup.
     , cfgTestnetMagic :: TestnetMagic
-    } deriving stock (Show)
+    -- ^ Testnet magic to use.
+    , cfgShelleyGenesisMods :: [ShelleyGenesisModifier]
+    -- ^ Shelley genesis modifications to apply.
+    }
 
 -- | Information about a launched node.
 data RunningNode = RunningNode
@@ -1083,10 +1091,9 @@ generateGenesis
     :: HasCallStack
     => Config
     -> [(Address, Coin)]
-    -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
-    -- ^ For adding genesis pools and staking in Babbage and later.
+    -> [ShelleyGenesisModifier]
     -> IO GenesisFiles
-generateGenesis Config{..} initialFunds addPoolsToGenesis = do
+generateGenesis Config{..} initialFunds genesisMods = do
     {- The timestamp of the 0-th slot.
 
     Ideally it should be few seconds later than the cluster actually starts.
@@ -1094,7 +1101,7 @@ generateGenesis Config{..} initialFunds addPoolsToGenesis = do
     If it's slightly before the actual starts, some slots will be missed,
     but it shouldn't be critical as long as less than k slots are missed.
 
-    Empirically, 10 seconds seems to be a good value: enough for a cluster to
+    Empirically, 5 seconds seems to be a good value: enough for a cluster to
     initialize itself before producing any blocks, but not too much to wait for.
 
     Lower values (e.g. 1 second) might cause custer to start but not produce
@@ -1102,14 +1109,41 @@ generateGenesis Config{..} initialFunds addPoolsToGenesis = do
     happens then node logs contain TraceNoLedgerView message and wallet log says
     "Current tip is [point genesis]. (not applying blocks)"
     -}
-    systemStart <- addUTCTime 10 <$> getCurrentTime
+    systemStart <- addUTCTime 5 <$> getCurrentTime
 
-    let shelleyGenesisData = addPoolsToGenesis ShelleyGenesis
+    let sgProtocolParams = Ledger.emptyPParams
+            & ppMinFeeAL .~ Ledger.Coin 100
+            & ppMinFeeBL .~ Ledger.Coin 100_000
+            & ppMinUTxOValueL .~ Ledger.Coin 1_000_000
+            & ppKeyDepositL .~ Ledger.Coin 1_000_000
+            & ppPoolDepositL .~ Ledger.Coin 0
+            & ppMaxBBSizeL .~ 239_857
+            & ppMaxBHSizeL .~ 217_569
+            & ppMaxTxSizeL .~ 16_384
+            & ppMinPoolCostL .~ Ledger.Coin 0
+            & ppExtraEntropyL .~ Ledger.NeutralNonce
+            -- There are a few smaller features/fixes which are enabled
+            -- based on the protocol version rather than just the era,
+            -- so we need to set it to a realisitic value.
+            & ppProtocolVersionL .~ Ledger.ProtVer (natVersion @8) 0
+            -- Sensible pool & reward parameters:
+            & ppNOptL .~ 3
+            & ppRhoL .~ unsafeUnitInterval 0.178_650_067
+            & ppTauL .~ unsafeUnitInterval 0.1
+            & ppA0L .~ unsafeNonNegativeInterval 0.1
+            & ppDL .~ unsafeUnitInterval 0
+            -- The epoch bound on pool retirements specifies how many epochs
+            -- in advance retirements may be announced. For testing purposes,
+            -- we allow retirements to be announced far into the future.
+            & ppEMaxL .~ 1_000_000
+
+    let shelleyGenesisData =
+            foldr ($) ShelleyGenesis
             { sgSystemStart = systemStart
             , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
-            , sgSlotLength = 0.1
             , sgSecurityParam = 10
             , sgEpochLength = 100
+            , sgSlotLength = 0.1
             , sgUpdateQuorum = 1
             , sgNetworkMagic =
                 fromIntegral (testnetMagicToNatural cfgTestnetMagic)
@@ -1117,73 +1151,53 @@ generateGenesis Config{..} initialFunds addPoolsToGenesis = do
             , sgMaxKESEvolutions = 5
             , sgNetworkId = Testnet
             , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
-            , sgProtocolParams = Ledger.emptyPParams
-                & ppMinFeeAL .~ Ledger.Coin 100
-                & ppMinFeeBL .~ Ledger.Coin 100_000
-                & ppMinUTxOValueL .~ Ledger.Coin 1_000_000
-                & ppKeyDepositL .~ Ledger.Coin 1_000_000
-                & ppPoolDepositL .~ Ledger.Coin 0
-                & ppMaxBBSizeL .~ 239_857
-                & ppMaxBHSizeL .~ 217_569
-                & ppMaxTxSizeL .~ 16_384
-                & ppMinPoolCostL .~ Ledger.Coin 0
-                & ppExtraEntropyL .~ Ledger.NeutralNonce
-                -- There are a few smaller features/fixes which are enabled
-                -- based on the protocol version rather than just the era,
-                -- so we need to set it to a realisitic value.
-                & ppProtocolVersionL .~ Ledger.ProtVer (natVersion @8) 0
-                -- Sensible pool & reward parameters:
-                & ppNOptL .~ 3
-                & ppRhoL .~ unsafeUnitInterval 0.178_650_067
-                & ppTauL .~ unsafeUnitInterval 0.1
-                & ppA0L .~ unsafeNonNegativeInterval 0.1
-                & ppDL .~ unsafeUnitInterval 0
-                -- The epoch bound on pool retirements specifies how many epochs
-                -- in advance retirements may be announced. For testing purposes,
-                -- we allow retirements to be announced far into the future.
-                & ppEMaxL .~ 1_000_000
+            , sgProtocolParams
             , sgInitialFunds =
                 ListMap.fromList
                     [ ( fromMaybe (error "sgInitialFunds: invalid addr")
                             $ Ledger.deserialiseAddr $ unAddress address
-                    , Ledger.Coin $ intCast c
-                    )
+                      , Ledger.Coin $ intCast c
+                      )
                     | (address, Coin c) <- initialFunds
                     ]
             , sgStaking = Ledger.emptyGenesisStaking
             -- We need this to submit MIR certs
             -- (and probably for the BFT node pre-babbage):
             , sgGenDelegs =
-                fromRight (error "invalid sgGenDelegs")
-                    $ Aeson.eitherDecode
-                    $ Aeson.encode
-                        [aesonQQ|{
-        "91612ee7b158dc64871a959060973d0f2b8fb6e85ae960f03b8640ac": {
-            "delegate": "180b3fae61789f61cbdbc69e5f8e1beae9093aa2215e482dc8d89ec9",
-            "vrf": "e9ef3b5d81d400eb046de696354ff8e84122f505e706e3c86a361cce919a686e"
-        }
-    }|]
-                            }
+                fromRight (error "invalid sgGenDelegs") . Aeson.eitherDecode
+                    $ Aeson.encode [aesonQQ|
+                {"91612ee7b158dc64871a959060973d0f2b8fb6e85ae960f03b8640ac": {
+                    "delegate": "180b3fae61789f61cbdbc69e5f8e1beae9093aa2215e482dc8d89ec9",
+                    "vrf": "e9ef3b5d81d400eb046de696354ff8e84122f505e706e3c86a361cce919a686e"
+                }}|]
+            }
+            genesisMods
 
-    let shelleyGenesis = untag cfgClusterDir </> "genesis.shelley.json"
+    let shelleyGenesis = untag cfgClusterDir </> "genesis-shelley.json"
     Aeson.encodeFile shelleyGenesis shelleyGenesisData
 
-    let yamlToAeson = Yaml.decodeFileThrow @_ @Aeson.Value
+    let fileToAeson :: FilePath -> IO Aeson.Value
+        fileToAeson f = Aeson.eitherDecodeFileStrict f >>= either fail pure
 
-    let byronGenesis = untag cfgClusterDir </> "genesis.byron.json"
-    yamlToAeson (untag cfgClusterConfigs </> "byron-genesis.yaml")
+    let byronGenesis = untag cfgClusterDir </> "genesis-byron.json"
+    fileToAeson (untag cfgClusterConfigs </> "genesis-byron.json")
         >>= withAddedKey "startTime"
-                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
+            (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
         >>= Aeson.encodeFile byronGenesis
 
-    let alonzoGenesis = untag cfgClusterDir </> "genesis.alonzo.json"
-    yamlToAeson (untag cfgClusterConfigs </> "alonzo-genesis.yaml")
+    let alonzoGenesis = untag cfgClusterDir </> "genesis-alonzo.json"
+    fileToAeson (untag cfgClusterConfigs </> "genesis-alonzo.json")
         >>= Aeson.encodeFile alonzoGenesis
 
-    let conwayGenesis = untag cfgClusterDir </> "conway-genesis.json"
-    copyFile (untag cfgClusterConfigs </> "conway-genesis.json") conwayGenesis
+    let conwayGenesis = untag cfgClusterDir </> "genesis-conway.json"
+    copyFile (untag cfgClusterConfigs </> "genesis-conway.json") conwayGenesis
 
-    pure GenesisFiles{..}
+    pure GenesisFiles
+        { byronGenesis
+        , shelleyGenesis
+        , alonzoGenesis
+        , conwayGenesis
+        }
 
 data FaucetFunds = FaucetFunds
     { pureAdaFunds :: [(Address, Coin)]
@@ -1248,7 +1262,8 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             generateGenesis
                 config
                 (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
-                (if postAlonzo then addGenesisPools else federalizeNetwork)
+                ((if postAlonzo then addGenesisPools else federalizeNetwork)
+                    : cfgShelleyGenesisMods)
 
         extraPort : poolsTcpPorts <-
             randomUnusedTCPPorts (length cfgStakePools + 1)
@@ -1723,7 +1738,7 @@ genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
                     ]
 
     let poolNodeConfig =
-            untag poolDir </> ("node" <> untag name <> "-config.json")
+            untag poolDir </> ("node" <> untag name <> "-config.yaml")
 
     Yaml.decodeFileThrow (untag setupDir </> "node-config.json")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
@@ -1764,7 +1779,7 @@ genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
             ]
 
 withAddedKey
-    :: (MonadFail m, Yaml.ToJSON a)
+    :: (MonadFail m, Aeson.ToJSON a)
     => Aeson.Key
     -> a
     -> Aeson.Value
@@ -2327,7 +2342,7 @@ moveInstantaneousRewardsTo
     -> CardanoNodeConn
     -> [(Credential, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr config conn targets = do
+moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
     let clusterDir = cfgClusterDir config
     let clusterConfigs = cfgClusterConfigs config
     let outputDir = retag @"cluster" @_ @"output" clusterDir

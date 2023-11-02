@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -44,6 +45,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Control.Applicative
     ( (<**>)
+    )
+import Control.Lens
+    ( over
     )
 import Control.Monad.Trans.Resource
     ( allocate
@@ -215,6 +219,7 @@ main = withUtf8 $ do
                 , cfgClusterDir = Tagged clusterPath
                 , cfgClusterConfigs = clusterConfigsDir
                 , cfgTestnetMagic = Cluster.TestnetMagic 42
+                , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
                 }
         Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
             clusterDir <- Path.parseAbsDir clusterPath

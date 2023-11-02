@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -19,18 +20,23 @@ import Prelude
 import Cardano.Address
     ( Address
     )
+import Cardano.Address.Style.Shelley
+    ( shelleyTestnet
+    )
 import Cardano.BM.Data.LogItem
     ( LogObject
     )
 import Cardano.BM.Data.Severity
-    ( Severity (..)
+    ( Severity (Error)
     )
 import Cardano.BM.Data.Tracer
-    ( contramap
-    , nullTracer
+    ( HasSeverityAnnotation
+    , Tracer (..)
+    , filterSeverity
     )
 import Cardano.BM.Extra
-    ( trMessage
+    ( stdoutTextTracer
+    , trMessage
     )
 import Cardano.BM.Trace
     ( traceInTVarIO
@@ -44,7 +50,7 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( Listen (ListenOnRandomPort)
+    ( Listen (ListenOnPort)
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
@@ -77,10 +83,11 @@ import Cardano.Wallet.LatencyBenchShared
     , withLatencyLogging
     )
 import Cardano.Wallet.Launch.Cluster
-    ( FaucetFunds (..)
-    , LogFileConfig (..)
+    ( Config (..)
+    , FaucetFunds (..)
     , RunningNode (..)
     , defaultPoolConfigs
+    , testnetMagicToNatural
     , withCluster
     )
 import Cardano.Wallet.LocalCluster
@@ -93,7 +100,8 @@ import Cardano.Wallet.Pools
     ( StakePool
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
     , NetworkId (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -105,7 +113,6 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Shelley
     ( Tracers
     , Tracers' (..)
-    , nullTracers
     , serveWallet
     )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -134,14 +141,18 @@ import Data.Aeson
 import Data.Bifunctor
     ( bimap
     )
-import Data.Generics.Internal.VL.Lens
-    ( (^.)
+import Data.Functor.Contravariant
+    ( (>$<)
     )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|))
+import Data.Generics.Internal.VL.Lens
+    ( over
+    , (^.)
     )
 import Data.Tagged
     ( Tagged (..)
+    )
+import Data.Text.Class.Extended
+    ( ToText
     )
 import Fmt
     ( build
@@ -178,12 +189,14 @@ import System.IO.Temp.Extra
     , withSystemTempDir
     )
 import Test.Hspec
-    ( shouldBe
+    ( HasCallStack
+    , shouldBe
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , ResourceT
     , eventually
     , expectField
     , expectResponseCode
@@ -217,7 +230,6 @@ import UnliftIO.STM
     ( TVar
     )
 
-import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
@@ -225,19 +237,32 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Options.Applicative as O
 
-main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withUtf8 $ do
+main :: forall n. (n ~ 'Testnet 42) => IO ()
+main = withUtf8 $
     withLatencyLogging setupTracers $ \tracers capture ->
-        withShelleyServer tracers $ \ctx -> do
+        withShelleyServer tracers $ \ctx ->
             walletApiBench @n capture ctx
   where
+    onlyErrors :: (HasSeverityAnnotation a, ToText a) => Tracer IO a
+    onlyErrors = filterSeverity (const $ pure Error) stdoutTextTracer
+
     setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
-    setupTracers tvar = nullTracers
-        { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
+    setupTracers tvar =
+        Tracers
+            { apiServerTracer = trMessage $ snd >$< traceInTVarIO tvar
+            , applicationTracer = onlyErrors
+            , tokenMetadataTracer = onlyErrors
+            , walletEngineTracer = onlyErrors
+            , walletDbTracer = onlyErrors
+            , poolsEngineTracer = onlyErrors
+            , poolsDbTracer = onlyErrors
+            , ntpClientTracer = onlyErrors
+            , networkTracer = onlyErrors
+            }
 
 walletApiBench
     :: forall n
-    . (n ~ 'Mainnet)
+     . HasSNetworkId n
     => LogCaptureFunc ApiLog ()
     -> Context
     -> IO ()
@@ -283,6 +308,7 @@ walletApiBench capture ctx = do
 
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 1_000)
+
     fmtTitle $ "Latencies for 2 fixture wallets with "
         <> build massiveWalletUTxOSize
         <> " utxos scenario"
@@ -290,6 +316,10 @@ walletApiBench capture ctx = do
   where
 
     -- Creates n fixture wallets and return 3 of them
+    nFixtureWallet
+        :: HasCallStack
+        => Int
+        -> ResourceT IO (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
     nFixtureWallet n = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         walMA <- fixtureMultiAssetWallet ctx
@@ -311,7 +341,7 @@ walletApiBench capture ctx = do
         let amtExp val = ((amt * fromIntegral val) + faucetAmt) :: Natural
         let expInflows =
                 if whole10Rounds > 0 then
-                    [x*batchSize | x<-[1..whole10Rounds]] ++ [lastBit]
+                    [x * batchSize | x <- [1..whole10Rounds]] ++ [lastBit]
                 else
                     [lastBit]
         let expInflows' = filter (/=0) expInflows
@@ -375,7 +405,6 @@ walletApiBench capture ctx = do
                 ]
         rDel <- request @ApiWallet  ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
         expectResponseCode HTTP.status204 rDel
-        pure ()
 
     postTx (wSrc, postTxEndp, pass) wDest amt = do
         (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx
@@ -516,7 +545,6 @@ walletApiBench capture ctx = do
                 }|]
         fmtResult "postMigration      " t12b
 
-        pure ()
      where
         arbitraryStake :: Maybe Coin
         arbitraryStake = Just $ ada 10_000
@@ -528,11 +556,11 @@ walletApiBench capture ctx = do
         t <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
         fmtResult "getNetworkInfo     " t
-        pure ()
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
+    let testnetMagic = Cluster.TestnetMagic 42
     let setupContext np baseUrl = do
             let sixtySeconds = 60 * 1_000_000 -- 60s in microseconds
             manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -555,59 +583,65 @@ withShelleyServer tracers action = do
                 , _moveRewardsToScript =
                     error "moveRewardsToScript not available"
                 }
-    race_ (takeMVar ctx >>= action) (withServer setupContext)
+    race_ (takeMVar ctx >>= action) (withServer testnetMagic setupContext)
 
   where
-    withServer act = do
+    withServer cfgTestnetMagic setupAction = do
         skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-        withSystemTempDir nullTracer "latency" skipCleanup $ \dir -> do
+        withSystemTempDir stdoutTextTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            CommandLineOptions { clusterConfigsDir } <- parseCommandLineOptions
-            let clusterConfig = Cluster.Config
-                    { Cluster.cfgStakePools = NE.head defaultPoolConfigs :| []
-                    , Cluster.cfgLastHardFork = maxBound
-                    , Cluster.cfgNodeLogging = LogFileConfig Error Nothing Error
-                    , Cluster.cfgClusterDir = Tagged @"cluster" dir
-                    , Cluster.cfgClusterConfigs = clusterConfigsDir
-                    , Cluster.cfgTestnetMagic = testnetMagic
-                    }
+            CommandLineOptions{clusterConfigsDir} <- parseCommandLineOptions
+            clusterEra <- Cluster.clusterEraFromEnv
+            cfgNodeLogging <-
+                Cluster.logFileConfigFromEnv
+                    (Just (Cluster.clusterEraToString clusterEra))
             withCluster
-                nullTracer clusterConfig faucetFunds (onClusterStart act db)
+                stdoutTextTracer
+                Cluster.Config
+                    { cfgStakePools = pure (NE.head defaultPoolConfigs)
+                    , cfgLastHardFork = clusterEra
+                    , cfgNodeLogging
+                    , cfgClusterDir = Tagged @"cluster" dir
+                    , cfgClusterConfigs = clusterConfigsDir
+                    , cfgTestnetMagic
+                    , cfgShelleyGenesisMods =
+                        [ over #sgSlotLength (const 0.2)
+                        -- to avoid "PastHorizonException" errors, as wallet
+                        -- doesn't keep up with retrieving fresh time interpreter.
+                        , over #sgSecurityParam (const 100)
+                        -- when it low then cluster is not making blocks;
+                        ]
+                    }
+                FaucetFunds
+                    { pureAdaFunds =
+                        shelleyIntegrationTestFunds shelleyTestnet
+                            <> byronIntegrationTestFunds shelleyTestnet
+                            <> massiveWalletFunds
+                    , maFunds = maryIntegrationTestFunds (Coin 10_000_000)
+                    , mirFunds = []
+                    }
+                (onClusterStart cfgTestnetMagic setupAction db)
 
-    testnetMagic = Cluster.TestnetMagic 42
-
-    faucetFunds = FaucetFunds
-        { pureAdaFunds =
-            let networkTag = CA.NetworkTag
-                    (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
-             in shelleyIntegrationTestFunds networkTag
-                <> byronIntegrationTestFunds networkTag
-                <> massiveWalletFunds
-        , maFunds =
-            maryIntegrationTestFunds (Coin 10_000_000)
-        , mirFunds = [] -- not needed
-        }
-
-    onClusterStart act db (RunningNode conn genesisData vData) = do
-        let (np, block0, _gp) = fromGenesisData genesisData
-            listen = ListenOnRandomPort
+    onClusterStart testnetMagic setupAction db node = do
+        let (RunningNode conn genesisData vData) = node
+        let (networkParameters, block0, _gp) = fromGenesisData genesisData
         serveWallet
             (NodeSource conn vData (SyncTolerance 10))
-            np
+            networkParameters
             tunedForMainnetPipeliningStrategy
-            NMainnet
-            []
+            (NTestnet . fromIntegral $ testnetMagicToNatural testnetMagic)
+            [] -- pool certificates
             tracers
             (Just db)
-            Nothing
+            Nothing -- db decorator
             "127.0.0.1"
-            listen
-            Nothing
-            Nothing
-            Nothing
+            (ListenOnPort 8090)
+            Nothing -- tls configuration
+            Nothing -- settings
+            Nothing -- token metadata server
             block0
-            (act np)
+            (setupAction networkParameters)
 
 -- | A special Shelley Wallet with a massive UTxO set
 massiveWallet :: Mnemonic 15
@@ -632,7 +666,6 @@ massiveWalletAmt = ada 1_000
 
 era :: ApiEra
 era = maxBound
-
 
 --------------------------------------------------------------------------------
 -- Command line options --------------------------------------------------------

@@ -43,6 +43,7 @@ import Data.Maybe
     )
 import Data.Time
     ( NominalDiffTime
+    , UTCTime
     )
 import Data.Time.Clock
     ( diffUTCTime
@@ -112,7 +113,8 @@ sampleNTimes = 10
 -- | Measure how long an action takes based on trace points and taking an
 -- average of results over a short time period.
 measureLatency
-    :: (msg -> Bool) -- ^ Predicate for start message
+    :: Show msg
+    => (msg -> Bool) -- ^ Predicate for start message
     -> (msg -> Bool) -- ^ Predicate for end message
     -> LogCaptureFunc msg () -- ^ Log capture function.
     -> IO a -- ^ Action to run
@@ -124,25 +126,49 @@ measureLatency start finish capture action = do
 -- | Scan through iohk-monitoring logs and extract time differences between
 -- start and end messages.
 extractTimings
-    :: (a -> Bool) -- ^ Predicate for start message
+    :: forall a
+     . Show a
+    => (a -> Bool) -- ^ Predicate for start message
     -> (a -> Bool) -- ^ Predicate for end message
     -> [LogObject a] -- ^ Log messages
     -> [NominalDiffTime]
-extractTimings isStart isFinish msgs = map2 mkDiff filtered
+extractTimings isStart isFinish msgs = map2 mkDiff $
+    if even (length filtered)
+        then filtered
+        else error "start trace without matching finish trace"
   where
+    map2 :: ((Bool, UTCTime, LOContent a)
+                -> (Bool, UTCTime, LOContent a)
+                -> NominalDiffTime)
+        -> [(Bool, UTCTime, LOContent a)]
+        -> [NominalDiffTime]
     map2 _ [] = []
-    map2 f (a:b:xs) = (f a b:map2 f xs)
+    map2 f (a : b : xs) = (f a b : map2 f xs)
     map2 _ _ = error "start trace without matching finish trace"
 
-    mkDiff (False, start) (True, finish) = diffUTCTime finish start
-    mkDiff (False, _) _ = error "missing finish trace"
-    mkDiff (True, _) _ = error "missing start trace"
+    mkDiff :: (Bool, UTCTime, LOContent a)
+           -> (Bool, UTCTime, LOContent a)
+           -> NominalDiffTime
+    mkDiff (False, start, _) (True, finish, _) = diffUTCTime finish start
+    mkDiff (False, _time, logContent) _ =
+        error $ "Missing finish trace for " <> show logContent
+    mkDiff (True, _time, logContent) _ =
+        error $ "Missing start trace for " <> show logContent
 
+    filtered :: [(Bool, UTCTime, LOContent a)]
     filtered = mapMaybe filterMsg msgs
-    filterMsg logObj = case loContent logObj of
-        LogMessage msg | isStart msg -> Just (False, getTimestamp logObj)
-        LogMessage msg | isFinish msg -> Just (True, getTimestamp logObj)
-        _ -> Nothing
+
+    filterMsg :: LogObject a -> Maybe (Bool, UTCTime, LOContent a)
+    filterMsg logObj = do
+        let content = loContent logObj
+        case content of
+            LogMessage msg | isStart msg ->
+                Just (False, getTimestamp logObj, content)
+            LogMessage msg | isFinish msg ->
+                Just (True, getTimestamp logObj, content)
+            _logMessage -> Nothing
+
+    getTimestamp :: LogObject a -> UTCTime
     getTimestamp = tstamp . loMeta
 
 type LogCaptureFunc msg b = IO b -> IO ([LogObject msg], b)

@@ -390,6 +390,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                         , cfgClusterDir = Tagged @"cluster" testDir
                         , cfgClusterConfigs = clusterConfigs
                         , cfgTestnetMagic = testnetMagic
+                        , cfgShelleyGenesisMods = []
                         }
 
                 putMVar ctx Context
@@ -443,12 +444,13 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
         bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
             let clusterConfig = Cluster.Config
-                    { Cluster.cfgStakePools = Cluster.defaultPoolConfigs
-                    , Cluster.cfgLastHardFork = BabbageHardFork
-                    , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , Cluster.cfgClusterDir = Tagged @"cluster" testDir
-                    , Cluster.cfgClusterConfigs = clusterConfigs
-                    , Cluster.cfgTestnetMagic = testnetMagic
+                    { cfgStakePools = Cluster.defaultPoolConfigs
+                    , cfgLastHardFork = BabbageHardFork
+                    , cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , cfgClusterDir = Tagged @"cluster" testDir
+                    , cfgClusterConfigs = clusterConfigs
+                    , cfgTestnetMagic = testnetMagic
+                    , cfgShelleyGenesisMods = []
                     }
             withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator

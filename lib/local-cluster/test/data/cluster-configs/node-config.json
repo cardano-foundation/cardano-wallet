@@ -1,9 +1,9 @@
 {
-  "AlonzoGenesisFile": "alonzo-genesis.json",
+  "AlonzoGenesisFile": "genesis-alonzo.json",
   "ApplicationName": "cardano-sl",
   "ApplicationVersion": 0,
-  "ByronGenesisFile": "byron-genesis.json",
-  "ConwayGenesisFile": "conway-genesis.json",
+  "ByronGenesisFile": "genesis-byron.json",
+  "ConwayGenesisFile": "genesis-conway.json",
   "EnableP2P": false,
   "ExperimentalHardForksEnabled": true,
   "ExperimentalProtocolsEnabled": true,
@@ -15,7 +15,7 @@
   "PBftSignatureThreshold": 1.1,
   "Protocol": "Cardano",
   "RequiresNetworkMagic": "RequiresMagic",
-  "ShelleyGenesisFile": "shelley-genesis.json",
+  "ShelleyGenesisFile": "genesis-shelley.json",
   "TargetNumberOfActivePeers": 20,
   "TargetNumberOfEstablishedPeers": 50,
   "TargetNumberOfKnownPeers": 100,
@@ -61,7 +61,7 @@
   "TraceTxOutbound": false,
   "TraceTxSubmissionProtocol": false,
   "TracingVerbosity": "NormalVerbosity",
-  "TurnOnLogMetrics": true,
+  "TurnOnLogMetrics": false,
   "TurnOnLogging": true,
   "defaultBackends": [
     "KatipBK"
@@ -71,11 +71,6 @@
       "StdoutSK",
       "cardano"
     ]
-  ],
-  "hasEKG": 12788,
-  "hasPrometheus": [
-    "0.0.0.0",
-    12798
   ],
   "minSeverity": "Debug",
   "options": {
@@ -95,7 +90,7 @@
   },
   "rotation": {
     "rpKeepFilesNum": 10,
-    "rpLogLimitBytes": 5000000,
+    "rpLogLimitBytes": 50000000,
     "rpMaxAgeHours": 24
   },
   "setupBackends": [
