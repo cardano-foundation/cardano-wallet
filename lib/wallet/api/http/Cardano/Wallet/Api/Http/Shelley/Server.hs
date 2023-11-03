@@ -3292,7 +3292,11 @@ constructSharedTransaction
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+    let md = case (body ^. #encryptMetadata, body ^. #metadata) of
+            (Just apiEncrypt, Just metadataWithSchema) ->
+                Just $ toMetadataEncrypted apiEncrypt metadataWithSchema
+            _ ->
+                body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter) <- liftHandler $
         parseValidityInterval ti (body ^. #validityInterval)
