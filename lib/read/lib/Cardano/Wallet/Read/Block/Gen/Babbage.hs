@@ -46,10 +46,10 @@ import Cardano.Wallet.Read.Block.Gen.BlockParameters
 import Cardano.Wallet.Read.Block.Gen.Shelley
     ( HeaderEra
     , bodyHash
-    , genKeyDSIGN'
-    , genKeyVRF'
     , hashHeader
     , mkAnyAfterShelleyBlock
+    , mkKeyDSIGN'
+    , mkKeyVRF'
     , mkSignedKES
     , oCertamente
     )
@@ -98,11 +98,11 @@ babbageBody slotNumber blockNumber =
         { hbBlockNo = blockNumber
         , hbSlotNo = slotNumber
         , hbPrev = BlockHash hashHeader
-        , hbVk = VKey $ deriveVerKeyDSIGN genKeyDSIGN'
-        , hbVrfVk = deriveVerKeyVRF genKeyVRF'
+        , hbVk = VKey $ deriveVerKeyDSIGN mkKeyDSIGN'
+        , hbVrfVk = deriveVerKeyVRF mkKeyVRF'
         , hbVrfRes =
             uncurry CertifiedVRF
-                $ evalVRF () ("" :: ByteString) genKeyVRF'
+                $ evalVRF () ("" :: ByteString) mkKeyVRF'
         , hbBodySize = 42
         , hbBodyHash = bodyHash
         , hbOCert = oCertamente

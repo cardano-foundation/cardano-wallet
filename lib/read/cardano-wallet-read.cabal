@@ -73,6 +73,7 @@ library
         Cardano.Wallet.Read.Tx.Gen
         Cardano.Wallet.Read.Tx.Gen.Address
         Cardano.Wallet.Read.Tx.Gen.Byron
+        Cardano.Wallet.Read.Tx.Gen.Shelley
         Cardano.Wallet.Read.Tx.Gen.TxParameters
         Cardano.Wallet.Read.Tx.Hash
         Cardano.Wallet.Read.Tx.Inputs

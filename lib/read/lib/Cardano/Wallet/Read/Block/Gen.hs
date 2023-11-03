@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -7,6 +8,9 @@ where
 
 import Prelude
 
+import Cardano.Ledger.BaseTypes
+    ( natVersion
+    )
 import Cardano.Wallet.Read
     ( Tx (..)
     )
@@ -40,15 +44,18 @@ import Cardano.Wallet.Read.Eras.EraFun
 import Cardano.Wallet.Read.Tx.Gen.Byron
     ( exampleByronTx
     )
+import Cardano.Wallet.Read.Tx.Gen.Shelley
+    ( exampleShelleyTx
+    )
 
 mkBlockEra :: EraFun BlockParameters Block
 mkBlockEra =
     EraFun
         { byronFun = g mkByronBlock
-        , shelleyFun = g mkShelleyBlock
-        , allegraFun = g mkShelleyBlock
-        , maryFun = g mkShelleyBlock
-        , alonzoFun = g mkShelleyBlock
+        , shelleyFun = g $ mkShelleyBlock (natVersion @2)
+        , allegraFun = g $ mkShelleyBlock (natVersion @3)
+        , maryFun = g $ mkShelleyBlock (natVersion @4)
+        , alonzoFun = g $ mkShelleyBlock (natVersion @6)
         , babbageFun = g mkBabbageBlock
         , conwayFun = g mkBabbageBlock
         }
@@ -66,7 +73,7 @@ genBlocks source =
 exampleBlock :: [EraValue Block]
 exampleBlock = genBlocks $ EraFun
     { byronFun = const $ Comp [exampleBlockParameters [Tx exampleByronTx]]
-    , shelleyFun = const $ Comp []
+    , shelleyFun = const $ Comp [exampleBlockParameters [Tx exampleShelleyTx]]
     , allegraFun = const $ Comp []
     , maryFun = const $ Comp []
     , alonzoFun = const $ Comp []
