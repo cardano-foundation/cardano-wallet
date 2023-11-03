@@ -41,6 +41,9 @@ import Cardano.Wallet.Read.Eras.EraFun
     ( AllEraValue
     , runAllEraValue
     )
+import Cardano.Wallet.Read.Tx.Gen.Allegra
+    ( exampleAllegraTx
+    )
 import Cardano.Wallet.Read.Tx.Gen.Byron
     ( exampleByronTx
     )
@@ -72,11 +75,12 @@ genBlocks source =
 
 exampleBlock :: [EraValue Block]
 exampleBlock = genBlocks $ EraFun
-    { byronFun = const $ Comp [exampleBlockParameters [Tx exampleByronTx]]
-    , shelleyFun = const $ Comp [exampleBlockParameters [Tx exampleShelleyTx]]
-    , allegraFun = const $ Comp []
-    , maryFun = const $ Comp []
-    , alonzoFun = const $ Comp []
-    , babbageFun = const $ Comp []
-    , conwayFun = const $ Comp []
+    { byronFun = f [exampleBlockParameters [Tx exampleByronTx]]
+    , shelleyFun = f [exampleBlockParameters [Tx exampleShelleyTx]]
+    , allegraFun = f [exampleBlockParameters [Tx exampleAllegraTx]]
+    , maryFun = f []
+    , alonzoFun = f []
+    , babbageFun = f []
+    , conwayFun = f []
     }
+    where f = const . Comp

@@ -8,6 +8,9 @@ import Cardano.Wallet.Read.Eras.EraFun
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
     )
+import Cardano.Wallet.Read.Tx.Gen.Allegra
+    ( mkAllegraTx
+    )
 import Cardano.Wallet.Read.Tx.Gen.Byron
     ( mkByronTx
     )
@@ -35,9 +38,6 @@ mkTxEra =
         }
   where
     g f = Tx . f . unK
-
-mkAllegraTx :: t
-mkAllegraTx = error "Not implemented"
 
 mkMaryTx :: t
 mkMaryTx = error "Not implemented"
