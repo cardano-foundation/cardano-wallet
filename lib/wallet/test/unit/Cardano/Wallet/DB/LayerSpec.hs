@@ -392,7 +392,6 @@ import UnliftIO.Temporary
     , withSystemTempFile
     )
 
-import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
@@ -491,7 +490,7 @@ loggingSpec = withLoggingDB @TestState $ do
             $ \(getLogs, DBFresh{bootDBLayer}) -> do
                 void $ unsafeRunExceptT
                     $ bootDBLayer
-                    $ DBLayerParams testCpSeq testMetadata mempty gp
+                    $ DBLayerParams testCp testMetadata mempty gp
                 logs <- getLogs
                 logs `shouldHaveMsgQuery` "INSERT"
 
@@ -499,7 +498,7 @@ loggingSpec = withLoggingDB @TestState $ do
             $ \(getLogs, DBFresh{bootDBLayer}) -> do
                 void $ unsafeRunExceptT
                     $ bootDBLayer
-                    $ DBLayerParams testCpSeq testMetadata mempty gp
+                    $ DBLayerParams testCp testMetadata mempty gp
                 let walletName = T.unpack $ coerce $ name testMetadata
                 msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
                 T.unpack msgs `shouldNotContain` walletName
@@ -634,8 +633,7 @@ fileModeSpec =  do
         let writeSomething DBFresh{..} =
                 void
                     $ unsafeRunExceptT
-                    $ bootDBLayer
-                    $ testDBLayerParams{dBLayerParamsState = testCpSeq}
+                    $ bootDBLayer testDBLayerParams
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -1154,7 +1152,7 @@ testSchemaVersionUpToDate =
         $ \DBFresh{bootDBLayer} -> do
             db <- unsafeRunExceptT
                 $ bootDBLayer
-                $ DBLayerParams testCpSeq testMetadata mempty gp
+                $ DBLayerParams testCp testMetadata mempty gp
             db & \DBLayer{..} -> do
                 version <- atomically getSchemaVersion
                 version `shouldBe` latestVersion
@@ -1692,17 +1690,3 @@ getTxsInLedger DBLayer {..} = do
         <$> readTransactions Nothing Descending wholeRange
                 (Just InLedger) Nothing Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
-
-{-------------------------------------------------------------------------------
-                           Test data - Sequential AD
--------------------------------------------------------------------------------}
-
-testCpSeq :: Wallet TestState
-testCpSeq = snd $ initWallet block0 initDummyStateSeq
-
-initDummyStateSeq :: TestState
-initDummyStateSeq = mkSeqStateFromRootXPrv
-    ShelleyKeyS (RootCredentials xprv mempty) purposeCIP1852 defaultAddressPoolGap
-  where
-      mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
-      xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty
