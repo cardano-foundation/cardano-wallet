@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -43,15 +44,14 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Control.Applicative
-    ( optional
-    , (<**>)
+    ( (<**>)
+    )
+import Control.Lens
+    ( over
     )
 import Control.Monad.Trans.Resource
     ( allocate
     , runResourceT
-    )
-import Data.Functor
-    ( (<&>)
     )
 import Data.Tagged
     ( Tagged (..)
@@ -61,17 +61,10 @@ import Main.Utf8
     )
 import System.Environment.Extended
     ( isEnvSet
-    , lookupEnvNonEmpty
-    )
-import System.FilePath
-    ( (</>)
     )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
-    )
-import Test.Utils.Paths
-    ( getTestData
     )
 import UnliftIO.Concurrent
     ( threadDelay
@@ -218,16 +211,15 @@ main = withUtf8 $ do
         cfgNodeLogging <-
             Cluster.logFileConfigFromEnv
                 (Just (Cluster.clusterEraToString clusterEra))
-        cfgClusterConfigs <- parseCommandLineOptions >>= \case
-            CommandLineOptions Nothing -> getClusterConfigsPathFromEnv
-            CommandLineOptions (Just path) -> pure path
+        CommandLineOptions { clusterConfigsDir } <- parseCommandLineOptions
         let clusterCfg = Cluster.Config
                 { cfgStakePools = Cluster.defaultPoolConfigs
                 , cfgLastHardFork = clusterEra
                 , cfgNodeLogging
                 , cfgClusterDir = Tagged clusterPath
-                , cfgClusterConfigs
+                , cfgClusterConfigs = clusterConfigsDir
                 , cfgTestnetMagic = Cluster.TestnetMagic 42
+                , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
                 }
         Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
             clusterDir <- Path.parseAbsDir clusterPath
@@ -274,27 +266,20 @@ main = withUtf8 $ do
                 ]
             }
 
--- | Returns a path to the local cluster configuration, which is usually relative to the
--- package sources, but can be overridden by the @LOCAL_CLUSTER_CONFIGS@ environment
--- variable.
-getClusterConfigsPathFromEnv :: IO (Tagged "cluster-configs" FilePath)
-getClusterConfigsPathFromEnv =
-    lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS" <&> Tagged . \case
-        Nothing -> $(getTestData) </> "cluster-configs"
-        Just fp -> fp
-
 newtype CommandLineOptions = CommandLineOptions
-    { clusterConfigsDir :: Maybe (Tagged "cluster-configs" FilePath)
-    }
+    { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
+    deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
 parseCommandLineOptions = O.execParser $
-    O.info (parser <**> O.helper) (O.progDesc "Local Cluster for testing")
-  where
-    parser = CommandLineOptions <$> optional (
-        Tagged <$> O.strOption
-            ( O.long "cluster-configs"
-            <> O.metavar "LOCAL_CLUSTER_CONFIGS"
-            <> O.help "Path to the local cluster configuration directory"
-            )
+    O.info
+        (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+        (O.progDesc "Local Cluster for testing")
+
+clusterConfigsDirParser :: O.Parser (Tagged "cluster-configs" FilePath)
+clusterConfigsDirParser =
+    Tagged <$> O.strOption
+        ( O.long "cluster-configs"
+        <> O.metavar "LOCAL_CLUSTER_CONFIGS"
+        <> O.help "Path to the local cluster configuration directory"
         )

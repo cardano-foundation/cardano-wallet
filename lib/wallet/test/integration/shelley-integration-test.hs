@@ -237,7 +237,6 @@ import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
-import qualified Cardano.Wallet.LocalCluster as LocalCluster
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
@@ -362,6 +361,11 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
+
+        clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
+            <&> Tagged @"cluster-configs"
+                . fromMaybe "../local-cluster/test/data/cluster-configs"
+
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
@@ -379,10 +383,6 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
-                clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
-                    <&> Tagged @"cluster-configs"
-                        . fromMaybe "../local-cluster/test/data/cluster-configs"
-
                 let config = Cluster.Config
                         { cfgStakePools = error "cfgStakePools: unused"
                         , cfgLastHardFork = era
@@ -390,6 +390,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                         , cfgClusterDir = Tagged @"cluster" testDir
                         , cfgClusterConfigs = clusterConfigs
                         , cfgTestnetMagic = testnetMagic
+                        , cfgShelleyGenesisMods = []
                         }
 
                 putMVar ctx Context
@@ -413,7 +414,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
-            (withServer dbEventRecorder setupContext)
+            (withServer clusterConfigs dbEventRecorder setupContext)
             (takeMVar ctx >>= action')
         whenLeft res (throwIO . ProcessHasExited "integration")
 
@@ -439,16 +440,17 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     atomicModifyIORef' eventsRef ((,()) . (event :))
                 pure certificates
 
-    withServer dbDecorator onReady = bracketTracer' tr "withServer" $
+    withServer clusterConfigs dbDecorator onReady =
+        bracketTracer' tr "withServer" $
         withSMASH tr' testDir $ \smashUrl -> do
-            cfgClusterConfigs <- LocalCluster.getClusterConfigsPathFromEnv
             let clusterConfig = Cluster.Config
-                    { Cluster.cfgStakePools = Cluster.defaultPoolConfigs
-                    , Cluster.cfgLastHardFork = BabbageHardFork
-                    , Cluster.cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , Cluster.cfgClusterDir = Tagged @"cluster" testDir
-                    , Cluster.cfgClusterConfigs = cfgClusterConfigs
-                    , Cluster.cfgTestnetMagic = testnetMagic
+                    { cfgStakePools = Cluster.defaultPoolConfigs
+                    , cfgLastHardFork = BabbageHardFork
+                    , cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , cfgClusterDir = Tagged @"cluster" testDir
+                    , cfgClusterConfigs = clusterConfigs
+                    , cfgTestnetMagic = testnetMagic
+                    , cfgShelleyGenesisMods = []
                     }
             withCluster tr' clusterConfig faucetFunds
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator

@@ -528,8 +528,7 @@ interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
     i <- getI
     let res = runQuery start i qry
     case res of
-        Left e -> do
-            traceWith tr $ MsgInterpreterPastHorizon Nothing start e
+        Left e -> traceWith tr $ MsgInterpreterPastHorizon Nothing start e
         Right _ -> pure ()
     handleRes res
 

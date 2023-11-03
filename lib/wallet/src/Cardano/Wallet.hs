@@ -750,6 +750,9 @@ import GHC.Generics
 import GHC.Num
     ( Natural
     )
+import GHC.Stack
+    ( HasCallStack
+    )
 import GHC.TypeNats
     ( Nat
     )
@@ -1056,8 +1059,7 @@ readDelegation walletState = do
 -- In the event that wall clock time is too far ahead of the node,
 -- we return the epoch of the node tip.
 getCurrentEpochSlotting
-    :: NetworkLayer IO block
-    -> IO CurrentEpochSlotting
+    :: HasCallStack => NetworkLayer IO block -> IO CurrentEpochSlotting
 getCurrentEpochSlotting nl = do
     epoch <- getCurrentEpoch
     mkCurrentEpochSlotting ti epoch

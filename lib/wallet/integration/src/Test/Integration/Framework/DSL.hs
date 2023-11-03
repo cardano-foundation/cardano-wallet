@@ -1816,6 +1816,7 @@ rewardWallet ctx = do
 
 fixtureMultiAssetWallet
     :: MonadIO m
+    => HasCallStack
     => Context
     -> ResourceT m ApiWallet
 fixtureMultiAssetWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"ma")
@@ -2243,13 +2244,14 @@ fixturePassphraseEncrypted =
 -- wallets through small blocks of @runResourceT@ (e.g. once per test). It
 -- doesn't return @ReleaseKey@ since manual releasing is not needed.
 fixtureWallet
-    :: MonadIO m
+    :: (HasCallStack, MonadIO m)
     => Context
     -> ResourceT m ApiWallet
 fixtureWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"shelley")
 
 fixtureWalletWithMnemonics
-    :: forall m scheme. (MonadIO m, NextWallet scheme)
+    :: forall m scheme
+     . (HasCallStack, MonadIO m, NextWallet scheme)
     => Proxy scheme
     -> Context
     -> ResourceT m (ApiWallet, [Text])
@@ -2262,21 +2264,19 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase}
                 } |]
-        r <- request @ApiWallet ctx
-            (Link.postWallet @'Shelley) Default payload
+        r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         expectResponseCode HTTP.status201 r
         let w = getResponse r
-        race (threadDelay sixtySeconds) (checkBalance w) >>= \case
+        race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
             Left _ -> expectationFailure'
                 "fixtureWallet: waited too long for initial transaction"
             Right a -> return (a, mnemonics)
 
     free w = void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Shelley w) Default Empty
-    sixtySeconds = 60*oneSecond
+
     checkBalance w = do
-        r <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley w) Default Empty
+        r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
             then return (getResponse r)
             else threadDelay oneSecond *> checkBalance w
