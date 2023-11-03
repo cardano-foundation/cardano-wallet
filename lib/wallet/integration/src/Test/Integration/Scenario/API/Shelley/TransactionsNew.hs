@@ -529,6 +529,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
+    it "TRANS_NEW_CREATE_02c - Metadata encrypted" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let payload = Json [json|{
+                "encrypt_metadata": {
+                    "passphrase": "metadata-secret"
+                },
+                "metadata": { "1": "hello" }
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
