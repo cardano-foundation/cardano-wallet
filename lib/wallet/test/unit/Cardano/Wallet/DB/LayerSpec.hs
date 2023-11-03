@@ -119,8 +119,10 @@ import Cardano.Wallet.DB.Layer
     , WalletDBLog (..)
     , newBootDBLayerInMemory
     , newDBFactory
+    , withBootDBLayerFromFile
     , withDBFreshFromFile
     , withDBFreshInMemory
+    , withLoadDBLayerFromFile
     , withTestLoadDBLayerFromFile
     )
 import Cardano.Wallet.DB.Properties
@@ -562,9 +564,8 @@ fileModeSpec =  do
     describe "Check db opening/closing" $ do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
-                db <- temporaryDBFile
-                withShelleyFileDBFresh @TestState db
-                    (\_ -> pure ())
+                filepath <- temporaryDBFile
+                withShelleyFileBootDBLayer filepath (\_db -> pure ())
 
     describe "DBFactory" $ do
         let ti = dummyTimeInterpreter
@@ -649,20 +650,15 @@ fileModeSpec =  do
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \f -> do
-            withShelleyFileDBFresh f $ \DBFresh{..} ->
-                void $ unsafeRunExceptT $ bootDBLayer testDBLayerParams
+            withShelleyFileBootDBLayer f $ \_ -> pure ()
             testReopening f getWalletId' testWid
 
         it "create and get private key" $ \f -> do
-            (k, h) <- withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                db <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                attachPrivateKey db
+            (k, h) <- withShelleyFileBootDBLayer f attachPrivateKey
             testReopening f readPrivateKey' (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
-            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                DBLayer{atomically, putTxHistory} <-
-                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
+            withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
                 atomically $ putTxHistory testTxs
             testReopening
                 f
@@ -672,9 +668,7 @@ fileModeSpec =  do
                 testTxs -- expected after opening db
 
         it "put and read tx history (Descending)" $ \f -> do
-            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                DBLayer{atomically, putTxHistory} <-
-                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
+            withShelleyFileBootDBLayer f $ \DBLayer{atomically, putTxHistory} ->
                 atomically $ putTxHistory testTxs
             testReopening
                 f
@@ -732,13 +726,11 @@ fileModeSpec =  do
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $
-                \f -> withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+                \f -> withShelleyFileBootDBLayer f $ \db -> do
 
                     let ourAddrs =
                             map (\(a,s,_) -> (a,s)) $
                             knownAddresses (getState testCp)
-
-                    db <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -872,14 +864,12 @@ fileModeSpec =  do
 
             it "(Regression test #1575) - TxMetas and checkpoints should \
                \rollback to the same place" $ \f -> do
-              withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+              withShelleyFileBootDBLayer f $ \db@DBLayer{atomically, rollbackTo, readCheckpoint} -> do
 
                 let ourAddrs =
                         map (\(a,s,_) -> (a,s)) $
                         knownAddresses (getState testCp)
 
-                db@DBLayer{atomically, rollbackTo, readCheckpoint}
-                    <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
                             { txId = dummyHash "tx1"
@@ -966,7 +956,8 @@ prop_randomOpChunks (cp,meta) ops =
   where
     prop = do
         filepath <- temporaryDBFile
-        _ <- withShelleyFileDBFresh filepath boot
+        initializeDBFile filepath
+
         withShelleyDBLayer $ \dbfM -> do
             dbM <- boot dbfM
             runOps ops dbM
@@ -991,11 +982,16 @@ prop_randomOpChunks (cp,meta) ops =
                 $ WalletInfo.UpdateWalletMetadata meta'
             ]
 
-    boot DBFresh{bootDBLayer} = do
+    initializeDBFile filepath = do
         let cp0 = imposeGenesisState cp
-        unsafeRunExceptT
-            $ bootDBLayer
-            $ DBLayerParams cp0 meta mempty gp
+        withBootDBLayerFromFile (walletFlavor @s)
+            nullTracer
+            dummyTimeInterpreter
+            testWid
+            (Just defaultFieldValues)
+            (DBLayerParams cp0 meta mempty gp)
+            filepath
+            $ \_ -> pure ()
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
@@ -1063,20 +1059,17 @@ withShelleyDBLayer
 withShelleyDBLayer = withDBFreshInMemory (walletFlavor @s)
     nullTracer dummyTimeInterpreter testWid
 
-withShelleyFileDBFresh
-    :: forall s a
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       )
-    => FilePath
-    -> (DBFresh IO s -> IO a)
+withShelleyFileBootDBLayer
+    :: FilePath
+    -> (DBLayer IO TestState -> IO a)
     -> IO a
-withShelleyFileDBFresh =
-    withDBFreshFromFile (walletFlavor @s)
+withShelleyFileBootDBLayer =
+    withBootDBLayerFromFile (walletFlavor @TestState)
         nullTracer -- fixme: capture logging
         dummyTimeInterpreter
         testWid
         (Just defaultFieldValues)
+        testDBLayerParams
 
 withShelleyFileLoadedDBLayer
     :: forall s a
@@ -1086,10 +1079,12 @@ withShelleyFileLoadedDBLayer
     => FilePath
     -> (DBLayer IO s -> IO a)
     -> IO a
-withShelleyFileLoadedDBLayer filepath action =
-    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
-        db <- unsafeRunExceptT loadDBLayer
-        action db
+withShelleyFileLoadedDBLayer =
+    withLoadDBLayerFromFile (walletFlavor @s)
+        nullTracer
+        dummyTimeInterpreter
+        testWid
+        (Just defaultFieldValues)
 
 getWalletId'
     :: Applicative m
