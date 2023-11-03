@@ -73,6 +73,7 @@ library
         Cardano.Wallet.Read.Tx.Gen
         Cardano.Wallet.Read.Tx.Gen.Address
         Cardano.Wallet.Read.Tx.Gen.Allegra
+        Cardano.Wallet.Read.Tx.Gen.Alonzo
         Cardano.Wallet.Read.Tx.Gen.Byron
         Cardano.Wallet.Read.Tx.Gen.Mary
         Cardano.Wallet.Read.Tx.Gen.Shelley
