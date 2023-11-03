@@ -664,7 +664,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
 
     describe "when passed unresolved inputs" $ do
-        it "fails with ErrBalanceTxUnresolvedTxIn" $ do
+        it "fails with ErrBalanceTxUnresolvedInputs" $ do
             let txin = W.TxIn (W.Hash $ B8.replicate 32 '3') 10
             -- 1 output, 1 input without utxo entry
             let partialTx :: PartialTx CardanoApi.BabbageEra
