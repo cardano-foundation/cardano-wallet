@@ -126,6 +126,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
+    , toMetadataEncrypted
 
     -- * Workers
     , manageRewardBalance

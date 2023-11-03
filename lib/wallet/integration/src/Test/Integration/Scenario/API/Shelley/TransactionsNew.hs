@@ -70,16 +70,21 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Hex
     ( fromHexText
     )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( toMetadataEncrypted
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAssetMintBurn (..)
+    , ApiBytesT (..)
     , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
+    , ApiEncryptMetadata (..)
     , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
@@ -111,6 +116,9 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..)
+    , TxMetadataWithSchema (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -134,6 +142,9 @@ import Cardano.Wallet.Pools
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
+    )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
@@ -533,18 +544,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
+        let metadataToBeEncrypted =
+                TxMetadataWithSchema TxMetadataNoSchema $
+                TxMetadata (Map.fromList [(1,TxMetaText "hello")])
+        let encryptMetadata =
+                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
         let payload = Json [json|{
-                "encrypt_metadata": {
-                    "passphrase": "metadata-secret"
-                },
-                "metadata": { "1": "hello" }
+                "encrypt_metadata": #{toJSON encryptMetadata},
+                "metadata": #{toJSON metadataToBeEncrypted}
             }|]
+        let expEncryptedMetadata =
+                toMetadataEncrypted encryptMetadata metadataToBeEncrypted
+        let expEncryptedMetadataSerialised =
+                ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#coinSelection . #metadata)
+                (`shouldBe` (Just expEncryptedMetadataSerialised))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
