@@ -177,9 +177,15 @@ import qualified Data.Map.Strict as Map
 -- In our use case, this will typically be a directory of database files,
 -- or a 'Map' of in-memory SQLite databases.
 data DBFactory m s = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBFresh m s -> IO a) -> IO a
-        -- ^ Creates a new or use an existing database, maintaining an open
-        -- connection so long as necessary
+    { withDatabaseLoad :: forall a. WalletId -> (DBLayer m s -> IO a) -> IO a
+        -- ^ Open an existing database, maintaining an open
+        -- connection so long as necessary.
+
+    , withDatabaseBoot
+        :: forall a
+         . WalletId -> DBLayerParams s -> (DBLayer m s -> IO a) -> IO a
+        -- ^ Creates a new database, maintaining an open
+        -- connection so long as necessary.
 
     , removeDatabase :: WalletId -> IO ()
         -- ^ Erase any trace of the database

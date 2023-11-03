@@ -80,9 +80,7 @@ import Cardano.Wallet.Balance.Migration.SelectionSpec
     , unMockTxConstraints
     )
 import Cardano.Wallet.DB
-    ( DBFresh
-    , DBLayer (..)
-    , hoistDBFresh
+    ( DBLayer (..)
     , hoistDBLayer
     , putTxHistory
     )
@@ -90,7 +88,7 @@ import Cardano.Wallet.DB.Fixtures
     ( logScale'
     )
 import Cardano.Wallet.DB.Layer
-    ( newDBFreshInMemory
+    ( newBootDBLayerInMemory
     )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus
@@ -280,9 +278,6 @@ import Data.ByteString
 import Data.Coerce
     ( coerce
     )
-import Data.Either
-    ( isLeft
-    )
 import Data.Function
     ( on
     )
@@ -434,8 +429,6 @@ spec = describe "Cardano.WalletSpec" $ do
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
-        it "Wallet cannot be created more than once"
-            (property walletDoubleCreationProp)
         it "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
@@ -481,30 +474,20 @@ spec = describe "Cardano.WalletSpec" $ do
                                     Properties
 -------------------------------------------------------------------------------}
 
-walletDoubleCreationProp
-    :: (WalletId, WalletName, DummyState)
-    -> Property
-walletDoubleCreationProp newWallet =
-    monadicIO $ do
-        WalletLayerFixture dbf _db _wl _walletIds
-            <- run $ setupFixture dummyStateF newWallet
-        secondTrial <- run $ runExceptT $ createFixtureWallet dbf newWallet
-        assert (isLeft secondTrial)
-
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletIdDeterministic newWallet = monadicIO $ do
-    WalletLayerFixture _ _ _ widsA <- run $ setupFixture dummyStateF newWallet
-    WalletLayerFixture _ _ _ widsB <- run $ setupFixture dummyStateF newWallet
+    WalletLayerFixture _ _ widsA <- run $ setupFixture dummyStateF newWallet
+    WalletLayerFixture _ _ widsB <- run $ setupFixture dummyStateF newWallet
     assert (widsA == widsB)
 
 walletIdInjective
     :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
     -> Property
 walletIdInjective (walletA, walletB) = monadicIO $ do
-    WalletLayerFixture _ _ _ widsA <- run $ setupFixture dummyStateF walletA
-    WalletLayerFixture _ _ _ widsB <- run $ setupFixture dummyStateF walletB
+    WalletLayerFixture _ _ widsA <- run $ setupFixture dummyStateF walletA
+    WalletLayerFixture _ _ widsB <- run $ setupFixture dummyStateF walletB
     assert (widsA /= widsB)
 
 walletUpdateName
@@ -513,7 +496,7 @@ walletUpdateName
     -> Property
 walletUpdateName wallet wName = monadicIO $ do
     wName' <- run $ do
-        WalletLayerFixture _ _ wl _ <- setupFixture dummyStateF wallet
+        WalletLayerFixture _ wl _ <- setupFixture dummyStateF wallet
         W.updateWallet wl (\x -> x { name = wName })
         (name . (\(_, (b, _), _) -> b)) <$> W.readWallet wl
     assert (wName == wName')
@@ -524,7 +507,7 @@ walletUpdatePassphrase
     -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ do
-    WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
+    WalletLayerFixture _ wl wid <- run $ setupFixture dummyStateF wallet
     case mxprv of
         Nothing -> prop_withoutPrivateKey wl wid
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
@@ -548,7 +531,7 @@ walletUpdatePassphraseWrong
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ do
-        WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
+        WalletLayerFixture _ wl wid <- run $ setupFixture dummyStateF wallet
         attempt <- run $ do
             W.attachPrivateKeyFromPwd wl (xprv, pwd)
             runExceptT
@@ -566,7 +549,7 @@ walletUpdatePassphraseNoRootKey
     -> Property
 walletUpdatePassphraseNoRootKey wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ do
-        WalletLayerFixture _ _ wl _ <- run $ setupFixture dummyStateF wallet
+        WalletLayerFixture _ wl _ <- run $ setupFixture dummyStateF wallet
         attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase
                 dummyStateF wl wid (old, new)
@@ -578,7 +561,7 @@ walletUpdatePassphraseDate
     -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
-    WalletLayerFixture _ _ wl wid  <- liftIO $ setupFixture dummyStateF wallet
+    WalletLayerFixture _ wl wid  <- liftIO $ setupFixture dummyStateF wallet
     let infoShouldSatisfy predicate = do
             info <- (passphraseInfo . (\(_, (b, _), _) -> b))
                 <$> W.readWallet wl
@@ -611,7 +594,7 @@ walletListTransactionsSorted
 walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
-        WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
+        WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
         atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
             W.listTransactions wl Nothing Nothing Nothing
@@ -654,7 +637,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
             -> PropertyM IO ()
         limitNatural = fromIntegral limit
         test start stop order dir cut = liftIO @(PropertyM IO) $ do
-            WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
+            WalletLayerFixture DBLayer{..} wl _ <- setupFixture dummyStateF wallet
             atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
                 W.listTransactions wl Nothing start stop order
@@ -728,7 +711,7 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
     forAll genOuts $ \(out1, out2, wallet) -> monadicIO $ do
-        WalletLayerFixture _ DBLayer{..} wl _ <- liftIO
+        WalletLayerFixture DBLayer{..} wl _ <- liftIO
             $ setupFixture dummyStateWithAddressesF wallet
         let listHistoricalAssets hry = do
                 liftIO . atomically $ putTxHistory hry
@@ -981,7 +964,7 @@ prop_localTxSubmission tc = monadicIO $ do
         submittedVar <- newMVar []
         (msgs, res) <- captureLogging' $ \tr -> do
             flip runReaderT st $ unTxRetryTestM $ do
-                WalletLayerFixture _ db _wl _wid <-
+                WalletLayerFixture db _wl _wid <-
                     setupFixture dummyStateF $ retryTestWallet tc
                 let ctx = WalletLayer
                         (natTracer liftIO tr)
@@ -1335,23 +1318,10 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 data WalletLayerFixture s m = WalletLayerFixture
-    { _fixtureDBFresh :: DBFresh m s
-    , _fixtureDBLayer :: DBLayer m s
+    { _fixtureDBLayer :: DBLayer m s
     , _fixtureWalletLayer :: WalletLayer m s
     , _fixtureWallet :: WalletId
     }
-
-createFixtureWallet
-    :: ( MonadUnliftIO m
-       , MonadTime m
-       , IsOurs s Address
-       , IsOurs s RewardAccount
-       )
-    => DBFresh m s
-    -> (WalletId, WalletName, s)
-    -> ExceptT W.ErrWalletAlreadyExists m (DBLayer m s)
-createFixtureWallet dbf (wid, wname, wstate) =
-    W.createWallet (block0, dummyNetworkParameters) dbf wid wname wstate
 
 setupFixture
     :: forall s m
@@ -1365,10 +1335,15 @@ setupFixture
     => WalletFlavorS s
     -> (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
-setupFixture wF wd@(wid,  _wname, _wstate) = do
-    (_kill, dbf) <-
-        liftIO $ newDBFreshInMemory wF nullTracer dummyTimeInterpreter wid
-    db <- liftIO $ unsafeRunExceptT $ createFixtureWallet dbf wd
+setupFixture wF (wid,wname,wstate) = do
+    params <- liftIO
+        $ W.createWallet (block0, dummyNetworkParameters) wid wname wstate
+    (_kill, db) <- liftIO
+        $ newBootDBLayerInMemory wF
+            nullTracer
+            dummyTimeInterpreter
+            wid
+            params
     let db' = hoistDBLayer liftIO db
         wl =
             WalletLayer
@@ -1378,7 +1353,7 @@ setupFixture wF wd@(wid,  _wname, _wstate) = do
                 dummyTransactionLayer
                 db'
         wal = walletId_ db
-    pure $ WalletLayerFixture (hoistDBFresh liftIO dbf) db' wl wal
+    pure $ WalletLayerFixture db' wl wal
 
 slotNoTime :: SlotNo -> UTCTime
 slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo

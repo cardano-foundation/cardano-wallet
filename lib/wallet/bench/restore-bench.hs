@@ -126,11 +126,11 @@ import Cardano.Wallet.BenchShared
     , withTempSqliteFile
     )
 import Cardano.Wallet.DB
-    ( DBFresh
+    ( DBLayer
     )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook
-    , withDBFresh
+    , withBootDBLayerFromFile
     )
 import Cardano.Wallet.Flavor
     ( Excluding
@@ -841,12 +841,11 @@ bench_restoration
         np socket vData sTol $ \nw -> do
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
-            withBenchDBLayer @s ti wlTr wid
-                $ \dbf -> withWalletLayerTracer
+            let gps = (emptyGenesis gp, np)
+            withBenchDBLayer @s wlTr ti wid wname gps s
+                $ \db -> withWalletLayerTracer
                     benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
-                    let gps = (emptyGenesis gp, np)
-                    db <- unsafeRunExceptT $ W.createWallet gps dbf wid wname s
                     let tracer =
                             trMessageText wlTr <>
                             contramap walletWorkerLogToBlockHeight progressTrace
@@ -945,16 +944,29 @@ withBenchDBLayer
     :: forall s a
      . ( PersistAddressBook s
        , WalletFlavor s
+       , IsOurs s Address
+       , IsOurs s RewardAccount
        )
-    => TimeInterpreter IO
-    -> Trace IO Text
+    => Trace IO Text
+    -> TimeInterpreter IO
     -> WalletId
-    -> (DBFresh IO s -> IO a)
+    -> WalletName
+    -> (Block, NetworkParameters)
+    -> s
+    -> (DBLayer IO s -> IO a)
     -> IO a
-withBenchDBLayer ti tr wid action =
-    withTempSqliteFile $ \dbFile ->
-        withDBFresh (walletFlavor @s) tr'
-            (Just migrationDefaultValues) dbFile ti wid action
+withBenchDBLayer tr ti wid wname gps s action =
+    withTempSqliteFile $ \dbFile -> do
+        params <- W.createWallet gps wid wname s
+        withBootDBLayerFromFile
+            (walletFlavor @s)
+            tr'
+            ti
+            wid
+            (Just migrationDefaultValues)
+            params
+            dbFile
+            action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

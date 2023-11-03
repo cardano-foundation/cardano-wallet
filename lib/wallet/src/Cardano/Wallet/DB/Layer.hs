@@ -25,12 +25,16 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Open a database for a specific 'WalletId'
-    , withDBFresh
+    , withDBFreshFromFile
     , withDBFreshInMemory
     , newDBFreshInMemory
 
-    -- * Open a database for testing
     , withLoadDBLayerFromFile
+    , withBootDBLayerFromFile
+    , newBootDBLayerInMemory
+
+    -- * Open a database for testing
+    , withTestLoadDBLayerFromFile
     , WalletDBLog (..)
     , DefaultFieldValues (..)
 
@@ -80,6 +84,7 @@ import Cardano.Wallet.DB
     , DBLayerParams (..)
     , DBOpen (..)
     , DBTxHistory (..)
+    , ErrNoSuchWallet (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
@@ -202,6 +207,7 @@ import Control.Monad.Trans
     )
 import Control.Monad.Trans.Except
     ( mapExceptT
+    , runExceptT
     , throwE
     )
 import Control.Tracer
@@ -316,25 +322,32 @@ newDBFactory wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
         -- For the in-memory database, we do actually preserve the database
-        -- after the 'action' is done. This allows for calling 'withDatabase'
+        -- after the 'action' is done. This allows for calling
+        -- 'withDatabaseBoot'
         -- several times within the same execution and get back the same
         -- database. The memory is only cleaned up when calling
         -- 'removeDatabase', to mimic the way the file database works!
         --
         -- NOTE2
-        -- The in-memory withDatabase will leak memory unless removeDatabase is
+        -- The in-memory 'withDatabaseBoot' will leak memory unless
+        -- removeDatabase is
         -- called after using the database. In practice, this is only a problem
         -- for testing.
         mvar <- newMVar mempty
         pure DBFactory
-            { withDatabase = \wid action -> do
+            { withDatabaseLoad = \wid _action -> do
+                throw $ ErrNoSuchWallet wid
+
+            , withDatabaseBoot = \wid params action -> do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
+                        (_cleanup, db) <-
+                            newBootDBLayerInMemory wf tr' ti wid params
                         pure (Map.insert wid db m, db)
                 action db
+
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
@@ -346,16 +359,28 @@ newDBFactory wf tr defaultFieldValues ti = \case
     Just databaseDir -> do
         refs <- newRefCount
         pure DBFactory
-            { withDatabase = \wid action -> withRef refs wid $ withDBFresh wf
-                (contramap (MsgWalletDB (databaseFile wid)) tr)
-                (Just defaultFieldValues)
-                (databaseFile wid)
-                ti
-                wid
-                action
+            { withDatabaseLoad = \wid action -> withRef refs wid
+                $ withLoadDBLayerFromFile wf
+                    (contramap (MsgWalletDB (databaseFile wid)) tr)
+                    ti
+                    wid
+                    (Just defaultFieldValues)
+                    (databaseFile wid)
+                    action
+
+            , withDatabaseBoot = \wid params action -> withRef refs wid
+                $ withBootDBLayerFromFile wf
+                    (contramap (MsgWalletDB (databaseFile wid)) tr)
+                    ti
+                    wid
+                    (Just defaultFieldValues)
+                    params
+                    (databaseFile wid)
+                    action
+
             , removeDatabase = \wid -> do
                 let widp = pretty wid
-                -- try to wait for all 'withDatabase' calls to finish before
+                -- try to wait for all 'withDatabaseBoot' calls to finish before
                 -- deleting database file.
                 let trWait = contramap (MsgWaitingForDatabase widp) tr
                 -- TODO: rather than refcounting, why not keep retrying the
@@ -366,6 +391,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
                     traceWith tr $ MsgRemoving widp
                     let trDel = contramap (MsgRemovingDatabaseFile widp) tr
                     deleteSqliteDatabase trDel (databaseFile wid)
+
             , listDatabases =
                 findDatabases key tr databaseDir
             }
@@ -437,9 +463,10 @@ instance ToText DBFactoryLog where
         MsgWaitingForDatabase wid Nothing ->
             "Database "+|wid|+" is ready to be deleted"
         MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+            "Waiting for "+|count|+" withDatabaseBoot "+|wid|+" call(s) to finish"
         MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Timed out waiting for "+|count|+
+            " withDatabaseBoot "+|wid|+" call(s) to finish. " <>
             "Attempting to remove the database anyway."
         MsgWalletDB _file msg -> toText msg
 
@@ -459,6 +486,104 @@ createSchemaVersionTableIfMissing' =
         _ <- createSchemaVersionTableIfMissing conn
         let Version latest = latestVersion
         putSchemaVersion conn (SchemaVersion latest)
+
+{-------------------------------------------------------------------------------
+    DBLayer
+-------------------------------------------------------------------------------}
+-- | Load a 'DBLayer' from a file.
+--
+-- Perform migrations as necessary; throw an exception if that fails.
+withLoadDBLayerFromFile
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- Use 'Nothing' to skip manual migrations.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBLayer IO s -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action =
+    withDBOpenFromFile wF tr defaultFieldValues dbFile
+        $ \dbopen -> ($ newDBFreshFromDBOpen wF ti wid dbopen)
+        $ \dbfresh -> do
+            e <- runExceptT $ loadDBLayer dbfresh
+            case e of
+                Left err -> throw err
+                Right dblayer -> action dblayer
+
+-- | Create a 'DBLayer' in a file.
+--
+-- Create tables corresponding to the current schema.
+-- Throw an exception if this fails because the file already contains data.
+withBootDBLayerFromFile
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- TODO: No migrations should be performed, remove.
+    -> DBLayerParams s
+       -- ^ Parameters required to initialize a database.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBLayer IO s -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withBootDBLayerFromFile wF tr ti wid defaultFieldValues params dbFile action =
+    withDBOpenFromFile wF tr defaultFieldValues dbFile
+        $ \dbopen -> ($ newDBFreshFromDBOpen wF ti wid dbopen)
+        $ \dbfresh -> do
+            e <- runExceptT $ bootDBLayer dbfresh params
+            case e of
+                Left err -> throw err
+                Right dblayer -> action dblayer
+
+-- | Create a 'DBLayer' in memory.
+--
+-- Create tables corresponding to the current schema.
+newBootDBLayerInMemory
+    :: forall s
+     . PersistAddressBook s
+    => WalletFlavorS s
+        -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
+    -> DBLayerParams s
+       -- ^ Parameters required to initialize a database.
+    -> IO (IO (), DBLayer IO s)
+        -- ^ ( Function to destroy the wallet database, 'DBLayer' )
+newBootDBLayerInMemory wF tr ti wid params =
+    do
+        (destroy, dbopen) <- newDBOpenInMemory tr
+        let dbfresh = newDBFreshFromDBOpen wF ti wid dbopen
+        e <- runExceptT $ bootDBLayer dbfresh params
+        case e of
+            Left err -> do
+                destroy
+                throw err
+            Right dblayer ->
+                pure (destroy, dblayer)
 
 {-------------------------------------------------------------------------------
     DBOpen
@@ -546,28 +671,28 @@ withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 --
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
-withDBFresh
+withDBFreshFromFile
     :: forall s a
      . PersistAddressBook s
     => WalletFlavorS s
-    -- ^ Wallet flavor
+        -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
        -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
     -> Maybe DefaultFieldValues
        -- ^ Default database field values, used during manual migration.
        -- Use 'Nothing' to skip manual migrations.
     -> FilePath
        -- ^ Path to database file
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-         -- ^ Wallet ID of the database.
     -> (DBFresh IO s -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBFresh wf tr defaultFieldValues dbFile ti wid action =
-    withDBOpenFromFile wf tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen wf ti wid
+withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
+    withDBOpenFromFile walletF tr defaultFieldValues dbFile
+        $  action . newDBFreshFromDBOpen walletF ti wid
 
 -- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
 -- database.
@@ -780,7 +905,7 @@ mkDecorator transactionsQS =
 -- (possibly triggering migrations), and run an action on it.
 --
 -- Useful for testing the logs and results of migrations.
-withLoadDBLayerFromFile
+withTestLoadDBLayerFromFile
     :: forall s a.
         ( PersistAddressBook s
         , WalletFlavor s
@@ -795,7 +920,7 @@ withLoadDBLayerFromFile
         -- ^ Action to run.
     -> IO a
         -- ^ Result of the action.
-withLoadDBLayerFromFile tr ti path action =
+withTestLoadDBLayerFromFile tr ti path action =
     withDBOpenFromFile (walletFlavor @s) tr (Just testDefaultFieldValues) path
     $ \db -> do
         mwid <- retrieveWalletId db

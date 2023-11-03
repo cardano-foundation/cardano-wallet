@@ -190,7 +190,6 @@ import Cardano.Wallet
     , HasNetworkLayer
     , Percentile (..)
     , TxSubmitLog
-    , WalletException (..)
     , WalletWorkerLog (..)
     , dbLayer
     , dummyChangeAddressGen
@@ -487,9 +486,7 @@ import Cardano.Wallet.Compat
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
-    , DBFresh
     , DBLayer
-    , loadDBLayer
     )
 import Cardano.Wallet.Flavor
     ( CredFromOf
@@ -671,7 +668,6 @@ import Control.Monad
     , join
     , void
     , when
-    , (>=>)
     )
 import Control.Monad.Error.Class
     ( throwError
@@ -862,7 +858,6 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException
     , bracket
-    , throwIO
     , tryAnyDeep
     , tryJust
     )
@@ -1086,7 +1081,7 @@ postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
             (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP) purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1128,7 +1123,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub
             (liftKey accXPub) Nothing purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         coworker
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
@@ -1276,13 +1271,13 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
-        (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
     else if isNothing dTemplateM then
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         idleWorker
     else void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         (\workerCtx _ -> W.manageSharedRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1346,13 +1341,13 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
-        (\wrk -> W.createWallet @_ @s genesisParams wrk wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
     else if isNothing dTemplateM then
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\wrk -> W.createWallet @_ @s genesisParams wrk wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         idleWorker
     else void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\wrk -> W.createWallet @_ @s genesisParams wrk wid wName state)
+        (W.createWallet @s genesisParams wid wName state)
         (\workerCtx _ -> W.manageSharedRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1483,8 +1478,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
         void $ deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-            (\wrk ->
-                W.createWallet @_ @s genesisParams wrk wid wName state)
+            (W.createWallet @s genesisParams wid wName state)
             idleWorker
         withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
             handler $ W.updateWallet wrk (const meta)
@@ -1517,15 +1511,12 @@ postLegacyWallet
         -- ^ Surrounding Context
     -> (k 'RootK XPrv, Passphrase "user")
         -- ^ Root key
-    -> ( DBFresh IO s
-       -> WalletId
-       -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s)
-       )
+    -> ( WalletId -> IO (W.DBLayerParams s) )
         -- ^ How to create this legacy wallet
     -> Handler ApiByronWallet
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (`createWallet` wid)
+        (createWallet wid)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
         W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
@@ -1612,8 +1603,8 @@ postRandomWallet
     -> Handler ApiByronWallet
 postRandomWallet ctx body = do
     s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
-    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
-        W.createWallet @_ @s genesisParams wrk wid wName s
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wid ->
+        W.createWallet @s genesisParams wid wName s
   where
     wName    = body ^. #name . #getApiT
     seed     = body ^. #mnemonicSentence . #getApiMnemonicT
@@ -1634,8 +1625,7 @@ postRandomWalletFromXPrv
 postRandomWalletFromXPrv ctx body = do
     s <- liftIO $ mkRndState byronKey <$> getStdRandom random
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (\wrk -> W.createWallet @_ @s
-            genesisParams wrk wid wName s)
+        (W.createWallet @s genesisParams wid wName s)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
         W.attachPrivateKeyFromPwdHashByron wrk (byronKey, pwd)
@@ -1659,8 +1649,8 @@ postIcarusWallet
     -> ByronWalletPostData '[12,15,18,21,24]
     -> Handler ApiByronWallet
 postIcarusWallet ctx body = do
-    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
-        W.createIcarusWallet @s genesisParams wrk wid wName
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wid ->
+        W.createIcarusWallet @s genesisParams wid wName
             (RootCredentials rootXPrv pwdP)
   where
     wName    = body ^. #name . #getApiT
@@ -1693,8 +1683,8 @@ postLedgerWallet
     -> ByronWalletPostData '[12,15,18,21,24]
     -> Handler ApiByronWallet
 postLedgerWallet ctx body = do
-    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
-        W.createIcarusWallet @s genesisParams wrk wid wName
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wid ->
+        W.createIcarusWallet @s genesisParams wid wName
             (RootCredentials rootXPrv pwdP)
   where
     wName    = body ^. #name . #getApiT
@@ -1802,9 +1792,9 @@ getWallet ctx mkApiWallet (ApiT wid) = do
         (, meta ^. #creationTime)
             <$> mkApiWallet ctx wid cp meta delegation pending progress
 
-    whenNotResponding _ = Handler $ ExceptT $ withDatabase dbfa wid
-        $ \df -> runHandler $ do
-            db <- liftHandler $ loadDBLayer df
+    whenNotResponding _ = Handler $ ExceptT
+        $ withDatabaseLoad dbfa wid
+        $ \db -> runHandler $ do
             let wrk = hoistResource db (MsgFromWorker wid) ctx
             (cp, (meta, delegation), pending)
                 <- handler $ W.readWallet wrk
@@ -4987,18 +4977,15 @@ startWalletWorker
         -- ^ Action to run concurrently with restore
     -> WalletId
     -> IO ()
-startWalletWorker ctx coworker = void . registerWorker ctx before coworker
+startWalletWorker ctx coworker wid =
+    void $ registerWorker ctx acquire coworker wid
   where
-    before dbf wid = do
-        edb <- runExceptT $ loadDBLayer dbf
-        case edb of
-            Left _ ->
-                throwIO
-                    $ ExceptionNoSuchWallet
-                    $ ErrNoSuchWallet wid
-            Right db -> do
-                W.checkWalletIntegrity db gp
-                pure db
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action =
+        withDatabaseLoad (ctx ^. dbFactory) wid
+            $ \dblayer -> do
+                W.checkWalletIntegrity dblayer gp
+                action dblayer
     (_, NetworkParameters gp _ _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
@@ -5015,8 +5002,8 @@ createWalletWorker
         -- ^ Surrounding API context
     -> WalletId
         -- ^ Wallet Id
-    -> (DBFresh IO s -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s))
-        -- ^ Create action
+    -> (IO (W.DBLayerParams s))
+        -- ^ Action for setting up initial wallet parameters.
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore
     -> ExceptT ErrCreateWallet IO WalletId
@@ -5025,11 +5012,14 @@ createWalletWorker ctx wid createWallet coworker =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (registerWorker ctx before coworker wid) >>= \case
+            liftIO (registerWorker ctx acquire coworker wid) >>= \case
                 Nothing -> throwE ErrCreateWalletFailedToCreateWorker
                 Just _ -> pure wid
   where
-    before ctx' _ = unsafeRunExceptT $ createWallet ctx'
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action = do
+        params <- createWallet
+        withDatabaseBoot (ctx ^. dbFactory) wid params action
     re = ctx ^. workerRegistry @s
 
 createNonRestoringWalletWorker
@@ -5038,8 +5028,8 @@ createNonRestoringWalletWorker
         -- ^ Surrounding API context
     -> WalletId
         -- ^ Wallet Id
-    -> (DBFresh IO s -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s))
-        -- ^ Create action
+    -> (IO (W.DBLayerParams s))
+        -- ^ Action for setting up initial wallet parameters.
     -> ExceptT ErrCreateWallet IO WalletId
 createNonRestoringWalletWorker ctx wid createWallet =
     liftIO (Registry.lookup re wid) >>= \case
@@ -5050,11 +5040,15 @@ createNonRestoringWalletWorker ctx wid createWallet =
                 Nothing -> throwE ErrCreateWalletFailedToCreateWorker
                 Just _ -> pure wid
   where
-    before ctx' = unsafeRunExceptT $ createWallet ctx'
     re = ctx ^. workerRegistry @s
-    df = ctx ^. dbFactory
+
+    acquire :: forall a. (DBLayer IO s -> IO a) -> IO a
+    acquire action = do
+        params <- createWallet
+        withDatabaseBoot (ctx ^. dbFactory) wid params action
+
     config = MkWorker
-        { workerAcquire = \k -> withDatabase df wid $ before >=> k
+        { workerAcquire = acquire
         , workerBefore = \_ _ -> pure ()
         , workerAfter = defaultWorkerAfter
         , workerMain = idleWorker
@@ -5073,19 +5067,18 @@ registerWorker
         , MaybeLight s
         )
     => ctx
-    -> (DBFresh IO s -> WalletId -> IO (DBLayer IO s))
-        -- ^ First action to run after starting the worker thread.
+    -> (forall a. (DBLayer IO s -> IO a) -> IO a)
+        -- ^ Method to acquire a 'DBLayer'.
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore.
     -> WalletId
     -> IO (Maybe ctx)
-registerWorker ctx before coworker wid =
+registerWorker ctx acquire coworker wid =
     fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
   where
     re = ctx ^. workerRegistry @s
-    dbfa = ctx ^. dbFactory
     config = MkWorker
-        { workerAcquire = \k -> withDatabase dbfa wid $ \df -> before df wid >>= k
+        { workerAcquire = acquire
         , workerBefore = \_ _ -> pure ()
         , workerAfter = defaultWorkerAfter
         -- fixme: ADP-641 Review error handling here

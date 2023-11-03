@@ -370,8 +370,7 @@ import Cardano.Wallet.Checkpoints
     , pruneCheckpoints
     )
 import Cardano.Wallet.DB
-    ( DBFresh (..)
-    , DBLayer (..)
+    ( DBLayer (..)
     , DBLayerParams (..)
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
@@ -950,40 +949,36 @@ onWalletState ctx update' = db & \DBLayer{..} ->
                                    Wallet
 -------------------------------------------------------------------------------}
 
--- | Initialise and store a new wallet, returning its ID.
+-- | Create initial 'DBLayerParams' for the given wallet.
 createWallet
-    :: forall m s
-     . ( MonadUnliftIO m
-       , MonadTime m
-       , IsOurs s Address
+    :: forall s
+     . ( IsOurs s Address
        , IsOurs s RewardAccount
        )
     => (Block, NetworkParameters)
-    -> DBFresh m s
     -> WalletId
     -> WalletName
     -> s
-    -> ExceptT ErrWalletAlreadyExists m (DBLayer m s)
+    -> IO (DBLayerParams s)
 createWallet
     (block0, NetworkParameters gp _sp _pp)
-    DBFresh{bootDBLayer}
-    wid
+    _wid
     wname
     s =
         do
             let (hist, cp) = initWallet block0 s
-            now <- lift getCurrentTime
+            now <- getCurrentTime
             let meta =
                     WalletMetadata
                         { name = wname
                         , creationTime = now
                         , passphraseInfo = Nothing
                         }
-            withExceptT (const $ ErrWalletAlreadyExists wid)
-                $ bootDBLayer
-                $ DBLayerParams cp meta hist gp
+            pure $ DBLayerParams cp meta hist gp
 
--- | Initialise and store a new legacy Icarus wallet. These wallets are
+-- | Create initial 'DBLayerParams' for a new legacy Icarus wallet
+--
+-- Icarus wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
 -- access to the a snapshot of the MainNet.
 --
@@ -997,30 +992,26 @@ createIcarusWallet
        , HasSNetworkId n
        )
     => (Block, NetworkParameters)
-    -> DBFresh IO s
     -> WalletId
     -> WalletName
     -> ClearCredentials k
-    -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s)
+    -> IO (DBLayerParams s)
 createIcarusWallet
     (block0, NetworkParameters gp _sp _pp)
-    DBFresh{bootDBLayer}
-    wid
+    _wid
     wname
     credentials = do
         let g = defaultAddressPoolGap
             s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
             (hist, cp) = initWallet block0 s
-        now <- lift getCurrentTime
+        now <- getCurrentTime
         let meta =
                 WalletMetadata
                     { name = wname
                     , creationTime = now
                     , passphraseInfo = Nothing
                     }
-        withExceptT (const $ ErrWalletAlreadyExists wid)
-            $ bootDBLayer
-            $ DBLayerParams cp meta hist gp
+        pure $ DBLayerParams cp meta hist gp
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s -> GenesisParameters -> IO ()
