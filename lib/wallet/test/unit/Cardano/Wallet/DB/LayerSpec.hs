@@ -117,8 +117,8 @@ import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
+    , newBootDBLayerInMemory
     , newDBFactory
-    , newDBFreshInMemory
     , withDBFreshFromFile
     , withDBFreshInMemory
     , withTestLoadDBLayerFromFile
@@ -432,11 +432,13 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
     it "Sequential" $ prop_sequential @s boot
   where
-    boot wid sp = do
-        let newDB = newDBFreshInMemory (walletFlavor @s)
-                nullTracer dummyTimeInterpreter
-        (cleanup, dbf) <- newDB wid
-        db <- unsafeRunExceptT $ bootDBLayer dbf sp
+    boot wid params = do
+        (cleanup, db) <-
+            newBootDBLayerInMemory (walletFlavor @s)
+                nullTracer
+                dummyTimeInterpreter
+                wid
+                params
         pure (cleanup, db)
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
@@ -456,20 +458,24 @@ instance PaymentAddress SharedKey 'CredFromScriptK where
 showState :: forall (s :: Type). Typeable s => String
 showState = show (typeOf @s undefined)
 
-withFreshDB
-    :: (MonadIO m )
+withBootDBLayer
+    :: MonadIO m
     => WalletId
-    -> (DBFresh IO TestState -> m ())
+    -> DBLayerParams TestState
+    -> (DBLayer IO TestState -> m ())
     -> m ()
-withFreshDB wid f = do
-    (kill, db) <-
-        liftIO $ newDBFreshInMemory ShelleyWallet
-            nullTracer dummyTimeInterpreter wid
+withBootDBLayer wid params f = do
+    (kill, db) <- liftIO
+        $ newBootDBLayerInMemory ShelleyWallet
+            nullTracer
+            dummyTimeInterpreter
+            wid
+            params
     f db
     liftIO kill
 
 propertiesSpecSeq :: SpecWith ()
-propertiesSpecSeq = describe "Properties" $ properties withFreshDB
+propertiesSpecSeq = describe "Properties" $ properties withBootDBLayer
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
