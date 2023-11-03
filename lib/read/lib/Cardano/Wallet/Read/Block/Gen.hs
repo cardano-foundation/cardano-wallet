@@ -7,6 +7,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Read
+    ( Tx (..)
+    )
 import Cardano.Wallet.Read.Block
     ( Block (..)
     )
@@ -15,6 +18,7 @@ import Cardano.Wallet.Read.Block.Gen.Babbage
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
+    , exampleBlockParameters
     )
 import Cardano.Wallet.Read.Block.Gen.Byron
     ( mkByronBlock
@@ -32,6 +36,9 @@ import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Eras.EraFun
     ( AllEraValue
     , runAllEraValue
+    )
+import Cardano.Wallet.Read.Tx.Gen.Byron
+    ( exampleByronTx
     )
 
 mkBlockEra :: EraFun BlockParameters Block
@@ -55,3 +62,14 @@ genBlocks source =
     concatMap sequenceEraValue
         $ runAllEraValue
         $ mkBlockEra *.** source
+
+exampleBlock :: [EraValue Block]
+exampleBlock = genBlocks $ EraFun
+    { byronFun = const $ Comp [exampleBlockParameters [Tx exampleByronTx]]
+    , shelleyFun = const $ Comp []
+    , allegraFun = const $ Comp []
+    , maryFun = const $ Comp []
+    , alonzoFun = const $ Comp []
+    , babbageFun = const $ Comp []
+    , conwayFun = const $ Comp []
+    }

@@ -117,7 +117,7 @@ headerHash :: Byron.HeaderHash
 headerHash = coerce $ serializeCborHash ("HeaderHash" :: Text)
 
 protocolVersion :: Byron.ProtocolVersion
-protocolVersion = Byron.ProtocolVersion 1 1 1
+protocolVersion = Byron.ProtocolVersion 3 0 0
 
 softwareVersion :: Byron.SoftwareVersion
 softwareVersion = Byron.SoftwareVersion (Byron.ApplicationName "Golden") 99
