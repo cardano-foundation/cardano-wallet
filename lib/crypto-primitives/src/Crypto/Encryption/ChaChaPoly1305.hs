@@ -5,6 +5,9 @@ module Crypto.Encryption.ChaChaPoly1305
     ( encryptPayload
     , decryptPayload
     , toSymmetricKey
+
+    , CryptoError (..)
+    , CryptoFailable (..)
     ) where
 
 import Prelude

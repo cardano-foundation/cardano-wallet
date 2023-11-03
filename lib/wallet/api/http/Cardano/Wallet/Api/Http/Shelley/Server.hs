@@ -127,6 +127,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , toMetadataEncrypted
+    , fromMetadataEncrypted
 
     -- * Workers
     , manageRewardBalance
@@ -184,6 +185,7 @@ import Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
+    , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
@@ -714,7 +716,9 @@ import Control.Tracer
     , contramap
     )
 import Crypto.Encryption.ChaChaPoly1305
-    ( encryptPayload
+    ( CryptoFailable (..)
+    , decryptPayload
+    , encryptPayload
     , toSymmetricKey
     )
 import Data.Bifunctor
@@ -732,6 +736,7 @@ import Data.Either
     )
 import Data.Either.Extra
     ( eitherToMaybe
+    , mapLeft
     )
 import Data.Function
     ( (&)
@@ -932,6 +937,8 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 import qualified Internal.Cardano.Write.Tx.Sign as Write
@@ -3115,6 +3122,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 -- (c) and create new tx metadata
 --     (0, TxMetaBytes chunk1)
 --     (1, TxMetaBytes chunk2)
+--     ....
+--     (N, TxMetaBytes chunkN)
 --     until encrypted metadata is accommodated
 toMetadataEncrypted
     :: ApiEncryptMetadata
@@ -3126,9 +3135,7 @@ toMetadataEncrypted apiEncrypt =
     toBytes = BL.toStrict . Aeson.encode
 
     nonce = "encrypt-data"
-    (ApiEncryptMetadata (ApiT passphrase)) = apiEncrypt
-    symmetricKey = toSymmetricKey (BA.convert $ unPassphrase passphrase)
-    encrypt = encryptPayload symmetricKey nonce
+    encrypt = encryptPayload (toMetadataEncryptedKey apiEncrypt) nonce
 
     toChunks bs res =
         if bs == BS.empty then
@@ -3142,6 +3149,55 @@ toMetadataEncrypted apiEncrypt =
         zipWith (,) [0..] .
         map Cardano.TxMetaBytes .
         flip toChunks []
+
+toMetadataEncryptedKey
+    :: ApiEncryptMetadata
+    -> ByteString
+toMetadataEncryptedKey apiEncrypt =
+    toSymmetricKey (BA.convert $ unPassphrase passphrase)
+  where
+    (ApiEncryptMetadata (ApiT passphrase)) = apiEncrypt
+
+-- When encryption is enabled we do the following:
+-- (a) recreate encrypted payload from chunks
+--     (0, TxMetaBytes chunk1)
+--     (1, TxMetaBytes chunk2)
+--     ....
+--     (N, TxMetaBytes chunkN)
+--     ie., payload=chunk1+chunk2+...+chunkN
+-- (b) decrypt payload
+-- (c) decode metadata
+fromMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> Cardano.TxMetadata
+    -> Either ErrDecodeTx TxMetadataWithSchema
+fromMetadataEncrypted apiEncrypt metadata =
+   composePayload metadata >>=
+   decrypt >>=
+   decodeFromJSON
+  where
+    checkEncryptedMetadata =
+        let checkElem (Cardano.TxMetaBytes _) = False
+            checkElem _ = True
+        in any checkElem . Map.elems
+    extractBytes (Cardano.TxMetaBytes bs) = bs
+    extractBytes _ =
+        error "extractBytes - at this moment only TxMetaBytes possible"
+    composePayload (Cardano.TxMetadata themap) =
+        if checkEncryptedMetadata themap then
+            Left ErrDecodeTxIncorrectEncryptedMetadata
+        else
+            Right $ Map.foldl BS.append BS.empty $ Map.map extractBytes themap
+
+    nonce = "encrypt-data"
+    decrypt payload =
+        case decryptPayload (toMetadataEncryptedKey apiEncrypt) nonce payload of
+            CryptoPassed res -> Right res
+            CryptoFailed err -> Left $ ErrDecodeTxDecryptMetadata err
+
+    decodeFromJSON =
+        mapLeft (ErrDecodeTxDecryptedPayload . T.pack) .
+        Aeson.eitherDecode . BL.fromStrict
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)

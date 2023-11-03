@@ -107,6 +107,7 @@ module Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
+    , ErrDecodeTx (..)
     , readWalletMeta
     , isStakeKeyRegistered
     , putDelegationCertificate
@@ -655,6 +656,9 @@ import Control.Tracer
     ( Tracer
     , contramap
     , traceWith
+    )
+import Crypto.Encryption.ChaChaPoly1305
+    ( CryptoError
     )
 import Crypto.Hash
     ( Blake2b_256
@@ -3574,6 +3578,13 @@ data ErrWitnessTx
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxImpossible ErrNoSuchTransaction
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+data ErrDecodeTx
+    = ErrDecodeTxIncorrectEncryptedMetadata
+    | ErrDecodeTxDecryptMetadata CryptoError
+    | ErrDecodeTxDecryptedPayload Text
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
