@@ -2717,8 +2717,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    when (isJust (body ^. #encryptMetadata)) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
+    let metadata = case (body ^. #encryptMetadata, body ^. #metadata) of
+            (Just apiEncrypt, Just metadataWithSchema) ->
+                Just $ toMetadataEncrypted apiEncrypt metadataWithSchema
+            _ ->
+                body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -2731,9 +2734,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
-
-    let metadata =
-            body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
@@ -3118,7 +3118,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
-    -> TxMetadataWithSchema
+    -> Cardano.TxMetadata
 toMetadataEncrypted apiEncrypt =
     toMetadata . encrypt . toBytes
   where
@@ -3136,7 +3136,6 @@ toMetadataEncrypted apiEncrypt =
             let (front, back) = BS.splitAt 64 bs
             in toChunks back (front:res)
     toMetadata =
-        TxMetadataWithSchema TxMetadataNoSchema .
         Cardano.TxMetadata .
         Map.fromList .
         zipWith (,) [0..] .
