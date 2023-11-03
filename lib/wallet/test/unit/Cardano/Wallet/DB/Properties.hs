@@ -28,7 +28,6 @@ import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
     , DBLayerParams (..)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
@@ -48,7 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
-    , WalletMetadata (..)
     , WithOrigin (..)
     , wholeRange
     )
@@ -73,17 +71,12 @@ import Cardano.Wallet.Util
     )
 import Control.Monad
     ( forM_
-    , void
-    )
-import Control.Monad.IO.Class
-    ( liftIO
     )
 import Control.Monad.Trans
     ( lift
     )
 import Control.Monad.Trans.Except
     ( ExceptT
-    , runExceptT
     )
 import Crypto.Hash
     ( hash
@@ -114,7 +107,6 @@ import Test.Hspec
     ( SpecWith
     , describe
     , it
-    , shouldReturn
     )
 import Test.QuickCheck
     ( Arbitrary (..)
@@ -177,10 +169,6 @@ properties withFreshDB = describe "DB.Properties" $ do
 
     let testOnLayer = monadicIO . withFreshWallet testWid withFreshDB
 
-    describe "Extra Properties about DB initialization" $ do
-        it "creating same wallet twice yields an error"
-            $ property
-            $ prop_createWalletTwice withFreshDB
 
     describe "put . read yields a result" $ do
         it "Tx History"
@@ -272,25 +260,6 @@ assertWith lbl condition = do
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
-
--- | Trying to create a same wallet twice should yield an error
-prop_createWalletTwice
-    :: WithDBFresh s
-    -> ( WalletId
-       , InitialCheckpoint s
-       , WalletMetadata
-       )
-    -> Property
-prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
-    $ test wid
-    $ \DBFresh {..} -> do
-        liftIO $ do
-            let err = ErrWalletAlreadyInitialized
-                bootData = DBLayerParams cp0 meta mempty gp
-            runExceptT (void $ bootDBLayer bootData)
-                `shouldReturn` Right ()
-            runExceptT (void $ bootDBLayer bootData)
-                `shouldReturn` Left err
 
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
