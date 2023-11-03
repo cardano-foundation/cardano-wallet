@@ -47,6 +47,9 @@ import Cardano.Wallet.Read.Tx.Gen.Allegra
 import Cardano.Wallet.Read.Tx.Gen.Byron
     ( exampleByronTx
     )
+import Cardano.Wallet.Read.Tx.Gen.Mary
+    ( exampleMaryTx
+    )
 import Cardano.Wallet.Read.Tx.Gen.Shelley
     ( exampleShelleyTx
     )
@@ -78,7 +81,7 @@ exampleBlock = genBlocks $ EraFun
     { byronFun = f [exampleBlockParameters [Tx exampleByronTx]]
     , shelleyFun = f [exampleBlockParameters [Tx exampleShelleyTx]]
     , allegraFun = f [exampleBlockParameters [Tx exampleAllegraTx]]
-    , maryFun = f []
+    , maryFun = f [exampleBlockParameters [Tx exampleMaryTx]]
     , alonzoFun = f []
     , babbageFun = f []
     , conwayFun = f []
