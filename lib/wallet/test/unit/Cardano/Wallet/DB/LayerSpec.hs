@@ -120,6 +120,7 @@ import Cardano.Wallet.DB.Layer
     , newBootDBLayerInMemory
     , newDBFactory
     , withBootDBLayerFromFile
+    , withBootDBLayerInMemory
     , withDBFreshFromFile
     , withDBFreshInMemory
     , withLoadDBLayerFromFile
@@ -936,7 +937,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @TestState)
+            (property prop_randomOpChunks)
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -944,11 +945,7 @@ fileModeSpec =  do
 --
 -- This test focuses on the WalletMetadata.
 prop_randomOpChunks
-    :: forall s
-     . ( WalletFlavor s
-       , PersistAddressBook s
-       )
-    => (Wallet s, WalletMetadata)
+    :: (Wallet TestState, WalletMetadata)
     -> [WalletMetadata]
     -> Property
 prop_randomOpChunks (cp,meta) ops =
@@ -958,8 +955,7 @@ prop_randomOpChunks (cp,meta) ops =
         filepath <- temporaryDBFile
         initializeDBFile filepath
 
-        withShelleyDBLayer $ \dbfM -> do
-            dbM <- boot dbfM
+        withShelleyInMemoryBootDBLayer initialDBLayerParams $ \dbM -> do
             runOps ops dbM
 
             opss <- cutRandomly ops
@@ -971,7 +967,7 @@ prop_randomOpChunks (cp,meta) ops =
     runOps ops' db = forM_ ops' (runOp db)
 
     runOp
-        :: DBLayer IO s
+        :: DBLayer IO TestState
         -> WalletMetadata
         -> IO ()
     runOp DBLayer{..} meta' =
@@ -982,14 +978,16 @@ prop_randomOpChunks (cp,meta) ops =
                 $ WalletInfo.UpdateWalletMetadata meta'
             ]
 
-    initializeDBFile filepath = do
-        let cp0 = imposeGenesisState cp
-        withBootDBLayerFromFile (walletFlavor @s)
+    cp0 = imposeGenesisState cp
+    initialDBLayerParams = DBLayerParams cp0 meta mempty gp
+
+    initializeDBFile filepath =
+        withBootDBLayerFromFile (walletFlavor @TestState)
             nullTracer
             dummyTimeInterpreter
             testWid
             (Just defaultFieldValues)
-            (DBLayerParams cp0 meta mempty gp)
+            initialDBLayerParams
             filepath
             $ \_ -> pure ()
 
@@ -1051,13 +1049,17 @@ defaultFieldValues = DefaultFieldValues
 
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
-withShelleyDBLayer
+withShelleyInMemoryBootDBLayer
     :: forall s a
      . (PersistAddressBook s, WalletFlavor s)
-    => (DBFresh IO s -> IO a)
+    => DBLayerParams s
+    -> (DBLayer IO s -> IO a)
     -> IO a
-withShelleyDBLayer = withDBFreshInMemory (walletFlavor @s)
-    nullTracer dummyTimeInterpreter testWid
+withShelleyInMemoryBootDBLayer =
+    withBootDBLayerInMemory (walletFlavor @s)
+        nullTracer 
+        dummyTimeInterpreter
+        testWid
 
 withShelleyFileBootDBLayer
     :: FilePath
