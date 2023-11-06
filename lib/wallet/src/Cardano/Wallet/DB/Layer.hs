@@ -26,7 +26,6 @@ module Cardano.Wallet.DB.Layer
 
     -- * Open a database for a specific 'WalletId'
     , withDBFreshFromFile
-    , newDBFreshInMemory
 
     , withLoadDBLayerFromFile
     , withBootDBLayerFromFile
@@ -214,9 +213,6 @@ import Control.Tracer
     ( Tracer
     , contramap
     , traceWith
-    )
-import Data.Bifunctor
-    ( second
     )
 import Data.Coerce
     ( coerce
@@ -713,24 +709,6 @@ withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
     withDBOpenFromFile walletF tr defaultFieldValues dbFile
         $  action . newDBFreshFromDBOpen walletF ti wid
 
--- | Creates a 'DBFresh' backed by a sqlite in-memory database.
---
--- Returns a cleanup function which you should always use exactly once when
--- finished with the 'DBFresh'.
-newDBFreshInMemory
-    :: forall s
-     . PersistAddressBook s
-    => WalletFlavorS s
-    -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-    -- ^ Logging object.
-    -> TimeInterpreter IO
-    -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-    -- ^ Wallet ID of the database.
-    -> IO (IO (), DBFresh IO s)
-newDBFreshInMemory wf tr ti wid = do
-    second (newDBFreshFromDBOpen wf ti wid) <$> newDBOpenInMemory tr
 
 -- | From a 'DBOpen', create a database which can store the state
 -- of one wallet with a specific 'WalletId'.
