@@ -109,7 +109,6 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
-    , DBFresh (..)
     , DBLayer (..)
     , DBLayerParams (..)
     )
@@ -414,7 +413,7 @@ spec =
             propertiesSpecSeq
             loggingSpec
             fileModeSpec
-            dbFreshSpec
+            initializeDBSpec
             manualMigrationsSpec
 
 stateMachineSpec
@@ -554,7 +553,6 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeqFresh = DBFresh IO TestState
 type TestState = SeqState 'Mainnet ShelleyKey
 
 fileModeSpec :: Spec
@@ -1133,11 +1131,11 @@ cutRandomly = iter []
             iter (chunk:acc) (L.drop chunksNum rest)
 
 {-------------------------------------------------------------------------------
-    DBFresh tests
+    Tests about initializing the DBLayer
 -------------------------------------------------------------------------------}
 
-dbFreshSpec :: Spec
-dbFreshSpec = do
+initializeDBSpec :: Spec
+initializeDBSpec = do
     describe "withBootDBLayerInMemory" $ do
         it "Database schema version is up to date"
             testSchemaVersionUpToDate
