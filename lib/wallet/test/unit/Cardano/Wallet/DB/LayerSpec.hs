@@ -122,7 +122,6 @@ import Cardano.Wallet.DB.Layer
     , withBootDBLayerFromFile
     , withBootDBLayerInMemory
     , withDBFreshFromFile
-    , withDBFreshInMemory
     , withLoadDBLayerFromFile
     , withTestLoadDBLayerFromFile
     )
@@ -249,9 +248,6 @@ import Data.ByteString
     )
 import Data.Coerce
     ( coerce
-    )
-import Data.Function
-    ( (&)
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -484,49 +480,52 @@ propertiesSpecSeq = describe "Properties" $ properties withBootDBLayer
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @TestState $ do
+loggingSpec = withLoggingDB $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level"
-            $ \(getLogs, DBFresh{bootDBLayer}) -> do
-                void $ unsafeRunExceptT
-                    $ bootDBLayer
-                    $ DBLayerParams testCp testMetadata mempty gp
+            $ \(getLogs, db) -> do
+                testMetadataUpdate db testMetadata
                 logs <- getLogs
-                logs `shouldHaveMsgQuery` "INSERT"
+                logs `shouldHaveMsgQuery` "UPDATE"
 
         it "should not log query parameters"
-            $ \(getLogs, DBFresh{bootDBLayer}) -> do
-                void $ unsafeRunExceptT
-                    $ bootDBLayer
-                    $ DBLayerParams testCp testMetadata mempty gp
+            $ \(getLogs, db) -> do
+                testMetadataUpdate db testMetadata
                 let walletName = T.unpack $ coerce $ name testMetadata
                 msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
                 T.unpack msgs `shouldNotContain` walletName
 
     describe "Sqlite observables" $ do
-        it "should measure query timings" $ \(getLogs, DBFresh{bootDBLayer}) ->
-            do  DBLayer{readCheckpoint, atomically}
-                    <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
+        it "should measure query timings"
+            $ \(getLogs, DBLayer{readCheckpoint, atomically}) -> do
                 let count = 5
                 replicateM_ count $ atomically readCheckpoint
                 msgs <- findObserveDiffs <$> getLogs
-                length msgs `shouldBe` (count + 3) * 2
+                length msgs `shouldBe` count * 2
+
+testMetadataUpdate
+    :: DBLayer IO TestState -> WalletMetadata -> IO ()
+testMetadataUpdate DBLayer{atomically, walletState} meta =
+    void
+        $ atomically
+        $ Delta.onDBVar walletState
+        $ Delta.update $ \_ ->
+            [ WalletState.UpdateInfo
+                $ WalletInfo.UpdateWalletMetadata meta
+            ]
 
 withLoggingDB
-    :: forall s
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       )
-    => SpecWith (IO [DBLog], DBFresh IO s)
+    :: SpecWith (IO [DBLog], DBLayer IO TestState)
     -> Spec
 withLoggingDB = around f . beforeWith clean
   where
     f act = do
         logVar <- newTVarIO []
-        withDBFreshInMemory (walletFlavor @s)
+        withBootDBLayerInMemory (walletFlavor @TestState)
             (traceInTVarIO logVar)
             dummyTimeInterpreter
             testWid
+            testDBLayerParams
             (\db -> act (logVar, db))
     clean (logs, db) = do
         STM.atomically $ writeTVar logs []
@@ -1055,7 +1054,7 @@ withShelleyInMemoryBootDBLayer
     -> IO a
 withShelleyInMemoryBootDBLayer =
     withBootDBLayerInMemory (walletFlavor @s)
-        nullTracer 
+        nullTracer
         dummyTimeInterpreter
         testWid
 
@@ -1142,20 +1141,20 @@ cutRandomly = iter []
 
 dbFreshSpec :: Spec
 dbFreshSpec = do
-    describe "bootDBLayer" $ do
+    describe "withBootDBLayerInMemory" $ do
         it "Database schema version is up to date"
             testSchemaVersionUpToDate
 
 testSchemaVersionUpToDate :: IO ()
 testSchemaVersionUpToDate =
-    withDBFreshInMemory ShelleyWallet nullTracer dummyTimeInterpreter testWid
-        $ \DBFresh{bootDBLayer} -> do
-            db <- unsafeRunExceptT
-                $ bootDBLayer
-                $ DBLayerParams testCp testMetadata mempty gp
-            db & \DBLayer{..} -> do
-                version <- atomically getSchemaVersion
-                version `shouldBe` latestVersion
+    withBootDBLayerInMemory ShelleyWallet
+        nullTracer
+        dummyTimeInterpreter
+        testWid
+        testDBLayerParams
+        $ \DBLayer{..} -> do
+            version <- atomically getSchemaVersion
+            version `shouldBe` latestVersion
 
 {-------------------------------------------------------------------------------
                             Manual migrations tests

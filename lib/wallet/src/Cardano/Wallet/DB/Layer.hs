@@ -26,7 +26,6 @@ module Cardano.Wallet.DB.Layer
 
     -- * Open a database for a specific 'WalletId'
     , withDBFreshFromFile
-    , withDBFreshInMemory
     , newDBFreshInMemory
 
     , withLoadDBLayerFromFile
@@ -713,25 +712,6 @@ withDBFreshFromFile
 withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
     withDBOpenFromFile walletF tr defaultFieldValues dbFile
         $  action . newDBFreshFromDBOpen walletF ti wid
-
--- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
--- database.
-withDBFreshInMemory
-    :: forall s a
-     . PersistAddressBook s
-    => WalletFlavorS s
-    -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-    -- ^ Logging object.
-    -> TimeInterpreter IO
-    -- ^ Time interpreter for slot to time conversions
-    -> W.WalletId
-    -- ^ Wallet ID of the database.
-    -> (DBFresh IO s -> IO a)
-    -- ^ Action to run.
-    -> IO a
-withDBFreshInMemory wf tr ti wid action = bracket
-    (newDBFreshInMemory wf tr ti wid) fst (action . snd)
 
 -- | Creates a 'DBFresh' backed by a sqlite in-memory database.
 --
