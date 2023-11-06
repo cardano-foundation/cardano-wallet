@@ -1089,7 +1089,7 @@ readWallet ctx = do
     db & \DBLayer{..} -> atomically $ do
         cp <- readCheckpoint
         meta <- readWalletMeta walletState
-        dele <- readDelegation walletState
+        calculateWalletDelegations <- readDelegation walletState
         pending <-
             readTransactions
                 Nothing
@@ -1098,7 +1098,11 @@ readWallet ctx = do
                 (Just Pending)
                 Nothing
                 Nothing
-        pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
+        pure
+            ( cp
+            , (meta, calculateWalletDelegations currentEpochSlotting)
+            , Set.fromList (fromTransactionInfo <$> pending)
+            )
   where
     db = ctx ^. dbLayer
     nl = ctx ^. networkLayer
