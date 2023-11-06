@@ -121,7 +121,6 @@ import Cardano.Wallet.DB.Layer
     , newDBFactory
     , withBootDBLayerFromFile
     , withBootDBLayerInMemory
-    , withDBFreshFromFile
     , withLoadDBLayerFromFile
     , withTestLoadDBLayerFromFile
     )
@@ -224,7 +223,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
-    , unsafeRunExceptT
+    , unsafeFromText
     )
 import Control.Monad
     ( forM_
@@ -629,10 +628,7 @@ fileModeSpec =  do
                     `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
-        let writeSomething DBFresh{..} =
-                void
-                    $ unsafeRunExceptT
-                    $ bootDBLayer testDBLayerParams
+        let writeSomething _ = pure ()
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -1012,7 +1008,7 @@ testReopening filepath action expectedAfterOpen =
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBFresh IO TestState -> IO ())
+    :: (DBLayer IO TestState -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -1021,11 +1017,12 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBFreshFromFile ShelleyWallet
+        withBootDBLayerFromFile ShelleyWallet
             (trMessageText trace)
             ti
             testWid
             (Just defaultFieldValues)
+            testDBLayerParams
             fp
             action
         expectations fp
@@ -1315,6 +1312,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
 
     it "'migrate' db submissions encoding" $
         testMigrationSubmissionsEncoding
+            (unsafeFromText "204a7abf61094464572e05ef21b107b93f069853")
             "before_submission-v2022-12-14.sqlite"
 
 -- | Copy a given @.sqlite@ file, load it into a `DBLayer`
@@ -1527,16 +1525,16 @@ localTxSubmissionTableExists = [i|
     |]
 
 testMigrationSubmissionsEncoding
-    :: FilePath -> IO ()
-testMigrationSubmissionsEncoding dbName = do
+    :: WalletId -> FilePath -> IO ()
+testMigrationSubmissionsEncoding wid dbName = do
     let performMigrations path =
-          withDBFreshFromFile ShelleyWallet
+          withLoadDBLayerFromFile ShelleyWallet
             nullTracer
             dummyTimeInterpreter
-            testWid
+            wid
             (Just defaultFieldValues)
             path
-                $ \(_  :: TestDBSeqFresh) -> pure ()
+            $ \(_ :: DBLayer IO TestState) -> pure ()
         testOnCopiedAndMigrated test = fmap snd
             $ withinCopiedFile dbName $ \path _  -> do
                 performMigrations path

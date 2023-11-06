@@ -25,8 +25,6 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Open a database for a specific 'WalletId'
-    , withDBFreshFromFile
-
     , withLoadDBLayerFromFile
     , withBootDBLayerFromFile
     , newBootDBLayerInMemory
@@ -679,36 +677,6 @@ withDBFreshFromDBOpen
     -- ^ Already opened database.
     -> IO a
 withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
-
--- | Runs an action with a connection to the SQLite database.
---
--- Database migrations are run to create tables if necessary.
---
--- If the given file path does not exist, it will be created by the sqlite
--- library.
-withDBFreshFromFile
-    :: forall s a
-     . PersistAddressBook s
-    => WalletFlavorS s
-        -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-       -- ^ Logging object
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-         -- ^ Wallet ID of the database.
-    -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- Use 'Nothing' to skip manual migrations.
-    -> FilePath
-       -- ^ Path to database file
-    -> (DBFresh IO s -> IO a)
-       -- ^ Action to run.
-    -> IO a
-withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
-    withDBOpenFromFile walletF tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen walletF ti wid
-
 
 -- | From a 'DBOpen', create a database which can store the state
 -- of one wallet with a specific 'WalletId'.
