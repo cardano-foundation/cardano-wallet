@@ -32,6 +32,7 @@ module Cardano.Wallet.DB.Layer
     , withLoadDBLayerFromFile
     , withBootDBLayerFromFile
     , newBootDBLayerInMemory
+    , withBootDBLayerInMemory
 
     -- * Open a database for testing
     , withTestLoadDBLayerFromFile
@@ -584,6 +585,25 @@ newBootDBLayerInMemory wF tr ti wid params =
                 throw err
             Right dblayer ->
                 pure (destroy, dblayer)
+
+-- | Create a 'DBLayer' in memory.
+--
+-- Create tables corresponding to the current schema.
+--
+-- @with@ variant of 'newBootDBLayerInMemory'.
+withBootDBLayerInMemory
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -> Tracer IO WalletDBLog
+    -> TimeInterpreter IO
+    -> W.WalletId
+    -> DBLayerParams s
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withBootDBLayerInMemory wF tr ti wid params action =
+    bracket
+        (newBootDBLayerInMemory wF tr ti wid params) fst (action . snd)
 
 {-------------------------------------------------------------------------------
     DBOpen
