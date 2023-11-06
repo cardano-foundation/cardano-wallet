@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.DB.Store.Delegations.Layer
@@ -39,9 +40,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Data.Foldable
     ( find
-    )
-import Data.Function
-    ( (&)
     )
 import Data.Map.Strict
     ( lookupMax
@@ -93,50 +91,44 @@ data CurrentEpochSlotting = CurrentEpochSlotting
 
 -- | Read the delegation status of a wallet.
 readDelegation :: CurrentEpochSlotting -> Delegations -> WalletDelegation
-readDelegation (CurrentEpochSlotting epoch cur Nothing) hist =
-    WalletDelegation currentDelegation nextDelegations
+readDelegation CurrentEpochSlotting{..} history =
+    case previousEpochStartSlot of
+        Nothing ->
+            WalletDelegation
+            { active = NotDelegating
+            , next =
+                catMaybes
+                    [ WalletDelegationNext (currentEpoch + 2) <$>
+                        readDelegationStatus (>= currentEpochStartSlot) history
+                    ]
+            }
+        Just previousEpochStart ->
+            WalletDelegation
+            { active =
+                fromMaybe NotDelegating $
+                    readDelegationStatus (< previousEpochStart) history
+            , next =
+                catMaybes
+                    [ WalletDelegationNext (currentEpoch + 1) <$>
+                        let condition slot
+                                = slot >= previousEpochStart
+                                && slot < currentEpochStartSlot
+                        in readDelegationStatus condition history
+                    , WalletDelegationNext (currentEpoch + 2) <$>
+                        readDelegationStatus (>= currentEpochStartSlot) history
+                    ]
+            }
   where
-    currentDelegation = NotDelegating
-    nextDelegations =
-        catMaybes
-            [ nextDelegation (epoch + 2)
-                $ readDelegationStatus (>= cur) hist
-            ]
-readDelegation (CurrentEpochSlotting epoch cur (Just prev)) hist =
-    WalletDelegation currentDelegation nextDelegations
-  where
-    currentDelegation = readDelegationStatus (< prev) hist
-        & fromMaybe NotDelegating
-    nextDelegations =
-        catMaybes
-            [ nextDelegation (epoch + 1)
-                $ readDelegationStatus (\sl -> sl >= prev && sl < cur) hist
-            , nextDelegation (epoch + 2)
-                $ readDelegationStatus (>= cur) hist
-            ]
+    readDelegationStatus ::
+        (SlotNo -> Bool) -> Delegations -> Maybe WalletDelegationStatus
+    readDelegationStatus cond =
+        (walletDelegationStatus . snd <$>) . find (cond . fst) . Map.toDescList
 
-nextDelegation
-    :: Functor f
-    => EpochNo
-    -> f WalletDelegationStatus
-    -> f WalletDelegationNext
-nextDelegation = fmap . WalletDelegationNext
-
-readDelegationStatus
-    :: (SlotNo -> Bool)
-    -> Delegations
-    -> Maybe WalletDelegationStatus
-readDelegationStatus cond =
-    fmap (walletDelegationStatus . snd)
-        . find (cond . fst)
-        . reverse
-        . Map.assocs
-
-walletDelegationStatus :: Status PoolId -> WalletDelegationStatus
-walletDelegationStatus = \case
-    Inactive -> NotDelegating
-    Registered -> NotDelegating
-    Active pid -> Delegating pid
+    walletDelegationStatus :: Status PoolId -> WalletDelegationStatus
+    walletDelegationStatus = \case
+        Inactive -> NotDelegating
+        Registered -> NotDelegating
+        Active pid -> Delegating pid
 
 -- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .

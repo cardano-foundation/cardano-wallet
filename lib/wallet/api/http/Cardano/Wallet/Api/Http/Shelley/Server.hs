@@ -1164,7 +1164,7 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
     apiDelegation <- liftIO $ toApiWalletDelegation delegation
         (unsafeExtendSafeZone ti)
 
-    tip' <- liftIO $ getWalletTip
+    tip <- liftIO $ getWalletTip
         (neverFails "getWalletTip wallet tip should be behind node tip" ti)
         cp
     let available = availableBalance pending cp
@@ -1186,7 +1186,7 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
         , passphrase = ApiWalletPassphraseInfo
             <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
-        , tip = tip'
+        , tip
         }
 
 toApiWalletDelegation

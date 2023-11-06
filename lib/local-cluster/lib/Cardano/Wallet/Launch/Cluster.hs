@@ -1101,7 +1101,7 @@ generateGenesis Config{..} initialFunds genesisMods = do
     If it's slightly before the actual starts, some slots will be missed,
     but it shouldn't be critical as long as less than k slots are missed.
 
-    Empirically, 5 seconds seems to be a good value: enough for a cluster to
+    Empirically, 10 seconds seems to be a good value: enough for a cluster to
     initialize itself before producing any blocks, but not too much to wait for.
 
     Lower values (e.g. 1 second) might cause custer to start but not produce
@@ -1109,7 +1109,7 @@ generateGenesis Config{..} initialFunds genesisMods = do
     happens then node logs contain TraceNoLedgerView message and wallet log says
     "Current tip is [point genesis]. (not applying blocks)"
     -}
-    systemStart <- addUTCTime 5 <$> getCurrentTime
+    systemStart <- addUTCTime 10 <$> getCurrentTime
 
     let sgProtocolParams = Ledger.emptyPParams
             & ppMinFeeAL .~ Ledger.Coin 100

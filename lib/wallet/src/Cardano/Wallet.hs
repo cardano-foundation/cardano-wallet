@@ -786,7 +786,6 @@ import UnliftIO.Exception
     , catch
     , evaluate
     , throwIO
-    , try
     )
 import UnliftIO.MVar
     ( modifyMVar_
@@ -1060,25 +1059,12 @@ readDelegation walletState = do
 -- we return the epoch of the node tip.
 getCurrentEpochSlotting
     :: HasCallStack => NetworkLayer IO block -> IO CurrentEpochSlotting
-getCurrentEpochSlotting nl = do
-    epoch <- getCurrentEpoch
-    mkCurrentEpochSlotting ti epoch
-  where
-    ti = Slotting.expectAndThrowFailures $ timeInterpreter nl
-
-    getCurrentEpoch =
-        currentEpochFromWallClock >>= \case
-            Right a -> pure a
-            Left _ -> currentEpochFromNodeTip
-
-    currentEpochFromNodeTip :: IO W.EpochNo
-    currentEpochFromNodeTip = do
-        tip <- currentNodeTip nl
-        interpretQuery ti $ Slotting.epochOf $ tip ^. #slotNo
-
-    currentEpochFromWallClock :: IO (Either PastHorizonException W.EpochNo)
-    currentEpochFromWallClock =
-        try $ Slotting.currentEpoch ti
+getCurrentEpochSlotting nl@NetworkLayer{timeInterpreter} = do
+    tip <- currentNodeTip nl
+    let epochQuery = Slotting.epochOf (tip ^. #slotNo)
+        throwingInterpreter = Slotting.expectAndThrowFailures timeInterpreter
+    epoch <- interpretQuery throwingInterpreter epochQuery
+    mkCurrentEpochSlotting throwingInterpreter epoch
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -1089,7 +1075,7 @@ readWallet ctx = do
     db & \DBLayer{..} -> atomically $ do
         cp <- readCheckpoint
         meta <- readWalletMeta walletState
-        dele <- readDelegation walletState
+        calculateWalletDelegations <- readDelegation walletState
         pending <-
             readTransactions
                 Nothing
@@ -1098,7 +1084,11 @@ readWallet ctx = do
                 (Just Pending)
                 Nothing
                 Nothing
-        pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
+        pure
+            ( cp
+            , (meta, calculateWalletDelegations currentEpochSlotting)
+            , Set.fromList (fromTransactionInfo <$> pending)
+            )
   where
     db = ctx ^. dbLayer
     nl = ctx ^. networkLayer
