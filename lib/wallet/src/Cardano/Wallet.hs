@@ -2156,6 +2156,11 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
 
     wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
+
+    wrapBalanceConstructError
+        :: Write.IsRecentEra era
+        => Either (ErrBalanceTx era) ErrConstructTx
+        -> WalletException
     wrapBalanceConstructError =
         either
             (ExceptionBalanceTx . ErrBalanceTxInRecentEra)
@@ -3615,7 +3620,8 @@ newtype ErrWritePolicyPublicKey
     deriving (Generic, Eq, Show)
 
 data ErrBalanceTxInRecentEra =
-    forall era. ErrBalanceTxInRecentEra (ErrBalanceTx era)
+    forall era. Write.IsRecentEra era =>
+    ErrBalanceTxInRecentEra (ErrBalanceTx era)
 
 deriving instance Show ErrBalanceTxInRecentEra
 
