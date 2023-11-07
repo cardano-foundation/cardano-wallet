@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Force UTF-8 encoding:
+LANG=C.UTF-8
+
 echo "+++ Check code format: imports"
 
 stylish-haskell -v --config .stylish-haskell.yaml --inplace `git ls-files -- '*.hs'`
