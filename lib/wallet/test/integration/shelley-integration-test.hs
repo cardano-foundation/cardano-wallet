@@ -64,7 +64,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , deriveShelleyRewardAccount
     , hwLedgerTestFunds
     , maryIntegrationTestFunds
     , seaHorseTestAssets
@@ -235,6 +234,7 @@ import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
+import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Text as T
@@ -471,7 +471,8 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
               , Coin (fromIntegral oneMillionAda)
               )
             | m <- Mnemonics.mir
-            , let (xpub, _prv) = deriveShelleyRewardAccount (SomeMnemonic m)
+            , let (xpub, _prv) =
+                    Addresses.shelleyRewardAccount (SomeMnemonic m)
             ]
         }
 

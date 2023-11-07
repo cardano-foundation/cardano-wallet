@@ -26,11 +26,6 @@ import Cardano.Mnemonic
     , SomeMnemonic (..)
     , mnemonicToText
     )
-import Cardano.Wallet.Faucet
-    ( byronAddresses
-    , deriveShelleyAddresses
-    , icarusAddresses
-    )
 import Control.Monad
     ( forM
     , forM_
@@ -44,6 +39,7 @@ import Data.Text
     )
 
 import qualified Cardano.Address as CA
+import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -52,27 +48,27 @@ import qualified Data.Text.IO as TIO
 --
 -- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
 genByronFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 12] -> IO [[Text]]
-genByronFaucets = genFaucet base58 . byronAddresses
+genByronFaucets = genFaucet base58 . Addresses.byron
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genIcarusFaucets (CA.NetworkTag 42) "icarus-faucets.yaml"
 genIcarusFaucets :: CA.NetworkTag -> FilePath -> [Mnemonic 15] -> IO [[Text]]
-genIcarusFaucets = genFaucet base58 . icarusAddresses
+genIcarusFaucets = genFaucet base58 . Addresses.icarus
 
 -- | Generate faucet addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO [[Text]]
 genShelleyFaucets =
-    genFaucet encodeAddressHex (deriveShelleyAddresses . SomeMnemonic)
+    genFaucet encodeAddressHex (Addresses.shelley . SomeMnemonic)
 
 -- | Generate faucet addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genMaryAllegraFaucets "ma-faucets.yaml"
 genMaryAllegraFaucets :: FilePath -> [Mnemonic 24] -> IO [[Text]]
 genMaryAllegraFaucets =
-    genFaucet encodeAddressHex (deriveShelleyAddresses . SomeMnemonic)
+    genFaucet encodeAddressHex (Addresses.shelley . SomeMnemonic)
 
 -- | Abstract function for generating a faucet as a YAML file.
 --

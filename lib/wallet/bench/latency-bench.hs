@@ -68,7 +68,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , deriveShelleyAddresses
     , maryIntegrationTestFunds
     , shelleyIntegrationTestFunds
     )
@@ -231,6 +230,7 @@ import UnliftIO.STM
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -656,7 +656,7 @@ massiveWalletFunds :: [(Address, Coin)]
 massiveWalletFunds =
     take massiveWalletUTxOSize
     . map (, massiveWalletAmt)
-    . deriveShelleyAddresses
+    . Addresses.shelley
     $ SomeMnemonic massiveWallet
 
 massiveWalletAmt :: Coin

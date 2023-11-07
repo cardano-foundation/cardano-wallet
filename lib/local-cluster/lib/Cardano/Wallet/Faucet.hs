@@ -7,7 +7,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-{-# OPTIONS_GHC -Wno-deprecations #-}
 
 module Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -33,13 +32,8 @@ module Cardano.Wallet.Faucet
     , hwLedgerTestFunds
     , seaHorseTestAssets
 
-    , byronAddresses
-    , icarusAddresses
-
       -- * Internals
     , genMnemonics
-    , deriveShelleyAddresses
-    , deriveShelleyRewardAccount
     ) where
 
 import Prelude hiding
@@ -50,28 +44,16 @@ import Cardano.Address
     ( Address
     )
 import Cardano.Address.Derivation
-    ( AccountIndexDerivationType
-    , AddressIndexDerivationType
-    , Depth (AccountK, DelegationK, PaymentK)
-    , DerivationType (Hardened)
-    , GenMasterKey (genMasterKeyFromMnemonic)
+    ( AddressIndexDerivationType
+    , Depth (PaymentK)
     , Index
-    , XPrv
-    , XPub
-    , coerceWholeDomainIndex
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , nextIndex
     , toXPub
     )
-import Cardano.Address.Style.Byron
-    ( Byron
-    )
 import Cardano.Address.Style.Icarus
     ( Icarus
-    )
-import Cardano.Address.Style.Shelley
-    ( Shelley
     )
 import Cardano.Mnemonic
     ( EntropySize
@@ -118,8 +100,7 @@ import Data.Tuple.Extra
     ( dupe
     )
 import GHC.TypeLits
-    ( KnownNat
-    , Nat
+    ( Nat
     , Symbol
     )
 import UnliftIO.MVar
@@ -128,9 +109,8 @@ import UnliftIO.MVar
     )
 
 import qualified Cardano.Address as CA
-import qualified Cardano.Address.Style.Byron as Byron
 import qualified Cardano.Address.Style.Icarus as Icarus
-import qualified Cardano.Address.Style.Shelley as Shelley
+import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
@@ -193,77 +173,6 @@ instance NextWallet "ma" where
 -- sent to a node.
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
 nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
-
-byronAddresses :: KnownNat mw => CA.NetworkTag -> Mnemonic mw -> [Address]
-byronAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
-  where
-    paymentKeyIxs :: [Index (AddressIndexDerivationType Byron) PaymentK] =
-        let firstIx = minBound
-        in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
-    mkPaymentAddrForIx paymentAddrIx =
-        Byron.paymentAddress
-            (CA.RequiresNetworkTag, networkTag)
-            (toXPub <$> paymentKey)
-      where
-        secondFactor = ()
-        paymentKey =
-            deriveAddressPrivateKey accountKey secondFactor paymentAddrIx
-          where
-            accountKey = deriveAccountPrivateKey masterKey accountIx
-              where
-                masterKey =
-                    genMasterKeyFromMnemonic (SomeMnemonic mw) secondFactor
-                accountIx :: Index (AddressIndexDerivationType Byron) AccountK =
-                    coerceWholeDomainIndex (minBound :: Index Hardened AccountK)
-
-icarusAddresses :: CA.NetworkTag -> Mnemonic 15 -> [Address]
-icarusAddresses networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
-  where
-    paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
-        let firstIx = minBound
-        in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
-    mkPaymentAddrForIx paymentAddrIx =
-        Icarus.paymentAddress
-            (CA.RequiresNetworkTag, networkTag)
-            (toXPub <$> paymentKey)
-      where
-        paymentKey =
-            deriveAddressPrivateKey accountKey Icarus.UTxOExternal paymentAddrIx
-          where
-            accountKey = deriveAccountPrivateKey masterKey accountIx
-              where
-                accountIx :: Index (AccountIndexDerivationType Icarus) AccountK =
-                    minBound
-                masterKey = genMasterKeyFromMnemonic (SomeMnemonic mw) mempty
-
-deriveShelleyAddresses :: SomeMnemonic -> [Address]
-deriveShelleyAddresses mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
-  where
-    paymentKeyIxs :: [Index (AddressIndexDerivationType Shelley) PaymentK] =
-        let firstIx = minBound
-            in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
-    mkPaymentAddrForIx paymentAddrIx =
-        Shelley.paymentAddress Shelley.shelleyTestnet credential
-      where
-        credential :: Shelley.Credential PaymentK =
-            Shelley.PaymentFromExtendedKey (toXPub <$> paymentKey)
-        paymentKey :: Shelley PaymentK XPrv =
-            deriveAddressPrivateKey
-                (deriveShelleyAccountKey mnemonic)
-                Shelley.UTxOExternal
-                paymentAddrIx
-
-deriveShelleyRewardAccount
-    :: SomeMnemonic -> (Shelley DelegationK XPub, Shelley DelegationK XPrv)
-deriveShelleyRewardAccount mnemonic = (toXPub <$> xPrv, xPrv)
-  where
-    xPrv = Shelley.deriveDelegationPrivateKey (deriveShelleyAccountKey mnemonic)
-
-deriveShelleyAccountKey :: SomeMnemonic -> Shelley AccountK XPrv
-deriveShelleyAccountKey mnemonic = deriveAccountPrivateKey masterKey accountIx
-  where
-    accountIx :: Index 'Hardened 'AccountK = minBound
-    masterKey = genMasterKeyFromMnemonic mnemonic mempty
 
 genMnemonics
     :: forall mw ent csz
@@ -351,7 +260,7 @@ shelleyIntegrationTestFunds networkTag =
         [ Mnemonics.sequential
             >>= take 10 . map (,defaultAmt) . addresses . SomeMnemonic
         , Mnemonics.icarus
-            >>= take 10 . map (,defaultAmt) . icarusAddresses networkTag
+            >>= take 10 . map (,defaultAmt) . Addresses.icarus networkTag
         , zip
             (addresses $ SomeMnemonic onlyDustWallet)
             ( map
@@ -387,10 +296,10 @@ shelleyIntegrationTestFunds networkTag =
     -- duplicate addresses are then lost in the
     -- @sgInitialFunds :: !(Map (Addr (Crypto era)) Coin)@. Perhaps using random
     -- stake keys could be an option if this ever becomes a problem.
-    addresses = deriveShelleyAddresses
+    addresses = Addresses.shelley
 
     mirWallets =
-        (,defaultAmt) . head . deriveShelleyAddresses . SomeMnemonic
+        (,defaultAmt) . head . Addresses.shelley . SomeMnemonic
             <$> Mnemonics.mir
 
 -- | A list of pre-generated policy IDs, paired with
@@ -478,7 +387,7 @@ maryIntegrationTestFunds tips =
     Mnemonics.shelleyMA
         >>= take 3
             . flip zip (cycle maryTokenBundles)
-            . deriveShelleyAddresses
+            . Addresses.shelley
             . SomeMnemonic
   where
     maryTokenBundles = zipWith mint [simple, fruit, combined] maryAssetScripts
@@ -553,7 +462,7 @@ byronIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
 byronIntegrationTestFunds networkTag =
     mconcat
         [ Mnemonics.random >>=
-            take 10 . map (,defaultAmt) . (byronAddresses networkTag)
+            take 10 . map (,defaultAmt) . (Addresses.byron networkTag)
         , dustWallet1Funds
         , dustWallet2Funds
         ]
@@ -581,7 +490,7 @@ byronIntegrationTestFunds networkTag =
 
     dustWallet1Funds =
         zip
-            (byronAddresses networkTag dustWallet1)
+            (Addresses.byron networkTag dustWallet1)
             [Coin 1, Coin 2, Coin 3, Coin 4, Coin 5]
 
     dustWallet2 :: Mnemonic 12
@@ -603,7 +512,7 @@ byronIntegrationTestFunds networkTag =
 
     dustWallet2Funds =
         zip
-            (byronAddresses networkTag dustWallet2)
+            (Addresses.byron networkTag dustWallet2)
             (replicate 100 (Coin 10_000_000_000) <> replicate 100 (Coin 1))
 
 hwLedgerTestFunds :: CA.NetworkTag -> [(Address, Coin)]
