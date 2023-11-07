@@ -992,32 +992,24 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         ]
 
 feeEstimationRegressionSpec :: AnyRecentEra -> Spec
-feeEstimationRegressionSpec (AnyRecentEra era) =
-    case era of
-        RecentEraConway ->
-            feeEstimationRegressionSpecInner @Cardano.ConwayEra era
-        RecentEraBabbage ->
-            feeEstimationRegressionSpecInner @Cardano.BabbageEra era
-
-feeEstimationRegressionSpecInner
-    :: forall era. Write.IsRecentEra era
-    => RecentEra era
-    -> Spec
-feeEstimationRegressionSpecInner _era = describe "Regression tests" $ do
-    it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCostLovelace :: Natural
-            requiredCostLovelace = 166_029
-        let estimateFee = except $ Left
-                $ ErrBalanceTxUnableToCreateChange
-                $ ErrBalanceTxUnableToCreateChangeError
-                    { requiredCost = Ledger.Coin $ intCast requiredCostLovelace
-                    , shortfall = Ledger.Coin 100_000
-                    }
-        result <- runExceptT (calculateFeePercentiles @_ @era estimateFee)
-        result `shouldBe` Right
-            ( Percentile $ Fee $ Coin requiredCostLovelace
-            , Percentile $ Fee $ Coin requiredCostLovelace
-            )
+feeEstimationRegressionSpec (AnyRecentEra (_era :: RecentEra era)) =
+    describe "Regression tests" $ do
+        it "#1740 Fee estimation at the boundaries" $ do
+            let requiredCostLovelace :: Natural
+                requiredCostLovelace = 166_029
+            let estimateFee = except $ Left
+                    $ ErrBalanceTxUnableToCreateChange
+                    $ ErrBalanceTxUnableToCreateChangeError
+                        { requiredCost =
+                            Ledger.Coin $ intCast requiredCostLovelace
+                        , shortfall =
+                            Ledger.Coin 100_000
+                        }
+            result <- runExceptT (calculateFeePercentiles @_ @era estimateFee)
+            result `shouldBe` Right
+                ( Percentile $ Fee $ Coin requiredCostLovelace
+                , Percentile $ Fee $ Coin requiredCostLovelace
+                )
 
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =
