@@ -89,7 +89,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
-    , ProtocolParameters
     , SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -126,6 +125,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Control.DeepSeq
     ( NFData (..)
+    )
+import Data.Kind
+    ( Type
     )
 import Data.List.NonEmpty
     ( NonEmpty
@@ -168,31 +170,8 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
-data TransactionLayer k ktype tx = TransactionLayer
-    { mkTransaction
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> (XPrv, Passphrase "encryption")
-            -- Reward account
-        -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
-            -- Key store
-        -> ProtocolParameters
-            -- Current protocol parameters
-        -> TransactionCtx
-            -- An additional context about the transaction
-        -> SelectionOf TxOut
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> Either ErrMkTransaction (Tx, tx)
-        -- ^ Construct a standard transaction
-        --
-        -- " Standard " here refers to the fact that we do not deal with redemption,
-        -- multisignature transactions, etc.
-        --
-        -- This expects as a first argument a mean to compute or lookup private
-        -- key corresponding to a particular address.
-
-    , addVkWitnesses
+data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
+    { addVkWitnesses
         :: AnyCardanoEra
             -- Preferred latest era
         -> WitnessCountCtx

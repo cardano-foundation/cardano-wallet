@@ -4133,7 +4133,6 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             tr = wrk ^. logger
-        era <- liftIO $ NW.currentNodeEra netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
             Just pd ->
@@ -4159,7 +4158,6 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
                 W.buildAndSignTransaction
                     wrk
                     wid
-                    era
                     mkRewardAccount
                     pwd
                     txContext
