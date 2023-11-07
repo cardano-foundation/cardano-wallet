@@ -3667,15 +3667,13 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) postData = do
-    let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
-    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
-        let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
+            (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era (ShelleyWalletCtx keyhash) sealed
-        let Tx { txId
+            Tx { txId
                , fee
                , resolvedInputs
                , resolvedCollateralInputs
@@ -3684,7 +3682,17 @@ decodeTransaction
                , metadata
                , scriptValidity
                } = decodedTx
-        let db = wrk ^. dbLayer
+            (ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata ) =
+                postData
+            db = wrk ^. dbLayer
+        metadata' <- case (decryptMetadata, metadata) of
+            (Just apiDecrypt, Just meta) ->
+                case fromMetadataEncrypted apiDecrypt meta of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right (TxMetadataWithSchema _ txmetadata) ->
+                        pure . Just . ApiT $ txmetadata
+            _ -> pure $ ApiT <$> metadata
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s db
         inputPaths <-
@@ -3717,7 +3725,7 @@ decodeTransaction
             , depositsReturned =
                 (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                     <$ filter ourRewardAccountDeregistration certs
-            , metadata = ApiTxMetadata $ ApiT <$> metadata
+            , metadata = ApiTxMetadata metadata'
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = ApiValidityIntervalExplicit <$> interval
             , witnessCount = mkApiWitnessCount witsCount

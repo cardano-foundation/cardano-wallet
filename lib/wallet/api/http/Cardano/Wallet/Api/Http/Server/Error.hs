@@ -40,6 +40,7 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
+    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetPolicyId (..)
@@ -284,6 +285,7 @@ instance IsServerError WalletException where
         ExceptionWritePolicyPublicKey e -> toServerError e
         ExceptionSoftDerivationIndex e -> toServerError e
         ExceptionHardenedDerivationIndex e -> toServerError e
+        ExceptionDecodeTx e -> toServerError e
 
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case
@@ -416,6 +418,26 @@ instance IsServerError ErrMkTransaction where
         ErrMkTransactionJoinStakePool e -> toServerError e
         ErrMkTransactionQuitStakePool e -> toServerError e
         ErrMkTransactionIncorrectTTL e -> toServerError e
+
+instance IsServerError ErrDecodeTx where
+    toServerError = \case
+        ErrDecodeTxIncorrectEncryptedMetadata ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata has wrong structure. "
+            , "It should be a map of at most 64-byte blocks."
+            ]
+        ErrDecodeTxDecryptMetadata cryptoError ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata cannot be decrypted. "
+            , "The exact error is: "
+            , T.pack (show cryptoError)
+            ]
+        ErrDecodeTxDecryptedPayload err ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the decrypted metadata cannot be decoded. "
+            , "The exact error is: "
+            , err
+            ]
 
 instance IsServerError ErrConstructTx where
     toServerError = \case

@@ -3695,6 +3695,7 @@ data WalletException
     | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx
+    | ExceptionDecodeTx ErrDecodeTx
     | ExceptionGetPolicyId ErrGetPolicyId
     | ExceptionWitnessTx ErrWitnessTx
     | ExceptionSubmitTx ErrSubmitTx
