@@ -1000,7 +1000,8 @@ feeEstimationRegressionSpec (AnyRecentEra era) =
             feeEstimationRegressionSpecInner @Cardano.BabbageEra era
 
 feeEstimationRegressionSpecInner
-    :: forall era. RecentEra era
+    :: forall era. Write.IsRecentEra era
+    => RecentEra era
     -> Spec
 feeEstimationRegressionSpecInner _era = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
