@@ -906,10 +906,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 case i `W.UTxO.lookup` walletUTxO of
                     Just o' -> unless (o == o') $ Left (o, o')
                     Nothing -> pure ()
-
         case conflicts of
             [] -> return ()
-            (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
     combinedUTxO :: UTxO (ShelleyLedgerEra era)
     combinedUTxO = withConstraints era $ mconcat
