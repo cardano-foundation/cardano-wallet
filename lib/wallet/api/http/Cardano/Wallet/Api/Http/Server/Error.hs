@@ -34,7 +34,6 @@ import Cardano.Ledger.Alonzo.TxInfo
     )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
-    , ErrBalanceTxInRecentEra (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
@@ -532,9 +531,6 @@ instance IsServerError ErrWriteTxEra where
                 , "an old era, please recreate your transaction so that it is"
                 , "compatible with a recent era."
                 ]
-
-instance IsServerError ErrBalanceTxInRecentEra where
-    toServerError (ErrBalanceTxInRecentEra e) = toServerError e
 
 instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
     toServerError = \case

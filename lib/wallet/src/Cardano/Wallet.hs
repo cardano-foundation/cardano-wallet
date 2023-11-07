@@ -96,7 +96,6 @@ module Cardano.Wallet
     , someRewardAccount
     , readPolicyPublicKey
     , writePolicyPublicKey
-    , ErrBalanceTxInRecentEra (..)
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrWalletNotInitialized (..)
@@ -2161,7 +2160,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
         :: Write.IsRecentEra era
         => Either (ErrBalanceTx era) ErrConstructTx
         -> WalletException
-    wrapBalanceConstructError = either exceptionBalanceTx ExceptionConstructTx
+    wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
     :: forall k s era
@@ -2306,7 +2305,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
-                    (either exceptionBalanceTx ExceptionConstructTx)
+                    (either ExceptionBalanceTx ExceptionConstructTx)
                 & (`evalRand` stdGen)
                 & either (liftIO . throwIO) pure
 
@@ -3003,10 +3002,10 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                             -> case Write.recentEra @era of {}
                 Left (e@(ErrBalanceTxUnableToCreateChange _))
                     -> throwE e
-                Left otherErr -> throwIO $ exceptionBalanceTx otherErr
+                Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
     wrapErrBalanceTx
-        = throwWrappedErr exceptionBalanceTx
+        = throwWrappedErr ExceptionBalanceTx
 
     wrapErrMkTransaction
         = throwWrappedErr (ExceptionConstructTx . ErrConstructTxBody)
@@ -3612,18 +3611,6 @@ newtype ErrWritePolicyPublicKey
     = ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
-data ErrBalanceTxInRecentEra =
-    forall era. Write.IsRecentEra era =>
-    ErrBalanceTxInRecentEra (ErrBalanceTx era)
-
-deriving instance Show ErrBalanceTxInRecentEra
-
-exceptionBalanceTx
-    :: Write.IsRecentEra era
-    => ErrBalanceTx era
-    -> WalletException
-exceptionBalanceTx = ExceptionBalanceTx . ErrBalanceTxInRecentEra
-
 -- | This exception type should gradually replace all cases of `ExceptT Err*`
 -- as there is no point in tracking errors at the type level
 -- which represent exceptional cases and are always propagated to clients.
@@ -3635,7 +3622,7 @@ data WalletException
     | ExceptionConstructSharedWallet ErrConstructSharedWallet
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
     | ExceptionSignPayment ErrSignPayment
-    | ExceptionBalanceTx ErrBalanceTxInRecentEra
+    | forall era. Write.IsRecentEra era => ExceptionBalanceTx (ErrBalanceTx era)
     | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction
