@@ -2161,10 +2161,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
         :: Write.IsRecentEra era
         => Either (ErrBalanceTx era) ErrConstructTx
         -> WalletException
-    wrapBalanceConstructError =
-        either
-            (ExceptionBalanceTx . ErrBalanceTxInRecentEra)
-            ExceptionConstructTx
+    wrapBalanceConstructError = either exceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
     :: forall k s era
@@ -2309,10 +2306,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
-                    ( either
-                        (ExceptionBalanceTx . ErrBalanceTxInRecentEra)
-                        ExceptionConstructTx
-                    )
+                    (either exceptionBalanceTx ExceptionConstructTx)
                 & (`evalRand` stdGen)
                 & either (liftIO . throwIO) pure
 
@@ -3009,11 +3003,10 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                             -> case Write.recentEra @era of {}
                 Left (e@(ErrBalanceTxUnableToCreateChange _))
                     -> throwE e
-                Left otherErr -> throwIO $
-                    (ExceptionBalanceTx . ErrBalanceTxInRecentEra) otherErr
+                Left otherErr -> throwIO $ exceptionBalanceTx otherErr
   where
     wrapErrBalanceTx
-        = throwWrappedErr (ExceptionBalanceTx . ErrBalanceTxInRecentEra)
+        = throwWrappedErr exceptionBalanceTx
 
     wrapErrMkTransaction
         = throwWrappedErr (ExceptionConstructTx . ErrConstructTxBody)
@@ -3624,6 +3617,12 @@ data ErrBalanceTxInRecentEra =
     ErrBalanceTxInRecentEra (ErrBalanceTx era)
 
 deriving instance Show ErrBalanceTxInRecentEra
+
+exceptionBalanceTx
+    :: Write.IsRecentEra era
+    => ErrBalanceTx era
+    -> WalletException
+exceptionBalanceTx = ExceptionBalanceTx . ErrBalanceTxInRecentEra
 
 -- | This exception type should gradually replace all cases of `ExceptT Err*`
 -- as there is no point in tracking errors at the type level
