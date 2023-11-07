@@ -33,7 +33,6 @@ import Cardano.Startup
     )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
-    , deriveShelleyRewardAccount
     , maryIntegrationTestFunds
     , shelleyIntegrationTestFunds
     )
@@ -73,6 +72,7 @@ import UnliftIO.Concurrent
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
+import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Options.Applicative as O
@@ -262,7 +262,8 @@ main = withUtf8 $ do
                   , Coin (fromIntegral Cluster.oneMillionAda)
                   )
                 | m <- Mnemonics.mir
-                , let (xPub, _xPrv) = deriveShelleyRewardAccount (SomeMnemonic m)
+                , let (xPub, _xPrv) =
+                        Addresses.shelleyRewardAccount (SomeMnemonic m)
                 ]
             }
 

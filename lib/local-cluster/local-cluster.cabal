@@ -47,6 +47,7 @@ library
     Cardano.Wallet.Cli.Launcher
     Cardano.Wallet.Faucet
     Cardano.Wallet.Faucet.Writer
+    Cardano.Wallet.Faucet.Addresses
     Cardano.Wallet.Faucet.Mnemonics
     Cardano.Wallet.Faucet.Shelley
     Cardano.Wallet.Launch.Cluster
