@@ -23,7 +23,6 @@ import Cardano.Address
     )
 import Cardano.Mnemonic
     ( Mnemonic
-    , SomeMnemonic (..)
     , mnemonicToText
     )
 import Control.Monad
@@ -60,15 +59,13 @@ genIcarusFaucets = genFaucet base58 . Addresses.icarus
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO [[Text]]
-genShelleyFaucets =
-    genFaucet encodeAddressHex (Addresses.shelley . SomeMnemonic)
+genShelleyFaucets = genFaucet encodeAddressHex Addresses.shelley
 
 -- | Generate faucet addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genMaryAllegraFaucets "ma-faucets.yaml"
 genMaryAllegraFaucets :: FilePath -> [Mnemonic 24] -> IO [[Text]]
-genMaryAllegraFaucets =
-    genFaucet encodeAddressHex (Addresses.shelley . SomeMnemonic)
+genMaryAllegraFaucets = genFaucet encodeAddressHex Addresses.shelley
 
 -- | Abstract function for generating a faucet as a YAML file.
 --

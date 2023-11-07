@@ -46,7 +46,6 @@ import Cardano.CLI
     )
 import Cardano.Mnemonic
     ( Mnemonic
-    , SomeMnemonic (..)
     , mnemonicToText
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
@@ -655,9 +654,8 @@ massiveWalletUTxOSize = 10_000
 massiveWalletFunds :: [(Address, Coin)]
 massiveWalletFunds =
     take massiveWalletUTxOSize
-    . map (, massiveWalletAmt)
-    . Addresses.shelley
-    $ SomeMnemonic massiveWallet
+      $ map (, massiveWalletAmt)
+      $ Addresses.shelley massiveWallet
 
 massiveWalletAmt :: Coin
 massiveWalletAmt = ada 1_000

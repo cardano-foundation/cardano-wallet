@@ -14,13 +14,6 @@ module Cardano.Wallet.Faucet
     , nextWallet
     , nextTxBuilder
 
-      -- * Dust wallets
-    , bigDustWallet
-    , onlyDustWallet
-
-      -- * Wallet with a pre-registered stake key
-    , preregKeyWallet
-
       -- * Sea horses
     , seaHorseTokenName
     , seaHorsePolicyId
@@ -33,7 +26,6 @@ module Cardano.Wallet.Faucet
     , seaHorseTestAssets
 
       -- * Internals
-    , genMnemonics
     ) where
 
 import Prelude hiding
@@ -56,15 +48,8 @@ import Cardano.Address.Style.Icarus
     ( Icarus
     )
 import Cardano.Mnemonic
-    ( EntropySize
-    , Mnemonic
-    , MnemonicWords
+    ( Mnemonic
     , SomeMnemonic (..)
-    , ValidChecksumSize
-    , ValidEntropySize
-    , ValidMnemonicSentence
-    , entropyToMnemonic
-    , genEntropy
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -84,14 +69,17 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromText
     , unsafeMkMnemonic
     )
-import Control.Monad
-    ( replicateM
+import Control.Arrow
+    ( (>>>)
     )
 import Data.Bifunctor
     ( first
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Function
+    ( (&)
     )
 import Data.List
     ( unfoldr
@@ -102,6 +90,9 @@ import Data.Tuple.Extra
 import GHC.TypeLits
     ( Nat
     , Symbol
+    )
+import Numeric.Natural
+    ( Natural
     )
 import UnliftIO.MVar
     ( MVar
@@ -174,133 +165,54 @@ instance NextWallet "ma" where
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
 nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
 
-genMnemonics
-    :: forall mw ent csz
-     . ( ValidMnemonicSentence mw
-       , ValidEntropySize ent
-       , ValidChecksumSize ent csz
-       , ent ~ EntropySize mw
-       , mw ~ MnemonicWords ent
-       )
-    => Int
-    -> IO [Mnemonic mw]
-genMnemonics n =
-    replicateM n (entropyToMnemonic @mw <$> genEntropy)
-
---
--- Integration test funds
---
-
--- | A special wallet with only dust
-onlyDustWallet :: Mnemonic 15
-onlyDustWallet =
-    unsafeMkMnemonic
-        [ "either"
-        , "flip"
-        , "maple"
-        , "shift"
-        , "dismiss"
-        , "bridge"
-        , "sweet"
-        , "reveal"
-        , "green"
-        , "tornado"
-        , "need"
-        , "patient"
-        , "wall"
-        , "stamp"
-        , "pass"
-        ]
-
--- | A special Shelley Wallet with 200 UTxOs where 100 of them are 1 ADA
-bigDustWallet :: Mnemonic 15
-bigDustWallet =
-    unsafeMkMnemonic
-        [ "radar"
-        , "scare"
-        , "sense"
-        , "winner"
-        , "little"
-        , "jeans"
-        , "blue"
-        , "spell"
-        , "mystery"
-        , "sketch"
-        , "omit"
-        , "time"
-        , "tiger"
-        , "leave"
-        , "load"
-        ]
-
--- | A special Shelley Wallet with a pre-registered stake key.
-preregKeyWallet :: Mnemonic 15
-preregKeyWallet =
-    unsafeMkMnemonic
-        [ "over"
-        , "decorate"
-        , "flock"
-        , "badge"
-        , "beauty"
-        , "stamp"
-        , "chest"
-        , "owner"
-        , "excess"
-        , "omit"
-        , "bid"
-        , "raccoon"
-        , "spin"
-        , "reduce"
-        , "rival"
-        ]
-
 shelleyIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
 shelleyIntegrationTestFunds networkTag =
-    mconcat
-        [ Mnemonics.sequential
-            >>= take 10 . map (,defaultAmt) . addresses . SomeMnemonic
-        , Mnemonics.icarus
-            >>= take 10 . map (,defaultAmt) . Addresses.icarus networkTag
-        , zip
-            (addresses $ SomeMnemonic onlyDustWallet)
-            ( map
-                Coin
-                [ 1_000_000
-                , 1_000_000
-                , 5_000_000
-                , 12_000_000
-                , 1_000_000
-                , 5_000_000
-                , 3_000_000
-                , 10_000_000
-                , 2_000_000
-                , 3_000_000
-                ]
-            )
-        , take 100 (map (,defaultAmt) $ addresses $ SomeMnemonic bigDustWallet)
-        , take 100 . drop 100 $ map (,Coin 1_000_000) $ addresses $ SomeMnemonic bigDustWallet
-        , take 100 (map (,defaultAmt) $ addresses $ SomeMnemonic preregKeyWallet)
-        , mirWallets
-        ]
-  where
-    defaultAmt = Coin 100_000_000_000
-
     -- NOTE: Generating e.g. 100 addresses for inclusion in the shelley genesis
     -- sgInitialFunds could theoretically cause some funds not to be
     -- discoverable by the wallet with its default paymentKey gap of 20, as the
     -- ordering in sgInitialFunds is not guaranteed.
-    --
-    -- \**This seems to work out in practice, however.**
-    --
-    -- Using `cycle . take 20` on the addresses is not an option, because the
-    -- duplicate addresses are then lost in the
-    -- @sgInitialFunds :: !(Map (Addr (Crypto era)) Coin)@. Perhaps using random
-    -- stake keys could be an option if this ever becomes a problem.
-    addresses = Addresses.shelley
-
-    mirWallets =
-        (,defaultAmt) . head . Addresses.shelley . SomeMnemonic
-            <$> Mnemonics.mir
+    -- This seems to work out in practice, however.
+    mconcat
+        [ Mnemonics.sequential >>=
+            ( Addresses.shelley
+                >>> (`zip` defaultAmounts)
+                >>> take 10
+            )
+        , Mnemonics.icarus >>=
+            ( Addresses.icarus networkTag
+                >>> (`zip` defaultAmounts)
+                >>> take 10
+            )
+        , Mnemonics.onlyDustWallet &
+            ( Addresses.shelley
+                >>> (`zip` dustAmounts)
+            )
+        , Mnemonics.bigDustWallet &
+            ( Addresses.shelley
+                >>> (`zip` defaultAmounts)
+                >>> take 100
+            )
+        , Mnemonics.bigDustWallet &
+            ( Addresses.shelley
+                >>> (`zip` (repeat (adaToCoin 1)))
+                >>> drop 100
+                >>> take 100
+            )
+        , Mnemonics.preregKeyWallet &
+            ( Addresses.shelley
+                >>> (`zip` defaultAmounts)
+                >>> take 100
+            )
+        , Mnemonics.mir >>=
+            ( Addresses.shelley
+                >>> (`zip` defaultAmounts)
+                >>> take 1
+            )
+        ]
+  where
+    defaultAmounts :: [Coin] = repeat (adaToCoin 100_000)
+    dustAmounts :: [Coin] = map adaToCoin [1, 1, 5, 12, 1, 5, 3, 10, 2, 3]
+    adaToCoin :: Natural -> Coin = Coin . (* 1_000_000)
 
 -- | A list of pre-generated policy IDs, paired with
 -- @(signing key, verification key hash)@ string tuples.
@@ -385,10 +297,9 @@ maryIntegrationTestFunds
     -> [(Address, (TokenBundle, [(String, String)]))]
 maryIntegrationTestFunds tips =
     Mnemonics.shelleyMA
-        >>= take 3
-            . flip zip (cycle maryTokenBundles)
-            . Addresses.shelley
-            . SomeMnemonic
+        >>= Addresses.shelley
+            & (`zip` cycle maryTokenBundles)
+            & take 3
   where
     maryTokenBundles = zipWith mint [simple, fruit, combined] maryAssetScripts
 

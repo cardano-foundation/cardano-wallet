@@ -47,7 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Faucet
+import Cardano.Wallet.Faucet.Mnemonics
     ( preregKeyWallet
     )
 import Cardano.Wallet.Pools

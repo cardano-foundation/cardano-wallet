@@ -110,7 +110,7 @@ icarus networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
                     minBound
                 masterKey = genMasterKeyFromMnemonic (SomeMnemonic mw) mempty
 
-shelley :: SomeMnemonic -> [Address]
+shelley :: KnownNat n => Mnemonic n -> [Address]
 shelley mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Shelley) PaymentK] =
@@ -128,13 +128,15 @@ shelley mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
                 paymentAddrIx
 
 shelleyRewardAccount
-    :: SomeMnemonic -> (Shelley DelegationK XPub, Shelley DelegationK XPrv)
+    :: KnownNat n
+    => Mnemonic n
+    -> (Shelley DelegationK XPub, Shelley DelegationK XPrv)
 shelleyRewardAccount mnemonic = (toXPub <$> xPrv, xPrv)
   where
     xPrv = Shelley.deriveDelegationPrivateKey (deriveShelleyAccountKey mnemonic)
 
-deriveShelleyAccountKey :: SomeMnemonic -> Shelley AccountK XPrv
+deriveShelleyAccountKey :: KnownNat n => Mnemonic n -> Shelley AccountK XPrv
 deriveShelleyAccountKey mnemonic = deriveAccountPrivateKey masterKey accountIx
   where
     accountIx :: Index 'Hardened 'AccountK = minBound
-    masterKey = genMasterKeyFromMnemonic mnemonic mempty
+    masterKey = genMasterKeyFromMnemonic (SomeMnemonic mnemonic) mempty

@@ -24,9 +24,6 @@ import Cardano.BM.Extra
 import Cardano.Launcher.Node
     ( nodeSocketFile
     )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..)
-    )
 import Cardano.Startup
     ( installSignalHandlers
     , setDefaultFilePermissions
@@ -262,8 +259,7 @@ main = withUtf8 $ do
                   , Coin (fromIntegral Cluster.oneMillionAda)
                   )
                 | m <- Mnemonics.mir
-                , let (xPub, _xPrv) =
-                        Addresses.shelleyRewardAccount (SomeMnemonic m)
+                , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
                 ]
             }
 

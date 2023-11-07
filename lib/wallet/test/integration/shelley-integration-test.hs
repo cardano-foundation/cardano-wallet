@@ -49,9 +49,6 @@ import Cardano.Launcher
 import Cardano.Ledger.Shelley.Genesis
     ( sgNetworkMagic
     )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..)
-    )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
@@ -471,8 +468,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
               , Coin (fromIntegral oneMillionAda)
               )
             | m <- Mnemonics.mir
-            , let (xpub, _prv) =
-                    Addresses.shelleyRewardAccount (SomeMnemonic m)
+            , let (xpub, _prv) = Addresses.shelleyRewardAccount m
             ]
         }
 
