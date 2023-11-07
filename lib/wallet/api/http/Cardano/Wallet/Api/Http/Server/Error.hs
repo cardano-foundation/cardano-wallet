@@ -532,7 +532,7 @@ instance IsServerError ErrWriteTxEra where
                 , "compatible with a recent era."
                 ]
 
-instance IsServerError (ErrBalanceTx era) where
+instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
     toServerError = \case
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
@@ -585,7 +585,7 @@ instance IsServerError (ErrBalanceTx era) where
                 , pretty $ NE.toList $ show <$> ins
                 ]
         ErrBalanceTxInputResolutionConflicts conflicts -> do
-            let conflictF (a, b) = build a <> "\nvs\n" <> build b
+            let conflictF (a, b) = build (show a) <> "\nvs\n" <> build (show b)
             apiError err400 InputResolutionConflicts $ mconcat
                 [ "At least one of the inputs you've told me about has an"
                 , "asset quantity or address that is different from that"

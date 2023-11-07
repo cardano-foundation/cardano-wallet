@@ -421,6 +421,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Internal.Cardano.Write.Tx as Write
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
@@ -759,11 +760,16 @@ walletListsOnlyRelatedAssets txId txMeta =
 -- 1. There is no coin selection with a fee above the estimated maximum.
 -- 2. The minimum estimated fee is no greater than the maximum estimated fee.
 -- 3. Around 10% of fees are below the estimated minimum.
-prop_calculateFeePercentiles :: NonEmptyList (Maybe Coin) -> Property
-prop_calculateFeePercentiles (NonEmpty coins) =
+prop_calculateFeePercentiles
+    :: Write.AnyRecentEra
+    -> NonEmptyList (Maybe Coin)
+    -> Property
+prop_calculateFeePercentiles
+    (Write.AnyRecentEra (_era :: Write.RecentEra era))
+    (NonEmpty coins) =
     case evalState (runExceptT $ W.calculateFeePercentiles estimateFee) 0 of
-        Left err ->
-            label "errors: all" $ err === genericError
+        Left (err :: ErrBalanceTx era) ->
+            label "errors: all" $ err === (genericError :: ErrBalanceTx era)
 
         Right percentiles@(W.Percentile minFee, W.Percentile maxFee) ->
             label ("errors: " <> if any isNothing coins then "some" else "none") $
@@ -806,6 +812,12 @@ prop_calculateFeePercentiles (NonEmpty coins) =
     closeTo a b =
         counterexample (show a <> " & " <> show b <> " are not close enough") $
         property $ abs (a - b) < (1/5)
+
+instance Arbitrary Write.AnyRecentEra where
+    arbitrary = elements
+        [ Write.AnyRecentEra Write.RecentEraBabbage
+        , Write.AnyRecentEra Write.RecentEraConway
+        ]
 
 {-------------------------------------------------------------------------------
                                LocalTxSubmission

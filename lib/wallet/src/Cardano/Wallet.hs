@@ -2155,6 +2155,11 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
 
     wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
+
+    wrapBalanceConstructError
+        :: Write.IsRecentEra era
+        => Either (ErrBalanceTx era) ErrConstructTx
+        -> WalletException
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
@@ -3617,7 +3622,7 @@ data WalletException
     | ExceptionConstructSharedWallet ErrConstructSharedWallet
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
     | ExceptionSignPayment ErrSignPayment
-    | forall era. ExceptionBalanceTx (ErrBalanceTx era)
+    | forall era. Write.IsRecentEra era => ExceptionBalanceTx (ErrBalanceTx era)
     | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction

@@ -363,7 +363,7 @@ import qualified Internal.Cardano.Write.Tx as Write
 spec :: Spec
 spec = describe "TransactionSpec" $ do
     decodeSealedTxSpec
-    feeEstimationRegressionSpec
+    forAllRecentEras feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
     describe "Sign transaction" $ do
@@ -991,22 +991,25 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
         ]
 
-feeEstimationRegressionSpec :: Spec
-feeEstimationRegressionSpec = describe "Regression tests" $ do
-    it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCostLovelace :: Natural
-            requiredCostLovelace = 166_029
-        let estimateFee = except $ Left
-                $ ErrBalanceTxUnableToCreateChange
-                $ ErrBalanceTxUnableToCreateChangeError
-                    { requiredCost = Ledger.Coin $ intCast requiredCostLovelace
-                    , shortfall = Ledger.Coin 100_000
-                    }
-        result <- runExceptT (calculateFeePercentiles estimateFee)
-        result `shouldBe` Right
-            ( Percentile $ Fee $ Coin requiredCostLovelace
-            , Percentile $ Fee $ Coin requiredCostLovelace
-            )
+feeEstimationRegressionSpec :: AnyRecentEra -> Spec
+feeEstimationRegressionSpec (AnyRecentEra (_era :: RecentEra era)) =
+    describe "Regression tests" $ do
+        it "#1740 Fee estimation at the boundaries" $ do
+            let requiredCostLovelace :: Natural
+                requiredCostLovelace = 166_029
+            let estimateFee = except $ Left
+                    $ ErrBalanceTxUnableToCreateChange
+                    $ ErrBalanceTxUnableToCreateChangeError
+                        { requiredCost =
+                            Ledger.Coin $ intCast requiredCostLovelace
+                        , shortfall =
+                            Ledger.Coin 100_000
+                        }
+            result <- runExceptT (calculateFeePercentiles @_ @era estimateFee)
+            result `shouldBe` Right
+                ( Percentile $ Fee $ Coin requiredCostLovelace
+                , Percentile $ Fee $ Coin requiredCostLovelace
+                )
 
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =

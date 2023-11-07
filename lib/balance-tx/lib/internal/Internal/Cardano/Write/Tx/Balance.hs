@@ -14,6 +14,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- HLINT ignore "Use ||" -}
 
@@ -429,7 +430,8 @@ data ErrBalanceTx era
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
-    | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
+    | ErrBalanceTxInputResolutionConflicts
+        (NonEmpty (TxOut (ShelleyLedgerEra era), TxOut (ShelleyLedgerEra era)))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
@@ -439,8 +441,8 @@ data ErrBalanceTx era
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
 
-deriving instance Eq (ErrBalanceTx era)
-deriving instance Show (ErrBalanceTx era)
+deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
+deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
@@ -902,14 +904,16 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
         let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoApiUTxO u'
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
+        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
                 case i `W.UTxO.lookup` walletUTxO of
-                    Just o' -> unless (o == o') $ Left (o, o')
+                    Just o2 -> unless (o1 == o2) $ Left
+                        ( toLedgerTxOut era o1
+                        , toLedgerTxOut era o2
+                        )
                     Nothing -> pure ()
-
         case conflicts of
             [] -> return ()
-            (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
     combinedUTxO :: UTxO (ShelleyLedgerEra era)
     combinedUTxO = withConstraints era $ mconcat

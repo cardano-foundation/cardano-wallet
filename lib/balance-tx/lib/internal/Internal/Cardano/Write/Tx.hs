@@ -322,6 +322,8 @@ instance TestEquality RecentEra where
 
 class
     ( CardanoApi.IsShelleyBasedEra era
+    , Eq (TxOut (CardanoApi.ShelleyLedgerEra era))
+    , Show (TxOut (CardanoApi.ShelleyLedgerEra era))
     , Typeable era
     ) => IsRecentEra era where
     recentEra :: RecentEra era
