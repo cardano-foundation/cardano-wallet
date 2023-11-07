@@ -430,7 +430,7 @@ data ErrBalanceTx era
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
-    | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
+    | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
     | ErrBalanceTxUnableToCreateInput
@@ -834,7 +834,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (unresolvedInsHead:unresolvedInsTail, _) ->
                     throwE
                     . ErrBalanceTxUnresolvedInputs
-                    . fmap Convert.toWallet
                     $ (unresolvedInsHead :| unresolvedInsTail)
       where
         txIns :: [TxIn]

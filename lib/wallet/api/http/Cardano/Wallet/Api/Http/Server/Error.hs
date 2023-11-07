@@ -582,7 +582,7 @@ instance IsServerError (ErrBalanceTx era) where
             apiError err400 UnresolvedInputs $ T.unwords
                 [ "There are inputs in the transaction for which corresponding"
                 , "outputs could not be found:\n"
-                , pretty $ NE.toList ins
+                , pretty $ NE.toList $ show <$> ins
                 ]
         ErrBalanceTxInputResolutionConflicts conflicts -> do
             let conflictF (a, b) = build a <> "\nvs\n" <> build b
