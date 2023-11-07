@@ -59,8 +59,7 @@ getEraTransactions =
 getTxsFromBlockByron :: O.ByronBlock -> [TxT ByronEra]
 getTxsFromBlockByron block =
     case Byron.byronBlockRaw block of
-        Byron.ABOBBlock b ->
-            map (() <$) . Byron.unTxPayload . Byron.blockTxPayload $ b
+        Byron.ABOBBlock b -> Byron.unTxPayload . Byron.blockTxPayload $ b
         Byron.ABOBBoundary _ -> []
 
 getTxsFromBlockShelleyAndOn
