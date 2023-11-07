@@ -363,7 +363,7 @@ import qualified Internal.Cardano.Write.Tx as Write
 spec :: Spec
 spec = describe "TransactionSpec" $ do
     decodeSealedTxSpec
-    feeEstimationRegressionSpec
+    forAllRecentEras feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
     describe "Sign transaction" $ do
@@ -991,8 +991,18 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
         ]
 
-feeEstimationRegressionSpec :: Spec
-feeEstimationRegressionSpec = describe "Regression tests" $ do
+feeEstimationRegressionSpec :: AnyRecentEra -> Spec
+feeEstimationRegressionSpec (AnyRecentEra era) =
+    case era of
+        RecentEraConway ->
+            feeEstimationRegressionSpecInner @Cardano.ConwayEra era
+        RecentEraBabbage ->
+            feeEstimationRegressionSpecInner @Cardano.BabbageEra era
+
+feeEstimationRegressionSpecInner
+    :: forall era. RecentEra era
+    -> Spec
+feeEstimationRegressionSpecInner _era = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
         let requiredCostLovelace :: Natural
             requiredCostLovelace = 166_029
@@ -1002,7 +1012,7 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
                     { requiredCost = Ledger.Coin $ intCast requiredCostLovelace
                     , shortfall = Ledger.Coin 100_000
                     }
-        result <- runExceptT (calculateFeePercentiles estimateFee)
+        result <- runExceptT (calculateFeePercentiles @_ @era estimateFee)
         result `shouldBe` Right
             ( Percentile $ Fee $ Coin requiredCostLovelace
             , Percentile $ Fee $ Coin requiredCostLovelace
