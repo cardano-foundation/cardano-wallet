@@ -14,6 +14,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- HLINT ignore "Use ||" -}
 
@@ -429,7 +430,8 @@ data ErrBalanceTx era
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
-    | ErrBalanceTxInputResolutionConflicts (NonEmpty (W.TxOut, W.TxOut))
+    | ErrBalanceTxInputResolutionConflicts
+        (NonEmpty (TxOut (ShelleyLedgerEra era), TxOut (ShelleyLedgerEra era)))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
@@ -904,7 +906,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoApiUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, out1) ->
                 case i `W.UTxO.lookup` walletUTxO of
-                    Just out2 -> unless (out1 == out2) $ Left (out1, out2)
+                    Just out2 -> unless (out1 == out2) $ Left
+                        ( toLedgerTxOut era out1
+                        , toLedgerTxOut era out2
+                        )
                     Nothing -> pure ()
         case conflicts of
             [] -> return ()
