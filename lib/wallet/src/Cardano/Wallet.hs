@@ -559,7 +559,8 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletCoin
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTransaction
+    ( mkTransaction
+    , mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
     , _txRewardWithdrawalCost
@@ -2332,7 +2333,7 @@ buildTransactionPure
     = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction @era
+            mkUnsignedTransaction (recentEra @era)
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
@@ -2382,31 +2383,30 @@ unsafeShelleyOnlyGetRewardXPub walletState =
 -- do so, use 'submitTx'.
 --
 buildAndSignTransaction
-    :: forall s k.
+    :: forall s.
         ( IsOurs s Address
-        , k ~ KeyOf s
         , HasSNetworkId (NetworkOf s)
         , CredFromOf s ~ 'CredFromKeyK
         , WalletFlavor s
         )
     => WalletLayer IO s
     -> WalletId
-    -> Cardano.AnyCardanoEra
-    -> MakeRewardAccountBuilder k
+    -> MakeRewardAccountBuilder (KeyOf s)
     -> Passphrase "user"
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
+buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
     withRootKey db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- lift readCheckpoint
-            pp <- liftIO $ currentProtocolParameters nl
+            (Write.InAnyRecentEra era _pp, _)
+                <- liftIO $ readNodeTipStateForTxWrite nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
                 rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
+                mkTransaction era net kF rewardAcnt keyFrom txCtx sel
             let amountOut :: Coin =
                     F.fold $
                         fmap TxOut.coin (sel ^. #change) <>
@@ -2430,8 +2430,9 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             pure (tx, meta, time, sealedTx)
   where
     wF = walletFlavor @s
+    kF = keyFlavorFromState @s
+    net = networkIdVal $ sNetworkId @(NetworkOf s)
     db = ctx ^. dbLayer
-    tl = transactionLayer_ ctx
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
     tipSlotStartTime tipHeader = interpretQuery
@@ -2448,10 +2449,11 @@ constructTransaction
     -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
 constructTransaction db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
+    mkUnsignedTransaction era netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
     netId = networkIdVal $ sNetworkId @n
+    era = recentEra @era
 
 constructUnbalancedSharedTransaction
     :: forall n era
@@ -2482,10 +2484,11 @@ constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
                 in replaceCosignersWithVerKeys role' template ix
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)
+            mkUnsignedTransaction era netId (Right scriptM) txCtx (Left sel)
     pure (sealedTx, getScript)
   where
     netId = networkIdVal $ sNetworkId @n
+    era = recentEra @era
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -2971,7 +2974,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             --
             evaluate $ constructUTxOIndex $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
-            mkUnsignedTransaction @era
+            mkUnsignedTransaction era
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
@@ -3004,6 +3007,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                     -> throwE e
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
+    era = recentEra @era
+
     wrapErrBalanceTx
         = throwWrappedErr ExceptionBalanceTx
 

@@ -26,7 +26,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv
-    , xpubToBytes
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -64,9 +63,6 @@ import Cardano.Wallet.Address.Discovery
     , IsOurs (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey
-    )
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures (..)
     , defaultTestFeatures
@@ -99,11 +95,9 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
-    , mkTxId
     )
 import Cardano.Wallet.Flavor
     ( CredFromOf
-    , KeyFlavorS (ShelleyKeyS)
     , KeyOf
     , WalletFlavorS (TestStateS)
     )
@@ -269,9 +263,6 @@ import Control.Tracer
 import Crypto.Hash
     ( hash
     )
-import Data.Bifunctor
-    ( second
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -305,7 +296,6 @@ import Data.Maybe
     , fromMaybe
     , isJust
     , isNothing
-    , mapMaybe
     )
 import Data.Ord
     ( Down (..)
@@ -1374,36 +1364,7 @@ slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 dummyTransactionLayer = TransactionLayer
-    { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
-        let inps' = NE.toList $ second Just <$> view #inputs cs
-        -- TODO: (ADP-957)
-        let cinps' = []
-        let txId = mkTxId inps' (view #outputs cs) mempty Nothing
-        let tx = Tx
-                { txId
-                , txCBOR = Nothing
-                , fee = Nothing
-                , resolvedInputs = inps'
-                , resolvedCollateralInputs = cinps'
-                , outputs = view #outputs cs
-                , collateralOutput = Nothing
-                , withdrawals = mempty
-                , metadata = Nothing
-                , scriptValidity = Nothing
-                }
-        let wit = forMaybe (NE.toList $ view #inputs cs) $ \(_, TxOut addr _) -> do
-                (xprv, Passphrase pwd) <- keystore addr
-                let sigData = tx ^. #txId . #getHash
-                let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-                return
-                    $ xpubToBytes (getKey $ publicKey ShelleyKeyS xprv)
-                        <> sig
-
-        -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
-        let fakeBinary = fakeSealedTx (tx ^. #txId, wit)
-        return (tx, fakeBinary)
-
-    , addVkWitnesses =
+    { addVkWitnesses =
         error "dummyTransactionLayer: addVkWitnesses not implemented"
     , decodeTx = \_era _witCtx _sealed ->
         ( Tx
@@ -1426,9 +1387,6 @@ dummyTransactionLayer = TransactionLayer
         )
     , transactionWitnessTag = TxWitnessShelleyUTxO
     }
-  where
-    forMaybe :: [a] -> (a -> Maybe b) -> [b]
-    forMaybe = flip mapMaybe
 
 fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
