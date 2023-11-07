@@ -92,6 +92,9 @@ import Data.Quantity
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
     )
+import GHC.Stack
+    ( HasCallStack
+    )
 
 import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8
@@ -216,22 +219,25 @@ dummyNodeProtocolParameters = C.ProtocolParameters
     , C.protocolParamMaxCollateralInputs = Just 3
     }
 
-dummyNetworkLayer :: NetworkLayer m a
+dummyNetworkLayer :: HasCallStack => NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
-    { chainSync = error "chainSync: not implemented"
+    { chainSync = err "chainSync"
     , lightSync = Nothing
-    , currentNodeEra = error "currentNodeEra: not implemented"
-    , currentNodeTip = error "currentNodeTip: not implemented"
-    , watchNodeTip = error "watchNodeTip: not implemented"
-    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
-    , postTx = error "postTx: not implemented"
-    , stakeDistribution = error "stakeDistribution: not implemented"
-    , getCachedRewardAccountBalance = error "getRewardCachedAccountBalance: not implemented"
-    , fetchRewardAccountBalances = error "fetchRewardAccountBalances: not implemented"
-    , timeInterpreter = error "timeInterpreter: not implemented"
-    , syncProgress = error "syncProgress: not implemented"
+    , currentNodeEra = err "currentNodeEra"
+    , currentNodeTip = err "currentNodeTip"
+    , watchNodeTip = err "watchNodeTip"
+    , currentProtocolParameters = err "currentProtocolParameters"
+    , currentSlottingParameters = err "currentSlottingParameters"
+    , postTx = err "postTx"
+    , stakeDistribution = err "stakeDistribution"
+    , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"
+    , fetchRewardAccountBalances = err "fetchRewardAccountBalances"
+    , timeInterpreter = err "timeInterpreter"
+    , syncProgress = err "syncProgress"
     }
+  where
+    err subject = error $
+        "`" <> subject <> "` is not implemented in the dummy network layer."
 
 {-----------------------------------------------------------------------------
     Convenience functions
