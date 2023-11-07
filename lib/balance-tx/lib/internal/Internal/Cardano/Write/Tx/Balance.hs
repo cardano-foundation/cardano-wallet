@@ -904,11 +904,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
         let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoApiUTxO u'
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, out1) ->
+        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
                 case i `W.UTxO.lookup` walletUTxO of
-                    Just out2 -> unless (out1 == out2) $ Left
-                        ( toLedgerTxOut era out1
-                        , toLedgerTxOut era out2
+                    Just o2 -> unless (o1 == o2) $ Left
+                        ( toLedgerTxOut era o1
+                        , toLedgerTxOut era o2
                         )
                     Nothing -> pure ()
         case conflicts of
