@@ -18,7 +18,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -715,16 +714,18 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
 _decodeSealedTx
     :: AnyCardanoEra
     -> WitnessCountCtx
-    -> SealedTx ->
-        ( Tx
+    -> SealedTx
+    ->  ( Tx
         , TokenMapWithScripts
         , TokenMapWithScripts
         , [Certificate]
         , Maybe ValidityIntervalExplicit
         , WitnessCount
         )
-_decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
-    fromCardanoTx witCtx tx
+_decodeSealedTx preferredLatestEra witCtx sealedTx =
+    case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
+        Cardano.InAnyCardanoEra _ tx ->
+            fromCardanoTx witCtx tx
 
 mkDelegationCertificates
     :: DelegationAction
