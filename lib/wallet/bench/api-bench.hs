@@ -122,6 +122,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..)
     , UTxOStatistics (..)
@@ -176,9 +179,6 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    )
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
