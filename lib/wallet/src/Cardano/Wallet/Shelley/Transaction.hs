@@ -590,7 +590,11 @@ newTransactionLayer keyF networkId = TransactionLayer
                                 policyResolver policyKeyM stakingScriptResolver
                                 addressResolver inputResolver (body, wits)
                             & sealedTxFromCardano'
-                        Nothing -> sealedTx
+                        Nothing ->
+                            error $ unwords
+                                [ "addVkWitnesses: cannot add witnesses to a"
+                                , "transaction from a non-recent era."
+                                ]
 
     , decodeTx = _decodeSealedTx
 
