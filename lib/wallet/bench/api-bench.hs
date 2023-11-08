@@ -122,6 +122,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..)
     , UTxOStatistics (..)
@@ -176,9 +179,6 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    )
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
@@ -535,8 +535,8 @@ mockNetworkLayer = dummyNetworkLayer
     , currentProtocolParameters = pure dummyProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
     , currentNodeTip = pure BlockHeader
-        { slotNo = SlotNo 8888
-        , blockHeight = Quantity 9999
+        { slotNo = SlotNo 123456789
+        , blockHeight = Quantity 12345
         , headerHash = Hash (B8.replicate 32 'a')
         , parentHeaderHash = Just (Hash (B8.replicate 32 'b'))
         }
