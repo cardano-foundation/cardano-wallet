@@ -33,7 +33,6 @@ import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
-
 -- | ChaCha20/Poly1305 encrypting the payload with passphrase and nonce.
 -- | The caller must ensure that the passphrase length is 32 bytes and
 -- | nonce is 12 bytes
@@ -45,7 +44,7 @@ encryptPayload
     -> ByteString
         -- ^ Payload to be encrypted
     -> ByteString
-        -- ^ Ciphertext with a 128-bit crypto-tag appended.
+        -- ^ Ciphertext with a 16-byte crypto-tag appended.
 encryptPayload passphrase nonce payload = unsafeSerialize $ do
     nonced <- Poly.nonce12 nonce
     st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonced
@@ -56,7 +55,7 @@ encryptPayload passphrase nonce payload = unsafeSerialize $ do
     unsafeSerialize =
         CBOR.toStrictByteString . CBOR.encodeBytes . useInvariant
     -- Encryption fails if the key is the wrong size, but that won't happen
-    -- if the key was created with 'xxx'.
+    -- if the key was created with 'toSymmetricKey'.
     useInvariant = \case
         CryptoPassed res -> res
         CryptoFailed err -> error $ "encryptPayload: " ++ show err

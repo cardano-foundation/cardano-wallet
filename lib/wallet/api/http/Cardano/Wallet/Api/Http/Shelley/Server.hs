@@ -3116,6 +3116,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
+encryptionNonce :: ByteString
+encryptionNonce = "encrypt-data"
+
 -- When encryption is enabled we do the following:
 -- (a) toJSON on metadata,
 -- (b) encrypt it
@@ -3134,8 +3137,8 @@ toMetadataEncrypted apiEncrypt =
   where
     toBytes = BL.toStrict . Aeson.encode
 
-    nonce = "encrypt-data"
-    encrypt = encryptPayload (toMetadataEncryptedKey apiEncrypt) nonce
+    encrypt = BS.drop 2 .
+        encryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce
 
     toChunks bs res =
         if bs == BS.empty then
@@ -3189,9 +3192,8 @@ fromMetadataEncrypted apiEncrypt metadata =
         else
             Right $ Map.foldl BS.append BS.empty $ Map.map extractBytes themap
 
-    nonce = "encrypt-data"
     decrypt payload =
-        case decryptPayload (toMetadataEncryptedKey apiEncrypt) nonce payload of
+        case decryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce payload of
             CryptoPassed res -> Right res
             CryptoFailed err -> Left $ ErrDecodeTxDecryptMetadata err
 

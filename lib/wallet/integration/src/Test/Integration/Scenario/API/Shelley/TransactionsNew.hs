@@ -544,9 +544,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
+        let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
         let metadataToBeEncrypted =
-                TxMetadataWithSchema TxMetadataNoSchema $
-                TxMetadata (Map.fromList [(1,TxMetaText "hello")])
+                TxMetadataWithSchema TxMetadataNoSchema metadataRaw
         let encryptMetadata =
                 ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
         let payload = Json [json|{
@@ -565,6 +565,36 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #metadata)
                 (`shouldBe` (Just expEncryptedMetadataSerialised))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let decodePayloadEncrypted = Json (toJSON signedTx)
+        let expMetadataEncrypted = ApiT expEncryptedMetadata
+        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
+        verify rDecodedTxEncrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
+            ]
+
+        let decodePayloadDecrypted = Json [json|{
+                "decrypt_metadata": #{toJSON encryptMetadata},
+                "transaction": #{serialisedTxSealed signedTx}
+            }|]
+        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadDecrypted
+        verify rDecodedTxDecrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
             ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
