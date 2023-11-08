@@ -535,8 +535,8 @@ mockNetworkLayer = dummyNetworkLayer
     , currentProtocolParameters = pure dummyProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
     , currentNodeTip = pure BlockHeader
-        { slotNo = SlotNo 8888
-        , blockHeight = Quantity 9999
+        { slotNo = SlotNo 123456789
+        , blockHeight = Quantity 12345
         , headerHash = Hash (B8.replicate 32 'a')
         , parentHeaderHash = Just (Hash (B8.replicate 32 'b'))
         }
