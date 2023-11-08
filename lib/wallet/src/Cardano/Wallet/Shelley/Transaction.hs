@@ -723,8 +723,10 @@ _decodeSealedTx
         , Maybe ValidityIntervalExplicit
         , WitnessCount
         )
-_decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
-    fromCardanoTx witCtx tx
+_decodeSealedTx preferredLatestEra witCtx sealedTx =
+    case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
+        Cardano.InAnyCardanoEra _ tx ->
+            fromCardanoTx witCtx tx
 
 mkDelegationCertificates
     :: DelegationAction
