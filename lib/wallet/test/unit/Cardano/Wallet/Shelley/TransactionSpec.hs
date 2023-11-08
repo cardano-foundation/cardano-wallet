@@ -48,8 +48,6 @@ import Cardano.Api
     , CardanoEraStyle (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
-    , IsShelleyBasedEra (..)
-    , ShelleyBasedEra (..)
     )
 import Cardano.Api.Gen
     ( genTx
@@ -172,8 +170,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( EraConstraints
-    , TxWitnessTag (..)
+    ( TxWitnessTag (..)
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
@@ -268,7 +265,6 @@ import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     , RecentEra (..)
     , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -1038,7 +1034,7 @@ binaryCalculationsSpec (AnyRecentEra era) =
 -- representation for transaction outputs as the concept of them is
 -- extended in this era.
 binaryCalculationsSpec'
-    :: forall era. EraConstraints era
+    :: forall era. Write.IsRecentEra era
     => RecentEra era -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     describe "Byron witnesses - mainnet" $ do
@@ -1276,7 +1272,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta cs
           unsigned = either (error . show) id $
-              mkUnsignedTx (shelleyBasedEraFromRecentEra era)
+              mkUnsignedTx era
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
           cs = Selection
@@ -1316,14 +1312,14 @@ prop_sealedTxRecentEraRoundtrip
         ]
         .||. encodingFromTheFuture (txEra) currentEra
   where
-    tx = makeShelleyTx (shelleyBasedEraFromRecentEra era) tc
+    tx = makeShelleyTx era tc
     txBytes = Cardano.serialiseToCBOR tx
     sealedTxC = sealedTxFromCardano' tx
     sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: IsShelleyBasedEra era
-    => ShelleyBasedEra era
+    :: Write.IsRecentEra era
+    => RecentEra era
     -> DecodeSetup
     -> Cardano.Tx era
 makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned

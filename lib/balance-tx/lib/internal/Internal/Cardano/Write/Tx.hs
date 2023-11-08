@@ -348,6 +348,11 @@ type RecentEraLedgerConstraints era =
     , Shelley.EraUTxO era
     )
 
+type RecentEraConstraints era =
+    ( IsRecentEra era
+    , RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era)
+    )
+
 -- | Bring useful constraints into scope from a value-level
 -- 'RecentEra'.
 --
@@ -356,9 +361,7 @@ type RecentEraLedgerConstraints era =
 -- wallet code specifically with GHC 8.10.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2353
 withConstraints
-    :: RecentEra era
-    -> ((RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era)) => a)
-    -> a
+    :: RecentEra era -> (RecentEraConstraints era => a) -> a
 withConstraints era a = case era of
     RecentEraBabbage -> a
     RecentEraConway -> a
