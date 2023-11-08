@@ -20,6 +20,9 @@ import Cardano.Wallet.Read.Tx.Gen.Babbage
 import Cardano.Wallet.Read.Tx.Gen.Byron
     ( mkByronTx
     )
+import Cardano.Wallet.Read.Tx.Gen.Conway
+    ( mkConwayTx
+    )
 import Cardano.Wallet.Read.Tx.Gen.Mary
     ( mkMaryTx
     )
@@ -47,6 +50,3 @@ mkTxEra =
         }
   where
     g f = Tx . f . unK
-
-mkConwayTx :: t
-mkConwayTx = error "Not implemented"
