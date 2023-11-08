@@ -3374,10 +3374,11 @@ balanceTransaction
     ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
     (Write.InAnyRecentEra recentEra pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
-
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-
+        let utxoIndex =
+                Write.constructUTxOIndex $
+                Write.fromWalletUTxO recentEra utxo
         partialTx <- parsePartialTx recentEra
         balancedTx <- liftHandler
             . fmap (Cardano.InAnyCardanoEra Write.cardanoEra . fst)
@@ -3385,7 +3386,7 @@ balanceTransaction
                 utxoAssumptions
                 pp
                 timeTranslation
-                (Write.constructUTxOIndex utxo)
+                utxoIndex
                 (W.defaultChangeAddressGen argGenChange)
                 (getState wallet)
                 partialTx

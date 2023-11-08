@@ -763,7 +763,6 @@ import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
-    , constructUTxOIndex
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..)
@@ -825,6 +824,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
+import qualified Internal.Cardano.Write.Tx.Balance as Write
 
 -- $Development
 -- __Naming Conventions__
@@ -2337,13 +2337,15 @@ buildTransactionPure
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
-
+    let utxoIndex =
+            Write.constructUTxOIndex @era $
+            Write.fromWalletUTxO (Write.recentEra @era) utxo
     withExceptT Left $
         balanceTransaction @_ @_ @s
             (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
             timeTranslation
-            (constructUTxOIndex utxo)
+            utxoIndex
             changeAddrGen
             (getState wallet)
             PartialTx
@@ -2969,7 +2971,10 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             -- fully evaluated, as all fields of the 'UTxOIndex' type are
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
-            evaluate $ constructUTxOIndex $ availableUTxO mempty wallet
+            evaluate
+                $ Write.constructUTxOIndex @era
+                $ Write.fromWalletUTxO (Write.recentEra @era)
+                $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction @era
                 (networkIdVal $ sNetworkId @(NetworkOf s))
