@@ -2413,12 +2413,11 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
                         mapMaybe (`ourCoin` getState cp) (sel ^. #outputs)
                 amountIn :: Coin =
                     F.fold (NE.toList (TxOut.coin . snd <$> sel ^. #inputs))
-                    -- NOTE: In case where rewards were pulled from an external
-                    -- source, they aren't added to the calculation because the
-                    -- money is considered to come from outside of the wallet; which
-                    -- changes the way we look at transactions (in such case, a
-                    -- transaction is considered 'Incoming' since it brings extra money
-                    -- to the wallet from elsewhere).
+                    -- NOTE: In case where rewards are pulled from an external
+                    -- source, they aren't added to the calculation, as the
+                    -- money is considered to come from outside the wallet. In
+                    -- such cases, transactions are categorised as "incoming",
+                    -- as they bring extra money to the wallet from elsewhere.
                     & case txWithdrawal txCtx of
                         w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                         WithdrawalExternal{} -> Prelude.id
