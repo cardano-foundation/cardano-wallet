@@ -67,11 +67,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
+    , initFaucet
     , maryIntegrationTestFunds
     , shelleyIntegrationTestFunds
-    )
-import Cardano.Wallet.Faucet.Shelley
-    ( initFaucet
     )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc

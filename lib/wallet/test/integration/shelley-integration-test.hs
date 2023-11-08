@@ -62,12 +62,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , hwLedgerTestFunds
+    , initFaucet
     , maryIntegrationTestFunds
     , seaHorseTestAssets
     , shelleyIntegrationTestFunds
-    )
-import Cardano.Wallet.Faucet.Shelley
-    ( initFaucet
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)

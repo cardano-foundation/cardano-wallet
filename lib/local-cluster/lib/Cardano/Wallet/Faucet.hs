@@ -10,9 +10,9 @@
 
 module Cardano.Wallet.Faucet
     ( Faucet (..)
+    , initFaucet
     , NextWallet
     , nextWallet
-    , nextTxBuilder
 
       -- * Sea horses
     , seaHorseTokenName
@@ -75,9 +75,6 @@ import Control.Arrow
 import Data.Bifunctor
     ( first
     )
-import Data.ByteString
-    ( ByteString
-    )
 import Data.Function
     ( (&)
     )
@@ -97,6 +94,7 @@ import Numeric.Natural
 import UnliftIO.MVar
     ( MVar
     , modifyMVar
+    , newMVar
     )
 
 import qualified Cardano.Address as CA
@@ -115,8 +113,16 @@ data Faucet = Faucet
     , random :: MVar [Mnemonic 12]
     , reward :: MVar [Mnemonic 24]
     , ma :: MVar [Mnemonic 24]
-    , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
+
+initFaucet :: IO Faucet
+initFaucet =
+    Faucet
+        <$> newMVar Mnemonics.sequential
+        <*> newMVar Mnemonics.icarus
+        <*> newMVar Mnemonics.random
+        <*> newMVar Mnemonics.mir
+        <*> newMVar Mnemonics.shelleyMA
 
 -- | Get the next faucet wallet. Requires the 'initFaucet' to be called in order
 -- to get a hand on a 'Faucet'.
@@ -141,29 +147,23 @@ takeNext description mvar = do
 
 instance NextWallet "shelley" where
     type MnemonicSize "shelley" = 15
-    nextWallet (Faucet mvar _ _ _ _ _) = takeNext "shelley" mvar
+    nextWallet = takeNext "shelley" . shelley
 
 instance NextWallet "icarus" where
     type MnemonicSize "icarus" = 15
-    nextWallet (Faucet _ mvar _ _ _ _) = takeNext "icarus" mvar
+    nextWallet = takeNext "icarus" . icarus
 
 instance NextWallet "random" where
     type MnemonicSize "random" = 12
-    nextWallet (Faucet _ _ mvar _ _ _) = takeNext "random" mvar
+    nextWallet = takeNext "random" . random
 
 instance NextWallet "reward" where
     type MnemonicSize "reward" = 24
-    nextWallet (Faucet _ _ _ mvar _ _) = takeNext "reward" mvar
+    nextWallet = takeNext "reward" . reward
 
 instance NextWallet "ma" where
     type MnemonicSize "ma" = 24
     nextWallet = takeNext "ma" . ma
-
--- | Get a raw transaction builder. It constructs and sign a transaction via an
--- private key that is owned "externally". Returns a bytes string ready to be
--- sent to a node.
-nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext "txBuilder" mvar
 
 shelleyIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
 shelleyIntegrationTestFunds networkTag =
