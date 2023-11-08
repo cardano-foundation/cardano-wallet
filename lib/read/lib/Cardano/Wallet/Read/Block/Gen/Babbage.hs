@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Read.Block.Gen.Babbage
@@ -23,10 +22,10 @@ import Cardano.Crypto.VRF
     )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
-    , natVersion
     )
 import Cardano.Ledger.Binary
     ( EncCBOR
+    , Version
     )
 import Cardano.Ledger.Keys
     ( VKey (..)
@@ -77,23 +76,25 @@ mkBabbageBlock
        , HeaderEra era ~ Header StandardCrypto
        , TxT cardano_era ~ L.Tx (era StandardCrypto)
        )
-    => BlockParameters cardano_era
+    => Version
+    -> BlockParameters cardano_era
     -> O.ShelleyBlock (Praos StandardCrypto) (era StandardCrypto)
-mkBabbageBlock BlockParameters{blockNumber, slotNumber, txs} =
-    mkAnyAfterShelleyBlock txs $ babbageHeader slotNumber' blockNumber'
+mkBabbageBlock v BlockParameters{blockNumber, slotNumber, txs} =
+    mkAnyAfterShelleyBlock txs $ babbageHeader v slotNumber' blockNumber'
   where
     slotNumber' = L.SlotNo $ fromIntegral $ unSlotNo slotNumber
     blockNumber' = L.BlockNo $ fromIntegral $ unBlockNo blockNumber
 
 babbageHeader
-    :: L.SlotNo
+    :: Version
+    -> L.SlotNo
     -> L.BlockNo
     -> Header StandardCrypto
-babbageHeader slotNumber blockNumber =
-    Header <*> mkSignedKES $ babbageBody slotNumber blockNumber
+babbageHeader v slotNumber blockNumber =
+    Header <*> mkSignedKES $ babbageBody v slotNumber blockNumber
 
-babbageBody :: L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
-babbageBody slotNumber blockNumber =
+babbageBody :: Version -> L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
+babbageBody v slotNumber blockNumber =
     HeaderBody
         { hbBlockNo = blockNumber
         , hbSlotNo = slotNumber
@@ -106,5 +107,5 @@ babbageBody slotNumber blockNumber =
         , hbBodySize = 42
         , hbBodyHash = bodyHash
         , hbOCert = oCertamente
-        , hbProtVer = ProtVer (natVersion @4) 1
+        , hbProtVer = ProtVer v 0
         }

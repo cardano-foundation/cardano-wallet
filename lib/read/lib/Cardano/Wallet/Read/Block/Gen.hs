@@ -65,8 +65,8 @@ mkBlockEra =
         , allegraFun = g $ mkShelleyBlock (natVersion @3)
         , maryFun = g $ mkShelleyBlock (natVersion @4)
         , alonzoFun = g $ mkShelleyBlock (natVersion @6)
-        , babbageFun = g mkBabbageBlock
-        , conwayFun = g mkBabbageBlock
+        , babbageFun = g $ mkBabbageBlock (natVersion @7)
+        , conwayFun = g $ mkBabbageBlock (natVersion @8)
         }
   where
     g f = Block . f
