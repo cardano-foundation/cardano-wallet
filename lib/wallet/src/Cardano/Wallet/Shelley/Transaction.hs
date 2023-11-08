@@ -18,7 +18,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
