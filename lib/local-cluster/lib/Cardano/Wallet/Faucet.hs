@@ -296,10 +296,11 @@ maryIntegrationTestFunds
     -- ^ Amount of ada in each bundle
     -> [(Address, (TokenBundle, [(String, String)]))]
 maryIntegrationTestFunds tips =
-    Mnemonics.shelleyMA
-        >>= Addresses.shelley
-            & (`zip` cycle maryTokenBundles)
-            & take 3
+    Mnemonics.shelleyMA >>=
+        ( Addresses.shelley
+            >>> (`zip` cycle maryTokenBundles)
+            >>> take 3
+        )
   where
     maryTokenBundles = zipWith mint [simple, fruit, combined] maryAssetScripts
 
