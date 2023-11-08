@@ -715,8 +715,8 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
 _decodeSealedTx
     :: AnyCardanoEra
     -> WitnessCountCtx
-    -> SealedTx ->
-        ( Tx
+    -> SealedTx
+    ->  ( Tx
         , TokenMapWithScripts
         , TokenMapWithScripts
         , [Certificate]
