@@ -113,7 +113,9 @@ import Cardano.Wallet.Primitive.Slotting
     , hoistTimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..)
+    ( BlockHeader (..)
+    , SlotNo (..)
+    , SortOrder (..)
     , WalletId
     , WalletMetadata (..)
     )
@@ -174,10 +176,14 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified System.Environment as Sys
@@ -528,6 +534,12 @@ mockNetworkLayer = dummyNetworkLayer
     , currentSlottingParameters = pure dummySlottingParameters
     , currentProtocolParameters = pure dummyProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
+    , currentNodeTip = pure BlockHeader
+        { slotNo = SlotNo 8888
+        , blockHeight = Quantity 9999
+        , headerHash = Hash (B8.replicate 32 'a')
+        , parentHeaderHash = Just (Hash (B8.replicate 32 'b'))
+        }
     }
 
 mockTimeInterpreter :: TimeInterpreter IO
