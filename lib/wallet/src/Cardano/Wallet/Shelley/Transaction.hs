@@ -322,53 +322,62 @@ constructUnsignedTx
 
 mkTransaction
     :: forall era k. RecentEra era
-        -- Era for which the transaction should be created.
+    -- Era for which the transaction should be created.
     -> Cardano.NetworkId
     -> KeyFlavorS k
     -> (XPrv, Passphrase "encryption")
-        -- Reward account
+    -- Reward account
     -> (Address -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption"))
-        -- Key store
+    -- Key store
     -> TransactionCtx
-        -- An additional context about the transaction
+    -- An additional context about the transaction
     -> SelectionOf TxOut
-        -- A balanced coin selection where all change addresses have been
-        -- assigned.
+    -- A balanced coin selection where all change addresses have been
+    -- assigned.
     -> Either ErrMkTransaction (Tx, SealedTx)
 mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
-    let ttl   = txValidityInterval ctx
+    let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = selectionDelta cs
     let md = view #txMetadata ctx
     let certs =
             case view #txDelegationAction ctx of
-                Nothing -> mempty
+                Nothing ->
+                    mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
                     in mkDelegationCertificates action (Left stakeXPub)
     let wdrls = mkWithdrawals networkId wdrl
-
-    unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
-        (toCardanoLovelace delta)
-        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
-    let
-        signed :: Cardano.Tx era
-        signed = Write.withConstraints era $
-            signTransaction @era keyF networkId AnyWitnessCountCtx acctResolver
-                (const Nothing) Nothing (const Nothing) addrResolver inputResolver
+    unsigned <-
+        mkUnsignedTx era ttl (Right cs) md wdrls certs
+            (toCardanoLovelace delta)
+            TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
+    let signed :: Cardano.Tx era
+        signed =
+            Write.withConstraints era $
+            signTransaction
+                @era
+                keyF
+                networkId
+                AnyWitnessCountCtx
+                acctResolver
+                (const Nothing)
+                Nothing
+                (const Nothing)
+                addrResolver
+                inputResolver
                 (unsigned, mempty)
-
-    let withResolvedInputs (tx, _, _, _, _, _) = tx
-            { resolvedInputs = second Just <$> F.toList (view #inputs cs)
-            }
-    Right ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
-          , Write.withConstraints era $ sealedTxFromCardano' signed
-          )
+    let withResolvedInputs (tx, _, _, _, _, _) =
+            tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
+    Right
+        ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
+        , Write.withConstraints era $ sealedTxFromCardano' signed
+        )
   where
     inputResolver :: TxIn -> Maybe Address
     inputResolver i =
         let index = Map.fromList (F.toList $ view #inputs cs)
-         in do
+        in do
             TxOut addr _ <- Map.lookup i index
             pure addr
 
