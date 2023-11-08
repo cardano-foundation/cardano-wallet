@@ -749,50 +749,51 @@ mkUnsignedTx
     { Cardano.txIns = inputWits
 
     , txInsReference =
-            let hasRefInp = \case
-                    Left _ -> False
-                    Right _ -> True
-                filteredRefInp =
-                    filter hasRefInp $
-                    Map.elems mintingSource
-                toNodeTxIn (Right (ReferenceInput txin)) =
-                    toCardanoTxIn txin
-                toNodeTxIn _ = error "at this moment we should have reference input"
-            in if null filteredRefInp then
-                Cardano.TxInsReferenceNone
-               else
-                case referenceInpsSupported of
-                    Nothing -> Cardano.TxInsReferenceNone
-                    Just support ->
-                        Cardano.TxInsReference support
-                        (toNodeTxIn <$> filteredRefInp)
+        let hasRefInp = \case
+                Left _ -> False
+                Right _ -> True
+            filteredRefInp = filter hasRefInp $ Map.elems mintingSource
+            toNodeTxIn (Right (ReferenceInput txin)) = toCardanoTxIn txin
+            toNodeTxIn _ = error "at this moment we should have reference input"
+        in
+        if null filteredRefInp
+        then
+            Cardano.TxInsReferenceNone
+        else
+            case referenceInpsSupported of
+                Nothing -> Cardano.TxInsReferenceNone
+                Just support ->
+                    Cardano.TxInsReference support
+                    (toNodeTxIn <$> filteredRefInp)
 
     , Cardano.txOuts = case refScriptM of
-            Nothing ->
-                map (toCardanoTxOut shelleyEra Nothing) outs
-            Just _ -> case outs of
-                firstOut:rest ->
-                    let cardanoFirstTxOut =
-                            toCardanoTxOut shelleyEra refScriptM firstOut
-                    in cardanoFirstTxOut :
-                        (map (toCardanoTxOut shelleyEra Nothing) rest)
-                _ ->
-                    []
+        Nothing ->
+            map (toCardanoTxOut shelleyEra Nothing) outs
+        Just _ -> case outs of
+            firstOut:rest ->
+                let cardanoFirstTxOut =
+                        toCardanoTxOut shelleyEra refScriptM firstOut
+                in
+                cardanoFirstTxOut :
+                    (map (toCardanoTxOut shelleyEra Nothing) rest)
+            _ ->
+                []
 
     , Cardano.txWithdrawals = case stakingScriptM of
         Nothing ->
             let ctx = Cardano.BuildTxWith
                     $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
             in
-                Cardano.TxWithdrawals wdrlsSupported
+            Cardano.TxWithdrawals wdrlsSupported
                 (map (\(key, coin) -> (key, coin, ctx)) wdrls)
         Just stakingScript ->
             let
-                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
-                    (toScriptWitness stakingScript)
+                buildVal =
+                    Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+                        (toScriptWitness stakingScript)
                 ctx = Cardano.BuildTxWith buildVal
             in
-                Cardano.TxWithdrawals wdrlsSupported
+            Cardano.TxWithdrawals wdrlsSupported
                 (map (\(key, coin) -> (key, coin, ctx)) wdrls)
 
     -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
@@ -822,12 +823,14 @@ mkUnsignedTx
                     . Cardano.hashScript
                     . Cardano.SimpleScript
                     $ toCardanoSimpleScript stakingScript
-                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
-                    (toScriptWitness stakingScript)
+                buildVal =
+                    Cardano.ScriptWitness
+                        Cardano.ScriptWitnessForStakeAddr
+                        (toScriptWitness stakingScript)
                 witMap = Map.fromList [(buildKey, buildVal)]
                 ctx = Cardano.BuildTxWith witMap
             in
-                Cardano.TxCertificates certSupported certs ctx
+            Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees shelleyEra fees
 
@@ -867,11 +870,14 @@ mkUnsignedTx
                         Left script -> toScriptWitness script
                         Right (ReferenceInput txin) ->
                             Cardano.SimpleScriptWitness
-                            scriptWitsSupported
-                            (Cardano.SReferenceScript (toCardanoTxIn txin) Nothing)
+                            scriptWitsSupported $
+                                Cardano.SReferenceScript
+                                (toCardanoTxIn txin)
+                                Nothing
                     witMap =
                             Map.map toScriptWitnessGeneral $
-                            Map.mapKeys (toCardanoPolicyId . TokenMap.tokenPolicyId)
+                            Map.mapKeys
+                                (toCardanoPolicyId . TokenMap.tokenPolicyId)
                             mintingSource
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx
@@ -936,7 +942,8 @@ mkUnsignedTx
         RecentEraBabbage -> Cardano.WithdrawalsInBabbageEra
         RecentEraConway -> Cardano.WithdrawalsInConwayEra
 
-    txValidityUpperBoundSupported :: Cardano.ValidityUpperBoundSupportedInEra era
+    txValidityUpperBoundSupported
+        :: Cardano.ValidityUpperBoundSupportedInEra era
     txValidityUpperBoundSupported = case era of
         RecentEraBabbage -> Cardano.ValidityUpperBoundInBabbageEra
         RecentEraConway -> Cardano.ValidityUpperBoundInConwayEra
@@ -961,8 +968,10 @@ mkUnsignedTx
     referenceInpsSupported
         :: Maybe (Cardano.ReferenceTxInsScriptsInlineDatumsSupportedInEra era)
     referenceInpsSupported = case era of
-        RecentEraBabbage -> Just Cardano.ReferenceTxInsScriptsInlineDatumsInBabbageEra
-        RecentEraConway -> Just Cardano.ReferenceTxInsScriptsInlineDatumsInConwayEra
+        RecentEraBabbage ->
+            Just Cardano.ReferenceTxInsScriptsInlineDatumsInBabbageEra
+        RecentEraConway ->
+            Just Cardano.ReferenceTxInsScriptsInlineDatumsInConwayEra
 
     toScriptWitness :: Script KeyHash -> Cardano.ScriptWitness witctx era
     toScriptWitness script =
@@ -972,7 +981,11 @@ mkUnsignedTx
 
     constructInpScriptWit inp =
         let script = case Map.lookup inp inpsScripts of
-                Nothing -> error "constructInpScriptWit: each input should have script in multisig"
+                Nothing ->
+                    error $ unwords
+                        [ "constructInpScriptWit:"
+                        , "each input should have script in multisig"
+                        ]
                 Just script' -> script'
             scriptWit = toScriptWitness script
         in ( toCardanoTxIn inp
