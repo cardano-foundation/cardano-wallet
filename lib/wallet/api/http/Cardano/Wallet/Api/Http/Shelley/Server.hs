@@ -2648,6 +2648,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
+            trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
         (Write.InAnyRecentEra (_era :: Write.RecentEra era) pp, _)
@@ -3152,6 +3153,7 @@ constructSharedTransaction
     withWorkerCtx api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
+            trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
