@@ -115,7 +115,8 @@ import Control.Monad.IO.Unlift
     , liftIO
     )
 import Control.Monad.Trans.Resource
-    ( runResourceT
+    ( ResourceT
+    , runResourceT
     )
 import Data.Aeson
     ( toJSON
@@ -560,141 +561,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     it "SHARED_TRANSACTIONS_CREATE_01 - \
         \Can create tx for an active shared wallet, small metadata encrypted" $
         \ctx -> runResourceT $ do
-
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let payload = Json [json| {
-                "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
-                "passphrase": #{fixturePassphrase},
-                "account_index": "30H",
-                "payment_script_template":
-                    { "cosigners":
-                        { "cosigner#0": "self" },
-                      "template":
-                          { "all":
-                             [ "cosigner#0" ]
-                          }
-                    }
-                } |]
-        rPost <- postSharedWallet ctx Default payload
-        verify (fmap (swapEither . view #wallet) <$> rPost)
-            [ expectResponseCode HTTP.status201
-            ]
-
-        let walShared@(ApiSharedWallet (Right wal)) =
-                getResponse rPost
-
         let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
-        let metadataToBeEncrypted =
-                TxMetadataWithSchema TxMetadataNoSchema metadataRaw
-        let encryptMetadata =
-                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
-        let payloadMetadata = Json [json|{
-                "encrypt_metadata": #{toJSON encryptMetadata},
-                "metadata": #{toJSON metadataToBeEncrypted}
-            }|]
-        let expEncryptedMetadata =
-                toMetadataEncrypted encryptMetadata metadataToBeEncrypted
-        let expEncryptedMetadataSerialised =
-                ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata
-
-        rTx1 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared wal) Default payloadMetadata
-        verify rTx1
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403EmptyUTxO
-            ]
-
-        let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet @n ctx amt (pure walShared)
-
-        rTx2 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared wal) Default payloadMetadata
-        verify rTx2
-            [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #metadata)
-                (`shouldBe` (Just expEncryptedMetadataSerialised))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
-            ]
-
-        let (ApiSerialisedTransaction apiTx _) =
-                getFromResponse #transaction rTx2
-        signedTx <-
-            signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
-
-        let decodePayloadEncrypted = Json (toJSON signedTx)
-        let expMetadataEncrypted = ApiT expEncryptedMetadata
-
-        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shared wal) Default decodePayloadEncrypted
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
-        let decodedExpectations =
-                [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
-                , expectField #withdrawals (`shouldBe` [])
-                , expectField #collateral (`shouldBe` [])
-                , expectField #scriptValidity
-                    (`shouldBe` (Just $ ApiT TxScriptValid))
-                ]
-        verify rDecodedTxEncrypted
-            ( decodedExpectations ++
-             [ expectField #metadata
-                    (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted))) ]
-            )
-
-        let decodePayloadDecrypted = Json [json|{
-                "decrypt_metadata": #{toJSON encryptMetadata},
-                "transaction": #{serialisedTxSealed signedTx}
-            }|]
-        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shared wal) Default decodePayloadDecrypted
-        verify rDecodedTxDecrypted
-            ( decodedExpectations ++
-             [ expectField #metadata
-                    (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))) ) ]
-            )
-
-        -- Submit tx
-        submittedTx <- submitSharedTxWithWid ctx wal signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        let txid = getFromResponse #id submittedTx
-        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
-        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
-        verify rGetTx
-            [ expectResponseCode HTTP.status200
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-
-        -- Make sure only fee is deducted from shared Wallet
-        eventually "Wallet balance is as expected" $ do
-            rWal <- getSharedWallet ctx walShared
-            verify (fmap (view #wallet) <$> rWal)
-                [ expectResponseCode HTTP.status200
-                , expectField
-                    (traverse . #balance . #available . #getQuantity)
-                    (`shouldBe` (amt - expectedFee))
-                ]
-
-        eventually "Tx is in ledger finally" $ do
-            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
-            verify rGetTx'
-                [ expectResponseCode HTTP.status200
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-            let listTxEp = Link.listTransactions @'Shared wal
-            request @[ApiTransaction n] ctx listTxEp Default Empty
-                >>= flip verify
-                [ expectListField 1
-                    (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectListField 1
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        checkMetadataEncrytion ctx metadataRaw
 
     it "SHARED_TRANSACTIONS_CREATE_01a -\
         \Empty payload is not allowed" $
@@ -3456,4 +3324,144 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #toNatural)
                         (`shouldBe` amt)
+                ]
+
+     checkMetadataEncrytion
+         :: MonadUnliftIO m
+         => Context
+         -> TxMetadata
+         -> ResourceT m ()
+     checkMetadataEncrytion ctx metadataRaw = do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let walShared@(ApiSharedWallet (Right wal)) =
+                getResponse rPost
+
+        let metadataToBeEncrypted =
+                TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+        let encryptMetadata =
+                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
+        let payloadMetadata = Json [json|{
+                "encrypt_metadata": #{toJSON encryptMetadata},
+                "metadata": #{toJSON metadataToBeEncrypted}
+            }|]
+        let expEncryptedMetadata =
+                toMetadataEncrypted encryptMetadata metadataToBeEncrypted
+        let expEncryptedMetadataSerialised =
+                ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata
+
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default payloadMetadata
+        verify rTx1
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403EmptyUTxO
+            ]
+
+        let amt = 10 * minUTxOValue (_mainEra ctx)
+        fundSharedWallet @n ctx amt (pure walShared)
+
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default payloadMetadata
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata)
+                (`shouldBe` (Just expEncryptedMetadataSerialised))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx2
+        signedTx <-
+            signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
+
+        let decodePayloadEncrypted = Json (toJSON signedTx)
+        let expMetadataEncrypted = ApiT expEncryptedMetadata
+
+        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayloadEncrypted
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
+        let decodedExpectations =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+        verify rDecodedTxEncrypted
+            ( decodedExpectations ++
+             [ expectField #metadata
+                    (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted))) ]
+            )
+
+        let decodePayloadDecrypted = Json [json|{
+                "decrypt_metadata": #{toJSON encryptMetadata},
+                "transaction": #{serialisedTxSealed signedTx}
+            }|]
+        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayloadDecrypted
+        verify rDecodedTxDecrypted
+            ( decodedExpectations ++
+             [ expectField #metadata
+                    (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))) ) ]
+            )
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wal signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Make sure only fee is deducted from shared Wallet
+        eventually "Wallet balance is as expected" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (amt - expectedFee))
+                ]
+
+        eventually "Tx is in ledger finally" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            let listTxEp = Link.listTransactions @'Shared wal
+            request @[ApiTransaction n] ctx listTxEp Default Empty
+                >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
                 ]
