@@ -27,7 +27,6 @@ import Internal.Cardano.Write.Tx
     )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Wallet.Primitive.Types.Address as W
 
 -- | Assumptions about UTxOs that are needed for coin selection.
 data UTxOAssumptions
@@ -42,7 +41,7 @@ data UTxOAssumptions
     -- payment credentials, where the scripts are both derived
     -- from the 'ScriptTemplate' and can be looked up using the given function.
         !CA.ScriptTemplate
-        !(W.Address -> CA.Script CA.KeyHash)
+        !(Address -> CA.Script CA.KeyHash)
 
 assumedInputScriptTemplate :: UTxOAssumptions -> Maybe CA.ScriptTemplate
 assumedInputScriptTemplate = \case

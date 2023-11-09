@@ -752,8 +752,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 AllKeyPaymentCredentials -> []
                 AllByronKeyPaymentCredentials -> []
                 AllScriptPaymentCredentialsFrom _template toInpScripts ->
-                    toInpScripts . view #address . snd <$>
-                        extraInputs <> extraCollateral'
+                    ( toInpScripts
+                    . Convert.toLedgerAddress
+                    . view #address
+                    . snd
+                    ) <$> extraInputs <> extraCollateral'
         extraCollateral = fst <$> extraCollateral'
         unsafeFromLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
