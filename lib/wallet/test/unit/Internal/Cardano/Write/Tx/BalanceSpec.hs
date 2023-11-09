@@ -2123,6 +2123,12 @@ hasTotalCollateral (CardanoApi.Tx (CardanoApi.TxBody content) _) =
         CardanoApi.TxTotalCollateral _ _ -> True
 
 -- | A type-constrained variant of 'it'.
+--
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2353
+--
+-- We should consider removing this function and replacing usages of it with
+-- the ordinary 'Hspec.it' function.
+--
 itIO :: String -> IO () -> Spec
 itIO = it
 
