@@ -49,9 +49,6 @@ import Cardano.Launcher
 import Cardano.Ledger.Shelley.Genesis
     ( sgNetworkMagic
     )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..)
-    )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
@@ -65,12 +62,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Faucet
     ( byronIntegrationTestFunds
     , hwLedgerTestFunds
+    , initFaucet
     , maryIntegrationTestFunds
     , seaHorseTestAssets
     , shelleyIntegrationTestFunds
-    )
-import Cardano.Wallet.Faucet.Shelley
-    ( initFaucet
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
@@ -471,8 +466,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
               , Coin (fromIntegral oneMillionAda)
               )
             | m <- Mnemonics.mir
-            , let (xpub, _prv) =
-                    Addresses.shelleyRewardAccount (SomeMnemonic m)
+            , let (xpub, _prv) = Addresses.shelleyRewardAccount m
             ]
         }
 

@@ -1,16 +1,53 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Faucet.Mnemonics where
+module Cardano.Wallet.Faucet.Mnemonics
+    ( generateRandom
+    , sequential
+    , shelleyMA
+    , icarus
+    , random
+    , mir
+    , hardwareLedger
+    , onlyDustWallet
+    , bigDustWallet
+    , preregKeyWallet
+    ) where
 
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic
+    ( EntropySize
+    , Mnemonic
+    , MnemonicWords
     , SomeMnemonic (..)
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ValidMnemonicSentence
+    , entropyToMnemonic
+    , genEntropy
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic
     )
+import Control.Monad
+    ( replicateM
+    )
+
+generateRandom
+    :: forall mw ent csz
+     . ( ValidMnemonicSentence mw
+       , ValidEntropySize ent
+       , ValidChecksumSize ent csz
+       , ent ~ EntropySize mw
+       , mw ~ MnemonicWords ent
+       )
+    => Int
+    -> IO [Mnemonic mw]
+generateRandom n = replicateM n (entropyToMnemonic @mw <$> genEntropy)
 
 sequential :: [Mnemonic 15]
 sequential =
@@ -640,4 +677,67 @@ hardwareLedger =
         , "stand", "obey", "short", "width", "stem", "awkward", "used"
         , "stairs", "wool", "ugly", "trap", "season", "stove", "worth"
         , "toward", "congress", "jaguar"
+        ]
+
+-- | A special wallet with only dust
+onlyDustWallet :: Mnemonic 15
+onlyDustWallet =
+    unsafeMkMnemonic
+        [ "either"
+        , "flip"
+        , "maple"
+        , "shift"
+        , "dismiss"
+        , "bridge"
+        , "sweet"
+        , "reveal"
+        , "green"
+        , "tornado"
+        , "need"
+        , "patient"
+        , "wall"
+        , "stamp"
+        , "pass"
+        ]
+
+-- | A special Shelley Wallet with 200 UTxOs where 100 of them are 1 ADA
+bigDustWallet :: Mnemonic 15
+bigDustWallet =
+    unsafeMkMnemonic
+        [ "radar"
+        , "scare"
+        , "sense"
+        , "winner"
+        , "little"
+        , "jeans"
+        , "blue"
+        , "spell"
+        , "mystery"
+        , "sketch"
+        , "omit"
+        , "time"
+        , "tiger"
+        , "leave"
+        , "load"
+        ]
+
+-- | A special Shelley Wallet with a pre-registered stake key.
+preregKeyWallet :: Mnemonic 15
+preregKeyWallet =
+    unsafeMkMnemonic
+        [ "over"
+        , "decorate"
+        , "flock"
+        , "badge"
+        , "beauty"
+        , "stamp"
+        , "chest"
+        , "owner"
+        , "excess"
+        , "omit"
+        , "bid"
+        , "raccoon"
+        , "spin"
+        , "reduce"
+        , "rival"
         ]

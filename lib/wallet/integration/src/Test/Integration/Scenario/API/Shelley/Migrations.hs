@@ -35,7 +35,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
-import Cardano.Wallet.Faucet
+import Cardano.Wallet.Faucet.Mnemonics
     ( bigDustWallet
     , onlyDustWallet
     )
