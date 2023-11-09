@@ -63,6 +63,9 @@ Makefile
 *.olean
 leanpkg.path
 
+## Agda
+*.agdai
+
 ## Artifacts
 bench-wallet
 memory-time.txt
