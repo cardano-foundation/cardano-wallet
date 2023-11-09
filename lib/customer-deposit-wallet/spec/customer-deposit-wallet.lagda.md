@@ -195,7 +195,7 @@ The two operations are related by the property
 ```agda
     field
 
-      prop_create-get
+      prop-create-known
         : ∀(c : Customer) (s0 : WalletState)
         → let (address , s1) = createAddress c s0
           in  knownCustomerAddress address s1 ≡ True
