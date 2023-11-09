@@ -27,7 +27,6 @@ module Cardano.Pool.DB.Sqlite
     ( SqliteContext (..)
     , withSqliteContextFile
     , newInMemorySqliteContext
-    , ForeignKeysSetting (..)
 
       -- * Helpers
     , handleConstraint
@@ -213,9 +212,8 @@ newInMemorySqliteContext
     :: Tracer IO DBLog
     -> ManualMigration
     -> Migration
-    -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
-newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
+newInMemorySqliteContext tr manualMigrations autoMigration = do
     conn <- Sqlite.open ":memory:"
     executeManualMigration manualMigrations conn
     unsafeBackend <- wrapConnection conn (queryLogFunc tr)
@@ -228,15 +226,11 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     -- concurrent accesses and ensure database integrity in case where multiple
     -- threads would be reading/writing from/to it.
     lock <- newMVar unsafeBackend
-    let useForeignKeys :: IO a -> IO a
-        useForeignKeys
-            | disableFK == ForeignKeysDisabled = withForeignKeysDisabled tr conn
-            | otherwise = id
-        runQuery :: forall a. SqlPersistT IO a -> IO a
+    let runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd =
             withMVarMasked
                 lock
-                (observe . useForeignKeys . runSqlConn cmd)
+                (observe . runSqlConn cmd)
 
     return (close' unsafeBackend, SqliteContext{runQuery})
 

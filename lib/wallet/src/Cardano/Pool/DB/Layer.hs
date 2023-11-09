@@ -49,7 +49,6 @@ import Cardano.Pool.DB.Log
 import Cardano.Pool.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
-    , ForeignKeysSetting (ForeignKeysEnabled)
     , ManualMigration (..)
     , MigrationError
     , SqliteContext (..)
@@ -262,7 +261,6 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
                     tr'
                     createViews
                     migrateAll
-                    ForeignKeysEnabled
                 )
                 fst
                 (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
