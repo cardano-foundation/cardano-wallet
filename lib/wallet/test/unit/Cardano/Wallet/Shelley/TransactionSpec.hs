@@ -397,6 +397,7 @@ spec_forAllRecentErasPendingConway description p =
             then it (show era) $ pendingWith "TODO: Conway"
             else it (show era) $ property $ p (AnyCardanoEra era)
   where
+    forAllRecentEras' :: (AnyCardanoEra -> Spec) -> Spec
     forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
         f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
 
