@@ -468,7 +468,6 @@ data DBLog
     | MsgRun BracketLog
     | MsgOpenSingleConnection FilePath
     | MsgCloseSingleConnection FilePath
-    | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
     | MsgManualMigrationNeeded DBField Text
@@ -491,7 +490,6 @@ instance HasSeverityAnnotation DBLog where
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
         MsgExpectedMigration _ -> Debug
-        MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
         MsgManualMigrationNeeded{} -> Notice
@@ -514,9 +512,6 @@ instance ToText DBLog where
         MsgQuery stmt _ -> stmt
         MsgRun b ->
             "Running database action - " <> toText b
-        MsgDatabaseReset ->
-            "Non backward compatible database found. Removing old database \
-            \and re-creating it from scratch. Ignore the previous error."
         MsgOpenSingleConnection fp ->
             "Opening single database connection (" +| fp |+ ")"
         MsgCloseSingleConnection fp ->
