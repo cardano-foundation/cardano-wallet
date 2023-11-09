@@ -32,9 +32,11 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting
     , SqliteContext
     , newInMemorySqliteContext
-    , noManualMigration
     , runQuery
     , withSqliteContextFile
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( noManualMigration
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..)

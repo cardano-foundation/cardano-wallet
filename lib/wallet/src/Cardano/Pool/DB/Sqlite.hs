@@ -38,18 +38,20 @@ import Cardano.BM.Extra
     ( bracketTracer
     )
 import Cardano.DB.Sqlite
-    ( DBField (..)
-    , DBLog (..)
+    ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
-    , ManualMigration (..)
-    , MigrationError
     , SqliteContext (..)
-    , fieldName
-    , foldMigrations
     , handleConstraint
     , newInMemorySqliteContext
-    , tableName
     , withSqliteContextFile
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( DBField (..)
+    , ManualMigration (..)
+    , MigrationError (..)
+    , fieldName
+    , foldMigrations
+    , tableName
     )
 import Cardano.Pool.DB
     ( DBLayer (..)

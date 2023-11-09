@@ -51,7 +51,6 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
-    , ManualMigration (..)
     , SqliteContext (..)
     , newInMemorySqliteContext
     , withSqliteContextFile
@@ -62,6 +61,9 @@ import Cardano.DB.Sqlite.Delete
     , newRefCount
     , waitForFree
     , withRef
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( ManualMigration (..)
     )
 import Cardano.Slotting.Slot
     ( WithOrigin (..)

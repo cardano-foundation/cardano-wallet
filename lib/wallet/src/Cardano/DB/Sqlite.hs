@@ -43,19 +43,9 @@ module Cardano.DB.Sqlite
     , dbChunked'
     , handleConstraint
 
-      -- * Old-style Manual Migration
-    , ManualMigration (..)
-    , noManualMigration
-    , MigrationError (..)
-    , DBField (..)
-    , tableName
-    , fieldName
-    , fieldType
-
       -- * Logging
     , DBLog (..)
     , ReadDBHandle
-    , foldMigrations
     ) where
 
 import Prelude
@@ -74,6 +64,14 @@ import Cardano.BM.Extra
 import Cardano.DB.Sqlite.ForeignKeys
     ( ForeignKeysSetting (..)
     , withForeignKeysDisabled
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( DBField (..)
+    , ManualMigration (..)
+    , MatchMigrationError (..)
+    , MigrationError (..)
+    , fieldName
+    , tableName
     )
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (..)
@@ -121,9 +119,6 @@ import Data.Functor
     ( ($>)
     , (<&>)
     )
-import Data.List
-    ( isInfixOf
-    )
 import Data.List.Split
     ( chunksOf
     )
@@ -143,24 +138,15 @@ import Data.Time.Clock
     ( NominalDiffTime
     )
 import Database.Persist.EntityDef
-    ( getEntityDBName
-    , getEntityFields
-    )
-import Database.Persist.Names
-    ( EntityNameDB (..)
-    , unFieldNameDB
+    ( getEntityFields
     )
 import Database.Persist.Sql
-    ( EntityField
-    , LogFunc
+    ( LogFunc
     , Migration
     , PersistEntity (..)
     , PersistException
     , SqlPersistT
-    , SqlType (..)
     , close'
-    , fieldDB
-    , fieldSqlType
     , runMigrationUnsafeQuiet
     , runSqlConn
     )
@@ -194,8 +180,7 @@ import UnliftIO.Compat
     ( handleIf
     )
 import UnliftIO.Exception
-    ( Exception
-    , bracket
+    ( bracket
     , handleJust
     , tryJust
     )
@@ -205,7 +190,6 @@ import UnliftIO.MVar
     , withMVarMasked
     )
 
-import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -430,45 +414,6 @@ retryOnBusy tr timeout action =
     old style and new style
 -------------------------------------------------------------------------------}
 
--- | Error type for when migrations go wrong after opening a database.
-newtype MigrationError = MigrationError
-    {getMigrationErrorMessage :: Text}
-    deriving (Show, Eq, Generic, ToJSON)
-
-instance Exception MigrationError
-
-class Exception e => MatchMigrationError e where
-    -- | Exception predicate for migration errors.
-    matchMigrationError :: e -> Maybe MigrationError
-
-instance MatchMigrationError PersistException where
-    matchMigrationError e
-        | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
-        | otherwise = Nothing
-      where
-        msg = show e
-        mark = "Database migration: manual intervention required."
-
-instance MatchMigrationError SqliteException where
-    matchMigrationError (SqliteException ErrorConstraint _ msg) =
-        Just $ MigrationError msg
-    matchMigrationError _ =
-        Nothing
-
-matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
-matchWrongVersionError =
-    Just
-        . MigrationError
-        . view strict
-        . toLazyText
-        . build
-
--- | Encapsulates an old-style manual migration action
---   (or sequence of actions) to be
---   performed immediately after an SQL connection is initiated.
-newtype ManualMigration = ManualMigration
-    {executeManualMigration :: Sqlite.Connection -> IO ()}
-
 runAutoMigration
     :: Tracer IO DBLog
     -> Migration
@@ -508,6 +453,14 @@ runManualNewMigrations tr fp newMigrations =
     newMigrations tr fp
         & tryJust matchWrongVersionError
 
+matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
+matchWrongVersionError =
+    Just
+        . MigrationError
+        . view strict
+        . toLazyText
+        . build
+
 runAllMigrations
     :: Tracer IO DBLog
     -> FilePath
@@ -519,65 +472,6 @@ runAllMigrations tr fp old auto new = runExceptT $ do
     ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
     ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
     ExceptT $ runManualNewMigrations tr fp new
-
-{-------------------------------------------------------------------------------
-    Database migration helpers
--------------------------------------------------------------------------------}
-
-noManualMigration :: ManualMigration
-noManualMigration = ManualMigration $ const $ pure ()
-
-foldMigrations :: [Sqlite.Connection -> IO ()] -> ManualMigration
-foldMigrations ms = ManualMigration $ \conn -> mapM_ ($ conn) ms
-
-data DBField where
-    DBField
-        :: forall record typ
-         . (PersistEntity record)
-        => EntityField record typ
-        -> DBField
-
-tableName :: DBField -> Text
-tableName (DBField (_ :: EntityField record typ)) =
-    unEntityNameDB $ getEntityDBName $ entityDef (Proxy @record)
-
-fieldName :: DBField -> Text
-fieldName (DBField field) =
-    unFieldNameDB $ fieldDB $ persistFieldDef field
-
-fieldType :: DBField -> Text
-fieldType (DBField field) =
-    showSqlType $ fieldSqlType $ persistFieldDef field
-
-showSqlType :: SqlType -> Text
-showSqlType = \case
-    SqlString -> "VARCHAR"
-    SqlInt32 -> "INTEGER"
-    SqlInt64 -> "INTEGER"
-    SqlReal -> "REAL"
-    SqlDay -> "DATE"
-    SqlTime -> "TIME"
-    SqlDayTime -> "TIMESTAMP"
-    SqlBlob -> "BLOB"
-    SqlBool -> "BOOLEAN"
-    SqlOther t -> t
-    SqlNumeric precision scale ->
-        T.concat
-            [ "NUMERIC("
-            , T.pack (show precision)
-            , ","
-            , T.pack (show scale)
-            , ")"
-            ]
-
-instance Show DBField where
-    show field = T.unpack (tableName field <> "." <> fieldName field)
-
-instance Eq DBField where
-    field0 == field1 = show field0 == show field1
-
-instance ToJSON DBField where
-    toJSON = Aeson.String . T.pack . show
 
 {-------------------------------------------------------------------------------
                                     Logging

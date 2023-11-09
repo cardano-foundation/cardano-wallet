@@ -57,8 +57,10 @@ import Cardano.Crypto.Wallet
     ( XPrv
     )
 import Cardano.DB.Sqlite
+    ( DBLog (..)
+    )
+import Cardano.DB.Sqlite.Migration.Old
     ( DBField
-    , DBLog (..)
     , fieldName
     )
 import Cardano.Mnemonic
