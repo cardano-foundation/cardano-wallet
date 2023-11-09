@@ -228,7 +228,7 @@ import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
-import qualified Cardano.Pool.DB.Sqlite as Pool
+import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
