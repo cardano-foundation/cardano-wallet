@@ -3492,7 +3492,6 @@ decodeSharedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) postData = do
     let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
-    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
         , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)

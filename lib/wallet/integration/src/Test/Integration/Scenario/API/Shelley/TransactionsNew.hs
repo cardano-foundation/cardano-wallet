@@ -5267,6 +5267,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#assets . #total)
                     (`shouldBe` mempty)
                 ]
+
     checkMetadataEncrytion
         :: MonadUnliftIO m
         => Context
