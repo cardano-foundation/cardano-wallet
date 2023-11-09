@@ -57,7 +57,6 @@ import Cardano.Pool.DB.Log
 import Cardano.Pool.DB.Sqlite
     ( DBLog (..)
     , SqliteContext (..)
-    , handleConstraint
     , newInMemorySqliteContext
     , withSqliteContextFile
     )
@@ -180,6 +179,10 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT
     )
+import Database.Sqlite
+    ( Error (ErrorConstraint)
+    , SqliteException (SqliteException)
+    )
 import System.Directory
     ( removeFile
     )
@@ -192,6 +195,7 @@ import System.Random
 import UnliftIO.Exception
     ( bracket
     , catch
+    , handleJust
     , throwIO
     )
 
@@ -784,6 +788,15 @@ newDBLayer tr ti SqliteContext{runQuery} =
                 [ Desc BlockHeight
                 , LimitTo k
                 ]
+
+-- | Run an action, and convert any Sqlite constraints exception into the given
+-- error result. No other exceptions are handled.
+handleConstraint :: e -> IO a -> IO (Either e a)
+handleConstraint e = handleJust select handler . fmap Right
+  where
+    select (SqliteException ErrorConstraint _ _) = Just ()
+    select _ = Nothing
+    handler = const . pure . Left $ e
 
 -- | Defines a raw SQL query, runnable with 'runRawQuery'.
 data RawQuery a b = RawQuery

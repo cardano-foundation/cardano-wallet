@@ -28,9 +28,6 @@ module Cardano.Pool.DB.Sqlite
     , withSqliteContextFile
     , newInMemorySqliteContext
 
-      -- * Helpers
-    , handleConstraint
-
       -- * Logging
     , DBLog (..)
     ) where
@@ -63,9 +60,6 @@ import Cardano.DB.Sqlite.Migration.Old
 import Control.Monad
     ( join
     , void
-    )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..)
     )
 import Control.Monad.Logger
     ( LogLevel (..)
@@ -119,8 +113,7 @@ import Database.Persist.Sqlite
     , wrapConnection
     )
 import Database.Sqlite
-    ( Error (ErrorConstraint)
-    , SqliteException (SqliteException)
+    ( SqliteException (SqliteException)
     )
 import Fmt
     ( fmt
@@ -144,7 +137,6 @@ import UnliftIO.Compat
     )
 import UnliftIO.Exception
     ( bracket
-    , handleJust
     , tryJust
     )
 import UnliftIO.MVar
@@ -167,15 +159,6 @@ import qualified Database.Sqlite as Sqlite
 newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
     }
-
--- | Run an action, and convert any Sqlite constraints exception into the given
--- error result. No other exceptions are handled.
-handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
-handleConstraint e = handleJust select handler . fmap Right
-  where
-    select (SqliteException ErrorConstraint _ _) = Just ()
-    select _ = Nothing
-    handler = const . pure . Left $ e
 
 newInMemorySqliteContext
     :: Tracer IO DBLog
