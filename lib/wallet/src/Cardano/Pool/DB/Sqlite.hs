@@ -29,18 +29,7 @@ module Cardano.Pool.DB.Sqlite
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
-      -- * DB Connections
-    , DBHandle
-    , withDBHandle
-    , dbConn
-    , dbFile
-    , dbBackend
-
       -- * Helpers
-    , chunkSize
-    , dbChunked
-    , dbChunkedFor
-    , dbChunked'
     , handleConstraint
 
       -- * Old-style Manual Migration
@@ -54,7 +43,6 @@ module Cardano.Pool.DB.Sqlite
 
       -- * Logging
     , DBLog (..)
-    , ReadDBHandle
     , foldMigrations
     ) where
 
@@ -89,9 +77,6 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Logger
     ( LogLevel (..)
     )
-import Control.Monad.Reader
-    ( ReaderT
-    )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
     , runExceptT
@@ -121,9 +106,6 @@ import Data.Functor
 import Data.List
     ( isInfixOf
     )
-import Data.List.Split
-    ( chunksOf
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -141,7 +123,6 @@ import Data.Time.Clock
     )
 import Database.Persist.EntityDef
     ( getEntityDBName
-    , getEntityFields
     )
 import Database.Persist.Names
     ( EntityNameDB (..)
@@ -306,8 +287,6 @@ data DBHandle = DBHandle
     , dbBackend :: SqlBackend
     , dbFile :: FilePath
     }
-
-type ReadDBHandle m = ReaderT DBHandle m
 
 withDBHandle
     :: Tracer IO DBLog
@@ -772,76 +751,3 @@ queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
         LevelWarn -> Warning
         LevelError -> Error
         LevelOther _ -> Warning
-
-{-------------------------------------------------------------------------------
-                               Extra DB Helpers
--------------------------------------------------------------------------------}
-
--- | Convert a single DB "updateMany" (or similar) query into multiple
--- updateMany queries with smaller lists of values.
---
--- This is to prevent too many variables appearing in the SQL statement.
--- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
--- "too many SQL variables" exception if that is exceeded.
---
--- We choose a conservative value 'chunkSize' << 999 because there can be
--- multiple variables per row updated.
-dbChunked
-    :: forall record b
-     . PersistEntity record
-    => ([record] -> SqlPersistT IO b)
-    -> [record]
-    -> SqlPersistT IO ()
-dbChunked = dbChunkedFor @record
-
--- | Like 'dbChunked', but generalized for the case where the input list is not
--- the same type as the record.
-dbChunkedFor
-    :: forall record a b
-     . PersistEntity record
-    => ([a] -> SqlPersistT IO b)
-    -> [a]
-    -> SqlPersistT IO ()
-dbChunkedFor = chunkedM (chunkSizeFor @record)
-
--- | Like 'dbChunked', but allows bundling elements with a 'Key'. Useful when
--- used with 'repsertMany'.
-dbChunked'
-    :: forall record b
-     . PersistEntity record
-    => ([(Key record, record)] -> SqlPersistT IO b)
-    -> [(Key record, record)]
-    -> SqlPersistT IO ()
-dbChunked' = chunkedM (chunkSizeFor @record)
-
--- | Given an action which takes a list of items, and a list of items, run that
--- action multiple times with the input list cut into chunks.
-chunkedM
-    :: Monad m
-    => Int
-    -- ^ Chunk size
-    -> ([a] -> m b)
-    -- ^ Action to run on values
-    -> [a]
-    -- ^ The values
-    -> m ()
-chunkedM n f = mapM_ f . chunksOf n
-
--- | Maximum number of variables allowed in a single SQL statement
---
--- See also 'dbChunked'.
-chunkSize :: Int
-chunkSize = 999
-
--- | Size of chunks when inserting, updating or deleting many rows at once.
--- Worst-case is when all columns of a particular table gets updated / inserted,
--- thus to be safe we must ensure that we do not act on more than `chunkSize /
--- cols` variables.
---
--- See also 'dbChunked'.
-chunkSizeFor :: forall record. PersistEntity record => Int
-chunkSizeFor = chunkSize `div` cols
-  where
-    cols = length $ getEntityFields $ entityDef (Proxy @record)
-
--- TODO: Does getEntityFields differ from the past entityFields?
