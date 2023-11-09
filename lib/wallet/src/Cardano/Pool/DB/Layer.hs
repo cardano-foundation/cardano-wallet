@@ -21,7 +21,7 @@
 -- License: Apache-2.0
 --
 -- An implementation of the DBLayer which uses Persistent and SQLite.
-module Cardano.Pool.DB.Sqlite
+module Cardano.Pool.DB.Layer
     ( newDBLayer
     , withDBLayer
     , withDecoratedDBLayer
