@@ -1160,7 +1160,10 @@ benchEstimateTxFee
     -> WalletLayer IO s
     -> IO Time
 benchEstimateTxFee network (WalletLayer _ _ netLayer _ dbLayer) =
-    fmap snd <$> bench "estimate tx fee" $ do
+    fmap snd <$> bench "estimate tx fee" $ estimateFee
+  where
+    estimateFee :: IO (W.Percentile 10 W.Fee, W.Percentile 90 W.Fee)
+    estimateFee = do
         (Write.InAnyRecentEra _era protocolParams, timeTranslation)
             <- W.readNodeTipStateForTxWrite netLayer
         -- For an output with zero ada, the transactionFee function should

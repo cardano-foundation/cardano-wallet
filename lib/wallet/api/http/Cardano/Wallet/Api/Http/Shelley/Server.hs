@@ -583,6 +583,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
+    , TokenMap
     , fromFlatList
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -2648,6 +2649,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
+            trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
         (Write.InAnyRecentEra (_era :: Write.RecentEra era) pp, _)
@@ -2771,7 +2773,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Right (ApiMintBurnDataFromInput _ _ _ (ApiMint (ApiMintData (Just _) _))) ->
                     True
                 _ -> False
-        let mintingOuts = case mintBurnDatum of
+
+        let mintingOuts :: [TxOut]
+            mintingOuts = case mintBurnDatum of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
                     map (toMintTxOut policyXPub) $
@@ -2960,6 +2964,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
+    toMintTxOut :: XPub -> ApiMintBurnData n -> (ApiAddress n, TokenMap)
     toMintTxOut policyXPub mb = case mb ^. #mintBurnData of
         Left (ApiMintBurnDataFromScript (ApiT scriptT) (Just (ApiT tName))
             (ApiMint (ApiMintData (Just addr) amt))) ->
@@ -2982,6 +2987,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , "specified"
             ]
 
+    coalesceTokensPerAddr :: [(ApiAddress n, TokenMap)] -> [TxOut]
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
                 addressAmountToTxOut $
@@ -3152,6 +3158,7 @@ constructSharedTransaction
     withWorkerCtx api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
+            trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer

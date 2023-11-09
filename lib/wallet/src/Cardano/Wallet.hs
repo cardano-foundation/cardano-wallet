@@ -2436,6 +2436,7 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
     db = ctx ^. dbLayer
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+    tipSlotStartTime :: BlockHeader -> IO UTCTime
     tipSlotStartTime tipHeader = interpretQuery
         (neverFails "buildAndSignTransaction slot is ahead of the node tip" ti)
         (slotToUTCTime (tipHeader ^. #slotNo))

@@ -59,6 +59,7 @@ module Internal.Cardano.Write.Tx.Balance
     -- * Utilities
     , posAndNegFromCardanoApiValue
     , fromWalletUTxO
+    , toWalletUTxO
 
     -- ** updateTx
     , TxUpdate (..)
@@ -363,14 +364,22 @@ instance Buildable (BuildableInAnyEra a) where
 
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
-data ErrBalanceTxInsufficientCollateralError =
+data ErrBalanceTxInsufficientCollateralError era =
     ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: W.UTxO
+    { largestCombinationAvailable :: UTxO (ShelleyLedgerEra era)
         -- ^ The largest available combination of pure ada UTxOs.
     , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
     }
-    deriving (Eq, Generic, Show)
+    deriving Generic
+
+deriving instance
+    IsRecentEra era =>
+    Eq (ErrBalanceTxInsufficientCollateralError era)
+
+deriving instance
+    IsRecentEra era =>
+    Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
 --
@@ -426,7 +435,8 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
-    | ErrBalanceTxInsufficientCollateral ErrBalanceTxInsufficientCollateralError
+    | ErrBalanceTxInsufficientCollateral
+        (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
@@ -1021,7 +1031,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
     performSelection'
         :: Either (ErrBalanceTx era) Selection
     performSelection'
-        = left coinSelectionErrorToBalanceTxError
+        = left (coinSelectionErrorToBalanceTxError era)
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
 
@@ -1540,9 +1550,10 @@ toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
 -- | Maps an error from the coin selection API to a balanceTx error.
 --
 coinSelectionErrorToBalanceTxError
-    :: SelectionError WalletSelectionContext
+    :: RecentEra era
+    -> SelectionError WalletSelectionContext
     -> ErrBalanceTx era
-coinSelectionErrorToBalanceTxError = \case
+coinSelectionErrorToBalanceTxError era = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
@@ -1574,6 +1585,7 @@ coinSelectionErrorToBalanceTxError = \case
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
+                & fromWalletUTxO era
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }

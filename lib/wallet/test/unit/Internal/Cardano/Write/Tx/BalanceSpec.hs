@@ -1149,7 +1149,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             -> CardanoApi.Tx era
             -> IO ())
         -> Spec
-    forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
+    forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> itIO name $
         Write.withInAnyRecentEra (recentEraTxFromBytes bs) $ \tx ->
             let
                 msg = unlines
@@ -1217,7 +1217,7 @@ spec_updateTx = describe "updateTx" $ do
         forM_ txs $ \(filepath, sealedTx) -> do
             let anyRecentEraTx
                     = fromJust $ Write.asAnyRecentEra $ cardanoTx sealedTx
-            it ("without TxUpdate: " <> filepath) $ do
+            itIO ("without TxUpdate: " <> filepath) $ do
                 Write.withInAnyRecentEra anyRecentEraTx
                     $ \(tx :: CardanoApi.Tx era) -> do
                     let res = toCardanoApiTx <$> updateTx
@@ -1269,7 +1269,7 @@ spec_updateTx = describe "updateTx" $ do
 
         signedTxs <- runIO signedTxTestData
 
-        it "returns `Left err` with noTxUpdate" $ do
+        itIO "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
             let anyRecentEraTx = recentEraTxFromBytes
                     $ snd $ head signedTxs
@@ -1283,7 +1283,7 @@ spec_updateTx = describe "updateTx" $ do
 
                     res `shouldBe` Left (ErrExistingKeyWitnesses 1)
 
-        it "returns `Left err` when extra body content is non-empty" $ do
+        itIO "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
   where
     readTestTransactions :: SpecM a [(FilePath, SealedTx)]
@@ -2121,6 +2121,16 @@ hasTotalCollateral (CardanoApi.Tx (CardanoApi.TxBody content) _) =
     case CardanoApi.txTotalCollateral content of
         CardanoApi.TxTotalCollateralNone -> False
         CardanoApi.TxTotalCollateral _ _ -> True
+
+-- | A type-constrained variant of 'it'.
+--
+-- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2353
+--
+-- We should consider removing this function and replacing usages of it with
+-- the ordinary 'Hspec.it' function.
+--
+itIO :: String -> IO () -> Spec
+itIO = it
 
 mkTestWallet :: W.UTxO -> Wallet'
 mkTestWallet utxo =
