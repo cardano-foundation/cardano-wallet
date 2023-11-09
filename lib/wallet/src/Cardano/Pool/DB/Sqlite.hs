@@ -245,12 +245,10 @@ withSqliteContextFile
     -- ^ Manual migrations
     -> Migration
     -- ^ Auto migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -- ^ New style migrations
     -> (SqliteContext -> IO a)
     -> IO (Either MigrationError a)
-withSqliteContextFile tr fp old auto new action = do
-    migrationResult <- runAllMigrations tr fp old auto new
+withSqliteContextFile tr fp old auto action = do
+    migrationResult <- runAllMigrations tr fp old auto
     case migrationResult of
         Left e -> pure $ Left e
         Right{} -> do
@@ -547,26 +545,15 @@ runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
         $ Right
             <$> (`executeManualMigration` dbConn) manualMigration
 
-runManualNewMigrations
-    :: Tracer IO DBLog
-    -> FilePath
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runManualNewMigrations tr fp newMigrations =
-    newMigrations tr fp
-        & tryJust matchWrongVersionError
-
 runAllMigrations
     :: Tracer IO DBLog
     -> FilePath
     -> ManualMigration
     -> Migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
     -> IO (Either MigrationError ())
-runAllMigrations tr fp old auto new = runExceptT $ do
+runAllMigrations tr fp old auto = runExceptT $ do
     ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
     ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
-    ExceptT $ runManualNewMigrations tr fp new
 
 {-------------------------------------------------------------------------------
     Database migration helpers
