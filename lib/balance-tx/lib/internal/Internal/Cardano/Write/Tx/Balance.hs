@@ -224,6 +224,7 @@ import Internal.Cardano.Write.Tx
     , PParams
     , PolicyId
     , RecentEra (..)
+    , RecentEraLedgerConstraints
     , ShelleyLedgerEra
     , Tx
     , TxBody
@@ -374,11 +375,11 @@ data ErrBalanceTxInsufficientCollateralError era =
     deriving Generic
 
 deriving instance
-    IsRecentEra era =>
+    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
     Eq (ErrBalanceTxInsufficientCollateralError era)
 
 deriving instance
-    IsRecentEra era =>
+    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
     Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
@@ -435,12 +436,14 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
-    | ErrBalanceTxInsufficientCollateral
+    | RecentEraLedgerConstraints (ShelleyLedgerEra era)
+        => ErrBalanceTxInsufficientCollateral
         (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
-    | ErrBalanceTxInputResolutionConflicts
+    | RecentEraLedgerConstraints (ShelleyLedgerEra era)
+        => ErrBalanceTxInputResolutionConflicts
         (NonEmpty (TxOut (ShelleyLedgerEra era), TxOut (ShelleyLedgerEra era)))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
@@ -929,7 +932,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     Nothing -> pure ()
         case conflicts of
             [] -> return ()
-            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+            (c : cs) -> throwE
+                $ withConstraints era
+                $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
     combinedUTxO :: UTxO (ShelleyLedgerEra era)
     combinedUTxO = withConstraints era $ mconcat
@@ -1556,7 +1561,7 @@ coinSelectionErrorToBalanceTxError
     :: RecentEra era
     -> SelectionError WalletSelectionContext
     -> ErrBalanceTx era
-coinSelectionErrorToBalanceTxError era = \case
+coinSelectionErrorToBalanceTxError era = withConstraints era $ \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
