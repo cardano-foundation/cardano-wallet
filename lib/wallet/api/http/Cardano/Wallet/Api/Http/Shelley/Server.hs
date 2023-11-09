@@ -894,6 +894,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -3210,7 +3211,9 @@ constructSharedTransaction
                 balancedTx <-
                     balanceTransaction api argGenChange
                     (AllScriptPaymentCredentialsFrom
-                        (Shared.paymentTemplate (getState cp)) scriptLookup)
+                        (Shared.paymentTemplate (getState cp))
+                        (scriptLookup . Convert.toWalletAddress)
+                    )
                     (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
