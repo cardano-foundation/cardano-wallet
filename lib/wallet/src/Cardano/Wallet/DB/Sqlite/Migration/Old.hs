@@ -35,11 +35,9 @@ module Cardano.Wallet.DB.Sqlite.Migration.Old
 
 import Prelude
 
-import Cardano.DB.Sqlite
-    ( DBLog (..)
-    )
 import Cardano.DB.Sqlite.Migration.Old
     ( DBField (..)
+    , DBMigrationOldLog (..)
     , ManualMigration (..)
     , fieldName
     , fieldType
@@ -173,7 +171,7 @@ onlyOnSchemaForOldMigrations (ManualMigration m) = ManualMigration $ \conn -> do
 -- | Executes any manual database migration steps that may be required on
 -- startup.
 migrateManually
-    :: Tracer IO DBLog
+    :: Tracer IO DBMigrationOldLog
     -> KeyFlavorS k
     -> DefaultFieldValues
     -> ManualMigration

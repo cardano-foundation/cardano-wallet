@@ -61,6 +61,7 @@ import Cardano.DB.Sqlite
     )
 import Cardano.DB.Sqlite.Migration.Old
     ( DBField
+    , DBMigrationOldLog (..)
     , fieldName
     )
 import Cardano.Mnemonic
@@ -1384,8 +1385,11 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
 
 matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
 matchMsgManualMigration p = \case
-    MsgDB (MsgManualMigrationNeeded field _) -> p field
-    MsgDB (MsgExpectedMigration (MsgManualMigrationNeeded field _)) -> p field
+    MsgDB (MsgMigrationOld (MsgManualMigrationNeeded field _)) -> p field
+    MsgDB
+        ( MsgMigrationOld
+            (MsgExpectedMigration (MsgManualMigrationNeeded field _))
+        ) -> p field
     _ -> False
 
 testMigrationCleanupCheckpoints

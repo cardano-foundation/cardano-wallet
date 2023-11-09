@@ -17,8 +17,12 @@ module Cardano.DB.Sqlite.Migration.Old
     , noManualMigration
     , foldMigrations
 
+    -- ** Errors
     , MigrationError (..)
     , MatchMigrationError (..)
+
+    -- ** Logs
+    , DBMigrationOldLog (..)
 
     -- * Migration helpers
     , DBField (..)
@@ -29,6 +33,13 @@ module Cardano.DB.Sqlite.Migration.Old
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    )
 import Control.Exception
     ( Exception
     )
@@ -43,6 +54,9 @@ import Data.Proxy
     )
 import Data.Text
     ( Text
+    )
+import Data.Text.Class
+    ( ToText (..)
     )
 import Database.Persist.EntityDef
     ( getEntityDBName
@@ -166,3 +180,40 @@ instance MatchMigrationError SqliteException where
         Just $ MigrationError msg
     matchMigrationError _ =
         Nothing
+
+{-----------------------------------------------------------------------------
+    Logs
+------------------------------------------------------------------------------}
+data DBMigrationOldLog
+    = MsgExpectedMigration DBMigrationOldLog
+    | MsgManualMigrationNeeded DBField Text
+    | MsgManualMigrationNotNeeded DBField
+    deriving (Generic, Show, Eq, ToJSON)
+
+instance HasPrivacyAnnotation DBMigrationOldLog
+instance HasSeverityAnnotation DBMigrationOldLog where
+    getSeverityAnnotation ev = case ev of
+        MsgExpectedMigration{} -> Debug
+        MsgManualMigrationNeeded{} -> Notice
+        MsgManualMigrationNotNeeded{} -> Debug
+
+instance ToText DBMigrationOldLog where
+    toText = \case
+        MsgExpectedMigration msg -> "Expected: " <> toText msg
+        MsgManualMigrationNeeded field value ->
+            mconcat
+                [ tableName field
+                , " table does not contain required field '"
+                , fieldName field
+                , "'. "
+                , "Adding this field with a default value of "
+                , value
+                , "."
+                ]
+        MsgManualMigrationNotNeeded field ->
+            mconcat
+                [ tableName field
+                , " table already contains required field '"
+                , fieldName field
+                , "'."
+                ]
