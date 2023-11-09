@@ -2987,6 +2987,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , "specified"
             ]
 
+    coalesceTokensPerAddr :: [(ApiAddress n, TokenMap)] -> [TxOut]
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
                 addressAmountToTxOut $
