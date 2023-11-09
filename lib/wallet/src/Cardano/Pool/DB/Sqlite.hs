@@ -41,7 +41,6 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
-    , handleConstraint
     , newInMemorySqliteContext
     , withSqliteContextFile
     )
@@ -102,6 +101,9 @@ import Control.Monad
     )
 import Control.Monad.IO.Class
     ( liftIO
+    )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..)
     )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
@@ -181,6 +183,10 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT
     )
+import Database.Sqlite
+    ( Error (ErrorConstraint)
+    , SqliteException (SqliteException)
+    )
 import System.Directory
     ( removeFile
     )
@@ -193,6 +199,7 @@ import System.Random
 import UnliftIO.Exception
     ( bracket
     , catch
+    , handleJust
     , throwIO
     )
 
@@ -788,6 +795,15 @@ newDBLayer tr ti SqliteContext{runQuery} =
                 [ Desc BlockHeight
                 , LimitTo k
                 ]
+
+-- | Run an action, and convert any Sqlite constraints exception into the given
+-- error result. No other exceptions are handled.
+handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
+handleConstraint e = handleJust select handler . fmap Right
+  where
+    select (SqliteException ErrorConstraint _ _) = Just ()
+    select _ = Nothing
+    handler = const . pure . Left $ e
 
 -- | Defines a raw SQL query, runnable with 'runRawQuery'.
 data RawQuery a b = RawQuery
