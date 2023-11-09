@@ -217,7 +217,8 @@ import Control.Monad.IO.Unlift
     , liftIO
     )
 import Control.Monad.Trans.Resource
-    ( runResourceT
+    ( ResourceT
+    , runResourceT
     )
 import Data.Aeson
     ( toJSON
@@ -540,62 +541,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_02c - Metadata encrypted" $
+    it "TRANS_NEW_CREATE_02c - Small metadata encrypted" $
         \ctx -> runResourceT $ do
-
-        wa <- fixtureWallet ctx
-        let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
-        let metadataToBeEncrypted =
-                TxMetadataWithSchema TxMetadataNoSchema metadataRaw
-        let encryptMetadata =
-                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
-        let payload = Json [json|{
-                "encrypt_metadata": #{toJSON encryptMetadata},
-                "metadata": #{toJSON metadataToBeEncrypted}
-            }|]
-        let expEncryptedMetadata =
-                toMetadataEncrypted encryptMetadata metadataToBeEncrypted
-        let expEncryptedMetadataSerialised =
-                ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata
-
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #metadata)
-                (`shouldBe` (Just expEncryptedMetadataSerialised))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
-            ]
-
-        let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        let decodePayloadEncrypted = Json (toJSON signedTx)
-        let expMetadataEncrypted = ApiT expEncryptedMetadata
-        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
-        verify rDecodedTxEncrypted
-            [ expectResponseCode HTTP.status202
-            , expectField #metadata
-                (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
-            ]
-
-        let decodePayloadDecrypted = Json [json|{
-                "decrypt_metadata": #{toJSON encryptMetadata},
-                "transaction": #{serialisedTxSealed signedTx}
-            }|]
-        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayloadDecrypted
-        verify rDecodedTxDecrypted
-            [ expectResponseCode HTTP.status202
-            , expectField #metadata
-                (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
-            ]
+            let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
+            checkMetadataEncrytion ctx metadataRaw
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -5308,3 +5257,61 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#assets . #total)
                     (`shouldBe` mempty)
                 ]
+    checkMetadataEncrytion
+        :: MonadUnliftIO m
+        => Context
+        -> TxMetadata
+        -> ResourceT m ()
+    checkMetadataEncrytion ctx metadataRaw = do
+        wa <- fixtureWallet ctx
+        let metadataToBeEncrypted =
+                TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+        let encryptMetadata =
+                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
+        let payload = Json [json|{
+                "encrypt_metadata": #{toJSON encryptMetadata},
+                "metadata": #{toJSON metadataToBeEncrypted}
+            }|]
+        let expEncryptedMetadata =
+                toMetadataEncrypted encryptMetadata metadataToBeEncrypted
+        let expEncryptedMetadataSerialised =
+                ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata)
+                (`shouldBe` (Just expEncryptedMetadataSerialised))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let decodePayloadEncrypted = Json (toJSON signedTx)
+        let expMetadataEncrypted = ApiT expEncryptedMetadata
+        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
+        verify rDecodedTxEncrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
+            ]
+
+        let decodePayloadDecrypted = Json [json|{
+                "decrypt_metadata": #{toJSON encryptMetadata},
+                "transaction": #{serialisedTxSealed signedTx}
+            }|]
+        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadDecrypted
+        verify rDecodedTxDecrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
+            ]
