@@ -45,7 +45,7 @@ encryptPayload
         -- ^ Payload to be encrypted
     -> ByteString
         -- ^ Ciphertext with a 16-byte crypto-tag appended.
-encryptPayload passphrase nonce payload = unsafeSerialize $ do
+encryptPayload passphrase nonce payload = BS.drop 2 $ unsafeSerialize $ do
     nonced <- Poly.nonce12 nonce
     st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonced
     let (out, st2) = Poly.encrypt payload st1

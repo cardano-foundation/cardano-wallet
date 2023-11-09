@@ -3137,8 +3137,7 @@ toMetadataEncrypted apiEncrypt =
   where
     toBytes = BL.toStrict . Aeson.encode
 
-    encrypt = BS.drop 2 .
-        encryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce
+    encrypt = encryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce
 
     toChunks bs res =
         if bs == BS.empty then
