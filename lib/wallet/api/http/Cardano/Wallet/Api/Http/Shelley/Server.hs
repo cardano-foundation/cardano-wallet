@@ -3510,6 +3510,14 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
                 , metadata
                 , scriptValidity
                 }) = decodedTx
+        metadata' <- case (decryptMetadata, metadata) of
+            (Just apiDecrypt, Just meta) ->
+                case fromMetadataEncrypted apiDecrypt meta of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right (TxMetadataWithSchema _ txmetadata) ->
+                        pure . Just . ApiT $ txmetadata
+            _ -> pure $ ApiT <$> metadata
         inputPaths <-
             handler $ W.lookupTxIns @_ wrk $ fst <$> resolvedInputs
         collateralInputPaths <-
@@ -3539,7 +3547,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
             , certs
             , txId
             , fee
-            , metadata
+            , metadata'
             , scriptValidity
             , interval
             , witsCount
@@ -3567,7 +3575,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
         , depositsReturned =
             (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration certs
-        , metadata = ApiTxMetadata $ ApiT <$> metadata
+        , metadata = ApiTxMetadata metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = ApiValidityIntervalExplicit <$> interval
         , witnessCount = mkApiWitnessCount witsCount
