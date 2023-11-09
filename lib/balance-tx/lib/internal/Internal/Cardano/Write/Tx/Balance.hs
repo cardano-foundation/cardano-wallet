@@ -454,8 +454,8 @@ data ErrBalanceTx era
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
 
-deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
-deriving instance IsRecentEra era => Show (ErrBalanceTx era)
+deriving instance Eq (ErrBalanceTx era)
+deriving instance Show (ErrBalanceTx era)
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
