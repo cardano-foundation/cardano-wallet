@@ -25,13 +25,10 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Open a database for a specific 'WalletId'
-    , withDBFreshFromFile
-    , withDBFreshInMemory
-    , newDBFreshInMemory
-
     , withLoadDBLayerFromFile
     , withBootDBLayerFromFile
     , newBootDBLayerInMemory
+    , withBootDBLayerInMemory
 
     -- * Open a database for testing
     , withTestLoadDBLayerFromFile
@@ -214,9 +211,6 @@ import Control.Tracer
     ( Tracer
     , contramap
     , traceWith
-    )
-import Data.Bifunctor
-    ( second
     )
 import Data.Coerce
     ( coerce
@@ -585,6 +579,25 @@ newBootDBLayerInMemory wF tr ti wid params =
             Right dblayer ->
                 pure (destroy, dblayer)
 
+-- | Create a 'DBLayer' in memory.
+--
+-- Create tables corresponding to the current schema.
+--
+-- @with@ variant of 'newBootDBLayerInMemory'.
+withBootDBLayerInMemory
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -> Tracer IO WalletDBLog
+    -> TimeInterpreter IO
+    -> W.WalletId
+    -> DBLayerParams s
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withBootDBLayerInMemory wF tr ti wid params action =
+    bracket
+        (newBootDBLayerInMemory wF tr ti wid params) fst (action . snd)
+
 {-------------------------------------------------------------------------------
     DBOpen
 -------------------------------------------------------------------------------}
@@ -664,73 +677,6 @@ withDBFreshFromDBOpen
     -- ^ Already opened database.
     -> IO a
 withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
-
--- | Runs an action with a connection to the SQLite database.
---
--- Database migrations are run to create tables if necessary.
---
--- If the given file path does not exist, it will be created by the sqlite
--- library.
-withDBFreshFromFile
-    :: forall s a
-     . PersistAddressBook s
-    => WalletFlavorS s
-        -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-       -- ^ Logging object
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-         -- ^ Wallet ID of the database.
-    -> Maybe DefaultFieldValues
-       -- ^ Default database field values, used during manual migration.
-       -- Use 'Nothing' to skip manual migrations.
-    -> FilePath
-       -- ^ Path to database file
-    -> (DBFresh IO s -> IO a)
-       -- ^ Action to run.
-    -> IO a
-withDBFreshFromFile walletF tr ti wid defaultFieldValues dbFile action =
-    withDBOpenFromFile walletF tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen walletF ti wid
-
--- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
--- database.
-withDBFreshInMemory
-    :: forall s a
-     . PersistAddressBook s
-    => WalletFlavorS s
-    -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-    -- ^ Logging object.
-    -> TimeInterpreter IO
-    -- ^ Time interpreter for slot to time conversions
-    -> W.WalletId
-    -- ^ Wallet ID of the database.
-    -> (DBFresh IO s -> IO a)
-    -- ^ Action to run.
-    -> IO a
-withDBFreshInMemory wf tr ti wid action = bracket
-    (newDBFreshInMemory wf tr ti wid) fst (action . snd)
-
--- | Creates a 'DBFresh' backed by a sqlite in-memory database.
---
--- Returns a cleanup function which you should always use exactly once when
--- finished with the 'DBFresh'.
-newDBFreshInMemory
-    :: forall s
-     . PersistAddressBook s
-    => WalletFlavorS s
-    -- ^ Wallet flavor
-    -> Tracer IO WalletDBLog
-    -- ^ Logging object.
-    -> TimeInterpreter IO
-    -- ^ Time interpreter for slot to time conversions.
-    -> W.WalletId
-    -- ^ Wallet ID of the database.
-    -> IO (IO (), DBFresh IO s)
-newDBFreshInMemory wf tr ti wid = do
-    second (newDBFreshFromDBOpen wf ti wid) <$> newDBOpenInMemory tr
 
 -- | From a 'DBOpen', create a database which can store the state
 -- of one wallet with a specific 'WalletId'.

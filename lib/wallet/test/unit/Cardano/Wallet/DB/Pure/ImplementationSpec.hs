@@ -39,9 +39,6 @@ import Cardano.Wallet.Primitive.Types.Address
 import Control.DeepSeq
     ( NFData
     )
-import Control.Monad.IO.Class
-    ( liftIO
-    )
 import Test.Hspec
     ( Spec
     , before
@@ -60,10 +57,11 @@ spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in CI mac builds")
     $ describe "PureLayer"
-    $ properties $ \wid test -> do
-        run <- liftIO $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
-            dummyTimeInterpreter wid
-        test run
+    $ properties $ \wid params ->
+        PureLayer.withBootDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
+            dummyTimeInterpreter
+            wid
+            params
 
 newtype DummyStatePureLayer = DummyStatePureLayer Int
     deriving (Show, Eq)

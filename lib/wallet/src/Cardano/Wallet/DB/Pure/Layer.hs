@@ -13,15 +13,15 @@
 -- when compiling the wallet for targets which don't have SQLite.
 
 module Cardano.Wallet.DB.Pure.Layer
-    ( newDBFresh
-    , throwErrorReadDB) where
+    ( withBootDBLayer
+    , throwErrorReadDB
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBFresh (..)
-    , DBLayer (..)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
+    ( DBLayer (..)
+    , DBLayerParams
     )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
@@ -46,16 +46,17 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     )
+import Control.Concurrent.MVar
+    ( MVar
+    , modifyMVar
+    , newMVar
+    , withMVar
+    )
 import Control.Monad
     ( join
-    , unless
     )
-import Control.Monad.IO.Unlift
+import Control.Monad.IO.Class
     ( MonadIO (..)
-    , MonadUnliftIO (..)
-    )
-import Control.Monad.Trans.Except
-    ( throwE
     )
 import Data.Functor.Identity
     ( Identity (..)
@@ -67,43 +68,22 @@ import UnliftIO.Exception
     ( Exception
     , throwIO
     )
-import UnliftIO.MVar
-    ( MVar
-    , isEmptyMVar
-    , modifyMVar
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , withMVar
-    )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBFresh
+withBootDBLayer
     :: forall m s
-     . ( MonadUnliftIO m
-       , MonadFail m
+     . ( MonadIO m
        )
     => TimeInterpreter Identity
     -> WalletId
-    -> m (DBFresh m s)
-newDBFresh timeInterpreter wid = do
-    lock <- newMVar ()
-    db <- newEmptyMVar
-
-    let
-      dbf = DBFresh
-            {
-              bootDBLayer = \sp -> do
-                t <- isEmptyMVar db
-                unless t $ throwE ErrWalletAlreadyInitialized
-                liftIO
-                    $ putMVar db
-                    $ mInitializeWallet wid sp
-                pure dbl
-            , loadDBLayer = error "loadDBLayer: not implemented"
-              }
-      dbl = DBLayer
+    -> DBLayerParams s
+    -> (DBLayer IO s -> m ())
+    -> m ()
+withBootDBLayer timeInterpreter wid params k = do
+    lock <- liftIO $ newMVar ()
+    db <- liftIO $ newMVar $ mInitializeWallet wid params
+    k $ DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -182,20 +162,19 @@ newDBFresh timeInterpreter wid = do
 
         , atomically = \action -> withMVar lock $ \() -> action
         }
-    pure dbf
 
 -- | Read the database, but return 'Nothing' if the operation fails.
-readDBMaybe :: MonadUnliftIO f
+readDBMaybe :: MonadIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
-    -> f (Maybe a)
+    -> m (Maybe a)
 readDBMaybe db = fmap (either (const Nothing) Just) . readDB db
 
 -- | Apply an operation to the model database, then update the mutable variable.
 -- Failures are converted to 'Err' using the provided function.
 -- Failures that cannot be converted are rethrown as 'MVarDBError'.
 alterDB
-    :: MonadUnliftIO m
+    :: MonadIO m
     => (Err -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database WalletId s xprv)
@@ -203,7 +182,7 @@ alterDB
     -> ModelOp WalletId s xprv a
     -- ^ Operation to run on the database
     -> m (Either err a)
-alterDB convertErr db op = modifyMVar db (bubble . op)
+alterDB convertErr db op = liftIO $ modifyMVar db (bubble . op)
   where
     bubble (Left e, !db') = case convertErr e of
         Just e' -> pure (db', Left e')
@@ -211,7 +190,7 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
     bubble (Right a, !db') = pure (db', Right a)
 
 noErrorAlterDB
-    :: MonadUnliftIO m
+    :: MonadIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
     -> m a
@@ -222,7 +201,7 @@ noErrorAlterDB db op = do
         Right a -> pure a
 
 throwErrorReadDB
-    :: MonadUnliftIO m
+    :: MonadIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv b
     -> m b
@@ -234,7 +213,7 @@ throwErrorReadDB db op = do
 
 -- | Run a query operation on the model database.
 readDB
-    :: MonadUnliftIO m
+    :: MonadIO m
     => MVar (Database WalletId s xprv)
     -- ^ The database variable
     -> ModelOp WalletId s xprv a
