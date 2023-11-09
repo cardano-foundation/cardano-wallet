@@ -1203,7 +1203,7 @@ data ApiMultiDelegationAction
     deriving anyclass NFData
 
 newtype ApiEncryptMetadata = ApiEncryptMetadata
-    { passphrase :: (ApiT (Passphrase "lenient")) }
+    { passphrase :: ApiT (Passphrase "lenient") }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
