@@ -620,10 +620,11 @@ withDBOpenFromFile
     -> IO a
 withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
+        trManualMigrations = contramap MsgMigrationOld trDB
     let manualMigrations =
             maybe
                 createSchemaVersionTableIfMissing'
-                (migrateManually trDB $ keyOfWallet walletF)
+                (migrateManually trManualMigrations $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
     res <- withSqliteContextFile trDB dbFile
