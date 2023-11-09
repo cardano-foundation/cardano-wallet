@@ -37,6 +37,14 @@ import Prelude
 import Cardano.BM.Extra
     ( bracketTracer
     )
+import Cardano.DB.Sqlite.Migration.Old
+    ( DBField (..)
+    , ManualMigration (..)
+    , MigrationError
+    , fieldName
+    , foldMigrations
+    , tableName
+    )
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
@@ -47,16 +55,10 @@ import Cardano.Pool.DB.Log
     , PoolDbLog (..)
     )
 import Cardano.Pool.DB.Sqlite
-    ( DBField (..)
-    , DBLog (..)
-    , ManualMigration (..)
-    , MigrationError
+    ( DBLog (..)
     , SqliteContext (..)
-    , fieldName
-    , foldMigrations
     , handleConstraint
     , newInMemorySqliteContext
-    , tableName
     , withSqliteContextFile
     )
 import Cardano.Pool.DB.Sqlite.TH hiding

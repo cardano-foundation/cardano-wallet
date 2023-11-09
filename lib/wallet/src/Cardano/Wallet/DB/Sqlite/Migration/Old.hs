@@ -36,8 +36,10 @@ module Cardano.Wallet.DB.Sqlite.Migration.Old
 import Prelude
 
 import Cardano.DB.Sqlite
+    ( DBLog (..)
+    )
+import Cardano.DB.Sqlite.Migration.Old
     ( DBField (..)
-    , DBLog (..)
     , ManualMigration (..)
     , fieldName
     , fieldType
