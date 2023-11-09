@@ -401,9 +401,6 @@ data DBLog
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
-    | MsgManualMigrationNeeded DBField Text
-    | MsgExpectedMigration DBLog
-    | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgRetryOnBusy Int RetryLog
     deriving (Generic, Show, Eq, ToJSON)
@@ -420,12 +417,9 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
-        MsgExpectedMigration _ -> Debug
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
-        MsgManualMigrationNeeded{} -> Notice
-        MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
         MsgRetryOnBusy n _
             | n <= 1 -> Debug
@@ -455,24 +449,6 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
-        MsgExpectedMigration msg -> "Expected: " <> toText msg
-        MsgManualMigrationNeeded field value ->
-            mconcat
-                [ tableName field
-                , " table does not contain required field '"
-                , fieldName field
-                , "'. "
-                , "Adding this field with a default value of "
-                , value
-                , "."
-                ]
-        MsgManualMigrationNotNeeded field ->
-            mconcat
-                [ tableName field
-                , " table already contains required field '"
-                , fieldName field
-                , "'."
-                ]
         MsgUpdatingForeignKeysSetting value ->
             mconcat
                 [ "Updating the foreign keys setting to: "
