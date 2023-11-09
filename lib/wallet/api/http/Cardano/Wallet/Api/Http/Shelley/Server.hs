@@ -583,6 +583,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
+    , TokenMap
     , fromFlatList
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -2961,6 +2962,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
+    toMintTxOut :: XPub -> ApiMintBurnData n -> (ApiAddress n, TokenMap)
     toMintTxOut policyXPub mb = case mb ^. #mintBurnData of
         Left (ApiMintBurnDataFromScript (ApiT scriptT) (Just (ApiT tName))
             (ApiMint (ApiMintData (Just addr) amt))) ->
