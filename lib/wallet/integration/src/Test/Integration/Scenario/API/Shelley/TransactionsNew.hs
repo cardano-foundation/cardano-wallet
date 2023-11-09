@@ -546,6 +546,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
             checkMetadataEncrytion ctx metadataRaw
 
+    it "TRANS_NEW_CREATE_02d - Big metadata encrypted" $
+        \ctx -> runResourceT $ do
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (1,TxMetaText "Hard times create strong men.")
+                                , (2,TxMetaText "Strong men create good times.")
+                                , (3,TxMetaText "Good times create weak men.")
+                                , (4,TxMetaText "And, weak men create hard times.")])
+            checkMetadataEncrytion ctx metadataRaw
+
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
