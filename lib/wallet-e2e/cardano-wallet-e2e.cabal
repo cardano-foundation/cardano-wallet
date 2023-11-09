@@ -5,9 +5,9 @@ synopsis:      End-to-end test suite for the cardano-wallet.
 description:   Please see README.md
 homepage:      https://github.com/input-output-hk/cardano-wallet
 license:       Apache-2.0
-author:        IOHK Engineering Team
-maintainer:    operations@iohk.io
-copyright:     2018-2022 IOHK
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023 Cardano Foundation
 category:      Testing
 build-type:    Simple
 

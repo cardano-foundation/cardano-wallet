@@ -3,7 +3,7 @@ name:            std-gen-seed
 version:         0.0.0.0
 synopsis:        Support for standard random number generator seeds
 license:         Apache-2.0
-author:          HAL, Cardano Foundation
+author:          Cardano Foundation (High Assurance Lab)
 maintainer:      hal@cardanofoundation.org
 build-type:      Simple
 

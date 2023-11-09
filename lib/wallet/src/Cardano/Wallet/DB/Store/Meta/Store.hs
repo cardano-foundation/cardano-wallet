@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 {- |
- Copyright: © 2018-2022 IOHK
+ Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
  License: Apache-2.0
 
 Low level 'Store' for a collection of meta-transactions,

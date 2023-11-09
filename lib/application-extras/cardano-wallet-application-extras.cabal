@@ -4,7 +4,7 @@ version:         0.1.0.0
 synopsis:        modules to support applications for the cardano wallet
 license:         Apache-2.0
 license-file:    LICENSE
-author:          HAL, Cardano Foundation
+author:          Cardano Foundation (High Assurance Lab)
 maintainer:      hal@cardanofoundation.org
 build-type:      Simple
 extra-doc-files: CHANGELOG.md

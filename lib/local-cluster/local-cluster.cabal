@@ -5,7 +5,7 @@ synopsis:      Local cluster of cardano nodes
 homepage:      https://github.com/cardano-foundation/cardano-wallet
 license:       Apache-2.0
 license-file:  LICENSE
-author:        HAL, Cardano Foundation
+author:        Cardano Foundation (High Assurance Lab)
 maintainer:    hal@cardanofoundation.org
 copyright:     2023 Cardano Foundation
 category:      Web
