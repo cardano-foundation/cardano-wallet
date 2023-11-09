@@ -16,9 +16,6 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer
     )
-import Cardano.DB.Sqlite
-    ( DBLog (..)
-    )
 import Cardano.Pool.DB
     ( DBLayer (..)
     )
@@ -30,6 +27,9 @@ import Cardano.Pool.DB.Log
     )
 import Cardano.Pool.DB.Properties
     ( properties
+    )
+import Cardano.Pool.DB.Sqlite
+    ( DBLog (..)
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter

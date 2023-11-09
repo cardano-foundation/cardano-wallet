@@ -23,7 +23,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Extra
     ( BracketLog
     )
-import Cardano.DB.Sqlite
+import Cardano.Pool.DB.Sqlite
     ( DBLog (..)
     )
 import Cardano.Pool.Types

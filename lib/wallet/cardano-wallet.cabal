@@ -221,6 +221,7 @@ library
     Cardano.Pool.DB.Model
     Cardano.Pool.DB.MVar
     Cardano.Pool.DB.Layer
+    Cardano.Pool.DB.Sqlite
     Cardano.Pool.DB.Sqlite.TH
     Cardano.Pool.Metadata
     Cardano.Pool.Metadata.Types

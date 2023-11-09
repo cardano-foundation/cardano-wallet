@@ -37,7 +37,16 @@ import Prelude
 import Cardano.BM.Extra
     ( bracketTracer
     )
-import Cardano.DB.Sqlite
+import Cardano.Pool.DB
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolLifeCycleStatus
+    )
+import Cardano.Pool.DB.Log
+    ( ParseFailure (..)
+    , PoolDbLog (..)
+    )
+import Cardano.Pool.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
@@ -50,15 +59,6 @@ import Cardano.DB.Sqlite
     , newInMemorySqliteContext
     , tableName
     , withSqliteContextFile
-    )
-import Cardano.Pool.DB
-    ( DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , determinePoolLifeCycleStatus
-    )
-import Cardano.Pool.DB.Log
-    ( ParseFailure (..)
-    , PoolDbLog (..)
     )
 import Cardano.Pool.DB.Sqlite.TH hiding
     ( BlockHeader
