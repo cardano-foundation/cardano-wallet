@@ -3,9 +3,9 @@ name:          wai-middleware-logging
 version:       1.0
 synopsis:      WAI Middleware for Logging
 homepage:      https://github.com/cardano-foundation/cardano-wallet
-author:        IOHK Engineering Team
-maintainer:    operations@iohk.io
-copyright:     2018-2022 IOHK
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023 Cardano Foundation
 license:       Apache-2.0
 category:      Web
 build-type:    Simple

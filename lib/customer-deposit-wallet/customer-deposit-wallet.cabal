@@ -7,7 +7,7 @@ description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
 license:            Apache-2.0
 license-file:       LICENSE
-author:             HAL, Cardano Foundation
+author:             Cardano Foundation (High Assurance Lab)
 maintainer:         hal@cardanofoundation.org
 copyright:          2023 Cardano Foundation
 category:           Web
@@ -96,7 +96,7 @@ test-suite unit
     , base
     , cardano-wallet
     , cardano-wallet-primitive
-    , cardano-wallet-test-utils 
+    , cardano-wallet-test-utils
     , customer-deposit-wallet
     , hspec >=2.8.2
     , QuickCheck

@@ -4,7 +4,7 @@ version:       0.1.0.0
 synopsis:      Extra functionality extending the temporary package
 license:       Apache-2.0
 license-file:  LICENSE
-author:        HAL, Cardano Foundation
+author:        Cardano Foundation (High Assurance Lab)
 maintainer:    hal@cardanofoundation.org
 build-type:    Simple
 

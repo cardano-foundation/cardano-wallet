@@ -2,8 +2,8 @@ name:                delta-table
 version:             0.1.0.0
 synopsis:            Work with database tables using delta encodings.
 homepage:            https://github.com/cardano-foundation/cardano-wallet
-author:              IOHK Engineering Team
-maintainer:          operations@iohk.io
+author:              Cardano Foundation (High Assurance Lab)
+maintainer:          hal@cardanofoundation.org
 copyright:           2023 IOHK
 license:             Apache-2.0
 category:            Web

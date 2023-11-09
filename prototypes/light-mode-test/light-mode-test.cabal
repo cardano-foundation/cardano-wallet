@@ -19,8 +19,8 @@ description:
     The "Demo" module contains example code for running these answers.
 
 bug-reports:        https://github.com/cardano-foundation/cardano-wallet
-author:             IOHK Engineering Team
-maintainer:         operations@iohk.io
+author:             Cardano Foundation (High Assurance Lab)
+maintainer:         hal@cardanofoundation.org
 copyright:          2021-2022 IOHK
 license:            Apache-2.0
 category:           Cardano
