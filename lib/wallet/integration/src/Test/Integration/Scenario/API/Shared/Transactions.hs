@@ -564,6 +564,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
         checkMetadataEncrytion ctx metadataRaw
 
+    it "SHARED_TRANSACTIONS_CREATE_01 - \
+        \Can create tx for an active shared wallet, big metadata encrypted" $
+        \ctx -> runResourceT $ do
+        let metadataRaw =
+                TxMetadata (Map.fromList
+                            [ (1,TxMetaText "Hard times create strong men.")
+                            , (2,TxMetaText "Strong men create good times.")
+                            , (3,TxMetaText "Good times create weak men.")
+                            , (4,TxMetaText "And, weak men create hard times.")])
+        checkMetadataEncrytion ctx metadataRaw
+
     it "SHARED_TRANSACTIONS_CREATE_01a -\
         \Empty payload is not allowed" $
         \ctx -> runResourceT $ do
