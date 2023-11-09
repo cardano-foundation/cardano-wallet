@@ -2773,7 +2773,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Right (ApiMintBurnDataFromInput _ _ _ (ApiMint (ApiMintData (Just _) _))) ->
                     True
                 _ -> False
-        let mintingOuts = case mintBurnDatum of
+
+        let mintingOuts :: [TxOut]
+            mintingOuts = case mintBurnDatum of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
                     map (toMintTxOut policyXPub) $
