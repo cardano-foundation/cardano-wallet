@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -2694,9 +2695,8 @@ instance Arbitrary (PartialTx CardanoApi.BabbageEra) where
         let redeemers = []
         return $ PartialTx tx (fromCardanoApiUTxO inputUTxO) redeemers
     shrink (PartialTx tx inputUTxO redeemers) =
-        [ PartialTx tx (fromCardanoApiUTxO inputUTxO') redeemers
-        | inputUTxO' <- shrinkInputResolution @CardanoApi.BabbageEra
-            (toCardanoApiUTxO inputUTxO)
+        [ PartialTx tx inputUTxO' redeemers
+        | inputUTxO' <- shrinkInputResolution @CardanoApi.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $ PartialTx tx' inputUTxO redeemers
         | tx' <- shrinkTxBabbage tx
@@ -2817,15 +2817,16 @@ shrinkFee _ = [Ledger.Coin 0]
 
 shrinkInputResolution
     :: forall era.
-        ( Arbitrary (CardanoApi.TxOut CardanoApi.CtxUTxO era)
+        ( IsRecentEra era
+        , Arbitrary (CardanoApi.TxOut CardanoApi.CtxUTxO era)
         )
-    => CardanoApi.UTxO era
-    -> [CardanoApi.UTxO era]
+    => Write.UTxO (ShelleyLedgerEra era)
+    -> [Write.UTxO (ShelleyLedgerEra era)]
 shrinkInputResolution =
     shrinkMapBy utxoFromList utxoToList shrinkUTxOEntries
    where
-     utxoToList (CardanoApi.UTxO u) = Map.toList u
-     utxoFromList = CardanoApi.UTxO . Map.fromList
+     utxoToList = Map.toList . CardanoApi.unUTxO . toCardanoApiUTxO @era
+     utxoFromList = fromCardanoApiUTxO @era . CardanoApi.UTxO . Map.fromList
 
      -- NOTE: We only want to shrink the outputs, keeping the inputs and length
      -- of the list the same.
