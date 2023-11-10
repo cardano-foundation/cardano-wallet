@@ -237,7 +237,6 @@ import Internal.Cardano.Write.Tx
     , evaluateTransactionBalance
     , feeOfBytes
     , fromCardanoApiTx
-    , fromCardanoApiUTxO
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -473,13 +472,25 @@ deriving instance Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: CardanoApi.Tx era
-    , inputs :: CardanoApi.UTxO era
+    , inputs :: UTxO (ShelleyLedgerEra era)
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
-    } deriving (Show, Generic, Eq)
+    }
+    deriving Generic
 
-instance Buildable (PartialTx era) where
-    build (PartialTx tx (CardanoApi.UTxO ins) redeemers)
+deriving instance
+    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    Eq (PartialTx era)
+
+deriving instance
+    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    Show (PartialTx era)
+
+instance
+    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    Buildable (PartialTx era)
+  where
+    build (PartialTx tx (UTxO ins) redeemers)
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
@@ -919,10 +930,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make
     -- this check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
-        :: CardanoApi.UTxO era
+        :: UTxO (ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO (recentEra @era) $ fromCardanoApiUTxO u'
+        let W.UTxO u = toWalletUTxO (recentEra @era) u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
                 case i `W.UTxO.lookup` walletUTxO of
                     Just o2 -> unless (o1 == o2) $ Left
@@ -944,7 +955,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ fromCardanoApiUTxO inputUTxO
+         [ inputUTxO
          , walletLedgerUTxO
          ]
 
