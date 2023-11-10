@@ -2351,7 +2351,7 @@ buildTransactionPure
             (getState wallet)
             PartialTx
                 { tx = Cardano.Tx unsignedTxBody []
-                , inputs = Cardano.UTxO mempty
+                , inputs = Write.UTxO mempty
                 , redeemers = []
                 }
 
@@ -2987,7 +2987,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
 
         let ptx = PartialTx
                 { tx = Cardano.Tx unsignedTxBody []
-                , inputs = Cardano.UTxO mempty
+                , inputs = Write.UTxO mempty
                 , redeemers = []
                 }
 
