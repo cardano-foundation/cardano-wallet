@@ -322,10 +322,6 @@ instance TestEquality RecentEra where
 
 class
     ( CardanoApi.IsShelleyBasedEra era
-    , Core.Era (CardanoApi.ShelleyLedgerEra era)
-    , Eq (TxOut (CardanoApi.ShelleyLedgerEra era))
-    , Ledger.Crypto (Core.EraCrypto (CardanoApi.ShelleyLedgerEra era))
-    , Show (TxOut (CardanoApi.ShelleyLedgerEra era))
     , Typeable era
     ) => IsRecentEra era where
     recentEra :: RecentEra era
@@ -346,6 +342,9 @@ type RecentEraLedgerConstraints era =
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
+    , Eq (TxOut era)
+    , Ledger.Crypto (Core.EraCrypto era)
+    , Show (TxOut era)
     , Babbage.BabbageEraTxBody era
     , Shelley.EraUTxO era
     )
