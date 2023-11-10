@@ -1,14 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -36,6 +35,7 @@ module Cardano.Wallet.Read.Eras.EraFun
         , babbageFun
         , conwayFun
         )
+    , EraFunSel
 
       -- * Composition.
     , (*.**)
@@ -50,14 +50,18 @@ module Cardano.Wallet.Read.Eras.EraFun
       -- * higher order record encoding
     , runAllEraValue
     , AllEraValue
-    , EraFunSel
+        ( AllEraValue
+        , AllEraValueP
+        , byronVal
+        , shelleyVal
+        , allegraVal
+        , maryVal
+        , alonzoVal
+        , babbageVal
+        , conwayVal
+        )
     )
 where
-
-import Prelude hiding
-    ( id
-    , (.)
-    )
 
 import Cardano.Api
     ( AllegraEra
@@ -100,6 +104,10 @@ import Generics.SOP.NS
     )
 import GHC.Generics
     ( (:*:) (..)
+    )
+import Prelude hiding
+    ( id
+    , (.)
     )
 
 -- | A function that selects a field from any 'EraFun'.
@@ -214,11 +222,65 @@ instance Applicative (EraFunK src) where
       where
         q (Fn h) (Fn j) = Fn $ \src -> K $ unK (h src) $ unK $ j src
 
-type AllEraValue f = EraFun (K ()) f
+-- | A constant era 'EraFun' wrapped to expose the semigroup instance
+newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFun (K ()) f}
+
+-- | A pattern to construct/deconstruct an 'AllEraValue'
+pattern AllEraValueP
+    :: f ByronEra
+    -> f ShelleyEra
+    -> f AllegraEra
+    -> f MaryEra
+    -> f AlonzoEra
+    -> f BabbageEra
+    -> f ConwayEra
+    -> AllEraValue f
+pattern AllEraValueP
+    { byronVal
+    , shelleyVal
+    , allegraVal
+    , maryVal
+    , alonzoVal
+    , babbageVal
+    , conwayVal
+    } <-
+    AllEraValue
+        ( EraFun
+                { byronFun = (mkConst -> byronVal)
+                , shelleyFun = (mkConst -> shelleyVal)
+                , allegraFun = (mkConst -> allegraVal)
+                , maryFun = (mkConst -> maryVal)
+                , alonzoFun = (mkConst -> alonzoVal)
+                , babbageFun = (mkConst -> babbageVal)
+                , conwayFun = (mkConst -> conwayVal)
+                }
+            )
+    where
+        AllEraValueP
+            byronVal'
+            shelleyVal'
+            allegraVal'
+            maryVal'
+            alonzoVal'
+            babbageVal'
+            conwayVal' =
+                AllEraValue
+                    $ EraFun
+                        { byronFun = const byronVal'
+                        , shelleyFun = const shelleyVal'
+                        , allegraFun = const allegraVal'
+                        , maryFun = const maryVal'
+                        , alonzoFun = const alonzoVal'
+                        , babbageFun = const babbageVal'
+                        , conwayFun = const conwayVal'
+                        }
+
+mkConst :: (K () x -> f x) -> f x
+mkConst = ($ K ())
 
 -- | Collapse an 'AllEraValue' into a list of 'EraValue'.
 runAllEraValue :: AllEraValue f -> [EraValue f]
-runAllEraValue v = collapse_NP $ zipWith_NP q prisms (fromEraFun v)
+runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms (fromEraFun v)
   where
     q :: MkEraValue f era -> (K () -.-> f) era -> K (EraValue f) era
     q p (Fn f) = K $ inject p $ f (K ())
