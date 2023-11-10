@@ -228,7 +228,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
                 lock
                 (observe . useForeignKeys . runSqlConn cmd)
 
-    return (close' (dbBackend db), SqliteContext{runQuery})
+    return (closeDBHandle tr db, SqliteContext{runQuery})
 
 -- | Throw 'Left' as an exception in the monad.
 throwLeft :: Exception e => Either e b -> IO b
@@ -293,7 +293,7 @@ withDBHandle
     -> (DBHandle -> IO a)
     -> IO a
 withDBHandle tr fp =
-    bracket (newDBHandle tr fp) (destroyDBHandle tr)
+    bracket (newDBHandle tr fp) (closeDBHandleRetrying tr)
 
 -- | Create a new 'DBHandle' from a file.
 -- Needs to be closed explicitly.
@@ -315,34 +315,19 @@ newDBHandleInMemory
 newDBHandleInMemory tr =
     newDBHandle tr ":memory:"
 
--- | Finalize database statements and close the database connection.
--- If the database connection is still in use, it will retry for up to a minute,
--- to let other threads finish up.
+-- | Attempt to close the database connection and finalize database statements.
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
-destroyDBHandle
+--
+-- This function may still fail to close the connection due to the @SQLITE_BUSY@
+-- exception.
+closeDBHandle
     :: Tracer IO DBLog
     -> DBHandle
     -> IO ()
-destroyDBHandle tr DBHandle{dbFile, dbBackend = sqlBackend} = do
-    traceWith tr (MsgCloseSingleConnection dbFile)
-
-    -- Hack for ADP-827: timeout earlier in integration tests.
-    --
-    -- There seem to be some concurrency problem causing persistent-sqlite to
-    -- leak unfinalized statements, causing SQLITE_BUSY when we try to close the
-    -- connection. In this case, retrying 2 or 60 seconds would have no
-    -- difference.
-    --
-    -- But in production, the longer timeout isn't as much of a problem, and
-    -- might be needed for windows.
-    timeoutSec <-
-        lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
-            Just _ -> 2
-            Nothing -> retryOnBusyTimeout
-
-    retryOnBusy tr timeoutSec (close' sqlBackend)
+closeDBHandle tr DBHandle{dbBackend} = do
+    close' dbBackend
         & handleIf
             isAlreadyClosed
             (traceWith tr . MsgIsAlreadyClosed . showT)
@@ -363,6 +348,33 @@ destroyDBHandle tr DBHandle{dbFile, dbBackend = sqlBackend} = do
 
     showT :: Show a => a -> Text
     showT = T.pack . show
+
+-- | Like 'closeDBHandle',
+-- but will retry repeatedly on @SQLITE_BUSY@ exception.
+--
+-- Will retry for up to a minute ('retryOnBusyTimeout').
+closeDBHandleRetrying
+    :: Tracer IO DBLog
+    -> DBHandle
+    -> IO ()
+closeDBHandleRetrying tr db@DBHandle{dbFile} = do
+    traceWith tr $ MsgCloseSingleConnection dbFile
+
+    -- Hack for ADP-827: timeout earlier in integration tests.
+    --
+    -- There seem to be some concurrency problem causing persistent-sqlite to
+    -- leak unfinalized statements, causing SQLITE_BUSY when we try to close the
+    -- connection. In this case, retrying 2 or 60 seconds would have no
+    -- difference.
+    --
+    -- But in production, the longer timeout isn't as much of a problem, and
+    -- might be needed for windows.
+    timeoutSec <-
+        lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
+            Just _ -> 2
+            Nothing -> retryOnBusyTimeout
+
+    retryOnBusy tr timeoutSec $ closeDBHandle tr db
 
 -- | Default timeout for `retryOnBusy`
 retryOnBusyTimeout :: NominalDiffTime
