@@ -79,7 +79,6 @@ import Control.Lens
     )
 import Control.Monad
     ( join
-    , void
     )
 import Control.Monad.Logger
     ( LogLevel (..)
@@ -173,7 +172,9 @@ import UnliftIO.Compat
     ( handleIf
     )
 import UnliftIO.Exception
-    ( bracket
+    ( Exception
+    , bracket
+    , throwIO
     , tryJust
     )
 import UnliftIO.MVar
@@ -204,10 +205,9 @@ newInMemorySqliteContext
     -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
 newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
-    conn <- Sqlite.open ":memory:"
-    executeManualMigration manualMigrations conn
-    unsafeBackend <- wrapConnection conn (queryLogFunc tr)
-    void $ runSqlConn (runMigrationUnsafeQuiet autoMigration) unsafeBackend
+    db <- newDBHandleInMemory tr
+    throwLeft =<< runManualOldMigrations tr manualMigrations db
+    throwLeft =<< runAutoMigration tr autoMigration db
 
     let observe :: forall a. IO a -> IO a
         observe = bracketTracer (contramap MsgRun tr)
@@ -215,12 +215,12 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     -- We still use a lock with the in-memory database to protect it from
     -- concurrent accesses and ensure database integrity in case where multiple
     -- threads would be reading/writing from/to it.
-    lock <- newMVar unsafeBackend
+    lock <- newMVar (dbBackend db)
     let trFK = contramap MsgUpdatingForeignKeysSetting tr
         useForeignKeys :: IO a -> IO a
         useForeignKeys
             | disableFK == ForeignKeysDisabled =
-                withForeignKeysDisabled trFK conn
+                withForeignKeysDisabled trFK (dbConn db)
             | otherwise = id
         runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd =
@@ -228,7 +228,13 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
                 lock
                 (observe . useForeignKeys . runSqlConn cmd)
 
-    return (close' unsafeBackend, SqliteContext{runQuery})
+    return (close' (dbBackend db), SqliteContext{runQuery})
+
+-- | Throw 'Left' as an exception in the monad.
+throwLeft :: Exception e => Either e b -> IO b
+throwLeft = \case
+    Left e -> throwIO e
+    Right b -> pure b
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
@@ -280,6 +286,7 @@ data DBHandle = DBHandle
 
 type ReadDBHandle m = ReaderT DBHandle m
 
+-- | Acquire and release a 'DBHandle' from a file.
 withDBHandle
     :: Tracer IO DBLog
     -> FilePath
@@ -288,6 +295,8 @@ withDBHandle
 withDBHandle tr fp =
     bracket (newDBHandle tr fp) (destroyDBHandle tr)
 
+-- | Create a new 'DBHandle' from a file.
+-- Needs to be closed explicitly.
 newDBHandle
     :: Tracer IO DBLog
     -> FilePath
@@ -297,6 +306,14 @@ newDBHandle tr dbFile = do
     dbConn <- Sqlite.open (T.pack dbFile)
     dbBackend <- wrapConnection dbConn (queryLogFunc tr)
     pure $ DBHandle{dbFile, dbConn, dbBackend}
+
+-- | Create a new 'DBHandle' in memory.
+-- Needs to be closed explicitly.
+newDBHandleInMemory
+    :: Tracer IO DBLog
+    -> IO DBHandle
+newDBHandleInMemory tr =
+    newDBHandle tr ":memory:"
 
 -- | Finalize database statements and close the database connection.
 -- If the database connection is still in use, it will retry for up to a minute,
