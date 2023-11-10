@@ -339,7 +339,8 @@ data MkAddress where
 -- a simple chainF example
 exampleChainF :: ChainF Gen MkAddress ()
 exampleChainF = do
-    byron 0 -- a new byron block at slot 0, with following txs, block 0
+    byron 0
+    byron 5 -- a new byron block at slot 0, with following txs, block 0
     aby1 <- address WalletByronAddress
     tx1 <- tx $ do
         input (Index 0) (txid 'a') -- from outside
