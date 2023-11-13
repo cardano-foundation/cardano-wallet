@@ -65,6 +65,7 @@ import Cardano.DB.Sqlite.Delete
     )
 import Cardano.DB.Sqlite.Migration.Old
     ( ManualMigration (..)
+    , MigrationError
     , noManualMigration
     )
 import Cardano.Slotting.Slot
@@ -186,6 +187,7 @@ import Control.DeepSeq
     )
 import Control.Exception
     ( evaluate
+    , onException
     , throw
     )
 import Control.Monad
@@ -215,7 +217,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Maybe
     ( catMaybes
     , fromMaybe
-    , isJust
+    , isNothing
     )
 import Data.Store
     ( Store (..)
@@ -482,6 +484,12 @@ readWalletId = do
         _ -> Nothing
 
 {-------------------------------------------------------------------------------
+    DB migration and creation
+-------------------------------------------------------------------------------}
+throwMigrationError :: Either MigrationError a -> IO a
+throwMigrationError = either throwIO pure
+
+{-------------------------------------------------------------------------------
     DBLayer
 -------------------------------------------------------------------------------}
 -- | Load a 'DBLayer' from a file.
@@ -524,10 +532,8 @@ withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action =
             autoMigrations
             runNewStyleMigrations
             $ \ctx -> do
-                e <- loadDBLayerFromSqliteContext wF ti wid ctx
-                case e of
-                    Left err -> throw err
-                    Right dblayer -> action dblayer
+                dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
+                action dblayer
     either throwIO pure res
 
 -- | Create a 'DBLayer' in a file.
@@ -559,19 +565,16 @@ withBootDBLayerFromFile wF tr ti wid _defaultFieldValues params dbFile action =
   do
     let trDB = contramap MsgDB tr
         noNewStyleMigrations _ _ = pure ()
-    res <-
-        withSqliteContextFile
-            trDB
-            dbFile
-            createSchemaVersionTableIfMissing'
-            migrateAll
-            noNewStyleMigrations
-            $ \ctx -> do
-                e <- bootDBLayerFromSqliteContext wF ti wid params ctx
-                case e of
-                    Left err -> throw err
-                    Right dblayer -> action dblayer
-    either throwIO pure res
+    res <- withSqliteContextFile
+        trDB
+        dbFile
+        createSchemaVersionTableIfMissing'
+        migrateAll
+        noNewStyleMigrations
+        $ \ctx -> do
+            dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
+            action dblayer
+    throwMigrationError res
 
 -- | Create a 'DBLayer' in memory.
 --
@@ -600,13 +603,9 @@ newBootDBLayerInMemory wF tr ti wid params = do
             migrateAll
             ForeignKeysEnabled
 
-    e <- bootDBLayerFromSqliteContext wF ti wid params ctx
-    case e of
-        Left err -> do
-            destroy
-            throw err
-        Right dblayer ->
-            pure (destroy, dblayer)
+    db <- bootDBLayerFromSqliteContext wF ti wid params ctx
+        `onException` destroy
+    pure (destroy, db)
 
 -- | Create a 'DBLayer' in memory.
 --
@@ -640,7 +639,7 @@ bootDBLayerFromSqliteContext
     -> W.WalletId
     -> DBLayerParams s
     -> SqliteContext
-    -> IO (Either ErrWalletAlreadyInitialized (DBLayer IO s))
+    -> IO (DBLayer IO s)
 bootDBLayerFromSqliteContext wF ti wid params SqliteContext{runQuery} = do
     let cp = dBLayerParamsState params
     case fromGenesis cp
@@ -653,16 +652,14 @@ bootDBLayerFromSqliteContext wF ti wid params SqliteContext{runQuery} = do
                 $ ErrNotGenesisBlockHeader
                 $ cp ^. #currentTip
         Just wallet -> do
-            present <- atomically_ hasWalletId
-            if present
-                then pure $ Left ErrWalletAlreadyInitialized
-                else do
-                    r@DBLayer{transactionsStore, atomically}
-                        <- atomically_ $ mkDBLayer <$> initDBVar store wallet
-                    atomically $ updateS transactionsStore Nothing
-                        $ ExpandTxWalletsHistory wid
-                        $ dBLayerParamsHistory params
-                    pure $ Right r
+            atomically_ $ guardWalletDoesNotExist wid
+            dblayer@DBLayer{transactionsStore, atomically}
+                <- atomically_ $ mkDBLayer <$> initDBVar store wallet
+            atomically
+                $ updateS transactionsStore Nothing
+                $ ExpandTxWalletsHistory wid
+                $ dBLayerParamsHistory params
+            pure dblayer
   where
     store = mkStoreWallet wF wid
 
@@ -681,15 +678,12 @@ loadDBLayerFromSqliteContext
     -> TimeInterpreter IO
     -> W.WalletId
     -> SqliteContext
-    -> IO (Either ErrWalletNotInitialized (DBLayer IO s))
+    -> IO (DBLayer IO s)
 loadDBLayerFromSqliteContext wF ti wid SqliteContext{runQuery} =
     atomically_ $ do
-        present <- hasWalletId
-        if present
-            then do
-                walletState <- loadDBVar store
-                pure $ Right $ mkDBLayer walletState
-            else pure $ Left ErrWalletNotInitialized
+        guardWalletExists wid
+        walletState <- loadDBVar store
+        pure $ mkDBLayer walletState
   where
     store = mkStoreWallet wF wid
 
@@ -700,8 +694,15 @@ loadDBLayerFromSqliteContext wF ti wid SqliteContext{runQuery} =
         mkDBLayerFromParts ti wid
         $ mkDBLayerCollection ti wid atomically_ walletState
 
-hasWalletId :: SqlPersistT IO Bool
-hasWalletId = isJust <$> readWalletId
+guardWalletExists :: W.WalletId -> SqlPersistT IO ()
+guardWalletExists wid = do
+    mwid <- readWalletId
+    unless (mwid == Just wid) $ liftIO $ throwIO ErrWalletNotInitialized
+
+guardWalletDoesNotExist :: W.WalletId -> SqlPersistT IO ()
+guardWalletDoesNotExist _wid = do
+    mwid <- readWalletId
+    unless (isNothing mwid) $ liftIO $ throwIO ErrWalletAlreadyInitialized
 
 {-------------------------------------------------------------------------------
     DBLayerCollection
