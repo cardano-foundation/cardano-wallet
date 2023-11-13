@@ -17,6 +17,7 @@ module Cardano.Wallet.Read.Block
     , Block (..)
     , fromConsensusBlock
     , getTxs
+    , toConsensusBlock
     ) where
 
 import Prelude
@@ -40,6 +41,7 @@ import Cardano.Wallet.Read.Eras
     ( (:.:) (..)
     , EraFun (..)
     , EraValue
+    , K (..)
     , allegra
     , alonzo
     , applyEraFun
@@ -148,3 +150,14 @@ fromConsensusBlock = \case
 
 getTxs :: O.CardanoBlock StandardCrypto -> [EraValue Tx]
 getTxs = sequenceEraValue . applyEraFun txsFromBlockE . fromConsensusBlock
+
+toConsensusBlock :: EraFun Block (K ConsensusBlock)
+toConsensusBlock = EraFun
+    { byronFun = K . O.BlockByron . unBlock
+    , shelleyFun = K . O.BlockShelley . unBlock
+    , allegraFun = K . O.BlockAllegra . unBlock
+    , maryFun = K . O.BlockMary . unBlock
+    , alonzoFun = K . O.BlockAlonzo . unBlock
+    , babbageFun = K . O.BlockBabbage . unBlock
+    , conwayFun = K . O.BlockConway . unBlock
+    }

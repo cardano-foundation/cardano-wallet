@@ -34,6 +34,7 @@ module Cardano.Wallet.Read.Eras.EraValue
   , babbage
   , inject
   , project
+  , prisms
 
   -- * Specials
   , sequenceEraValue
@@ -42,7 +43,6 @@ module Cardano.Wallet.Read.Eras.EraValue
 
   -- * Internals
   , cardanoEras
-  , prisms
   )
   where
 

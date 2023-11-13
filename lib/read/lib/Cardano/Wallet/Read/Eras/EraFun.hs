@@ -42,6 +42,7 @@ module Cardano.Wallet.Read.Eras.EraFun
     , runAllEraValue
     , AllEraValue
     , mkAllEraValue
+    , EraFunSel
     )
 where
 
@@ -113,6 +114,9 @@ data EraFun f g = EraFun
     }
 
 deriveGeneric ''EraFun
+
+-- | A function that selects a field from any 'EraFun'.
+type EraFunSel era = forall f g. EraFun f g -> f era -> g era
 
 -- | A product of functions indexed by KnownEras.
 type EraFunI f g = NP (f -.-> g) KnownEras
