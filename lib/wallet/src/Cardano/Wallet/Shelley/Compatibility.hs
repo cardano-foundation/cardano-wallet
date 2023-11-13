@@ -103,9 +103,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromBlockNo
     , toCardanoEra
     , fromShelleyTxOut
-    , fromCardanoHash
-    , fromChainHash
-    , fromPrevHash
     , fromGenesisData
     , fromTip
     , fromTip'
@@ -353,7 +350,6 @@ import Ouroboros.Consensus.Shelley.Ledger.Block
     )
 import Ouroboros.Network.Block
     ( BlockNo (..)
-    , ChainHash
     , Point (..)
     , Tip (..)
     , getTipPoint
@@ -573,22 +569,6 @@ toCardanoEra = \case
 
 fromCardanoHash :: O.HeaderHash (CardanoBlock sc) -> W.Hash "BlockHeader"
 fromCardanoHash = W.Hash . fromShort . getOneEraHash
-
-fromPrevHash
-    :: W.Hash "BlockHeader"
-    -> SL.PrevHash crypto
-    -> W.Hash "BlockHeader"
-fromPrevHash genesisHash = \case
-    SL.GenesisHash -> genesisHash
-    SL.BlockHash (SL.HashHeader h) -> W.Hash (hashToBytes h)
-
-fromChainHash
-    :: W.Hash "Genesis"
-    -> ChainHash (CardanoBlock sc)
-    -> W.Hash "BlockHeader"
-fromChainHash genesisHash = \case
-    O.GenesisHash -> coerce genesisHash
-    O.BlockHash (OneEraHash h) -> W.Hash $ fromShort h
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
@@ -860,7 +840,8 @@ slottingParametersFromGenesis g =
         , getEpochLength =
             W.EpochLength . fromIntegral . unEpochSize $ sgEpochLength g
         , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient . fromRational . SL.unboundRational $ sgActiveSlotsCoeff g
+            W.ActiveSlotCoefficient . fromRational . SL.unboundRational
+                $ sgActiveSlotsCoeff g
         , getSecurityParameter =
             Quantity . fromIntegral $ sgSecurityParam g
         }
