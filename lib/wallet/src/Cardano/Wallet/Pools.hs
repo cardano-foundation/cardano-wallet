@@ -35,10 +35,10 @@ module Cardano.Wallet.Pools
     , monitorStakePools
     , monitorMetadata
 
-    -- * Logs
+      -- * Logs
     , StakePoolLog (..)
     )
-    where
+where
 
 import Prelude
 
@@ -116,6 +116,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Read.Primitive.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Read.Primitive.Block.Header
     ( getBlockHeader
     )
@@ -125,12 +128,6 @@ import Cardano.Wallet.Registry
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
-    , fromAllegraBlock
-    , fromAlonzoBlock
-    , fromBabbageBlock
-    , fromConwayBlock
-    , fromMaryBlock
-    , fromShelleyBlock
     , getBabbageProducer
     , getConwayProducer
     , getProducer
@@ -305,27 +302,20 @@ import qualified UnliftIO.STM as STM
 
 data StakePoolLayer = StakePoolLayer
     { getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
-
     , knownPools :: IO (Set PoolId)
-
-    -- | List pools based given the the amount of stake the user intends to
+    , listStakePools
+        :: EpochNo -- Exclude all pools that retired in or before this epoch.
+        -> Coin
+        -> IO [StakePool]
+    -- ^ List pools based given the the amount of stake the user intends to
     --   delegate, which affects the size of the rewards and the ranking of
     --   the pools.
     --
     -- Pools with a retirement epoch earlier than or equal to the specified
     -- epoch will be excluded from the result.
-    --
-    , listStakePools
-        :: EpochNo -- Exclude all pools that retired in or before this epoch.
-        -> Coin
-        -> IO [StakePool]
-
     , forceMetadataGC :: IO ()
-
     , putSettings :: Settings -> IO ()
-
     , getSettings :: IO Settings
-
     , getGCMetadataStatus :: IO PoolMetadataGCStatus
     }
 
@@ -340,17 +330,20 @@ withNodeStakePoolLayer
 withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams genesisPools netLayer = lift do
     gcStatus <- newTVarIO NotStarted
     forM_ settings $ atomically . putSettings
-    void $ forkFinally
-        (monitorStakePools tr netParams genesisPools netLayer dbLayer)
-        (traceAfterThread (contramap MsgExitMonitoring tr))
+    void
+        $ forkFinally
+            (monitorStakePools tr netParams genesisPools netLayer dbLayer)
+            (traceAfterThread (contramap MsgExitMonitoring tr))
 
     -- fixme: needs to be simplified as part of ADP-634
     let NetworkParameters{slottingParameters} = netParams
         startMetadataThread = forkIOWithUnmask $ \f ->
             f $ monitorMetadata gcStatus tr slottingParameters dbLayer
     metadataThread <- newMVar =<< startMetadataThread
-    let restartMetadataThread = modifyMVar_ metadataThread $
-            killThread >=> const startMetadataThread
+    let restartMetadataThread =
+            modifyMVar_ metadataThread
+                $ killThread
+                >=> const startMetadataThread
     newStakePoolLayer gcStatus netLayer dbLayer restartMetadataThread
 
 withStakePoolDbLayer
@@ -360,30 +353,34 @@ withStakePoolDbLayer
     -> NetworkLayer IO block
     -> ContT r IO (PoolDb.DBLayer IO)
 withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
-    ContT $ Pool.withDecoratedDBLayer
-        (fromMaybe Pool.undecoratedDB poolDbDecorator)
-        poolDbTracer
-        (Pool.defaultFilePath <$> databaseDir)
-        (neverFails "withPoolsMonitoring never forecasts into the future" $
-            timeInterpreter netLayer)
+    ContT
+        $ Pool.withDecoratedDBLayer
+            (fromMaybe Pool.undecoratedDB poolDbDecorator)
+            poolDbTracer
+            (Pool.defaultFilePath <$> databaseDir)
+            ( neverFails "withPoolsMonitoring never forecasts into the future"
+                $ timeInterpreter netLayer
+            )
 
 newStakePoolLayer
-    :: forall sc. ()
+    :: forall sc
+     . ()
     => TVar PoolMetadataGCStatus
     -> NetworkLayer IO (CardanoBlock sc)
     -> DBLayer IO
     -> IO ()
     -> IO StakePoolLayer
 newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
-    pure StakePoolLayer
-        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-        , knownPools = _knownPools
-        , listStakePools = _listPools
-        , forceMetadataGC = _forceMetadataGC
-        , putSettings = _putSettings
-        , getSettings = _getSettings
-        , getGCMetadataStatus = _getGCMetadataStatus
-        }
+    pure
+        StakePoolLayer
+            { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+            , knownPools = _knownPools
+            , listStakePools = _listPools
+            , forceMetadataGC = _forceMetadataGC
+            , putSettings = _putSettings
+            , getSettings = _getSettings
+            , getGCMetadataStatus = _getGCMetadataStatus
+            }
   where
     _getPoolLifeCycleStatus :: PoolId -> IO PoolLifeCycleStatus
     _getPoolLifeCycleStatus pid = atomically $ readPoolLifeCycleStatus pid
@@ -402,7 +399,8 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         gcMetadata = do
             oldSettings <- readSettings
             case ( poolMetadataSource oldSettings
-                 , poolMetadataSource settings ) of
+                 , poolMetadataSource settings
+                 ) of
                 (_, FetchNone) ->
                     -- this is necessary if it's e.g. the first time
                     -- we start the server with the new feature
@@ -420,8 +418,8 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
         rawLsqData <- stakeDistribution nl userStake
         dbData <- readPoolDbData db currentEpoch
         seed <- atomically readSystemSeed
-        sortByReward seed . map snd . Map.toList <$>
-            combineDbAndLsqData
+        sortByReward seed . map snd . Map.toList
+            <$> combineDbAndLsqData
                 (timeInterpreter nl)
                 (nOpt rawLsqData)
                 (combineLsqData rawLsqData)
@@ -441,10 +439,10 @@ newStakePoolLayer gcStatus nl db@DBLayer{..} restartSyncThread =
             -> [StakePool]
         sortByReward g0 =
             map stakePool
-            . L.sortOn (Down . rewards)
-            . L.sortOn randomWeight
-            . evalState' g0
-            . traverse withRandomWeight
+                . L.sortOn (Down . rewards)
+                . L.sortOn randomWeight
+                . evalState' g0
+                . traverse withRandomWeight
           where
             evalState' :: s -> State s a -> a
             evalState' = flip evalState
@@ -479,7 +477,8 @@ data PoolLsqData = PoolLsqData
     { nonMyopicMemberRewards :: Coin
     , relativeStake :: Percentage
     , saturation :: Double
-    } deriving (Eq, Show, Generic)
+    }
+    deriving (Eq, Show, Generic)
 
 -- | Stake pool-related data that has been read from the database.
 data PoolDbData = PoolDbData
@@ -493,7 +492,8 @@ data PoolDbData = PoolDbData
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
     :: TimeInterpreter (ExceptT PastHorizonException IO)
-    -> Int -- ^ nOpt; desired number of pools
+    -> Int
+    -- ^ nOpt; desired number of pools
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
     -> IO (Map PoolId StakePool)
@@ -510,22 +510,25 @@ combineDbAndLsqData ti nOpt lsqData =
     -- for all stake pool metric values so that the pool can still be
     -- included in the list of all known stake pools:
     --
-    dbButNoLsq = traverseMissing $ \k -> mkApiPool k PoolLsqData
-        { nonMyopicMemberRewards = freshmanMemberRewards
-        , relativeStake = minBound
-        , saturation = 0
-        }
+    dbButNoLsq = traverseMissing $ \k ->
+        mkApiPool
+            k
+            PoolLsqData
+                { nonMyopicMemberRewards = freshmanMemberRewards
+                , relativeStake = minBound
+                , saturation = 0
+                }
 
     -- To give a chance to freshly registered pools that haven't been part of
     -- any leader schedule, we assign them the average reward of the top @k@
     -- pools.
-    freshmanMemberRewards
-        = Coin
-        $ average
-        $ L.take nOpt
-        $ L.sortOn Down
-        $ map (unCoin . view #nonMyopicMemberRewards)
-        $ Map.elems lsqData
+    freshmanMemberRewards =
+        Coin
+            $ average
+            $ L.take nOpt
+            $ L.sortOn Down
+            $ map (unCoin . view #nonMyopicMemberRewards)
+            $ Map.elems lsqData
       where
         average [] = 0
         average xs = round $ double (sum xs) / double (length xs)
@@ -536,24 +539,27 @@ combineDbAndLsqData ti nOpt lsqData =
     mkApiPool :: PoolId -> PoolLsqData -> PoolDbData -> IO StakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
-        retirementEpochInfo <- traverse
-            (interpretQuery (unsafeExtendSafeZone ti) . toEpochInfo)
-            mRetirementEpoch
-        pure StakePool
-            { id = pid
-            , metrics = StakePoolMetrics
-                { nonMyopicMemberRewards = Coin.toQuantity prew
-                , relativeStake = Quantity pstk
-                , saturation = psat
-                , producedBlocks = (fmap fromIntegral . nProducedBlocks) dbData
+        retirementEpochInfo <-
+            traverse
+                (interpretQuery (unsafeExtendSafeZone ti) . toEpochInfo)
+                mRetirementEpoch
+        pure
+            StakePool
+                { id = pid
+                , metrics =
+                    StakePoolMetrics
+                        { nonMyopicMemberRewards = Coin.toQuantity prew
+                        , relativeStake = Quantity pstk
+                        , saturation = psat
+                        , producedBlocks = (fmap fromIntegral . nProducedBlocks) dbData
+                        }
+                , metadata = poolDbMetadata dbData
+                , cost = Coin.toQuantity $ poolCost $ registrationCert dbData
+                , pledge = Coin.toQuantity $ poolPledge $ registrationCert dbData
+                , margin = Quantity $ poolMargin $ registrationCert dbData
+                , retirement = retirementEpochInfo
+                , flags = [Delisted | delisted dbData]
                 }
-            , metadata = poolDbMetadata dbData
-            , cost = Coin.toQuantity $ poolCost $ registrationCert dbData
-            , pledge = Coin.toQuantity $ poolPledge $ registrationCert dbData
-            , margin = Quantity $ poolMargin $ registrationCert dbData
-            , retirement = retirementEpochInfo
-            , flags = [ Delisted | delisted dbData ]
-            }
 
 -- | Combines all the LSQ data into a single map.
 --
@@ -572,25 +578,29 @@ combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards
     -- to 0 here:
-    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqData
-        { nonMyopicMemberRewards = Coin 0
-        , relativeStake = s
-        , saturation = sat s
-        }
+    stakeButNoRewards = traverseMissing $ \_k s ->
+        pure
+            $ PoolLsqData
+                { nonMyopicMemberRewards = Coin 0
+                , relativeStake = s
+                , saturation = sat s
+                }
 
     -- TODO: This case seems possible on shelley_testnet, but why, and how
     -- should we treat it?
     --
     -- The pool with rewards but not stake didn't seem to be retiring.
-    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqData
-        { nonMyopicMemberRewards = r
-        , relativeStake = noStake
-        , saturation = sat noStake
-        }
+    rewardsButNoStake = traverseMissing $ \_k r ->
+        pure
+            $ PoolLsqData
+                { nonMyopicMemberRewards = r
+                , relativeStake = noStake
+                , saturation = sat noStake
+                }
       where
         noStake = unsafeMkPercentage 0
 
-    bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
+    bothPresent = zipWithMatched $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
 combineChainData
@@ -601,8 +611,8 @@ combineChainData
     -> Set PoolId
     -> Map PoolId PoolDbData
 combineChainData registrationMap retirementMap prodMap metaMap delistedSet =
-    Map.map mkPoolDbData $
-        Map.merge
+    Map.map mkPoolDbData
+        $ Map.merge
             registeredNoProductions
             notRegisteredButProducing
             bothPresent
@@ -630,16 +640,18 @@ combineChainData registrationMap retirementMap prodMap metaMap delistedSet =
         delisted = view #poolId registrationCert `Set.member` delistedSet
 
 readPoolDbData :: DBLayer IO -> EpochNo -> IO (Map PoolId PoolDbData)
-readPoolDbData DBLayer {..} currentEpoch = atomically $ do
+readPoolDbData DBLayer{..} currentEpoch = atomically $ do
     lifeCycleData <- listPoolLifeCycleData currentEpoch
-    let registrationCertificates = lifeCycleData
-            & mapMaybe getPoolRegistrationCertificate
-            & fmap (first (view #poolId) . dupe)
-            & Map.fromList
-    let retirementCertificates = lifeCycleData
-            & mapMaybe getPoolRetirementCertificate
-            & fmap (first (view #poolId) . dupe)
-            & Map.fromList
+    let registrationCertificates =
+            lifeCycleData
+                & mapMaybe getPoolRegistrationCertificate
+                & fmap (first (view #poolId) . dupe)
+                & Map.fromList
+    let retirementCertificates =
+            lifeCycleData
+                & mapMaybe getPoolRetirementCertificate
+                & fmap (first (view #poolId) . dupe)
+                & Map.fromList
     combineChainData
         registrationCertificates
         retirementCertificates
@@ -676,7 +688,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             pseudoPointSlot (ChainPoint slot _) = slot
 
             toChainPoint :: BlockHeader -> ChainPoint
-            toChainPoint (BlockHeader  0 _ _ _) = ChainPointAtGenesis
+            toChainPoint (BlockHeader 0 _ _ _) = ChainPointAtGenesis
             toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
 
         -- Write genesis pools to DB. These are specific to the integration test
@@ -689,15 +701,16 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
         atomically $ do
             putPoolCertificates pseudoGenesisSlotNo genesisPools
 
-        chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
-            { checkpointPolicy = CP.defaultPolicy
-            , readChainPoints = map toChainPoint <$> initCursor
-            , rollForward  = rollForward
-            , rollBackward = rollback
-            }
+        chainSync nl (contramap MsgChainMonitoring tr)
+            $ ChainFollower
+                { checkpointPolicy = CP.defaultPolicy
+                , readChainPoints = map toChainPoint <$> initCursor
+                , rollForward = rollForward
+                , rollBackward = rollback
+                }
 
-    GenesisParameters  { getGenesisBlockHash  } = gp
-    SlottingParameters { getSecurityParameter } = sp
+    GenesisParameters{getGenesisBlockHash} = gp
+    SlottingParameters{getSecurityParameter} = sp
 
     -- In order to prevent the pool database from growing too large over time,
     -- we regularly perform garbage collection by removing retired pools from
@@ -713,7 +726,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
 
     initCursor :: IO [BlockHeader]
     initCursor = atomically $ listHeaders (max 100 k)
-      where k = fromIntegral $ getQuantity getSecurityParameter
+      where
+        k = fromIntegral $ getQuantity getSecurityParameter
 
     forward
         :: IORef EpochNo
@@ -723,27 +737,16 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
     forward latestGarbageCollectionEpochRef blocks _ =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
       where
-        forAllBlocks = \case
-            BlockByron _ ->
-                pure ()
-            BlockShelley blk ->
-                forEachShelleyBlock
-                    (fromShelleyBlock gp blk) (getProducer blk)
-            BlockAllegra blk ->
-                forEachShelleyBlock
-                    (fromAllegraBlock gp blk) (getProducer blk)
-            BlockMary blk ->
-                forEachShelleyBlock
-                    (fromMaryBlock gp blk) (getProducer blk)
-            BlockAlonzo blk ->
-                forEachShelleyBlock
-                    (fromAlonzoBlock gp blk) (getProducer blk)
-            BlockBabbage blk ->
-                forEachShelleyBlock
-                    (fromBabbageBlock gp blk) (getBabbageProducer blk)
-            BlockConway blk ->
-                forEachShelleyBlock
-                    (fromConwayBlock gp blk) (getConwayProducer blk)
+        forAllBlocks c = case c of
+            BlockByron _ -> pure ()
+            BlockShelley blk -> forEachShelleyBlock b' (getProducer blk)
+            BlockAllegra blk -> forEachShelleyBlock b' (getProducer blk)
+            BlockMary blk -> forEachShelleyBlock b' (getProducer blk)
+            BlockAlonzo blk -> forEachShelleyBlock b' (getProducer blk)
+            BlockBabbage blk -> forEachShelleyBlock b' (getBabbageProducer blk)
+            BlockConway blk -> forEachShelleyBlock b' (getConwayProducer blk)
+          where
+            b' = fromCardanoBlock getGenesisBlockHash c
 
         forLastBlock = putHeader . getBlockHeader getGenesisBlockHash
 
@@ -754,26 +757,30 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             garbageCollectPools slot latestGarbageCollectionEpochRef
             putPoolCertificates slot certificates
 
-        handleErr action = runExceptT action
-            >>= \case
-                Left e ->
-                    liftIO $ traceWith tr $ MsgErrProduction e
-                Right () ->
-                    pure ()
+        handleErr action =
+            runExceptT action
+                >>= \case
+                    Left e ->
+                        liftIO $ traceWith tr $ MsgErrProduction e
+                    Right () ->
+                        pure ()
 
-        -- | Like 'forM_', except runs the second action for the last element as
+        -- \| Like 'forM_', except runs the second action for the last element as
         -- well (in addition to the first action).
-        forAllAndLastM :: (Monad m)
+        forAllAndLastM
+            :: (Monad m)
             => NonEmpty a
-            -> (a -> m b) -- ^ action to run for all elements
-            -> (a -> m c) -- ^ action to run for the last element
+            -> (a -> m b)
+            -- \^ action to run for all elements
+            -> (a -> m c)
+            -- \^ action to run for the last element
             -> m ()
         {-# INLINE forAllAndLastM #-}
         forAllAndLastM ne a1 a2 = go (NE.toList ne)
           where
-            go []  = pure ()
+            go [] = pure ()
             go [x] = a1 x >> a2 x >> go []
-            go (x:xs) = a1 x >> go xs
+            go (x : xs) = a1 x >> go xs
 
     -- Perform garbage collection for pools that have retired.
     --
@@ -805,20 +812,22 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             Left _ -> return ()
             Right currentEpoch | currentEpoch < 2 -> return ()
             Right currentEpoch -> do
-                    let latestRetirementEpoch = currentEpoch - 2
-                    latestGarbageCollectionEpoch <-
-                        liftIO $ readIORef latestGarbageCollectionEpochRef
-                    -- Only perform garbage collection once per epoch:
-                    when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
-                        liftIO $ do
-                            writeIORef
-                                latestGarbageCollectionEpochRef
-                                latestRetirementEpoch
-                            traceWith tr $
-                                MsgStakePoolGarbageCollection $
-                                PoolGarbageCollectionInfo
-                                    {currentEpoch, latestRetirementEpoch}
-                        void $ removeRetiredPools latestRetirementEpoch
+                let latestRetirementEpoch = currentEpoch - 2
+                latestGarbageCollectionEpoch <-
+                    liftIO $ readIORef latestGarbageCollectionEpochRef
+                -- Only perform garbage collection once per epoch:
+                when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
+                    liftIO $ do
+                        writeIORef
+                            latestGarbageCollectionEpochRef
+                            latestRetirementEpoch
+                        traceWith tr
+                            $ MsgStakePoolGarbageCollection
+                            $ PoolGarbageCollectionInfo
+                                { currentEpoch
+                                , latestRetirementEpoch
+                                }
+                    void $ removeRetiredPools latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot
@@ -853,8 +862,9 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
 
     health <- case poolMetadataSource settings of
         FetchSMASH uri -> do
-            let checkHealth _ = toHealthCheckSMASH
-                    <$> healthCheck trFetch (unSmashServer uri) manager
+            let checkHealth _ =
+                    toHealthCheckSMASH
+                        <$> healthCheck trFetch (unSmashServer uri) manager
 
                 maxRetries = 8
                 retryCheck RetryStatus{rsIterNumber} b
@@ -866,7 +876,6 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
                 baseSleepTime = ms 15
 
             retrying (constantDelay baseSleepTime) retryCheck checkHealth
-
         _ -> pure NoSmashConfigured
 
     if health == Available || health == NoSmashConfigured
@@ -874,22 +883,21 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
             case poolMetadataSource settings of
                 FetchNone -> do
                     STM.atomically $ writeTVar gcStatus NotApplicable
-
                 FetchDirect -> do
                     STM.atomically $ writeTVar gcStatus NotApplicable
                     void $ fetchMetadata manager [identityUrlBuilder]
-
                 FetchSMASH (unSmashServer -> uri) -> do
                     STM.atomically $ writeTVar gcStatus NotStarted
                     let getDelistedPools =
                             fetchDelistedPools trFetch uri manager
-                    tid <- forkFinally
-                        (gcDelistedPools gcStatus tr db getDelistedPools)
-                        (traceAfterThread (contramap MsgGCThreadExit tr))
-                    void $ fetchMetadata manager [registryUrlBuilder uri]
-                        `finally` killThread tid
-        else
-            traceWith tr MsgSMASHUnreachable
+                    tid <-
+                        forkFinally
+                            (gcDelistedPools gcStatus tr db getDelistedPools)
+                            (traceAfterThread (contramap MsgGCThreadExit tr))
+                    void
+                        $ fetchMetadata manager [registryUrlBuilder uri]
+                            `finally` killThread tid
+        else traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
 
@@ -902,17 +910,20 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
             when (null refs) $ do
                 traceWith tr $ MsgFetchTakeBreak blockFrequency
                 threadDelay blockFrequency
-            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (
-                fetchFromRemote trFetch strategies manager pid url hash >>= \case
-                    Nothing ->
-                        atomically $ do
-                            settings' <- readSettings
-                            when (settings == settings') $ putFetchAttempt (url, hash)
-                    Just meta -> do
-                        atomically $ do
-                            settings' <- readSettings
-                            when (settings == settings') $ putPoolMetadata hash meta
-                )
+            forM refs $ \k@(pid, url, hash) ->
+                k
+                    <$ withAvailableSeat
+                        inFlights
+                        ( fetchFromRemote trFetch strategies manager pid url hash >>= \case
+                            Nothing ->
+                                atomically $ do
+                                    settings' <- readSettings
+                                    when (settings == settings') $ putFetchAttempt (url, hash)
+                            Just meta -> do
+                                atomically $ do
+                                    settings' <- readSettings
+                                    when (settings == settings') $ putPoolMetadata hash meta
+                        )
       where
         -- Twice 'maxInFlight' so that, when removing keys currently in flight,
         -- we are left with at least 'maxInFlight' keys.
@@ -922,7 +933,7 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
         endlessly :: Monad m => a -> (a -> m a) -> m Void
         endlessly zero action = action zero >>= (`endlessly` action)
 
-        -- | Run an action asynchronously only when there's an available seat.
+        -- \| Run an action asynchronously only when there's an available seat.
         -- Seats are materialized by a bounded queue. If the queue is full,
         -- then there's no seat.
         withAvailableSeat :: TBQueue () -> IO a -> IO ()
@@ -934,7 +945,7 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
     -- If there's no metadata, we typically need not to retry sooner than the
     -- next block. So waiting for a delay that is roughly the same order of
     -- magnitude as the (slot length / active slot coeff) sounds sound.
-    blockFrequency = ceiling (1/f) * toMicroSecond slotLength
+    blockFrequency = ceiling (1 / f) * toMicroSecond slotLength
       where
         toMicroSecond = (`div` 1_000_000) . fromEnum
         slotLength = unSlotLength $ getSlotLength sp
@@ -944,7 +955,8 @@ gcDelistedPools
     :: TVar PoolMetadataGCStatus
     -> Tracer IO StakePoolLog
     -> DBLayer IO
-    -> IO (Maybe [PoolId])  -- ^ delisted pools fetcher
+    -> IO (Maybe [PoolId])
+    -- ^ delisted pools fetcher
     -> IO ()
 gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     lastGC <- atomically readLastMetadataGC
@@ -993,14 +1005,14 @@ data EpochInfo = EpochInfo
     , epochStartTime :: !UTCTime
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 toEpochInfo :: EpochNo -> Qry EpochInfo
 toEpochInfo ep = EpochInfo ep . fst <$> timeOfEpoch ep
 
 data StakePoolFlag = Delisted
     deriving stock (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data StakePoolMetrics = StakePoolMetrics
     { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
@@ -1009,16 +1021,16 @@ data StakePoolMetrics = StakePoolMetrics
     , producedBlocks :: !(Quantity "block" Natural)
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
     { currentEpoch :: EpochNo
-        -- ^ The current epoch at the point in time the garbage collector
-        -- was invoked.
+    -- ^ The current epoch at the point in time the garbage collector
+    -- was invoked.
     , latestRetirementEpoch :: EpochNo
-        -- ^ The latest retirement epoch for which garbage collection will be
-        -- performed. The garbage collector will remove all pools that have an
-        -- active retirement epoch equal to or earlier than this epoch.
+    -- ^ The latest retirement epoch for which garbage collection will be
+    -- performed. The garbage collector will remove all pools that have an
+    -- active retirement epoch equal to or earlier than this epoch.
     }
     deriving (Eq, Show)
 
@@ -1059,37 +1071,45 @@ instance ToText StakePoolLog where
         MsgExitMonitoring msg ->
             "Stake pool monitor exit: " <> toText msg
         MsgChainMonitoring msg -> toText msg
-        MsgStakePoolGarbageCollection info -> mconcat
-            [ "Performing garbage collection of retired stake pools. "
-            , "Currently in epoch "
-            , toText (currentEpoch info)
-            , ". Removing all pools that retired in or before epoch "
-            , toText (latestRetirementEpoch info)
-            , "."
-            ]
+        MsgStakePoolGarbageCollection info ->
+            mconcat
+                [ "Performing garbage collection of retired stake pools. "
+                , "Currently in epoch "
+                , toText (currentEpoch info)
+                , ". Removing all pools that retired in or before epoch "
+                , toText (latestRetirementEpoch info)
+                , "."
+                ]
         MsgStakePoolRegistration cert ->
             "Discovered stake pool registration: " <> pretty cert
         MsgStakePoolRetirement cert ->
             "Discovered stake pool retirement: " <> pretty cert
-        MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat
-            [ "Couldn't store production for given block before it conflicts "
-            , "with another block. Conflicting block header is: ", pretty blk
-            ]
+        MsgErrProduction (ErrPointAlreadyExists blk) ->
+            mconcat
+                [ "Couldn't store production for given block before it conflicts "
+                , "with another block. Conflicting block header is: "
+                , pretty blk
+                ]
         MsgFetchPoolMetadata e ->
             toText e
-        MsgFetchTakeBreak delay -> mconcat
-            [ "Taking a little break from fetching metadata, "
-            , "back to it in about "
-            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
-            ]
-        MsgGCTakeBreak delay -> mconcat
-            [ "Taking a little break from GCing delisted metadata pools, "
-            , "back to it in about "
-            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
-            ]
+        MsgFetchTakeBreak delay ->
+            mconcat
+                [ "Taking a little break from fetching metadata, "
+                , "back to it in about "
+                , pretty (fixedF 1 (toRational delay / 1_000_000))
+                , "s"
+                ]
+        MsgGCTakeBreak delay ->
+            mconcat
+                [ "Taking a little break from GCing delisted metadata pools, "
+                , "back to it in about "
+                , pretty (fixedF 1 (toRational delay / 1_000_000))
+                , "s"
+                ]
         MsgGCThreadExit msg ->
             "GC thread has exited: " <> toText msg
-        MsgSMASHUnreachable -> mconcat
-            ["The SMASH server is unreachable or unhealthy."
-            , "Metadata monitoring thread aborting."
-            ]
+        MsgSMASHUnreachable ->
+            mconcat
+                [ "The SMASH server is unreachable or unhealthy."
+                , "Metadata monitoring thread aborting."
+                ]

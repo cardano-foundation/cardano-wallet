@@ -28,7 +28,6 @@ import Data.Time.Clock.POSIX
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Read.Primitive.Block as New
-import qualified Cardano.Wallet.Shelley.Compatibility as Old
 import qualified Data.ByteString.Char8 as B8
 
 -- Our benchmark harness.
@@ -38,21 +37,14 @@ main =
         [ bgroup
             "fib"
             [ bench "1 new" $ nf (run new) 1
-            , bench "1 old" $ nf (run old) 1
             , bench "10 new" $ nf (run new) 10
-            , bench "10 old" $ nf (run old) 10
             , bench "100 new" $ nf (run new) 100
-            , bench "100 old" $ nf (run old) 100
             , bench "1000 new" $ nf (run new) 1000
-            , bench "1000 old" $ nf (run old) 1000
             ]
         ]
 
 new :: GenesisParameters -> ConsensusBlock -> W.Block
 new gp = fst . New.fromCardanoBlock (getGenesisBlockHash gp)
-
-old :: GenesisParameters -> ConsensusBlock -> W.Block
-old = Old.fromCardanoBlock
 
 run :: (GenesisParameters -> ConsensusBlock -> W.Block) -> Int -> [W.Block]
 run f n = f dummyGenesisParameters <$> take n exampleBlocks

@@ -101,7 +101,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , optimumNumberOfPools
     , getProducer
     , fromBlockNo
-    , fromCardanoBlock
     , toCardanoEra
     , fromShelleyHash
     , fromShelleyTxOut
@@ -112,13 +111,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromTip'
     , toTip
-    , fromShelleyBlock
-    , fromAllegraBlock
     , slottingParametersFromGenesis
-    , fromMaryBlock
-    , fromAlonzoBlock
-    , fromBabbageBlock
-    , fromConwayBlock
     , getBabbageProducer
     , getConwayProducer
 
@@ -236,8 +229,7 @@ import Cardano.Wallet.Address.Encoding
     ( fromStakeCredential
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock
-    , fromTxAux
+    ( fromTxAux
     , maryTokenBundleMaxSize
     )
 import Cardano.Wallet.Primitive.Types
@@ -247,18 +239,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (txParameters)
     , TxParameters (getTokenBundleMaxSize)
     )
-import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    ( fromAlonzoTx
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Conway
-    ( fromConwayTx
-    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn
     )
@@ -267,17 +247,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     , fromShelleyAddress
     , fromShelleyTxOut
     )
-import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromMaryTx
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx
-    )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
-    )
-import Cardano.Wallet.Transaction
-    ( WitnessCountCtx (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord
@@ -317,15 +288,9 @@ import Data.Coerce
 import Data.Either.Extra
     ( eitherToMaybe
     )
-import Data.Foldable
-    ( toList
-    )
 import Data.IntCast
     ( intCast
     , intCastMaybe
-    )
-import Data.List
-    ( unzip6
     )
 import Data.Map.Strict
     ( Map
@@ -385,8 +350,7 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( ShelleyCompatible
-    , ShelleyHash (..)
+    ( ShelleyHash (..)
     )
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..)
@@ -412,8 +376,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
-import qualified Cardano.Ledger.Allegra as Allegra
-import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
@@ -425,8 +387,6 @@ import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Keys as Ledger
-import qualified Cardano.Ledger.Mary as Mary
-import qualified Cardano.Ledger.Shelley as Shelley
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
@@ -468,7 +428,6 @@ import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
-import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
@@ -524,59 +483,6 @@ fromPoint :: O.Point (CardanoBlock sc) -> W.ChainPoint
 fromPoint O.GenesisPoint = ChainPointAtGenesis
 fromPoint (O.BlockPoint slot h) = ChainPoint slot (fromCardanoHash h)
 
-toShelleyBlockHeader
-    :: (ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
-    => W.Hash "Genesis"
-    -> ShelleyBlock (Consensus.TPraos StandardCrypto) era
-    -> W.BlockHeader
-toShelleyBlockHeader genesisHash blk =
-    let
-        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-    in
-        W.BlockHeader
-            { slotNo =
-                Consensus.pHeaderSlot header
-            , blockHeight =
-                fromBlockNo $ Consensus.pHeaderBlock header
-            , headerHash =
-                fromShelleyHash $ Consensus.pHeaderHash header
-            , parentHeaderHash = Just $
-                fromPrevHash (coerce genesisHash) $
-                    Consensus.pHeaderPrevHash header
-            }
-
-toBabbageBlockHeader
-    :: (ShelleyCompatible (Consensus.Praos StandardCrypto) era)
-    => W.Hash "Genesis"
-    -> ShelleyBlock (Consensus.Praos StandardCrypto) era
-    -> W.BlockHeader
-toBabbageBlockHeader genesisHash blk =
-    W.BlockHeader
-        { slotNo = Consensus.pHeaderSlot header
-        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
-        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
-        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
-            Consensus.pHeaderPrevHash header
-        }
-  where
-    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-
-toConwayBlockHeader
-    :: (ShelleyCompatible (Consensus.Praos StandardCrypto) era)
-    => W.Hash "Genesis"
-    -> ShelleyBlock (Consensus.Praos StandardCrypto) era
-    -> W.BlockHeader
-toConwayBlockHeader genesisHash blk =
-    W.BlockHeader
-        { slotNo = Consensus.pHeaderSlot header
-        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
-        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
-        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
-            Consensus.pHeaderPrevHash header
-        }
-  where
-    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-
 getProducer
     :: (Era era, EncCBORGroup (TxSeq era))
     => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> PoolId
@@ -594,26 +500,6 @@ getConwayProducer
     => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
-
-fromCardanoBlock
-    :: W.GenesisParameters
-    -> CardanoBlock StandardCrypto
-    -> W.Block
-fromCardanoBlock gp = \case
-    BlockByron blk ->
-        fromByronBlock gp blk
-    BlockShelley blk ->
-        fst $ fromShelleyBlock gp blk
-    BlockAllegra blk ->
-        fst $ fromAllegraBlock gp blk
-    BlockMary blk ->
-        fst $ fromMaryBlock gp blk
-    BlockAlonzo blk ->
-        fst $ fromAlonzoBlock gp blk
-    BlockBabbage blk ->
-        fst $ fromBabbageBlock gp blk
-    BlockConway blk ->
-        fst $ fromConwayBlock gp blk
 
 numberOfTransactionsInBlock
     :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
@@ -688,137 +574,6 @@ toCardanoEra = \case
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{}  -> AnyCardanoEra ConwayEra
-
-fromShelleyBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.TPraos StandardCrypto)
-        (Shelley.ShelleyEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
-    let
-       (txs, certs, _, _, _, _) = unzip6 $ map fromShelleyTx $ toList txs'
-       certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
-
-fromAllegraBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.TPraos StandardCrypto)
-        (Allegra.AllegraEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
-    let
-       (txs, certs, _, _, _, _) = unzip6 $ map fromAllegraTx $ toList txs'
-       certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
-
-fromMaryBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.TPraos StandardCrypto)
-        (Mary.MaryEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
-    let
-       (txs, certs, _, _, _, _) = unzip6 $
-           map (`fromMaryTx` AnyWitnessCountCtx) $ toList txs'
-       certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
-
--- TODO: We could use the cardano-api `Block` pattern to very elegently get the
--- header and txs of any era block.
---
--- We would need to remove the previous block hash from our `W.BlockHeader`,
--- which shouldn't be needed modulo some hacks w.r.t. the genesis point which
--- would need to be cleaned up too. We probably will need to use `Point block`,
--- in all chain followers (including the DBLayer).
-fromAlonzoBlock
-    :: ShelleyCompatible
-        (Consensus.TPraos StandardCrypto)
-        (Alonzo.AlonzoEra StandardCrypto)
-    => W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.TPraos StandardCrypto)
-        (Alonzo.AlonzoEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
-    let
-        Alonzo.AlonzoTxSeq txs' = txSeq
-        (txs, certs, _, _, _, _) = unzip6 $
-            map (`fromAlonzoTx` AnyWitnessCountCtx) $ toList txs'
-        certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
-
-fromBabbageBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.Praos StandardCrypto)
-        (Babbage.BabbageEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
-    let
-        Alonzo.AlonzoTxSeq txs' = txSeq
-        (txs, certs, _, _, _, _) = unzip6 $
-            map (`fromBabbageTx` AnyWitnessCountCtx) $ toList txs'
-        certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
-
-fromConwayBlock
-    :: W.GenesisParameters
-    -> ShelleyBlock
-        (Consensus.Praos StandardCrypto)
-        (Conway.ConwayEra StandardCrypto)
-    -> (W.Block, [PoolCertificate])
-fromConwayBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
-    let
-        Alonzo.AlonzoTxSeq txs' = txSeq
-        (txs, certs, _, _, _, _) = unzip6 $
-            map (`fromConwayTx` AnyWitnessCountCtx) $ toList txs'
-        certs' = mconcat certs
-    in
-        ( W.Block
-            { header = toConwayBlockHeader (W.getGenesisBlockHash gp) blk
-            , transactions = txs
-            , delegations  = toDelegationCertificates certs'
-            }
-        , toPoolCertificates certs'
-        )
 
 fromShelleyHash :: ShelleyHash crypto -> W.Hash "BlockHeader"
 fromShelleyHash (ShelleyHash h) = W.Hash (hashToBytes h)
@@ -1296,24 +1051,6 @@ fromCardanoLovelace =
     Coin.unsafeFromIntegral . unQuantity . Cardano.lovelaceToQuantity
   where
     unQuantity (Cardano.Quantity q) = q
-
-toDelegationCertificates
-    :: [W.Certificate]
-    -> [W.DelegationCertificate]
-toDelegationCertificates = mapMaybe isDelCert
-  where
-      isDelCert = \case
-          W.CertificateOfDelegation cert -> Just cert
-          _ -> Nothing
-
-toPoolCertificates
-    :: [W.Certificate]
-    -> [PoolCertificate]
-toPoolCertificates = mapMaybe isPoolCert
-  where
-      isPoolCert = \case
-          W.CertificateOfPool cert -> Just cert
-          _ -> Nothing
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c
