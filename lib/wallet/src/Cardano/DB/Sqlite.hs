@@ -41,21 +41,10 @@ module Cardano.DB.Sqlite
     , dbChunked
     , dbChunkedFor
     , dbChunked'
-    , handleConstraint
-
-      -- * Old-style Manual Migration
-    , ManualMigration (..)
-    , noManualMigration
-    , MigrationError (..)
-    , DBField (..)
-    , tableName
-    , fieldName
-    , fieldType
 
       -- * Logging
     , DBLog (..)
     , ReadDBHandle
-    , foldMigrations
     ) where
 
 import Prelude
@@ -71,6 +60,16 @@ import Cardano.BM.Extra
     ( BracketLog
     , bracketTracer
     )
+import Cardano.DB.Sqlite.ForeignKeys
+    ( ForeignKeysSetting (..)
+    , withForeignKeysDisabled
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( DBMigrationOldLog (..)
+    , ManualMigration (..)
+    , MatchMigrationError (..)
+    , MigrationError (..)
+    )
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (..)
     )
@@ -80,11 +79,6 @@ import Control.Lens
     )
 import Control.Monad
     ( join
-    , void
-    , when
-    )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..)
     )
 import Control.Monad.Logger
     ( LogLevel (..)
@@ -118,9 +112,6 @@ import Data.Functor
     ( ($>)
     , (<&>)
     )
-import Data.List
-    ( isInfixOf
-    )
 import Data.List.Split
     ( chunksOf
     )
@@ -140,24 +131,15 @@ import Data.Time.Clock
     ( NominalDiffTime
     )
 import Database.Persist.EntityDef
-    ( getEntityDBName
-    , getEntityFields
-    )
-import Database.Persist.Names
-    ( EntityNameDB (..)
-    , unFieldNameDB
+    ( getEntityFields
     )
 import Database.Persist.Sql
-    ( EntityField
-    , LogFunc
+    ( LogFunc
     , Migration
     , PersistEntity (..)
     , PersistException
     , SqlPersistT
-    , SqlType (..)
     , close'
-    , fieldDB
-    , fieldSqlType
     , runMigrationUnsafeQuiet
     , runSqlConn
     )
@@ -166,8 +148,7 @@ import Database.Persist.Sqlite
     , wrapConnection
     )
 import Database.Sqlite
-    ( Error (ErrorConstraint)
-    , SqliteException (SqliteException)
+    ( SqliteException (SqliteException)
     )
 import Fmt
     ( Buildable (..)
@@ -193,8 +174,7 @@ import UnliftIO.Compat
 import UnliftIO.Exception
     ( Exception
     , bracket
-    , bracket_
-    , handleJust
+    , throwIO
     , tryJust
     )
 import UnliftIO.MVar
@@ -203,7 +183,6 @@ import UnliftIO.MVar
     , withMVarMasked
     )
 
-import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -219,15 +198,6 @@ newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
     }
 
--- | Run an action, and convert any Sqlite constraints exception into the given
--- error result. No other exceptions are handled.
-handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
-handleConstraint e = handleJust select handler . fmap Right
-  where
-    select (SqliteException ErrorConstraint _ _) = Just ()
-    select _ = Nothing
-    handler = const . pure . Left $ e
-
 newInMemorySqliteContext
     :: Tracer IO DBLog
     -> ManualMigration
@@ -235,10 +205,9 @@ newInMemorySqliteContext
     -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
 newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
-    conn <- Sqlite.open ":memory:"
-    executeManualMigration manualMigrations conn
-    unsafeBackend <- wrapConnection conn (queryLogFunc tr)
-    void $ runSqlConn (runMigrationUnsafeQuiet autoMigration) unsafeBackend
+    db <- newDBHandleInMemory tr
+    throwLeft =<< runManualOldMigrations tr manualMigrations db
+    throwLeft =<< runAutoMigration tr autoMigration db
 
     let observe :: forall a. IO a -> IO a
         observe = bracketTracer (contramap MsgRun tr)
@@ -246,10 +215,12 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     -- We still use a lock with the in-memory database to protect it from
     -- concurrent accesses and ensure database integrity in case where multiple
     -- threads would be reading/writing from/to it.
-    lock <- newMVar unsafeBackend
-    let useForeignKeys :: IO a -> IO a
+    lock <- newMVar (dbBackend db)
+    let trFK = contramap MsgUpdatingForeignKeysSetting tr
+        useForeignKeys :: IO a -> IO a
         useForeignKeys
-            | disableFK == ForeignKeysDisabled = withForeignKeysDisabled tr conn
+            | disableFK == ForeignKeysDisabled =
+                withForeignKeysDisabled trFK (dbConn db)
             | otherwise = id
         runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd =
@@ -257,7 +228,13 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
                 lock
                 (observe . useForeignKeys . runSqlConn cmd)
 
-    return (close' unsafeBackend, SqliteContext{runQuery})
+    return (closeDBHandle tr db, SqliteContext{runQuery})
+
+-- | Throw 'Left' as an exception in the monad.
+throwLeft :: Exception e => Either e b -> IO b
+throwLeft = \case
+    Left e -> throwIO e
+    Right b -> pure b
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
@@ -309,14 +286,17 @@ data DBHandle = DBHandle
 
 type ReadDBHandle m = ReaderT DBHandle m
 
+-- | Acquire and release a 'DBHandle' from a file.
 withDBHandle
     :: Tracer IO DBLog
     -> FilePath
     -> (DBHandle -> IO a)
     -> IO a
 withDBHandle tr fp =
-    bracket (newDBHandle tr fp) (destroyDBHandle tr)
+    bracket (newDBHandle tr fp) (closeDBHandleRetrying tr)
 
+-- | Create a new 'DBHandle' from a file.
+-- Needs to be closed explicitly.
 newDBHandle
     :: Tracer IO DBLog
     -> FilePath
@@ -327,34 +307,27 @@ newDBHandle tr dbFile = do
     dbBackend <- wrapConnection dbConn (queryLogFunc tr)
     pure $ DBHandle{dbFile, dbConn, dbBackend}
 
--- | Finalize database statements and close the database connection.
--- If the database connection is still in use, it will retry for up to a minute,
--- to let other threads finish up.
+-- | Create a new 'DBHandle' in memory.
+-- Needs to be closed explicitly.
+newDBHandleInMemory
+    :: Tracer IO DBLog
+    -> IO DBHandle
+newDBHandleInMemory tr =
+    newDBHandle tr ":memory:"
+
+-- | Attempt to close the database connection and finalize database statements.
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
-destroyDBHandle
+--
+-- This function may still fail to close the connection due to the @SQLITE_BUSY@
+-- exception.
+closeDBHandle
     :: Tracer IO DBLog
     -> DBHandle
     -> IO ()
-destroyDBHandle tr DBHandle{dbFile, dbBackend = sqlBackend} = do
-    traceWith tr (MsgCloseSingleConnection dbFile)
-
-    -- Hack for ADP-827: timeout earlier in integration tests.
-    --
-    -- There seem to be some concurrency problem causing persistent-sqlite to
-    -- leak unfinalized statements, causing SQLITE_BUSY when we try to close the
-    -- connection. In this case, retrying 2 or 60 seconds would have no
-    -- difference.
-    --
-    -- But in production, the longer timeout isn't as much of a problem, and
-    -- might be needed for windows.
-    timeoutSec <-
-        lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
-            Just _ -> 2
-            Nothing -> retryOnBusyTimeout
-
-    retryOnBusy tr timeoutSec (close' sqlBackend)
+closeDBHandle tr DBHandle{dbBackend} = do
+    close' dbBackend
         & handleIf
             isAlreadyClosed
             (traceWith tr . MsgIsAlreadyClosed . showT)
@@ -375,6 +348,33 @@ destroyDBHandle tr DBHandle{dbFile, dbBackend = sqlBackend} = do
 
     showT :: Show a => a -> Text
     showT = T.pack . show
+
+-- | Like 'closeDBHandle',
+-- but will retry repeatedly on @SQLITE_BUSY@ exception.
+--
+-- Will retry for up to a minute ('retryOnBusyTimeout').
+closeDBHandleRetrying
+    :: Tracer IO DBLog
+    -> DBHandle
+    -> IO ()
+closeDBHandleRetrying tr db@DBHandle{dbFile} = do
+    traceWith tr $ MsgCloseSingleConnection dbFile
+
+    -- Hack for ADP-827: timeout earlier in integration tests.
+    --
+    -- There seem to be some concurrency problem causing persistent-sqlite to
+    -- leak unfinalized statements, causing SQLITE_BUSY when we try to close the
+    -- connection. In this case, retrying 2 or 60 seconds would have no
+    -- difference.
+    --
+    -- But in production, the longer timeout isn't as much of a problem, and
+    -- might be needed for windows.
+    timeoutSec <-
+        lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
+            Just _ -> 2
+            Nothing -> retryOnBusyTimeout
+
+    retryOnBusy tr timeoutSec $ closeDBHandle tr db
 
 -- | Default timeout for `retryOnBusy`
 retryOnBusyTimeout :: NominalDiffTime
@@ -422,129 +422,9 @@ retryOnBusy tr timeout action =
             $ MsgRetryOnBusy rsIterNumber m
 
 {-------------------------------------------------------------------------------
-    Foreign key settings
--------------------------------------------------------------------------------}
-
--- | Run the given task in a context where foreign key constraints are
---   /temporarily disabled/, before re-enabling them.
-withForeignKeysDisabled
-    :: Tracer IO DBLog
-    -> Sqlite.Connection
-    -> IO a
-    -> IO a
-withForeignKeysDisabled t c =
-    bracket_
-        (updateForeignKeysSetting t c ForeignKeysDisabled)
-        (updateForeignKeysSetting t c ForeignKeysEnabled)
-
--- | Specifies whether or not foreign key constraints are enabled, equivalent
---   to the Sqlite 'foreign_keys' setting.
---
--- When foreign key constraints are /enabled/, the database will enforce
--- referential integrity, and cascading deletes are enabled.
---
--- When foreign keys constraints are /disabled/, the database will not enforce
--- referential integrity, and cascading deletes are disabled.
---
--- See the following resource for more information:
--- https://www.sqlite.org/foreignkeys.html#fk_enable
-data ForeignKeysSetting
-    = -- | Foreign key constraints are /enabled/.
-      ForeignKeysEnabled
-    | -- | Foreign key constraints are /disabled/.
-      ForeignKeysDisabled
-    deriving (Eq, Generic, ToJSON, Show)
-
--- | Read the current value of the Sqlite 'foreign_keys' setting.
-readForeignKeysSetting :: Sqlite.Connection -> IO ForeignKeysSetting
-readForeignKeysSetting connection = do
-    query <- Sqlite.prepare connection "PRAGMA foreign_keys"
-    state <- Sqlite.step query >> Sqlite.columns query
-    Sqlite.finalize query
-    case state of
-        [Persist.PersistInt64 0] -> pure ForeignKeysDisabled
-        [Persist.PersistInt64 1] -> pure ForeignKeysEnabled
-        unexpectedValue ->
-            error
-                $ mconcat
-                    [ "Unexpected result when querying the current value of "
-                    , "the Sqlite 'foreign_keys' setting: "
-                    , show unexpectedValue
-                    , "."
-                    ]
-
--- | Update the current value of the Sqlite 'foreign_keys' setting.
-updateForeignKeysSetting
-    :: Tracer IO DBLog
-    -> Sqlite.Connection
-    -> ForeignKeysSetting
-    -> IO ()
-updateForeignKeysSetting trace connection desiredValue = do
-    traceWith trace $ MsgUpdatingForeignKeysSetting desiredValue
-    query <-
-        Sqlite.prepare connection
-            $ "PRAGMA foreign_keys = " <> valueToWrite <> ";"
-    _ <- Sqlite.step query
-    Sqlite.finalize query
-    finalValue <- readForeignKeysSetting connection
-    when (desiredValue /= finalValue)
-        $ error
-        $ mconcat
-            [ "Unexpected error when updating the value of the Sqlite "
-            , "'foreign_keys' setting. Attempted to write the value "
-            , show desiredValue
-            , " but retrieved the final value "
-            , show finalValue
-            , "."
-            ]
-  where
-    valueToWrite = case desiredValue of
-        ForeignKeysEnabled -> "ON"
-        ForeignKeysDisabled -> "OFF"
-
-{-------------------------------------------------------------------------------
     Database migrations
     old style and new style
 -------------------------------------------------------------------------------}
-
--- | Error type for when migrations go wrong after opening a database.
-newtype MigrationError = MigrationError
-    {getMigrationErrorMessage :: Text}
-    deriving (Show, Eq, Generic, ToJSON)
-
-instance Exception MigrationError
-
-class Exception e => MatchMigrationError e where
-    -- | Exception predicate for migration errors.
-    matchMigrationError :: e -> Maybe MigrationError
-
-instance MatchMigrationError PersistException where
-    matchMigrationError e
-        | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
-        | otherwise = Nothing
-      where
-        msg = show e
-        mark = "Database migration: manual intervention required."
-
-instance MatchMigrationError SqliteException where
-    matchMigrationError (SqliteException ErrorConstraint _ msg) =
-        Just $ MigrationError msg
-    matchMigrationError _ =
-        Nothing
-
-matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
-matchWrongVersionError =
-    Just
-        . MigrationError
-        . view strict
-        . toLazyText
-        . build
-
--- | Encapsulates an old-style manual migration action
---   (or sequence of actions) to be
---   performed immediately after an SQL connection is initiated.
-newtype ManualMigration = ManualMigration
-    {executeManualMigration :: Sqlite.Connection -> IO ()}
 
 runAutoMigration
     :: Tracer IO DBLog
@@ -556,7 +436,8 @@ runAutoMigration tr autoMigration DBHandle{dbConn, dbBackend} = do
             runSqlConn
                 (runMigrationUnsafeQuiet autoMigration)
                 dbBackend
-    migrationResult <- withForeignKeysDisabled tr dbConn $ do
+        trFK = contramap MsgUpdatingForeignKeysSetting tr
+    migrationResult <- withForeignKeysDisabled trFK dbConn $ do
         executeAutoMigration
             & tryJust (matchMigrationError @PersistException)
             & tryJust (matchMigrationError @SqliteException)
@@ -570,7 +451,8 @@ runManualOldMigrations
     -> DBHandle
     -> IO (Either MigrationError ())
 runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
-    withForeignKeysDisabled tr dbConn
+    let trFK = contramap MsgUpdatingForeignKeysSetting tr
+    withForeignKeysDisabled trFK dbConn
         $ Right
             <$> (`executeManualMigration` dbConn) manualMigration
 
@@ -582,6 +464,14 @@ runManualNewMigrations
 runManualNewMigrations tr fp newMigrations =
     newMigrations tr fp
         & tryJust matchWrongVersionError
+
+matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
+matchWrongVersionError =
+    Just
+        . MigrationError
+        . view strict
+        . toLazyText
+        . build
 
 runAllMigrations
     :: Tracer IO DBLog
@@ -596,70 +486,12 @@ runAllMigrations tr fp old auto new = runExceptT $ do
     ExceptT $ runManualNewMigrations tr fp new
 
 {-------------------------------------------------------------------------------
-    Database migration helpers
--------------------------------------------------------------------------------}
-
-noManualMigration :: ManualMigration
-noManualMigration = ManualMigration $ const $ pure ()
-
-foldMigrations :: [Sqlite.Connection -> IO ()] -> ManualMigration
-foldMigrations ms = ManualMigration $ \conn -> mapM_ ($ conn) ms
-
-data DBField where
-    DBField
-        :: forall record typ
-         . (PersistEntity record)
-        => EntityField record typ
-        -> DBField
-
-tableName :: DBField -> Text
-tableName (DBField (_ :: EntityField record typ)) =
-    unEntityNameDB $ getEntityDBName $ entityDef (Proxy @record)
-
-fieldName :: DBField -> Text
-fieldName (DBField field) =
-    unFieldNameDB $ fieldDB $ persistFieldDef field
-
-fieldType :: DBField -> Text
-fieldType (DBField field) =
-    showSqlType $ fieldSqlType $ persistFieldDef field
-
-showSqlType :: SqlType -> Text
-showSqlType = \case
-    SqlString -> "VARCHAR"
-    SqlInt32 -> "INTEGER"
-    SqlInt64 -> "INTEGER"
-    SqlReal -> "REAL"
-    SqlDay -> "DATE"
-    SqlTime -> "TIME"
-    SqlDayTime -> "TIMESTAMP"
-    SqlBlob -> "BLOB"
-    SqlBool -> "BOOLEAN"
-    SqlOther t -> t
-    SqlNumeric precision scale ->
-        T.concat
-            [ "NUMERIC("
-            , T.pack (show precision)
-            , ","
-            , T.pack (show scale)
-            , ")"
-            ]
-
-instance Show DBField where
-    show field = T.unpack (tableName field <> "." <> fieldName field)
-
-instance Eq DBField where
-    field0 == field1 = show field0 == show field1
-
-instance ToJSON DBField where
-    toJSON = Aeson.String . T.pack . show
-
-{-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
 data DBLog
     = MsgMigrations (Either MigrationError Int)
+    | MsgMigrationOld DBMigrationOldLog
     | MsgQuery Text Severity
     | MsgRun BracketLog
     | MsgOpenSingleConnection FilePath
@@ -667,9 +499,6 @@ data DBLog
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
-    | MsgManualMigrationNeeded DBField Text
-    | MsgExpectedMigration DBLog
-    | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgRetryOnBusy Int RetryLog
     deriving (Generic, Show, Eq, ToJSON)
@@ -683,15 +512,13 @@ instance HasSeverityAnnotation DBLog where
         MsgMigrations (Right 0) -> Debug
         MsgMigrations (Right _) -> Notice
         MsgMigrations (Left _) -> Error
+        MsgMigrationOld msg -> getSeverityAnnotation msg
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
-        MsgExpectedMigration _ -> Debug
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
-        MsgManualMigrationNeeded{} -> Notice
-        MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
         MsgRetryOnBusy n _
             | n <= 1 -> Debug
@@ -721,24 +548,7 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
-        MsgExpectedMigration msg -> "Expected: " <> toText msg
-        MsgManualMigrationNeeded field value ->
-            mconcat
-                [ tableName field
-                , " table does not contain required field '"
-                , fieldName field
-                , "'. "
-                , "Adding this field with a default value of "
-                , value
-                , "."
-                ]
-        MsgManualMigrationNotNeeded field ->
-            mconcat
-                [ tableName field
-                , " table already contains required field '"
-                , fieldName field
-                , "'."
-                ]
+        MsgMigrationOld msg -> toText msg
         MsgUpdatingForeignKeysSetting value ->
             mconcat
                 [ "Updating the foreign keys setting to: "

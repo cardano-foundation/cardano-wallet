@@ -9,10 +9,12 @@ module Cardano.Wallet.DB.Store.Delegations.Migration
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBField (..)
-    , ReadDBHandle
+    ( ReadDBHandle
     , dbBackend
     , dbConn
+    )
+import Cardano.DB.Sqlite.Migration.Old
+    ( DBField (..)
     )
 import Cardano.Pool.Types
     ( PoolId

@@ -216,6 +216,8 @@ library
     Cardano.Api.Extra
     Cardano.DB.Sqlite
     Cardano.DB.Sqlite.Delete
+    Cardano.DB.Sqlite.ForeignKeys
+    Cardano.DB.Sqlite.Migration.Old
     Cardano.Pool.DB
     Cardano.Pool.DB.Log
     Cardano.Pool.DB.Model
