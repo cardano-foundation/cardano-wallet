@@ -24,20 +24,27 @@
 --
 -- Note composition is anyway expansive, do not recompose,
 -- just cache and reuse the compositions
---
-
 module Cardano.Wallet.Read.Eras.EraFun
-  ( -- * Types.
-  EraFun (..)
-  -- * Composition.
-  , (*.**)
-  , (*&&&*)
-  -- * Application.
-  , applyEraFun
-  -- * Constant era 'EraFun'
-  , EraFunK (..)
-  )
-  where
+    ( -- * Types.
+      EraFun (..)
+
+      -- * Composition.
+    , (*.**)
+    , (*&&&*)
+
+      -- * Application.
+    , applyEraFun
+
+      -- * Constant era 'EraFun'
+    , EraFunK (..)
+
+      -- * higher order record encoding
+    , runAllEraValue
+    , AllEraValue
+    , mkAllEraValue
+    , EraFunSel
+    )
+where
 
 import Prelude hiding
     ( id
@@ -55,6 +62,9 @@ import Cardano.Api
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
+    , MkEraValue (..)
+    , inject
+    , prisms
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
@@ -75,7 +85,8 @@ import Generics.SOP
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( map_NP
+    ( collapse_NP
+    , map_NP
     , pure_NP
     , trans_NP
     , zipWith_NP
@@ -92,17 +103,21 @@ import GHC.Generics
 
 -- | A record of functions indexed by all known eras. This is the natural way
 -- of defining the vector.
-data EraFun f g  = EraFun
-  { byronFun :: f ByronEra -> g ByronEra
-  , shelleyFun :: f ShelleyEra -> g ShelleyEra
-  , allegraFun :: f AllegraEra -> g AllegraEra
-  , maryFun :: f MaryEra -> g MaryEra
-  , alonzoFun :: f AlonzoEra -> g AlonzoEra
-  , babbageFun :: f BabbageEra -> g BabbageEra
-  , conwayFun :: f ConwayEra -> g ConwayEra
-  }
+data EraFun f g = EraFun
+    { byronFun :: f ByronEra -> g ByronEra
+    , shelleyFun :: f ShelleyEra -> g ShelleyEra
+    , allegraFun :: f AllegraEra -> g AllegraEra
+    , maryFun :: f MaryEra -> g MaryEra
+    , alonzoFun :: f AlonzoEra -> g AlonzoEra
+    , babbageFun :: f BabbageEra -> g BabbageEra
+    , conwayFun :: f ConwayEra -> g ConwayEra
+    }
 
 deriveGeneric ''EraFun
+
+-- | A function that selects a field from any 'EraFun'.
+type EraFunSel era = forall f g. EraFun f g -> f era -> g era
+
 -- | A product of functions indexed by KnownEras.
 type EraFunI f g = NP (f -.-> g) KnownEras
 
@@ -112,53 +127,58 @@ type EraFunI f g = NP (f -.-> g) KnownEras
 -- In case of repeated application use this function curried on the 'EraFun'
 -- argument, this will avoid the recomputation of the core
 applyEraFun :: EraFun f g -> EraValue f -> EraValue g
-applyEraFun f = let
-  g = fromEraFun f  -- curry friendly
-  in \(EraValue v) -> EraValue $ ap_NS g v
+applyEraFun f =
+    let
+        g = fromEraFun f -- curry friendly
+    in
+        \(EraValue v) -> EraValue $ ap_NS g v
 
 class CR f g x y where
-  unC :: I x -> (f -.-> g)  y
+    unC :: I x -> (f -.-> g) y
 instance CR f g (f era -> g era) era where
-  unC (I f) = Fn f
+    unC (I f) = Fn f
 
 -- Promote an 'EraFun'.
-fromEraFun :: forall f g . EraFun f g ->  EraFunI f g
-fromEraFun = trans_NP (Proxy @(CR f g)) unC  . productTypeFrom
+fromEraFun :: forall f g. EraFun f g -> EraFunI f g
+fromEraFun = trans_NP (Proxy @(CR f g)) unC . productTypeFrom
 
 class DR f g x y where
-  unD :: (f -.-> g) x -> I y
-instance DR f g era (f era -> g era)  where
-  unD (Fn f) = I f
+    unD :: (f -.-> g) x -> I y
+instance DR f g era (f era -> g era) where
+    unD (Fn f) = I f
 
 -- Project out to an 'EraFun'.
 toEraFun :: forall f g. EraFunI f g -> EraFun f g
 toEraFun = productTypeTo . trans_NP (Proxy @(DR f g)) unD
 
 instance Category EraFun where
-  id = toEraFun $ pure_NP $ Fn id
-  f . g = toEraFun
-      $ zipWith_NP (\(Fn f') (Fn g') -> Fn $ f' . g')
-        (fromEraFun f) (fromEraFun g)
+    id = toEraFun $ pure_NP $ Fn id
+    f . g =
+        toEraFun
+            $ zipWith_NP
+                (\(Fn f') (Fn g') -> Fn $ f' . g')
+                (fromEraFun f)
+                (fromEraFun g)
 
 infixr 9 *.**
 
 -- | Compose 2 EraFunI as a category, jumping the outer functorial layer in the
 -- output of the first one.
 (*.**) :: Functor w => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
-f *.** g
-  = toEraFun
-  $ composeEraFunWith
-      (\f' g' -> Comp . fmap f' . unComp . g')
-      (fromEraFun f)
-      (fromEraFun g)
+f *.** g =
+    toEraFun
+        $ composeEraFunWith
+            (\f' g' -> Comp . fmap f' . unComp . g')
+            (fromEraFun f)
+            (fromEraFun g)
 
 -- | Compose 2 EraFunI as a category, keeping the outer layer in the
 -- output of the first one.
 composeEraFunWith
-  :: (forall a . (g a -> h a) -> (f a -> w g a) -> f a -> w h a)
-  -> EraFunI g h
-  -> EraFunI f (w g)
-  -> EraFunI f (w h)
+    :: (forall a. (g a -> h a) -> (f a -> w g a) -> f a -> w h a)
+    -> EraFunI g h
+    -> EraFunI f (w g)
+    -> EraFunI f (w h)
 composeEraFunWith q = zipWith_NP (\(Fn f') (Fn g') -> Fn $ q f' g')
 
 infixr 9 *&&&*
@@ -169,19 +189,47 @@ f *&&&* g = toEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
   where
     r (Fn f') (Fn g') = Fn $ \x -> f' x :*: g' x
 
-newtype EraFunK src ft = EraFunK { fromEraFunK :: EraFun src (K ft) }
+newtype EraFunK src ft = EraFunK {fromEraFunK :: EraFun src (K ft)}
 
 instance Functor (EraFunK src) where
-    fmap :: forall a b . (a -> b) -> EraFunK src a -> EraFunK src b
-    fmap f (EraFunK g)
-        = EraFunK (toEraFun $ map_NP q $ fromEraFun g )
-        where
+    fmap :: forall a b. (a -> b) -> EraFunK src a -> EraFunK src b
+    fmap f (EraFunK g) =
+        EraFunK (toEraFun $ map_NP q $ fromEraFun g)
+      where
         q :: (-.->) src (K a) era -> (-.->) src (K b) era
-        q (Fn h) = Fn $ \x -> K . f $  unK $  h x
+        q (Fn h) = Fn $ \x -> K . f $ unK $ h x
 
 instance Applicative (EraFunK src) where
     pure x = EraFunK $ toEraFun $ pure_NP $ Fn $ \_ -> K x
     EraFunK f <*> EraFunK g =
         EraFunK $ toEraFun $ zipWith_NP q (fromEraFun f) (fromEraFun g)
-        where
+      where
         q (Fn h) (Fn j) = Fn $ \src -> K $ unK (h src) $ unK $ j src
+
+type AllEraValue f = EraFun (K ()) f
+
+runAllEraValue :: AllEraValue f -> [EraValue f]
+runAllEraValue v = collapse_NP $ zipWith_NP q prisms (fromEraFun v)
+  where
+    q :: MkEraValue f era -> (K () -.-> f) era -> K (EraValue f) era
+    q p (Fn f) = K $ inject p $ f (K ())
+
+mkAllEraValue
+    :: g ByronEra
+    -> g ShelleyEra
+    -> g AllegraEra
+    -> g MaryEra
+    -> g AlonzoEra
+    -> g BabbageEra
+    -> g ConwayEra
+    -> EraFun f g
+mkAllEraValue byronZ shelleyZ allegraZ maryZ alonzoZ babbageZ conwayZ =
+    EraFun
+        { byronFun = const byronZ
+        , shelleyFun = const shelleyZ
+        , allegraFun = const allegraZ
+        , maryFun = const maryZ
+        , alonzoFun = const alonzoZ
+        , babbageFun = const babbageZ
+        , conwayFun = const conwayZ
+        }

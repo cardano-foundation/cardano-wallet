@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Read.Block.BlockNo
     ( getEraBlockNo
@@ -57,6 +58,7 @@ getEraBlockNo =
         k = K . BlockNo . fromIntegral . O.unBlockNo
 
 newtype BlockNo = BlockNo {unBlockNo :: Natural}
+    deriving (Eq, Show, Enum)
 
 getBlockNoShelley
     :: (Era era, EncCBORGroup (TxSeq era), Crypto c)

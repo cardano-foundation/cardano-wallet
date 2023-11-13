@@ -1,8 +1,10 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -15,6 +17,7 @@ module Cardano.Wallet.Read.Block
     , Block (..)
     , fromConsensusBlock
     , getTxs
+    , toConsensusBlock
     ) where
 
 import Prelude
@@ -38,6 +41,7 @@ import Cardano.Wallet.Read.Eras
     ( (:.:) (..)
     , EraFun (..)
     , EraValue
+    , K (..)
     , allegra
     , alonzo
     , applyEraFun
@@ -100,6 +104,9 @@ type family BlockT era where
 
 newtype Block era = Block {unBlock :: BlockT era}
 
+deriving instance Show (BlockT era) => Show (Block era)
+deriving instance Eq (BlockT era) => Eq (Block era)
+
 -- | Get sequence of transactions in the block.
 txsFromBlockE :: EraFun Block ([] :.: Tx)
 txsFromBlockE =
@@ -143,3 +150,14 @@ fromConsensusBlock = \case
 
 getTxs :: O.CardanoBlock StandardCrypto -> [EraValue Tx]
 getTxs = sequenceEraValue . applyEraFun txsFromBlockE . fromConsensusBlock
+
+toConsensusBlock :: EraFun Block (K ConsensusBlock)
+toConsensusBlock = EraFun
+    { byronFun = K . O.BlockByron . unBlock
+    , shelleyFun = K . O.BlockShelley . unBlock
+    , allegraFun = K . O.BlockAllegra . unBlock
+    , maryFun = K . O.BlockMary . unBlock
+    , alonzoFun = K . O.BlockAlonzo . unBlock
+    , babbageFun = K . O.BlockBabbage . unBlock
+    , conwayFun = K . O.BlockConway . unBlock
+    }
