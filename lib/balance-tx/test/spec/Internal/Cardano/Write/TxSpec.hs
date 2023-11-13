@@ -26,6 +26,7 @@ import Data.Default
     )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra
+    , BabbageEra
     , RecentEra (..)
     , computeMinimumCoinForTxOut
     , datumHashFromBytes
@@ -126,10 +127,10 @@ spec = do
         it "is isomorphic to CardanoApi.UTxO" $ do
             testIsomorphism
                 (NamedFun
-                    (toCardanoApiUTxO @CardanoApi.BabbageEra)
+                    (toCardanoApiUTxO @BabbageEra)
                     "toCardanoApiUTxO")
                 (NamedFun
-                    (fromCardanoApiUTxO @CardanoApi.BabbageEra)
+                    (fromCardanoApiUTxO @BabbageEra)
                     "fromCardanoApiUTxO")
                 id
 

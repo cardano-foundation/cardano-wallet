@@ -45,7 +45,6 @@ import Cardano.Address.Script
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
-    , CardanoEraStyle (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
     )
@@ -263,7 +262,9 @@ import Fmt
     )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
+    , CardanoApiEra
     , RecentEra (..)
+    , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -353,7 +354,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
 
 spec :: Spec
@@ -521,15 +521,14 @@ prop_signTransaction_addsRewardAccountKey
                     tl (AnyCardanoEra era) AnyWitnessCountCtx
                     (const Nothing) Nothing creds utxo Nothing sealedTx
 
+                recentEra = fromJust $ Write.toRecentEra era
+
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
-                expectedWits = InAnyCardanoEra era <$>
-                    case Cardano.cardanoEraStyle era of
-                        LegacyByronEra -> error $ unwords
-                            [ "Withdrawal witnesses are not supported in the"
-                            , "Byron era."
-                            ]
-                        ShelleyBasedEra _ ->
-                            [mkShelleyWitness txBody rawRewardK]
+                expectedWits = withCardanoApiConstraints era $
+                    InAnyCardanoEra era <$>
+                        [ mkShelleyWitness
+                            recentEra txBody rawRewardK
+                        ]
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -603,14 +602,12 @@ prop_signTransaction_addsExtraKeyWitnesses
                 Nothing
                 sealedTx
 
+            recentEra = fromJust $ Write.toRecentEra era
+
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
-            expectedWits = InAnyCardanoEra era <$>
-                case Cardano.cardanoEraStyle era of
-                    LegacyByronEra ->
-                        -- signTransaction does nothing in Byron era
-                        []
-                    ShelleyBasedEra _ ->
-                        mkShelleyWitness txBody <$> extraKeys
+            expectedWits = withCardanoApiConstraints era $
+                InAnyCardanoEra era
+                    . mkShelleyWitness recentEra txBody <$> extraKeys
 
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -745,14 +742,12 @@ prop_signTransaction_addsTxInWitnesses
                     Nothing
                     sealedTx
 
+                recentEra = fromJust $ Write.toRecentEra era
+
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
-                expectedWits = InAnyCardanoEra era <$>
-                    case Cardano.cardanoEraStyle era of
-                        LegacyByronEra ->
-                            -- signTransaction does nothing in Byron era
-                            []
-                        ShelleyBasedEra _ ->
-                            mkShelleyWitness txBody <$> extraKeys
+                expectedWits = withCardanoApiConstraints era $
+                    InAnyCardanoEra era
+                        . mkShelleyWitness recentEra txBody <$> extraKeys
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -801,14 +796,12 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         Nothing
                         sealedTx
 
+                    recentEra = fromJust $ Write.toRecentEra era
+
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
-                    expectedWits = InAnyCardanoEra era <$>
-                        case Cardano.cardanoEraStyle era of
-                            LegacyByronEra ->
-                                -- signTransaction does nothing in Byron era
-                                []
-                            ShelleyBasedEra _ ->
-                                mkShelleyWitness txBody <$> extraKeys
+                    expectedWits = withCardanoApiConstraints era $
+                        InAnyCardanoEra era
+                            . mkShelleyWitness recentEra txBody <$> extraKeys
 
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -1011,8 +1004,8 @@ feeEstimationRegressionSpec (AnyRecentEra (_era :: RecentEra era)) =
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =
     case era of
-        RecentEraConway -> binaryCalculationsSpec' @Cardano.ConwayEra era
-        RecentEraBabbage -> binaryCalculationsSpec' @Cardano.BabbageEra era
+        RecentEraConway -> binaryCalculationsSpec' era
+        RecentEraBabbage -> binaryCalculationsSpec' era
 
 -- Up till Mary era we have the following structure of transaction
 --   transaction =
@@ -1269,7 +1262,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
       where
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-              mkByronWitness @era unsignedTx net addr
+              mkByronWitness era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta cs
           unsigned = either (error . show) id $
@@ -1319,10 +1312,9 @@ prop_sealedTxRecentEraRoundtrip
     sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: Write.IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> DecodeSetup
-    -> Cardano.Tx era
+    -> Cardano.Tx (CardanoApiEra era)
 makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
@@ -1331,7 +1323,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
-    addrWits = map (mkShelleyWitness unsigned) pairs
+    addrWits = map (mkShelleyWitness era unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
         , collateral = []
@@ -1474,16 +1466,15 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParamsForTxConstraints @Cardano.BabbageEra)
+        (mockPParamsForTxConstraints @Write.BabbageEra)
         TxWitnessShelleyUTxO
   where
     mockPParamsForTxConstraints
-        :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
-    mockPParamsForTxConstraints =
-        Write.ProtocolParameters . either (error . show) id $
-            Cardano.toLedgerPParams
-                (Write.shelleyBasedEra @era)
-                mockCardanoApiPParamsForTxConstraints
+        :: forall era . Write.IsRecentEra era => Write.PParams era
+    mockPParamsForTxConstraints = either (error . show) id $
+        Cardano.toLedgerPParams
+            Write.shelleyBasedEra
+            mockCardanoApiPParamsForTxConstraints
 
     mockCardanoApiPParamsForTxConstraints :: Cardano.ProtocolParameters
     mockCardanoApiPParamsForTxConstraints = Cardano.ProtocolParameters
@@ -1715,3 +1706,19 @@ newtype ShowOrd a = ShowOrd { unShowOrd :: a }
 
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
+
+-- | Hack until signTransaction and properties are converted to ledger types
+withCardanoApiConstraints
+    :: forall era a. CardanoEra era
+    -> ((CardanoApiEra (ShelleyLedgerEra era) ~ era) => a)
+    -> a
+withCardanoApiConstraints e a = case e of
+    Cardano.ConwayEra -> a
+    Cardano.BabbageEra -> a
+    Cardano.AlonzoEra -> err
+    Cardano.MaryEra -> err
+    Cardano.AllegraEra -> err
+    Cardano.ShelleyEra -> err
+    Cardano.ByronEra -> err
+  where
+    err = error "withCardanoApiConstraints: unsupported era"

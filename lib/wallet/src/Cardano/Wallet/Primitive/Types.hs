@@ -328,6 +328,7 @@ import NoThunks.Class
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}

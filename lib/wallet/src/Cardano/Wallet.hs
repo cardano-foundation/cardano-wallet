@@ -825,7 +825,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 
@@ -1418,7 +1417,7 @@ mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
+    (Write.PParamsInAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
     pure $ checkRewardIsWorthTxCost txWitnessTag pp balance Nothing $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
@@ -1431,7 +1430,7 @@ mkSelfWithdrawal
 mkSelfWithdrawal netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
+    (Write.PParamsInAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance Nothing of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
@@ -1464,7 +1463,7 @@ mkSelfWithdrawalShared netLayer txWitnessTag delegationTemplateM db = do
     (rewardAccount, _, derivationPath) <-
         readRewardAccount @(SharedState n SharedKey) db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    (Write.InAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
+    (Write.PParamsInAnyRecentEra _ pp, _) <- readNodeTipStateForTxWrite netLayer
     return $ case checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
@@ -1472,7 +1471,7 @@ mkSelfWithdrawalShared netLayer txWitnessTag delegationTemplateM db = do
 checkRewardIsWorthTxCost
     :: forall era. Write.IsRecentEra era
     => TxWitnessTag
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> Coin
     -> Maybe CA.ScriptTemplate
     -> Either ErrWithdrawalNotBeneficial ()
@@ -1483,7 +1482,7 @@ checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM = do
     when (Coin.toInteger balance < 2 * Coin.toInteger costOfWithdrawal)
         $ Left ErrWithdrawalNotBeneficial
   where
-    feePerByte = Write.getFeePerByte (recentEra @era) $ Write.pparamsLedger pp
+    feePerByte = Write.getFeePerByte pp
     witType = case delegationTemplateM of
         Just t -> Left t
         Nothing -> Right txWitnessTag
@@ -1879,7 +1878,7 @@ buildCoinSelectionForTransaction
     -> [TxOut] -- ^ payment outputs to exclude from change outputs
     -> Coin -- ^ protocol parameter deposit amount
     -> Maybe DelegationAction
-    -> Cardano.Tx era
+    -> Cardano.Tx (Write.CardanoApiEra era)
     -> CoinSelection
 buildCoinSelectionForTransaction
     wallet paymentOutputs depositRefund delegationAction cardanoTx =
@@ -1943,7 +1942,7 @@ readWalletUTxO ctx = do
 -- outputs.
 calcMinimumCoinValues
     :: Write.IsRecentEra era
-    => Write.ProtocolParameters era
+    => Write.PParams era
     -> TransactionLayer k ktype tx
     -> TxOut
     -> Coin
@@ -2055,7 +2054,7 @@ data ErrWriteTxEra
 
 readNodeTipStateForTxWrite
     :: NetworkLayer IO block
-    -> IO (Write.InAnyRecentEra Write.ProtocolParameters, TimeTranslation)
+    -> IO (Write.PParamsInAnyRecentEra, TimeTranslation)
 readNodeTipStateForTxWrite netLayer = do
     timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
     mpp <- currentProtocolParametersInRecentEras netLayer
@@ -2094,7 +2093,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
     pwd walletId changeAddrGen preSelection txCtx = do
     --
     stdGen <- initStdGen
-    (Write.InAnyRecentEra _era protocolParams, timeTranslation)
+    (Write.PParamsInAnyRecentEra _era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
     let ti = timeInterpreter netLayer
     throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
@@ -2183,7 +2182,7 @@ buildAndSignTransactionPure
     -> k 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> PreSelection
@@ -2282,10 +2281,10 @@ buildTransaction
     => DBLayer IO s
     -> TimeTranslation
     -> ChangeAddressGen s
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
-    -> IO (Cardano.Tx era, Wallet s)
+    -> IO (Cardano.Tx (Write.CardanoApiEra era), Wallet s)
 buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
@@ -2323,13 +2322,13 @@ buildTransactionPure
     -> TimeTranslation
     -> UTxO
     -> ChangeAddressGen s
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> PreSelection
     -> TransactionCtx
     -> ExceptT
         (Either (ErrBalanceTx era) ErrConstructTx)
         (Rand StdGen)
-        (Cardano.Tx era, s)
+        (Cardano.Tx (Write.CardanoApiEra era), s)
 buildTransactionPure
     wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
     = do
@@ -2406,7 +2405,7 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- lift readCheckpoint
-            (Write.InAnyRecentEra era _pp, _)
+            (Write.PParamsInAnyRecentEra era _pp, _)
                 <- liftIO $ readNodeTipStateForTxWrite nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
                 rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
@@ -2448,28 +2447,30 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
 constructTransaction
     :: forall n era
      . (Write.IsRecentEra era, HasSNetworkId n)
-    => DBLayer IO (SeqState n ShelleyKey)
+    => Write.RecentEra era
+    -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
-constructTransaction db txCtx preSel = do
+    -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
+constructTransaction era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
     mkUnsignedTransaction era netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
     netId = networkIdVal $ sNetworkId @n
-    era = recentEra @era
 
 constructUnbalancedSharedTransaction
     :: forall n era
      . ( Write.IsRecentEra era
-       , HasSNetworkId n)
-    => DBLayer IO (SharedState n SharedKey)
+       , HasSNetworkId n
+       )
+    => Write.RecentEra era
+    -> DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
-        (Cardano.TxBody era, (Address -> CA.Script KeyHash))
-constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
+        (Cardano.TxBody (Write.CardanoApiEra era), (Address -> CA.Script KeyHash))
+constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2493,7 +2494,6 @@ constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
     pure (sealedTx, getScript)
   where
     netId = networkIdVal $ sNetworkId @n
-    era = recentEra @era
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -2801,7 +2801,7 @@ createMigrationPlan
     -> IO MigrationPlan
 createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet ctx
-    (Write.InAnyRecentEra _era pp, _) <- readNodeTipStateForTxWrite nl
+    (Write.PParamsInAnyRecentEra _era pp, _) <- readNodeTipStateForTxWrite nl
     let constraints = txConstraints pp (transactionWitnessTag tl)
         utxo = availableUTxO pending wallet
     pure
@@ -2900,11 +2900,10 @@ instance NFData DelegationFee
 
 getStakeKeyDeposit
     :: forall era. Write.IsRecentEra era
-    => Write.ProtocolParameters era
+    => Write.PParams era
     -> Coin
 getStakeKeyDeposit = toWallet
     . Write.stakeKeyDeposit (recentEra @era)
-    . Write.pparamsLedger
 
 isStakeKeyRegistered
     :: Functor stm
@@ -2926,7 +2925,7 @@ delegationFee
     -> ChangeAddressGen s
     -> IO DelegationFee
 delegationFee db@DBLayer{..} netLayer changeAddressGen = do
-    (Write.InAnyRecentEra era protocolParams, timeTranslation)
+    (Write.PParamsInAnyRecentEra era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
     feePercentiles <- transactionFee
         db protocolParams timeTranslation changeAddressGen
@@ -2938,8 +2937,7 @@ delegationFee db@DBLayer{..} netLayer changeAddressGen = do
     deposit <- liftIO
         $ atomically (isStakeKeyRegistered walletState) <&> \case
             False -> toWallet
-                $ Write.stakeKeyDeposit era
-                $ Write.pparamsLedger protocolParams
+                $ Write.stakeKeyDeposit era protocolParams
             True -> Coin 0
     pure DelegationFee { feePercentiles, deposit }
 
@@ -2952,7 +2950,7 @@ transactionFee
        , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> TimeTranslation
     -> ChangeAddressGen s
     -> TransactionCtx

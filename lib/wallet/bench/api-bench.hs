@@ -188,7 +188,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified System.Environment as Sys
 import qualified System.Exit as Sys
@@ -538,7 +537,7 @@ mockNetworkLayer = dummyNetworkLayer
     , currentSlottingParameters = pure dummySlottingParameters
     , currentProtocolParameters = pure dummyProtocolParameters
     , currentProtocolParametersInRecentEras = pure
-        $ Write.InRecentEraBabbage . Write.ProtocolParameters $
+        $ Write.InRecentEraBabbage $
             either (error . show) id $
                 C.toLedgerPParams
                     C.ShelleyBasedEraBabbage

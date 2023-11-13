@@ -29,12 +29,10 @@ import Data.IntCast
     ( intCastMaybe
     )
 import Internal.Cardano.Write.Tx
-    ( PParams
-    , RecentEra
-    , ShelleyLedgerEra
+    ( IsRecentEra
+    , PParams
     , Value
     , Version
-    , withConstraints
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
@@ -52,19 +50,19 @@ import qualified Data.ByteString.Lazy as BL
 -- See 'TokenBundleSizeAssessor' for the expected properties of this function.
 --
 mkTokenBundleSizeAssessor
-    :: RecentEra era
-    -> PParams (ShelleyLedgerEra era)
+    :: IsRecentEra era
+    => PParams era
     -> TokenBundleSizeAssessor
-mkTokenBundleSizeAssessor era pp = TokenBundleSizeAssessor $ \tb ->
+mkTokenBundleSizeAssessor pp = TokenBundleSizeAssessor $ \tb ->
     if computeTokenBundleSerializedLengthBytes tb ver > maxValSize
     then TokenBundleSizeExceedsLimit
     else TokenBundleSizeWithinLimit
   where
     maxValSize :: W.TxSize
-    maxValSize = W.TxSize $ withConstraints era $ pp ^. ppMaxValSizeL
+    maxValSize = W.TxSize $ pp ^. ppMaxValSizeL
 
     ver :: Version
-    ver = withConstraints era $ pvMajor $ pp ^. ppProtocolVersionL
+    ver = pvMajor $ pp ^. ppProtocolVersionL
 
 computeTokenBundleSerializedLengthBytes
     :: W.TokenBundle

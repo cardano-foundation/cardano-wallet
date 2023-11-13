@@ -1167,7 +1167,7 @@ benchEstimateTxFee network (WalletLayer _ _ netLayer _ dbLayer) =
   where
     estimateFee :: IO (W.Percentile 10 W.Fee, W.Percentile 90 W.Fee)
     estimateFee = do
-        (Write.InAnyRecentEra _era protocolParams, timeTranslation)
+        (Write.PParamsInAnyRecentEra _era protocolParams, timeTranslation)
             <- W.readNodeTipStateForTxWrite netLayer
         -- For an output with zero ada, the transactionFee function should
         -- automatically assign a minimal amount of lovelace to the output
