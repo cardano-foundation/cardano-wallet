@@ -262,7 +262,6 @@ instance IsServerError WalletException where
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
         ExceptionWriteTxEra e -> toServerError e
-        ExceptionBalanceTxInternalError e -> toServerError e
         ExceptionSubmitTransaction e -> toServerError e
         ExceptionConstructTx e -> toServerError e
         ExceptionGetPolicyId e -> toServerError e
