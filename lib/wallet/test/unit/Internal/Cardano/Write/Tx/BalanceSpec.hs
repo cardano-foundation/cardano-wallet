@@ -1457,7 +1457,7 @@ prop_balanceTransactionValid
                 let counterexampleText = unlines
                         [ "underestimated fee by "
                             <> pretty (Convert.toWalletCoin delta)
-                        , "candidate tx: " <> pretty candidateTx
+                        , "candidate tx: " <> show (Pretty candidateTx)
                         , "assuming key witness count: " <> show nWits
                         ]
                 in

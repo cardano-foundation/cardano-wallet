@@ -89,6 +89,7 @@ module Internal.Cardano.Write.Tx
     , outputs
     , modifyLedgerBody
     , emptyTx
+    , serializeTx
 
     -- * TxId
     , Ledger.TxId
@@ -345,6 +346,8 @@ type RecentEraLedgerConstraints era =
     , Eq (TxOut era)
     , Ledger.Crypto (Core.EraCrypto era)
     , Show (TxOut era)
+    , Show (Core.Tx era)
+    , Eq (Core.Tx era)
     , Babbage.BabbageEraTxBody era
     , Shelley.EraUTxO era
     )
@@ -758,6 +761,12 @@ utxoFromTxOutsInRecentEra era = withConstraints era $
 --------------------------------------------------------------------------------
 -- Tx
 --------------------------------------------------------------------------------
+
+serializeTx
+    :: forall era. IsRecentEra era
+    => Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    -> ByteString
+serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
 
 txBody
     :: RecentEra era

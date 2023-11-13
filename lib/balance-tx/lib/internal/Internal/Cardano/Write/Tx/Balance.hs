@@ -117,10 +117,6 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
-    , sealedTxFromCardano
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)
     , txOutMaxCoin
@@ -422,10 +418,13 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     }
     deriving (Eq, Generic, Show)
 
-data ErrBalanceTxInternalError
-    = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
+data ErrBalanceTxInternalError era
+    = (RecentEraLedgerConstraints (ShelleyLedgerEra era), IsRecentEra era) =>
+        ErrUnderestimatedFee Coin (Tx (ShelleyLedgerEra era)) KeyWitnessCount
     | ErrFailedBalancing Value
-    deriving (Show, Eq)
+
+deriving instance Show (ErrBalanceTxInternalError era)
+deriving instance Eq (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
@@ -440,7 +439,7 @@ data ErrBalanceTx era
         (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
-    | ErrBalanceTxInternalError ErrBalanceTxInternalError
+    | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
     | RecentEraLedgerConstraints (ShelleyLedgerEra era)
         => ErrBalanceTxInputResolutionConflicts
         (NonEmpty (TxOut (ShelleyLedgerEra era), TxOut (ShelleyLedgerEra era)))
@@ -788,10 +787,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             | c >= 0 ->
                 pure $ W.Coin.unsafeFromIntegral c
             | otherwise ->
-                throwE . ErrBalanceTxInternalError $
-                ErrUnderestimatedFee
+                throwE
+                $ withConstraints era
+                $ ErrBalanceTxInternalError
+                $ ErrUnderestimatedFee
                     (Coin (-c))
-                    (toSealed candidateTx)
+                    candidateTx
                     witCount
 
     let feeAndChange = TxFeeAndChange
@@ -803,9 +804,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- padding in @selectAssets@.
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
-            ErrBalanceTxInternalError $
-            ErrUnderestimatedFee
-                (Convert.toLedgerCoin c) (toSealed candidateTx) witCount
+            ErrBalanceTxInternalError
+                $ withConstraints era
+                $ ErrUnderestimatedFee
+                    (Convert.toLedgerCoin c)
+                    candidateTx
+                    witCount
         )
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
@@ -824,11 +828,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     era = recentEra @era
 
     partialLedgerTx = fromCardanoApiTx partialTx
-
-    toSealed :: Tx (ShelleyLedgerEra era) -> SealedTx
-    toSealed = sealedTxFromCardano
-        . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
-        . toCardanoApiTx @era
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.

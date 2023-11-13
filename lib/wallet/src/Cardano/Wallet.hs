@@ -588,7 +588,6 @@ import Cardano.Wallet.Transaction.Built
     )
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , balanceTransaction
     )
