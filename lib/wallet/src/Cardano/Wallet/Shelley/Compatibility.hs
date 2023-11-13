@@ -102,7 +102,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , getProducer
     , fromBlockNo
     , toCardanoEra
-    , fromShelleyHash
     , fromShelleyTxOut
     , fromCardanoHash
     , fromChainHash
@@ -349,9 +348,6 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
-import Ouroboros.Consensus.Shelley.Ledger
-    ( ShelleyHash (..)
-    )
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..)
     )
@@ -574,9 +570,6 @@ toCardanoEra = \case
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{}  -> AnyCardanoEra ConwayEra
-
-fromShelleyHash :: ShelleyHash crypto -> W.Hash "BlockHeader"
-fromShelleyHash (ShelleyHash h) = W.Hash (hashToBytes h)
 
 fromCardanoHash :: O.HeaderHash (CardanoBlock sc) -> W.Hash "BlockHeader"
 fromCardanoHash = W.Hash . fromShort . getOneEraHash
