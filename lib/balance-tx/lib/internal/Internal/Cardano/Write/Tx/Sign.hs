@@ -41,9 +41,6 @@ import Cardano.Ledger.Credential
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)
     )
@@ -79,6 +76,9 @@ import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+    ( Coin (..)
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.Foldable as F
 import qualified Data.List as L

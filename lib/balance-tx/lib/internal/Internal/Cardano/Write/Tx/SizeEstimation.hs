@@ -51,9 +51,6 @@ import Cardano.Address.Script
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)
     )
@@ -82,7 +79,10 @@ import Numeric.Natural
     )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+    ( Coin (..)
+    )
+import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId (..)
@@ -118,12 +118,12 @@ data TxSkeleton = TxSkeleton
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 -- The constant tx fee is /not/ included in the result of this function.
-estimateTxCost :: FeePerByte -> TxSkeleton -> Coin
+estimateTxCost :: FeePerByte -> TxSkeleton -> W.Coin
 estimateTxCost (FeePerByte feePerByte) skeleton =
     computeFee (estimateTxSize skeleton)
   where
-    computeFee :: TxSize -> Coin
-    computeFee (TxSize size) = Coin $ feePerByte * size
+    computeFee :: TxSize -> W.Coin
+    computeFee (TxSize size) = W.Coin $ feePerByte * size
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
@@ -346,7 +346,7 @@ estimateTxSize skeleton =
         . BS.length
         . CBOR.toStrictByteString
         . CBOR.encodeWord64
-        . Coin.unsafeToWord64
+        . W.Coin.unsafeToWord64
 
     determinePaymentTemplateSize scriptCosigner
         = sizeOf_Array
