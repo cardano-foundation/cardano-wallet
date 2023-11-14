@@ -33,7 +33,6 @@ import Data.Word
 import Internal.Cardano.Write.Tx
     ( ProtVer (..)
     , RecentEra (..)
-    , ShelleyLedgerEra
     , StandardBabbage
     , StandardConway
     , Version
@@ -69,6 +68,7 @@ import Test.QuickCheck
     , (==>)
     )
 
+import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
@@ -282,7 +282,7 @@ instance Arbitrary PParamsInRecentEra where
       where
         genPParams
             :: RecentEra era
-            -> Gen (PParams (ShelleyLedgerEra era))
+            -> Gen (PParams (CardanoApi.ShelleyLedgerEra era))
         genPParams era = withConstraints era $ do
             ver <- arbitrary
             maxSize <- genMaxSizeBytes

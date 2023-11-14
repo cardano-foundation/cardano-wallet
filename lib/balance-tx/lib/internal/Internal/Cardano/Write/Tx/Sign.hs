@@ -58,7 +58,6 @@ import Internal.Cardano.Write.Tx
     , KeyWitnessCount (..)
     , PParams
     , RecentEra (..)
-    , ShelleyLedgerEra
     , Tx
     , TxIn
     , UTxO
@@ -91,9 +90,10 @@ import qualified Internal.Cardano.Write.Tx as Write
 -- NOTE: Existing key witnesses in the tx are ignored.
 estimateSignedTxSize
     :: forall era. RecentEra era
-    -> PParams (ShelleyLedgerEra era)
+    -> PParams (CardanoApi.ShelleyLedgerEra era)
     -> KeyWitnessCount
-    -> Tx (ShelleyLedgerEra era) -- ^ existing wits in tx are ignored
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
+    -- ^ existing wits in tx are ignored
     -> W.TxSize
 estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     let
@@ -125,7 +125,7 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     in
         sizeOfTx <> sizeOfWits
   where
-    unsignedTx :: Tx (ShelleyLedgerEra era)
+    unsignedTx :: Tx (CardanoApi.ShelleyLedgerEra era)
     unsignedTx = withConstraints era $
         txWithWits
             & (witsTxL . addrTxWitsL) .~ mempty
@@ -161,7 +161,7 @@ numberOfShelleyWitnesses n = KeyWitnessCount n 0
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateKeyWitnessCount
     :: forall era. IsRecentEra era
-    => UTxO (ShelleyLedgerEra era)
+    => UTxO (CardanoApi.ShelleyLedgerEra era)
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> CardanoApi.TxBody era
@@ -265,7 +265,7 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
                 Alonzo.PlutusScript _ _ -> Nothing
 
     hasScriptCred
-        :: UTxO (ShelleyLedgerEra era)
+        :: UTxO (CardanoApi.ShelleyLedgerEra era)
         -> TxIn
         -> Bool
     hasScriptCred u inp = withConstraints (recentEra @era) $
@@ -280,7 +280,7 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
                     ]
 
     hasBootstrapAddr
-        :: UTxO (ShelleyLedgerEra era)
+        :: UTxO (CardanoApi.ShelleyLedgerEra era)
         -> TxIn
         -> Bool
     hasBootstrapAddr u inp = withConstraints (recentEra @era) $
