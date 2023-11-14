@@ -54,9 +54,6 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)
     )
@@ -87,6 +84,10 @@ import Numeric.Natural
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
+    ( AssetId
+    , TokenMap
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -110,7 +111,7 @@ data TxSkeleton = TxSkeleton
     { txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
     , txOutputs :: ![W.TxOut]
-    , txChange :: ![Set AssetId]
+    , txChange :: ![Set W.AssetId]
     , txPaymentTemplate :: !(Maybe (CA.Script CA.Cosigner))
     }
     deriving (Eq, Show, Generic)
