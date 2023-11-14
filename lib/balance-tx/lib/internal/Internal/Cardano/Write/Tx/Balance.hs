@@ -424,8 +424,8 @@ data ErrBalanceTxInternalError era
         ErrUnderestimatedFee Coin (Tx (ShelleyLedgerEra era)) KeyWitnessCount
     | ErrFailedBalancing Value
 
-deriving instance Show (ErrBalanceTxInternalError era)
 deriving instance Eq (ErrBalanceTxInternalError era)
+deriving instance Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
