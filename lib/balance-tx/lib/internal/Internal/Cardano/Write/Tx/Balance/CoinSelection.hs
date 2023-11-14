@@ -85,9 +85,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn
-    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -149,6 +146,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId
     , TokenMap
     )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn (..)
+    )
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ instance SC.SelectionContext WalletSelectionContext where
 --
 data WalletUTxO = WalletUTxO
     { txIn
-        :: !TxIn
+        :: !W.TxIn
     , address
         :: !W.Address
     }
@@ -183,22 +183,22 @@ instance Buildable WalletUTxO where
 instance Buildable (WalletUTxO, W.TokenBundle) where
     build (u, b) = build u <> ":" <> build (W.TokenBundle.Flat b)
 
-toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (TxIn, TxOut)
+toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (W.TxIn, TxOut)
 toExternalUTxO = toExternalUTxO' id
 
 toExternalUTxOMap :: Map WalletUTxO W.TokenBundle -> UTxO
 toExternalUTxOMap = UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
 
-toInternalUTxO :: (TxIn, TxOut) -> (WalletUTxO, W.TokenBundle)
+toInternalUTxO :: (W.TxIn, TxOut) -> (WalletUTxO, W.TokenBundle)
 toInternalUTxO = toInternalUTxO' id
 
 toInternalUTxOMap :: UTxO -> Map WalletUTxO W.TokenBundle
 toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
 
-toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (TxIn, TxOut)
+toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (W.TxIn, TxOut)
 toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b))
 
-toInternalUTxO' :: (W.TokenBundle -> b) -> (TxIn, TxOut) -> (WalletUTxO, b)
+toInternalUTxO' :: (W.TokenBundle -> b) -> (W.TxIn, TxOut) -> (WalletUTxO, b)
 toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
 
 --------------------------------------------------------------------------------
@@ -368,10 +368,10 @@ toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
 --
 data SelectionOf change = Selection
     { inputs
-        :: !(NonEmpty (TxIn, TxOut))
+        :: !(NonEmpty (W.TxIn, TxOut))
         -- ^ Selected inputs.
     , collateral
-        :: ![(TxIn, TxOut)]
+        :: ![(W.TxIn, TxOut)]
         -- ^ Selected collateral inputs.
     , outputs
         :: ![TxOut]
