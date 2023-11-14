@@ -9,10 +9,6 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress
     )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin
-    , shrinkCoin
-    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn
     )
@@ -81,6 +77,7 @@ import Test.Utils.Pretty
     ( (====)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap.Gen as W
@@ -144,9 +141,10 @@ genSelection = Selection
     genChange = listOf W.genTokenBundle
     genAssetsToMint = W.genTokenMap
     genAssetsToBurn = W.genTokenMap
-    genExtraCoinSource = genCoin
-    genExtraCoinSink = genCoin
-    genTxOutCoin = TxOut <$> genAddress <*> (W.TokenBundle.fromCoin <$> genCoin)
+    genExtraCoinSource = W.genCoin
+    genExtraCoinSink = W.genCoin
+    genTxOutCoin =
+        TxOut <$> genAddress <*> (W.TokenBundle.fromCoin <$> W.genCoin)
 
 shrinkSelection :: Selection -> [Selection]
 shrinkSelection = genericRoundRobinShrink
@@ -166,8 +164,8 @@ shrinkSelection = genericRoundRobinShrink
     shrinkChange = shrinkList W.shrinkTokenBundle
     shrinkAssetsToMint = W.shrinkTokenMap
     shrinkAssetsToBurn = W.shrinkTokenMap
-    shrinkExtraCoinSource = shrinkCoin
-    shrinkExtraCoinSink = shrinkCoin
+    shrinkExtraCoinSource = W.shrinkCoin
+    shrinkExtraCoinSink = W.shrinkCoin
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

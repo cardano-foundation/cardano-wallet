@@ -84,9 +84,6 @@ import Cardano.Wallet.Primitive.Collateral
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
@@ -141,6 +138,9 @@ import Prelude
 
 import qualified Cardano.CoinSelection as Internal
 import qualified Cardano.CoinSelection.Context as SC
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+    ( Coin
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
@@ -222,14 +222,14 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
-        :: Address -> W.TokenMap -> Coin
+        :: Address -> W.TokenMap -> W.Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , isBelowMinimumAdaQuantity
         :: Address -> W.TokenBundle -> Bool
       -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
       -- below the minimum required.
     , computeMinimumCost
-        :: SelectionSkeleton -> Coin
+        :: SelectionSkeleton -> W.Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
     , maximumCollateralInputCount
         :: Int
@@ -314,7 +314,7 @@ toInternalSelectionParams SelectionParams {..} =
     W.TokenBundle extraCoinIn  assetsToMint = extraValueIn
     W.TokenBundle extraCoinOut assetsToBurn = extraValueOut
 
-    identifyCollateral :: WalletUTxO -> W.TokenBundle -> Maybe Coin
+    identifyCollateral :: WalletUTxO -> W.TokenBundle -> Maybe W.Coin
     identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
 
 --------------------------------------------------------------------------------
@@ -386,10 +386,10 @@ data SelectionOf change = Selection
         :: !W.TokenMap
         -- ^ Assets to burn.
     , extraCoinSource
-        :: !Coin
+        :: !W.Coin
         -- ^ An extra source of ada.
     , extraCoinSink
-        :: !Coin
+        :: !W.Coin
         -- ^ An extra sink for ada.
     }
     deriving (Generic, Eq, Show)
