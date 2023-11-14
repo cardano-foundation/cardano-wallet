@@ -217,7 +217,7 @@ import System.IOManager
     ( withIOManager
     )
 
-import qualified Cardano.Pool.DB.Sqlite as Pool
+import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Network.Wai.Handler.Warp as Warp

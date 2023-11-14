@@ -7,7 +7,7 @@
 --
 -- DBLayer tests for SQLite implementation.
 
-module Cardano.Pool.DB.SqliteSpec
+module Cardano.Pool.DB.LayerSpec
     ( spec
     ) where
 
@@ -22,14 +22,14 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..)
     )
+import Cardano.Pool.DB.Layer
+    ( withDBLayer
+    )
 import Cardano.Pool.DB.Log
     ( PoolDbLog (..)
     )
 import Cardano.Pool.DB.Properties
     ( properties
-    )
-import Cardano.Pool.DB.Sqlite
-    ( withDBLayer
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter
