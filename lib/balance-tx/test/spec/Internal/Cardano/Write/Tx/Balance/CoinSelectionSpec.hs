@@ -6,13 +6,6 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn
-    )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn
-    , shrinkTxIn
-    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -79,6 +72,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
@@ -102,7 +97,7 @@ spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
 -- Conversion between external (wallet) and internal UTxOs
 --------------------------------------------------------------------------------
 
-prop_toInternalUTxO_toExternalUTxO :: TxIn -> TxOut -> Property
+prop_toInternalUTxO_toExternalUTxO :: W.TxIn -> TxOut -> Property
 prop_toInternalUTxO_toExternalUTxO i o =
     (toExternalUTxO . toInternalUTxO) (i, o) === (i, o)
 
@@ -133,8 +128,8 @@ genSelection = Selection
     <*> genExtraCoinSource
     <*> genExtraCoinSink
   where
-    genInputs = genNonEmpty ((,) <$> genTxIn <*> genTxOut)
-    genCollateral = listOf ((,) <$> genTxIn <*> genTxOutCoin)
+    genInputs = genNonEmpty ((,) <$> W.genTxIn <*> genTxOut)
+    genCollateral = listOf ((,) <$> W.genTxIn <*> genTxOutCoin)
     genOutputs = listOf genTxOut
     genChange = listOf W.genTokenBundle
     genAssetsToMint = W.genTokenMap
@@ -156,8 +151,8 @@ shrinkSelection = genericRoundRobinShrink
     <:> shrinkExtraCoinSink
     <:> Nil
   where
-    shrinkInputs = shrinkNonEmpty (liftShrink2 shrinkTxIn shrinkTxOut)
-    shrinkCollateral = shrinkList (liftShrink2 shrinkTxIn shrinkTxOut)
+    shrinkInputs = shrinkNonEmpty (liftShrink2 W.shrinkTxIn shrinkTxOut)
+    shrinkCollateral = shrinkList (liftShrink2 W.shrinkTxIn shrinkTxOut)
     shrinkOutputs = shrinkList shrinkTxOut
     shrinkChange = shrinkList W.shrinkTokenBundle
     shrinkAssetsToMint = W.shrinkTokenMap
@@ -173,9 +168,9 @@ instance Arbitrary Selection where
     arbitrary = genSelection
     shrink = shrinkSelection
 
-instance Arbitrary TxIn where
-    arbitrary = genTxIn
-    shrink = shrinkTxIn
+instance Arbitrary W.TxIn where
+    arbitrary = W.genTxIn
+    shrink = W.shrinkTxIn
 
 instance Arbitrary TxOut where
     arbitrary = genTxOut

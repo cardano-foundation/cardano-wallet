@@ -9,11 +9,6 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( genTxIn
-    , genTxInLargeRange
-    , shrinkTxIn
-    )
 import Generics.SOP
     ( NP (..)
     )
@@ -33,6 +28,7 @@ import Test.QuickCheck.Extra
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Address.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 
 --------------------------------------------------------------------------------
 -- Wallet UTxO identifiers chosen according to the size parameter
@@ -42,11 +38,11 @@ coarbitraryWalletUTxO :: WalletUTxO -> Gen a -> Gen a
 coarbitraryWalletUTxO = coarbitrary . show
 
 genWalletUTxO :: Gen WalletUTxO
-genWalletUTxO = uncurry WalletUTxO <$> genSized2 genTxIn W.genAddress
+genWalletUTxO = uncurry WalletUTxO <$> genSized2 W.genTxIn W.genAddress
 
 shrinkWalletUTxO :: WalletUTxO -> [WalletUTxO]
 shrinkWalletUTxO = genericRoundRobinShrink
-    <@> shrinkTxIn
+    <@> W.shrinkTxIn
     <:> W.shrinkAddress
     <:> Nil
 
@@ -58,4 +54,4 @@ genWalletUTxOFunction = genFunction coarbitraryWalletUTxO
 --------------------------------------------------------------------------------
 
 genWalletUTxOLargeRange :: Gen WalletUTxO
-genWalletUTxOLargeRange = WalletUTxO <$> genTxInLargeRange <*> W.genAddress
+genWalletUTxOLargeRange = WalletUTxO <$> W.genTxInLargeRange <*> W.genAddress
