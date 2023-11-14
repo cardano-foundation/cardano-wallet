@@ -41,9 +41,6 @@ import Cardano.Ledger.Credential
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    )
 import Control.Lens
     ( view
     , (&)
@@ -80,6 +77,9 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -94,7 +94,7 @@ estimateSignedTxSize
     -> PParams (ShelleyLedgerEra era)
     -> KeyWitnessCount
     -> Tx (ShelleyLedgerEra era) -- ^ existing wits in tx are ignored
-    -> TxSize
+    -> W.TxSize
 estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
     let
         -- Hack which allows us to rely on the ledger to calculate the size of
@@ -102,10 +102,10 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
         feeOfWits :: W.Coin
         feeOfWits = minfee nWits <\> minfee mempty
 
-        sizeOfWits :: TxSize
+        sizeOfWits :: W.TxSize
         sizeOfWits =
             case feeOfWits `coinQuotRem` feePerByte of
-                (n, 0) -> TxSize n
+                (n, 0) -> W.TxSize n
                 (_, _) -> error $ unwords
                     [ "estimateSignedTxSize:"
                     , "the impossible happened!"
@@ -118,9 +118,9 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
                     , "lovelace/byte"
                     ]
 
-        sizeOfTx :: TxSize
+        sizeOfTx :: W.TxSize
         sizeOfTx = withConstraints era
-            $ fromIntegral @Integer @TxSize
+            $ fromIntegral @Integer @W.TxSize
             $ unsignedTx ^. sizeTxF
     in
         sizeOfTx <> sizeOfWits

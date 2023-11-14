@@ -117,11 +117,6 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    , txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
 import Control.Arrow
     ( left
     )
@@ -321,6 +316,11 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (..)
+    )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    , txOutMaxCoin
+    , txOutMaxTokenQuantity
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn
@@ -878,7 +878,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
     guardTxSize witCount tx =
         withConstraints era $ do
-            let maxSize = TxSize (pp ^. ppMaxTxSizeL)
+            let maxSize = W.TxSize (pp ^. ppMaxTxSizeL)
             when (estimateSignedTxSize era pp witCount tx > maxSize) $
                 throwE ErrBalanceTxMaxSizeLimitExceeded
             pure tx
@@ -1061,7 +1061,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
             computeMinimumCoinForTxOut
                 era
                 pp
-                (mkLedgerTxOut era addr (W.TokenBundle txOutMaxCoin tokens))
+                (mkLedgerTxOut era addr (W.TokenBundle W.txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
             isBelowMinimumCoinForTxOut
                 era
@@ -1384,7 +1384,7 @@ costOfIncreasingCoin
 costOfIncreasingCoin (FeePerByte perByte) from delta =
     costOfCoin (from <> delta) <\> costOfCoin from
   where
-    costOfCoin = W.Coin . (perByte *) . unTxSize . sizeOfCoin
+    costOfCoin = W.Coin . (perByte *) . W.unTxSize . sizeOfCoin
 
 -- The maximum cost increase 'costOfIncreasingCoin' can return, which is the
 -- cost of 8 bytes.
@@ -1392,13 +1392,13 @@ maximumCostOfIncreasingCoin :: FeePerByte -> W.Coin
 maximumCostOfIncreasingCoin (FeePerByte perByte) = W.Coin $ 8 * perByte
 
 -- | Calculate the size of a coin when encoded as CBOR.
-sizeOfCoin :: W.Coin -> TxSize
+sizeOfCoin :: W.Coin -> W.TxSize
 sizeOfCoin (W.Coin c)
-    | c >= 4_294_967_296 = TxSize 9 -- c >= 2^32
-    | c >=        65_536 = TxSize 5 -- c >= 2^16
-    | c >=           256 = TxSize 3 -- c >= 2^ 8
-    | c >=            24 = TxSize 2
-    | otherwise          = TxSize 1
+    | c >= 4_294_967_296 = W.TxSize 9 -- c >= 2^32
+    | c >=        65_536 = W.TxSize 5 -- c >= 2^16
+    | c >=           256 = W.TxSize 3 -- c >= 2^ 8
+    | c >=            24 = W.TxSize 2
+    | otherwise          = W.TxSize 1
 
 -- | Distributes a surplus transaction balance between the given change
 -- outputs and the given fee. This function is aware of the fact that
@@ -1721,7 +1721,7 @@ validateTxOutputTokenQuantities out =
     , quantity > quantityMaxBound
     ]
   where
-    quantityMaxBound = W.unTokenQuantity txOutMaxTokenQuantity
+    quantityMaxBound = W.unTokenQuantity W.txOutMaxTokenQuantity
 
 -- | Validates the ada quantity associated with a transaction output.
 --
