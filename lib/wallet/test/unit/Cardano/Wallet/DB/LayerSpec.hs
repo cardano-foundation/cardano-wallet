@@ -1143,6 +1143,10 @@ initializeDBSpec = do
         it "Database schema version is up to date"
             testSchemaVersionUpToDate
 
+    describe "withLoadDBLayerFromFile" $ do
+        it "can read WalletId from historical database" $
+            testWalletId "walletId-v2020-10-07.sqlite"
+
 testSchemaVersionUpToDate :: IO ()
 testSchemaVersionUpToDate =
     withBootDBLayerInMemory ShelleyWallet
@@ -1153,6 +1157,13 @@ testSchemaVersionUpToDate =
         $ \DBLayer{..} -> do
             version <- atomically getSchemaVersion
             version `shouldBe` latestVersion
+
+testWalletId :: FilePath -> IO ()
+testWalletId dbName = do
+    (_, wid1) <- withDBLayerFromCopiedFile @TestState dbName
+        $ \DBLayer{walletId_} -> pure walletId_
+    let wid0 = unsafeFromText "5e388b3acea8efe8b22fe924d9c35e4283bd2e35"
+    wid1 `shouldBe` wid0
 
 {-------------------------------------------------------------------------------
                             Manual migrations tests
