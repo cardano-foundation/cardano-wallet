@@ -225,7 +225,6 @@ import Internal.Cardano.Write.Tx
     , PolicyId
     , RecentEra (..)
     , RecentEraLedgerConstraints
-    , ShelleyLedgerEra
     , Tx
     , TxBody
     , TxIn
@@ -366,7 +365,7 @@ instance Buildable (BuildableInAnyEra a) where
 --
 data ErrBalanceTxInsufficientCollateralError era =
     ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: UTxO (ShelleyLedgerEra era)
+    { largestCombinationAvailable :: UTxO (CardanoApi.ShelleyLedgerEra era)
         -- ^ The largest available combination of pure ada UTxOs.
     , minimumCollateralAmount :: Coin
         -- ^ The minimum quantity of ada necessary for collateral.
@@ -374,11 +373,11 @@ data ErrBalanceTxInsufficientCollateralError era =
     deriving Generic
 
 deriving instance
-    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
     Eq (ErrBalanceTxInsufficientCollateralError era)
 
 deriving instance
-    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
     Show (ErrBalanceTxInsufficientCollateralError era)
 
 -- | Indicates that there was not enough ada available to create change outputs.
@@ -435,15 +434,19 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
-    | RecentEraLedgerConstraints (ShelleyLedgerEra era)
+    | RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era)
         => ErrBalanceTxInsufficientCollateral
         (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
-    | RecentEraLedgerConstraints (ShelleyLedgerEra era)
-        => ErrBalanceTxInputResolutionConflicts
-        (NonEmpty (TxOut (ShelleyLedgerEra era), TxOut (ShelleyLedgerEra era)))
+    | RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
+        ErrBalanceTxInputResolutionConflicts
+            (NonEmpty
+                ( TxOut (CardanoApi.ShelleyLedgerEra era)
+                , TxOut (CardanoApi.ShelleyLedgerEra era)
+                )
+            )
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
@@ -472,22 +475,22 @@ deriving instance Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: CardanoApi.Tx era
-    , inputs :: UTxO (ShelleyLedgerEra era)
+    , inputs :: UTxO (CardanoApi.ShelleyLedgerEra era)
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
     }
     deriving Generic
 
 deriving instance
-    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
     Eq (PartialTx era)
 
 deriving instance
-    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
     Show (PartialTx era)
 
 instance
-    RecentEraLedgerConstraints (ShelleyLedgerEra era) =>
+    RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era) =>
     Buildable (PartialTx era)
   where
     build (PartialTx tx (UTxO ins) redeemers)
@@ -505,12 +508,12 @@ instance
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
-    , ledgerUTxO :: !(UTxO (ShelleyLedgerEra era))
+    , ledgerUTxO :: !(UTxO (CardanoApi.ShelleyLedgerEra era))
     }
 
 constructUTxOIndex
     :: forall era. IsRecentEra era
-    => UTxO (ShelleyLedgerEra era)
+    => UTxO (CardanoApi.ShelleyLedgerEra era)
     -> UTxOIndex era
 constructUTxOIndex ledgerUTxO =
     UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
@@ -522,14 +525,14 @@ constructUTxOIndex ledgerUTxO =
 fromWalletUTxO
     :: RecentEra era
     -> W.UTxO
-    -> UTxO (ShelleyLedgerEra era)
+    -> UTxO (CardanoApi.ShelleyLedgerEra era)
 fromWalletUTxO era (W.UTxO m) = withConstraints era $ UTxO
     $ Map.mapKeys Convert.toLedger
     $ Map.map (toLedgerTxOut era) m
 
 toWalletUTxO
     :: RecentEra era
-    -> UTxO (ShelleyLedgerEra era)
+    -> UTxO (CardanoApi.ShelleyLedgerEra era)
     -> W.UTxO
 toWalletUTxO era (UTxO m) = withConstraints era $ W.UTxO
     $ Map.mapKeys Convert.toWallet
@@ -825,7 +828,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     partialLedgerTx = fromCardanoApiTx partialTx
 
-    toSealed :: Tx (ShelleyLedgerEra era) -> SealedTx
+    toSealed :: Tx (CardanoApi.ShelleyLedgerEra era) -> SealedTx
     toSealed = sealedTxFromCardano
         . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
         . toCardanoApiTx @era
@@ -874,8 +877,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     guardTxSize
         :: KeyWitnessCount
-        -> Tx (ShelleyLedgerEra era)
-        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
+        -> Tx (CardanoApi.ShelleyLedgerEra era)
+        -> ExceptT (ErrBalanceTx era) m (Tx (CardanoApi.ShelleyLedgerEra era))
     guardTxSize witCount tx =
         withConstraints era $ do
             let maxSize = TxSize (pp ^. ppMaxTxSizeL)
@@ -884,8 +887,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             pure tx
 
     guardTxBalanced
-        :: Tx (ShelleyLedgerEra era)
-        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
+        :: Tx (CardanoApi.ShelleyLedgerEra era)
+        -> ExceptT (ErrBalanceTx era) m (Tx (CardanoApi.ShelleyLedgerEra era))
     guardTxBalanced tx = do
         let bal = txBalance tx
         if bal == mempty
@@ -894,14 +897,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 $ ErrBalanceTxInternalError
                 $ ErrFailedBalancing bal
 
-    txBalance :: Tx (ShelleyLedgerEra era) -> Value
+    txBalance :: Tx (CardanoApi.ShelleyLedgerEra era) -> Value
     txBalance
         = withConstraints era
         . evaluateTransactionBalance era pp combinedUTxO
         . txBody era
 
     balanceAfterSettingMinFee
-        :: Tx (ShelleyLedgerEra era)
+        :: Tx (CardanoApi.ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m
             (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
@@ -930,7 +933,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make
     -- this check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
-        :: UTxO (ShelleyLedgerEra era)
+        :: UTxO (CardanoApi.ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
         let W.UTxO u = toWalletUTxO (recentEra @era) u'
@@ -947,7 +950,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 $ withConstraints era
                 $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
-    combinedUTxO :: UTxO (ShelleyLedgerEra era)
+    combinedUTxO :: UTxO (CardanoApi.ShelleyLedgerEra era)
     combinedUTxO = withConstraints era $ mconcat
          -- The @CardanoApi.UTxO@ can contain strictly more information than
          -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
@@ -966,14 +969,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         $ outputs era
         $ txBody era tx
       where
-        fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
+        fromLedgerTxOut :: TxOut (CardanoApi.ShelleyLedgerEra era) -> W.TxOut
         fromLedgerTxOut o = case era of
            RecentEraBabbage -> Convert.fromBabbageTxOut o
            RecentEraConway -> Convert.fromConwayTxOut o
 
     assembleTransaction
         :: TxUpdate
-        -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
+        -> ExceptT (ErrBalanceTx era) m (Tx (CardanoApi.ShelleyLedgerEra era))
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx era partialLedgerTx update
         left ErrBalanceTxAssignRedeemers $
@@ -981,7 +984,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 era pp timeTranslation combinedUTxO redeemers tx'
 
     guardExistingCollateral
-        :: Tx (ShelleyLedgerEra era)
+        :: Tx (CardanoApi.ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral tx = withConstraints era $ do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
@@ -993,7 +996,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral
-        :: Tx (ShelleyLedgerEra era)
+        :: Tx (CardanoApi.ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral tx = withConstraints era $ do
         let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
@@ -1002,7 +1005,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral
-        :: Tx (ShelleyLedgerEra era)
+        :: Tx (CardanoApi.ShelleyLedgerEra era)
         -> ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral tx = withConstraints era $ do
         let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
@@ -1117,7 +1120,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         => RecentEra era
         -> W.Address
         -> W.TokenBundle
-        -> TxOut (ShelleyLedgerEra era)
+        -> TxOut (CardanoApi.ShelleyLedgerEra era)
     mkLedgerTxOut txOutEra address bundle =
         case txOutEra of
             RecentEraBabbage -> Convert.toBabbageTxOut txOut
@@ -1273,9 +1276,9 @@ newtype ErrUpdateSealedTx
 -- be used to *add* tx body content.
 updateTx
     :: forall era. RecentEra era
-    -> Tx (ShelleyLedgerEra era)
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
     -> TxUpdate
-    -> Either ErrUpdateSealedTx (Tx (ShelleyLedgerEra era))
+    -> Either ErrUpdateSealedTx (Tx (CardanoApi.ShelleyLedgerEra era))
 updateTx era tx extraContent = withConstraints era $ do
     let tx' = tx
             & over bodyTxL (modifyShelleyTxBody extraContent era)
@@ -1294,7 +1297,9 @@ updateTx era tx extraContent = withConstraints era $ do
     TxUpdate _ _ _ extraInputScripts _ = extraContent
 
     extraInputScripts'
-        :: Map (ScriptHash StandardCrypto) (Script (ShelleyLedgerEra era))
+        :: Map
+            (ScriptHash StandardCrypto)
+            (Script (CardanoApi.ShelleyLedgerEra era))
     extraInputScripts' = withConstraints era $
         Map.fromList $ map (pairWithHash . convert) extraInputScripts
       where
@@ -1304,7 +1309,7 @@ updateTx era tx extraContent = withConstraints era $ do
     toLedgerScript
         :: CA.Script CA.KeyHash
         -> RecentEra era
-        -> Core.Script (ShelleyLedgerEra era)
+        -> Core.Script (CardanoApi.ShelleyLedgerEra era)
     toLedgerScript s = \case
         RecentEraBabbage -> TimelockScript $ Convert.toLedgerTimelockScript s
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
@@ -1312,8 +1317,8 @@ updateTx era tx extraContent = withConstraints era $ do
 modifyShelleyTxBody
     :: forall era. TxUpdate
     -> RecentEra era
-    -> TxBody (ShelleyLedgerEra era)
-    -> TxBody (ShelleyLedgerEra era)
+    -> TxBody (CardanoApi.ShelleyLedgerEra era)
+    -> TxBody (CardanoApi.ShelleyLedgerEra era)
 modifyShelleyTxBody txUpdate era = withConstraints era $
     over feeTxBodyL modifyFee
     . over outputsTxBodyL
@@ -1553,7 +1558,7 @@ toLedgerTxOut
     :: HasCallStack
     => RecentEra era
     -> W.TxOut
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut (CardanoApi.ShelleyLedgerEra era)
 toLedgerTxOut txOutEra txOut =
     case txOutEra of
         RecentEraBabbage -> Convert.toBabbageTxOut txOut
@@ -1561,7 +1566,7 @@ toLedgerTxOut txOutEra txOut =
 
 toWalletTxOut
     :: RecentEra era
-    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut (CardanoApi.ShelleyLedgerEra era)
     -> W.TxOut
 toWalletTxOut RecentEraBabbage = Convert.fromBabbageTxOut
 toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
