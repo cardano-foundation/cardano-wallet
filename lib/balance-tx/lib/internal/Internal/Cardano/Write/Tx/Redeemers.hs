@@ -46,9 +46,6 @@ import Cardano.Slotting.EpochInfo
     ( EpochInfo
     , hoistEpochInfo
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId
-    )
 import Codec.Serialise
     ( deserialiseOrFail
     )
@@ -277,7 +274,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
 
 data Redeemer
     = RedeemerSpending ByteString W.TxIn
-    | RedeemerMinting ByteString TokenPolicyId
+    | RedeemerMinting ByteString W.TokenPolicyId
     | RedeemerRewarding ByteString CardanoApi.StakeAddress
     deriving (Eq, Generic, Show)
 
