@@ -522,9 +522,6 @@ migrateDBFile tr walletF defaultFieldValues fp = runExceptT $ do
 noAutoMigrations :: Sqlite.Migration
 noAutoMigrations = pure ()
 
-noNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
-noNewStyleMigrations _ _ = pure ()
-
 throwMigrationError :: Either MigrationError a -> IO a
 throwMigrationError = either throwIO pure
 
@@ -562,7 +559,6 @@ withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action = do
         dbFile
         noManualMigration
         noAutoMigrations
-        noNewStyleMigrations
         $ \ctx -> do
             dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
             action dblayer
@@ -596,13 +592,11 @@ withBootDBLayerFromFile
 withBootDBLayerFromFile wF tr ti wid _defaultFieldValues params dbFile action =
   do
     let trDB = contramap MsgDB tr
-        noNewStyleMigrations _ _ = pure ()
     res <- withSqliteContextFile
         trDB
         dbFile
         createSchemaVersionTableIfMissing'
         migrateAll
-        noNewStyleMigrations
         $ \ctx -> do
             dblayer <- bootDBLayerFromSqliteContext wF ti wid params ctx
             action dblayer
@@ -875,7 +869,6 @@ withTestLoadDBLayerFromFile tr ti dbFile action = do
             dbFile
             noManualMigration
             noMigration
-            noNewStyleMigrations
             (`runQuery` readWalletId)
     case mwid of
         Nothing -> fail "No wallet id found in database"
@@ -890,7 +883,6 @@ withTestLoadDBLayerFromFile tr ti dbFile action = do
                 action
   where
     noMigration = pure ()
-    noNewStyleMigrations _ _ = pure ()
 
 -- | Default field values used when testing,
 -- in the context of 'withLoadDBLayerFromFile'.

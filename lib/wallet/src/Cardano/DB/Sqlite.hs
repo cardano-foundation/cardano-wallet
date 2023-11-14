@@ -90,6 +90,9 @@ import Control.Monad.Logger
 import Control.Monad.Reader
     ( ReaderT
     )
+import Control.Monad.Trans.Class
+    ( lift
+    )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
     , runExceptT
@@ -251,29 +254,26 @@ withSqliteContextFile
     -- ^ Manual migrations
     -> Migration
     -- ^ Auto migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -- ^ New style migrations
     -> (SqliteContext -> IO a)
     -> IO (Either MigrationError a)
-withSqliteContextFile tr fp old auto new action = do
-    migrationResult <- runAllMigrations tr fp old auto new
-    case migrationResult of
-        Left e -> pure $ Left e
-        Right{} -> do
-            lock <- newMVar ()
-            withDBHandle tr fp $ \DBHandle{dbBackend} ->
-                let
-                    -- Run a query on the open database,
-                    -- but retry on busy.
-                    runQuery :: SqlPersistT IO a -> IO a
-                    runQuery cmd =
-                        observe
-                            . retryOnBusy tr retryOnBusyTimeout
-                            $ withMVar lock
-                            $ const
-                            $ runSqlConn cmd dbBackend
-                in
-                    Right <$> action (SqliteContext{runQuery})
+withSqliteContextFile tr fp old auto action = runExceptT $ do
+    ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
+    ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
+    lift $ do
+        lock <- newMVar ()
+        withDBHandle tr fp $ \DBHandle{dbBackend} ->
+            let
+                -- Run a query on the open database,
+                -- but retry on busy.
+                runQuery :: SqlPersistT IO a -> IO a
+                runQuery cmd =
+                    observe
+                        . retryOnBusy tr retryOnBusyTimeout
+                        $ withMVar lock
+                        $ const
+                        $ runSqlConn cmd dbBackend
+            in
+                action (SqliteContext{runQuery})
   where
     observe :: IO a -> IO a
     observe = bracketTracer (contramap MsgRun tr)
@@ -460,15 +460,6 @@ runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
         $ Right
             <$> (`executeManualMigration` dbConn) manualMigration
 
-runManualNewMigrations
-    :: Tracer IO DBLog
-    -> FilePath
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runManualNewMigrations tr fp newMigrations =
-    newMigrations tr fp
-        & tryJust matchWrongVersionError
-
 matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
 matchWrongVersionError =
     Just
@@ -476,18 +467,6 @@ matchWrongVersionError =
         . view strict
         . toLazyText
         . build
-
-runAllMigrations
-    :: Tracer IO DBLog
-    -> FilePath
-    -> ManualMigration
-    -> Migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runAllMigrations tr fp old auto new = runExceptT $ do
-    ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
-    ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
-    ExceptT $ runManualNewMigrations tr fp new
 
 {-------------------------------------------------------------------------------
                                     Logging
