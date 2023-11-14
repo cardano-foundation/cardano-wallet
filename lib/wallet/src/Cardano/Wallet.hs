@@ -543,12 +543,14 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics
     )
+import Cardano.Wallet.Read.Primitive.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoBlock
-    , fromCardanoLovelace
+    ( fromCardanoLovelace
     , fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
@@ -1208,7 +1210,12 @@ restoreWallet ctx = db & \DBLayer{..} ->
                 { checkpointPolicy
                 , readChainPoints
                 , rollForward = \blocks tip ->
-                    rollForward' (List $ fromCardanoBlock gp <$> blocks) tip
+                    rollForward'
+                        (List
+                            $ fst . fromCardanoBlock (W.getGenesisBlockHash gp)
+                            <$> blocks
+                        )
+                        tip
                 , rollBackward
                 }
   where

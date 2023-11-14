@@ -207,13 +207,15 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
     )
+import Cardano.Wallet.Read.Primitive.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)
     , CardanoBlock
     , NodeToClientVersionData
     , StandardCrypto
     , emptyGenesis
-    , fromCardanoBlock
     , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Network.Node
@@ -366,6 +368,7 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Sqlite
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -992,8 +995,8 @@ prepareNode tr proxy socketPath np vData = do
             tunedForMainnetPipeliningStrategy
             np socketPath vData sTol $ \nw' -> do
         let gp = genesisParameters np
-        let convert = fromCardanoBlock gp
-        let nw = convert <$> nw'
+        let convert = fromCardanoBlock (W.getGenesisBlockHash gp)
+        let nw = fst . convert <$> nw'
         waitForNodeSync tr nw
     traceWith tr $ MsgSyncCompleted proxy sl
 

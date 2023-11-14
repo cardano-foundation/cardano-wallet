@@ -18,6 +18,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx
+    , fromAllegraTx'
     )
     where
 
@@ -121,7 +122,22 @@ fromAllegraTx
        , WitnessCount
        )
 fromAllegraTx tx =
-    ( W.Tx
+    ( fromAllegraTx' tx
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , emptyTokenMapWithScripts
+    , emptyTokenMapWithScripts
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        ((`NativeExplicitScript` ViaSpending)
+         . toWalletScript (\_vkey -> Payment)
+            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
+    )
+
+fromAllegraTx' :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra) -> W.Tx
+fromAllegraTx' tx =
+    W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
@@ -129,7 +145,7 @@ fromAllegraTx tx =
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
             [] -- TODO: (ADP-957)
         , outputs =
@@ -143,14 +159,3 @@ fromAllegraTx tx =
         , scriptValidity =
             Nothing
         }
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
-    , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        ((`NativeExplicitScript` ViaSpending)
-         . toWalletScript (\_vkey -> Payment)
-            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
-    )

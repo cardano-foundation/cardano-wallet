@@ -120,7 +120,7 @@ data ParsedTxCBOR = ParsedTxCBOR
 parser :: EraFun Tx (K ParsedTxCBOR)
 parser = fromEraFunK
     $ ParsedTxCBOR
-        <$> EraFunK (Feature.certificates <<< getEraCertificates)
+        <$> EraFunK (Feature.primitiveCertificates <<< getEraCertificates)
         <*> EraFunK (Feature.mint <<<
             getEraMint *&&&* getEraWitnesses *&&&* getEraReferenceInputs)
         <*> EraFunK (Feature.getValidity <<< getEraValidity)

@@ -6,15 +6,13 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( certificates
+    ( primitiveCertificates
     , anyEraCerts
     , fromStakeCredential
     , fromConwayCerts
     )
- where
+where
 
 import Prelude
 
@@ -94,18 +92,21 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Set as Set
 
-certificates :: EraFun Certificates (K [W.Certificate])
-certificates = EraFun
-    { byronFun = const $ K []
-    , shelleyFun = mkShelleyCertsK
-    , allegraFun = mkShelleyCertsK
-    , maryFun = mkShelleyCertsK
-    , alonzoFun = mkShelleyCertsK
-    , babbageFun = mkShelleyCertsK
-    , conwayFun = mkConwayCertsK
-    }
+-- | Compute wallet primitive certificates from ledger certificates
+primitiveCertificates :: EraFun Certificates (K [W.Certificate])
+primitiveCertificates =
+    EraFun
+        { byronFun = const $ K []
+        , shelleyFun = mkShelleyCertsK
+        , allegraFun = mkShelleyCertsK
+        , maryFun = mkShelleyCertsK
+        , alonzoFun = mkShelleyCertsK
+        , babbageFun = mkShelleyCertsK
+        , conwayFun = mkConwayCertsK
+        }
 
-mkConwayCertsK :: Certificates ConwayEra
+mkConwayCertsK
+    :: Certificates ConwayEra
     -> K [W.Certificate] ConwayEra
 mkConwayCertsK (Certificates cs) = K $ fromConwayCerts <$> toList cs
 
@@ -115,14 +116,15 @@ fromConwayCerts = \case
         ConwayDeleg _cre _del _co -> error "TODO: ConwayDeleg, ADP-3065"
         ConwayReDeleg _cre _del -> error "TODO: ConwayReDeleg, ADP-3065"
         ConwayUnDeleg cre _co -> mkDelegationNone cre
-            -- "TODO: ConwayUnDeleg, ADP-3065"
+    -- "TODO: ConwayUnDeleg, ADP-3065"
     ConwayDCertPool pc -> case pc of
         RegPool pp -> mkPoolRegistrationCertificate pp
         RetirePool kh en -> mkPoolRetirementCertificate kh en
     ConwayDCertConstitutional _cdc ->
         error "TODO: ConwayDCertConstitutional, ADP-3065"
 
-mkShelleyCertsK :: (Foldable t, CertificatesType era ~ t (DCert crypto))
+mkShelleyCertsK
+    :: (Foldable t, CertificatesType era ~ t (DCert crypto))
     => Certificates era
     -> K [W.Certificate] b
 mkShelleyCertsK (Certificates cs) = K . anyEraCerts $ cs
@@ -147,10 +149,12 @@ mkPoolRegistrationCertificate pp =
 
 mkPoolRetirementCertificate :: (SL.KeyHash rol sc) -> EpochNo -> W.Certificate
 mkPoolRetirementCertificate pid (EpochNo e) =
-    W.CertificateOfPool $ Retirement $ PoolRetirementCertificate
-        { poolId = fromPoolKeyHash pid
-        , retirementEpoch = W.EpochNo $ fromIntegral e
-        }
+    W.CertificateOfPool
+        $ Retirement
+        $ PoolRetirementCertificate
+            { poolId = fromPoolKeyHash pid
+            , retirementEpoch = W.EpochNo $ fromIntegral e
+            }
 
 mkRegisterKeyCertificate :: SL.Credential 'SL.Staking crypto -> W.Certificate
 mkRegisterKeyCertificate =
@@ -159,30 +163,26 @@ mkRegisterKeyCertificate =
         . fromStakeCredential
 
 mkDelegationNone :: SL.Credential 'SL.Staking crypto -> W.Certificate
-mkDelegationNone credentials = W.CertificateOfDelegation
-    $ W.CertDelegateNone (fromStakeCredential credentials)
+mkDelegationNone credentials =
+    W.CertificateOfDelegation
+        $ W.CertDelegateNone (fromStakeCredential credentials)
 
 fromShelleyCert
     :: SL.DCert crypto
     -> W.Certificate
 fromShelleyCert = \case
-    SL.DCertDeleg (SL.Delegate delegation)  ->
-        W.CertificateOfDelegation $ W.CertDelegateFull
-            (fromStakeCredential (SL.dDelegator delegation))
-            (fromPoolKeyHash (SL.dDelegatee delegation))
-
+    SL.DCertDeleg (SL.Delegate delegation) ->
+        W.CertificateOfDelegation
+            $ W.CertDelegateFull
+                (fromStakeCredential (SL.dDelegator delegation))
+                (fromPoolKeyHash (SL.dDelegatee delegation))
     SL.DCertDeleg (SL.DeRegKey credentials) -> mkDelegationNone credentials
-
     SL.DCertDeleg (SL.RegKey cred) -> mkRegisterKeyCertificate cred
-
     SL.DCertPool (SL.RegPool pp) -> mkPoolRegistrationCertificate pp
-
     SL.DCertPool (SL.RetirePool pid en) ->
         mkPoolRetirementCertificate pid en
-
     SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
-
-    SL.DCertMir{}     -> W.CertificateOther W.MIRCertificate
+    SL.DCertMir{} -> W.CertificateOther W.MIRCertificate
 
 fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
@@ -194,7 +194,6 @@ fromPoolMetadata meta =
 --
 -- Unlike with Jörmungandr, the reward account payload doesn't represent a
 -- public key but a HASH of a public key.
---
 fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
@@ -214,8 +213,9 @@ fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =
     either bomb id . mkPercentage . toRational . SL.unboundRational $ x
   where
-    bomb = internalError $
-        "fromUnitInterval: encountered invalid parameter value: "+||x||+""
+    bomb =
+        internalError
+            $ "fromUnitInterval: encountered invalid parameter value: " +|| x ||+ ""
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c

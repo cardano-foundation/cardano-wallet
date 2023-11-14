@@ -10,6 +10,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx
+    , fromMaryTx'
     )
     where
 
@@ -107,28 +108,7 @@ fromMaryTx
        , WitnessCount
        )
 fromMaryTx tx witCtx =
-    ( W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ inject mary $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            fromMaryTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Mary.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromMaryMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Nothing
-        }
+    ( fromMaryTx' tx
     , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
     , assetsToMint
     , assetsToBurn
@@ -143,3 +123,30 @@ fromMaryTx tx witCtx =
   where
     (assetsToMint, assetsToBurn) =
         maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
+
+fromMaryTx' ::
+    SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra) ->
+    W.Tx
+fromMaryTx' tx =
+    W.Tx
+        { txId =
+            W.Hash $ shelleyTxHash tx
+        , txCBOR =
+            Just $ renderTxToCBOR $ inject mary $ Tx tx
+        , fee =
+            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
+        , resolvedInputs =
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
+        , resolvedCollateralInputs =
+            []
+        , outputs =
+            fromMaryTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
+        , collateralOutput =
+            Nothing -- Collateral outputs are not supported in Mary.
+        , withdrawals =
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
+        , metadata =
+            fromMaryMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+        , scriptValidity =
+            Nothing
+        }

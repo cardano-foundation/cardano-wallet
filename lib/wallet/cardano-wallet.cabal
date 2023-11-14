@@ -312,6 +312,8 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
+    Cardano.Wallet.Read.Primitive.Block
+    Cardano.Wallet.Read.Primitive.Block.Header
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -1123,3 +1125,21 @@ benchmark api
     , with-utf8
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
+
+benchmark erafun-benchmark
+  import:           language, opts-exe
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   bench
+  main-is:          EraFun.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-crypto
+    , cardano-wallet
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , criterion
+    , random
+    , time
+
+  default-language: Haskell2010

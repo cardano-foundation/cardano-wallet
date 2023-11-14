@@ -61,6 +61,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Shelley
 import qualified Ouroboros.Network.Block as O
 
+-- | Era-specific header hash type from the ledger
 type family HeaderHashT era where
     HeaderHashT ByronEra = ByronHash
     HeaderHashT ShelleyEra = ShelleyHash StandardCrypto
@@ -70,6 +71,7 @@ type family HeaderHashT era where
     HeaderHashT BabbageEra = ShelleyHash StandardCrypto
     HeaderHashT ConwayEra = ShelleyHash StandardCrypto
 
+-- | Era-specific header hash type from the ledger
 newtype HeaderHash era = HeaderHash (HeaderHashT era)
 
 getEraHeaderHash :: EraFun Block HeaderHash
@@ -96,6 +98,7 @@ getHeaderHashShelley
 getHeaderHashShelley
     (O.ShelleyBlock (Shelley.Block header _) _) = Shelley.pHeaderHash header
 
+-- | Era-specific previous header hash type from the ledger
 type family PrevHeaderHashT era where
     PrevHeaderHashT ByronEra = O.ChainHash ByronBlock
     PrevHeaderHashT ShelleyEra = PrevHash StandardCrypto
@@ -105,6 +108,7 @@ type family PrevHeaderHashT era where
     PrevHeaderHashT BabbageEra = PrevHash StandardCrypto
     PrevHeaderHashT ConwayEra = PrevHash StandardCrypto
 
+-- | Era-specific previous header hash type from the ledger
 newtype PrevHeaderHash era = PrevHeaderHash (PrevHeaderHashT era)
 
 getPrevHeaderHashShelley

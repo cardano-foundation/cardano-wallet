@@ -16,12 +16,13 @@
 -- A datatype that represents a vector of functions covering all known eras
 -- The functions are supposed to map values from and to the same era.
 --
--- We removed the cached encoding at the price of 'toEraFun' and 'fromEraFun'
+-- We removed the cached encoding at the price of 'MkEraFun' and 'fromEraFun'
 -- during all compositions, we are not 100% it's not relevant for performance
 -- If the computed functions after record compositions are the same then we can
 -- avoid that layer
 --
--- Note composition is anyway expansive, do not recompose,
+-- Note:
+-- composition is anyway expansive, do not recompose,
 -- just cache and reuse the compositions
 module Cardano.Wallet.Read.Eras.EraFun
     ( -- * Types.
@@ -40,6 +41,7 @@ module Cardano.Wallet.Read.Eras.EraFun
       -- * Composition.
     , (*.**)
     , (*&&&*)
+    , (*****)
 
       -- * Application.
     , applyEraFun
@@ -60,6 +62,9 @@ module Cardano.Wallet.Read.Eras.EraFun
         , babbageVal
         , conwayVal
         )
+    , liftK
+    , mapOnEraFun
+    , CollectTuple (..)
     )
 where
 
@@ -197,7 +202,7 @@ composeEraFunWith
     -> EraFunI f (w h)
 composeEraFunWith q = zipWith_NP (\(Fn f') (Fn g') -> Fn $ q f' g')
 
-infixr 9 *&&&*
+infixr 8 *&&&*
 
 -- | Compose 2 EraFunI as parallel application using '(:*:)'.
 (*&&&*) :: EraFun f g -> EraFun f h -> EraFun f (g :*: h)
@@ -205,6 +210,8 @@ f *&&&* g = MkEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
   where
     r (Fn f') (Fn g') = Fn $ \x -> f' x :*: g' x
 
+-- | A type of EraFun with a constant output functor
+-- wrapped up to be an applicative.
 newtype EraFunK src ft = EraFunK {fromEraFunK :: EraFun src (K ft)}
 
 instance Functor (EraFunK src) where
@@ -284,3 +291,51 @@ runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms (fromEraFun v
   where
     q :: MkEraValue f era -> (K () -.-> f) era -> K (EraValue f) era
     q p (Fn f) = K $ inject p $ f (K ())
+
+-- | Lift an internal K of the output functor of the EraFun
+liftK :: Functor g => EraFun f (g :.: K a) -> EraFun f (K (g a))
+liftK f = MkEraFun $ map_NP q $ fromEraFun f
+  where
+    q (Fn h) = Fn $ deComp . h
+    deComp :: Functor g => (g :.: K a) era -> K (g a) era
+    deComp (Comp l) = K $ unK <$> l
+
+-- | Map on the output of an EraFun with an era independent function
+mapOnEraFun
+    :: forall f g h
+     . (forall a. g a -> h a)
+    -> EraFun f g
+    -> EraFun f h
+mapOnEraFun f e = MkEraFun $ map_NP g $ fromEraFun e
+  where
+    g :: (-.->) f g a -> (-.->) f h a
+    g (Fn f') = Fn $ f . f'
+
+infixr 9 *****
+
+-- | Compose 2 EraFun as parallel application.
+(*****) :: EraFun f g -> EraFun h k -> EraFun (f :*: h) (g :*: k)
+f ***** g = MkEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
+  where
+    r (Fn f') (Fn g') = Fn $ \(x :*: y) -> f' x :*: g' y
+
+-- | A type family that computes the tuple type from a product type of Ks.
+type family TupleFromProduct f where
+    TupleFromProduct (K f :*: K g) = (f, g)
+    TupleFromProduct (K f :*: g) = (f, TupleFromProduct g)
+
+class CollectTuple f where
+    -- | Collect a tuple from a product of Ks.
+    collectTuple :: f x -> K (TupleFromProduct f) x
+
+instance CollectTuple (K f :*: K g) where
+    collectTuple (K f :*: K g) = K (f, g)
+
+instance
+    {-# OVERLAPS #-}
+    (CollectTuple g, TupleFromProduct (K f :*: g) ~ (f, TupleFromProduct g))
+    => CollectTuple (K f :*: g)
+    where
+    collectTuple (K f :*: g) =
+        let K g' = collectTuple g
+        in  K (f, g')
