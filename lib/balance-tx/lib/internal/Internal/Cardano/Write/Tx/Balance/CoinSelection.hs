@@ -81,9 +81,6 @@ import Cardano.CoinSelection.UTxOSelection
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
@@ -138,6 +135,9 @@ import Prelude
 
 import qualified Cardano.CoinSelection as Internal
 import qualified Cardano.CoinSelection.Context as SC
+import qualified Cardano.Wallet.Primitive.Types.Address as W
+    ( Address (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin
     )
@@ -160,7 +160,7 @@ import qualified Data.Map.Strict as Map
 data WalletSelectionContext
 
 instance SC.SelectionContext WalletSelectionContext where
-    type Address WalletSelectionContext = Address
+    type Address WalletSelectionContext = W.Address
     type UTxO WalletSelectionContext = WalletUTxO
 
 --------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ data WalletUTxO = WalletUTxO
     { txIn
         :: !TxIn
     , address
-        :: !Address
+        :: !W.Address
     }
     deriving (Eq, Generic, Ord, Show)
 
@@ -222,10 +222,10 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
-        :: Address -> W.TokenMap -> W.Coin
+        :: W.Address -> W.TokenMap -> W.Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , isBelowMinimumAdaQuantity
-        :: Address -> W.TokenBundle -> Bool
+        :: W.Address -> W.TokenBundle -> Bool
       -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
       -- below the minimum required.
     , computeMinimumCost
@@ -240,7 +240,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Specifies the minimum required amount of collateral as a
         -- percentage of the total transaction fee.
     , maximumLengthChangeAddress
-        :: Address
+        :: W.Address
     }
     deriving Generic
 
@@ -256,7 +256,7 @@ toInternalSelectionConstraints SelectionConstraints {..} =
         , maximumOutputTokenQuantity =
             txOutMaxTokenQuantity
         , nullAddress =
-            Address ""
+            W.Address ""
         , ..
         }
 

@@ -6,9 +6,6 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress
-    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn
     )
@@ -77,6 +74,7 @@ import Test.Utils.Pretty
     ( (====)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Address.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
@@ -144,7 +142,7 @@ genSelection = Selection
     genExtraCoinSource = W.genCoin
     genExtraCoinSink = W.genCoin
     genTxOutCoin =
-        TxOut <$> genAddress <*> (W.TokenBundle.fromCoin <$> W.genCoin)
+        TxOut <$> W.genAddress <*> (W.TokenBundle.fromCoin <$> W.genCoin)
 
 shrinkSelection :: Selection -> [Selection]
 shrinkSelection = genericRoundRobinShrink
