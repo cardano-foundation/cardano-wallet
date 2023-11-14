@@ -85,9 +85,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..)
-    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     )
@@ -149,6 +146,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (..)
+    )
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
@@ -183,23 +183,23 @@ instance Buildable WalletUTxO where
 instance Buildable (WalletUTxO, W.TokenBundle) where
     build (u, b) = build u <> ":" <> build (W.TokenBundle.Flat b)
 
-toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (W.TxIn, TxOut)
+toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (W.TxIn, W.TxOut)
 toExternalUTxO = toExternalUTxO' id
 
 toExternalUTxOMap :: Map WalletUTxO W.TokenBundle -> UTxO
 toExternalUTxOMap = UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
 
-toInternalUTxO :: (W.TxIn, TxOut) -> (WalletUTxO, W.TokenBundle)
+toInternalUTxO :: (W.TxIn, W.TxOut) -> (WalletUTxO, W.TokenBundle)
 toInternalUTxO = toInternalUTxO' id
 
 toInternalUTxOMap :: UTxO -> Map WalletUTxO W.TokenBundle
 toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
 
-toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (W.TxIn, TxOut)
-toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b))
+toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (W.TxIn, W.TxOut)
+toExternalUTxO' f (WalletUTxO i a, b) = (i, W.TxOut a (f b))
 
-toInternalUTxO' :: (W.TokenBundle -> b) -> (W.TxIn, TxOut) -> (WalletUTxO, b)
-toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
+toInternalUTxO' :: (W.TokenBundle -> b) -> (W.TxIn, W.TxOut) -> (WalletUTxO, b)
+toInternalUTxO' f (i, W.TxOut a b) = (WalletUTxO i a, f b)
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -274,7 +274,7 @@ data SelectionParams = SelectionParams
         :: !W.TokenBundle
         -- ^ Specifies extra value on the output side.
     , outputsToCover
-        :: ![TxOut]
+        :: ![W.TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
     , collateralRequirement
         :: !SelectionCollateralRequirement
@@ -315,7 +315,7 @@ toInternalSelectionParams SelectionParams {..} =
     W.TokenBundle extraCoinOut assetsToBurn = extraValueOut
 
     identifyCollateral :: WalletUTxO -> W.TokenBundle -> Maybe W.Coin
-    identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
+    identifyCollateral (WalletUTxO _ a) b = asCollateral (W.TxOut a b)
 
 --------------------------------------------------------------------------------
 -- Selection skeletons
@@ -335,7 +335,7 @@ data SelectionSkeleton = SelectionSkeleton
     { skeletonInputCount
         :: !Int
     , skeletonOutputs
-        :: ![TxOut]
+        :: ![W.TxOut]
     , skeletonChange
         :: ![Set W.AssetId]
     }
@@ -356,7 +356,7 @@ toExternalSelectionSkeleton
 toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
     SelectionSkeleton
         { skeletonOutputs =
-            uncurry TxOut <$> skeletonOutputs
+            uncurry W.TxOut <$> skeletonOutputs
         , ..
         }
 
@@ -368,13 +368,13 @@ toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
 --
 data SelectionOf change = Selection
     { inputs
-        :: !(NonEmpty (W.TxIn, TxOut))
+        :: !(NonEmpty (W.TxIn, W.TxOut))
         -- ^ Selected inputs.
     , collateral
-        :: ![(W.TxIn, TxOut)]
+        :: ![(W.TxIn, W.TxOut)]
         -- ^ Selected collateral inputs.
     , outputs
-        :: ![TxOut]
+        :: ![W.TxOut]
         -- ^ User-specified outputs
     , change
         :: ![change]
@@ -409,7 +409,7 @@ toExternalSelection Internal.Selection {..} =
             <$> collateral
         , inputs = toExternalUTxO
             <$> inputs
-        , outputs = uncurry TxOut
+        , outputs = uncurry W.TxOut
             <$> outputs
         , ..
         }

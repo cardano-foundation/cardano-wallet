@@ -455,7 +455,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Codec.CBOR.Encoding as CBOR
@@ -2725,14 +2725,14 @@ instance Arbitrary (TxFeeAndChange [W.TxOut]) where
         fee <- W.genCoin
         change <- frequency
             [ (1, pure [])
-            , (1, (: []) <$> TxOutGen.genTxOut)
-            , (6, listOf TxOutGen.genTxOut)
+            , (1, (: []) <$> W.genTxOut)
+            , (6, listOf W.genTxOut)
             ]
         pure $ TxFeeAndChange fee change
     shrink (TxFeeAndChange fee change) =
         uncurry TxFeeAndChange <$> liftShrink2
             (W.shrinkCoin)
-            (shrinkList TxOutGen.shrinkTxOut)
+            (shrinkList W.shrinkTxOut)
             (fee, change)
 
 instance Arbitrary W.TxIn where
