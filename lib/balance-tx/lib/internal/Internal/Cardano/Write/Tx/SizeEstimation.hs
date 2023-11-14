@@ -86,7 +86,7 @@ import Numeric.Natural
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -271,8 +271,8 @@ estimateTxSize skeleton =
         + sizeOf_Address address
         + sizeOf_SmallUInt
         + sizeOf_SmallArray
-        + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
+        + sizeOf_Coin (W.TokenBundle.getCoin tokens)
+        + sumVia sizeOf_NativeAsset (W.TokenBundle.getAssets tokens)
 
     sizeOf_Output
         = sizeOf_PostAlonzoTransactionOutput

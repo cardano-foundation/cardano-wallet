@@ -40,7 +40,9 @@ import Internal.Cardano.Write.Tx
     , withConstraints
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.ByteString.Lazy as BL
 
@@ -65,7 +67,7 @@ mkTokenBundleSizeAssessor era pp = TokenBundleSizeAssessor $ \tb ->
     ver = withConstraints era $ pvMajor $ pp ^. ppProtocolVersionL
 
 computeTokenBundleSerializedLengthBytes
-    :: TokenBundle.TokenBundle
+    :: W.TokenBundle
     -> Version
     -> TxSize
 computeTokenBundleSerializedLengthBytes tb ver = serSize (Convert.toLedger tb)
