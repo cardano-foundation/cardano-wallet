@@ -22,9 +22,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMaxCoin
     , txOutMinCoin
     )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutTokenBundle
-    )
 import Control.Lens
     ( (&)
     , (.~)
@@ -82,6 +79,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 
 spec :: Spec
 spec = describe "Assessing the sizes of token bundles" $ do
@@ -244,19 +242,19 @@ newtype VariableSize1024 a = VariableSize1024 { unVariableSize1024 :: a}
     deriving (Eq, Show)
 
 instance Arbitrary (FixedSize32 W.TokenBundle) where
-    arbitrary = FixedSize32 <$> genTxOutTokenBundle 32
+    arbitrary = FixedSize32 <$> W.genTxOutTokenBundle 32
     -- No shrinking
 
 instance Arbitrary (FixedSize48 W.TokenBundle) where
-    arbitrary = FixedSize48 <$> genTxOutTokenBundle 48
+    arbitrary = FixedSize48 <$> W.genTxOutTokenBundle 48
     -- No shrinking
 
 instance Arbitrary (FixedSize64 W.TokenBundle) where
-    arbitrary = FixedSize64 <$> genTxOutTokenBundle 64
+    arbitrary = FixedSize64 <$> W.genTxOutTokenBundle 64
     -- No shrinking
 
 instance Arbitrary (FixedSize128 W.TokenBundle) where
-    arbitrary = FixedSize128 <$> genTxOutTokenBundle 128
+    arbitrary = FixedSize128 <$> W.genTxOutTokenBundle 128
     -- No shrinking
 
 instance Arbitrary (VariableSize16 W.TokenBundle) where
