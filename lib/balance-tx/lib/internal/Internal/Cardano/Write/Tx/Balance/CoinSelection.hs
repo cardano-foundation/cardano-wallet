@@ -87,10 +87,6 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..)
-    , TokenBundle (..)
-    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId
     , TokenMap
@@ -149,7 +145,10 @@ import Prelude
 
 import qualified Cardano.CoinSelection as Internal
 import qualified Cardano.CoinSelection.Context as SC
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle (..)
+    )
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
@@ -181,25 +180,25 @@ data WalletUTxO = WalletUTxO
 instance Buildable WalletUTxO where
     build (WalletUTxO i a) = build i <> ":" <> build a
 
-instance Buildable (WalletUTxO, TokenBundle) where
-    build (u, b) = build u <> ":" <> build (Flat b)
+instance Buildable (WalletUTxO, W.TokenBundle) where
+    build (u, b) = build u <> ":" <> build (W.TokenBundle.Flat b)
 
-toExternalUTxO :: (WalletUTxO, TokenBundle) -> (TxIn, TxOut)
+toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (TxIn, TxOut)
 toExternalUTxO = toExternalUTxO' id
 
-toExternalUTxOMap :: Map WalletUTxO TokenBundle -> UTxO
+toExternalUTxOMap :: Map WalletUTxO W.TokenBundle -> UTxO
 toExternalUTxOMap = UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
 
-toInternalUTxO :: (TxIn, TxOut) -> (WalletUTxO, TokenBundle)
+toInternalUTxO :: (TxIn, TxOut) -> (WalletUTxO, W.TokenBundle)
 toInternalUTxO = toInternalUTxO' id
 
-toInternalUTxOMap :: UTxO -> Map WalletUTxO TokenBundle
+toInternalUTxOMap :: UTxO -> Map WalletUTxO W.TokenBundle
 toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
 
-toExternalUTxO' :: (b -> TokenBundle) -> (WalletUTxO, b) -> (TxIn, TxOut)
+toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (TxIn, TxOut)
 toExternalUTxO' f (WalletUTxO i a, b) = (i, TxOut a (f b))
 
-toInternalUTxO' :: (TokenBundle -> b) -> (TxIn, TxOut) -> (WalletUTxO, b)
+toInternalUTxO' :: (W.TokenBundle -> b) -> (TxIn, TxOut) -> (WalletUTxO, b)
 toInternalUTxO' f (i, TxOut a b) = (WalletUTxO i a, f b)
 
 --------------------------------------------------------------------------------
@@ -226,7 +225,7 @@ data SelectionConstraints = SelectionConstraints
         :: Address -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , isBelowMinimumAdaQuantity
-        :: Address -> TokenBundle -> Bool
+        :: Address -> W.TokenBundle -> Bool
       -- ^ Returns 'True' if the given 'TokenBundle' has a 'Coin' value that is
       -- below the minimum required.
     , computeMinimumCost
@@ -269,10 +268,10 @@ toInternalSelectionConstraints SelectionConstraints {..} =
 --
 data SelectionParams = SelectionParams
     { extraValueIn
-        :: !TokenBundle
+        :: !W.TokenBundle
         -- ^ Specifies extra value on the input side.
     , extraValueOut
-        :: !TokenBundle
+        :: !W.TokenBundle
         -- ^ Specifies extra value on the output side.
     , outputsToCover
         :: ![TxOut]
@@ -281,7 +280,7 @@ data SelectionParams = SelectionParams
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
-        :: !(Map WalletUTxO TokenBundle)
+        :: !(Map WalletUTxO W.TokenBundle)
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- collateral inputs.
         --
@@ -312,10 +311,10 @@ toInternalSelectionParams SelectionParams {..} =
         , ..
         }
   where
-    TokenBundle extraCoinIn  assetsToMint = extraValueIn
-    TokenBundle extraCoinOut assetsToBurn = extraValueOut
+    W.TokenBundle extraCoinIn  assetsToMint = extraValueIn
+    W.TokenBundle extraCoinOut assetsToBurn = extraValueOut
 
-    identifyCollateral :: WalletUTxO -> TokenBundle -> Maybe Coin
+    identifyCollateral :: WalletUTxO -> W.TokenBundle -> Maybe Coin
     identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
 
 --------------------------------------------------------------------------------
@@ -401,12 +400,12 @@ instance NFData change => NFData (SelectionOf change)
 --
 -- In this type of selection, change values do not have addresses assigned.
 --
-type Selection = SelectionOf TokenBundle
+type Selection = SelectionOf W.TokenBundle
 
 toExternalSelection :: Internal.Selection WalletSelectionContext -> Selection
 toExternalSelection Internal.Selection {..} =
     Selection
-        { collateral = toExternalUTxO' TokenBundle.fromCoin
+        { collateral = toExternalUTxO' W.TokenBundle.fromCoin
             <$> collateral
         , inputs = toExternalUTxO
             <$> inputs
@@ -416,14 +415,14 @@ toExternalSelection Internal.Selection {..} =
         }
 
 toInternalSelection
-    :: (change -> TokenBundle)
+    :: (change -> W.TokenBundle)
     -> SelectionOf change
     -> Internal.Selection WalletSelectionContext
 toInternalSelection getChangeBundle Selection {..} =
     Internal.Selection
         { change = getChangeBundle
             <$> change
-        , collateral = toInternalUTxO' TokenBundle.getCoin
+        , collateral = toInternalUTxO' W.TokenBundle.getCoin
             <$> collateral
         , inputs = toInternalUTxO
             <$> inputs
