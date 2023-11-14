@@ -53,7 +53,10 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
+    , matchWrongVersionError
     , newInMemorySqliteContext
+    , runManualOldMigrations
+    , withDBHandle
     , withSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
@@ -197,6 +200,10 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
+import Control.Monad.Trans.Except
+    ( ExceptT (..)
+    , runExceptT
+    )
 import Control.Tracer
     ( Tracer
     , contramap
@@ -261,6 +268,7 @@ import UnliftIO.Exception
     ( Exception
     , bracket
     , throwIO
+    , tryJust
     )
 import UnliftIO.MVar
     ( modifyMVar
@@ -486,6 +494,37 @@ readWalletId = do
 {-------------------------------------------------------------------------------
     DB migration and creation
 -------------------------------------------------------------------------------}
+-- | Run migrations on a database file.
+-- This will modify the file and may create backup files.
+migrateDBFile
+    :: Tracer IO DBLog
+        -- ^ Tracer for logging
+    -> WalletFlavorS s
+        -- ^ Flavor of the wallet contained in the database file.
+    -> Maybe DefaultFieldValues
+        -- ^ Default database field values, used during old migration.
+    -> FilePath
+        -- ^ Path of the @.sqlite@ file to migrate.
+    -> IO (Either MigrationError ())
+migrateDBFile tr walletF defaultFieldValues fp = runExceptT $ do
+    ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr oldMigrations
+    ExceptT
+        $ tryJust matchWrongVersionError
+        $ runNewStyleMigrations tr fp
+  where
+    trMigrations = contramap MsgMigrationOld tr
+    oldMigrations =
+        maybe
+            noManualMigration
+            (migrateManually trMigrations $ keyOfWallet walletF)
+            defaultFieldValues
+
+noAutoMigrations :: Sqlite.Migration
+noAutoMigrations = pure ()
+
+noNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
+noNewStyleMigrations _ _ = pure ()
+
 throwMigrationError :: Either MigrationError a -> IO a
 throwMigrationError = either throwIO pure
 
@@ -514,27 +553,20 @@ withLoadDBLayerFromFile
     -> (DBLayer IO s -> IO a)
        -- ^ Action to run.
     -> IO a
-withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action =
-  do
+withLoadDBLayerFromFile wF tr ti wid defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
-        trManualMigrations = contramap MsgMigrationOld trDB
-    let manualMigrations =
-            maybe
-                createSchemaVersionTableIfMissing'
-                (migrateManually trManualMigrations $ keyOfWallet wF)
-                defaultFieldValues
-    let autoMigrations = migrateAll
-    res <-
-        withSqliteContextFile
-            trDB
-            dbFile
-            manualMigrations
-            autoMigrations
-            runNewStyleMigrations
-            $ \ctx -> do
-                dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
-                action dblayer
-    either throwIO pure res
+    migrateDBFile trDB wF defaultFieldValues dbFile
+        >>= throwMigrationError
+    res <- withSqliteContextFile
+        trDB
+        dbFile
+        noManualMigration
+        noAutoMigrations
+        noNewStyleMigrations
+        $ \ctx -> do
+            dblayer <- loadDBLayerFromSqliteContext wF ti wid ctx
+            action dblayer
+    throwMigrationError res
 
 -- | Create a 'DBLayer' in a file.
 --

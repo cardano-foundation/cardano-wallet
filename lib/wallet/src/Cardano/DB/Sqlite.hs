@@ -36,6 +36,10 @@ module Cardano.DB.Sqlite
     , dbFile
     , dbBackend
 
+      -- * Migrations
+    , runManualOldMigrations
+    , matchWrongVersionError
+
       -- * Helpers
     , chunkSize
     , dbChunked
