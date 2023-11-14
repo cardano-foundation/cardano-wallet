@@ -85,9 +85,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..)
-    )
 import Control.Arrow
     ( (&&&)
     )
@@ -149,6 +146,9 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+    ( UTxO (..)
+    )
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
@@ -186,14 +186,14 @@ instance Buildable (WalletUTxO, W.TokenBundle) where
 toExternalUTxO :: (WalletUTxO, W.TokenBundle) -> (W.TxIn, W.TxOut)
 toExternalUTxO = toExternalUTxO' id
 
-toExternalUTxOMap :: Map WalletUTxO W.TokenBundle -> UTxO
-toExternalUTxOMap = UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
+toExternalUTxOMap :: Map WalletUTxO W.TokenBundle -> W.UTxO
+toExternalUTxOMap = W.UTxO . Map.fromList . fmap toExternalUTxO . Map.toList
 
 toInternalUTxO :: (W.TxIn, W.TxOut) -> (WalletUTxO, W.TokenBundle)
 toInternalUTxO = toInternalUTxO' id
 
-toInternalUTxOMap :: UTxO -> Map WalletUTxO W.TokenBundle
-toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . unUTxO
+toInternalUTxOMap :: W.UTxO -> Map WalletUTxO W.TokenBundle
+toInternalUTxOMap = Map.fromList . fmap toInternalUTxO . Map.toList . W.unUTxO
 
 toExternalUTxO' :: (b -> W.TokenBundle) -> (WalletUTxO, b) -> (W.TxIn, W.TxOut)
 toExternalUTxO' f (WalletUTxO i a, b) = (i, W.TxOut a (f b))

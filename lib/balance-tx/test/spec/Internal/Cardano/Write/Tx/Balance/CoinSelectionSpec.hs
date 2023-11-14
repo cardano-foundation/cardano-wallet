@@ -6,14 +6,6 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO
-    )
-import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxO
-    , genUTxOLarge
-    , shrinkUTxO
-    )
 import Data.Function
     ( (&)
     )
@@ -69,12 +61,16 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+    ( UTxO (..)
+    )
+import qualified Cardano.Wallet.Primitive.Types.UTxO.Gen as W
 
 spec :: Spec
 spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
 
     parallel $ describe
-        "Conversion between external (wallet) and internal UTxOs" $ do
+        "Conversion between external (wallet) and internal W.UTxOs" $ do
 
         it "prop_toInternalUTxO_toExternalUTxO" $
             prop_toInternalUTxO_toExternalUTxO & property
@@ -96,7 +92,7 @@ prop_toInternalUTxO_toExternalUTxO :: W.TxIn -> W.TxOut -> Property
 prop_toInternalUTxO_toExternalUTxO i o =
     (toExternalUTxO . toInternalUTxO) (i, o) === (i, o)
 
-prop_toInternalUTxOMap_toExternalUTxOMap :: UTxO -> Property
+prop_toInternalUTxOMap_toExternalUTxOMap :: W.UTxO -> Property
 prop_toInternalUTxOMap_toExternalUTxOMap u =
     (toExternalUTxOMap . toInternalUTxOMap) u === u
 
@@ -171,9 +167,9 @@ instance Arbitrary W.TxOut where
     arbitrary = W.genTxOut
     shrink = W.shrinkTxOut
 
-instance Arbitrary UTxO where
+instance Arbitrary W.UTxO where
     arbitrary = oneof
-        [ genUTxO
-        , genUTxOLarge
+        [ W.genUTxO
+        , W.genUTxOLarge
         ]
-    shrink = shrinkUTxO
+    shrink = W.shrinkUTxO
