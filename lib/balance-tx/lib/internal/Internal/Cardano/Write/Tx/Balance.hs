@@ -117,10 +117,6 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
-    , sealedTxFromCardano
-    )
 import Control.Arrow
     ( left
     )
@@ -319,6 +315,10 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
+    ( SealedTx
+    , sealedTxFromCardano
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     , txOutMaxCoin
@@ -422,7 +422,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError
-    = ErrUnderestimatedFee Coin SealedTx KeyWitnessCount
+    = ErrUnderestimatedFee Coin W.SealedTx KeyWitnessCount
     | ErrFailedBalancing Value
     deriving (Show, Eq)
 
@@ -828,8 +828,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     partialLedgerTx = fromCardanoApiTx partialTx
 
-    toSealed :: Tx (CardanoApi.ShelleyLedgerEra era) -> SealedTx
-    toSealed = sealedTxFromCardano
+    toSealed :: Tx (CardanoApi.ShelleyLedgerEra era) -> W.SealedTx
+    toSealed = W.sealedTxFromCardano
         . CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra
         . toCardanoApiTx @era
 

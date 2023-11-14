@@ -136,14 +136,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.Credentials
     ( RootCredentials (..)
     )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , sealedTxFromBytes
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , serialisedTx
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkDelegationCertificates
@@ -445,6 +437,14 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
+    ( SealedTx (..)
+    , cardanoTxIdeallyNoLaterThan
+    , sealedTxFromBytes
+    , sealedTxFromCardano
+    , sealedTxFromCardano'
+    , serialisedTx
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
@@ -637,7 +637,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 let (wtx, _, _, _, _, _) =
                         _decodeSealedTx maxBound
                         (ShelleyWalletCtx dummyPolicyK)
-                        (sealedTxFromCardano' tx)
+                        (W.sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                     <> fromMaybe (W.Coin 0) (view #fee wtx)
@@ -819,8 +819,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
-            let serializeTx = serialisedTx
-                    . sealedTxFromCardano
+            let serializeTx
+                    = W.serialisedTx
+                    . W.sealedTxFromCardano
                     . CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra
 
             let name = "pingPong_2"
@@ -1153,7 +1154,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 msg = unlines
                     [ B8.unpack $ hex bs
                     , pretty
-                        $ sealedTxFromCardano
+                        $ W.sealedTxFromCardano
                         $ CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra tx
                     ]
             in
@@ -1284,7 +1285,7 @@ spec_updateTx = describe "updateTx" $ do
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
   where
-    readTestTransactions :: SpecM a [(FilePath, SealedTx)]
+    readTestTransactions :: SpecM a [(FilePath, W.SealedTx)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
@@ -1989,9 +1990,9 @@ prop_updateTx
             , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
             ]
   where
-    inputs = sealedInputs . sealedTxFromCardano'
-    outputs = sealedOutputs . sealedTxFromCardano'
-    collateralIns = sealedCollateralInputs . sealedTxFromCardano'
+    inputs = sealedInputs . W.sealedTxFromCardano'
+    outputs = sealedOutputs . W.sealedTxFromCardano'
+    collateralIns = sealedCollateralInputs . W.sealedTxFromCardano'
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -2091,8 +2092,8 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
-cardanoTx :: SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
-cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
+cardanoTx :: W.SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
+cardanoTx = W.cardanoTxIdeallyNoLaterThan maxBound
 
 deserializeBabbageTx :: ByteString -> CardanoApi.Tx CardanoApi.BabbageEra
 deserializeBabbageTx = either (error . show) id
@@ -2180,7 +2181,7 @@ recentEraTxFromBytes bytes =
         anyEraTx
             = cardanoTx
             $ either (error . show) id
-            $ sealedTxFromBytes bytes
+            $ W.sealedTxFromBytes bytes
     in
         case Write.asAnyRecentEra anyEraTx of
             Just recentEraTx -> recentEraTx
@@ -2206,7 +2207,7 @@ restrictResolution (PartialTx tx inputs redeemers) =
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
 
-sealedCollateralInputs :: SealedTx -> Set W.TxIn
+sealedCollateralInputs :: W.SealedTx -> Set W.TxIn
 sealedCollateralInputs =
     Set.fromList
     . map fst
@@ -2222,9 +2223,9 @@ sealedFee =
     view #fee
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-    . sealedTxFromCardano'
+    . W.sealedTxFromCardano'
 
-sealedInputs :: SealedTx -> Set W.TxIn
+sealedInputs :: W.SealedTx -> Set W.TxIn
 sealedInputs =
     Set.fromList
     . map fst
@@ -2232,7 +2233,7 @@ sealedInputs =
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
-sealedOutputs :: SealedTx -> Set W.TxOut
+sealedOutputs :: W.SealedTx -> Set W.TxOut
 sealedOutputs =
     Set.fromList
     . view #outputs
@@ -2244,8 +2245,8 @@ serializedSize
     => CardanoApi.Tx era
     -> Int
 serializedSize = BS.length
-    . serialisedTx
-    . sealedTxFromCardano
+    . W.serialisedTx
+    . W.sealedTxFromCardano
     . CardanoApi.InAnyCardanoEra (CardanoApi.cardanoEra @era)
 
 -- | Checks for membership in the given closed interval [a, b]
@@ -2271,10 +2272,10 @@ txMinFee tx@(CardanoApi.Tx body _) u =
         (fromCardanoApiTx tx)
         (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)
 
-unsafeSealedTxFromHex :: ByteString -> IO SealedTx
+unsafeSealedTxFromHex :: ByteString -> IO W.SealedTx
 unsafeSealedTxFromHex =
     either (fail . show) pure
-        . sealedTxFromBytes
+        . W.sealedTxFromBytes
         . unsafeFromHex
         . BS.dropWhileEnd isNewlineChar
   where
