@@ -87,9 +87,6 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
     , txOutMaxTokenQuantity
@@ -149,7 +146,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( TokenMap
+    ( AssetId
+    , TokenMap
     )
 import qualified Data.Map.Strict as Map
 
@@ -339,7 +337,7 @@ data SelectionSkeleton = SelectionSkeleton
     , skeletonOutputs
         :: ![TxOut]
     , skeletonChange
-        :: ![Set AssetId]
+        :: ![Set W.AssetId]
     }
     deriving (Eq, Generic, Show)
 
