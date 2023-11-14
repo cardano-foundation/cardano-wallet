@@ -81,10 +81,6 @@ import Cardano.CoinSelection.UTxOSelection
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin
-    , txOutMaxTokenQuantity
-    )
 import Control.Arrow
     ( (&&&)
     )
@@ -139,6 +135,10 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId
     , TokenMap
+    )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( txOutMaxCoin
+    , txOutMaxTokenQuantity
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (..)
@@ -252,9 +252,9 @@ toInternalSelectionConstraints SelectionConstraints {..} =
         { computeMinimumCost =
             computeMinimumCost . toExternalSelectionSkeleton
         , maximumOutputAdaQuantity =
-            txOutMaxCoin
+            W.txOutMaxCoin
         , maximumOutputTokenQuantity =
-            txOutMaxTokenQuantity
+            W.txOutMaxTokenQuantity
         , nullAddress =
             W.Address ""
         , ..

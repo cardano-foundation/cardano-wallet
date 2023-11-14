@@ -17,11 +17,6 @@ import Cardano.Ledger.Api.PParams
     , ppMaxValSizeL
     , ppProtocolVersionL
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    , txOutMaxCoin
-    , txOutMinCoin
-    )
 import Control.Lens
     ( (&)
     , (.~)
@@ -79,6 +74,11 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 
 spec :: Spec
@@ -112,7 +112,7 @@ prop_assessTokenBundleSize_enlarge b1' b2' pp =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
         [ assess (b1 <> b2)
             === TokenBundleSizeExceedsLimit
-        , assess (b1 `W.TokenBundle.setCoin` txOutMaxCoin)
+        , assess (b1 `W.TokenBundle.setCoin` W.txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
         ]
   where
@@ -132,7 +132,7 @@ prop_assessTokenBundleSize_shrink b1' b2' pp =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
         [ assess (b1 <\> b2)
             === TokenBundleSizeWithinLimit
-        , assess (b1 `W.TokenBundle.setCoin` txOutMinCoin)
+        , assess (b1 `W.TokenBundle.setCoin` W.txOutMinCoin)
             === TokenBundleSizeWithinLimit
         ]
   where
@@ -152,9 +152,9 @@ unit_assessTokenBundleSize_fixedSizeBundle
     -- ^ Expected size assessment
     -> TokenBundleSizeAssessor
     -- ^ W.TokenBundle assessor function
-    -> TxSize
+    -> W.TxSize
     -- ^ Expected min length (bytes)
-    -> TxSize
+    -> W.TxSize
     -- ^ Expected max length (bytes)
     -> Property
 unit_assessTokenBundleSize_fixedSizeBundle
@@ -193,7 +193,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_32 (Blind (FixedSize32 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 2116) (TxSize 2380)
+        (W.TxSize 2116) (W.TxSize 2380)
 
 unit_assessTokenBundleSize_fixedSizeBundle_48
     :: Blind (FixedSize48 W.TokenBundle) -> Property
@@ -201,7 +201,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_48 (Blind (FixedSize48 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 3172) (TxSize 3564)
+        (W.TxSize 3172) (W.TxSize 3564)
 
 unit_assessTokenBundleSize_fixedSizeBundle_64
     :: Blind (FixedSize64 W.TokenBundle) -> Property
@@ -209,7 +209,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 4228) (TxSize 4748)
+        (W.TxSize 4228) (W.TxSize 4748)
 
 unit_assessTokenBundleSize_fixedSizeBundle_128
     :: Blind (FixedSize128 W.TokenBundle) -> Property
@@ -217,7 +217,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 8452) (TxSize 9484)
+        (W.TxSize 8452) (W.TxSize 9484)
 
 instance Arbitrary W.TokenBundle where
     arbitrary = W.genTokenBundleSmallRange

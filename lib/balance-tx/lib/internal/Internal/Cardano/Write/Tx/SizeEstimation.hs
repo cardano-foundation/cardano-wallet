@@ -48,9 +48,6 @@ import Prelude
 import Cardano.Address.Script
     ( Script (..)
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    )
 import Data.Generics.Labels
     ()
 import Data.Set
@@ -85,6 +82,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -120,8 +120,8 @@ estimateTxCost :: FeePerByte -> TxSkeleton -> W.Coin
 estimateTxCost (FeePerByte feePerByte) skeleton =
     computeFee (estimateTxSize skeleton)
   where
-    computeFee :: TxSize -> W.Coin
-    computeFee (TxSize size) = W.Coin $ feePerByte * size
+    computeFee :: W.TxSize -> W.Coin
+    computeFee (W.TxSize size) = W.Coin $ feePerByte * size
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
@@ -134,7 +134,7 @@ estimateTxCost (FeePerByte feePerByte) skeleton =
 --
 estimateTxSize
     :: TxSkeleton
-    -> TxSize
+    -> W.TxSize
 estimateTxSize skeleton =
     sizeOf_Transaction
   where
@@ -219,7 +219,7 @@ estimateTxSize skeleton =
         sizeOf_Inputs
             = sizeOf_SmallUInt
             + sizeOf_Array
-            + sizeOf_Input * TxSize numberOf_Inputs
+            + sizeOf_Input * W.TxSize numberOf_Inputs
 
         -- 1 => [* transaction_output]
         sizeOf_Outputs
@@ -275,7 +275,7 @@ estimateTxSize skeleton =
     sizeOf_Output
         = sizeOf_PostAlonzoTransactionOutput
 
-    sizeOf_ChangeOutput :: Set W.AssetId -> TxSize
+    sizeOf_ChangeOutput :: Set W.AssetId -> W.TxSize
     sizeOf_ChangeOutput
         = sizeOf_PostAlonzoChangeOutput
 
@@ -287,7 +287,7 @@ estimateTxSize skeleton =
     --   }
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_PostAlonzoChangeOutput :: Set W.AssetId -> TxSize
+    sizeOf_PostAlonzoChangeOutput :: Set W.AssetId -> W.TxSize
     sizeOf_PostAlonzoChangeOutput xs
         = sizeOf_SmallMap
         + sizeOf_SmallUInt
@@ -339,7 +339,7 @@ estimateTxSize skeleton =
     --
     -- So, for outputs, since we have the values, we can compute it accurately.
     sizeOf_Coin
-        = TxSize
+        = W.TxSize
         . fromIntegral
         . BS.length
         . CBOR.toStrictByteString
@@ -349,7 +349,7 @@ estimateTxSize skeleton =
     determinePaymentTemplateSize scriptCosigner
         = sizeOf_Array
         + sizeOf_SmallUInt
-        + TxSize numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
+        + W.TxSize numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
 
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
@@ -364,12 +364,12 @@ estimateTxSize skeleton =
         + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
 
 -- ?5 => withdrawals
-sizeOf_Withdrawals :: Natural -> TxSize
+sizeOf_Withdrawals :: Natural -> W.TxSize
 sizeOf_Withdrawals n
     = (if n > 0
         then sizeOf_SmallUInt + sizeOf_SmallMap
         else 0)
-    + sizeOf_Withdrawal * (TxSize n)
+    + sizeOf_Withdrawal * (W.TxSize n)
 
   where
     -- withdrawals =
@@ -379,25 +379,25 @@ sizeOf_Withdrawals n
         + sizeOf_LargeUInt
 
 -- ?0 => [* vkeywitness ]
-sizeOf_VKeyWitnesses :: Natural -> TxSize
+sizeOf_VKeyWitnesses :: Natural -> W.TxSize
 sizeOf_VKeyWitnesses n
     = (if n > 0
         then sizeOf_Array + sizeOf_SmallUInt else 0)
-    + sizeOf_VKeyWitness * (TxSize n)
+    + sizeOf_VKeyWitness * (W.TxSize n)
 
 -- ?2 => [* bootstrap_witness ]
-sizeOf_BootstrapWitnesses :: Natural -> TxSize
+sizeOf_BootstrapWitnesses :: Natural -> W.TxSize
 sizeOf_BootstrapWitnesses n
     = (if n > 0
         then sizeOf_Array + sizeOf_SmallUInt
         else 0)
-    + sizeOf_BootstrapWitness * (TxSize n)
+    + sizeOf_BootstrapWitness * (W.TxSize n)
 
 -- vkeywitness =
 --  [ $vkey
 --  , $signature
 --  ]
-sizeOf_VKeyWitness :: TxSize
+sizeOf_VKeyWitness :: W.TxSize
 sizeOf_VKeyWitness
     = sizeOf_SmallArray
     + sizeOf_VKey
@@ -409,7 +409,7 @@ sizeOf_VKeyWitness
 --  , chain_code : bytes .size 32
 --  , attributes : bytes
 --  ]
-sizeOf_BootstrapWitness :: TxSize
+sizeOf_BootstrapWitness :: W.TxSize
 sizeOf_BootstrapWitness
     = sizeOf_SmallArray
     + sizeOf_VKey
@@ -432,7 +432,7 @@ sizeOf_BootstrapWitness
 --      ; Timelock validity intervals are half-open intervals [a, b).
 --      ; This field specifies the right (excluded) endpoint b.
 --   ]
-sizeOf_NativeScript :: Script object -> TxSize
+sizeOf_NativeScript :: Script object -> W.TxSize
 sizeOf_NativeScript = \case
     RequireSignatureOf _ ->
         sizeOf_SmallUInt + sizeOf_Hash28
@@ -452,22 +452,22 @@ sizeOf_NativeScript = \case
 
 -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
 -- with 2 bytes overhead (length <255, but length > 23)
-sizeOf_Hash28 :: TxSize
+sizeOf_Hash28 :: W.TxSize
 sizeOf_Hash28 = 30
 
 -- A Blake2b-256 hash, resulting in a 32-byte digest wrapped in CBOR, so
 -- with 2 bytes overhead (length <255, but length > 23)
-sizeOf_Hash32 :: TxSize
+sizeOf_Hash32 :: W.TxSize
 sizeOf_Hash32 = 34
 
 -- A 32-byte Ed25519 public key, encoded as a CBOR-bytestring so with 2
 -- bytes overhead (length < 255, but length > 23)
-sizeOf_VKey :: TxSize
+sizeOf_VKey :: W.TxSize
 sizeOf_VKey = 34
 
 -- A 64-byte Ed25519 signature, encoded as a CBOR-bytestring so with 2
 -- bytes overhead (length < 255, but length > 23)
-sizeOf_Signature :: TxSize
+sizeOf_Signature :: W.TxSize
 sizeOf_Signature = 66
 
 -- A CBOR UInt which is less than 23 in value fits on a single byte. Beyond,
@@ -477,18 +477,18 @@ sizeOf_Signature = 66
 -- When considering a 'UInt', we consider the worst case scenario only where
 -- the uint is encoded over 4 bytes, so up to 2^32 which is fine for most
 -- cases but coin values.
-sizeOf_SmallUInt :: TxSize
+sizeOf_SmallUInt :: W.TxSize
 sizeOf_SmallUInt = 1
 
-sizeOf_UInt :: TxSize
+sizeOf_UInt :: W.TxSize
 sizeOf_UInt = 5
 
-sizeOf_LargeUInt :: TxSize
+sizeOf_LargeUInt :: W.TxSize
 sizeOf_LargeUInt = 9
 
 -- A CBOR array with less than 23 elements, fits on a single byte, followed
 -- by each key-value pair (encoded as two concatenated CBOR elements).
-sizeOf_SmallMap :: TxSize
+sizeOf_SmallMap :: W.TxSize
 sizeOf_SmallMap = 1
 
 -- A CBOR array with less than 23 elements, fits on a single byte, followed
@@ -497,10 +497,10 @@ sizeOf_SmallMap = 1
 --
 -- When considering an 'Array', we consider large scenarios where arrays can
 -- have up to 65536 elements.
-sizeOf_SmallArray :: TxSize
+sizeOf_SmallArray :: W.TxSize
 sizeOf_SmallArray = 1
 
-sizeOf_Array :: TxSize
+sizeOf_Array :: W.TxSize
 sizeOf_Array = 3
 
 -- Small helper function for summing values. Given a list of values, get the sum
