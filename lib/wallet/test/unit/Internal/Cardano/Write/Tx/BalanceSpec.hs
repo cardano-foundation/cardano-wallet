@@ -133,9 +133,6 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
-import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..)
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkDelegationCertificates
@@ -429,6 +426,9 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Credentials as W
+    ( RootCredentials (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
     , mockHash
@@ -2424,7 +2424,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
         (delegationAddress @ShelleyKey SMainnet)
         )
     (mkSeqStateFromRootXPrv ShelleyKeyS
-        (RootCredentials rootK pwd)
+        (W.RootCredentials rootK pwd)
         purposeCIP1852
         defaultAddressPoolGap)
   where
