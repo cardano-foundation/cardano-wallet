@@ -85,8 +85,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId
-    , TokenMap
+    ( AssetId (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Codec.CBOR.Encoding as CBOR
@@ -278,7 +277,7 @@ estimateTxSize skeleton =
     sizeOf_Output
         = sizeOf_PostAlonzoTransactionOutput
 
-    sizeOf_ChangeOutput :: Set AssetId -> TxSize
+    sizeOf_ChangeOutput :: Set W.AssetId -> TxSize
     sizeOf_ChangeOutput
         = sizeOf_PostAlonzoChangeOutput
 
@@ -290,7 +289,7 @@ estimateTxSize skeleton =
     --   }
     -- value =
     --   coin / [coin,multiasset<uint>]
-    sizeOf_PostAlonzoChangeOutput :: Set AssetId -> TxSize
+    sizeOf_PostAlonzoChangeOutput :: Set W.AssetId -> TxSize
     sizeOf_PostAlonzoChangeOutput xs
         = sizeOf_SmallMap
         + sizeOf_SmallUInt
@@ -319,7 +318,7 @@ estimateTxSize skeleton =
     -- We consider "native asset" to just be the "multiasset<uint>" part of the
     -- above, hence why we don't also include the size of the coin. Where this
     -- is used, the size of the coin and array are are added too.
-    sizeOf_NativeAsset AssetId{tokenName}
+    sizeOf_NativeAsset W.AssetId {tokenName}
         = sizeOf_MultiAsset sizeOf_LargeUInt tokenName
 
     -- multiasset<a> = { * policy_id => { * asset_name => a } }
