@@ -40,6 +40,7 @@ module Internal.Cardano.Write.Tx
     , LatestLedgerEra
     , LatestEra
     , withConstraints
+    , RecentEraConstraints
     , RecentEraLedgerConstraints
 
     -- ** Key witness counts

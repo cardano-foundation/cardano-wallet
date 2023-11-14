@@ -220,6 +220,7 @@ import Internal.Cardano.Write.Tx
     , PParams
     , PolicyId
     , RecentEra (..)
+    , RecentEraConstraints
     , RecentEraLedgerConstraints
     , ShelleyLedgerEra
     , Tx
@@ -419,7 +420,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError era
-    = (RecentEraLedgerConstraints (ShelleyLedgerEra era), IsRecentEra era) =>
+    = RecentEraConstraints era =>
         ErrUnderestimatedFee Coin (Tx (ShelleyLedgerEra era)) KeyWitnessCount
     | ErrFailedBalancing Value
 
