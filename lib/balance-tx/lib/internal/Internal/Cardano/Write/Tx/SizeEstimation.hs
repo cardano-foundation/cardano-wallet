@@ -48,9 +48,6 @@ import Prelude
 import Cardano.Address.Script
     ( Script (..)
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..)
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)
     )
@@ -79,6 +76,9 @@ import Numeric.Natural
     )
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Wallet.Primitive.Types.Address as W
+    ( Address (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
@@ -301,7 +301,7 @@ estimateTxSize skeleton =
 
     -- We carry addresses already serialized, so it's a matter of measuring.
     sizeOf_Address addr
-        = 2 + fromIntegral (BS.length (unAddress addr))
+        = 2 + fromIntegral (BS.length (W.unAddress addr))
 
     -- For change address, we consider the worst-case scenario based on the
     -- given wallet scheme. Byron addresses are larger.
