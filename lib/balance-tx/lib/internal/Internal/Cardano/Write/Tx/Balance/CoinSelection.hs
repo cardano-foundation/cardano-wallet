@@ -89,7 +89,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId
-    , TokenMap
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin
@@ -148,6 +147,9 @@ import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
+    )
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
+    ( TokenMap
     )
 import qualified Data.Map.Strict as Map
 
@@ -222,7 +224,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output.
     , computeMinimumAdaQuantity
-        :: Address -> TokenMap -> Coin
+        :: Address -> W.TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
     , isBelowMinimumAdaQuantity
         :: Address -> W.TokenBundle -> Bool
@@ -380,10 +382,10 @@ data SelectionOf change = Selection
         :: ![change]
         -- ^ Generated change outputs.
     , assetsToMint
-        :: !TokenMap
+        :: !W.TokenMap
         -- ^ Assets to mint.
     , assetsToBurn
-        :: !TokenMap
+        :: !W.TokenMap
         -- ^ Assets to burn.
     , extraCoinSource
         :: !Coin
