@@ -576,13 +576,14 @@ balanceTransaction
     s
     partialTx
     = do
-    let adjustedPartialTx = flip (over #tx) partialTx
-            ( fromCardanoApiTx
-            . assignMinimalAdaQuantitiesToOutputsWithoutAda
-                (recentEra @era)
-                (pparamsLedger pp)
-            . toCardanoApiTx
-            )
+    let adjustedPartialTx =
+            partialTx & over #tx
+                ( fromCardanoApiTx
+                . assignMinimalAdaQuantitiesToOutputsWithoutAda
+                    (recentEra @era)
+                    (pparamsLedger pp)
+                . toCardanoApiTx
+                )
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
