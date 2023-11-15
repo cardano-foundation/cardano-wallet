@@ -217,6 +217,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
+    , ApiVoteAction (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -243,6 +244,9 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -1979,6 +1983,17 @@ instance Arbitrary TxMetadataWithSchema where
 
 instance Arbitrary ApiEncryptMetadata where
     arbitrary = ApiEncryptMetadata <$> arbitrary
+
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary ApiVoteAction where
+  arbitrary =
+    oneof [pure Abstain, pure NoConfidence, arbitrary]
 
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
