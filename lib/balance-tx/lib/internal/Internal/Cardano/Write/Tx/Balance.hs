@@ -690,12 +690,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    guardExistingCollateral partialLedgerTx
-    guardExistingTotalCollateral partialLedgerTx
-    guardExistingReturnCollateral partialLedgerTx
+    guardExistingCollateral partialTx
+    guardExistingTotalCollateral partialTx
+    guardExistingReturnCollateral partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialLedgerTx
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -830,8 +830,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             }
   where
     era = recentEra @era
-
-    partialLedgerTx = partialTx
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
@@ -978,7 +976,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialLedgerTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
                 era pp timeTranslation combinedUTxO redeemers tx'
