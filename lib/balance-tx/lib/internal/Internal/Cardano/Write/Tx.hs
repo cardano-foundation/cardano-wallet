@@ -52,6 +52,7 @@ module Internal.Cardano.Write.Tx
     , CardanoApi.ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , asCardanoApiTx
     , fromCardanoApiTx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
@@ -822,6 +823,16 @@ emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
+
+asCardanoApiTx
+    :: forall era. IsRecentEra era
+    => (CardanoApi.Tx era -> CardanoApi.Tx era)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+asCardanoApiTx f
+    = fromCardanoApiTx
+    . f
+    . toCardanoApiTx
 
 fromCardanoApiTx
     :: forall era. IsRecentEra era
