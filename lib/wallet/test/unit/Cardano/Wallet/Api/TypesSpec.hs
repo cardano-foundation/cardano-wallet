@@ -822,6 +822,7 @@ spec = do
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
+        jsonTest @ApiVoteAction
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -2820,6 +2821,10 @@ instance ToSchema (ApiT Settings) where
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
+
+instance ToSchema ApiVoteAction where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiVoteAction"
 
 instance ToSchema ByronWalletPutPassphraseData where
     declareNamedSchema _ =
