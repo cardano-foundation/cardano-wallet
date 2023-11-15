@@ -471,7 +471,7 @@ deriving instance Show (ErrBalanceTx era)
 -- and instead adjust the existing redeemer indexes ourselves when balancing,
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
-    { tx :: CardanoApi.Tx era
+    { tx :: Tx (ShelleyLedgerEra era)
     , inputs :: UTxO (ShelleyLedgerEra era)
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
@@ -494,13 +494,13 @@ instance
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
-            , nameF "tx" (cardanoTxF tx)
+            , nameF "tx" (txF tx)
             ]
       where
         inF = build . show
 
-        cardanoTxF :: CardanoApi.Tx era -> Builder
-        cardanoTxF tx' = pretty $ pShow tx'
+        txF :: Tx (ShelleyLedgerEra era) -> Builder
+        txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
@@ -576,10 +576,13 @@ balanceTransaction
     s
     partialTx
     = do
-    let adjustedPartialTx = flip (over #tx) partialTx $
-            assignMinimalAdaQuantitiesToOutputsWithoutAda
+    let adjustedPartialTx = flip (over #tx) partialTx
+            ( fromCardanoApiTx
+            . assignMinimalAdaQuantitiesToOutputsWithoutAda
                 (recentEra @era)
                 (pparamsLedger pp)
+            . toCardanoApiTx
+            )
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -729,7 +732,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (recentEra @era)
                 protocolParameters
                 utxoAssumptions
-                (extractOutputsFromTx partialTx)
+                (extractOutputsFromTx (toCardanoApiTx partialTx))
                 redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
@@ -828,7 +831,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
   where
     era = recentEra @era
 
-    partialLedgerTx = fromCardanoApiTx partialTx
+    partialLedgerTx = partialTx
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
@@ -870,7 +873,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns = withConstraints (recentEra @era) $
-            Set.toList $ (fromCardanoApiTx tx) ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
