@@ -2309,10 +2309,7 @@ withValidityInterval
     -> PartialTx CardanoApi.BabbageEra
     -> PartialTx CardanoApi.BabbageEra
 withValidityInterval vi = #tx %~
-    ( fromCardanoApiTx
-    . modifyBabbageTxBody (vldtTxBodyL .~ vi)
-    . toCardanoApiTx
-    )
+    Write.asCardanoApiTx (modifyBabbageTxBody (vldtTxBodyL .~ vi))
 
 walletToCardanoValue :: W.TokenBundle -> CardanoApi.Value
 walletToCardanoValue = CardanoApi.fromMaryValue . Convert.toLedger
