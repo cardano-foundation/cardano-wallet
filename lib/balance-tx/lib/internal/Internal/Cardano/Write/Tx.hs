@@ -65,7 +65,6 @@ module Internal.Cardano.Write.Tx
     , asAnyRecentEra
     , toAnyCardanoEra
     , fromAnyCardanoEra
-    , withInAnyRecentEra
     , withRecentEra
 
     -- ** Misc
@@ -461,12 +460,6 @@ data InAnyRecentEra thing where
         => RecentEra era   -- and explicit value.
         -> thing era
         -> InAnyRecentEra thing
-
-withInAnyRecentEra
-    :: InAnyRecentEra thing
-    -> (forall era. IsRecentEra era => thing era -> a)
-    -> a
-withInAnyRecentEra (InAnyRecentEra _era tx) f = f tx
 
 -- | "Downcast" something existentially wrapped in 'CardanoApi.InAnyCardanoEra'.
 asAnyRecentEra
