@@ -792,14 +792,16 @@ outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 --
 -- TODO [ADP-2353] Move to @cardano-api@ related module
 modifyLedgerBody
-    :: (Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra) ->
+    :: forall cardanoEra. IsRecentEra cardanoEra
+    => (Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra) ->
         Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra))
-    -> CardanoApi.Tx cardanoEra
-    -> CardanoApi.Tx cardanoEra
-modifyLedgerBody f (CardanoApi.Tx body keyWits) = CardanoApi.Tx body' keyWits
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra cardanoEra)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra cardanoEra)
+modifyLedgerBody f = asCardanoApiTx @cardanoEra modify
   where
-    body' =
-        case body of
+    modify (CardanoApi.Tx body keyWits) = CardanoApi.Tx body' keyWits
+      where
+        body' = case body of
             CardanoApi.ByronTxBody {} ->
                 error "Impossible: ByronTxBody in CardanoApi.ShelleyLedgerEra"
             CardanoApi.ShelleyTxBody

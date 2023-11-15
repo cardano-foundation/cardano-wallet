@@ -229,7 +229,6 @@ import Internal.Cardano.Write.Tx
     , TxOut
     , UTxO (..)
     , Value
-    , asCardanoApiTx
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
@@ -658,8 +657,7 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda
     -> Tx (CardanoApi.ShelleyLedgerEra era)
 assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
     withConstraints era
-        $ asCardanoApiTx @era
-        $ modifyLedgerBody
+        $ modifyLedgerBody @era
         $ over outputsTxBodyL
         $ fmap modifyTxOut
   where
