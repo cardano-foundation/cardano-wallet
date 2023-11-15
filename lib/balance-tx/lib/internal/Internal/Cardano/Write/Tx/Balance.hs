@@ -1170,8 +1170,7 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (Address, s)
 
-    -- | Returns the longest address that the wallet can generate for a given
-    --   key.
+    -- | Returns a dummy change address of the maximum possible length.
     --
     -- This is useful in situations where we want to compute some function of
     -- an output under construction (such as a minimum UTxO value), but don't
