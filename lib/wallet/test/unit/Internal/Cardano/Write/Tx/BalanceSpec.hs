@@ -2038,10 +2038,8 @@ addExtraTxIns
     -> PartialTx CardanoApi.BabbageEra
 addExtraTxIns extraIns =
     #tx %~
-        ( fromCardanoApiTx
-        . modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns))
-        . toCardanoApiTx
-        )
+        Write.asCardanoApiTx
+        (modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns)))
   where
     toLedgerInputs =
         Set.map Convert.toLedger . Set.fromList
