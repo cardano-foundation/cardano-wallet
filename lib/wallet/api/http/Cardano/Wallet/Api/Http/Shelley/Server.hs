@@ -3427,7 +3427,7 @@ balanceTransaction
             $ body ^. #transaction
 
         pure $ Write.PartialTx
-            tx
+            (Write.fromCardanoApiTx tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
 

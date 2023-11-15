@@ -228,7 +228,6 @@ import Internal.Cardano.Write.Tx
     , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
-    , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -471,7 +470,7 @@ deriving instance Show (ErrBalanceTx era)
 -- and instead adjust the existing redeemer indexes ourselves when balancing,
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
-    { tx :: CardanoApi.Tx era
+    { tx :: Tx (ShelleyLedgerEra era)
     , inputs :: UTxO (ShelleyLedgerEra era)
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
@@ -494,13 +493,13 @@ instance
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
-            , nameF "tx" (cardanoTxF tx)
+            , nameF "tx" (txF tx)
             ]
       where
         inF = build . show
 
-        cardanoTxF :: CardanoApi.Tx era -> Builder
-        cardanoTxF tx' = pretty $ pShow tx'
+        txF :: Tx (ShelleyLedgerEra era) -> Builder
+        txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
@@ -654,10 +653,13 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda
     :: forall era
      . RecentEra era
     -> PParams (CardanoApi.ShelleyLedgerEra era)
-    -> CardanoApi.Tx era
-    -> CardanoApi.Tx era
-assignMinimalAdaQuantitiesToOutputsWithoutAda era pp = withConstraints era $
-    modifyLedgerBody $ over outputsTxBodyL $ fmap modifyTxOut
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
+assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
+    withConstraints era
+        $ modifyLedgerBody @era
+        $ over outputsTxBodyL
+        $ fmap modifyTxOut
   where
     modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
         if c == mempty then computeMinimumCoinForTxOut era pp out else c
@@ -687,12 +689,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
-    guardExistingCollateral partialLedgerTx
-    guardExistingTotalCollateral partialLedgerTx
-    guardExistingReturnCollateral partialLedgerTx
+    guardExistingCollateral partialTx
+    guardExistingTotalCollateral partialTx
+    guardExistingReturnCollateral partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialLedgerTx
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -729,7 +731,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (recentEra @era)
                 protocolParameters
                 utxoAssumptions
-                (extractOutputsFromTx partialTx)
+                (extractOutputsFromTx (toCardanoApiTx partialTx))
                 redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
@@ -828,8 +830,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
   where
     era = recentEra @era
 
-    partialLedgerTx = fromCardanoApiTx partialTx
-
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
     --
@@ -870,7 +870,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns = withConstraints (recentEra @era) $
-            Set.toList $ (fromCardanoApiTx tx) ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
@@ -975,7 +975,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era))
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialLedgerTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
                 era pp timeTranslation combinedUTxO redeemers tx'

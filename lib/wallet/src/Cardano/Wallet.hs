@@ -2356,7 +2356,7 @@ buildTransactionPure
             changeAddrGen
             (getState wallet)
             PartialTx
-                { tx = Cardano.Tx unsignedTxBody []
+                { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , inputs = Write.UTxO mempty
                 , redeemers = []
                 }
@@ -2992,7 +2992,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 (Left preSelection)
 
         let ptx = PartialTx
-                { tx = Cardano.Tx unsignedTxBody []
+                { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , inputs = Write.UTxO mempty
                 , redeemers = []
                 }

@@ -52,6 +52,7 @@ module Internal.Cardano.Write.Tx
     , CardanoApi.ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , asCardanoApiTx
     , fromCardanoApiTx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
@@ -791,14 +792,16 @@ outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 --
 -- TODO [ADP-2353] Move to @cardano-api@ related module
 modifyLedgerBody
-    :: (Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra) ->
+    :: forall cardanoEra. IsRecentEra cardanoEra
+    => (Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra) ->
         Core.TxBody (CardanoApi.ShelleyLedgerEra cardanoEra))
-    -> CardanoApi.Tx cardanoEra
-    -> CardanoApi.Tx cardanoEra
-modifyLedgerBody f (CardanoApi.Tx body keyWits) = CardanoApi.Tx body' keyWits
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra cardanoEra)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra cardanoEra)
+modifyLedgerBody f = asCardanoApiTx @cardanoEra modify
   where
-    body' =
-        case body of
+    modify (CardanoApi.Tx body keyWits) = CardanoApi.Tx body' keyWits
+      where
+        body' = case body of
             CardanoApi.ByronTxBody {} ->
                 error "Impossible: ByronTxBody in CardanoApi.ShelleyLedgerEra"
             CardanoApi.ShelleyTxBody
@@ -822,6 +825,16 @@ emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
+
+asCardanoApiTx
+    :: forall era. IsRecentEra era
+    => (CardanoApi.Tx era -> CardanoApi.Tx era)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+asCardanoApiTx f
+    = fromCardanoApiTx
+    . f
+    . toCardanoApiTx
 
 fromCardanoApiTx
     :: forall era. IsRecentEra era
