@@ -258,6 +258,7 @@ import Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , fromCardanoApiUTxO
     , recentEra
+    , serializeTx
     , toCardanoApiTx
     , toCardanoApiUTxO
     , utxoFromTxOutsInRecentEra
@@ -818,17 +819,18 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
-            let serializeTx
-                    = W.serialisedTx
-                    . W.sealedTxFromCardano
-                    . CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra
 
             let name = "pingPong_2"
             Golden
                 { output = tx
                 , encodePretty = show
-                , writeToFile = \fp x ->
-                    T.writeFile fp $ T.pack . B8.unpack . hex $ serializeTx x
+                , writeToFile = \fp x -> T.writeFile fp
+                    . T.pack
+                    . B8.unpack
+                    . hex
+                    . serializeTx @CardanoApi.BabbageEra
+                    . fromCardanoApiTx @CardanoApi.BabbageEra
+                    $ x
                 , readFromFile =
                     fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
                     . readFile
