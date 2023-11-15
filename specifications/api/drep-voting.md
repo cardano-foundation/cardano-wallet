@@ -15,7 +15,7 @@ The "Transactions New > Construct" HTTP endpoint allows delegation and withdrawa
 
 Specifically:
 
-1. Creation of a withdrawal transaction in a case of delegation without participating in the voting.
+1. Creation of a withdrawal transaction in the case of delegation without participating in the voting.
 
     Example `POST` data for the endpoint:
 
@@ -28,7 +28,7 @@ Specifically:
     ```
     When in Voltaire era user should expect 403 error with response: "Withdrawals are not possible without participating in the voting. Please re-join the stake pool. If `voting` field is missing abstaining from voting is set."
 
-2. Re-joining with explicit abstain from voting (this is default when `vote` is missing).
+2. Re-joining with explicit abstain from voting (this is default when `vote` field is missing).
 
     ```
     {
@@ -60,7 +60,7 @@ Specifically:
     }
     ```
 
-4. Re-joining with a vote to a representative using his/her/its registered key
+4. Re-joining with a vote casted to a representative by specifying its registered key hash or script hash
 
     ```
     {
@@ -72,6 +72,6 @@ Specifically:
                   }
                 }
            ],
-      "vote": "drep1jklcrnsdzqp65wjgrg55sy9723kw09mlgvlc3"
+      "vote": "drep_vkh1jklcrnsdzqp65wjgrg55sy9723kw09mlgvlcp65wjgrg55sy9723mm"
     }
     ```
