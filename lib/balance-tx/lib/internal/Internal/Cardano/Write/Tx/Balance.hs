@@ -229,11 +229,11 @@ import Internal.Cardano.Write.Tx
     , TxOut
     , UTxO (..)
     , Value
+    , asCardanoApiTx
     , computeMinimumCoinForTxOut
     , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
-    , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -578,11 +578,10 @@ balanceTransaction
     = do
     let adjustedPartialTx =
             partialTx & over #tx
-                ( fromCardanoApiTx
-                . assignMinimalAdaQuantitiesToOutputsWithoutAda
+                ( asCardanoApiTx @era
+                $ assignMinimalAdaQuantitiesToOutputsWithoutAda
                     (recentEra @era)
                     (pparamsLedger pp)
-                . toCardanoApiTx
                 )
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
