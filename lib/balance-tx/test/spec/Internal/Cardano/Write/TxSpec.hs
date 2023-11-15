@@ -11,7 +11,8 @@ module Internal.Cardano.Write.TxSpec where
 import Prelude
 
 import Cardano.Ledger.Api
-    ( ppCoinsPerUTxOByteL
+    ( coinTxOutL
+    , ppCoinsPerUTxOByteL
     )
 import Control.Lens
     ( (&)
@@ -31,7 +32,6 @@ import Internal.Cardano.Write.Tx
     , datumHashToBytes
     , fromCardanoApiUTxO
     , isBelowMinimumCoinForTxOut
-    , modifyTxOutCoin
     , toCardanoApiUTxO
     )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
@@ -109,7 +109,7 @@ spec = do
                     let era = RecentEraBabbage
                     let c = delta <> computeMinimumCoinForTxOut era pp out
                     isBelowMinimumCoinForTxOut era pp
-                        (modifyTxOutCoin era (const c) out)
+                        (out & coinTxOutL .~ c )
                         === False
 
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
@@ -119,7 +119,7 @@ spec = do
                     let era = RecentEraConway
                     let c = delta <> computeMinimumCoinForTxOut era pp out
                     isBelowMinimumCoinForTxOut era pp
-                        (modifyTxOutCoin era (const c) out)
+                        (out & coinTxOutL .~ c)
                         === False
 
     describe "UTxO" $ do

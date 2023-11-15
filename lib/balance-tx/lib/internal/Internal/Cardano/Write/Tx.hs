@@ -97,9 +97,6 @@ module Internal.Cardano.Write.Tx
     , TxOutInBabbage
     , TxOutInRecentEra (..)
     , unwrapTxOutInRecentEra
-    , modifyTxOutValue
-    , modifyTxOutCoin
-    , txOutValue
 
     , computeMinimumCoinForTxOut
     , isBelowMinimumCoinForTxOut
@@ -225,7 +222,8 @@ import Data.Foldable
     ( toList
     )
 import Data.Generics.Internal.VL.Lens
-    ( (^.)
+    ( over
+    , (^.)
     )
 import Data.Generics.Labels
     ()
@@ -266,6 +264,9 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
+import Cardano.Ledger.Api
+    ( coinTxOutL
+    )
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
@@ -552,27 +553,6 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 
 type TxOut era = Core.TxOut era
 
-modifyTxOutValue
-    :: RecentEra era
-    -> (Value -> Value)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
-    BabbageTxOut addr (f val) dat script
-modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
-    BabbageTxOut addr (f val) dat script
-
-modifyTxOutCoin
-    :: RecentEra era
-    -> (Coin -> Coin)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
-
-txOutValue :: RecentEra era -> TxOut (CardanoApi.ShelleyLedgerEra era) -> Value
-txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
-txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
-
 type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 
 type Address = Ledger.Addr StandardCrypto
@@ -681,8 +661,8 @@ computeMinimumCoinForTxOut era pp out = withConstraints era $
     withMaxLengthSerializedCoin
         :: TxOut (CardanoApi.ShelleyLedgerEra era)
         -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    withMaxLengthSerializedCoin =
-        modifyTxOutCoin era (const $ Convert.toLedger W.txOutMaxCoin)
+    withMaxLengthSerializedCoin = withConstraints era $
+        over coinTxOutL (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
     :: forall era. RecentEra era
