@@ -62,7 +62,6 @@ module Internal.Cardano.Write.Tx
     -- ** Existential wrapper
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
-    , asAnyRecentEra
     , toAnyCardanoEra
     , fromAnyCardanoEra
     , withRecentEra
@@ -460,26 +459,6 @@ data InAnyRecentEra thing where
         => RecentEra era   -- and explicit value.
         -> thing era
         -> InAnyRecentEra thing
-
--- | "Downcast" something existentially wrapped in 'CardanoApi.InAnyCardanoEra'.
-asAnyRecentEra
-    :: CardanoApi.InAnyCardanoEra a
-    -> Maybe (InAnyRecentEra a)
-asAnyRecentEra = \case
-    CardanoApi.InAnyCardanoEra CardanoApi.ByronEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.ShelleyEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.AllegraEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.MaryEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.AlonzoEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra a ->
-        Just $ InAnyRecentEra RecentEraBabbage a
-    CardanoApi.InAnyCardanoEra CardanoApi.ConwayEra a ->
-        Just $ InAnyRecentEra RecentEraConway a
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
