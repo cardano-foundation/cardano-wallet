@@ -22,9 +22,6 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( serialize
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    )
 import Control.Lens
     ( (^.)
     )
@@ -40,7 +37,12 @@ import Internal.Cardano.Write.Tx
     , withConstraints
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle
+    )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.ByteString.Lazy as BL
 
@@ -58,20 +60,20 @@ mkTokenBundleSizeAssessor era pp = TokenBundleSizeAssessor $ \tb ->
     then TokenBundleSizeExceedsLimit
     else TokenBundleSizeWithinLimit
   where
-    maxValSize :: TxSize
-    maxValSize = TxSize $ withConstraints era $ pp ^. ppMaxValSizeL
+    maxValSize :: W.TxSize
+    maxValSize = W.TxSize $ withConstraints era $ pp ^. ppMaxValSizeL
 
     ver :: Version
     ver = withConstraints era $ pvMajor $ pp ^. ppProtocolVersionL
 
 computeTokenBundleSerializedLengthBytes
-    :: TokenBundle.TokenBundle
+    :: W.TokenBundle
     -> Version
-    -> TxSize
+    -> W.TxSize
 computeTokenBundleSerializedLengthBytes tb ver = serSize (Convert.toLedger tb)
   where
-    serSize :: Value -> TxSize
-    serSize v = maybe err TxSize
+    serSize :: Value -> W.TxSize
+    serSize v = maybe err W.TxSize
         . intCastMaybe
         . BL.length
         $ serialize ver v

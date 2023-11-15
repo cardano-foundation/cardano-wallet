@@ -17,22 +17,6 @@ import Cardano.Ledger.Api.PParams
     , ppMaxValSizeL
     , ppProtocolVersionL
     )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle
-    )
-import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundle
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    , txOutMaxCoin
-    , txOutMinCoin
-    )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
-    ( genTxOutTokenBundle
-    )
 import Control.Lens
     ( (&)
     , (.~)
@@ -85,7 +69,17 @@ import Test.QuickCheck
     , (==>)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+    ( TokenBundle
+    )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
+    )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 
 spec :: Spec
 spec = describe "Assessing the sizes of token bundles" $ do
@@ -110,15 +104,15 @@ spec = describe "Assessing the sizes of token bundles" $ do
 -- bundle that is still over the size limit.
 --
 prop_assessTokenBundleSize_enlarge
-    :: Blind (VariableSize1024 TokenBundle)
-    -> Blind (VariableSize16 TokenBundle)
+    :: Blind (VariableSize1024 W.TokenBundle)
+    -> Blind (VariableSize16 W.TokenBundle)
     -> PParamsInRecentEra
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' pp =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
         [ assess (b1 <> b2)
             === TokenBundleSizeExceedsLimit
-        , assess (b1 `TokenBundle.setCoin` txOutMaxCoin)
+        , assess (b1 `W.TokenBundle.setCoin` W.txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
         ]
   where
@@ -130,15 +124,15 @@ prop_assessTokenBundleSize_enlarge b1' b2' pp =
 -- bundle that is still within the size limit.
 --
 prop_assessTokenBundleSize_shrink
-    :: Blind (VariableSize1024 TokenBundle)
-    -> Blind (VariableSize16 TokenBundle)
+    :: Blind (VariableSize1024 W.TokenBundle)
+    -> Blind (VariableSize16 W.TokenBundle)
     -> PParamsInRecentEra
     -> Property
 prop_assessTokenBundleSize_shrink b1' b2' pp =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
         [ assess (b1 <\> b2)
             === TokenBundleSizeWithinLimit
-        , assess (b1 `TokenBundle.setCoin` txOutMinCoin)
+        , assess (b1 `W.TokenBundle.setCoin` W.txOutMinCoin)
             === TokenBundleSizeWithinLimit
         ]
   where
@@ -152,15 +146,15 @@ prop_assessTokenBundleSize_shrink b1' b2' pp =
 -- Policy identifiers, asset names, token quantities are all allowed to vary.
 --
 unit_assessTokenBundleSize_fixedSizeBundle
-    :: TokenBundle
+    :: W.TokenBundle
     -- ^ Fixed size bundle
     -> TokenBundleSizeAssessment
     -- ^ Expected size assessment
     -> TokenBundleSizeAssessor
-    -- ^ TokenBundle assessor function
-    -> TxSize
+    -- ^ W.TokenBundle assessor function
+    -> W.TxSize
     -- ^ Expected min length (bytes)
-    -> TxSize
+    -> W.TxSize
     -- ^ Expected max length (bytes)
     -> Property
 unit_assessTokenBundleSize_fixedSizeBundle
@@ -194,40 +188,40 @@ unit_assessTokenBundleSize_fixedSizeBundle
         ]
 
 unit_assessTokenBundleSize_fixedSizeBundle_32
-    :: Blind (FixedSize32 TokenBundle) -> Property
+    :: Blind (FixedSize32 W.TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_32 (Blind (FixedSize32 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 2116) (TxSize 2380)
+        (W.TxSize 2116) (W.TxSize 2380)
 
 unit_assessTokenBundleSize_fixedSizeBundle_48
-    :: Blind (FixedSize48 TokenBundle) -> Property
+    :: Blind (FixedSize48 W.TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_48 (Blind (FixedSize48 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 3172) (TxSize 3564)
+        (W.TxSize 3172) (W.TxSize 3564)
 
 unit_assessTokenBundleSize_fixedSizeBundle_64
-    :: Blind (FixedSize64 TokenBundle) -> Property
+    :: Blind (FixedSize64 W.TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 4228) (TxSize 4748)
+        (W.TxSize 4228) (W.TxSize 4748)
 
 unit_assessTokenBundleSize_fixedSizeBundle_128
-    :: Blind (FixedSize128 TokenBundle) -> Property
+    :: Blind (FixedSize128 W.TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
         babbageTokenBundleSizeAssessor
-        (TxSize 8452) (TxSize 9484)
+        (W.TxSize 8452) (W.TxSize 9484)
 
-instance Arbitrary TokenBundle where
-    arbitrary = genTokenBundleSmallRange
-    shrink = shrinkTokenBundleSmallRange
+instance Arbitrary W.TokenBundle where
+    arbitrary = W.genTokenBundleSmallRange
+    shrink = W.shrinkTokenBundleSmallRange
 
 newtype FixedSize32 a = FixedSize32 { unFixedSize32 :: a }
     deriving (Eq, Show)
@@ -247,28 +241,28 @@ newtype VariableSize16 a = VariableSize16 { unVariableSize16 :: a}
 newtype VariableSize1024 a = VariableSize1024 { unVariableSize1024 :: a}
     deriving (Eq, Show)
 
-instance Arbitrary (FixedSize32 TokenBundle) where
-    arbitrary = FixedSize32 <$> genTxOutTokenBundle 32
+instance Arbitrary (FixedSize32 W.TokenBundle) where
+    arbitrary = FixedSize32 <$> W.genTxOutTokenBundle 32
     -- No shrinking
 
-instance Arbitrary (FixedSize48 TokenBundle) where
-    arbitrary = FixedSize48 <$> genTxOutTokenBundle 48
+instance Arbitrary (FixedSize48 W.TokenBundle) where
+    arbitrary = FixedSize48 <$> W.genTxOutTokenBundle 48
     -- No shrinking
 
-instance Arbitrary (FixedSize64 TokenBundle) where
-    arbitrary = FixedSize64 <$> genTxOutTokenBundle 64
+instance Arbitrary (FixedSize64 W.TokenBundle) where
+    arbitrary = FixedSize64 <$> W.genTxOutTokenBundle 64
     -- No shrinking
 
-instance Arbitrary (FixedSize128 TokenBundle) where
-    arbitrary = FixedSize128 <$> genTxOutTokenBundle 128
+instance Arbitrary (FixedSize128 W.TokenBundle) where
+    arbitrary = FixedSize128 <$> W.genTxOutTokenBundle 128
     -- No shrinking
 
-instance Arbitrary (VariableSize16 TokenBundle) where
-    arbitrary = VariableSize16 <$> resize 16 genTokenBundle
+instance Arbitrary (VariableSize16 W.TokenBundle) where
+    arbitrary = VariableSize16 <$> resize 16 W.genTokenBundle
     -- No shrinking
 
-instance Arbitrary (VariableSize1024 TokenBundle) where
-    arbitrary = VariableSize1024 <$> resize 1024 genTokenBundle
+instance Arbitrary (VariableSize1024 W.TokenBundle) where
+    arbitrary = VariableSize1024 <$> resize 1024 W.genTokenBundle
     -- No shrinking
 
 instance Arbitrary Version where

@@ -133,20 +133,6 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
-import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..)
-    )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , sealedTxFromBytes
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , serialisedTx
-    )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkDelegationCertificates
@@ -440,6 +426,9 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Credentials as W
+    ( RootCredentials (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
     , mockHash
@@ -449,13 +438,24 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
+    ( SealedTx (..)
+    , cardanoTxIdeallyNoLaterThan
+    , sealedTxFromBytes
+    , sealedTxFromCardano
+    , sealedTxFromCardano'
+    , serialisedTx
+    )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( TxSize (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Codec.CBOR.Encoding as CBOR
@@ -504,7 +504,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
         let coinSelectionEstimatedSize :: Natural -> Natural
-            coinSelectionEstimatedSize = unTxSize . sizeOf_BootstrapWitnesses
+            coinSelectionEstimatedSize = W.unTxSize . sizeOf_BootstrapWitnesses
 
         let measuredWitSize
                 :: CardanoApi.IsCardanoEra era
@@ -638,7 +638,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 let (wtx, _, _, _, _, _) =
                         _decodeSealedTx maxBound
                         (ShelleyWalletCtx dummyPolicyK)
-                        (sealedTxFromCardano' tx)
+                        (W.sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                     <> fromMaybe (W.Coin 0) (view #fee wtx)
@@ -820,8 +820,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
-            let serializeTx = serialisedTx
-                    . sealedTxFromCardano
+            let serializeTx
+                    = W.serialisedTx
+                    . W.sealedTxFromCardano
                     . CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra
 
             let name = "pingPong_2"
@@ -942,7 +943,7 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
     describe "sizeOfCoin" $ do
         let coinToWord64Clamped = fromMaybe maxBound . W.Coin.toWord64Maybe
         let cborSizeOfCoin =
-                TxSize
+                W.TxSize
                 . fromIntegral
                 . BS.length
                 . CBOR.toStrictByteString
@@ -962,26 +963,26 @@ spec_distributeSurplus = describe "distributeSurplus" $ do
                     -- ensure we see /some/ amount of every size.
                     let coverSize s = cover 0.01 (s == expected) (show s)
                     sizeOfCoin c === expected
-                        & coverSize (TxSize 1)
-                        & coverSize (TxSize 2)
-                        & coverSize (TxSize 3)
-                        & coverSize (TxSize 5)
-                        & coverSize (TxSize 9)
+                        & coverSize (W.TxSize 1)
+                        & coverSize (W.TxSize 2)
+                        & coverSize (W.TxSize 3)
+                        & coverSize (W.TxSize 5)
+                        & coverSize (W.TxSize 9)
                         & cover 0.5 (isBoundary c) "boundary case"
 
         describe "boundary case goldens" $ do
             it "1 byte to 2 byte boundary" $ do
-                sizeOfCoin (W.Coin 23) `shouldBe` TxSize 1
-                sizeOfCoin (W.Coin 24) `shouldBe` TxSize 2
+                sizeOfCoin (W.Coin 23) `shouldBe` W.TxSize 1
+                sizeOfCoin (W.Coin 24) `shouldBe` W.TxSize 2
             it "2 byte to 3 byte boundary" $ do
-                sizeOfCoin (W.Coin $ 2 `power` 8 - 1) `shouldBe` TxSize 2
-                sizeOfCoin (W.Coin $ 2 `power` 8    ) `shouldBe` TxSize 3
+                sizeOfCoin (W.Coin $ 2 `power` 8 - 1) `shouldBe` W.TxSize 2
+                sizeOfCoin (W.Coin $ 2 `power` 8    ) `shouldBe` W.TxSize 3
             it "3 byte to 5 byte boundary" $ do
-                sizeOfCoin (W.Coin $ 2 `power` 16 - 1) `shouldBe` TxSize 3
-                sizeOfCoin (W.Coin $ 2 `power` 16    ) `shouldBe` TxSize 5
+                sizeOfCoin (W.Coin $ 2 `power` 16 - 1) `shouldBe` W.TxSize 3
+                sizeOfCoin (W.Coin $ 2 `power` 16    ) `shouldBe` W.TxSize 5
             it "5 byte to 9 byte boundary" $ do
-                sizeOfCoin (W.Coin $ 2 `power` 32 - 1) `shouldBe` TxSize 5
-                sizeOfCoin (W.Coin $ 2 `power` 32    ) `shouldBe` TxSize 9
+                sizeOfCoin (W.Coin $ 2 `power` 32 - 1) `shouldBe` W.TxSize 5
+                sizeOfCoin (W.Coin $ 2 `power` 32    ) `shouldBe` W.TxSize 9
 
     describe "costOfIncreasingCoin" $ do
         it "costs 176 lovelace to increase 4294.967295 ada (2^32 - 1 lovelace) \
@@ -1116,7 +1117,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
-            signedBinarySize = TxSize $ fromIntegral $ BS.length bs
+            signedBinarySize = W.TxSize $ fromIntegral $ BS.length bs
 
         case (noScripts, noBootWits) of
                 (True, True) -> do
@@ -1138,7 +1139,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -- Apparently the cbor encoding used by the ledger for size checks
         -- (`toCBORForSizeComputation`) is a few bytes smaller than the actual
         -- serialized size for these goldens.
-        correction = TxSize 6
+        correction = W.TxSize 6
 
     forAllGoldens
         :: [(String, ByteString)]
@@ -1154,7 +1155,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 msg = unlines
                     [ B8.unpack $ hex bs
                     , pretty
-                        $ sealedTxFromCardano
+                        $ W.sealedTxFromCardano
                         $ CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra tx
                     ]
             in
@@ -1207,7 +1208,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     --
     -- NOTE: If we had access to the real UTxO set for the inputs of the test
     -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
-    bootWitsCanBeLongerBy = TxSize 45
+    bootWitsCanBeLongerBy = W.TxSize 45
 
 spec_updateTx :: Spec
 spec_updateTx = describe "updateTx" $ do
@@ -1285,7 +1286,7 @@ spec_updateTx = describe "updateTx" $ do
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
   where
-    readTestTransactions :: SpecM a [(FilePath, SealedTx)]
+    readTestTransactions :: SpecM a [(FilePath, W.SealedTx)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
@@ -1525,7 +1526,7 @@ prop_balanceTransactionValid
         -> Property
     prop_validSize tx@(CardanoApi.Tx body _) utxo = do
         let era = recentEra @era
-        let (TxSize size) =
+        let (W.TxSize size) =
                 estimateSignedTxSize era ledgerPParams
                     (estimateKeyWitnessCount utxo body)
                     (fromCardanoApiTx tx)
@@ -1990,9 +1991,9 @@ prop_updateTx
             , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
             ]
   where
-    inputs = sealedInputs . sealedTxFromCardano'
-    outputs = sealedOutputs . sealedTxFromCardano'
-    collateralIns = sealedCollateralInputs . sealedTxFromCardano'
+    inputs = sealedInputs . W.sealedTxFromCardano'
+    outputs = sealedOutputs . W.sealedTxFromCardano'
+    collateralIns = sealedCollateralInputs . W.sealedTxFromCardano'
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -2092,8 +2093,8 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
-cardanoTx :: SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
-cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
+cardanoTx :: W.SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
+cardanoTx = W.cardanoTxIdeallyNoLaterThan maxBound
 
 deserializeBabbageTx :: ByteString -> CardanoApi.Tx CardanoApi.BabbageEra
 deserializeBabbageTx = either (error . show) id
@@ -2181,7 +2182,7 @@ recentEraTxFromBytes bytes =
         anyEraTx
             = cardanoTx
             $ either (error . show) id
-            $ sealedTxFromBytes bytes
+            $ W.sealedTxFromBytes bytes
     in
         case Write.asAnyRecentEra anyEraTx of
             Just recentEraTx -> recentEraTx
@@ -2207,7 +2208,7 @@ restrictResolution (PartialTx tx inputs redeemers) =
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
 
-sealedCollateralInputs :: SealedTx -> Set W.TxIn
+sealedCollateralInputs :: W.SealedTx -> Set W.TxIn
 sealedCollateralInputs =
     Set.fromList
     . map fst
@@ -2223,9 +2224,9 @@ sealedFee =
     view #fee
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-    . sealedTxFromCardano'
+    . W.sealedTxFromCardano'
 
-sealedInputs :: SealedTx -> Set W.TxIn
+sealedInputs :: W.SealedTx -> Set W.TxIn
 sealedInputs =
     Set.fromList
     . map fst
@@ -2233,7 +2234,7 @@ sealedInputs =
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
-sealedOutputs :: SealedTx -> Set W.TxOut
+sealedOutputs :: W.SealedTx -> Set W.TxOut
 sealedOutputs =
     Set.fromList
     . view #outputs
@@ -2245,8 +2246,8 @@ serializedSize
     => CardanoApi.Tx era
     -> Int
 serializedSize = BS.length
-    . serialisedTx
-    . sealedTxFromCardano
+    . W.serialisedTx
+    . W.sealedTxFromCardano
     . CardanoApi.InAnyCardanoEra (CardanoApi.cardanoEra @era)
 
 -- | Checks for membership in the given closed interval [a, b]
@@ -2272,10 +2273,10 @@ txMinFee tx@(CardanoApi.Tx body _) u =
         (fromCardanoApiTx tx)
         (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)
 
-unsafeSealedTxFromHex :: ByteString -> IO SealedTx
+unsafeSealedTxFromHex :: ByteString -> IO W.SealedTx
 unsafeSealedTxFromHex =
     either (fail . show) pure
-        . sealedTxFromBytes
+        . W.sealedTxFromBytes
         . unsafeFromHex
         . BS.dropWhileEnd isNewlineChar
   where
@@ -2423,7 +2424,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
         (delegationAddress @ShelleyKey SMainnet)
         )
     (mkSeqStateFromRootXPrv ShelleyKeyS
-        (RootCredentials rootK pwd)
+        (W.RootCredentials rootK pwd)
         purposeCIP1852
         defaultAddressPoolGap)
   where
@@ -2725,14 +2726,14 @@ instance Arbitrary (TxFeeAndChange [W.TxOut]) where
         fee <- W.genCoin
         change <- frequency
             [ (1, pure [])
-            , (1, (: []) <$> TxOutGen.genTxOut)
-            , (6, listOf TxOutGen.genTxOut)
+            , (1, (: []) <$> W.genTxOut)
+            , (6, listOf W.genTxOut)
             ]
         pure $ TxFeeAndChange fee change
     shrink (TxFeeAndChange fee change) =
         uncurry TxFeeAndChange <$> liftShrink2
             (W.shrinkCoin)
-            (shrinkList TxOutGen.shrinkTxOut)
+            (shrinkList W.shrinkTxOut)
             (fee, change)
 
 instance Arbitrary W.TxIn where

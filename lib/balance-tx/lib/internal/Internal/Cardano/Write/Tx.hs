@@ -212,9 +212,6 @@ import Cardano.Ledger.Val
     ( coin
     , modifyCoin
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( txOutMaxCoin
-    )
 import Control.Arrow
     ( second
     , (>>>)
@@ -284,6 +281,9 @@ import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
+import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
+    ( txOutMaxCoin
+    )
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.Map as Map
 
@@ -716,7 +716,7 @@ computeMinimumCoinForTxOut era pp out = withConstraints era $
         :: TxOut (CardanoApi.ShelleyLedgerEra era)
         -> TxOut (CardanoApi.ShelleyLedgerEra era)
     withMaxLengthSerializedCoin =
-        modifyTxOutCoin era (const $ Convert.toLedger txOutMaxCoin)
+        modifyTxOutCoin era (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
     :: forall era. RecentEra era
