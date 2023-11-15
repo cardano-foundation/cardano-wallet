@@ -576,13 +576,10 @@ balanceTransaction
     s
     partialTx
     = do
-    let adjustedPartialTx =
-            partialTx & over #tx
-                ( asCardanoApiTx @era
-                $ assignMinimalAdaQuantitiesToOutputsWithoutAda
-                    (recentEra @era)
-                    (pparamsLedger pp)
-                )
+    let adjustedPartialTx = flip (over #tx) partialTx $
+            assignMinimalAdaQuantitiesToOutputsWithoutAda
+                (recentEra @era)
+                (pparamsLedger pp)
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -657,10 +654,14 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda
     :: forall era
      . RecentEra era
     -> PParams (CardanoApi.ShelleyLedgerEra era)
-    -> CardanoApi.Tx era
-    -> CardanoApi.Tx era
-assignMinimalAdaQuantitiesToOutputsWithoutAda era pp = withConstraints era $
-    modifyLedgerBody $ over outputsTxBodyL $ fmap modifyTxOut
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
+    -> Tx (CardanoApi.ShelleyLedgerEra era)
+assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
+    withConstraints era
+        $ asCardanoApiTx @era
+        $ modifyLedgerBody
+        $ over outputsTxBodyL
+        $ fmap modifyTxOut
   where
     modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
         if c == mempty then computeMinimumCoinForTxOut era pp out else c
