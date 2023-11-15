@@ -371,7 +371,9 @@ withConstraints era a = case era of
     RecentEraBabbage -> a
     RecentEraConway -> a
 
--- | Return a proof that the wallet can create txs in this era, or @Nothing@.
+-- | Returns a proof that the given era is a recent era.
+--
+-- Otherwise, returns @Nothing@.
 toRecentEra :: CardanoApi.CardanoEra era -> Maybe (RecentEra era)
 toRecentEra = \case
     CardanoApi.ConwayEra  -> Just RecentEraConway
