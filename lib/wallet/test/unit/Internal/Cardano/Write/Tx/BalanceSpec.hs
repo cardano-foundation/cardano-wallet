@@ -1152,9 +1152,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 tx = deserializeBabbageTx bs
                 msg = unlines
                     [ B8.unpack $ hex bs
-                    , pretty
-                        $ W.sealedTxFromCardano
-                        $ CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra tx
+                    , show $ Pretty $ fromCardanoApiTx tx
                     ]
             in
                 Hspec.counterexample msg $ f name bs tx
