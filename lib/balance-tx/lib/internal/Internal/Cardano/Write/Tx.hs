@@ -64,7 +64,6 @@ module Internal.Cardano.Write.Tx
     , InAnyRecentEra (..)
     , toAnyCardanoEra
     , fromAnyCardanoEra
-    , withRecentEra
 
     -- ** Misc
     , StandardCrypto
@@ -511,10 +510,6 @@ fromAnyCardanoEra = \case
         Just $ AnyRecentEra RecentEraBabbage
     CardanoApi.AnyCardanoEra CardanoApi.ConwayEra ->
         Just $ AnyRecentEra RecentEraConway
-
-withRecentEra ::
-    AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
-withRecentEra (AnyRecentEra era) f = f era
 
 --------------------------------------------------------------------------------
 -- Key witness counts
