@@ -1184,9 +1184,7 @@ data ChangeAddressGen s = ChangeAddressGen
     , maxLengthChangeAddress :: Address
     }
 
--- | Augments the given outputs with new outputs. These new outputs correspond
--- to change outputs to which new addresses have been assigned. This updates
--- the wallet state as it needs to keep track of new pending change addresses.
+-- | Assigns addresses to the change outputs of the given selection.
 assignChangeAddresses
     :: ChangeAddressGen s
     -> SelectionOf W.TokenBundle
