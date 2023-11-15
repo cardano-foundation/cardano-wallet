@@ -44,6 +44,9 @@ import Cardano.DB.Sqlite.Migration.Old
     , foldMigrations
     , tableName
     )
+import Cardano.Wallet.DB.Sqlite.Migration.SchemaVersion1
+    ( sqlCreateSchemaVersion1TablesIfMissing
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..)
     )
@@ -199,6 +202,7 @@ migrateManually tr key defaultFieldValues =
     , moveRndUnusedAddresses
     , cleanupSeqStateTable
     , addPolicyXPubIfMissing
+    , createSchemaVersion1TablesIfMissing
     , removeOldSubmissions
     , removeMetasOfSubmissions
     , createAndPopulateSubmissionsSlotTable
@@ -794,6 +798,10 @@ migrateManually tr key defaultFieldValues =
       where
         value = "NULL"
 
+    -- | Create any table of SchemaVersion 1 that is still missing.
+    createSchemaVersion1TablesIfMissing :: Sqlite.Connection -> IO ()
+    createSchemaVersion1TablesIfMissing =
+        forM_ sqlCreateSchemaVersion1TablesIfMissing . runSql
 
     -- | This table is replaced by Submissions talbles.
     removeOldSubmissions :: Sqlite.Connection -> IO ()
