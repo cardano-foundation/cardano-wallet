@@ -107,9 +107,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..)
     )
-import Cardano.Wallet.Primitive.Types.Tx.SealedTx
-    ( serialisedTx
-    )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (toWallet)
     , toWalletAddress
@@ -262,7 +259,6 @@ instance IsServerError WalletException where
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
         ExceptionWriteTxEra e -> toServerError e
-        ExceptionBalanceTxInternalError e -> toServerError e
         ExceptionSubmitTransaction e -> toServerError e
         ExceptionConstructTx e -> toServerError e
         ExceptionGetPolicyId e -> toServerError e
@@ -613,7 +609,7 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 , "or sending a smaller amount."
                 ]
 
-instance IsServerError ErrBalanceTxInternalError where
+instance forall era. IsServerError (ErrBalanceTxInternalError era) where
     toServerError = \case
         ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
@@ -624,7 +620,7 @@ instance IsServerError ErrBalanceTxInternalError where
           where
             info = ApiErrorBalanceTxUnderestimatedFee
                 { underestimation = Coin.toQuantity $ toWalletCoin coin
-                , candidateTxHex = hexText $ serialisedTx candidateTx
+                , candidateTxHex = hexText $ Write.serializeTx @era candidateTx
                 , candidateTxReadable = T.pack (show candidateTx)
                 , estimatedNumberOfKeyWits = intCast nWits
                 , estimatedNumberOfBootstrapKeyWits = intCast nBootWits

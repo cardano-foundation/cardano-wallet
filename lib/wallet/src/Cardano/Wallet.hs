@@ -588,7 +588,6 @@ import Cardano.Wallet.Transaction.Built
     )
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , balanceTransaction
     )
@@ -3641,7 +3640,6 @@ data WalletException
     | ExceptionSignPayment ErrSignPayment
     | forall era. Write.IsRecentEra era => ExceptionBalanceTx (ErrBalanceTx era)
     | ExceptionWriteTxEra ErrWriteTxEra
-    | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx
     | ExceptionGetPolicyId ErrGetPolicyId
