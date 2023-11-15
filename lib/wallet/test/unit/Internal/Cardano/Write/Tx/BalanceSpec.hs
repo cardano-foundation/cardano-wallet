@@ -2038,9 +2038,7 @@ addExtraTxIns
     -> PartialTx CardanoApi.BabbageEra
     -> PartialTx CardanoApi.BabbageEra
 addExtraTxIns extraIns =
-    #tx %~
-        Write.asCardanoApiTx
-        (modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns)))
+    #tx . bodyTxL . inputsTxBodyL %~ (<> toLedgerInputs extraIns)
   where
     toLedgerInputs =
         Set.map Convert.toLedger . Set.fromList
@@ -2153,34 +2151,6 @@ mockPParamsForBalancing =
         CardanoApi.toLedgerPParams
             (Write.shelleyBasedEra @era)
             mockCardanoApiPParamsForBalancing
-
--- Ideally merge with 'updateTx'
-modifyBabbageTxBody
-    :: ( Babbage.BabbageTxBody StandardBabbage ->
-         Babbage.BabbageTxBody StandardBabbage
-       )
-    -> CardanoApi.Tx CardanoApi.BabbageEra
-    -> CardanoApi.Tx CardanoApi.BabbageEra
-modifyBabbageTxBody
-    f
-    (CardanoApi.Tx
-        (CardanoApi.ShelleyTxBody
-            era
-            body
-            scripts
-            scriptData
-            auxData
-            scriptValidity)
-        keyWits)
-    = CardanoApi.Tx
-        (CardanoApi.ShelleyTxBody
-            era
-            (f body)
-            scripts
-            scriptData
-            auxData
-            scriptValidity)
-        keyWits
 
 paymentPartialTx :: [W.TxOut] -> PartialTx CardanoApi.BabbageEra
 paymentPartialTx txouts =
@@ -2307,8 +2277,7 @@ withValidityInterval
     :: ValidityInterval
     -> PartialTx CardanoApi.BabbageEra
     -> PartialTx CardanoApi.BabbageEra
-withValidityInterval vi = #tx %~
-    Write.asCardanoApiTx (modifyBabbageTxBody (vldtTxBodyL .~ vi))
+withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
 walletToCardanoValue :: W.TokenBundle -> CardanoApi.Value
 walletToCardanoValue = CardanoApi.fromMaryValue . Convert.toLedger
