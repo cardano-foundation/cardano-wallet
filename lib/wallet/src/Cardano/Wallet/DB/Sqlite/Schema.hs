@@ -82,6 +82,7 @@ import System.Random
     )
 
 import qualified Cardano.Wallet.Address.Derivation as W
+import qualified Cardano.Wallet.Address.Discovery as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -365,7 +366,7 @@ SeqState
     seqStatePolicyXPub        B8.ByteString Maybe  sql=policy_xpub
     seqStateRewardXPub        B8.ByteString        sql=reward_xpub
     seqStateDerivationPrefix  W.DerivationPrefix   sql=derivation_prefix
-    seqStateOneChangeAddrMode Bool                 sql=one_change_addr_mode
+    seqStateChangeAddrMode    W.ChangeAddressMode  sql=change_addr_mode
 
     Primary seqStateWalletId
     Foreign Wallet OnDeleteCascade seq_state seqStateWalletId
@@ -453,7 +454,7 @@ SharedState
     sharedStateDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
     sharedStateRewardAccount            W.RewardAccount Maybe     sql=reward_account
     sharedStateDerivationPrefix         W.DerivationPrefix        sql=derivation_prefix
-    sharedStateOneChangeAddrMode        Bool                      sql=one_change_addr_mode
+    sharedStateChangeAddrMode           W.ChangeAddressMode       sql=change_addr_mode
 
     Primary sharedStateWalletId
     Foreign Wallet OnDeleteCascade shared_state sharedStateWalletId
