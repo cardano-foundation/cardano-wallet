@@ -143,7 +143,6 @@ import Control.Monad.Trans.State
     )
 import Data.Bifunctor
     ( bimap
-    , first
     , second
     )
 import Data.Bits
@@ -229,7 +228,6 @@ import Internal.Cardano.Write.Tx
     , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
-    , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -575,7 +573,7 @@ balanceTransaction
     genChange
     s
     partialTx
-    = first fromCardanoApiTx <$> do
+    = do
     let adjustedPartialTx = flip (over #tx) partialTx $
             assignMinimalAdaQuantitiesToOutputsWithoutAda
                 (recentEra @era)
@@ -678,7 +676,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> changeState
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era), changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
@@ -817,7 +815,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap ((, s') . toCardanoApiTx) . guardTxSize witCount
+    fmap ((, s')) . guardTxSize witCount
         =<< guardTxBalanced
         =<< assembleTransaction
         TxUpdate
