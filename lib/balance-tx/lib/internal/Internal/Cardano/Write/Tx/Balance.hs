@@ -1169,10 +1169,20 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen :: s -> (Address, s)
+    {
+    -- | Generates a new change address.
+    --
+    genChangeAddress :: s -> (Address, s)
 
-    -- | Returns the longest address that the wallet can generate for a given
-    --   key.
+    -- | Returns a /dummy/ change address of the maximum possible length for
+    --   this generator.
+    --
+    -- Implementations must satisfy the following property:
+    --
+    -- @
+    -- ∀ s. length (fst (genChangeAddress s)) <=
+    --      length maxLengthChangeAddress
+    -- @
     --
     -- This is useful in situations where we want to compute some function of
     -- an output under construction (such as a minimum UTxO value), but don't
@@ -1186,9 +1196,7 @@ data ChangeAddressGen s = ChangeAddressGen
     , maxLengthChangeAddress :: Address
     }
 
--- | Augments the given outputs with new outputs. These new outputs correspond
--- to change outputs to which new addresses have been assigned. This updates
--- the wallet state as it needs to keep track of new pending change addresses.
+-- | Assigns addresses to the change outputs of the given selection.
 assignChangeAddresses
     :: ChangeAddressGen s
     -> SelectionOf W.TokenBundle
