@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,6 +23,7 @@
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer
+    , NetworkParams(..)
     , Observer (query, startObserving, stopObserving)
     , newObserver
     , ObserverLog (..)
@@ -184,7 +186,6 @@ import Control.Retry
     )
 import Control.Tracer
     ( Tracer (..)
-    , contramap
     , nullTracer
     , traceWith
     )
@@ -201,7 +202,8 @@ import Data.Functor
     ( ($>)
     )
 import Data.Functor.Contravariant
-    ( (>$<)
+    ( Contravariant (..)
+    , (>$<)
     )
 import Data.List
     ( isInfixOf
@@ -246,6 +248,9 @@ import Fmt
     )
 import GHC.Stack
     ( HasCallStack
+    )
+import Internal.Cardano.Write.Tx
+    ( MaybeInRecentEra (..)
     )
 import Network.Mux
     ( MuxError (..)
@@ -405,6 +410,7 @@ import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
@@ -439,6 +445,14 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
         ver
         tol
         action
+
+-- | Network parameters and protocol parameters for the node's current tip.
+data NetworkParams = NetworkParams
+    { protocolParams :: MaybeInRecentEra Write.ProtocolParameters
+    , protocolParamsLegacy :: W.ProtocolParameters
+    , slottingParamsLegacy :: W.SlottingParameters
+    }
+    deriving (Eq, Show)
 
 withNodeNetworkLayerBase
     :: HasCallStack
@@ -511,9 +525,13 @@ withNodeNetworkLayerBase
                 , watchNodeTip =
                     _watchNodeTip readNodeTip
                 , currentProtocolParameters =
-                    fst <$> atomically (readTMVar networkParamsVar)
+                    protocolParamsLegacy
+                        <$> atomically (readTMVar networkParamsVar)
+                , currentProtocolParametersInRecentEras =
+                    protocolParams <$> atomically (readTMVar networkParamsVar)
                 , currentSlottingParameters =
-                    snd <$> atomically (readTMVar networkParamsVar)
+                    slottingParamsLegacy
+                        <$> atomically (readTMVar networkParamsVar)
                 , postTx =
                     _postTx txSubmissionQ readCurrentNodeEra
                 , stakeDistribution =
@@ -539,7 +557,7 @@ withNodeNetworkLayerBase
             => RetryHandlers
             -> IO
                 ( STM IO (Tip (CardanoBlock StandardCrypto))
-                , TMVar IO (W.ProtocolParameters, W.SlottingParameters)
+                , TMVar IO NetworkParams
                 , TMVar IO (CardanoInterpreter StandardCrypto)
                 , TMVar IO AnyCardanoEra
                 , TQueue
@@ -559,7 +577,7 @@ withNodeNetworkLayerBase
                 mkWalletToNodeProtocols
                     tr
                     np
-                    (curry (atomically . repsertTMVar networkParamsVar))
+                    (atomically . repsertTMVar networkParamsVar)
                     (atomically . repsertTMVar interpreterVar)
                     (atomically . repsertTMVar eraVar)
                     txSubmissionQ
@@ -821,7 +839,7 @@ mkWalletToNodeProtocols
     -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
     -- ^ Initial blockchain parameters
-    -> (W.ProtocolParameters -> W.SlottingParameters -> m ())
+    -> ( NetworkParams -> m ())
     -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
     -- ^ Notifier callback for when time interpreter is updated.
@@ -850,10 +868,11 @@ mkWalletToNodeProtocols
 
         tipVar <- newTVarIO (Just $ AnyCardanoEra ByronEra, TipGenesis)
 
-        (onPParamsUpdate' :: (W.ProtocolParameters, W.SlottingParameters) -> m ()) <-
-            debounce $ \(pp, sp) -> do
-                traceWith tr $ MsgProtocolParameters pp sp
-                onPParamsUpdate pp sp
+        onPParamsUpdate' <-
+            debounce $ \networkParams@NetworkParams{..} -> do
+                traceWith tr $ MsgProtocolParameters
+                    protocolParamsLegacy slottingParamsLegacy
+                onPParamsUpdate networkParams
 
         let queryParams = do
                 eraBounds <-
@@ -895,8 +914,18 @@ mkWalletToNodeProtocols
                         ( fromConwayPParams eraBounds
                             <$> LSQry Shelley.GetCurrentPParams
                         )
+                ppEra <- onAnyEra
+                    (pure InNonRecentEraByron)
+                    (pure InNonRecentEraShelley)
+                    (pure InNonRecentEraAllegra)
+                    (pure InNonRecentEraMary)
+                    (pure InNonRecentEraAlonzo)
+                    (InRecentEraBabbage . Write.ProtocolParameters
+                        <$> LSQry Shelley.GetCurrentPParams)
+                    (InRecentEraConway . Write.ProtocolParameters
+                        <$> LSQry Shelley.GetCurrentPParams)
 
-                return (pp, sp)
+                return $ NetworkParams ppEra pp sp
 
         let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 

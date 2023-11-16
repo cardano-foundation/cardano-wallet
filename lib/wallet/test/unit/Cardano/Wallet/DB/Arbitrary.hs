@@ -341,7 +341,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Internal.Cardano.Write.Tx as Write
 
 {-------------------------------------------------------------------------------
                                  Modifiers
@@ -815,7 +814,6 @@ instance Arbitrary ProtocolParameters where
         <:> shrink
         <:> shrink
         <:> shrink
-        <:> const []
         <:> Nil
     arbitrary = ProtocolParameters
         <$> arbitrary
@@ -826,7 +824,6 @@ instance Arbitrary ProtocolParameters where
         <*> genMaximumCollateralInputCount
         <*> genMinimumCollateralPercentage
         <*> arbitrary
-        <*> pure Write.InNonRecentEraAlonzo
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural

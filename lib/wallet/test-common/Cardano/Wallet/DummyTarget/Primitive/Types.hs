@@ -98,8 +98,6 @@ import GHC.Stack
 
 import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
-import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     Dummy values
@@ -168,12 +166,6 @@ dummyProtocolParameters = ProtocolParameters
             { pricePerStep = 7.21e-5
             , pricePerMemoryUnit = 0.057_7
             }
-    , currentLedgerProtocolParameters =
-        Write.InRecentEraBabbage . Write.ProtocolParameters $
-            either (error . show) id $
-                C.toLedgerPParams
-                    C.ShelleyBasedEraBabbage
-                    dummyNodeProtocolParameters
     }
 
 -- | Dummy parameters that are consistent with the @dummy*@ parameters.
@@ -227,6 +219,8 @@ dummyNetworkLayer = NetworkLayer
     , currentNodeTip = err "currentNodeTip"
     , watchNodeTip = err "watchNodeTip"
     , currentProtocolParameters = err "currentProtocolParameters"
+    , currentProtocolParametersInRecentEras
+        = err "currentProtocolParametersInRecentEras"
     , currentSlottingParameters = err "currentSlottingParameters"
     , postTx = err "postTx"
     , stakeDistribution = err "stakeDistribution"
