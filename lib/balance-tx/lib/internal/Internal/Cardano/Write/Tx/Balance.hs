@@ -1170,7 +1170,15 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (Address, s)
 
-    -- | Returns a dummy change address of the maximum possible length.
+    -- | Returns a /dummy/ change address of the maximum possible length for
+    --   this generator.
+    --
+    -- Implementations must satisfy the following property:
+    --
+    -- @
+    -- ∀ s. length (fst (getChangeAddressGen s)) <=
+    --      length maxLengthChangeAddress
+    -- @
     --
     -- This is useful in situations where we want to compute some function of
     -- an output under construction (such as a minimum UTxO value), but don't
