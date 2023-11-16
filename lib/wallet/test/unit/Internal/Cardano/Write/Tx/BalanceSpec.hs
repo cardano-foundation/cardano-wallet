@@ -1963,6 +1963,8 @@ prop_posAndNegFromCardanoApiValueRoundtrip =
         (CardanoApi.negateValue (walletToCardanoValue neg))
         === v
 
+-- TODO [ADO-2997] Test this property in all recent eras.
+-- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
     :: forall era. era ~ CardanoApi.BabbageEra
     => RecentEra era
