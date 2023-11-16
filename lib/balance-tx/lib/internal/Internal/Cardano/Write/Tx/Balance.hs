@@ -564,7 +564,7 @@ balanceTransaction
     -> ChangeAddressGen changeState
     -> changeState
     -> PartialTx era
-    -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era), changeState)
 balanceTransaction
     utxoAssumptions
     pp
@@ -679,7 +679,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> changeState
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era), changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
@@ -818,7 +818,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap ((, s') . toCardanoApiTx) . guardTxSize witCount
+    fmap ((, s')) . guardTxSize witCount
         =<< guardTxBalanced
         =<< assembleTransaction
         TxUpdate
