@@ -1277,7 +1277,8 @@ spec_updateTx = describe "updateTx" $ do
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
   where
-    readTestTransactions :: SpecM a [(FilePath, CardanoApi.Tx CardanoApi.BabbageEra)]
+    readTestTransactions
+        :: SpecM a [(FilePath, CardanoApi.Tx CardanoApi.BabbageEra)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
