@@ -2348,6 +2348,7 @@ buildTransactionPure
             Write.constructUTxOIndex @era $
             Write.fromWalletUTxO (Write.recentEra @era) utxo
     withExceptT Left $
+        first Write.toCardanoApiTx <$>
         balanceTransaction @_ @_ @s
             (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
@@ -2999,6 +3000,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
+                first (Write.toCardanoApiTx @era) <$>
                     balanceTransaction @_ @_ @s
                         (utxoAssumptionsForWallet (walletFlavor @s))
                         protocolParams

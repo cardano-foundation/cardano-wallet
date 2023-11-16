@@ -168,6 +168,9 @@ import Control.Monad.Trans.State.Strict
     ( evalState
     , state
     )
+import Data.Bifunctor
+    ( first
+    )
 import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
@@ -2070,7 +2073,7 @@ balanceTx
                 genChange
                 s
                 partialTx
-        pure transactionInEra
+        pure (Write.toCardanoApiTx transactionInEra)
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
@@ -2084,6 +2087,7 @@ balanceTransactionWithDummyChangeState
     -> Either (ErrBalanceTx era) (CardanoApi.Tx era, DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
+        first Write.toCardanoApiTx <$>
         balanceTransaction
             utxoAssumptions
             mockPParamsForBalancing

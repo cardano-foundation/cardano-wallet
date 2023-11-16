@@ -143,6 +143,7 @@ import Control.Monad.Trans.State
     )
 import Data.Bifunctor
     ( bimap
+    , first
     , second
     )
 import Data.Bits
@@ -228,6 +229,7 @@ import Internal.Cardano.Write.Tx
     , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
+    , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -564,7 +566,7 @@ balanceTransaction
     -> ChangeAddressGen changeState
     -> changeState
     -> PartialTx era
-    -> ExceptT (ErrBalanceTx era) m (CardanoApi.Tx era, changeState)
+    -> ExceptT (ErrBalanceTx era) m (Tx (ShelleyLedgerEra era), changeState)
 balanceTransaction
     utxoAssumptions
     pp
@@ -573,7 +575,7 @@ balanceTransaction
     genChange
     s
     partialTx
-    = do
+    = first fromCardanoApiTx <$> do
     let adjustedPartialTx = flip (over #tx) partialTx $
             assignMinimalAdaQuantitiesToOutputsWithoutAda
                 (recentEra @era)
