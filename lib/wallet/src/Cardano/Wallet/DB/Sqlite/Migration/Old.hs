@@ -329,11 +329,13 @@ migrateManually tr key defaultFieldValues =
                 runSql conn qry >>= \case
                     [[PersistText genesisHash, PersistText genesisStart]] -> do
                         addColumn_
+                            tr
                             conn
                             True
                             (DBField WalGenesisHash)
                             (quotes genesisHash)
                         addColumn_
+                            tr
                             conn
                             True
                             (DBField WalGenesisStart)
@@ -503,7 +505,7 @@ migrateManually tr key defaultFieldValues =
     --
     addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
     addDesiredPoolNumberIfMissing conn = do
-        addColumn_ conn True (DBField ProtocolParametersDesiredNumberOfPools) value
+        addColumn_ tr conn True (DBField ProtocolParametersDesiredNumberOfPools) value
       where
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
@@ -512,7 +514,7 @@ migrateManually tr key defaultFieldValues =
     --
     addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
     addMinimumUTxOValueIfMissing conn = do
-        addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
+        addColumn_ tr conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
         value = T.pack $ show $ W.unCoin $ defaultMinimumUTxOValue defaultFieldValues
 
@@ -521,7 +523,7 @@ migrateManually tr key defaultFieldValues =
     --
     addHardforkEpochIfMissing :: Sqlite.Connection -> IO ()
     addHardforkEpochIfMissing conn = do
-        addColumn_ conn False (DBField ProtocolParametersHardforkEpoch) value
+        addColumn_ tr conn False (DBField ProtocolParametersHardforkEpoch) value
       where
         value = case defaultHardforkEpoch defaultFieldValues of
             Nothing -> "NULL"
@@ -532,7 +534,7 @@ migrateManually tr key defaultFieldValues =
     --
     addKeyDepositIfMissing :: Sqlite.Connection -> Text -> IO ()
     addKeyDepositIfMissing conn =
-        addColumn_ conn True (DBField ProtocolParametersKeyDeposit)
+        addColumn_ tr conn True (DBField ProtocolParametersKeyDeposit)
 
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
@@ -546,8 +548,8 @@ migrateManually tr key defaultFieldValues =
     -- discovered. Existing databases don't have that pre-computed field.
     addAddressStateIfMissing :: Sqlite.Connection -> IO ()
     addAddressStateIfMissing conn = do
-        _  <- addColumn conn False (DBField SeqStateAddressStatus) (toText W.Unused)
-        st <- addColumn conn False (DBField RndStateAddressStatus) (toText W.Unused)
+        _  <- addColumn tr conn False (DBField SeqStateAddressStatus) (toText W.Unused)
+        st <- addColumn tr conn False (DBField RndStateAddressStatus) (toText W.Unused)
         when (st == ColumnMissing) $ do
             markAddressesAsUsed (DBField SeqStateAddressStatus)
             markAddressesAsUsed (DBField RndStateAddressStatus)
@@ -564,9 +566,9 @@ migrateManually tr key defaultFieldValues =
 
     addSeqStateDerivationPrefixIfMissing :: Sqlite.Connection -> IO ()
     addSeqStateDerivationPrefixIfMissing conn = case key of
-        IcarusKeyS -> addColumn_ conn True (DBField SeqStateDerivationPrefix)
+        IcarusKeyS -> addColumn_ tr conn True (DBField SeqStateDerivationPrefix)
             $ prefix Seq.purposeBIP44
-        ShelleyKeyS -> addColumn_ conn True (DBField SeqStateDerivationPrefix)
+        ShelleyKeyS -> addColumn_ tr conn True (DBField SeqStateDerivationPrefix)
             $ prefix Seq.purposeCIP1852
         _ -> pure ()
       where
@@ -587,9 +589,9 @@ migrateManually tr key defaultFieldValues =
     -- pirouette here.
     renameRoleFields :: Sqlite.Connection -> IO ()
     renameRoleFields conn = do
-        renameColumnField conn (DBField SeqStateAddressRole)
+        renameColumnField tr conn (DBField SeqStateAddressRole)
             "u_tx_o_internal" "utxo_internal"
-        renameColumnField conn (DBField SeqStateAddressRole)
+        renameColumnField tr conn (DBField SeqStateAddressRole)
             "u_tx_o_external" "utxo_external"
 
     -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
@@ -788,69 +790,10 @@ migrateManually tr key defaultFieldValues =
     --
     addPolicyXPubIfMissing :: Sqlite.Connection -> IO ()
     addPolicyXPubIfMissing conn = do
-        addColumn_ conn False (DBField SeqStatePolicyXPub) value
+        addColumn_ tr conn False (DBField SeqStatePolicyXPub) value
       where
         value = "NULL"
 
-    addColumn_
-        :: Sqlite.Connection
-        -> Bool
-        -> DBField
-        -> Text
-        -> IO ()
-    addColumn_ a b c =
-        void . addColumn a b c
-
-    -- | A migration for adding a non-existing column to a table. Factor out as
-    -- it's a common use-case.
-    addColumn
-        :: Sqlite.Connection
-        -> Bool
-        -> DBField
-        -> Text
-        -> IO SqlColumnStatus
-    addColumn conn notNull field value = do
-        isFieldPresent conn field >>= \st -> st <$ case st of
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded field value
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName field
-                    , "ADD COLUMN", fieldName field
-                    , fieldType field, if notNull then "NOT NULL" else ""
-                    , "DEFAULT", value
-                    , ";"
-                    ]
-                _ <- Sqlite.step query
-                Sqlite.finalize query
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
-    renameColumnField
-        :: Sqlite.Connection
-        -> DBField
-        -> Text -- Old Value
-        -> Text -- New Value
-        -> IO ()
-    renameColumnField conn field old new = do
-        isFieldPresent conn field >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnPresent -> do
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "UPDATE", tableName field
-                    , "SET", fieldName field, "=", quotes new
-                    , "WHERE", fieldName field, "=", quotes old
-                    ]
-                _ <- Sqlite.step query
-                changes <- Sqlite.changes conn
-                traceWith tr $ if changes > 0
-                    then MsgManualMigrationNeeded field old
-                    else MsgManualMigrationNotNeeded field
-                Sqlite.finalize query
 
     -- | This table is replaced by Submissions talbles.
     removeOldSubmissions :: Sqlite.Connection -> IO ()
@@ -1013,3 +956,65 @@ isTablePresentByName conn table = do
     pure $ case mrow of
         Sqlite.Done -> False
         Sqlite.Row -> True
+
+-- | A migration for adding a non-existing column to a table.
+addColumn
+    :: Tracer IO DBMigrationOldLog
+    -> Sqlite.Connection
+    -> Bool
+    -> DBField
+    -> Text
+    -> IO SqlColumnStatus
+addColumn tr conn notNull field value = do
+    isFieldPresent conn field >>= \st -> st <$ case st of
+        TableMissing ->
+            traceWith tr $ MsgManualMigrationNotNeeded field
+        ColumnMissing -> do
+            traceWith tr $ MsgManualMigrationNeeded field value
+            query <- Sqlite.prepare conn $ T.unwords
+                [ "ALTER TABLE", tableName field
+                , "ADD COLUMN", fieldName field
+                , fieldType field, if notNull then "NOT NULL" else ""
+                , "DEFAULT", value
+                , ";"
+                ]
+            _ <- Sqlite.step query
+            Sqlite.finalize query
+        ColumnPresent ->
+            traceWith tr $ MsgManualMigrationNotNeeded field
+
+addColumn_
+    :: Tracer IO DBMigrationOldLog
+    -> Sqlite.Connection
+    -> Bool
+    -> DBField
+    -> Text
+    -> IO ()
+addColumn_ tr a b c = void . addColumn tr a b c
+
+-- | Rename a column.
+renameColumnField
+    :: Tracer IO DBMigrationOldLog
+    -> Sqlite.Connection
+    -> DBField
+    -> Text -- Old Value
+    -> Text -- New Value
+    -> IO ()
+renameColumnField tr conn field old new = do
+    isFieldPresent conn field >>= \case
+        TableMissing ->
+            traceWith tr $ MsgManualMigrationNotNeeded field
+        ColumnMissing -> do
+            traceWith tr $ MsgManualMigrationNotNeeded field
+        ColumnPresent -> do
+            query <- Sqlite.prepare conn $ T.unwords
+                [ "UPDATE", tableName field
+                , "SET", fieldName field, "=", quotes new
+                , "WHERE", fieldName field, "=", quotes old
+                ]
+            _ <- Sqlite.step query
+            changes <- Sqlite.changes conn
+            traceWith tr $ if changes > 0
+                then MsgManualMigrationNeeded field old
+                else MsgManualMigrationNotNeeded field
+            Sqlite.finalize query
