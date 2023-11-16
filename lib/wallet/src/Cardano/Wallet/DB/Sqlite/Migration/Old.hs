@@ -183,6 +183,8 @@ migrateManually tr key defaultFieldValues =
     [ initializeSchemaVersionTable
     , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
+    , addTxMetaDataColumn
+    , addTxMetaSlotExpiresColumn
     , addDesiredPoolNumberIfMissing
     , addMinimumUTxOValueIfMissing
     , addHardforkEpochIfMissing
@@ -198,7 +200,8 @@ migrateManually tr key defaultFieldValues =
     , renameRoleColumn
     , renameRoleFields
     , updateFeeValueAndAddKeyDeposit
-    , addFeeToTransaction
+    , addTxMetaFeeToTransaction
+    , addTxMetaScriptValidityColumn
     , moveRndUnusedAddresses
     , cleanupSeqStateTable
     , addPolicyXPubIfMissing
@@ -370,6 +373,42 @@ migrateManually tr key defaultFieldValues =
             , " FROM ", table
             , " ORDER BY slot ASC LIMIT 1;"
             ]
+
+    addTxMetaDataColumn :: Sqlite.Connection -> IO ()
+    addTxMetaDataColumn conn =
+        isFieldPresentByName conn "tx_meta" "data" >>= \case
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded
+                    (DBField TxMetadata) "NULL"
+                void $ runSql conn
+                    [i| ALTER TABLE tx_meta
+                        ADD COLUMN "data" VARCHAR NULL DEFAULT NULL
+                    |]
+            _ -> pure ()
+
+    addTxMetaSlotExpiresColumn :: Sqlite.Connection -> IO ()
+    addTxMetaSlotExpiresColumn conn =
+        isFieldPresentByName conn "tx_meta" "slot_expires" >>= \case
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded
+                    (DBField TxMetaSlotExpires) "NULL"
+                void $ runSql conn
+                    [i| ALTER TABLE tx_meta
+                        ADD COLUMN "slot_expires" INTEGER NULL DEFAULT NULL
+                    |]
+            _ -> pure ()
+
+    addTxMetaScriptValidityColumn :: Sqlite.Connection -> IO ()
+    addTxMetaScriptValidityColumn conn =
+        isFieldPresentByName conn "tx_meta" "script_validity" >>= \case
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded
+                    (DBField TxMetaScriptValidity) "NULL"
+                void $ runSql conn
+                    [i| ALTER TABLE tx_meta
+                        ADD COLUMN "script_validity" INTEGER NULL DEFAULT NULL
+                    |]
+            _ -> pure ()
 
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -649,8 +688,8 @@ migrateManually tr key defaultFieldValues =
     -- instead, we query all transactions which require an update in memory,
     -- and update them one by one. This may be quite long on some database but
     -- it is in the end a one-time cost paid on start-up.
-    addFeeToTransaction :: Sqlite.Connection -> IO ()
-    addFeeToTransaction conn = do
+    addTxMetaFeeToTransaction :: Sqlite.Connection -> IO ()
+    addTxMetaFeeToTransaction conn = do
         isFieldPresent conn fieldFee >>= \case
             TableMissing  ->
                 traceWith tr $ MsgManualMigrationNotNeeded fieldFee
