@@ -4932,7 +4932,7 @@ fromExternalInput ApiExternalInput
 fromApiRedeemer :: ApiRedeemer n -> Redeemer
 fromApiRedeemer = \case
     ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
-        RedeemerSpending bytes i
+        RedeemerSpending bytes (toLedger i)
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
         RedeemerMinting bytes p
     ApiRedeemerRewarding (ApiBytesT bytes) r ->
