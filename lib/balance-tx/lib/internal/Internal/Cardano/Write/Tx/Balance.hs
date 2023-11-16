@@ -101,6 +101,7 @@ import Cardano.Ledger.Api
     , addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
+    , coinTxOutL
     , collateralInputsTxBodyL
     , collateralReturnTxBodyL
     , feeTxBodyL
@@ -231,7 +232,6 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
-    , modifyTxOutCoin
     , outputs
     , toCardanoApiTx
     , txBody
@@ -659,7 +659,10 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
         $ over (bodyTxL . outputsTxBodyL)
         $ fmap modifyTxOut
   where
-    modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
+    modifyTxOut
+        :: TxOut (CardanoApi.ShelleyLedgerEra era)
+        -> TxOut (CardanoApi.ShelleyLedgerEra era)
+    modifyTxOut out = withConstraints era $ flip (over coinTxOutL) out $ \c ->
         if c == mempty then computeMinimumCoinForTxOut era pp out else c
 
 -- | Internal helper to 'balanceTransaction'

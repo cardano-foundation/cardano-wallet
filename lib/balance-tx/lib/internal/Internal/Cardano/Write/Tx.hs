@@ -62,11 +62,8 @@ module Internal.Cardano.Write.Tx
     -- ** Existential wrapper
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
-    , asAnyRecentEra
     , toAnyCardanoEra
     , fromAnyCardanoEra
-    , withInAnyRecentEra
-    , withRecentEra
 
     -- ** Misc
     , StandardCrypto
@@ -100,9 +97,6 @@ module Internal.Cardano.Write.Tx
     , TxOutInBabbage
     , TxOutInRecentEra (..)
     , unwrapTxOutInRecentEra
-    , modifyTxOutValue
-    , modifyTxOutCoin
-    , txOutValue
 
     , computeMinimumCoinForTxOut
     , isBelowMinimumCoinForTxOut
@@ -175,6 +169,9 @@ import Cardano.Ledger.Alonzo.TxWits
 import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
+import Cardano.Ledger.Api
+    ( coinTxOutL
+    )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
     )
@@ -228,7 +225,8 @@ import Data.Foldable
     ( toList
     )
 import Data.Generics.Internal.VL.Lens
-    ( (^.)
+    ( over
+    , (^.)
     )
 import Data.Generics.Labels
     ()
@@ -462,32 +460,6 @@ data InAnyRecentEra thing where
         -> thing era
         -> InAnyRecentEra thing
 
-withInAnyRecentEra
-    :: InAnyRecentEra thing
-    -> (forall era. IsRecentEra era => thing era -> a)
-    -> a
-withInAnyRecentEra (InAnyRecentEra _era tx) f = f tx
-
--- | "Downcast" something existentially wrapped in 'CardanoApi.InAnyCardanoEra'.
-asAnyRecentEra
-    :: CardanoApi.InAnyCardanoEra a
-    -> Maybe (InAnyRecentEra a)
-asAnyRecentEra = \case
-    CardanoApi.InAnyCardanoEra CardanoApi.ByronEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.ShelleyEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.AllegraEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.MaryEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.AlonzoEra _ ->
-        Nothing
-    CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra a ->
-        Just $ InAnyRecentEra RecentEraBabbage a
-    CardanoApi.InAnyCardanoEra CardanoApi.ConwayEra a ->
-        Just $ InAnyRecentEra RecentEraConway a
-
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
     AnyRecentEra
@@ -540,10 +512,6 @@ fromAnyCardanoEra = \case
     CardanoApi.AnyCardanoEra CardanoApi.ConwayEra ->
         Just $ AnyRecentEra RecentEraConway
 
-withRecentEra ::
-    AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
-withRecentEra (AnyRecentEra era) f = f era
-
 --------------------------------------------------------------------------------
 -- Key witness counts
 --------------------------------------------------------------------------------
@@ -584,27 +552,6 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 --------------------------------------------------------------------------------
 
 type TxOut era = Core.TxOut era
-
-modifyTxOutValue
-    :: RecentEra era
-    -> (Value -> Value)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
-    BabbageTxOut addr (f val) dat script
-modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
-    BabbageTxOut addr (f val) dat script
-
-modifyTxOutCoin
-    :: RecentEra era
-    -> (Coin -> Coin)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
-modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
-
-txOutValue :: RecentEra era -> TxOut (CardanoApi.ShelleyLedgerEra era) -> Value
-txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
-txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 
 type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 
@@ -714,8 +661,8 @@ computeMinimumCoinForTxOut era pp out = withConstraints era $
     withMaxLengthSerializedCoin
         :: TxOut (CardanoApi.ShelleyLedgerEra era)
         -> TxOut (CardanoApi.ShelleyLedgerEra era)
-    withMaxLengthSerializedCoin =
-        modifyTxOutCoin era (const $ Convert.toLedger W.txOutMaxCoin)
+    withMaxLengthSerializedCoin = withConstraints era $
+        over coinTxOutL (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
     :: forall era. RecentEra era

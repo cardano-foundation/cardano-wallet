@@ -246,7 +246,6 @@ import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     , Datum (..)
     , FeePerByte (..)
-    , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
     , ShelleyLedgerEra
@@ -259,6 +258,7 @@ import Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , fromCardanoApiUTxO
     , recentEra
+    , serializeTx
     , toCardanoApiTx
     , toCardanoApiUTxO
     , utxoFromTxOutsInRecentEra
@@ -441,8 +441,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
     ( SealedTx (..)
-    , cardanoTxIdeallyNoLaterThan
-    , sealedTxFromBytes
     , sealedTxFromCardano
     , sealedTxFromCardano'
     , serialisedTx
@@ -539,7 +537,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "coin-selection's size estimation == balanceTx's size estimation"
             $ property
             $ prop_bootstrapWitnesses
-            $ \n (InAnyRecentEra _era tx) -> do
+            $ \n tx -> do
                 let balanceSize = evaluateMinimumFeeDerivedWitSize tx
                 let csSize = coinSelectionEstimatedSize $ intCast n
                 balanceSize === csSize
@@ -548,7 +546,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "balanceTx's size estimation >= measured serialized size"
             $ property
             $ prop_bootstrapWitnesses
-            $ \n (InAnyRecentEra _era tx) -> do
+            $ \n tx -> do
                 let estimated = evaluateMinimumFeeDerivedWitSize tx
                 let measured = measuredWitSize tx
                 let overestimation
@@ -821,17 +819,18 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
-            let serializeTx
-                    = W.serialisedTx
-                    . W.sealedTxFromCardano
-                    . CardanoApi.InAnyCardanoEra CardanoApi.BabbageEra
 
             let name = "pingPong_2"
             Golden
                 { output = tx
                 , encodePretty = show
-                , writeToFile = \fp x ->
-                    T.writeFile fp $ T.pack . B8.unpack . hex $ serializeTx x
+                , writeToFile = \fp x -> T.writeFile fp
+                    . T.pack
+                    . B8.unpack
+                    . hex
+                    . serializeTx @CardanoApi.BabbageEra
+                    . fromCardanoApiTx @CardanoApi.BabbageEra
+                    $ x
                 , readFromFile =
                     fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
                     . readFile
@@ -1151,13 +1150,11 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             -> IO ())
         -> Spec
     forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
-        Write.withInAnyRecentEra (recentEraTxFromBytes bs) $ \tx ->
             let
+                tx = deserializeBabbageTx bs
                 msg = unlines
                     [ B8.unpack $ hex bs
-                    , pretty
-                        $ W.sealedTxFromCardano
-                        $ CardanoApi.InAnyCardanoEra CardanoApi.cardanoEra tx
+                    , show $ Pretty $ fromCardanoApiTx tx
                     ]
             in
                 Hspec.counterexample msg $ f name bs tx
@@ -1215,12 +1212,8 @@ spec_updateTx :: Spec
 spec_updateTx = describe "updateTx" $ do
     describe "no existing key witnesses" $ do
         txs <- readTestTransactions
-        forM_ txs $ \(filepath, sealedTx) -> do
-            let anyRecentEraTx
-                    = fromJust $ Write.asAnyRecentEra $ cardanoTx sealedTx
+        forM_ txs $ \(filepath, tx :: CardanoApi.Tx era) -> do
             it ("without TxUpdate: " <> filepath) $ do
-                Write.withInAnyRecentEra anyRecentEraTx
-                    $ \(tx :: CardanoApi.Tx era) -> do
                     let res = toCardanoApiTx <$> updateTx
                             (recentEra @era)
                             (fromCardanoApiTx tx)
@@ -1264,7 +1257,7 @@ spec_updateTx = describe "updateTx" $ do
                                   `shouldBe` CardanoApi.serialiseToCBOR tx'
 
             prop ("with TxUpdate: " <> filepath) $
-                prop_updateTx anyRecentEraTx
+                prop_updateTx RecentEraBabbage $ fromCardanoApiTx tx
 
     describe "existing key witnesses" $ do
 
@@ -1272,33 +1265,30 @@ spec_updateTx = describe "updateTx" $ do
 
         it "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
-            let anyRecentEraTx = recentEraTxFromBytes
+            let tx = deserializeBabbageTx
                     $ snd $ head signedTxs
-            Write.withInAnyRecentEra anyRecentEraTx
-                $ \(tx :: CardanoApi.Tx era) -> do
-                    let res = toCardanoApiTx @era
-                            <$> updateTx
-                                (recentEra @era)
-                                (fromCardanoApiTx @era tx)
-                                noTxUpdate
+            let res = updateTx
+                    RecentEraBabbage
+                    (fromCardanoApiTx @CardanoApi.BabbageEra tx)
+                    noTxUpdate
 
-                    res `shouldBe` Left (ErrExistingKeyWitnesses 1)
+            res `shouldBe` Left (ErrExistingKeyWitnesses 1)
 
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
   where
-    readTestTransactions :: SpecM a [(FilePath, W.SealedTx)]
+    readTestTransactions
+        :: SpecM a [(FilePath, CardanoApi.Tx CardanoApi.BabbageEra)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
-        files <- flip foldMap paths $ \f ->
+        flip foldMap paths $ \f ->
             -- Ignore reject files
             if ".rej" `isSuffixOf` takeExtension f
             then pure []
             else do
                 contents <- BS.readFile (dir </> f)
-                pure [(f, contents)]
-        traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
+                pure [(f, deserializeBabbageTx $ unsafeFromHex contents)]
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -1622,7 +1612,7 @@ prop_balanceTransactionValid
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
-    :: (Word8 -> InAnyRecentEra CardanoApi.Tx -> Property)
+    :: (forall era. IsRecentEra era => Word8 -> CardanoApi.Tx era -> Property)
     -> Word8
     -- ^ Number of bootstrap witnesses.
     --
@@ -1646,7 +1636,7 @@ prop_bootstrapWitnesses
         wits :: [CardanoApi.KeyWitness era]
         wits = map (dummyWitForIx body) addrIxs
     in
-        p n (InAnyRecentEra era $ CardanoApi.Tx body wits)
+        p n (CardanoApi.Tx body wits)
   where
     emptyCardanoTxBody = body
       where
@@ -1973,30 +1963,45 @@ prop_posAndNegFromCardanoApiValueRoundtrip =
         (CardanoApi.negateValue (walletToCardanoValue neg))
         === v
 
+-- TODO [ADO-2997] Test this property in all recent eras.
+-- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
-    :: InAnyRecentEra CardanoApi.Tx
+    :: forall era. era ~ CardanoApi.BabbageEra
+    => RecentEra era
+    -> Tx (ShelleyLedgerEra era)
     -> [(W.TxIn, W.TxOut)]
     -> [W.TxIn]
     -> [W.TxOut]
     -> W.Coin
     -> Property
-prop_updateTx
-    (InAnyRecentEra era tx)
-    extraIns extraCol extraOuts newFee =
-    do
-        let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
-        let tx' = either (error . show) toCardanoApiTx
-                $ updateTx era (fromCardanoApiTx tx) extra
-        conjoin
-            [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
-            , outputs tx' === outputs tx <> Set.fromList extraOuts
-            , sealedFee tx' === Just newFee
-            , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
-            ]
+prop_updateTx era tx extraIns extraCol extraOuts newFee = do
+    let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
+    let tx' = either (error . show) id
+            $ updateTx era tx extra
+    conjoin
+        [ inputs tx' === inputs tx
+            <> Set.fromList (fromWalletTxIn . fst <$> extraIns)
+        , outputs tx' === (outputs tx)
+            <> StrictSeq.fromList (fromWalletTxOut <$> extraOuts)
+        , fee tx' === Convert.toLedger newFee
+        , collateralIns tx' === collateralIns tx
+            <> Set.fromList (fromWalletTxIn <$> extraCol)
+        ]
   where
-    inputs = sealedInputs . W.sealedTxFromCardano'
-    outputs = sealedOutputs . W.sealedTxFromCardano'
-    collateralIns = sealedCollateralInputs . W.sealedTxFromCardano'
+    fromWalletTxOut :: W.TxOut -> TxOut (ShelleyLedgerEra era)
+    fromWalletTxOut = case era of
+        RecentEraBabbage -> Convert.toBabbageTxOut
+
+    fromWalletTxIn = Write.withConstraints era Convert.toLedger
+
+    inputs = Write.withConstraints era $
+        view (bodyTxL . inputsTxBodyL)
+    outputs = Write.withConstraints era $
+        view (bodyTxL . outputsTxBodyL)
+    collateralIns = Write.withConstraints era $
+        view (bodyTxL . collateralInputsTxBodyL)
+    fee = Write.withConstraints era $
+        view (bodyTxL . feeTxBodyL)
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -2096,15 +2101,9 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
-cardanoTx :: W.SealedTx -> CardanoApi.InAnyCardanoEra CardanoApi.Tx
-cardanoTx = W.cardanoTxIdeallyNoLaterThan maxBound
-
 deserializeBabbageTx :: ByteString -> CardanoApi.Tx CardanoApi.BabbageEra
 deserializeBabbageTx = either (error . show) id
     . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
-
-fst6 :: (a, b, c, d, e, f) -> a
-fst6 (a, _, _, _, _, _) = a
 
 hasInsCollateral
     :: forall era. IsRecentEra era
@@ -2167,18 +2166,6 @@ paymentPartialTx txouts =
         Nothing
         CardanoApi.TxScriptValidityNone
 
-recentEraTxFromBytes :: ByteString -> InAnyRecentEra CardanoApi.Tx
-recentEraTxFromBytes bytes =
-    let
-        anyEraTx
-            = cardanoTx
-            $ either (error . show) id
-            $ W.sealedTxFromBytes bytes
-    in
-        case Write.asAnyRecentEra anyEraTx of
-            Just recentEraTx -> recentEraTx
-            Nothing -> error "recentEraTxFromBytes: older eras not supported"
-
 -- | Restricts the inputs list of the 'PartialTx' to the inputs of the
 -- underlying CBOR transaction. This allows us to "fix" the 'PartialTx' after
 -- shrinking the CBOR.
@@ -2198,39 +2185,6 @@ restrictResolution (PartialTx tx inputs redeemers) =
   where
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
-
-sealedCollateralInputs :: W.SealedTx -> Set W.TxIn
-sealedCollateralInputs =
-    Set.fromList
-    . map fst
-    . view #resolvedCollateralInputs
-    . fst6
-    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-
-sealedFee
-    :: forall era. CardanoApi.IsCardanoEra era
-    => CardanoApi.Tx era
-    -> Maybe W.Coin
-sealedFee =
-    view #fee
-    . fst6
-    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-    . W.sealedTxFromCardano'
-
-sealedInputs :: W.SealedTx -> Set W.TxIn
-sealedInputs =
-    Set.fromList
-    . map fst
-    . view #resolvedInputs
-    . fst6
-    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-
-sealedOutputs :: W.SealedTx -> Set W.TxOut
-sealedOutputs =
-    Set.fromList
-    . view #outputs
-    . fst6
-    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 serializedSize
     :: forall era. CardanoApi.IsCardanoEra era
@@ -2263,15 +2217,6 @@ txMinFee tx@(CardanoApi.Tx body _) u =
         (Write.pparamsLedger $ mockPParamsForBalancing @CardanoApi.BabbageEra)
         (fromCardanoApiTx tx)
         (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)
-
-unsafeSealedTxFromHex :: ByteString -> IO W.SealedTx
-unsafeSealedTxFromHex =
-    either (fail . show) pure
-        . W.sealedTxFromBytes
-        . unsafeFromHex
-        . BS.dropWhileEnd isNewlineChar
-  where
-    isNewlineChar c = c `elem` [10,13]
 
 withValidityInterval
     :: ValidityInterval
