@@ -169,6 +169,9 @@ import Cardano.Ledger.Alonzo.TxWits
 import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
+import Cardano.Ledger.Api
+    ( coinTxOutL
+    )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
     )
@@ -264,9 +267,6 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
-import Cardano.Ledger.Api
-    ( coinTxOutL
-    )
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
