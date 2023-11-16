@@ -1168,7 +1168,10 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen :: s -> (Address, s)
+    {
+    -- | Generates a new change address.
+    --
+    getChangeAddressGen :: s -> (Address, s)
 
     -- | Returns a /dummy/ change address of the maximum possible length for
     --   this generator.
