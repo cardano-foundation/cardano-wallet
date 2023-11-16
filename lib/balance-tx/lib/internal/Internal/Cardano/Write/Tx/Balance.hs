@@ -1171,7 +1171,7 @@ data ChangeAddressGen s = ChangeAddressGen
     {
     -- | Generates a new change address.
     --
-    getChangeAddressGen :: s -> (Address, s)
+    genChangeAddress :: s -> (Address, s)
 
     -- | Returns a /dummy/ change address of the maximum possible length for
     --   this generator.
@@ -1179,7 +1179,7 @@ data ChangeAddressGen s = ChangeAddressGen
     -- Implementations must satisfy the following property:
     --
     -- @
-    -- ∀ s. length (fst (getChangeAddressGen s)) <=
+    -- ∀ s. length (fst (genChangeAddress s)) <=
     --      length maxLengthChangeAddress
     -- @
     --

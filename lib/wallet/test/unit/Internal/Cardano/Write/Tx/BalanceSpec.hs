@@ -594,7 +594,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let expectedChange = fmap Convert.toWalletAddress <$>
                 flip evalState s0
                 $ replicateM nChange
-                $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
+                $ state @Identity (genChangeAddress dummyChangeAddrGen)
 
         let address :: Babbage.BabbageTxOut StandardBabbage -> W.Address
             address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
@@ -2369,7 +2369,7 @@ costModelsForTesting = either (error . show) id $ do
 
 dummyChangeAddrGen :: ChangeAddressGen DummyChangeState
 dummyChangeAddrGen = ChangeAddressGen
-    { getChangeAddressGen = \(DummyChangeState i) ->
+    { genChangeAddress = \(DummyChangeState i) ->
         (addressAtIx $ toEnum i, DummyChangeState $ succ i)
     , maxLengthChangeAddress = addressAtIx minBound
     }
