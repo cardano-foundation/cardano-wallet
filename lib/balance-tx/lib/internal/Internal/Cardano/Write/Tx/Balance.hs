@@ -231,7 +231,6 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
-    , modifyLedgerBody
     , modifyTxOutCoin
     , outputs
     , toCardanoApiTx
@@ -657,8 +656,7 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda
     -> Tx (CardanoApi.ShelleyLedgerEra era)
 assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
     withConstraints era
-        $ modifyLedgerBody @era
-        $ over outputsTxBodyL
+        $ over (bodyTxL . outputsTxBodyL)
         $ fmap modifyTxOut
   where
     modifyTxOut out = flip (modifyTxOutCoin era) out $ \c ->
