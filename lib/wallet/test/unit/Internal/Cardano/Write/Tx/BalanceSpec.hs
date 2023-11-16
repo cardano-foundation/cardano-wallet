@@ -742,7 +742,9 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             -- With ix 1 instead of 0, making it point to an input which
             -- doesn't exist in the tx.
             let faultyRedeemer =
-                    RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn tid 1)
+                    RedeemerSpending
+                        (unsafeFromHex "D87A80")
+                        (Convert.toLedger (W.TxIn tid 1))
 
             let withFaultyRedeemer =
                     over #redeemers $ mapFirst $ const faultyRedeemer
@@ -2487,7 +2489,9 @@ pingPong_2 = PartialTx
           )
         ]
     , redeemers =
-        [ RedeemerSpending (unsafeFromHex "D87A80") (W.TxIn (W.Hash tid) 0)
+        [ RedeemerSpending
+            (unsafeFromHex "D87A80")
+            (Convert.toLedger (W.TxIn (W.Hash tid) 0))
         ]
     }
   where

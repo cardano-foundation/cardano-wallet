@@ -122,6 +122,9 @@ module Internal.Cardano.Write.Tx
     , datumHashFromBytes
     , datumHashToBytes
 
+    -- ** Rewards
+    , RewardAccount
+
     -- ** Script
     , Script
     , Alonzo.isPlutusScript
@@ -557,6 +560,7 @@ type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 
 type Address = Ledger.Addr StandardCrypto
 
+type RewardAccount = Ledger.RewardAcnt StandardCrypto
 type Script = AlonzoScript
 type Value = MaryValue StandardCrypto
 

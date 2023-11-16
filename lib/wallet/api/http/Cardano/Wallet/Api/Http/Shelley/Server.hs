@@ -160,9 +160,15 @@ import Cardano.Api
     , toNetworkMagic
     , unNetworkMagic
     )
+import Cardano.Api.Shelley
+    ( StakeAddress (..)
+    )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
+    )
+import Cardano.Ledger.Address
+    ( RewardAcnt (..)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic
@@ -4936,11 +4942,11 @@ fromExternalInput ApiExternalInput
 fromApiRedeemer :: ApiRedeemer n -> Redeemer
 fromApiRedeemer = \case
     ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
-        RedeemerSpending bytes i
+        RedeemerSpending bytes (toLedger i)
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
-        RedeemerMinting bytes p
-    ApiRedeemerRewarding (ApiBytesT bytes) r ->
-        RedeemerRewarding bytes r
+        RedeemerMinting bytes (toLedger p)
+    ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
+        RedeemerRewarding bytes (RewardAcnt x y)
 
 {-------------------------------------------------------------------------------
                                 Api Layer
