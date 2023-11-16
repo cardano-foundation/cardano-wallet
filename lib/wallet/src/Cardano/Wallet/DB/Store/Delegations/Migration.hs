@@ -125,8 +125,16 @@ migration store = do
     conn <- asks dbConn
     r <- liftIO $ isFieldPresent conn $ DBField StakeKeyCertSlot
     case r of
-        TableMissing -> return ()
-        ColumnMissing -> return ()
+        TableMissing -> fail $ unwords
+            [ "Database migration from version 2 to version 3 failed:"
+            , "Expected TABLE stake_key_certificate"
+            , "to exist in database_schema_version 2"
+            ]
+        ColumnMissing -> fail $ unwords
+            [ "Database migration from version 2 to version 3 failed:"
+            , "Expected COLUMN slot of TABLE stake_key_certificate"
+            , "to exist in database_schema_version 2"
+            ]
         ColumnPresent -> withReaderT dbBackend $ do
             old <- readOldEncoding
             writeS store old
