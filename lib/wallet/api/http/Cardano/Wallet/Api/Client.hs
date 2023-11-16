@@ -68,6 +68,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
     , ApiFee
     , ApiNetworkClock
@@ -230,7 +231,7 @@ data TransactionClient = TransactionClient
         -> ClientM ApiSerialisedTransaction
     , decodeTransaction
         :: ApiT WalletId
-        -> ApiSerialisedTransaction
+        -> ApiDecodeTransactionPostData
         -> ClientM (ApiDecodedTransactionT Aeson.Value)
     , submitTransaction
         :: ApiT WalletId

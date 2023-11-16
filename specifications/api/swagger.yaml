@@ -1722,12 +1722,25 @@ x-transactionMetadata: &transactionMetadata
             example:
               0: "cardano"
               1: 14
-              3: [14, 42 , "1337" ]
-              4: {"key1": "value" , "key2": 42 }
+              2: [14, 42 , "1337" ]
+              3: {"key1": "value" , "key2": 42 }
 
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^[0-9]+$'
+
+x-encryptMetadata: &encryptMetadata
+  description: |
+    If used then metadata in transaction is going to be encrypted
+    via AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
+    PBKDF2 password stretching is used to get a 32-byte symmetric key.
+    PBKDF2 encryption using HMAC with the hash algorithm SHA512 is employed here.
+    The encrypted metadata is going to be stored in blockchain as a consequence.
+  type: object
+  required:
+    - passphrase
+  properties:
+    passphrase: *lenientPassphrase
 
 x-transactionTTL: &transactionTTL
   description: |
@@ -3506,6 +3519,16 @@ components:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
+    ApiDecodeTransactionPostData: &ApiDecodeTransactionPostData
+      type: object
+      required:
+        - transaction
+      properties:
+        decrypt_metadata:
+          <<: *encryptMetadata
+          description: The metadata passphrase for decryption.
+        transaction: *serialisedTransactionEncoded
+
     ApiSignTransactionPostData: &ApiSignTransactionPostData
       type: object
       required:
@@ -3671,6 +3694,7 @@ components:
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
+        encrypt_metadata: *encryptMetadata
         mint_burn:
           type: array
           items: *ApiMintBurnData
@@ -6651,7 +6675,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSerialisedTransactionEncoded
+            schema: *ApiDecodeTransactionPostData
       responses: *responsesDecodedTransaction
 
   /wallets/{walletId}/transactions-submit:
@@ -7811,7 +7835,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSerialisedTransactionEncoded
+            schema: *ApiDecodeTransactionPostData
       responses: *responsesDecodedTransaction
 
   /shared-wallets/{walletId}/transactions-sign:

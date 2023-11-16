@@ -147,9 +147,11 @@ import Cardano.Wallet.Api.Types
     , ApiCosignerIndex (..)
     , ApiCredential (..)
     , ApiCredentialType (..)
+    , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
+    , ApiEncryptMetadata (..)
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
@@ -786,6 +788,7 @@ spec = do
         jsonTest @ApiSharedWalletPostDataFromAccountPubX
         jsonTest @ApiSharedWalletPostDataFromMnemonics
         jsonTest @ApiSignTransactionPostData
+        jsonTest @ApiDecodeTransactionPostData
         jsonTest @ApiSlotReference
         jsonTest @ApiTokenAmountFingerprint
         jsonTest @ApiTokens
@@ -1956,6 +1959,11 @@ instance Arbitrary ApiSignTransactionPostData where
         <*> arbitrary
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
+instance Arbitrary ApiDecodeTransactionPostData where
+    arbitrary = ApiDecodeTransactionPostData
+        <$> arbitrary
+        <*> arbitrary
+
 instance HasSNetworkId n => Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
         <$> arbitrary
@@ -1969,10 +1977,14 @@ instance Arbitrary TxMetadataWithSchema where
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 
+instance Arbitrary ApiEncryptMetadata where
+    arbitrary = ApiEncryptMetadata <$> arbitrary
+
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
         <*> elements [Just SelfWithdraw, Nothing]
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -2803,6 +2815,9 @@ instance ToSchema ApiTxMetadata where
 
 instance ToSchema ApiSignTransactionPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSignTransactionPostData"
+
+instance ToSchema ApiDecodeTransactionPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDecodeTransactionPostData"
 
 instance ToSchema ApiSerialisedTransaction where
     -- fixme: tests don't seem to like allOf

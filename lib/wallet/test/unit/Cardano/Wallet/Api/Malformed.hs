@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData
     , ApiBytesT (..)
     , ApiConstructTransactionData
+    , ApiDecodeTransactionPostData
     , ApiMaintenanceActionPostData
     , ApiPoolSpecifier
     , ApiPostAccountKeyData
@@ -1430,6 +1431,51 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
                   "extra": "hello"
                }|]
                , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, unknown fields: ['extra']"
+              )
+            ]
+
+instance Malformed (BodyParam ApiDecodeTransactionPostData) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiDecodeTransactionPostData(ApiDecodeTransactionPostData) failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiDecodeTransactionPostData(ApiDecodeTransactionPostData) failed, expected Object, but encountered String")
+            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"lah\", \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
+            , ("{\"transaction\": 1020344, \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": { \"body\": 1020344 }, \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$>
+            [ -- passphrase
+              ( [aesonQQ|
+                { "transaction": "!!!"
+                }|]
+              , "Error in $.transaction: Parse error. Expecting Base64-encoded format."
+              )
+            , ( [aesonQQ|
+               { "transaction": #{validSealedTxBase64},
+                  "decrypt_metadata": { "passphrase": #{nameTooLong} }
+               }|]
+               , "Error in $['decrypt_metadata'].passphrase: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+               { "transaction": #{validSealedTxBase64},
+                  "decrypt_metadata": "secret"
+               }|]
+               , "Error in $['decrypt_metadata']: parsing Cardano.Wallet.Api.Types.ApiEncryptMetadata(ApiEncryptMetadata) failed, expected Object, but encountered String"
+              )
+            , ( [aesonQQ|
+               { "transaction": { "witnesses": [] },
+                  "decrypt_metadata": { "passphrase": #{wPassphrase} }
+               }|]
+               , "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object"
+              )
+            , ( [aesonQQ|
+               { "transaction": "cafecafe",
+                  "decrypt_metadata": { "passphrase": "Secure Passphrase" },
+                  "extra": "hello"
+               }|]
+               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiDecodeTransactionPostData(ApiDecodeTransactionPostData) failed, unknown fields: ['extra']"
               )
             ]
 
