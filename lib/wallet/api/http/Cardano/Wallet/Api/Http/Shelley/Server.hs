@@ -4934,7 +4934,7 @@ fromApiRedeemer = \case
     ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
         RedeemerSpending bytes (toLedger i)
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
-        RedeemerMinting bytes p
+        RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) r ->
         RedeemerRewarding bytes r
 

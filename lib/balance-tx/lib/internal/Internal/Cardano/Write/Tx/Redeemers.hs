@@ -18,6 +18,7 @@ module Internal.Cardano.Write.Tx.Redeemers
     ( assignScriptRedeemers
     , ErrAssignRedeemers (..)
     , Redeemer (..)
+    , toPolicyID
     ) where
 
 import Prelude
@@ -97,6 +98,7 @@ import GHC.Generics
     )
 import Internal.Cardano.Write.Tx
     ( PParams
+    , PolicyId
     , RecentEra
     , RecentEraLedgerConstraints
     , ShelleyLedgerEra
@@ -273,7 +275,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
 
 data Redeemer
     = RedeemerSpending ByteString TxIn
-    | RedeemerMinting ByteString W.TokenPolicyId
+    | RedeemerMinting ByteString PolicyId
     | RedeemerRewarding ByteString CardanoApi.StakeAddress
     deriving (Eq, Generic, Show)
 
@@ -282,7 +284,7 @@ instance Buildable Redeemer where
         RedeemerSpending _ input ->
             "spending(" <> build (show input) <> ")"
         RedeemerMinting _ pid ->
-            "minting(" <> build pid <> ")"
+            "minting(" <> build (show pid) <> ")"
         RedeemerRewarding _ addr ->
             "rewarding(" <> build (CardanoApi.serialiseToBech32 addr) <> ")"
 
@@ -297,7 +299,7 @@ toScriptPurpose = \case
     RedeemerSpending _ txin ->
         Alonzo.Spending txin
     RedeemerMinting _ pid ->
-        Alonzo.Minting (toPolicyID pid)
+        Alonzo.Minting pid
     RedeemerRewarding _ (CardanoApi.StakeAddress ntwrk acct) ->
         Alonzo.Rewarding (Ledger.RewardAcnt ntwrk acct)
 
