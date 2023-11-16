@@ -18,14 +18,10 @@ module Internal.Cardano.Write.Tx.Redeemers
     ( assignScriptRedeemers
     , ErrAssignRedeemers (..)
     , Redeemer (..)
-    , toPolicyID
     ) where
 
 import Prelude
 
-import Cardano.Crypto.Hash.Class
-    ( Hash
-    )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError
     )
@@ -36,12 +32,8 @@ import Cardano.Ledger.Api
     , scriptIntegrityHashTxBodyL
     , witsTxL
     )
-import Cardano.Ledger.Mary.Value
-    ( PolicyID (..)
-    )
 import Cardano.Ledger.Shelley.API
-    ( ScriptHash (..)
-    , StrictMaybe (..)
+    ( StrictMaybe (..)
     )
 import Cardano.Slotting.EpochInfo
     ( EpochInfo
@@ -87,9 +79,6 @@ import Data.Map.Strict
     ( Map
     , (!)
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Fmt
     ( Buildable (..)
     )
@@ -116,15 +105,12 @@ import Internal.Cardano.Write.Tx.TimeTranslation
 
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
-import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -302,15 +288,6 @@ toScriptPurpose = \case
         Alonzo.Minting pid
     RedeemerRewarding _ (CardanoApi.StakeAddress ntwrk acct) ->
         Alonzo.Rewarding (Ledger.RewardAcnt ntwrk acct)
-
-toPolicyID :: W.TokenPolicyId -> PolicyID StandardCrypto
-toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
-    PolicyID (ScriptHash (unsafeHashFromBytes bytes))
-  where
-    unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
-    unsafeHashFromBytes =
-        fromMaybe (error "unsafeHashFromBytes: wrong length")
-        . Crypto.hashFromBytes
 
 --------------------------------------------------------------------------------
 -- Utils
