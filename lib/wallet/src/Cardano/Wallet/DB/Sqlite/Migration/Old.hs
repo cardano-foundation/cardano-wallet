@@ -208,6 +208,7 @@ migrateManually tr key defaultFieldValues =
     , createSchemaVersion1TablesIfMissing
     , removeOldSubmissions
     , removeMetasOfSubmissions
+    , createSubmissionsTable
     , createAndPopulateSubmissionsSlotTable
     ]
   where
@@ -873,13 +874,32 @@ migrateManually tr key defaultFieldValues =
                             [ "DELETE FROM " <> tableName t
                             , "WHERE tx_id = '" <> txId <> "';"
                             ]
+
+    createSubmissionsTable :: Sqlite.Connection -> IO ()
+    createSubmissionsTable conn = void $ runSql conn
+        [i|
+            CREATE TABLE IF NOT EXISTS "submissions"
+                ( "tx_id" VARCHAR NOT NULL
+                , "tx" BLOB NOT NULL
+                , "expiration" INTEGER NOT NULL
+                , "acceptance" INTEGER NULL
+                , "wallet_id" VARCHAR NOT NULL
+                , "status" INTEGER NOT NULL
+                , "slot" INTEGER NOT NULL
+                , "block_height" INTEGER NOT NULL
+                , "amount" INTEGER NOT NULL
+                , "direction" BOOLEAN NOT NULL
+                , "resubmitted" INTEGER NOT NULL
+                , PRIMARY KEY ("tx_id")
+                )
+        |]
+
     createAndPopulateSubmissionsSlotTable :: Sqlite.Connection -> IO ()
     createAndPopulateSubmissionsSlotTable conn = do
-
         let action = do
                 void $ runSql conn
                     [i|
-                        CREATE TABLE "submissions_slots"
+                        CREATE TABLE IF NOT EXISTS "submissions_slots"
                             (   "finality" INTEGER NOT NULL
                             ,   "tip" INTEGER NOT NULL
                             ,   "wallet_id" VARCHAR NOT NULL
