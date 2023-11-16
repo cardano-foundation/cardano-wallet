@@ -98,12 +98,19 @@ library
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
+    Cardano.Wallet.Primitive.Types.DecentralizationLevel
+    Cardano.Wallet.Primitive.Types.EpochNo
+    Cardano.Wallet.Primitive.Types.EraInfo
+    Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
+    Cardano.Wallet.Primitive.Types.FeePolicy
     Cardano.Wallet.Primitive.Types.Hash
     Cardano.Wallet.Primitive.Types.ProtocolMagic
+    Cardano.Wallet.Primitive.Types.ProtocolParameters
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
     Cardano.Wallet.Primitive.Types.TokenMap
     Cardano.Wallet.Primitive.Types.TokenMap.Gen
     Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -120,6 +127,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxOut
     Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    Cardano.Wallet.Primitive.Types.TxParameters
     Cardano.Wallet.Primitive.Types.UTxO
     Cardano.Wallet.Primitive.Types.UTxO.Gen
     Cardano.Wallet.Unsafe
