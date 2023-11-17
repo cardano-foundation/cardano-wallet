@@ -123,6 +123,9 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+import Internal.Cardano.Write.Tx
+    ( MaybeInRecentEra
+    )
 import NoThunks.Class
     ( AllowThunksIn (..)
     , NoThunks (..)
@@ -141,6 +144,7 @@ import UnliftIO.Concurrent
     )
 
 import qualified Data.List.NonEmpty as NE
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
 
 {-------------------------------------------------------------------------------
     ChainSync
@@ -176,6 +180,10 @@ data NetworkLayer m block = NetworkLayer
         :: m ProtocolParameters
         -- ^ Get the last known protocol parameters. In principle, these can
         -- only change once per epoch.
+
+    , currentProtocolParametersInRecentEras
+        :: m (MaybeInRecentEra Write.ProtocolParameters)
+        -- ^ Get the last known protocol parameters for recent eras.
 
     , currentSlottingParameters
         :: m SlottingParameters

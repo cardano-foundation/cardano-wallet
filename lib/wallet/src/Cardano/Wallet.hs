@@ -23,7 +23,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- suppress false warning
+-- suppress false warning
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 -- |
@@ -477,7 +478,6 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , ProtocolParameters (..)
     , Range (..)
     , Signature (..)
     , Slot
@@ -760,6 +760,7 @@ import GHC.TypeNats
     )
 import Internal.Cardano.Write.Tx
     ( recentEra
+    , toRecentEraGADT
     )
 import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -2057,16 +2058,11 @@ readNodeTipStateForTxWrite
     -> IO (Write.InAnyRecentEra Write.ProtocolParameters, TimeTranslation)
 readNodeTipStateForTxWrite netLayer = do
     timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-
-    res <- currentLedgerProtocolParameters
-        <$> currentProtocolParameters netLayer
-
-    case Write.toRecentEraGADT res of
+    mpp <- currentProtocolParametersInRecentEras netLayer
+    case toRecentEraGADT mpp of
+        Left nopp -> throwIO $ ExceptionWriteTxEra
+            $ ErrNodeNotYetInRecentEra nopp
         Right pp -> pure (pp, timeTranslation)
-        Left era -> throwIO $ invalidEra era
-  where
-    invalidEra =
-        ExceptionWriteTxEra . ErrNodeNotYetInRecentEra
 
 -- | Build, Sign, Submit transaction.
 --

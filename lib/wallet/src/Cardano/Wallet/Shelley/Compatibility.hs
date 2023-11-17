@@ -414,8 +414,6 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
-import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
@@ -632,7 +630,6 @@ fromShelleyPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraShelley
         }
 
 fromAllegraPParams
@@ -653,7 +650,6 @@ fromAllegraPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraAllegra
         }
 
 fromMaryPParams
@@ -674,7 +670,6 @@ fromMaryPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraMary
         }
 
 fromBoundToEpochNo :: Bound -> W.EpochNo
@@ -703,7 +698,6 @@ fromAlonzoPParams eraInfo pp =
             pp ^. ppCollateralPercentageL
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
-        , currentLedgerProtocolParameters = Write.InNonRecentEraAlonzo
         }
 
 fromBabbagePParams
@@ -729,8 +723,6 @@ fromBabbagePParams eraInfo pp =
             pp ^. ppCollateralPercentageL
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
-        , currentLedgerProtocolParameters =
-            Write.InRecentEraBabbage $ Write.ProtocolParameters pp
         }
 
 fromConwayPParams
@@ -755,8 +747,6 @@ fromConwayPParams eraInfo pp =
                     (error "Maximum count of collateral inputs exceeds 2^16")
         , minimumCollateralPercentage = pp ^. ppCollateralPercentageL
         , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
-        , currentLedgerProtocolParameters =
-            Write.InRecentEraConway $ Write.ProtocolParameters pp
         }
 
 -- | Extract the current network decentralization level from the given set of

@@ -307,9 +307,6 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
-import Internal.Cardano.Write.Tx
-    ( MaybeInRecentEra
-    )
 import Network.URI
     ( URI (..)
     , uriToString
@@ -327,7 +324,6 @@ import Test.QuickCheck
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata
@@ -947,10 +943,6 @@ data ProtocolParameters = ProtocolParameters
         -- used to determine the fee for the use of a script within a
         -- transaction, based on the 'ExecutionUnits' needed by the use of
         -- the script.
-    , currentLedgerProtocolParameters
-        :: MaybeInRecentEra Write.ProtocolParameters
-        -- ^ The full, raw ledger protocol parameters for writing (constructing)
-        -- transactions in case the node is in a recent era.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters where

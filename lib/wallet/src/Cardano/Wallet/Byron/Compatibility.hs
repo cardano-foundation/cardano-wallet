@@ -116,7 +116,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
 import qualified Data.Map.Strict as Map
-import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Block as O
 
 --------------------------------------------------------------------------------
@@ -167,7 +166,6 @@ mainnetNetworkParameters =
                   maximumCollateralInputCount = 0
                 , minimumCollateralPercentage = 0
                 , executionUnitPrices = Nothing
-                , currentLedgerProtocolParameters = Write.InNonRecentEraByron
                 }
         }
 
@@ -310,7 +308,6 @@ protocolParametersFromPP eraInfo pp =
           maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
         }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
