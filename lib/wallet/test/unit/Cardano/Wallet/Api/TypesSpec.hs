@@ -217,6 +217,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
+    , ApiVoteAction (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -243,6 +244,9 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -818,6 +822,7 @@ spec = do
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
+        jsonTest @ApiVoteAction
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -1980,10 +1985,22 @@ instance Arbitrary TxMetadataWithSchema where
 instance Arbitrary ApiEncryptMetadata where
     arbitrary = ApiEncryptMetadata <$> arbitrary
 
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary ApiVoteAction where
+  arbitrary =
+    oneof [pure Abstain, pure NoConfidence, arbitrary]
+
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
         <*> elements [Just SelfWithdraw, Nothing]
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -2805,6 +2822,10 @@ instance ToSchema (ApiT Settings) where
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
+
+instance ToSchema ApiVoteAction where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiVoteAction"
 
 instance ToSchema ByronWalletPutPassphraseData where
     declareNamedSchema _ =
