@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -171,17 +170,42 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DecentralizationLevel
+    ( DecentralizationLevel (getDecentralizationLevel)
+    , fromDecentralizationLevel
+    , fromFederationPercentage
+    , getFederationPercentage
+    )
+import Cardano.Wallet.Primitive.Types.EpochNo
+import Cardano.Wallet.Primitive.Types.EraInfo
+    ( EraInfo (..)
+    , emptyEraInfo
+    )
+import Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
+    ( ExecutionUnitPrices (..)
+    )
+import Cardano.Wallet.Primitive.Types.FeePolicy
+    ( FeePolicy (..)
+    , LinearFunction (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.ProtocolParameters
+    ( ProtocolParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
+import Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
+    ( TokenBundleMaxSize (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..)
+    )
+import Cardano.Wallet.Primitive.Types.TxParameters
+    ( ExecutionUnits (..)
+    , TxParameters (..)
     )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
@@ -189,15 +213,13 @@ import Cardano.Wallet.Util
     , uriToText
     )
 import Control.Arrow
-    ( left
-    , right
+    ( right
     )
 import Control.DeepSeq
     ( NFData (..)
     )
 import Control.Monad
-    ( (<=<)
-    , (>=>)
+    ( (>=>)
     )
 import Crypto.Hash
     ( Blake2b_160
@@ -207,11 +229,6 @@ import Crypto.Hash
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
-    , Value
-    , object
-    , withObject
-    , (.:)
-    , (.=)
     )
 import Data.ByteArray
     ( ByteArrayAccess
@@ -244,10 +261,6 @@ import Data.Maybe
 import Data.Quantity
     ( Percentage (..)
     , Quantity (..)
-    , complementPercentage
-    )
-import Data.Scientific
-    ( fromRationalRepetendLimited
     )
 import Data.String
     ( fromString
@@ -275,12 +288,8 @@ import Data.Time.Format
     , formatTime
     )
 import Data.Word
-    ( Word16
-    , Word32
+    ( Word32
     , Word64
-    )
-import Data.Word.Odd
-    ( Word31
     )
 import Database.Persist.Class.PersistField
     ( PersistField (fromPersistValue, toPersistValue)
@@ -296,16 +305,12 @@ import Fmt
     , blockListF
     , blockListF'
     , indentF
-    , listF'
     , prefixF
     , pretty
     , suffixF
     )
 import GHC.Generics
     ( Generic
-    )
-import GHC.Stack
-    ( HasCallStack
     )
 import Network.URI
     ( URI (..)
@@ -314,17 +319,9 @@ import Network.URI
 import NoThunks.Class
     ( NoThunks
     )
-import Numeric.Natural
-    ( Natural
-    )
-import Test.QuickCheck
-    ( Arbitrary (..)
-    , oneof
-    )
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}
@@ -699,38 +696,6 @@ instance Buildable Slot where
     build Origin    = "[genesis]"
     build (At slot) = "[at slot " <> pretty slot <> "]"
 
-data LinearFunction a = LinearFunction { intercept :: a, slope :: a }
-    deriving (Eq, Show, Generic)
-
-instance NFData a => NFData (LinearFunction a)
-
--- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
--- function where @x@ can be either a transaction size in bytes or
--- a number of inputs + outputs.
-newtype FeePolicy = LinearFee (LinearFunction Double)
-    deriving (Eq, Show, Generic)
-
-instance NFData FeePolicy
-
-instance ToText FeePolicy where
-    toText (LinearFee LinearFunction {..}) =
-        toText intercept <> " + " <>
-        toText slope <> "x"
-
-instance FromText FeePolicy where
-    fromText txt = case T.splitOn " + " txt of
-        [a, b] | T.takeEnd 1 b == "x" ->
-            left (const err) $
-                (LinearFee .) . LinearFunction
-                    <$> fromText a
-                    <*> fromText (T.dropEnd 1 b)
-        _ -> Left err
-      where
-        err = TextDecodingError
-            "Unable to decode FeePolicy: \
-            \Linear equation not in expected format: a + bx \
-            \where 'a' and 'b' are numbers"
-
 -- | A thin wrapper around derivation indexes. This can be used to represent
 -- derivation path as homogeneous lists of 'DerivationIndex'. This is slightly
 -- more convenient than having to carry heterogeneous lists of 'Index depth type'
@@ -860,255 +825,6 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
--- | Represents 'info' about the starting epoch/time of all possible eras.
---
--- Field values can be either:
--- - Just pastEpochBoundary - the network forked to this era in the past.
--- - Just futureEpochBoundary - the hard-fork to this era is confirmed, but it
---                              hasn't yet occured.
--- - Nothing - the hard-fork to this era is not yet confirmed.
---
--- Note: this type is not a practical way to tell what the current era is.
---
--- It is expected that there is an order, @byron, shelley, allegra, mary@, by
--- which the @Maybe@ fields are filled in.
---
--- It might be cumbersome to work with this type. /But/ we don't need to. A
--- product of @Maybe@ is both what we can query from the node, and
--- what we need to provide in the wallet API.
-data EraInfo info = EraInfo
-    { byron :: Maybe info
-    , shelley :: Maybe info
-    , allegra :: Maybe info
-    , mary :: Maybe info
-    , alonzo :: Maybe info
-    , babbage :: Maybe info
-    } deriving (Eq, Generic, Show, Functor)
-
-emptyEraInfo :: EraInfo info
-emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing Nothing Nothing
-
-instance NFData info => NFData (EraInfo info)
-
-instance Buildable (EraInfo EpochNo) where
-    build (EraInfo byron shelley allegra mary alonzo babbage) =
-        blockListF' "-" id
-            [ "byron" <> boundF byron
-            , "shelley" <> boundF shelley
-            , "allegra" <> boundF allegra
-            , "mary" <> boundF mary
-            , "alonzo" <> boundF alonzo
-            , "babbage" <> boundF babbage
-            ]
-      where
-        boundF (Just e) = " from " <> build e
-        boundF Nothing = " <not started>"
-
--- | Protocol parameters that can be changed through the update system.
---
-data ProtocolParameters = ProtocolParameters
-    { decentralizationLevel
-        :: DecentralizationLevel
-        -- ^ The current level of decentralization in the network.
-    , txParameters
-        :: TxParameters
-        -- ^ Parameters that affect transaction construction.
-    , desiredNumberOfStakePools
-        :: Word16
-        -- ^ The current desired number of stakepools in the network.
-        -- Also known as k parameter.
-    , stakeKeyDeposit
-        :: Coin
-        -- ^ Registering a stake key requires storage on the node and as such
-        -- needs a deposit. There may be more actions that require deposit
-        -- (such as registering a stake pool).
-    , eras
-        :: EraInfo EpochNo
-        -- ^ Contains information about when each era did start if it has
-        -- already happened, or otherwise when it will start, if the hard-fork
-        -- time is confirmed on-chain.
-        --
-        -- Note: this is not a practical way to tell the current era.
-    , maximumCollateralInputCount
-        :: Word16
-        -- ^ Limit on the maximum number of collateral inputs present in a
-        -- transaction.
-    , minimumCollateralPercentage
-        :: Natural
-        -- ^ Specifies the minimum required amount of collateral as a
-        -- percentage of the total transaction fee.
-    , executionUnitPrices
-        :: Maybe ExecutionUnitPrices
-        -- ^ The prices for 'ExecutionUnits' as a fraction of a 'Lovelace' and
-        -- used to determine the fee for the use of a script within a
-        -- transaction, based on the 'ExecutionUnits' needed by the use of
-        -- the script.
-    } deriving (Eq, Generic, Show)
-
-instance NFData ProtocolParameters where
-    rnf ProtocolParameters {..} = mconcat
-        [ rnf decentralizationLevel
-        , rnf txParameters
-        , rnf desiredNumberOfStakePools
-        , rnf stakeKeyDeposit
-        , rnf eras
-        , rnf maximumCollateralInputCount
-        , rnf minimumCollateralPercentage
-        , rnf executionUnitPrices
-        -- currentLedgerProtocolParameters is omitted
-        ]
-
-instance Buildable ProtocolParameters where
-    build pp = blockListF' "" id
-        [ "Decentralization level: "
-            <> build (pp ^. #decentralizationLevel)
-        , "Transaction parameters: "
-            <> build (pp ^. #txParameters)
-        , "Desired number of pools: "
-            <> build (pp ^. #desiredNumberOfStakePools)
-        , "Eras:\n"
-            <> indentF 2 (build (pp ^. #eras))
-        , "Execution unit prices: "
-            <> maybe "not specified" build (pp ^. #executionUnitPrices)
-        ]
-
-data ExecutionUnits = ExecutionUnits
-    { executionSteps
-        :: Natural
-        -- ^ This corresponds roughly to the time to execute a script.
-
-    , executionMemory
-        :: Natural
-        -- ^ This corresponds roughly to the peak memory used during script
-        -- execution.
-    } deriving (Eq, Generic, Show)
-
-instance NFData ExecutionUnits
-
-instance Buildable ExecutionUnits where
-    build (ExecutionUnits steps mem) =
-        build $ "max steps: " <> show steps <> ", max memory: " <> show mem
-
-data ExecutionUnitPrices = ExecutionUnitPrices
-    { pricePerStep :: Rational
-    , pricePerMemoryUnit :: Rational
-    } deriving (Eq, Generic, Show)
-
-instance NFData ExecutionUnitPrices
-
-instance Buildable ExecutionUnitPrices where
-    build ExecutionUnitPrices {pricePerStep, pricePerMemoryUnit} =
-        build $ mconcat
-            [ show pricePerStep
-            , " per step, "
-            , show pricePerMemoryUnit
-            , " per memory unit"
-            ]
-
-instance ToJSON ExecutionUnitPrices where
-    toJSON ExecutionUnitPrices {pricePerStep, pricePerMemoryUnit} =
-        object
-            [ "step_price"
-                .= toRationalJSON pricePerStep
-            , "memory_unit_price"
-                .= toRationalJSON pricePerMemoryUnit
-            ]
-     where
-         toRationalJSON :: Rational -> Value
-         toRationalJSON r = case fromRationalRepetendLimited 20 r of
-             Right (s, Nothing) -> toJSON s
-             _                  -> toJSON r
-
-instance FromJSON ExecutionUnitPrices where
-    parseJSON = withObject "ExecutionUnitPrices" $ \o ->
-        ExecutionUnitPrices <$> o .: "step_price" <*> o .: "memory_unit_price"
-
--- | Indicates the current level of decentralization in the network.
---
--- According to the Design Specification for Delegation and Incentives in
--- Cardano, the decentralization parameter __/d/__ is a value in the range
--- '[0, 1]', where:
---
---   * __/d/__ = '1' indicates that the network is /completely federalized/.
---   * __/d/__ = '0' indicates that the network is /completely decentralized/.
---
--- However, in Cardano Wallet, we represent the decentralization level as a
--- percentage, where:
---
---   * '  0 %' indicates that the network is /completely federalized/.
---   * '100 %' indicates that the network is /completely decentralized/.
---
-newtype DecentralizationLevel = DecentralizationLevel
-    { getDecentralizationLevel :: Percentage }
-    deriving (Bounded, Eq, Generic, Show)
-
-fromDecentralizationLevel :: Percentage -> DecentralizationLevel
-fromDecentralizationLevel = DecentralizationLevel
-
--- | Percentage of federated nodes.
--- Equal to the "decentralization parameter" /d/ from the ledger specification.
-fromFederationPercentage :: Percentage -> DecentralizationLevel
-fromFederationPercentage = fromDecentralizationLevel . complementPercentage
-
-getFederationPercentage :: DecentralizationLevel -> Percentage
-getFederationPercentage = complementPercentage . getDecentralizationLevel
-
-instance NFData DecentralizationLevel
-
-instance Buildable DecentralizationLevel where
-    build = build . getDecentralizationLevel
-
--- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
--- ledger)
-newtype TokenBundleMaxSize = TokenBundleMaxSize
-    { unTokenBundleMaxSize :: TxSize }
-    deriving (Eq, Generic, Show)
-
-instance NFData TokenBundleMaxSize
-
-instance Arbitrary TokenBundleMaxSize where
-    arbitrary = TokenBundleMaxSize . TxSize <$>
-        oneof
-          -- Generate values close to the mainnet value of 4000 (and guard
-          -- against underflow)
-          [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
-
-          -- Generate more extreme values (both small and large)
-          , fromIntegral <$> arbitrary @Word64
-          ]
-    shrink (TokenBundleMaxSize (TxSize s)) =
-        map (TokenBundleMaxSize . TxSize . fromIntegral)
-        . shrink @Word64 -- Safe w.r.t the generator, despite TxSize wrapping a
-                         -- Natural
-        $ fromIntegral s
-
--- | Parameters that relate to the construction of __transactions__.
---
-data TxParameters = TxParameters
-    { getFeePolicy :: FeePolicy
-        -- ^ Formula for calculating the transaction fee.
-    , getTxMaxSize :: Quantity "byte" Word16
-        -- ^ Maximum size of a transaction (soft or hard limit).
-    , getTokenBundleMaxSize :: TokenBundleMaxSize
-        -- ^ Maximum size of a serialized `TokenBundle` (_maxValSize in the
-        -- Alonzo ledger)
-    , getMaxExecutionUnits :: ExecutionUnits
-        -- ^ Max total script execution resources units allowed per tx
-    } deriving (Generic, Show, Eq)
-
-instance NFData TxParameters
-
-instance Buildable TxParameters where
-    build txp = listF' id
-        [ "Fee policy: " <> feePolicyF (txp ^. #getFeePolicy)
-        , "Tx max size: " <> txMaxSizeF (txp ^. #getTxMaxSize)
-        , "max exec units: " <> maxExUnitsF (txp ^. #getMaxExecutionUnits)
-        ]
-      where
-        feePolicyF = build . toText
-        txMaxSizeF (Quantity s) = build s
-        maxExUnitsF = build
-
 {-------------------------------------------------------------------------------
                                    Slotting
 -------------------------------------------------------------------------------}
@@ -1122,51 +838,6 @@ data SlotId = SlotId
 newtype SlotInEpoch = SlotInEpoch { unSlotInEpoch :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
-
-newtype EpochNo = EpochNo { unEpochNo :: Word31 }
-    deriving stock (Show, Read, Eq, Ord, Generic)
-    deriving newtype (Num, Bounded, Enum)
-
-instance ToText EpochNo where
-    toText = T.pack . show . unEpochNo
-
-instance FromText EpochNo where
-    fromText = validate <=< (fmap (EpochNo . fromIntegral) . fromText @Natural)
-      where
-        validate x
-            | isValidEpochNo x =
-                return x
-            | otherwise =
-                Left $ TextDecodingError "EpochNo value is out of bounds"
-
-isValidEpochNo :: EpochNo -> Bool
-isValidEpochNo c = c >= minBound && c <= maxBound
-
-instance Buildable EpochNo where
-    build (EpochNo e) = build $ fromIntegral @Word31 @Word32 e
-
-instance NFData EpochNo where
-    rnf (EpochNo !_) = ()
-
--- | Convert the specified value into an 'EpochNo', or fail if the value is
---   too large.
-unsafeEpochNo :: HasCallStack => Word32 -> EpochNo
-unsafeEpochNo epochNo
-    | epochNo > maxEpochNo =
-        error $ mconcat
-            [ "unsafeEpochNo: epoch number ("
-            , show epochNo
-            , ") out of bounds ("
-            , show (minBound @Word31)
-            , ", "
-            , show (maxBound @Word31)
-            , ")."
-            ]
-    | otherwise =
-        EpochNo $ fromIntegral epochNo
-  where
-    maxEpochNo :: Word32
-    maxEpochNo = fromIntegral @Word31 $ unEpochNo maxBound
 
 instance NFData SlotId
 
