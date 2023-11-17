@@ -379,6 +379,24 @@ x-stakePoolId: &stakePoolId
   example: pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: A unique identifier for the pool.
 
+x-drepKeyHash: &drepKeyHash
+  type: string
+  format: bech32
+  example: drep_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  description: DRep's key hash.
+
+x-drepScriptHash: &drepScriptHash
+  type: string
+  format: bech32
+  example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  description: DRep's script hash.
+
+x-drep: &drep
+  nullable: false
+  oneOf:
+    - <<: *drepKeyHash
+    - <<: *drepScriptHash
+
 x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)
   type: string
@@ -3687,6 +3705,19 @@ components:
             asset_name: *assetName
             operation: *ApiMintBurnOperation
 
+    ApiVoteAction: &ApiVoteAction
+      description: |
+        Voting action. One can abstain, give no confidence vote
+        or vote for a representative by specifying its key hash or script hash.
+        Voting can be done together with delegation action.
+      oneOf:
+        - type: string
+          enum:
+            - abstain
+            - no_confidence
+        - type: string
+          <<: *drep
+
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
       type: object
@@ -3702,6 +3733,7 @@ components:
           description: |
              An entry for each unique asset to be minted and/or burned,
              containing helpful information.
+        vote: *ApiVoteAction
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
         reference_policy_script_template:
