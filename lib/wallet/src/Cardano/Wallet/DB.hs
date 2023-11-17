@@ -18,10 +18,8 @@
 module Cardano.Wallet.DB
     ( -- * Interface
       DBLayer (..)
-    , DBOpen (..)
     , DBFactory (..)
     , DBLayerParams(..)
-    , DBFresh (..)
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -32,7 +30,6 @@ module Cardano.Wallet.DB
     , hoistDBLayer
       -- * Errors
     , module Cardano.Wallet.DB.Errors
-    , hoistDBFresh
     ) where
 
 import Prelude
@@ -133,10 +130,6 @@ import Control.Monad.IO.Class
     ( MonadIO
     , liftIO
     )
-import Control.Monad.Trans.Except
-    ( ExceptT (..)
-    , mapExceptT
-    )
 import Data.DBVar
     ( DBVar
     , readDBVar
@@ -195,22 +188,7 @@ data DBFactory m s = DBFactory
     }
 
 {-----------------------------------------------------------------------------
-    DBOpen
-------------------------------------------------------------------------------}
--- | An open database which can store the state of a single wallet,
--- where all tables exist and have been migrated if necessary.
---
--- However, the database does not necessarily contain a valid wallet state yet.
---
--- In our use case, this will be typically be an open SQLite database
--- (file or in-memory).
-newtype DBOpen stm m s = DBOpen
-    { atomically :: forall a. stm a -> m a
-        -- ^ Execute a sequence of database operations atomically.
-    }
-
-{-----------------------------------------------------------------------------
-    DBFresh
+    DBLayer
 ------------------------------------------------------------------------------}
 -- | Necessary arguments to create a new wallet.
 data DBLayerParams s = DBLayerParams
@@ -221,32 +199,8 @@ data DBLayerParams s = DBLayerParams
     }
     deriving (Eq, Show)
 
--- | An open database which can store the state of one wallet with a specific
--- 'WalletId'.
---
--- This database does not necessarily contain a valid wallet state yet.
--- You can initialize a valid wallet state with 'bootDBLayer',
--- or load a valid wallet state from the database using 'loadDBLayer'.
-data DBFresh m s = DBFresh
-    { bootDBLayer
-        :: DBLayerParams s
-        -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s)
-        -- ^ Initialize a database
-    , loadDBLayer :: ExceptT ErrWalletNotInitialized m (DBLayer m s)
-        -- ^ Load an existing database
-    }
-
-hoistDBFresh :: Functor m => (forall a. m a -> n a) -> DBFresh m s -> DBFresh n s
-hoistDBFresh f (DBFresh boot load) = DBFresh
-    { bootDBLayer = \params -> mapExceptT f $ hoistDBLayer f <$> boot params
-    , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
-    }
-
-{-----------------------------------------------------------------------------
-    DBLayer
-------------------------------------------------------------------------------}
--- | An open database which contains the state of one wallet with a specific
--- 'WalletId'. You can access the state using 'walletState'.
+-- | An open database which contains a valid state of one wallet
+-- with a specific 'WalletId'. You can access the state using 'walletState'.
 --
 -- Caveat: When using this type, you have to pattern match, e.g. use it like this
 -- @db & \DBLayer{..} -> …@. See Note [DBLayerRecordFields].
