@@ -2004,6 +2004,7 @@ instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
         <*> pure Nothing
         <*> pure Nothing
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]

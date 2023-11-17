@@ -1,6 +1,6 @@
 # Specification: DRep voting
 
-This document specifies those aspects of the "Transactions New > Construct" HTTP endpoint that relate to DRep voting in Voltaire era.
+This document specifies those aspects of the "Transactions New > Construct" HTTP endpoint that relate to DRep voting in the Voltaire era.
 
 ## Voting during delegation and delegate with abstain
 

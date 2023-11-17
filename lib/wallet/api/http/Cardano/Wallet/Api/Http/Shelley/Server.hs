@@ -2627,7 +2627,7 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction api argGenChange knownPools poolStatus apiWalletId body = do
-    body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _ _) ->
+    body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
         case body of

@@ -389,15 +389,13 @@ x-drepScriptHash: &drepScriptHash
   type: string
   format: bech32
   example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-  description: DRep's key hash.
+  description: DRep's script hash.
 
 x-drep: &drep
   nullable: false
   oneOf:
     - <<: *drepKeyHash
-      title: DRep's key hash
     - <<: *drepScriptHash
-      title: DRep's script hash
 
 x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)

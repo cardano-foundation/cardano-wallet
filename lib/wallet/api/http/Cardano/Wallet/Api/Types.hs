@@ -1210,6 +1210,7 @@ newtype ApiEncryptMetadata = ApiEncryptMetadata
     { passphrase :: ApiT (Passphrase "lenient") }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
+    deriving anyclass NFData
 
 newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
     deriving (Generic, Eq, Ord)
@@ -1233,14 +1234,15 @@ decodeDRepKeyHashBech32 :: T.Text -> Either TextDecodingError DRepKeyHash
 decodeDRepKeyHashBech32 t =
     case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
         Left _ -> Left textDecodingError
-        Right (_, Just bytes) ->
-            Right $ DRepKeyHash bytes
+        Right (hrp', Just bytes)
+            | hrp' == hrp -> Right $ DRepKeyHash bytes
         Right _ -> Left textDecodingError
       where
         textDecodingError = TextDecodingError $ unwords
             [ "Invalid DRep key hash: expecting a Bech32 encoded value"
             , "with human readable part of 'drep_vkh'."
             ]
+        hrp = [Bech32.humanReadablePart|drep_vkh|]
 
 newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
     deriving (Generic, Eq, Ord)
@@ -1264,14 +1266,15 @@ decodeDRepScriptHashBech32 :: T.Text -> Either TextDecodingError DRepScriptHash
 decodeDRepScriptHashBech32 t =
     case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
         Left _ -> Left textDecodingError
-        Right (_, Just bytes) ->
-            Right $ DRepScriptHash bytes
+        Right (hrp', Just bytes)
+            | hrp' == hrp -> Right $ DRepScriptHash bytes
         Right _ -> Left textDecodingError
       where
         textDecodingError = TextDecodingError $ unwords
             [ "Invalid DRep Script hash: expecting a Bech32 encoded value"
             , "with human readable part of 'drep_script'."
             ]
+        hrp = [Bech32.humanReadablePart|drep_script|]
 
 data DRep =
     DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
