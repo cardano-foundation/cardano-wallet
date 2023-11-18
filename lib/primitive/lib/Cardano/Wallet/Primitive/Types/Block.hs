@@ -3,7 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
--- {-# LANGUAGE TypeSynonymInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.Block
     ( Block (..)
@@ -13,6 +14,7 @@ module Cardano.Wallet.Primitive.Types.Block
     , isGenesisBlockHeader
     , compareSlot
     , chainPointFromBlockHeader
+    , toSlot
     )
 
 where
@@ -173,6 +175,6 @@ toSlot :: ChainPoint -> Slot
 toSlot ChainPointAtGenesis = Origin
 toSlot (ChainPoint slot _) = At slot
 
--- instance Buildable Slot where
---     build Origin    = "[genesis]"
---     build (At slot) = "[at slot " <> pretty slot <> "]"
+instance Buildable Slot where
+    build Origin    = "[genesis]"
+    build (At slot) = "[at slot " <> pretty slot <> "]"
