@@ -105,6 +105,7 @@ library
     Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
     Cardano.Wallet.Primitive.Types.FeePolicy
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.PoolId
     Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.ProtocolParameters
     Cardano.Wallet.Primitive.Types.RewardAccount
