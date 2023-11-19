@@ -84,6 +84,7 @@ import Cardano.Wallet.DB.Layer
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer
+    , dummyNodeProtocolParameters
     , dummyProtocolParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
@@ -175,6 +176,7 @@ import Say
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api as C
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
@@ -186,6 +188,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 import qualified System.Environment as Sys
 import qualified System.Exit as Sys
 
@@ -533,6 +537,12 @@ mockNetworkLayer = dummyNetworkLayer
     { timeInterpreter = hoistTimeInterpreter liftIO mockTimeInterpreter
     , currentSlottingParameters = pure dummySlottingParameters
     , currentProtocolParameters = pure dummyProtocolParameters
+    , currentProtocolParametersInRecentEras = pure
+        $ Write.InRecentEraBabbage . Write.ProtocolParameters $
+            either (error . show) id $
+                C.toLedgerPParams
+                    C.ShelleyBasedEraBabbage
+                    dummyNodeProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
     , currentNodeTip = pure BlockHeader
         { slotNo = SlotNo 123456789
