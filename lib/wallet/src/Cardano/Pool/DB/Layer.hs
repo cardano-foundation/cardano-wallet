@@ -282,12 +282,10 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
                     fp
                     createViews
                     migrateAll
-                    newMigrations
                     $ action . decorateDBLayer dbDecorator . newDBLayer tr ti
             either throwIO pure res
   where
     tr' = contramap MsgGeneric tr
-    newMigrations _ _ = pure ()
 
 -- | Sets up a connection to the SQLite database.
 --

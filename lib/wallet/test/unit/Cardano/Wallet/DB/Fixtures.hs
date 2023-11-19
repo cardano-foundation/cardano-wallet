@@ -140,11 +140,9 @@ withDBFromFile dbFile action =
             dbFile
             noManualMigration
             noMigration
-            noNewStyleMigrations
             action
   where
     noMigration = pure ()
-    noNewStyleMigrations _ _ = pure ()
 
 initializeWalletTable :: WalletId -> SqlPersistT IO ()
 initializeWalletTable wid = do
