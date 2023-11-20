@@ -55,6 +55,7 @@ library
     , cardano-wallet-test-utils
     , cborg
     , commutative-semigroups
+    , contra-tracer
     , containers
     , cryptonite
     , delta-types
@@ -67,6 +68,7 @@ library
     , generics-sop
     , hashable
     , int-cast
+    , iohk-monitoring
     , lattices
     , lens
     , memory
@@ -95,6 +97,7 @@ library
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
     Cardano.Wallet.Primitive.NetworkId
+    Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Block
@@ -112,8 +115,10 @@ library
     Cardano.Wallet.Primitive.Types.PoolId
     Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.ProtocolParameters
+    Cardano.Wallet.Primitive.Types.Range
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    Cardano.Wallet.Primitive.Types.SlotId
     Cardano.Wallet.Primitive.Types.SlottingParameters
     Cardano.Wallet.Primitive.Types.StakePoolSummary
     Cardano.Wallet.Primitive.Types.TokenBundle
