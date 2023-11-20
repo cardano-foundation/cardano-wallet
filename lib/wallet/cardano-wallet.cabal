@@ -907,7 +907,6 @@ test-suite unit
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
-    Cardano.Wallet.Primitive.BlockSummarySpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
     Cardano.Wallet.Primitive.ModelSpec
     Cardano.Wallet.Primitive.Passphrase.LegacySpec

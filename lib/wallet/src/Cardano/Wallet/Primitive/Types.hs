@@ -166,6 +166,16 @@ import Cardano.Wallet.Orphans
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (..)
     )
+import Cardano.Wallet.Primitive.Types.Block
+    ( Block (..)
+    , BlockHeader (..)
+    , ChainPoint (..)
+    , Slot
+    , chainPointFromBlockHeader
+    , compareSlot
+    , isGenesisBlockHeader
+    , toSlot
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -174,6 +184,11 @@ import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     , fromDecentralizationLevel
     , fromFederationPercentage
     , getFederationPercentage
+    )
+import Cardano.Wallet.Primitive.Types.DelegationCertificate
+    ( DelegationCertificate (..)
+    , dlgCertAccount
+    , dlgCertPoolId
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
 import Cardano.Wallet.Primitive.Types.EraInfo
@@ -312,12 +327,6 @@ import Network.URI
     , uriToString
     )
 
-import Cardano.Wallet.Primitive.Types.Block
-import Cardano.Wallet.Primitive.Types.DelegationCertificate
-    ( DelegationCertificate (..)
-    , dlgCertAccount
-    , dlgCertPoolId
-    )
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 {-------------------------------------------------------------------------------

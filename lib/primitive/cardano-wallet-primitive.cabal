@@ -98,6 +98,7 @@ library
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Block
+    Cardano.Wallet.Primitive.Types.Block.Gen
     Cardano.Wallet.Primitive.Types.BlockSummary
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -160,6 +161,7 @@ test-suite test
     , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley-test
     , cardano-numeric
+    , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
@@ -187,6 +189,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
+    Cardano.Wallet.Primitive.Types.BlockSummarySpec
     Cardano.Wallet.Primitive.Types.CoinSpec
     Cardano.Wallet.Primitive.Types.HashSpec
     Cardano.Wallet.Primitive.Types.PoolIdSpec
