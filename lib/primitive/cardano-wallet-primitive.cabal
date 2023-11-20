@@ -98,6 +98,7 @@ library
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Block
+    Cardano.Wallet.Primitive.Types.BlockSummary
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
     Cardano.Wallet.Primitive.Types.DecentralizationLevel
