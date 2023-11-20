@@ -23,8 +23,6 @@ import Cardano.Address.Derivation
 import Cardano.Pool.Types
     ( PoolId (..)
     , PoolOwner (..)
-    , decodePoolIdBech32
-    , encodePoolIdBech32
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
@@ -323,10 +321,6 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             forM_ testAccountIdTexts $ \text ->
                 toText <$> fromText @(Hash "Account") text
                     `shouldBe` Right text
-
-        it "Can roundtrip {decode,encode}PoolIdBech32" $
-            withMaxSuccess 1000 $ property $ \(pid :: PoolId) ->
-                decodePoolIdBech32 (encodePoolIdBech32 pid) === Right pid
 
     describe "Buildable" $ do
         it "WalletId" $ do
