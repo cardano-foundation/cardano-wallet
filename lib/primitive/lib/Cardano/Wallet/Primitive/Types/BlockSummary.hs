@@ -42,6 +42,17 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
+import Cardano.Wallet.Primitive.Types.Block
+    ( Block (..)
+    , BlockHeader
+    , Slot
+    , chainPointFromBlockHeader
+    , toSlot
+    )
+import Cardano.Wallet.Primitive.Types.DelegationCertificate
+    ( DelegationCertificate
+    , dlgCertAccount
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
     )
@@ -75,12 +86,10 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural
     )
-import Cardano.Wallet.Primitive.Types.Block (BlockHeader, Slot, Block (..), chainPointFromBlockHeader, toSlot)
-import Cardano.Wallet.Primitive.Types.DelegationCertificate (DelegationCertificate, dlgCertAccount)
 
+import qualified Cardano.Wallet.Primitive.Types.Block as Block
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Cardano.Wallet.Primitive.Types.Block as Block
 
 {-------------------------------------------------------------------------------
     BlockSummary

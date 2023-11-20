@@ -22,14 +22,14 @@ import Cardano.Wallet.Network.Light
     , hoistLightSyncSource
     , lightSync
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint (..)
     , chainPointFromBlockHeader
     , isGenesisBlockHeader
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( BlockSummary (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

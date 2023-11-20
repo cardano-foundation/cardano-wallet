@@ -53,9 +53,6 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Checkpoints.Policy
     ( CheckpointPolicy
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( LightSummary
-    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , TimeInterpreter
@@ -70,6 +67,9 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( LightSummary
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin

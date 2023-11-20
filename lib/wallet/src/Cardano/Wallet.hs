@@ -424,9 +424,6 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents
-    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
@@ -496,6 +493,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( ChainEvents
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
