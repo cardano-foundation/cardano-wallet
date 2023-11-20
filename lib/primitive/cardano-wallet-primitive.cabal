@@ -97,19 +97,23 @@ library
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
+    Cardano.Wallet.Primitive.Types.Block
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
     Cardano.Wallet.Primitive.Types.DecentralizationLevel
+    Cardano.Wallet.Primitive.Types.DelegationCertificate
     Cardano.Wallet.Primitive.Types.EpochNo
     Cardano.Wallet.Primitive.Types.EraInfo
     Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
     Cardano.Wallet.Primitive.Types.FeePolicy
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.PoolId
     Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.ProtocolParameters
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.SlottingParameters
+    Cardano.Wallet.Primitive.Types.StakePoolSummary
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
@@ -184,6 +188,7 @@ test-suite test
     Cardano.Wallet.Primitive.Types.AddressSpec
     Cardano.Wallet.Primitive.Types.CoinSpec
     Cardano.Wallet.Primitive.Types.HashSpec
+    Cardano.Wallet.Primitive.Types.PoolIdSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec
     Cardano.Wallet.Primitive.Types.TokenPolicySpec
