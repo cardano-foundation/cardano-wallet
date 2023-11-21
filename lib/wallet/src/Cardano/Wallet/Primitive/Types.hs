@@ -329,6 +329,7 @@ import Network.URI
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}

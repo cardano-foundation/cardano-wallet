@@ -144,7 +144,7 @@ import UnliftIO.Concurrent
     )
 
 import qualified Data.List.NonEmpty as NE
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 
 {-------------------------------------------------------------------------------
     ChainSync
@@ -182,7 +182,7 @@ data NetworkLayer m block = NetworkLayer
         -- only change once per epoch.
 
     , currentProtocolParametersInRecentEras
-        :: m (MaybeInRecentEra Write.ProtocolParameters)
+        :: m (MaybeInRecentEra Write.PParams)
         -- ^ Get the last known protocol parameters for recent eras.
 
     , currentSlottingParameters

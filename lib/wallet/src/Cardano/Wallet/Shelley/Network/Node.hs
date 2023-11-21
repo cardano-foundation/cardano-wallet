@@ -410,7 +410,7 @@ import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
+import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
@@ -448,7 +448,7 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
 
 -- | Network parameters and protocol parameters for the node's current tip.
 data NetworkParams = NetworkParams
-    { protocolParams :: MaybeInRecentEra Write.ProtocolParameters
+    { protocolParams :: MaybeInRecentEra Write.PParams
     , protocolParamsLegacy :: W.ProtocolParameters
     , slottingParamsLegacy :: W.SlottingParameters
     }
@@ -920,9 +920,9 @@ mkWalletToNodeProtocols
                     (pure InNonRecentEraAllegra)
                     (pure InNonRecentEraMary)
                     (pure InNonRecentEraAlonzo)
-                    (InRecentEraBabbage . Write.ProtocolParameters
+                    (InRecentEraBabbage
                         <$> LSQry Shelley.GetCurrentPParams)
-                    (InRecentEraConway . Write.ProtocolParameters
+                    (InRecentEraConway
                         <$> LSQry Shelley.GetCurrentPParams)
 
                 return $ NetworkParams ppEra pp sp

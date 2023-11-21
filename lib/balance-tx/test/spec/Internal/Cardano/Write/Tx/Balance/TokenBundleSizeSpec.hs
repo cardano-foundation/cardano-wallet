@@ -33,7 +33,6 @@ import Data.Word
 import Internal.Cardano.Write.Tx
     ( ProtVer (..)
     , RecentEra (..)
-    , ShelleyLedgerEra
     , StandardBabbage
     , StandardConway
     , Version
@@ -282,7 +281,7 @@ instance Arbitrary PParamsInRecentEra where
       where
         genPParams
             :: RecentEra era
-            -> Gen (PParams (ShelleyLedgerEra era))
+            -> Gen (PParams era)
         genPParams era = withConstraints era $ do
             ver <- arbitrary
             maxSize <- genMaxSizeBytes
@@ -303,8 +302,8 @@ instance Arbitrary PParamsInRecentEra where
                 ]
 
 babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
-babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor RecentEraBabbage
-    $ def
+babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor
+    $ (def :: PParams StandardBabbage)
         & ppProtocolVersionL .~ (ProtVer (eraProtVerLow @StandardBabbage) 0)
         & ppMaxValSizeL .~ maryTokenBundleMaxSizeBytes
   where
@@ -314,6 +313,6 @@ mkAssessorFromPParamsInRecentEra
     :: PParamsInRecentEra
     -> TokenBundleSizeAssessor
 mkAssessorFromPParamsInRecentEra (PParamsInBabbage pp) =
-    mkTokenBundleSizeAssessor RecentEraBabbage pp
+    mkTokenBundleSizeAssessor pp
 mkAssessorFromPParamsInRecentEra (PParamsInConway pp) =
-    mkTokenBundleSizeAssessor RecentEraConway pp
+    mkTokenBundleSizeAssessor pp

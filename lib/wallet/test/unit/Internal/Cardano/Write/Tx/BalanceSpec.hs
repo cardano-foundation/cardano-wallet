@@ -34,10 +34,6 @@ module Internal.Cardano.Write.Tx.BalanceSpec
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyHash (..)
-    , KeyRole (Policy)
-    )
 import Cardano.Binary
     ( ToCBOR
     , serialize'
@@ -55,8 +51,10 @@ import Cardano.Ledger.Api
     , MaryEraTxBody (..)
     , ShelleyEraTxBody (..)
     , ValidityInterval (..)
+    , addrTxWitsL
     , allInputsTxBodyF
     , bodyTxL
+    , coinTxOutL
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -137,11 +135,9 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkDelegationCertificates
-    , _decodeSealedTx
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , WitnessCountCtx (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -247,11 +243,13 @@ import GHC.Stack
     )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
+    , BabbageEra
+    , CardanoApiEra
+    , Coin (..)
     , Datum (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , RecentEra (..)
-    , ShelleyLedgerEra
     , Tx
     , TxIn
     , TxOut
@@ -442,12 +440,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
-    ( SealedTx (..)
-    , sealedTxFromCardano
-    , sealedTxFromCardano'
-    , serialisedTx
-    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
@@ -474,7 +466,6 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import qualified Internal.Cardano.Write.ProtocolParameters as Write
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
@@ -508,34 +499,40 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let coinSelectionEstimatedSize :: Natural -> Natural
             coinSelectionEstimatedSize = W.unTxSize . sizeOf_BootstrapWitnesses
 
+        let withNoKeyWits tx = tx
+                & (witsTxL . addrTxWitsL) .~ mempty
+                & (witsTxL . bootAddrTxWitsL) .~ mempty
+
         let measuredWitSize
-                :: CardanoApi.IsCardanoEra era
-                => CardanoApi.Tx era
+                :: IsRecentEra era
+                => Tx era
                 -> Natural
-            measuredWitSize (CardanoApi.Tx body wits) = fromIntegral
-                $ serializedSize (CardanoApi.Tx body wits)
-                - serializedSize (CardanoApi.Tx body [])
+            measuredWitSize tx = fromIntegral
+                $ serializedSize tx
+                - serializedSize (withNoKeyWits tx)
 
         let evaluateMinimumFeeSize
                 :: forall era. IsRecentEra era
-                => CardanoApi.Tx era
+                => Tx era
                 -> Natural
-            evaluateMinimumFeeSize (CardanoApi.Tx body wits) = fromIntegral
+            evaluateMinimumFeeSize tx = fromIntegral
                 $ Write.unCoin
                 $ Write.evaluateMinimumFee
                     (recentEra @era)
                     pp
-                    (fromCardanoApiTx (CardanoApi.Tx body []))
+                    (withNoKeyWits tx)
                     (KeyWitnessCount 0 (fromIntegral $ length wits))
               where
+                wits = tx ^. witsTxL . bootAddrTxWitsL
+
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
                 pp = withConstraints (recentEra @era) $
                     Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
 
-        let evaluateMinimumFeeDerivedWitSize (CardanoApi.Tx body wits)
-                = evaluateMinimumFeeSize (CardanoApi.Tx body wits)
-                - evaluateMinimumFeeSize (CardanoApi.Tx body [])
+        let evaluateMinimumFeeDerivedWitSize tx
+                = evaluateMinimumFeeSize tx
+                - evaluateMinimumFeeSize (withNoKeyWits tx)
 
         it "coin-selection's size estimation == balanceTx's size estimation"
             $ property
@@ -630,34 +627,30 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "effect of txMaxSize on coin selection" $ do
 
-        let balanceWithDust = balanceTx
+        let balanceWithDust = fmap fromCardanoApiTx . balanceTx
                 dustWallet
                 mockPParamsForBalancing
                 dummyTimeTranslation
                 testStdGenSeed
 
-        let totalOutput tx =
-                let (wtx, _, _, _, _, _) =
-                        _decodeSealedTx maxBound
-                        (ShelleyWalletCtx dummyPolicyK)
-                        (W.sealedTxFromCardano' tx)
-                in
-                    F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
-                    <> fromMaybe (W.Coin 0) (view #fee wtx)
+        let totalOutput :: Tx BabbageEra -> Coin
+            totalOutput tx =
+                F.foldMap (view coinTxOutL) (view (bodyTxL . outputsTxBodyL) tx)
+                <> tx ^. bodyTxL . feeTxBodyL
 
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
                         (W.TokenBundle.fromCoin (W.Coin 50_000_000))
                     ]
-            totalOutput <$> tx `shouldBe` Right (W.Coin 100_000_000)
+            totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
                         (W.TokenBundle.fromCoin (W.Coin 100_000_000))
                     ]
-            totalOutput <$> tx `shouldBe` Right (W.Coin 102_000_000)
+            totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
@@ -670,7 +663,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         it "fails with ErrBalanceTxUnresolvedInputs" $ do
             let txin = W.TxIn (W.Hash $ B8.replicate 32 '3') 10
             -- 1 output, 1 input without utxo entry
-            let partialTx :: PartialTx CardanoApi.BabbageEra
+            let partialTx :: PartialTx BabbageEra
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
                         [ W.TxOut dummyAddr
@@ -800,10 +793,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     it "testPParams" $
         let name = "testPParams"
             dir = $(getTestData) </> "balanceTx" </> "binary"
-            ledgerPParams = Write.pparamsLedger
-                $ mockPParamsForBalancing @CardanoApi.BabbageEra
+            pparams = mockPParamsForBalancing @BabbageEra
         in Golden
-            { output = ledgerPParams
+            { output = pparams
             , encodePretty = show
             , writeToFile = \fp -> T.writeFile fp . T.pack . toCBORHex
             , readFromFile =
@@ -818,7 +810,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
-            let tx = either (error . show) id $ balanceTx
+            let tx = fromCardanoApiTx $ either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -833,8 +825,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     . T.pack
                     . B8.unpack
                     . hex
-                    . serializeTx @CardanoApi.BabbageEra
-                    . fromCardanoApiTx @CardanoApi.BabbageEra
+                    . serializeTx @BabbageEra
                     $ x
                 , readFromFile =
                     fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
@@ -853,7 +844,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
 
-    test :: String -> PartialTx CardanoApi.BabbageEra -> Spec
+    test :: String -> PartialTx BabbageEra -> Spec
     test name partialTx = it name $ do
         goldenText name
             (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
@@ -875,7 +866,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             dir = $(getTestData) </> "balanceTx"
 
         mkGolden
-            :: PartialTx CardanoApi.BabbageEra
+            :: PartialTx BabbageEra
             -> W.Coin
             -> BalanceTxGolden
         mkGolden ptx c =
@@ -911,12 +902,12 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     addr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    payment :: PartialTx CardanoApi.BabbageEra
+    payment :: PartialTx BabbageEra
     payment = paymentPartialTx
         [ W.TxOut addr (W.TokenBundle.fromCoin (W.Coin 1_000_000))
         ]
 
-    delegate :: PartialTx CardanoApi.BabbageEra
+    delegate :: PartialTx BabbageEra
     delegate = PartialTx (fromCardanoApiTx $ CardanoApi.Tx body []) mempty []
       where
         body = CardanoApi.ShelleyTxBody
@@ -1103,17 +1094,15 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         :: forall era. IsRecentEra era
         => String
         -> ByteString
-        -> CardanoApi.Tx era
+        -> Tx era
         -> IO ()
-    test _name bs cTx@(CardanoApi.Tx body _) = do
-        let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
+    test _name bs tx = do
+        let pparams = mockPParamsForBalancing @era
+            CardanoApi.Tx cardanoApiBody _ = toCardanoApiTx tx
             witCount dummyAddr = estimateKeyWitnessCount
                 (utxoPromisingInputsHaveAddress era dummyAddr tx)
-                body
+                (cardanoApiBody)
             era = recentEra @era
-
-            tx :: Tx (ShelleyLedgerEra era)
-            tx = fromCardanoApiTx @era cTx
 
             noScripts = withConstraints (recentEra @era)
                 $ Map.null $ tx ^. witsTxL . scriptTxWitsL
@@ -1151,7 +1140,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -> (forall era. IsRecentEra era
             => String
             -> ByteString
-            -> CardanoApi.Tx era
+            -> Tx era
             -> IO ())
         -> Spec
     forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
@@ -1159,7 +1148,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 tx = deserializeBabbageTx bs
                 msg = unlines
                     [ B8.unpack $ hex bs
-                    , show $ Pretty $ fromCardanoApiTx tx
+                    , show $ Pretty tx
                     ]
             in
                 Hspec.counterexample msg $ f name bs tx
@@ -1172,8 +1161,8 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         :: forall era. HasCallStack
         => RecentEra era
         -> W.Address
-        -> Tx (ShelleyLedgerEra era)
-        -> UTxO (ShelleyLedgerEra era)
+        -> Tx era
+        -> UTxO era
     utxoPromisingInputsHaveAddress era addr tx =
         utxoFromTxOutsInRecentEra era $
             [ (i
@@ -1187,7 +1176,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             ]
       where
         allInputs
-            :: Tx (ShelleyLedgerEra era)
+            :: Tx era
             -> [TxIn]
         allInputs body = withConstraints era
             $ Set.toList
@@ -1217,12 +1206,9 @@ spec_updateTx :: Spec
 spec_updateTx = describe "updateTx" $ do
     describe "no existing key witnesses" $ do
         txs <- readTestTransactions
-        forM_ txs $ \(filepath, tx :: CardanoApi.Tx era) -> do
+        forM_ txs $ \(filepath, tx :: Tx era) -> do
             it ("without TxUpdate: " <> filepath) $ do
-                    let res = toCardanoApiTx <$> updateTx
-                            (recentEra @era)
-                            (fromCardanoApiTx tx)
-                            noTxUpdate
+                    let res = updateTx (recentEra @era) tx noTxUpdate
                     case res of
                         Left e ->
                             expectationFailure $
@@ -1245,7 +1231,7 @@ spec_updateTx = describe "updateTx" $ do
                             then do
                                 let
                                     newEncoding = convertToBase Base16 $
-                                        CardanoApi.serialiseToCBOR tx'
+                                        serializeTx tx'
                                     rejectFilePath
                                         = $(getTestData)
                                         </> "plutus"
@@ -1258,11 +1244,10 @@ spec_updateTx = describe "updateTx" $ do
                                     , rejectFilePath
                                     ]
                             else
-                                CardanoApi.serialiseToCBOR tx
-                                  `shouldBe` CardanoApi.serialiseToCBOR tx'
+                                serializeTx tx `shouldBe` serializeTx tx'
 
             prop ("with TxUpdate: " <> filepath) $
-                prop_updateTx RecentEraBabbage $ fromCardanoApiTx tx
+                prop_updateTx tx
 
     describe "existing key witnesses" $ do
 
@@ -1274,7 +1259,7 @@ spec_updateTx = describe "updateTx" $ do
                     $ snd $ head signedTxs
             let res = updateTx
                     RecentEraBabbage
-                    (fromCardanoApiTx @CardanoApi.BabbageEra tx)
+                    tx
                     noTxUpdate
 
             res `shouldBe` Left (ErrExistingKeyWitnesses 1)
@@ -1283,7 +1268,7 @@ spec_updateTx = describe "updateTx" $ do
             pendingWith "todo: add test data"
   where
     readTestTransactions
-        :: SpecM a [(FilePath, CardanoApi.Tx CardanoApi.BabbageEra)]
+        :: SpecM a [(FilePath, Tx BabbageEra)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
@@ -1300,7 +1285,7 @@ spec_updateTx = describe "updateTx" $ do
 --------------------------------------------------------------------------------
 
 prop_balanceTransactionExistingReturnCollateral
-    :: forall era. (era ~ CardanoApi.BabbageEra)
+    :: forall era. (era ~ BabbageEra)
     => Wallet'
     -> ShowBuildable (PartialTx era)
     -> StdGenSeed
@@ -1317,7 +1302,7 @@ prop_balanceTransactionExistingReturnCollateral
     pp = mockPParamsForBalancing
 
 prop_balanceTransactionExistingTotalCollateral
-    :: forall era. (era ~ CardanoApi.BabbageEra)
+    :: forall era. (era ~ BabbageEra)
     => Wallet'
     -> ShowBuildable (PartialTx era)
     -> StdGenSeed
@@ -1339,11 +1324,11 @@ prop_balanceTransactionExistingTotalCollateral
 -- TODO: Ensure scripts are well tested
 --   - Ensure we have coverage for normal plutus contracts
 prop_balanceTransactionValid
-    :: forall era. era ~ CardanoApi.BabbageEra
+    :: forall era. era ~ Write.BabbageEra
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
     => Wallet'
-    -> ShowBuildable (PartialTx CardanoApi.BabbageEra)
+    -> ShowBuildable (PartialTx Write.BabbageEra)
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid
@@ -1481,8 +1466,8 @@ prop_balanceTransactionValid
   where
     prop_expectFeeExcessSmallerThan
         :: CardanoApi.Lovelace
-        -> CardanoApi.Tx era
-        -> UTxO (ShelleyLedgerEra era)
+        -> CardanoApi.Tx (CardanoApiEra era)
+        -> UTxO era
         -> Property
     prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
@@ -1500,8 +1485,8 @@ prop_balanceTransactionValid
         showInParens x = "(" <> show x <> ")"
 
     prop_minfeeIsCovered
-        :: CardanoApi.Tx era
-        -> UTxO (ShelleyLedgerEra era)
+        :: CardanoApi.Tx (CardanoApiEra era)
+        -> UTxO era
         -> Property
     prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
@@ -1519,8 +1504,8 @@ prop_balanceTransactionValid
         counterexample msg $ property $ fee >= minfee
 
     prop_validSize
-        :: CardanoApi.Tx era
-        -> UTxO (ShelleyLedgerEra era)
+        :: CardanoApi.Tx (CardanoApiEra era)
+        -> UTxO era
         -> Property
     prop_validSize tx@(CardanoApi.Tx body _) utxo = do
         let era = recentEra @era
@@ -1540,7 +1525,7 @@ prop_balanceTransactionValid
         counterexample msg $ property (size <= limit)
 
     _prop_outputsSatisfyMinAdaRequirement
-        :: CardanoApi.Tx era
+        :: CardanoApi.Tx (CardanoApiEra era)
         -> Property
     _prop_outputsSatisfyMinAdaRequirement (CardanoApi.ShelleyTx _ tx) = do
         let outputs = Write.outputs era $ Write.txBody era tx
@@ -1548,7 +1533,7 @@ prop_balanceTransactionValid
       where
         era = recentEra @era
 
-        valid :: TxOut (CardanoApi.ShelleyLedgerEra era) -> Property
+        valid :: TxOut era -> Property
         valid out = counterexample msg $ property $
             not $ Write.isBelowMinimumCoinForTxOut era ledgerPParams out
           where
@@ -1565,7 +1550,7 @@ prop_balanceTransactionValid
                     out
                 ]
 
-    hasZeroAdaOutputs :: CardanoApi.Tx era -> Bool
+    hasZeroAdaOutputs :: CardanoApi.Tx (CardanoApiEra era) -> Bool
     hasZeroAdaOutputs (CardanoApi.ShelleyTx _ tx) =
         any hasZeroAda (Write.outputs era $ Write.txBody era tx)
       where
@@ -1573,22 +1558,22 @@ prop_balanceTransactionValid
         hasZeroAda (Write.BabbageTxOut _ val _ _) =
             Value.coin val == Ledger.Coin 0
 
-    hasCollateral :: CardanoApi.Tx era -> Bool
+    hasCollateral :: CardanoApi.Tx (CardanoApiEra era) -> Bool
     hasCollateral (CardanoApi.Tx (CardanoApi.TxBody content) _) =
         case CardanoApi.txInsCollateral content of
             CardanoApi.TxInsCollateralNone -> False
             CardanoApi.TxInsCollateral _ [] -> False
             CardanoApi.TxInsCollateral _ (_:_) -> True
 
-    txFee :: CardanoApi.Tx era -> CardanoApi.Lovelace
+    txFee :: CardanoApi.Tx (CardanoApiEra era) -> CardanoApi.Lovelace
     txFee (CardanoApi.Tx (CardanoApi.TxBody content) _) =
         case CardanoApi.txFee content of
             CardanoApi.TxFeeExplicit _ c -> c
             CardanoApi.TxFeeImplicit i -> case i of {}
 
     minFee
-        :: CardanoApi.Tx era
-        -> UTxO (ShelleyLedgerEra era)
+        :: CardanoApi.Tx (CardanoApiEra era)
+        -> UTxO era
         -> CardanoApi.Lovelace
     minFee tx@(CardanoApi.Tx body _) utxo = Write.toCardanoApiLovelace
         $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
@@ -1596,8 +1581,8 @@ prop_balanceTransactionValid
             (estimateKeyWitnessCount utxo body)
 
     txBalance
-        :: CardanoApi.Tx era
-        -> UTxO (ShelleyLedgerEra era)
+        :: CardanoApi.Tx (CardanoApiEra era)
+        -> UTxO era
         -> CardanoApi.Value
     txBalance tx u = Write.toCardanoApiValue @era $
         Write.evaluateTransactionBalance
@@ -1608,16 +1593,17 @@ prop_balanceTransactionValid
       where
         era = recentEra @era
 
-    ledgerPParams = Write.pparamsLedger $
-        mockPParamsForBalancing @era
+    ledgerPParams = mockPParamsForBalancing @era
 
-    txOutputs :: CardanoApi.Tx era -> [CardanoApi.TxOut CardanoApi.CtxTx era]
+    txOutputs
+        :: CardanoApi.Tx (CardanoApiEra era)
+        -> [CardanoApi.TxOut CardanoApi.CtxTx (CardanoApiEra era)]
     txOutputs (CardanoApi.Tx (CardanoApi.TxBody content) _) =
         CardanoApi.txOuts content
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
-    :: (forall era. IsRecentEra era => Word8 -> CardanoApi.Tx era -> Property)
+    :: (forall era. IsRecentEra era => Word8 -> Tx era -> Property)
     -> Word8
     -- ^ Number of bootstrap witnesses.
     --
@@ -1638,10 +1624,10 @@ prop_bootstrapWitnesses
         addrIxs = take (fromIntegral n)
             $ [addr0Ix .. maxBound] ++ filter (< addr0Ix) [minBound .. addr0Ix]
         body = emptyCardanoTxBody
-        wits :: [CardanoApi.KeyWitness era]
+        wits :: [CardanoApi.KeyWitness (CardanoApiEra era)]
         wits = map (dummyWitForIx body) addrIxs
     in
-        p n (CardanoApi.Tx body wits)
+        p n (fromCardanoApiTx $ CardanoApi.Tx body wits)
   where
     emptyCardanoTxBody = body
       where
@@ -1651,9 +1637,9 @@ prop_bootstrapWitnesses
     pwd = mempty
 
     dummyWitForIx
-        :: CardanoApi.TxBody era
+        :: CardanoApi.TxBody (CardanoApiEra era)
         -> Index 'WholeDomain 'CredFromKeyK
-        -> CardanoApi.KeyWitness era
+        -> CardanoApi.KeyWitness (CardanoApiEra era)
     dummyWitForIx body ix =
         let
             accK = Byron.deriveAccountPrivateKey pwd rootK accIx
@@ -1673,10 +1659,10 @@ prop_bootstrapWitnesses
         in
             case era of
                 RecentEraConway ->
-                    mkByronWitness body net addr
+                    mkByronWitness era body net addr
                         (getRawKey ByronKeyS addrK, pwd)
                 RecentEraBabbage ->
-                    mkByronWitness body net addr
+                    mkByronWitness era body net addr
                         (getRawKey ByronKeyS addrK, pwd)
 
 -- A helper function to generate properties for 'distributeSurplus' on
@@ -1971,15 +1957,14 @@ prop_posAndNegFromCardanoApiValueRoundtrip =
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
-    :: forall era. era ~ CardanoApi.BabbageEra
-    => RecentEra era
-    -> Tx (ShelleyLedgerEra era)
+    :: forall era. era ~ Write.BabbageEra
+    => Tx era
     -> [(W.TxIn, W.TxOut)]
     -> [W.TxIn]
     -> [W.TxOut]
     -> W.Coin
     -> Property
-prop_updateTx era tx extraIns extraCol extraOuts newFee = do
+prop_updateTx tx extraIns extraCol extraOuts newFee = do
     let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
     let tx' = either (error . show) id
             $ updateTx era tx extra
@@ -1993,7 +1978,9 @@ prop_updateTx era tx extraIns extraCol extraOuts newFee = do
             <> Set.fromList (fromWalletTxIn <$> extraCol)
         ]
   where
-    fromWalletTxOut :: W.TxOut -> TxOut (ShelleyLedgerEra era)
+    era = Write.recentEra @era
+
+    fromWalletTxOut :: W.TxOut -> TxOut era
     fromWalletTxOut = case era of
         RecentEraBabbage -> Convert.toBabbageTxOut
 
@@ -2045,8 +2032,8 @@ data Wallet' = Wallet' UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
 -- Ideally merge with 'updateTx'
 addExtraTxIns
     :: [W.TxIn]
-    -> PartialTx CardanoApi.BabbageEra
-    -> PartialTx CardanoApi.BabbageEra
+    -> PartialTx Write.BabbageEra
+    -> PartialTx Write.BabbageEra
 addExtraTxIns extraIns =
     #tx . bodyTxL . inputsTxBodyL %~ (<> toLedgerInputs extraIns)
   where
@@ -2059,11 +2046,11 @@ addExtraTxIns extraIns =
 balanceTx
     :: forall era. IsRecentEra era
     => Wallet'
-    -> Write.ProtocolParameters era
+    -> Write.PParams era
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
-    -> Either (ErrBalanceTx era) (CardanoApi.Tx era)
+    -> Either (ErrBalanceTx era) (CardanoApi.Tx (CardanoApiEra era))
 balanceTx
     (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
     protocolParameters
@@ -2091,7 +2078,9 @@ balanceTransactionWithDummyChangeState
     -> W.UTxO
     -> StdGenSeed
     -> PartialTx era
-    -> Either (ErrBalanceTx era) (CardanoApi.Tx era, DummyChangeState)
+    -> Either
+        (ErrBalanceTx era)
+        (CardanoApi.Tx (CardanoApiEra era), DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
         first Write.toCardanoApiTx <$>
@@ -2107,13 +2096,13 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
 
-deserializeBabbageTx :: ByteString -> CardanoApi.Tx CardanoApi.BabbageEra
-deserializeBabbageTx = either (error . show) id
+deserializeBabbageTx :: ByteString -> Tx Write.BabbageEra
+deserializeBabbageTx = fromCardanoApiTx @BabbageEra . either (error . show) id
     . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
 
 hasInsCollateral
     :: forall era. IsRecentEra era
-    => Tx (CardanoApi.ShelleyLedgerEra era)
+    => Tx era
     -> Bool
 hasInsCollateral
     -- TODO: Use ledger functions here:
@@ -2125,7 +2114,7 @@ hasInsCollateral
 
 hasReturnCollateral
     :: forall era. IsRecentEra era
-    => Tx (CardanoApi.ShelleyLedgerEra era)
+    => Tx era
     -> Bool
 hasReturnCollateral
     -- TODO: Use ledger functions here:
@@ -2136,7 +2125,7 @@ hasReturnCollateral
 
 hasTotalCollateral
     :: forall era. IsRecentEra era
-    => Tx (CardanoApi.ShelleyLedgerEra era)
+    => Tx era
     -> Bool
 hasTotalCollateral
     -- TODO: Use ledger functions here:
@@ -2150,14 +2139,14 @@ mkTestWallet utxo =
     Wallet' AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
 mockPParamsForBalancing
-    :: forall era . IsRecentEra era => Write.ProtocolParameters era
+    :: forall era . IsRecentEra era => Write.PParams era
 mockPParamsForBalancing =
-    Write.ProtocolParameters . either (error . show) id $
+    either (error . show) id $
         CardanoApi.toLedgerPParams
             (Write.shelleyBasedEra @era)
             mockCardanoApiPParamsForBalancing
 
-paymentPartialTx :: [W.TxOut] -> PartialTx CardanoApi.BabbageEra
+paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
 paymentPartialTx txouts =
     PartialTx (fromCardanoApiTx $ CardanoApi.Tx body []) mempty []
   where
@@ -2193,13 +2182,10 @@ restrictResolution (PartialTx tx inputs redeemers) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
 
 serializedSize
-    :: forall era. CardanoApi.IsCardanoEra era
-    => CardanoApi.Tx era
+    :: forall era. IsRecentEra era
+    => Tx era
     -> Int
-serializedSize = BS.length
-    . W.serialisedTx
-    . W.sealedTxFromCardano
-    . CardanoApi.InAnyCardanoEra (CardanoApi.cardanoEra @era)
+serializedSize = BS.length . serializeTx
 
 -- | Checks for membership in the given closed interval [a, b]
 shouldBeInclusivelyWithin :: (Ord a, Show a) => a -> (a, a) -> IO ()
@@ -2220,14 +2206,14 @@ txMinFee tx@(CardanoApi.Tx body _) u =
     Write.toCardanoApiLovelace $
     Write.evaluateMinimumFee
         RecentEraBabbage
-        (Write.pparamsLedger $ mockPParamsForBalancing @CardanoApi.BabbageEra)
+        (mockPParamsForBalancing @Write.BabbageEra)
         (fromCardanoApiTx tx)
         (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)
 
 withValidityInterval
     :: ValidityInterval
-    -> PartialTx CardanoApi.BabbageEra
-    -> PartialTx CardanoApi.BabbageEra
+    -> PartialTx BabbageEra
+    -> PartialTx BabbageEra
 withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
 walletToCardanoValue :: W.TokenBundle -> CardanoApi.Value
@@ -2241,12 +2227,12 @@ cardanoToWalletCoin = Convert.toWallet . CardanoApi.toShelleyLovelace
 
 cardanoToWalletTxOut
     :: forall era. IsRecentEra era
-    => CardanoApi.TxOut CardanoApi.CtxUTxO era
+    => CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era)
     -> W.TxOut
 cardanoToWalletTxOut =
     toWallet . CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
   where
-    toWallet :: TxOut (ShelleyLedgerEra era) -> W.TxOut
+    toWallet :: TxOut era -> W.TxOut
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
         RecentEraConway -> Convert.fromConwayTxOut x
@@ -2342,9 +2328,6 @@ dummyChangeAddrGen = ChangeAddressGen
 dummyMnemonic :: SomeMnemonic
 dummyMnemonic = SomeMnemonic $ either (error . show) id
     (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-
-dummyPolicyK :: KeyHash
-dummyPolicyK = KeyHash Policy (BS.replicate 32 0)
 
 -- Byron style addresses, corresponding to the change addresses generated by
 -- "byron wallets".
@@ -2451,18 +2434,18 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamMaxCollateralInputs = Just 3
     }
 
-pingPong_1 :: PartialTx CardanoApi.BabbageEra
+pingPong_1 :: PartialTx BabbageEra
 pingPong_1 = PartialTx tx mempty []
   where
-    tx = fromCardanoApiTx $ deserializeBabbageTx $ unsafeFromHex $ mconcat
+    tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
         [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
         , "5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba"
         , "bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
         ]
 
-pingPong_2 :: PartialTx CardanoApi.BabbageEra
+pingPong_2 :: PartialTx BabbageEra
 pingPong_2 = PartialTx
-    { tx = fromCardanoApiTx $ deserializeBabbageTx $ mconcat
+    { tx = deserializeBabbageTx $ mconcat
         [ unsafeFromHex "84a50081825820"
         , tid
         , unsafeFromHex "000d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e848058208392f0c940435c06888f9bdb8c74a95dc69f156367d6a089cf008ae05caae01e02000e80a20381591b72591b6f01000033233332222333322223322332232323332223233322232333333332222222232333222323333222232323322323332223233322232323322332232323333322222332233223322332233223322223223223232533530333330083333573466e1d40192004204f23333573466e1d401d2002205123333573466e1d40212000205323504b35304c3357389201035054310004d49926499263333573466e1d40112004205323333573466e1d40152002205523333573466e1d40192000205723504b35304c3357389201035054310004d49926499263333573466e1cd55cea8012400046601664646464646464646464646666ae68cdc39aab9d500a480008cccccccccc064cd409c8c8c8cccd5cd19b8735573aa004900011980f981d1aba15002302c357426ae8940088d4164d4c168cd5ce2481035054310005b49926135573ca00226ea8004d5d0a80519a8138141aba150093335502e75ca05a6ae854020ccd540b9d728169aba1500733502704335742a00c66a04e66aa0a8098eb4d5d0a8029919191999ab9a3370e6aae754009200023350213232323333573466e1cd55cea80124000466a05266a084eb4d5d0a80118239aba135744a00446a0ba6a60bc66ae712401035054310005f49926135573ca00226ea8004d5d0a8011919191999ab9a3370e6aae7540092000233502733504275a6ae854008c11cd5d09aba2500223505d35305e3357389201035054310005f49926135573ca00226ea8004d5d09aba2500223505935305a3357389201035054310005b49926135573ca00226ea8004d5d0a80219a813bae35742a00666a04e66aa0a8eb88004d5d0a801181c9aba135744a00446a0aa6a60ac66ae71241035054310005749926135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135573ca00226ea8004d5d0a8011919191999ab9a3370ea00290031180f181d9aba135573ca00646666ae68cdc3a801240084603a608a6ae84d55cf280211999ab9a3370ea00690011180e98181aba135573ca00a46666ae68cdc3a80224000460406eb8d5d09aab9e50062350503530513357389201035054310005249926499264984d55cea80089baa001357426ae8940088d4124d4c128cd5ce249035054310004b49926104a1350483530493357389201035054350004a4984d55cf280089baa001135573a6ea80044d55ce9baa0012212330010030022001222222222212333333333300100b00a00900800700600500400300220012212330010030022001122123300100300212001122123300100300212001122123300100300212001212222300400521222230030052122223002005212222300100520011232230023758002640026aa078446666aae7c004940388cd4034c010d5d080118019aba200203323232323333573466e1cd55cea801a4000466600e6464646666ae68cdc39aab9d5002480008cc034c0c4d5d0a80119a8098169aba135744a00446a06c6a606e66ae71241035054310003849926135573ca00226ea8004d5d0a801999aa805bae500a35742a00466a01eeb8d5d09aba25002235032353033335738921035054310003449926135744a00226aae7940044dd50009110919980080200180110009109198008018011000899aa800bae75a224464460046eac004c8004d540d888c8cccd55cf80112804919a80419aa81898031aab9d5002300535573ca00460086ae8800c0b84d5d08008891001091091198008020018900089119191999ab9a3370ea002900011a80418029aba135573ca00646666ae68cdc3a801240044a01046a0526a605466ae712401035054310002b499264984d55cea80089baa001121223002003112200112001232323333573466e1cd55cea8012400046600c600e6ae854008dd69aba135744a00446a0466a604866ae71241035054310002549926135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088d407cd4c080cd5ce24810350543100021499261375400224464646666ae68cdc3a800a40084a00e46666ae68cdc3a8012400446a014600c6ae84d55cf280211999ab9a3370ea00690001280511a8111a981199ab9c490103505431000244992649926135573aa00226ea8004484888c00c0104488800844888004480048c8cccd5cd19b8750014800880188cccd5cd19b8750024800080188d4068d4c06ccd5ce249035054310001c499264984d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308d407cd4c080cd5ce2481035054310002149926499264992649926135573aa00826aae79400c4d55cf280109aab9e500113754002424444444600e01044244444446600c012010424444444600a010244444440082444444400644244444446600401201044244444446600201201040024646464646666ae68cdc3a800a400446660106eb4d5d0a8021bad35742a0066eb4d5d09aba2500323333573466e1d400920002300a300b357426aae7940188d4040d4c044cd5ce2490350543100012499264984d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e500423500a35300b3357389201035054310000c499264984d55cea80089baa001212230020032122300100320011122232323333573466e1cd55cea80124000466aa016600c6ae854008c014d5d09aba25002235007353008335738921035054310000949926135573ca00226ea8004498480048004448848cc00400c008448004488800c488800848880048004488800c488800848880048004448c8c00400488cc00cc008008004c8c8cc88cc88c8ccc888c8c8c8c8c8ccc888ccc888ccc888c8cccc8888c8cc88c8cccc8888c8cc88c8cc88c8ccc888c8c8cc88c8c8cc88c8c8c8cccc8888c8c8c8c8c8cc88c8cc88cc88ccccccccccccc8888888888888c8c8c8c8c8cccccccc88888888cc88cc88cc88cc88c8ccccc88888c8cc88cc88cc88c8cc88cc88cc88c8cc88c8c8c8cccc8888cccc8888c8888d4d540400108888c8c8c94cd4c24004ccc0140280240205400454cd4c24004cd5ce249025331000910115001109101153353508101003215335309001333573466e1cccc109400cd4c07800488004c0580212002092010910115002153353090013357389201025332000910115002109101150011533535080013300533501b00833303e03f5001323355306012001235355096010012233550990100233553063120012353550990100122335509c0100233704900080080080099a809801180a003003909a9aa84a8080091911a9a80f00091299a984a0098050010a99a984a00999aa9837090009a835283491a9aa84d8080091199aa9838890009a836a83611a9aa84f0080091199ab9a3370e900000084e0084d808008008a8020a99a984a0099ab9c49102533300095011500410950113535501e00522253353097013333355027253335301400113374a90001bb14984cdd2a40046ec52613374a90021bb149800c008c8cd400541d141d4488cc008cd40ac01cccc124128018cd4078034c07c04400403c4264044cd5ce249025335000980113535501a0012225335309301333335502325301d00100300200100b109501133573892010253340009401133573892010253360008f0113530220052235302d002222222222253353508b013303000a00b2135303a0012235303e0012220021350a10135309d0133573892010253300009e01498cccd5403488d4d404c008894ccd4c02400c54ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f054ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f04d41f4cd542400554034cd4058019419894ccd4c008004421c04421c044220048882280541e0488800c488800848880048004488800c48880084888004800444ccd5401d416541654164494cd4d41b8004848cd4168cd5421404d4c03000888004cd4168cd54214040052002505b505b12505a235355081013530100012235301b00222222222225335350793301e00a00b213530280012235302c00122235303100322335308701002230930116253353508201004213355098010020011309301161308a01162200211222212333300100500400300211200120011122212333001004003002112001122123300100300212001221233001003002200111222225335307533355304f120013504b504a235300b002223301500200300415335307533355304f120013504b504a235300b002223530160022222222222353501500d22533530840133355305e120013505450562353025001223304b00200400c10860113357389201024c30000850100315335307533355304f120013504b504a235300b002223530160022222222222353501300d22533530840133355305e12001350545056235302700122253353507a00121533530890133305108501003006153353507b330623019007009213308501001002108a01108a011089015335350763301b00c00d2135302500122353029001222333553055120012235302e00222235303300822353035005225335309301333308401004003002001133506f0090081008506701113508c01353088013357389201024c6600089014984218044cd5ce2481024c3100085010021077150741507415074122123300100300212001122123300100300212001221233001003002200122533335300300121505f21505f21505f2133355304612001504a235300d001225335306f3303300200413506300315062003212222300400521222230030052122223002005212222300100520013200135506c22233333333333353019001235300500322222222225335307153353506333355304b12001504f253353072333573466e3c0300041d01cc4d41980045419400c841d041c841cc4cd5ce249024c340007222353006004222222222253353506453353506433355304c1200150502353550790012253353075333573466e3c00803c1dc1d84d41a400c541a000884d419cd4d541e40048800454194854cd4c1ccccd5cd19baf00100c0750741075150701506f235300500322222222225335307133355304b120013504150432333573466ebc0300041d01cccd54c108480048d4d541e00048800400841cc4cd5ce249024c320007222225335306a333573466e1cd4c0200188888888888ccc09801c0380300041b01ac41b04cd5ce2481024c390006b22235300700522222222225335307333355304d1200135043504523530160012225335350690012153353078333040074003010153353506a35301601422222222223305b01b0022153353079333573466e3c0040081ec1e84d4c07401488cccc1b0008004c1d005541b841e841e441e441e002441d44cd5ce249024c6200074225335306833303002f0013335530331200150175045353006004222222222233355303d120012235301600222235301b00322335307100225335307a333573466e3c0500041f01ec4cd415801401c401c801d413c02441a84cd5ce2481024c610006925335306733302f02e001353005003222222222233355304b12001501f235301400122200200910691335738921024c36000682533530673335530411200135037503923300500400100110691335738921024c640006825335306733302f02e001353005003222222222233355304b12001501f23530120012235301600122200200a106913357389201024c35000682353005003222222222253353506333355304b12001504f235301200122533530743303800200e1350680031506700a213530120012235301600122253353506900121507610791506f22353006004222222222253353506433355304c120015050235301300122533530753303900200f1350690031506800a2107513357389201024c380007323530050032222222222353503100b22353503500222353503500822353503900222533530793333333222222253335306d33350640070060031533530800100215335308001005133350610070010041081011333506100700100410810113335061007001004333333335064075225335307b333573466e1c0080041f41f041ac54cd4c1ecccd5cd19b8900200107d07c1069106a22333573466e200080041f41f010088ccd5cd19b8900200107c07d22333573466e200080041f01f4894cd4c1ecccd5cd19b8900200107d07c10011002225335307b333573466e240080041f41f04008400401801401c00800400c41ec4cd5ce249024c330007a222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220012212330010030022001212222222300700822122222223300600900821222222230050081222222200412222222003221222222233002009008221222222233001009008200113350325001502f13001002222335530241200123535505a00122335505d002335530271200123535505d001223355060002333535502500123300a4800000488cc02c0080048cc02800520000013301c00200122337000040024446464600200a640026aa0b64466a6a05e0029000111a9aa82e00111299a982c199ab9a3371e0040120b40b22600e0022600c006640026aa0b44466a6a05c0029000111a9aa82d80111299a982b999ab9a3371e00400e0b20b020022600c00642444444444444601801a4424444444444446601601c01a42444444444444601401a44442444444444444666601202001e01c01a444244444444444466601001e01c01a4424444444444446600e01c01a42444444444444600c01a42444444444444600a01a42444444444444600801a42444444444444600601a4424444444444446600401c01a42444444444444600201a400224424660020060042400224424660020060042400244a66a607c666ae68cdc79a9801801110011a98018009100102001f8999ab9a3370e6a6006004440026a60060024400208007e207e442466002006004400244666ae68cdc480100081e81e111199aa980a890009a808a80811a9aa82100091199aa980c090009a80a280991a9aa82280091199a9aa8068009198052400000244660160040024660140029000000998020010009119aa98050900091a9aa8200009119aa821801199a9aa804000919aa98070900091a9aa8220009119aa8238011aa80780080091199aaa80401c801000919aa98070900091a9aa8220009119aa8238011aa806800800999aaa80181a001000888911199aa980209000a80a99aa98050900091a9aa8200009119aa8218011aa805800999aa980209000911a9aa82080111299a981e999aa980b890009a806a80791a9aa82200091198050010028030801899a80c802001a80b00099aa98050900091a9aa820000911919aa8220019800802990009aa82291299a9a80c80089aa8058019109a9aa82300111299a982119806001004099aa80800380089803001801190009aa81f1108911299a9a80a800880111099802801199aa980389000802802000889091118018020891091119801002802089091118008020890008919a80891199a9a803001910010010009a9a80200091000990009aa81c110891299a9a8070008a80811099a808980200119aa980309000802000899a80111299a981800108190800817891091980080180109000899a80191299a9816801080088170168919a80591199a9a802001910010010009a9a8010009100089109198008018010900091299a9a80d999aa980189000a80391a9aa81800091299a9816199ab9a3375e00200a05c05a26a0400062a03e002426a03c6a6aa060002440042a038640026aa05e4422444a66a6a00c00226a6a01400644002442666a6a01800a440046008004666aa600e2400200a00800222440042442446600200800624002266a00444a66a6a02c004420062002a02a24424660020060042400224446a6a008004446a6a00c00644a666a6026666a01400e0080042a66a604c00620022050204e2050244246600200600424002244464646464a666a6a01000c42a666a6a01200c42a666a6a0140104260082c260062c2a666a6a01400e4260082c260062c202a20262a666a6a01200e4260082c260062c2a666a6a01200c4260082c260062c20282a666a6a01000a42024202620222a666a6a01000a42a666a6a01200e42600a2c260082c2a666a6a01200c42600a2c260082c202820242a666a6a01000c42600a2c260082c2a666a6a01000a42600a2c260082c20264a666a6a01000a42a666a6a01200e42a666a6a01400e42666a01e014004002260222c260222c260202c20262a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c202420224a666a6a00e00842a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c20242a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c202220204a666a6a00c00642a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c20222a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c2020201e4a666a6a00a00442a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c20202a666a6a00a00642a666a6a00c00642666a01600c0040022601a2c2601a2c260182c201e201c2424446006008224440042244400224002246a6a0040024444444400e244444444246666666600201201000e00c00a008006004240024c244400624440042444002400244446466a601800a466a601a0084a66a602c666ae68cdc780100080c00b8a801880b900b919a9806802100b9299a980b199ab9a3371e00400203002e2a006202e2a66a6a00a00642a66a6a00c0044266a6014004466a6016004466a601e004466a60200044660280040024034466a6020004403446602800400244403444466a601a0084034444a66a6036666ae68cdc380300180e80e0a99a980d999ab9a3370e00a00403a03826602e00800220382038202a2a66a6a00a0024202a202a2424460040062244002240024244600400644424466600200a00800640024244600400642446002006400244666ae68cdc780100080480411199ab9a3370e00400201000e266ae712401024c630000413357389201024c370000313357389201024c64000021220021220012001235006353002335738921024c6700003498480048004448848cc00400c008448004498448c8c00400488cc00cc0080080050482d87a80d87980f5f6"
@@ -2623,7 +2606,7 @@ instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
 
-instance Arbitrary (PartialTx CardanoApi.BabbageEra) where
+instance Arbitrary (PartialTx Write.BabbageEra) where
     arbitrary = do
         let era = CardanoApi.BabbageEra
         tx <- CardanoApi.genTxForBalancing era
@@ -2644,7 +2627,7 @@ instance Arbitrary (PartialTx CardanoApi.BabbageEra) where
             (redeemers)
     shrink (PartialTx tx inputUTxO redeemers) =
         [ PartialTx tx inputUTxO' redeemers
-        | inputUTxO' <- shrinkInputResolution @CardanoApi.BabbageEra inputUTxO
+        | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $
             PartialTx (fromCardanoApiTx tx') inputUTxO redeemers
@@ -2767,10 +2750,10 @@ shrinkFee _ = [Ledger.Coin 0]
 shrinkInputResolution
     :: forall era.
         ( IsRecentEra era
-        , Arbitrary (CardanoApi.TxOut CardanoApi.CtxUTxO era)
+        , Arbitrary (CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era))
         )
-    => Write.UTxO (ShelleyLedgerEra era)
-    -> [Write.UTxO (ShelleyLedgerEra era)]
+    => Write.UTxO era
+    -> [Write.UTxO era]
 shrinkInputResolution =
     shrinkMapBy utxoFromList utxoToList shrinkUTxOEntries
    where
@@ -2844,8 +2827,8 @@ shrinkTxBodyBabbage
         ]
   where
     shrinkLedgerTxBody
-        :: Ledger.TxBody (CardanoApi.ShelleyLedgerEra CardanoApi.BabbageEra)
-        -> [Ledger.TxBody (CardanoApi.ShelleyLedgerEra CardanoApi.BabbageEra)]
+        :: Ledger.TxBody Write.BabbageEra
+        -> [Ledger.TxBody Write.BabbageEra]
     shrinkLedgerTxBody body = tail
         [ body
             & withdrawalsTxBodyL .~ wdrls'

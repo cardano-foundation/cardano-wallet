@@ -86,12 +86,12 @@ import GHC.Generics
     ( Generic
     )
 import Internal.Cardano.Write.Tx
-    ( PParams
+    ( IsRecentEra (..)
+    , PParams
     , PolicyId
     , RecentEra
-    , RecentEraLedgerConstraints
+    , RecentEra
     , RewardAccount
-    , ShelleyLedgerEra
     , StandardCrypto
     , TxIn
     , UTxO
@@ -104,7 +104,6 @@ import Internal.Cardano.Write.Tx.TimeTranslation
     , systemStartTime
     )
 
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
@@ -128,12 +127,12 @@ data ErrAssignRedeemers
 
 assignScriptRedeemers
     :: forall era. RecentEra era
-    -> PParams (ShelleyLedgerEra era)
+    -> PParams era
     -> TimeTranslation
-    -> UTxO (ShelleyLedgerEra era)
+    -> UTxO era
     -> [Redeemer]
-    -> Tx (ShelleyLedgerEra era)
-    -> Either ErrAssignRedeemers (Tx (ShelleyLedgerEra era))
+    -> Tx era
+    -> Either ErrAssignRedeemers (Tx era)
 assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     withConstraints era $ do
         flip execStateT tx $ do
@@ -154,11 +153,11 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- Redeemers are determined from the context given to the caller via the
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
-        :: RecentEraLedgerConstraints (ShelleyLedgerEra era)
-        => Tx (ShelleyLedgerEra era)
+        :: IsRecentEra era
+        => Tx era
         -> Either ErrAssignRedeemers
             ( Map Alonzo.RdmrPtr Redeemer
-            , Tx (ShelleyLedgerEra era)
+            , Tx era
             )
     assignNullRedeemers ledgerTx = do
         (indexedRedeemers, nullRedeemers) <-
@@ -187,9 +186,9 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
-        :: RecentEraLedgerConstraints (ShelleyLedgerEra era)
+        :: IsRecentEra era
         => Map Alonzo.RdmrPtr Redeemer
-        -> Tx (CardanoApi.ShelleyLedgerEra era)
+        -> Tx era
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
@@ -210,10 +209,10 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
     assignExecutionUnits
-        :: RecentEraLedgerConstraints (ShelleyLedgerEra era)
+        :: IsRecentEra era
         => Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
-        -> Tx (ShelleyLedgerEra era)
-        -> Either ErrAssignRedeemers (Tx (ShelleyLedgerEra era))
+        -> Tx era
+        -> Either ErrAssignRedeemers (Tx era)
     assignExecutionUnits exUnits ledgerTx = do
         let Alonzo.Redeemers rdmrs = view (witsTxL . rdmrsTxWitsL) ledgerTx
 
@@ -236,9 +235,9 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHash
-        :: RecentEraLedgerConstraints (ShelleyLedgerEra era)
-        => Tx (ShelleyLedgerEra era)
-        -> Tx (ShelleyLedgerEra era)
+        :: IsRecentEra era
+        => Tx era
+        -> Tx era
     addScriptIntegrityHash ledgerTx =
         ledgerTx & (bodyTxL . scriptIntegrityHashTxBodyL) .~
             Alonzo.hashScriptIntegrity
@@ -250,7 +249,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
         langs =
             [ l
             | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-            , (not . Ledger.isNativeScript @(ShelleyLedgerEra era)) script
+            , (not . Ledger.isNativeScript @era) script
             , Just l <- [Alonzo.language script]
             ]
 

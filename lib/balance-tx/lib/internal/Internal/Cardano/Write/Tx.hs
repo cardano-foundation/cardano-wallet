@@ -2,7 +2,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -13,6 +12,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
@@ -29,19 +29,20 @@
 module Internal.Cardano.Write.Tx
     (
     -- * Eras
+      BabbageEra
+    , ConwayEra
 
     -- ** RecentEra
-      RecentEra (..)
+    , RecentEra (..)
     , IsRecentEra (..)
+    , CardanoApiEra
     , toRecentEra
     , fromRecentEra
     , MaybeInRecentEra (..)
     , toRecentEraGADT
     , LatestLedgerEra
-    , LatestEra
     , withConstraints
     , RecentEraConstraints
-    , RecentEraLedgerConstraints
 
     -- ** Key witness counts
     , KeyWitnessCount (..)
@@ -61,7 +62,6 @@ module Internal.Cardano.Write.Tx
 
     -- ** Existential wrapper
     , AnyRecentEra (..)
-    , InAnyRecentEra (..)
     , toAnyCardanoEra
     , fromAnyCardanoEra
 
@@ -71,7 +71,8 @@ module Internal.Cardano.Write.Tx
     , StandardConway
 
     -- * PParams
-    , Core.PParams
+    , PParams
+    , PParamsInAnyRecentEra (..)
     , FeePerByte (..)
     , getFeePerByte
     , feeOfBytes
@@ -291,7 +292,8 @@ import qualified Data.Map as Map
 -- Eras
 --------------------------------------------------------------------------------
 
-type LatestEra = CardanoApi.ConwayEra
+type BabbageEra = Ledger.BabbageEra StandardCrypto
+type ConwayEra = Ledger.ConwayEra StandardCrypto
 
 type LatestLedgerEra = StandardConway
 
@@ -310,8 +312,8 @@ type LatestLedgerEra = StandardConway
 -- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
 -- cardano-api.
 data RecentEra era where
-    RecentEraBabbage :: RecentEra CardanoApi.BabbageEra
-    RecentEraConway :: RecentEra CardanoApi.ConwayEra
+    RecentEraBabbage :: RecentEra BabbageEra
+    RecentEraConway :: RecentEra ConwayEra
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
@@ -323,16 +325,22 @@ instance TestEquality RecentEra where
     testEquality RecentEraConway RecentEraBabbage = Nothing
 
 class
-    ( CardanoApi.IsShelleyBasedEra era
+    ( CardanoApi.IsShelleyBasedEra (CardanoApiEra era)
+    , CardanoApi.ShelleyLedgerEra (CardanoApiEra era) ~ era
     , Typeable era
+    , RecentEraConstraints era
     ) => IsRecentEra era where
     recentEra :: RecentEra era
+
+type family CardanoApiEra era = cardanoApiEra | cardanoApiEra -> era
+type instance CardanoApiEra BabbageEra = CardanoApi.BabbageEra
+type instance CardanoApiEra ConwayEra = CardanoApi.ConwayEra
 
 -- | Convenient constraints. Constraints may be dropped as we move to new eras.
 --
 -- Adding too many constraints shouldn't be a concern as the point of
 -- 'RecentEra' is to work with a small closed set of eras, anyway.
-type RecentEraLedgerConstraints era =
+type RecentEraConstraints era =
     ( Core.Era era
     , Core.EraTx era
     , Core.EraCrypto era ~ StandardCrypto
@@ -351,22 +359,14 @@ type RecentEraLedgerConstraints era =
     , Eq (Core.Tx era)
     , Babbage.BabbageEraTxBody era
     , Shelley.EraUTxO era
-    )
-
-type RecentEraConstraints era =
-    ( IsRecentEra era
-    , RecentEraLedgerConstraints (CardanoApi.ShelleyLedgerEra era)
+    , Show (TxOut era)
+    , Eq (TxOut era)
+    , Show (PParams era)
     )
 
 -- | Bring useful constraints into scope from a value-level
 -- 'RecentEra'.
---
--- TODO [ADP-2354] Make 'RecentEraLedgerConstraints' superclass of
--- 'IsRecentEra'. Currently this would cause weird type-inference errors in the
--- wallet code specifically with GHC 8.10.
--- https://cardanofoundation.atlassian.net/browse/ADP-2353
-withConstraints
-    :: RecentEra era -> (RecentEraConstraints era => a) -> a
+withConstraints :: RecentEra era -> (IsRecentEra era => a) -> a
 withConstraints era a = case era of
     RecentEraBabbage -> a
     RecentEraConway -> a
@@ -374,7 +374,9 @@ withConstraints era a = case era of
 -- | Returns a proof that the given era is a recent era.
 --
 -- Otherwise, returns @Nothing@.
-toRecentEra :: CardanoApi.CardanoEra era -> Maybe (RecentEra era)
+toRecentEra
+    :: CardanoApi.CardanoEra era
+    -> Maybe (RecentEra (CardanoApi.ShelleyLedgerEra era))
 toRecentEra = \case
     CardanoApi.ConwayEra  -> Just RecentEraConway
     CardanoApi.BabbageEra -> Just RecentEraBabbage
@@ -384,39 +386,45 @@ toRecentEra = \case
     CardanoApi.ShelleyEra -> Nothing
     CardanoApi.ByronEra   -> Nothing
 
-fromRecentEra :: RecentEra era -> CardanoApi.CardanoEra era
+fromRecentEra :: RecentEra era -> CardanoApi.CardanoEra (CardanoApiEra era)
 fromRecentEra = \case
     RecentEraConway -> CardanoApi.ConwayEra
     RecentEraBabbage -> CardanoApi.BabbageEra
 
-instance IsRecentEra CardanoApi.BabbageEra where
+instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
 
-instance IsRecentEra CardanoApi.ConwayEra where
+instance IsRecentEra ConwayEra where
     recentEra = RecentEraConway
 
-cardanoEraFromRecentEra :: RecentEra era -> CardanoApi.CardanoEra era
+cardanoEraFromRecentEra
+    :: RecentEra era
+    -> CardanoApi.CardanoEra (CardanoApiEra era)
 cardanoEraFromRecentEra =
     CardanoApi.shelleyBasedToCardanoEra
     . shelleyBasedEraFromRecentEra
 
-shelleyBasedEraFromRecentEra :: RecentEra era -> CardanoApi.ShelleyBasedEra era
+shelleyBasedEraFromRecentEra
+    :: RecentEra era
+    -> CardanoApi.ShelleyBasedEra (CardanoApiEra era)
 shelleyBasedEraFromRecentEra = \case
     RecentEraConway -> CardanoApi.ShelleyBasedEraConway
     RecentEraBabbage -> CardanoApi.ShelleyBasedEraBabbage
 
--- | For convenience working with 'IsRecentEra'.
---
 -- Similar to 'CardanoApi.cardanoEra', but with an 'IsRecentEra era' constraint
 -- instead of 'CardanoApi.IsCardanoEra'.
-cardanoEra :: forall era. IsRecentEra era => CardanoApi.CardanoEra era
+cardanoEra
+    :: forall era. IsRecentEra era
+    => CardanoApi.CardanoEra (CardanoApiEra era)
 cardanoEra = cardanoEraFromRecentEra $ recentEra @era
 
 -- | For convenience working with 'IsRecentEra'.
 --
 -- Similar to 'CardanoApi.shelleyBasedEra, but with a 'IsRecentEra era'
 -- constraint instead of 'CardanoApi.IsShelleyBasedEra'.
-shelleyBasedEra :: forall era. IsRecentEra era => CardanoApi.ShelleyBasedEra era
+shelleyBasedEra
+    :: forall era. IsRecentEra era
+    => CardanoApi.ShelleyBasedEra (CardanoApiEra era)
 shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
 data MaybeInRecentEra (thing :: Type -> Type)
@@ -425,45 +433,13 @@ data MaybeInRecentEra (thing :: Type -> Type)
     | InNonRecentEraAllegra
     | InNonRecentEraMary
     | InNonRecentEraAlonzo
-    | InRecentEraBabbage (thing CardanoApi.BabbageEra)
-    | InRecentEraConway (thing CardanoApi.ConwayEra)
+    | InRecentEraBabbage (thing BabbageEra)
+    | InRecentEraConway (thing ConwayEra)
 
-deriving instance
-    ( Eq (a CardanoApi.BabbageEra)
-    , Eq (a CardanoApi.ConwayEra)
-    ) =>
-    Eq (MaybeInRecentEra a)
-deriving instance
-    ( Show (a CardanoApi.BabbageEra)
-    , Show (a CardanoApi.ConwayEra)
-    ) =>
-    Show (MaybeInRecentEra a)
-
-toRecentEraGADT
-    :: MaybeInRecentEra a
-    -> Either CardanoApi.AnyCardanoEra (InAnyRecentEra a)
-toRecentEraGADT = \case
-    InNonRecentEraByron ->
-        Left $ CardanoApi.AnyCardanoEra CardanoApi.ByronEra
-    InNonRecentEraShelley ->
-        Left $ CardanoApi.AnyCardanoEra CardanoApi.ShelleyEra
-    InNonRecentEraAllegra ->
-        Left $ CardanoApi.AnyCardanoEra CardanoApi.AllegraEra
-    InNonRecentEraMary ->
-        Left $ CardanoApi.AnyCardanoEra CardanoApi.MaryEra
-    InNonRecentEraAlonzo ->
-        Left $ CardanoApi.AnyCardanoEra CardanoApi.AlonzoEra
-    InRecentEraBabbage a ->
-        Right $ InAnyRecentEra recentEra a
-    InRecentEraConway a ->
-        Right $ InAnyRecentEra recentEra a
-
-data InAnyRecentEra thing where
-    InAnyRecentEra
-        :: IsRecentEra era -- Provide class constraint
-        => RecentEra era   -- and explicit value.
-        -> thing era
-        -> InAnyRecentEra thing
+deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
+    => Eq (MaybeInRecentEra a)
+deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
+    => Show (MaybeInRecentEra a)
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
@@ -601,7 +577,7 @@ data TxOutInRecentEra =
 unwrapTxOutInRecentEra
     :: RecentEra era
     -> TxOutInRecentEra
-    -> (TxOut (CardanoApi.ShelleyLedgerEra era))
+    -> TxOut era
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
     RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
     RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
@@ -658,23 +634,23 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
 computeMinimumCoinForTxOut
     :: forall era. RecentEra era
     -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
-    -> Core.PParams (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
+    -> PParams era
+    -> TxOut era
     -> Coin
 computeMinimumCoinForTxOut era pp out = withConstraints era $
     Core.getMinCoinTxOut pp (withMaxLengthSerializedCoin out)
   where
     withMaxLengthSerializedCoin
-        :: TxOut (CardanoApi.ShelleyLedgerEra era)
-        -> TxOut (CardanoApi.ShelleyLedgerEra era)
+        :: TxOut era
+        -> TxOut era
     withMaxLengthSerializedCoin = withConstraints era $
         over coinTxOutL (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
     :: forall era. RecentEra era
     -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
-    -> Core.PParams (CardanoApi.ShelleyLedgerEra era)
-    -> TxOut (CardanoApi.ShelleyLedgerEra era)
+    -> PParams era
+    -> TxOut era
     -> Bool
 isBelowMinimumCoinForTxOut era pp out =
     actualCoin < requiredMin
@@ -684,7 +660,7 @@ isBelowMinimumCoinForTxOut era pp out =
     requiredMin = withConstraints era $ Core.getMinCoinTxOut pp out
     actualCoin = getCoin era out
 
-    getCoin :: RecentEra era -> TxOut (CardanoApi.ShelleyLedgerEra era) -> Coin
+    getCoin :: RecentEra era -> TxOut era -> Coin
     getCoin RecentEraConway (Babbage.BabbageTxOut _ val _ _) = coin val
     getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
 
@@ -695,8 +671,8 @@ isBelowMinimumCoinForTxOut era pp out =
 -- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
 utxoFromTxOuts
     :: RecentEra era
-    -> [(TxIn, Core.TxOut (CardanoApi.ShelleyLedgerEra era))]
-    -> (Shelley.UTxO (CardanoApi.ShelleyLedgerEra era))
+    -> [(TxIn, Core.TxOut era)]
+    -> (Shelley.UTxO era)
 utxoFromTxOuts era = withConstraints era $
     Shelley.UTxO . Map.fromList
 
@@ -707,7 +683,7 @@ utxoFromTxOuts era = withConstraints era $
 utxoFromTxOutsInRecentEra
     :: forall era. RecentEra era
     -> [(TxIn, TxOutInRecentEra)]
-    -> Shelley.UTxO (CardanoApi.ShelleyLedgerEra era)
+    -> Shelley.UTxO era
 utxoFromTxOutsInRecentEra era = withConstraints era $
     Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
 
@@ -717,14 +693,14 @@ utxoFromTxOutsInRecentEra era = withConstraints era $
 
 serializeTx
     :: forall era. IsRecentEra era
-    => Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    => Core.Tx era
     -> ByteString
 serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
 
 txBody
     :: RecentEra era
-    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
-    -> Core.TxBody (CardanoApi.ShelleyLedgerEra era)
+    -> Core.Tx era
+    -> Core.TxBody era
 txBody era = case era of
     RecentEraBabbage -> Babbage.body -- same type for babbage
     RecentEraConway -> Babbage.body -- same type for conway
@@ -732,12 +708,12 @@ txBody era = case era of
 -- Until we have convenient lenses to use
 outputs
     :: RecentEra era
-    -> Core.TxBody (CardanoApi.ShelleyLedgerEra era)
-    -> [TxOut (CardanoApi.ShelleyLedgerEra era)]
+    -> Core.TxBody era
+    -> [TxOut era]
 outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 
-emptyTx :: RecentEra era -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+emptyTx :: RecentEra era -> Core.Tx era
 emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 
 --------------------------------------------------------------------------------
@@ -746,8 +722,8 @@ emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 
 fromCardanoApiTx
     :: forall era. IsRecentEra era
-    => CardanoApi.Tx era
-    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    => CardanoApi.Tx (CardanoApiEra era)
+    -> Core.Tx era
 fromCardanoApiTx = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
@@ -757,15 +733,15 @@ fromCardanoApiTx = \case
 
 toCardanoApiTx
     :: forall era. IsRecentEra era
-    => Core.Tx (CardanoApi.ShelleyLedgerEra era)
-    -> CardanoApi.Tx era
-toCardanoApiTx = CardanoApi.ShelleyTx
-    (shelleyBasedEraFromRecentEra $ recentEra @era)
+    => Core.Tx era
+    -> CardanoApi.Tx (CardanoApiEra era)
+toCardanoApiTx =
+    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era
-    => Shelley.UTxO (CardanoApi.ShelleyLedgerEra era)
-    -> CardanoApi.UTxO era
+    => Shelley.UTxO era
+    -> CardanoApi.UTxO (CardanoApiEra era)
 toCardanoApiUTxO = withConstraints (recentEra @era) $
     CardanoApi.UTxO
     . Map.mapKeys CardanoApi.fromShelleyTxIn
@@ -776,17 +752,18 @@ toCardanoApiUTxO = withConstraints (recentEra @era) $
 
 fromCardanoApiUTxO
     :: forall era. IsRecentEra era
-    => CardanoApi.UTxO era
-    -> Shelley.UTxO (CardanoApi.ShelleyLedgerEra era)
+    => CardanoApi.UTxO (CardanoApiEra era)
+    -> Shelley.UTxO era
 fromCardanoApiUTxO = withConstraints (recentEra @era) $
     Shelley.UTxO
     . Map.mapKeys CardanoApi.toShelleyTxIn
-    . Map.map (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
+    . Map.map
+        (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
     . CardanoApi.unUTxO
 
 toCardanoApiValue
     :: forall era. IsRecentEra era
-    => Core.Value (CardanoApi.ShelleyLedgerEra era)
+    => Core.Value era
     -> CardanoApi.Value
 toCardanoApiValue = withConstraints (recentEra @era) CardanoApi.fromMaryValue
 
@@ -797,18 +774,45 @@ toCardanoApiLovelace = CardanoApi.fromShelleyLovelace
 -- PParams
 --------------------------------------------------------------------------------
 
+type PParams = Core.PParams
+
+data PParamsInAnyRecentEra where
+    PParamsInAnyRecentEra
+        :: IsRecentEra era
+        => RecentEra era
+        -> PParams era
+        -> PParamsInAnyRecentEra
+
+toRecentEraGADT
+    :: MaybeInRecentEra PParams
+    -> Either CardanoApi.AnyCardanoEra PParamsInAnyRecentEra
+toRecentEraGADT = \case
+    InNonRecentEraByron ->
+        Left $ CardanoApi.AnyCardanoEra CardanoApi.ByronEra
+    InNonRecentEraShelley ->
+        Left $ CardanoApi.AnyCardanoEra CardanoApi.ShelleyEra
+    InNonRecentEraAllegra ->
+        Left $ CardanoApi.AnyCardanoEra CardanoApi.AllegraEra
+    InNonRecentEraMary ->
+        Left $ CardanoApi.AnyCardanoEra CardanoApi.MaryEra
+    InNonRecentEraAlonzo ->
+        Left $ CardanoApi.AnyCardanoEra CardanoApi.AlonzoEra
+    InRecentEraBabbage a ->
+        Right $ PParamsInAnyRecentEra recentEra a
+    InRecentEraConway a ->
+        Right $ PParamsInAnyRecentEra recentEra a
+
 -- | The 'minfeeA' protocol parameter in unit @lovelace/byte@.
 newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
 getFeePerByte
-    :: HasCallStack
-    => RecentEra era
-    -> Core.PParams (CardanoApi.ShelleyLedgerEra era)
+    :: forall era. (HasCallStack, IsRecentEra era)
+    => PParams era
     -> FeePerByte
-getFeePerByte era pp =
+getFeePerByte pp =
     unsafeCoinToFee $
-        case era of
+        case recentEra @era of
             RecentEraConway -> pp ^. Core.ppMinFeeAL
             RecentEraBabbage -> pp ^. Core.ppMinFeeAL
   where
@@ -828,12 +832,12 @@ txscriptfee :: ExUnitPrices -> ExUnits -> Coin
 txscriptfee = Alonzo.txscriptfee
 
 maxScriptExecutionCost
-    :: RecentEra era -> Core.PParams (CardanoApi.ShelleyLedgerEra era) -> Coin
+    :: RecentEra era -> PParams era -> Coin
 maxScriptExecutionCost era pp = withConstraints era $
     txscriptfee (pp ^. Alonzo.ppPricesL) (pp ^. Alonzo.ppMaxTxExUnitsL)
 
 stakeKeyDeposit
-    :: RecentEra era -> Core.PParams (CardanoApi.ShelleyLedgerEra era) -> Coin
+    :: RecentEra era -> PParams era -> Coin
 stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
 
 --------------------------------------------------------------------------------
@@ -844,8 +848,8 @@ stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
 --
 evaluateMinimumFee
     :: RecentEra era
-    -> Core.PParams (CardanoApi.ShelleyLedgerEra era)
-    -> Core.Tx (CardanoApi.ShelleyLedgerEra era)
+    -> PParams era
+    -> Core.Tx era
     -> KeyWitnessCount
     -> Coin
 evaluateMinimumFee era pp tx kwc =
@@ -857,7 +861,7 @@ evaluateMinimumFee era pp tx kwc =
     mainFee = withConstraints era $
         Shelley.evaluateTransactionFee pp tx nKeyWits
 
-    FeePerByte feePerByte = getFeePerByte era pp
+    FeePerByte feePerByte = withConstraints era $ getFeePerByte pp
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
@@ -886,10 +890,10 @@ evaluateMinimumFee era pp tx kwc =
 evaluateTransactionBalance
     :: forall era
      . RecentEra era
-    -> Core.PParams (CardanoApi.ShelleyLedgerEra era)
-    -> Shelley.UTxO (CardanoApi.ShelleyLedgerEra era)
-    -> Core.TxBody (CardanoApi.ShelleyLedgerEra era)
-    -> Core.Value (CardanoApi.ShelleyLedgerEra era)
+    -> PParams era
+    -> Shelley.UTxO era
+    -> Core.TxBody era
+    -> Core.Value era
 evaluateTransactionBalance era pp utxo = withConstraints era $
     let -- Looks up the current deposit amount for a registered stake credential
         -- delegation.
