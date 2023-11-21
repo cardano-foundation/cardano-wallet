@@ -366,9 +366,7 @@ type RecentEraConstraints era =
 
 -- | Bring useful constraints into scope from a value-level
 -- 'RecentEra'.
-withConstraints
-    :: RecentEra era
-    -> ( (IsRecentEra era, CardanoApi.ShelleyLedgerEra (CardanoApiEra era) ~ era ) => a) -> a
+withConstraints :: RecentEra era -> (IsRecentEra era => a) -> a
 withConstraints era a = case era of
     RecentEraBabbage -> a
     RecentEraConway -> a
@@ -737,7 +735,8 @@ toCardanoApiTx
     :: forall era. IsRecentEra era
     => Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
-toCardanoApiTx = CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
+toCardanoApiTx =
+    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era

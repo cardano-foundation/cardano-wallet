@@ -2078,7 +2078,9 @@ balanceTransactionWithDummyChangeState
     -> W.UTxO
     -> StdGenSeed
     -> PartialTx era
-    -> Either (ErrBalanceTx era) (CardanoApi.Tx (CardanoApiEra era), DummyChangeState)
+    -> Either
+        (ErrBalanceTx era)
+        (CardanoApi.Tx (CardanoApiEra era), DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
         first Write.toCardanoApiTx <$>

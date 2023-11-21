@@ -1598,10 +1598,11 @@ coinSelectionErrorToBalanceTxError era = withConstraints era $ \case
         ErrBalanceTxInsufficientCollateral
         ErrBalanceTxInsufficientCollateralError
             { largestCombinationAvailable
-                = withConstraints era $ largestCombinationAvailable
-                & fmap W.TokenBundle.fromCoin
-                & toExternalUTxOMap
-                & fromWalletUTxO era
+                = withConstraints era
+                $ fromWalletUTxO era
+                $ toExternalUTxOMap
+                $ fmap W.TokenBundle.fromCoin largestCombinationAvailable
+
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }
