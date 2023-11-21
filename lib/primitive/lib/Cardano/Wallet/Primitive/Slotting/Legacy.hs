@@ -7,7 +7,6 @@
 
 -- | Legacy slotting API functions.
 -- Used as a reference in tests.
-
 module Cardano.Wallet.Primitive.Slotting.Legacy
     ( SlotParameters (..)
     , slotParams
@@ -27,16 +26,24 @@ module Cardano.Wallet.Primitive.Slotting.Legacy
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Slotting
+    ( StartTime (StartTime)
+    )
+import Cardano.Wallet.Primitive.Types.EpochNo
+    ( EpochNo (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (Range)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
+    ( SlotId (..)
+    , SlotInEpoch (SlotInEpoch)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient
-    , EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
-    , StartTime (..)
+    , EpochLength (EpochLength)
+    , SlotLength (SlotLength)
+    , SlottingParameters
     )
 import Data.Generics.Internal.VL.Lens
     ( (^.)
@@ -80,14 +87,16 @@ data SlotParameters = SlotParameters
         :: StartTime
     , getActiveSlotCoefficient
         :: ActiveSlotCoefficient
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic, Show)
 
 slotParams :: StartTime -> SlottingParameters -> SlotParameters
-slotParams t0 sp = SlotParameters
-    (sp ^. #getEpochLength)
-    (sp ^. #getSlotLength)
-    t0
-    (sp ^. #getActiveSlotCoefficient)
+slotParams t0 sp =
+    SlotParameters
+        (sp ^. #getEpochLength)
+        (sp ^. #getSlotLength)
+        t0
+        (sp ^. #getActiveSlotCoefficient)
 
 -- | Calculate the time at which an epoch begins.
 epochStartTime :: SlotParameters -> EpochNo -> UTCTime
@@ -143,7 +152,7 @@ slotMinBound = SlotId 0 0
 slotAt' :: SlotParameters -> UTCTime -> Maybe SlotId
 slotAt' (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
     | t < st = Nothing
-    | otherwise = Just $ SlotId {epochNumber, slotNumber}
+    | otherwise = Just $ SlotId{epochNumber, slotNumber}
   where
     diff :: NominalDiffTime
     diff = t `diffUTCTime` st
@@ -151,11 +160,13 @@ slotAt' (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
     epochLength :: NominalDiffTime
     epochLength = fromIntegral el * sl
 
-    epochNumber = EpochNo $
-        floor (diff / epochLength)
+    epochNumber =
+        EpochNo
+            $ floor (diff / epochLength)
 
-    slotNumber = SlotInEpoch $
-        floor ((diff - fromIntegral (unEpochNo epochNumber) * epochLength) / sl)
+    slotNumber =
+        SlotInEpoch
+            $ floor ((diff - fromIntegral (unEpochNo epochNumber) * epochLength) / sl)
 
 -- | Transforms the given inclusive time range into an inclusive slot range.
 --
@@ -164,7 +175,6 @@ slotAt' (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
 --
 -- If, on the other hand, the specified time range terminates before the start
 -- of the blockchain, this function returns 'Nothing'.
---
 slotRangeFromTimeRange'
     :: SlotParameters
     -> Range UTCTime
@@ -186,21 +196,21 @@ flatSlot (EpochLength epochLength) (SlotId (EpochNo e) (SlotInEpoch s)) =
 --
 -- This function will fail if applied to a value that is higher than the maximum
 -- value of 'flatSlot' for the specified 'EpochLength'.
---
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
 fromFlatSlot el@(EpochLength epochLength) n
     | n <= maxFlatSlot =
         SlotId (EpochNo $ fromIntegral e) (fromIntegral s)
     | otherwise =
-        error $ mconcat
-            [ "fromFlatSlot: The specified flat slot number ("
-            , show n
-            , ") is higher than the maximum flat slot number ("
-            , show maxFlatSlot
-            , ") for the specified epoch length ("
-            , show epochLength
-            , ")."
-            ]
+        error
+            $ mconcat
+                [ "fromFlatSlot: The specified flat slot number ("
+                , show n
+                , ") is higher than the maximum flat slot number ("
+                , show maxFlatSlot
+                , ") for the specified epoch length ("
+                , show epochLength
+                , ")."
+                ]
   where
     e = n `div` fromIntegral epochLength
     s = n `mod` fromIntegral epochLength

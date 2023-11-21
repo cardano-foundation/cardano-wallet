@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -30,6 +32,7 @@ module Cardano.Wallet.Primitive.Slotting
     , ceilingSlotAt
     , timeOfEpoch
     , getStartTime
+    , StartTime (..)
 
       -- ** Blockchain-relative times
     , RelativeTime
@@ -58,9 +61,6 @@ module Cardano.Wallet.Primitive.Slotting
     , EpochInfo
     , toEpochInfo
 
-      -- ** TimeTranslation
-    , toTimeTranslation
-
       -- ** Combinators for running queries
     , unsafeExtendSafeZone
     , neverFails
@@ -79,20 +79,29 @@ import Cardano.BM.Data.Tracer
     )
 import Cardano.Slotting.EpochInfo.API
     ( EpochInfo
-    , hoistEpochInfo
+    )
+import Cardano.Slotting.Slot
+    ( SlotNo
     )
 import Cardano.Wallet.Orphans
     ()
-import Cardano.Wallet.Primitive.Types
-    ( EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
+import Cardano.Wallet.Primitive.Types.EpochNo
+    ( EpochNo (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
+    ( SlotId (..)
     , SlotInEpoch (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
+    ( EpochLength (..)
     , SlotLength (..)
-    , SlotNo (..)
-    , SlottingParameters (..)
-    , StartTime (..)
+    , SlottingParameters
+    )
+import Control.DeepSeq
+    ( NFData
     )
 import Control.Monad
     ( ap
@@ -109,7 +118,6 @@ import Control.Monad.Trans.Class
     )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
-    , runExcept
     , runExceptT
     )
 import Control.Tracer
@@ -156,15 +164,14 @@ import Fmt
     , fmt
     , indentF
     )
+import GHC.Generics
+    ( Generic
+    )
 import GHC.Stack
     ( CallStack
     , HasCallStack
     , getCallStack
     , prettySrcLoc
-    )
-import Internal.Cardano.Write.Tx.TimeTranslation
-    ( TimeTranslation
-    , timeTranslationFromEpochInfo
     )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
@@ -201,6 +208,12 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 {-------------------------------------------------------------------------------
                                     Queries
 -------------------------------------------------------------------------------}
+
+-- | Blockchain start time
+newtype StartTime = StartTime {utcTimeOfStartTime :: UTCTime}
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData StartTime
 
 -- | A query for time, slot and epoch conversions. Can be interpreted using
 -- @interpretQuery@.
@@ -453,14 +466,6 @@ toEpochInfo TimeInterpreter{interpreter} =
 getSystemStart :: TimeInterpreter m -> SystemStart
 getSystemStart TimeInterpreter{blockchainStartTime} =
     let (StartTime t) = blockchainStartTime in SystemStart t
-
-toTimeTranslation
-    :: TimeInterpreter (ExceptT PastHorizonException IO)
-    -> IO TimeTranslation
-toTimeTranslation timeInterpreter = do
-    info <- runExceptT (toEpochInfo timeInterpreter)
-        >>= either throwIO (pure . hoistEpochInfo runExcept)
-    pure $ timeTranslationFromEpochInfo (getSystemStart timeInterpreter) info
 
 data TimeInterpreterLog
     = MsgInterpreterPastHorizon

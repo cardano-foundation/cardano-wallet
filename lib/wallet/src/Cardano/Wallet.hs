@@ -461,8 +461,10 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     , slotRangeFromTimeRange
     , slotToUTCTime
-    , toTimeTranslation
     , unsafeExtendSafeZone
+    )
+import Cardano.Wallet.Primitive.Slotting.TimeTranslation
+    ( toTimeTranslation
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress

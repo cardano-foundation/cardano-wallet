@@ -21,13 +21,10 @@ import Cardano.BM.Data.Tracer
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
-import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient
-    , shrinkActiveSlotCoefficient
-    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , Qry
+    , StartTime (..)
     , TimeInterpreterLog (..)
     , epochOf
     , expectAndThrowFailures
@@ -49,18 +46,27 @@ import Cardano.Wallet.Primitive.Slotting.Legacy
     , slotRangeFromTimeRange'
     , slotStartTime
     )
-import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient
-    , EpochLength (..)
-    , EpochNo (..)
-    , Range (..)
-    , SlotId (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
-    , StartTime (..)
+import Cardano.Wallet.Primitive.Types.EpochNo
+    ( EpochNo (EpochNo)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (Range)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
+    ( SlotId (SlotId, epochNumber)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
+    ( ActiveSlotCoefficient
+    , EpochLength (EpochLength)
+    , SlotLength (SlotLength)
+    , SlottingParameters
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
+    ( genActiveSlotCoefficient
+    , shrinkActiveSlotCoefficient
     )
 import Control.Monad.Trans.Except
     ( runExceptT
