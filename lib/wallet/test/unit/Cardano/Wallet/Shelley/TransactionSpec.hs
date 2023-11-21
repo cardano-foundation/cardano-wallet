@@ -263,6 +263,7 @@ import Fmt
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     , CardanoApiEra
+    , IsRecentEra
     , RecentEra (..)
     , ShelleyLedgerEra
     , cardanoEraFromRecentEra
@@ -526,8 +527,7 @@ prop_signTransaction_addsRewardAccountKey
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
                     InAnyCardanoEra era <$>
-                        [ mkShelleyWitness
-                            recentEra txBody rawRewardK
+                        [ mkShelleyWitness recentEra txBody rawRewardK
                         ]
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
@@ -1312,7 +1312,8 @@ prop_sealedTxRecentEraRoundtrip
     sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: RecentEra era
+    :: IsRecentEra era
+    => RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
 makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
@@ -1710,7 +1711,9 @@ instance (Eq a, Show a) => Ord (ShowOrd a) where
 -- | Hack until signTransaction and properties are converted to ledger types
 withCardanoApiConstraints
     :: forall era a. CardanoEra era
-    -> ((CardanoApiEra (ShelleyLedgerEra era) ~ era) => a)
+    -> ( ( CardanoApiEra (ShelleyLedgerEra era) ~ era
+         , IsRecentEra (ShelleyLedgerEra era)
+         ) => a)
     -> a
 withCardanoApiConstraints e a = case e of
     Cardano.ConwayEra -> a

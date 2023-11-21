@@ -89,14 +89,11 @@ import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , PParams
     , PolicyId
-    , RecentEra
-    , RecentEra
     , RewardAccount
     , StandardCrypto
     , TxIn
     , UTxO
     , txBody
-    , withConstraints
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
@@ -126,21 +123,20 @@ data ErrAssignRedeemers
     deriving (Generic, Eq, Show)
 
 assignScriptRedeemers
-    :: forall era. RecentEra era
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> TimeTranslation
     -> UTxO era
     -> [Redeemer]
     -> Tx era
     -> Either ErrAssignRedeemers (Tx era)
-assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
-    withConstraints era $ do
-        flip execStateT tx $ do
-            indexedRedeemers <- StateT assignNullRedeemers
-            executionUnits <- get
-                >>= lift . evaluateExecutionUnits indexedRedeemers
-            modifyM (assignExecutionUnits executionUnits)
-            modify' addScriptIntegrityHash
+assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
+    flip execStateT tx $ do
+        indexedRedeemers <- StateT assignNullRedeemers
+        executionUnits <- get
+            >>= lift . evaluateExecutionUnits indexedRedeemers
+        modifyM (assignExecutionUnits executionUnits)
+        modify' addScriptIntegrityHash
   where
     epochInformation :: EpochInfo (Either T.Text)
     epochInformation =
@@ -153,8 +149,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- Redeemers are determined from the context given to the caller via the
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
-        :: IsRecentEra era
-        => Tx era
+        :: Tx era
         -> Either ErrAssignRedeemers
             ( Map Alonzo.RdmrPtr Redeemer
             , Tx era
@@ -171,7 +166,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
       where
         parseRedeemer rd = do
             let mPtr = Alonzo.rdptr
-                    (txBody era ledgerTx)
+                    (txBody ledgerTx)
                     (toScriptPurpose rd)
             ptr <- case mPtr of
                 SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
@@ -186,8 +181,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
-        :: IsRecentEra era
-        => Map Alonzo.RdmrPtr Redeemer
+        :: Map Alonzo.RdmrPtr Redeemer
         -> Tx era
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
@@ -209,8 +203,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
     assignExecutionUnits
-        :: IsRecentEra era
-        => Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
+        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
         -> Tx era
         -> Either ErrAssignRedeemers (Tx era)
     assignExecutionUnits exUnits ledgerTx = do
@@ -235,8 +228,7 @@ assignScriptRedeemers era pparams timeTranslation utxo redeemers tx =
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHash
-        :: IsRecentEra era
-        => Tx era
+        :: Tx era
         -> Tx era
     addScriptIntegrityHash ledgerTx =
         ledgerTx & (bodyTxL . scriptIntegrityHashTxBodyL) .~

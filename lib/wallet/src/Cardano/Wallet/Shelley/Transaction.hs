@@ -285,7 +285,8 @@ data TxPayload era = TxPayload
 
 constructUnsignedTx
     :: forall era
-     . RecentEra era
+     . IsRecentEra era
+    => RecentEra era
     -> Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> (Maybe SlotNo, SlotNo)
@@ -318,7 +319,8 @@ constructUnsignedTx
     mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTransaction
-    :: forall era k. RecentEra era
+    :: forall era k. IsRecentEra era
+    => RecentEra era
     -- ^ Era for which the transaction should be created.
     -> Cardano.NetworkId
     -> KeyFlavorS k
@@ -332,56 +334,54 @@ mkTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTransaction era networkId keyF stakeCreds addrResolver ctx cs =
-    Write.withConstraints era $ do
-        let ttl = txValidityInterval ctx
-        let wdrl = view #txWithdrawal ctx
-        let delta = selectionDelta cs
-        let md = view #txMetadata ctx
-        let certs =
-                case view #txDelegationAction ctx of
-                    Nothing ->
-                        mempty
-                    Just action ->
-                        let stakeXPub = toXPub $ fst stakeCreds
-                        in mkDelegationCertificates action (Left stakeXPub)
-        let wdrls = mkWithdrawals networkId wdrl
-        unsigned <-
-            mkUnsignedTx
-                era
-                ttl
-                (Right cs)
-                md
-                wdrls
-                certs
-                (toCardanoLovelace delta)
-                TokenMap.empty
-                TokenMap.empty
-                Map.empty
-                Map.empty
+mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
+    let ttl = txValidityInterval ctx
+    let wdrl = view #txWithdrawal ctx
+    let delta = selectionDelta cs
+    let md = view #txMetadata ctx
+    let certs =
+            case view #txDelegationAction ctx of
+                Nothing ->
+                    mempty
+                Just action ->
+                    let stakeXPub = toXPub $ fst stakeCreds
+                    in mkDelegationCertificates action (Left stakeXPub)
+    let wdrls = mkWithdrawals networkId wdrl
+    unsigned <-
+        mkUnsignedTx
+            era
+            ttl
+            (Right cs)
+            md
+            wdrls
+            certs
+            (toCardanoLovelace delta)
+            TokenMap.empty
+            TokenMap.empty
+            Map.empty
+            Map.empty
+            Nothing
+            Nothing
+    let signed :: Cardano.Tx (CardanoApiEra era)
+        signed = Write.toCardanoApiTx $
+            signTransaction
+                @era
+                keyF
+                networkId
+                AnyWitnessCountCtx
+                acctResolver
+                (const Nothing)
                 Nothing
-                Nothing
-        let signed :: Cardano.Tx (CardanoApiEra era)
-            signed =
-                Write.withConstraints era $ Write.toCardanoApiTx $
-                signTransaction
-                    @era
-                    keyF
-                    networkId
-                    AnyWitnessCountCtx
-                    acctResolver
-                    (const Nothing)
-                    Nothing
-                    (const Nothing)
-                    addrResolver
-                    inputResolver
-                    (Write.fromCardanoApiTx $ Cardano.Tx unsigned [])
-        let withResolvedInputs (tx, _, _, _, _, _) =
-                tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
-        Right
-            ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
-            , Write.withConstraints era $ sealedTxFromCardano' signed
-            )
+                (const Nothing)
+                addrResolver
+                inputResolver
+                (Write.fromCardanoApiTx $ Cardano.Tx unsigned [])
+    let withResolvedInputs (tx, _, _, _, _, _) =
+            tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
+    Right
+        ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
+        , sealedTxFromCardano' signed
+        )
   where
     inputResolver :: TxIn -> Maybe Address
     inputResolver i =
@@ -662,7 +662,8 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
 --
 mkUnsignedTransaction
     :: forall era
-     . Write.RecentEra era
+     . Write.IsRecentEra era
+    => Write.RecentEra era
     -> NetworkId
     -> Either XPub (Maybe (Script KeyHash))
     -- ^ Reward account public key or optional script hash.
@@ -770,7 +771,8 @@ mkDelegationCertificates da cred =
 --
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
-    :: forall era. Write.RecentEra era
+    :: forall era. Write.IsRecentEra era
+    => Write.RecentEra era
     -> (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
@@ -800,7 +802,6 @@ mkUnsignedTx
     refScriptM = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx
     $ fmap removeDummyInput
-    $ Write.withConstraints era
     $ Cardano.createAndValidateTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
@@ -1134,11 +1135,12 @@ mkWithdrawals networkId wdrl = case wdrl of
     stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
 
 mkShelleyWitness
-    :: RecentEra era
+    :: Write.IsRecentEra era
+    => RecentEra era
     -> Cardano.TxBody (CardanoApiEra era)
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkShelleyWitness era body key = Write.withConstraints era $
+mkShelleyWitness era body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
@@ -1146,7 +1148,8 @@ mkShelleyWitness era body key = Write.withConstraints era $
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: forall era. IsRecentEra era => RecentEra era
+    :: forall era. IsRecentEra era
+    => RecentEra era
     -> Cardano.TxBody (CardanoApiEra era)
     -> Cardano.NetworkId
     -> Address
@@ -1221,7 +1224,7 @@ txConstraints protocolParams witnessTag = TxConstraints
     txBaseCost =
         constantTxFee <> estimateTxCost feePerByte empty
 
-    constantTxFee = Write.withConstraints era $
+    constantTxFee =
         Convert.toWallet $ protocolParams ^. Ledger.ppMinFeeBL
 
     feePerByte = Write.getFeePerByte protocolParams
@@ -1241,7 +1244,7 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputSize bundle =
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = Write.withConstraints era $ (<>)
+    txOutputMaximumSize = (<>)
         (txOutputSize mempty)
         (TxSize (protocolParams ^. Ledger.ppMaxValSizeL))
 
@@ -1250,13 +1253,11 @@ txConstraints protocolParams witnessTag = TxConstraints
 
     txOutputMinimumAdaQuantity addr tokens = Convert.toWallet $
         Write.computeMinimumCoinForTxOut
-            era
             protocolParams
             (mkLedgerTxOut addr (TokenBundle txOutMaxCoin tokens))
 
     txOutputBelowMinimumAdaQuantity addr bundle =
         Write.isBelowMinimumCoinForTxOut
-            era
             protocolParams
             (mkLedgerTxOut addr bundle)
 
@@ -1266,7 +1267,7 @@ txConstraints protocolParams witnessTag = TxConstraints
     txRewardWithdrawalSize =
         _txRewardWithdrawalSize (Right witnessTag)
 
-    txMaximumSize = Write.withConstraints era $
+    txMaximumSize =
         TxSize $ protocolParams ^. Ledger.ppMaxTxSizeL
 
     empty :: TxSkeleton

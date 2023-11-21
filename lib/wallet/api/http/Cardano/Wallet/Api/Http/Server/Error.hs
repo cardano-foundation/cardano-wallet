@@ -1046,7 +1046,7 @@ instance
             , pretty $ listF $ L.sort
                 $ fmap (view #coin . view #tokens . snd)
                 $ UTxO.toList
-                $ Write.toWalletUTxO (Write.recentEra @era)
+                $ Write.toWalletUTxO
                 $ view #largestCombinationAvailable e
             , "To fix this, you'll need to add one or more pure ada UTxOs"
             , "to your wallet that can cover the minimum amount required."

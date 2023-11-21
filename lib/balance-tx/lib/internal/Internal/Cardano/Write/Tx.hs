@@ -41,7 +41,6 @@ module Internal.Cardano.Write.Tx
     , MaybeInRecentEra (..)
     , toRecentEraGADT
     , LatestLedgerEra
-    , withConstraints
     , RecentEraConstraints
 
     -- ** Key witness counts
@@ -174,7 +173,9 @@ import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
 import Cardano.Ledger.Api
-    ( coinTxOutL
+    ( bodyTxL
+    , coinTxOutL
+    , outputsTxBodyL
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
@@ -186,9 +187,6 @@ import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     , Version
     , maybeToStrictMaybe
-    )
-import Cardano.Ledger.Binary
-    ( Sized (..)
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
@@ -275,7 +273,6 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
-import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
@@ -363,13 +360,6 @@ type RecentEraConstraints era =
     , Eq (TxOut era)
     , Show (PParams era)
     )
-
--- | Bring useful constraints into scope from a value-level
--- 'RecentEra'.
-withConstraints :: RecentEra era -> (IsRecentEra era => a) -> a
-withConstraints era a = case era of
-    RecentEraBabbage -> a
-    RecentEraConway -> a
 
 -- | Returns a proof that the given era is a recent era.
 --
@@ -632,37 +622,31 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
 -- quantities regardless of the fact that modifying the ada 'Coin' value may
 -- itself change the size and min-ada requirement.
 computeMinimumCoinForTxOut
-    :: forall era. RecentEra era
-    -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> TxOut era
     -> Coin
-computeMinimumCoinForTxOut era pp out = withConstraints era $
+computeMinimumCoinForTxOut pp out =
     Core.getMinCoinTxOut pp (withMaxLengthSerializedCoin out)
   where
     withMaxLengthSerializedCoin
         :: TxOut era
         -> TxOut era
-    withMaxLengthSerializedCoin = withConstraints era $
+    withMaxLengthSerializedCoin =
         over coinTxOutL (const $ Convert.toLedger W.txOutMaxCoin)
 
 isBelowMinimumCoinForTxOut
-    :: forall era. RecentEra era
-    -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> TxOut era
     -> Bool
-isBelowMinimumCoinForTxOut era pp out =
+isBelowMinimumCoinForTxOut pp out =
     actualCoin < requiredMin
   where
     -- IMPORTANT to use the exact minimum from the ledger function, and not our
     -- overestimating 'computeMinimumCoinForTxOut'.
-    requiredMin = withConstraints era $ Core.getMinCoinTxOut pp out
-    actualCoin = getCoin era out
-
-    getCoin :: RecentEra era -> TxOut era -> Coin
-    getCoin RecentEraConway (Babbage.BabbageTxOut _ val _ _) = coin val
-    getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
+    requiredMin = Core.getMinCoinTxOut pp out
+    actualCoin = out ^. coinTxOutL
 
 --------------------------------------------------------------------------------
 -- UTxO
@@ -670,21 +654,21 @@ isBelowMinimumCoinForTxOut era pp out =
 
 -- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
 utxoFromTxOuts
-    :: RecentEra era
-    -> [(TxIn, Core.TxOut era)]
-    -> (Shelley.UTxO era)
-utxoFromTxOuts era = withConstraints era $
-    Shelley.UTxO . Map.fromList
+    :: IsRecentEra era
+    => [(TxIn, Core.TxOut era)]
+    -> Shelley.UTxO era
+utxoFromTxOuts = Shelley.UTxO . Map.fromList
 
 -- | Construct a 'UTxO era' using 'TxOutInRecentEra'.
 --
 -- Used to have a possibility for failure when we supported Alonzo and Babbage,
 -- and could possibly become failable again with future eras.
 utxoFromTxOutsInRecentEra
-    :: forall era. RecentEra era
+    :: forall era. IsRecentEra era
+    => RecentEra era
     -> [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO era
-utxoFromTxOutsInRecentEra era = withConstraints era $
+utxoFromTxOutsInRecentEra era =
     Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
 
 --------------------------------------------------------------------------------
@@ -698,23 +682,23 @@ serializeTx
 serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
 
 txBody
-    :: RecentEra era
-    -> Core.Tx era
+    :: IsRecentEra era
+    => Core.Tx era
     -> Core.TxBody era
-txBody era = case era of
-    RecentEraBabbage -> Babbage.body -- same type for babbage
-    RecentEraConway -> Babbage.body -- same type for conway
+txBody = (^. bodyTxL)
 
 -- Until we have convenient lenses to use
 outputs
-    :: RecentEra era
-    -> Core.TxBody era
+    :: IsRecentEra era
+    => Core.TxBody era
     -> [TxOut era]
-outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
-outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
+outputs body = toList $ body ^. outputsTxBodyL
 
-emptyTx :: RecentEra era -> Core.Tx era
-emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
+emptyTx
+    :: IsRecentEra era
+    => RecentEra era
+    -> Core.Tx era
+emptyTx _era = Core.mkBasicTx Core.mkBasicTxBody
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -742,7 +726,7 @@ toCardanoApiUTxO
     :: forall era. IsRecentEra era
     => Shelley.UTxO era
     -> CardanoApi.UTxO (CardanoApiEra era)
-toCardanoApiUTxO = withConstraints (recentEra @era) $
+toCardanoApiUTxO =
     CardanoApi.UTxO
     . Map.mapKeys CardanoApi.fromShelleyTxIn
     . Map.map (CardanoApi.fromShelleyTxOut (shelleyBasedEra @era))
@@ -754,7 +738,7 @@ fromCardanoApiUTxO
     :: forall era. IsRecentEra era
     => CardanoApi.UTxO (CardanoApiEra era)
     -> Shelley.UTxO era
-fromCardanoApiUTxO = withConstraints (recentEra @era) $
+fromCardanoApiUTxO =
     Shelley.UTxO
     . Map.mapKeys CardanoApi.toShelleyTxIn
     . Map.map
@@ -765,7 +749,7 @@ toCardanoApiValue
     :: forall era. IsRecentEra era
     => Core.Value era
     -> CardanoApi.Value
-toCardanoApiValue = withConstraints (recentEra @era) CardanoApi.fromMaryValue
+toCardanoApiValue = CardanoApi.fromMaryValue
 
 toCardanoApiLovelace :: Coin -> CardanoApi.Lovelace
 toCardanoApiLovelace = CardanoApi.fromShelleyLovelace
@@ -831,14 +815,12 @@ type ExUnits = Alonzo.ExUnits
 txscriptfee :: ExUnitPrices -> ExUnits -> Coin
 txscriptfee = Alonzo.txscriptfee
 
-maxScriptExecutionCost
-    :: RecentEra era -> PParams era -> Coin
-maxScriptExecutionCost era pp = withConstraints era $
+maxScriptExecutionCost :: IsRecentEra era => PParams era -> Coin
+maxScriptExecutionCost pp =
     txscriptfee (pp ^. Alonzo.ppPricesL) (pp ^. Alonzo.ppMaxTxExUnitsL)
 
-stakeKeyDeposit
-    :: RecentEra era -> PParams era -> Coin
-stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
+stakeKeyDeposit :: IsRecentEra era => PParams era -> Coin
+stakeKeyDeposit pp = pp ^. Core.ppKeyDepositL
 
 --------------------------------------------------------------------------------
 -- Balancing
@@ -847,21 +829,20 @@ stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
 -- | Computes the minimal fee amount necessary to pay for a given transaction.
 --
 evaluateMinimumFee
-    :: RecentEra era
-    -> PParams era
+    :: IsRecentEra era
+    => PParams era
     -> Core.Tx era
     -> KeyWitnessCount
     -> Coin
-evaluateMinimumFee era pp tx kwc =
+evaluateMinimumFee pp tx kwc =
     mainFee <> bootWitnessFee
   where
     KeyWitnessCount {nKeyWits, nBootstrapWits} = kwc
 
     mainFee :: Coin
-    mainFee = withConstraints era $
-        Shelley.evaluateTransactionFee pp tx nKeyWits
+    mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits
 
-    FeePerByte feePerByte = withConstraints era $ getFeePerByte pp
+    FeePerByte feePerByte = getFeePerByte pp
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
@@ -888,13 +869,12 @@ evaluateMinimumFee era pp tx kwc =
 -- is not automatically the minimum fee.
 --
 evaluateTransactionBalance
-    :: forall era
-     . RecentEra era
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> Shelley.UTxO era
     -> Core.TxBody era
     -> Core.Value era
-evaluateTransactionBalance era pp utxo = withConstraints era $
+evaluateTransactionBalance pp utxo =
     let -- Looks up the current deposit amount for a registered stake credential
         -- delegation.
         --

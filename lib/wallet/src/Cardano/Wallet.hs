@@ -2343,7 +2343,7 @@ buildTransactionPure
                 (Left preSelection)
     let utxoIndex =
             Write.constructUTxOIndex @era $
-            Write.fromWalletUTxO (Write.recentEra @era) utxo
+            Write.fromWalletUTxO utxo
     withExceptT Left $
         first Write.toCardanoApiTx <$>
         balanceTransaction @_ @_ @s
@@ -2907,7 +2907,7 @@ getStakeKeyDeposit
     => Write.PParams era
     -> Coin
 getStakeKeyDeposit = toWallet
-    . Write.stakeKeyDeposit (recentEra @era)
+    . Write.stakeKeyDeposit
 
 isStakeKeyRegistered
     :: Functor stm
@@ -2929,7 +2929,7 @@ delegationFee
     -> ChangeAddressGen s
     -> IO DelegationFee
 delegationFee db@DBLayer{..} netLayer changeAddressGen = do
-    (Write.PParamsInAnyRecentEra era protocolParams, timeTranslation)
+    (Write.PParamsInAnyRecentEra _era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
     feePercentiles <- transactionFee
         db protocolParams timeTranslation changeAddressGen
@@ -2941,7 +2941,7 @@ delegationFee db@DBLayer{..} netLayer changeAddressGen = do
     deposit <- liftIO
         $ atomically (isStakeKeyRegistered walletState) <&> \case
             False -> toWallet
-                $ Write.stakeKeyDeposit era protocolParams
+                $ Write.stakeKeyDeposit protocolParams
             True -> Coin 0
     pure DelegationFee { feePercentiles, deposit }
 
@@ -2981,7 +2981,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             --
             evaluate
                 $ Write.constructUTxOIndex @era
-                $ Write.fromWalletUTxO (Write.recentEra @era)
+                $ Write.fromWalletUTxO
                 $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction era

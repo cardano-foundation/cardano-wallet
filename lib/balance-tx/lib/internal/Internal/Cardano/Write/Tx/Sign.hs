@@ -62,7 +62,6 @@ import Internal.Cardano.Write.Tx
     , Tx
     , TxIn
     , UTxO
-    , withConstraints
     )
 import Numeric.Natural
     ( Natural
@@ -90,12 +89,12 @@ import qualified Internal.Cardano.Write.Tx as Write
 --
 -- NOTE: Existing key witnesses in the tx are ignored.
 estimateSignedTxSize
-    :: forall era. RecentEra era
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> KeyWitnessCount
     -> Tx era -- ^ existing wits in tx are ignored
     -> W.TxSize
-estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
+estimateSignedTxSize pparams nWits txWithWits =
     let
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -119,14 +118,14 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
                     ]
 
         sizeOfTx :: W.TxSize
-        sizeOfTx = withConstraints era
-            $ fromIntegral @Integer @W.TxSize
+        sizeOfTx =
+            fromIntegral @Integer @W.TxSize
             $ unsignedTx ^. sizeTxF
     in
         sizeOfTx <> sizeOfWits
   where
     unsignedTx :: Tx era
-    unsignedTx = withConstraints era $
+    unsignedTx =
         txWithWits
             & (witsTxL . addrTxWitsL) .~ mempty
             & (witsTxL . bootAddrTxWitsL) .~ mempty
@@ -136,10 +135,10 @@ estimateSignedTxSize era pparams nWits txWithWits = withConstraints era $
 
     minfee :: KeyWitnessCount -> W.Coin
     minfee witCount = Convert.toWalletCoin $ Write.evaluateMinimumFee
-        era pparams unsignedTx witCount
+        pparams unsignedTx witCount
 
     feePerByte :: W.Coin
-    feePerByte = withConstraints era $ Convert.toWalletCoin $
+    feePerByte = Convert.toWalletCoin $
         pparams ^. ppMinFeeAL
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
@@ -268,7 +267,7 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
         :: UTxO era
         -> TxIn
         -> Bool
-    hasScriptCred u inp = withConstraints (recentEra @era) $
+    hasScriptCred u inp =
         case view addrTxOutL <$> txinLookup inp u of
             Just (Addr _ (KeyHashObj _) _) -> False
             Just (Addr _ (ScriptHashObj _) _) -> True
@@ -283,7 +282,7 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
         :: UTxO era
         -> TxIn
         -> Bool
-    hasBootstrapAddr u inp = withConstraints (recentEra @era) $
+    hasBootstrapAddr u inp =
         case view addrTxOutL <$> txinLookup inp u of
             Just Addr{} -> False
             Just (AddrBootstrap _) -> True

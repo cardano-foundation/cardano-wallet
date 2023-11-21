@@ -3408,7 +3408,7 @@ balanceTransaction
         (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
         let utxoIndex =
                 Write.constructUTxOIndex $
-                Write.fromWalletUTxO era utxo
+                Write.fromWalletUTxO utxo
         partialTx <- parsePartialTx era
         balancedTx <- liftHandler
             . fmap
