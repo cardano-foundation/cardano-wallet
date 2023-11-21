@@ -38,6 +38,7 @@ module Cardano.Wallet.DB.Layer
 
     -- * Testing
     , withTestLoadDBLayerFromFile
+    , readWalletId
     ) where
 
 import Prelude
