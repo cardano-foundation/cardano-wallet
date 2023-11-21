@@ -21,7 +21,6 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
-{-# LANGUAGE UndecidableInstances #-}
 #endif
 
 module Internal.Cardano.Write.Tx.Balance
