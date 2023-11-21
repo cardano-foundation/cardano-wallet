@@ -735,7 +735,8 @@ toCardanoApiTx
     :: forall era. IsRecentEra era
     => Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
-toCardanoApiTx = CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
+toCardanoApiTx =
+    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era
