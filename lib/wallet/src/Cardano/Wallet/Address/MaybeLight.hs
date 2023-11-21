@@ -47,14 +47,14 @@ import Cardano.Wallet.Address.Discovery.SequentialAny
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents
-    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( ChainEvents
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount

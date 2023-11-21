@@ -42,10 +42,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Gen
     ( genSlot
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( ChainEvents
-    , summarizeOnTxOut
-    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , DeltaWallet
@@ -92,6 +88,10 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..)
     , addressParity
     , genAddress
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( ChainEvents
+    , summarizeOnTxOut
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)

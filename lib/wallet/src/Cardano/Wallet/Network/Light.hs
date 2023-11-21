@@ -29,14 +29,14 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockSummary (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint (..)
     , chainPointFromBlockHeader
     , compareSlot
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( BlockSummary (..)
     )
 import Control.Monad.Class.MonadTimer
     ( MonadDelay (..)

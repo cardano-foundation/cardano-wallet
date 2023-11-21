@@ -298,7 +298,6 @@ library
     Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Pools
-    Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
     Cardano.Wallet.Primitive.Model
@@ -909,7 +908,6 @@ test-suite unit
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
-    Cardano.Wallet.Primitive.BlockSummarySpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
     Cardano.Wallet.Primitive.ModelSpec
     Cardano.Wallet.Primitive.Passphrase.LegacySpec

@@ -1,19 +1,28 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Use camelCase" -}
-module Cardano.Wallet.Primitive.BlockSummarySpec
+
+module Cardano.Wallet.Primitive.Types.BlockSummarySpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Gen
-    ( genBlockHeader
-    , genSlot
-    , genSlotNo
+import Cardano.Slotting.Slot
+    ( SlotNo (..)
+    , WithOrigin (..)
     )
-import Cardano.Wallet.Primitive.BlockSummary
+import Cardano.Wallet.Primitive.Types.Block
+    ( BlockHeader (..)
+    , Slot
+    )
+import Cardano.Wallet.Primitive.Types.Block.Gen
+    ( genBlockHeader
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
     ( BlockEvents (BlockEvents, slot)
     , ChainEvents
     , Sublist
@@ -24,16 +33,14 @@ import Cardano.Wallet.Primitive.BlockSummary
     , unsafeMkSublist
     , wholeList
     )
-import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , Slot
-    , WithOrigin (..)
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx
     )
 import Data.Foldable
     ( toList
+    )
+import Data.Word
+    ( Word32
     )
 import Test.Hspec
     ( Spec
@@ -45,6 +52,7 @@ import Test.QuickCheck
     , Gen
     , Property
     , forAll
+    , frequency
     , listOf1
     , property
     , resize
@@ -59,21 +67,21 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Sublist" $ do
-        it "merging denotes union on sets" $
-            property prop_merge_denotation
-        it "merging is idempotent" $
-            property prop_merge_idempotent
-        it "merging has whole list as absorbing element" $
-            property prop_merge_absorbing_element
-        it "merging is commutative" $
-            property prop_merge_commutative
+        it "merging denotes union on sets"
+            $ property prop_merge_denotation
+        it "merging is idempotent"
+            $ property prop_merge_idempotent
+        it "merging has whole list as absorbing element"
+            $ property prop_merge_absorbing_element
+        it "merging is commutative"
+            $ property prop_merge_commutative
 
     describe "ChainEvents" $ do
-        it "conversion to and from [BlockEvents]" $
-            property prop_toFromBlocks
+        it "conversion to and from [BlockEvents]"
+            $ property prop_toFromBlocks
 
-        it "monoid is idemptotent" $
-            property prop_idempotentChainEvents
+        it "monoid is idemptotent"
+            $ property prop_idempotentChainEvents
 
 {-------------------------------------------------------------------------------
     Properties
@@ -81,8 +89,8 @@ spec = do
 prop_merge_denotation :: [Int] -> Property
 prop_merge_denotation xs =
     forAll (genSublist xs) $ \a ->
-    forAll (genSublist xs) $ \b ->
-        toSet (a `mergeSublist` b) === toSet a `Set.union` toSet b
+        forAll (genSublist xs) $ \b ->
+            toSet (a `mergeSublist` b) === toSet a `Set.union` toSet b
   where
     toSet = Set.fromList . toList
 
@@ -98,8 +106,8 @@ prop_merge_absorbing_element xs = forAll (genSublist xs) $ \s ->
 prop_merge_commutative :: [Int] -> Property
 prop_merge_commutative xs =
     forAll (genSublist xs) $ \a ->
-    forAll (genSublist xs) $ \b ->
-        a `mergeSublist` b === b `mergeSublist` a
+        forAll (genSublist xs) $ \b ->
+            a `mergeSublist` b === b `mergeSublist` a
 
 prop_toFromBlocks :: ChainEvents -> Gen Property
 prop_toFromBlocks cs1 = do
@@ -113,7 +121,7 @@ prop_idempotentChainEvents cs = cs <> cs === cs
     Generators
 -------------------------------------------------------------------------------}
 genSublist :: [a] -> Gen (Sublist a)
-genSublist xs = unsafeMkSublist <$> sublistOf (zip (map (,0) [0..]) xs)
+genSublist xs = unsafeMkSublist <$> sublistOf (zip (map (,0) [0 ..]) xs)
 
 instance Arbitrary Slot where
     arbitrary = genSlot
@@ -121,7 +129,7 @@ instance Arbitrary Slot where
 instance Arbitrary ChainEvents where
     arbitrary = do
         bs <- listOf1 arbitrary
-        pure . mkChainEvents $ Map.fromList [ (slot b, b) | b <- bs ]
+        pure . mkChainEvents $ Map.fromList [(slot b, b) | b <- bs]
 
 instance Arbitrary BlockEvents where
     arbitrary = do
@@ -132,3 +140,13 @@ instance Arbitrary BlockEvents where
             ht
             <$> (wholeList <$> resize 2 (listOf1 genTx))
             <*> pure (wholeList [])
+
+genSlot :: Gen Slot
+genSlot = frequency
+    [ ( 1, pure Origin)
+    , (40, At <$> genSlotNo)
+    ]
+
+-- | Don't generate /too/ large slots
+genSlotNo :: Gen SlotNo
+genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32

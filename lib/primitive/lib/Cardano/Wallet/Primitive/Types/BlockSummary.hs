@@ -12,7 +12,7 @@
 -- This module provides the 'BlockSummary' type
 -- which summarizes a contiguous sequence of blocks.
 --
-module Cardano.Wallet.Primitive.BlockSummary
+module Cardano.Wallet.Primitive.Types.BlockSummary
     ( BlockSummary (..)
     , LightSummary
 
@@ -39,17 +39,19 @@ module Cardano.Wallet.Primitive.BlockSummary
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , DelegationCertificate
-    , Slot
-    , chainPointFromBlockHeader
-    , dlgCertAccount
-    , toSlot
-    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( Block (..)
+    , BlockHeader
+    , Slot
+    , chainPointFromBlockHeader
+    , toSlot
+    )
+import Cardano.Wallet.Primitive.Types.DelegationCertificate
+    ( DelegationCertificate
+    , dlgCertAccount
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -85,7 +87,7 @@ import Numeric.Natural
     ( Natural
     )
 
-import qualified Cardano.Wallet.Primitive.Types as Block
+import qualified Cardano.Wallet.Primitive.Types.Block as Block
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 

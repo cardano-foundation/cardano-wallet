@@ -75,14 +75,6 @@ import Prelude
 import Cardano.Wallet.Address.Discovery
     ( IsOurs (..)
     )
-import Cardano.Wallet.Primitive.BlockSummary
-    ( BlockEvents (..)
-    , BlockSummary (..)
-    , ChainEvents
-    , fromBlockEvents
-    , fromEntireBlock
-    , toAscBlockEvents
-    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -95,6 +87,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
+    )
+import Cardano.Wallet.Primitive.Types.BlockSummary
+    ( BlockEvents (..)
+    , BlockSummary (..)
+    , ChainEvents
+    , fromBlockEvents
+    , fromEntireBlock
+    , toAscBlockEvents
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
