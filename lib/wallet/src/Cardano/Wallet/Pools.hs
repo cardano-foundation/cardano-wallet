@@ -291,7 +291,7 @@ import UnliftIO.STM
 
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Layer as Pool
-import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

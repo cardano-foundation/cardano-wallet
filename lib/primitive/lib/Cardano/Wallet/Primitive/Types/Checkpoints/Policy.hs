@@ -4,7 +4,7 @@
 --
 -- Abstract data type that describes a policy for keeping and discarding
 -- checkpoints. To be used with the 'Checkpoints' type.
-module Cardano.Wallet.Checkpoints.Policy
+module Cardano.Wallet.Primitive.Types.Checkpoints.Policy
     ( BlockHeight
     , CheckpointPolicy
     , nextCheckpoint
