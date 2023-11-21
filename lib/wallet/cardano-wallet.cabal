@@ -300,7 +300,7 @@ library
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
     Cardano.Wallet.Primitive.Model
-    Cardano.Wallet.Primitive.Slotting
+    Cardano.Wallet.Primitive.Slotting.TimeTranslation
     Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types
     Cardano.Wallet.Primitive.Types.Address.Constants

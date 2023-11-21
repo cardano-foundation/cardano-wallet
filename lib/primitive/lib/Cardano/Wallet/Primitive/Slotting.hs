@@ -32,6 +32,7 @@ module Cardano.Wallet.Primitive.Slotting
     , ceilingSlotAt
     , timeOfEpoch
     , getStartTime
+    , StartTime (..)
 
       -- ** Blockchain-relative times
     , RelativeTime
