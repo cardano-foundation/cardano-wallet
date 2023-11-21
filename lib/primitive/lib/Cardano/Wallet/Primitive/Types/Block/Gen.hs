@@ -1,7 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Primitive.Types.Block.Gen
     ( genBlockHeader
+    , genSlot
+    , genSlotNo
+    , shrinkSlotNo
     )
 where
 
@@ -9,9 +14,11 @@ import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..)
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
+    , Slot
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -26,8 +33,10 @@ import Data.Word
     ( Word32
     )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary (..)
+    , Gen
     , elements
+    , frequency
     )
 
 genBlockHeader :: SlotNo -> Gen BlockHeader
@@ -49,3 +58,17 @@ genBlockHeader sl = do
                 $ unsafeFromHex
                     "63b8828e2eadc3f14b9b691fa9df76139a9c9b13a12ec862b324cc5a88f9fcc5"
             ]
+
+genSlot :: Gen Slot
+genSlot =
+    frequency
+        [ (1, pure Origin)
+        , (40, At <$> genSlotNo)
+        ]
+
+-- | Don't generate /too/ large slots
+genSlotNo :: Gen SlotNo
+genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32
+
+shrinkSlotNo :: SlotNo -> [SlotNo]
+shrinkSlotNo (SlotNo x) = SlotNo <$> shrink x

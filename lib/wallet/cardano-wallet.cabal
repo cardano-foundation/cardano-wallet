@@ -910,7 +910,6 @@ test-suite unit
     Cardano.Wallet.Primitive.ModelSpec
     Cardano.Wallet.Primitive.Passphrase.LegacySpec
     Cardano.Wallet.Primitive.PassphraseSpec
-    Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.TypesSpec

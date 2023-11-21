@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -12,8 +11,7 @@ module Cardano.Wallet.Primitive.Types.BlockSummarySpec
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    , WithOrigin (..)
+    ( WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
@@ -21,6 +19,8 @@ import Cardano.Wallet.Primitive.Types.Block
     )
 import Cardano.Wallet.Primitive.Types.Block.Gen
     ( genBlockHeader
+    , genSlot
+    , genSlotNo
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( BlockEvents (BlockEvents, slot)
@@ -39,9 +39,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Data.Foldable
     ( toList
     )
-import Data.Word
-    ( Word32
-    )
 import Test.Hspec
     ( Spec
     , describe
@@ -52,7 +49,6 @@ import Test.QuickCheck
     , Gen
     , Property
     , forAll
-    , frequency
     , listOf1
     , property
     , resize
@@ -140,13 +136,3 @@ instance Arbitrary BlockEvents where
             ht
             <$> (wholeList <$> resize 2 (listOf1 genTx))
             <*> pure (wholeList [])
-
-genSlot :: Gen Slot
-genSlot = frequency
-    [ ( 1, pure Origin)
-    , (40, At <$> genSlotNo)
-    ]
-
--- | Don't generate /too/ large slots
-genSlotNo :: Gen SlotNo
-genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32
