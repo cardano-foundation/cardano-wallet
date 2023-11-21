@@ -207,6 +207,24 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    , RangeBound (..)
+    , isAfterRange
+    , isBeforeRange
+    , isSubrangeOf
+    , isWithinRange
+    , mapRangeLowerBound
+    , mapRangeUpperBound
+    , rangeHasLowerBound
+    , rangeHasUpperBound
+    , rangeIsFinite
+    , rangeIsSingleton
+    , rangeIsValid
+    , rangeLowerBound
+    , rangeUpperBound
+    , wholeRange
+    )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -319,28 +337,13 @@ import Network.URI
     ( URI (..)
     , uriToString
     )
-import Cardano.Wallet.Primitive.Types.Range
-    ( RangeBound(..),
-      Range(..),
-      mapRangeLowerBound,
-      mapRangeUpperBound,
-      wholeRange,
-      isAfterRange,
-      isBeforeRange,
-      isWithinRange,
-      rangeHasLowerBound,
-      rangeHasUpperBound,
-      rangeIsFinite,
-      rangeIsSingleton,
-      rangeIsValid,
-      rangeLowerBound,
-      rangeUpperBound,
-      isSubrangeOf )
 
+import Cardano.Wallet.Primitive.Slotting
+    ( StartTime (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import Cardano.Wallet.Primitive.Types.SlotId
-import Cardano.Wallet.Primitive.Slotting (StartTime (..))
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata
@@ -498,7 +501,6 @@ instance ToText SortOrder where
 
 instance FromText SortOrder where
     fromText = fromTextToBoundedEnum SnakeLowerCase
-
 
 {-------------------------------------------------------------------------------
                                     Block

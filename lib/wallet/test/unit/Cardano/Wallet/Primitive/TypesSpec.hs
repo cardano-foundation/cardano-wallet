@@ -39,10 +39,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
     )
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient
-    , genBlockHeader
+    ( genBlockHeader
     , genSlotNo
-    , shrinkActiveSlotCoefficient
     , shrinkSlotNo
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
@@ -114,6 +112,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
+    ( genActiveSlotCoefficient
+    , shrinkActiveSlotCoefficient
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx

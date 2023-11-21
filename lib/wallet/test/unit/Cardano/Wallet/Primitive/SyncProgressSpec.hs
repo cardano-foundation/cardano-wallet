@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.Primitive.SyncProgressSpec
     ( spec
     ) where
@@ -10,10 +11,8 @@ module Cardano.Wallet.Primitive.SyncProgressSpec
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient
-    , genBlockHeader
+    ( genBlockHeader
     , genSlotNo
-    , shrinkActiveSlotCoefficient
     , shrinkSlotNo
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -35,6 +34,10 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
+    ( genActiveSlotCoefficient
+    , shrinkActiveSlotCoefficient
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage

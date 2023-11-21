@@ -61,7 +61,6 @@ module Cardano.Wallet.Primitive.Slotting
     , EpochInfo
     , toEpochInfo
 
-
       -- ** Combinators for running queries
     , unsafeExtendSafeZone
     , neverFails

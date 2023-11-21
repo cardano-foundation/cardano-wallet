@@ -15,8 +15,6 @@ module Cardano.Wallet.Gen
     , genBlockHeader
     , genChainPoint
     , genSlot
-    , genActiveSlotCoefficient
-    , shrinkActiveSlotCoefficient
     , genSlotNo
     , shrinkSlotNo
     , genScript
@@ -48,8 +46,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( retrieveAllCosigners
     )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
+    ( BlockHeader (..)
     , ChainPoint (..)
     , Slot
     , SlotNo (..)
@@ -184,14 +181,6 @@ genSlot = frequency
     [ ( 1, pure Origin)
     , (40, At <$> genSlotNo)
     ]
-
-genActiveSlotCoefficient :: Gen ActiveSlotCoefficient
-genActiveSlotCoefficient = ActiveSlotCoefficient <$> choose (0.001, 1.0)
-
-shrinkActiveSlotCoefficient :: ActiveSlotCoefficient -> [ActiveSlotCoefficient]
-shrinkActiveSlotCoefficient (ActiveSlotCoefficient f)
-        | f < 1 = [1]
-        | otherwise = []
 
 genNatural :: Gen Natural
 genNatural = arbitrarySizedNatural

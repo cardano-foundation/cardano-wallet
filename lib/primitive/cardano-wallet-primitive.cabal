@@ -98,6 +98,7 @@ library
     Cardano.Wallet.Primitive.Collateral
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
+    Cardano.Wallet.Primitive.Slotting.Legacy
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Block
@@ -120,6 +121,7 @@ library
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.SlotId
     Cardano.Wallet.Primitive.Types.SlottingParameters
+    Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
     Cardano.Wallet.Primitive.Types.StakePoolSummary
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -174,12 +176,15 @@ test-suite test
     , delta-types
     , filepath
     , fmt
+    , generic-arbitrary
     , generic-lens
     , hedgehog-quickcheck
     , hspec
     , hspec-core
+    , iohk-monitoring
     , lattices
     , MonadRandom
+    , ouroboros-consensus
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
@@ -189,10 +194,14 @@ test-suite test
     , string-qq
     , text
     , text-class
+    , time
+    , transformers
+    , unliftio
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
+    Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
     Cardano.Wallet.Primitive.Types.BlockSummarySpec
     Cardano.Wallet.Primitive.Types.CoinSpec
