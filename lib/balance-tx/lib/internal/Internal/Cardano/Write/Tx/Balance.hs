@@ -526,13 +526,11 @@ balanceTransaction
         )
     => UTxOAssumptions
     -> PParams era
-    -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
-    -- to a local node.
+    -- Protocol parameters. Can be retrieved via Local State Query to a
+    -- local node.
     --
     -- If passed an incorrect value, a phase 1 script integrity hash mismatch
     -- will protect against collateral being forfeited.
-    --
-    -- TODO: Remove the 'W.ProtocolParameters' argument.
     -> TimeTranslation
     -- ^ Needed to convert convert validity intervals from 'UTCTime' to 'SlotNo'
     -- when executing Plutus scripts.
@@ -546,7 +544,6 @@ balanceTransaction
     -- or similar ticket. Relevant ledger code:
     -- https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOIndex era
-    -- ^ TODO [ADP-1789] Replace with @CardanoApi.UTxO@
     -> ChangeAddressGen changeState
     -> changeState
     -> PartialTx era
