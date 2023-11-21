@@ -39,6 +39,8 @@ module Cardano.DB.Sqlite
       -- * Migrations
     , runManualOldMigrations
     , matchWrongVersionError
+    , noAutoMigrations
+    , noManualMigration
 
       -- * Helpers
     , chunkSize
@@ -73,6 +75,7 @@ import Cardano.DB.Sqlite.Migration.Old
     , ManualMigration (..)
     , MatchMigrationError (..)
     , MigrationError (..)
+    , noManualMigration
     )
 import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (..)
@@ -429,6 +432,9 @@ retryOnBusy tr timeout action =
     Database migrations
     old style and new style
 -------------------------------------------------------------------------------}
+
+noAutoMigrations :: Migration
+noAutoMigrations = pure ()
 
 runAutoMigration
     :: Tracer IO DBLog
