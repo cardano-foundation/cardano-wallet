@@ -1140,7 +1140,7 @@ mkShelleyWitness
     -> Cardano.TxBody (CardanoApiEra era)
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkShelleyWitness era body key =
+mkShelleyWitness _era body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
