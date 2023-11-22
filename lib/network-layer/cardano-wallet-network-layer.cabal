@@ -22,7 +22,10 @@ common warnings
 
 library
   import:           warnings
-  exposed-modules:  Cardano.Wallet.Network
+  exposed-modules:
+    Cardano.Wallet.Network.Logging.Aggregation
+    Cardano.Wallet.Network.Logging
+    Cardano.Wallet.Network
 
   -- other-modules:
   -- other-extensions:
