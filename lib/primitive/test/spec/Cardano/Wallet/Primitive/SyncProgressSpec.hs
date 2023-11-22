@@ -10,13 +10,12 @@ module Cardano.Wallet.Primitive.SyncProgressSpec
 
 import Prelude
 
-import Cardano.Wallet.Gen
-    ( genBlockHeader
-    , genSlotNo
-    , shrinkSlotNo
+import Cardano.Slotting.Slot
+    ( SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
+    ( StartTime (..)
+    , TimeInterpreter
     , interpretQuery
     , mkSingleEraInterpreter
     , slotToRelTime
@@ -26,14 +25,19 @@ import Cardano.Wallet.Primitive.SyncProgress
     , SyncTolerance (..)
     , syncProgress
     )
-import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
+import Cardano.Wallet.Primitive.Types.Block
+    ( BlockHeader
+    )
+import Cardano.Wallet.Primitive.Types.Block.Gen
+    ( genBlockHeader
+    , genSlotNo
+    , shrinkSlotNo
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
+    ( ActiveSlotCoefficient
     , EpochLength (..)
     , SlotLength (..)
-    , SlotNo (..)
     , SlottingParameters (..)
-    , StartTime (..)
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
     ( genActiveSlotCoefficient
@@ -87,12 +91,13 @@ import UnliftIO.Exception
 spec :: Spec
 spec = do
     let t0 = read "2019-11-09 16:43:02 UTC"
-    let sp = SlottingParameters
-            { getEpochLength = EpochLength 21_600
-            , getSlotLength  = SlotLength 10
-            , getActiveSlotCoefficient = 1
-            , getSecurityParameter = Quantity 2_160
-            }
+    let sp =
+            SlottingParameters
+                { getEpochLength = EpochLength 21_600
+                , getSlotLength = SlotLength 10
+                , getActiveSlotCoefficient = 1
+                , getSecurityParameter = Quantity 2_160
+                }
     let st = SyncTolerance 10
 
     let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
@@ -155,9 +160,10 @@ spec = do
                     ]
             forM_ plots $ \(nodeTip, p) -> do
                 let ntwkTime = runQry $ slotToRelTime $ SlotNo 10
-                let progress = if p == 1
-                        then Ready
-                        else Syncing (Quantity $ unsafeMkPercentage p)
+                let progress =
+                        if p == 1
+                            then Ready
+                            else Syncing (Quantity $ unsafeMkPercentage p)
                 runIdentity
                     (syncProgress tolerance ti nodeTip ntwkTime)
                     `shouldBe` progress
@@ -168,20 +174,14 @@ spec = do
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.000_5)
 
-        it "syncProgress should never crash" $ withMaxSuccess 10_000
-            $ property $ \tip dt -> monadicIO $ do
+        it "syncProgress should never crash"
+            $ withMaxSuccess 10_000
+            $ property
+            $ \tip dt -> monadicIO $ do
                 let x = runIdentity $ syncProgress tolerance ti tip dt
                 res <- run (try @IO @SomeException $ evaluate x)
                 monitor (counterexample $ "Result: " ++ show res)
                 assert (isRight res)
-
-instance Arbitrary BlockHeader where
-    shrink _ = []
-    arbitrary = arbitrary >>= genBlockHeader
-
-instance Arbitrary SlotNo where
-    arbitrary = genSlotNo
-    shrink = shrinkSlotNo
 
 -- Arbitrary instance with whole second values.
 instance Arbitrary RelativeTime where
@@ -192,3 +192,11 @@ instance Arbitrary RelativeTime where
 instance Arbitrary ActiveSlotCoefficient where
     shrink = shrinkActiveSlotCoefficient
     arbitrary = genActiveSlotCoefficient
+
+instance Arbitrary BlockHeader where
+    shrink _ = []
+    arbitrary = arbitrary >>= genBlockHeader
+
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo

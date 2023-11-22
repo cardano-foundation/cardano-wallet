@@ -19,13 +19,13 @@ module Cardano.Wallet.Primitive.SyncProgress
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , interpretQuery
     , slotToRelTime
-    )
-import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..)
     )
 import Control.DeepSeq
     ( NFData (..)

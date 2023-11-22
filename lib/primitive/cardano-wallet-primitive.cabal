@@ -99,6 +99,7 @@ library
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
+    Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.Block
@@ -174,6 +175,7 @@ test-suite test
     , containers
     , delta-store
     , delta-types
+    , deepseq
     , filepath
     , fmt
     , generic-arbitrary
@@ -202,6 +204,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.SlottingSpec
+    Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
     Cardano.Wallet.Primitive.Types.BlockSummarySpec
     Cardano.Wallet.Primitive.Types.CoinSpec
