@@ -190,6 +190,13 @@ steps:
     agents:
       system: ${macos}
 
+  - label: 'Run unit tests (macOS, arm64)'
+    depends_on: macos-nix
+    key: macos-build-tests-arm64
+    command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
+    agents:
+      system: ${macos}
+
   - label: 'Build package (macOS, x86_64)'
     key: macos-package
     depends_on: macos-nix
