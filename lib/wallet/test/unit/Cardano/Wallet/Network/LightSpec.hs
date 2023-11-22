@@ -88,7 +88,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE

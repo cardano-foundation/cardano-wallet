@@ -246,7 +246,6 @@ library
     Cardano.Wallet.Balance.Migration.Selection
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
-    Cardano.Wallet.Checkpoints.Policy
     Cardano.Wallet.CLI
     Cardano.Wallet.Compat
     Cardano.Wallet.DB

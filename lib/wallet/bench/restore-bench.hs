@@ -366,9 +366,9 @@ import UnliftIO.Exception
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
-import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Sqlite
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics

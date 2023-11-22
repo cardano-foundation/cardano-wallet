@@ -5,7 +5,7 @@ module Cardano.Wallet.Checkpoints.PolicySpec
 
 import Prelude
 
-import Cardano.Wallet.Checkpoints.Policy
+import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
     ( BlockHeight
     , CheckpointPolicy
     , nextCheckpoint
@@ -30,7 +30,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Data.Set as Set
 
 spec :: Spec
