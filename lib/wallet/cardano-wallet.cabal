@@ -96,6 +96,7 @@ library
     , cardano-strict-containers
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -293,7 +294,6 @@ library
     Cardano.Wallet.Delegation.Properties
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
-    Cardano.Wallet.Network
     Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Pools
@@ -401,6 +401,7 @@ library cardano-wallet-api-http
     , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -734,6 +735,7 @@ test-suite unit
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -990,6 +992,7 @@ benchmark restore
     , cardano-wallet-bench
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , containers
     , contra-tracer
@@ -1061,6 +1064,7 @@ benchmark db
     , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-bench
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -1100,6 +1104,7 @@ benchmark api
     , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-bench
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , containers

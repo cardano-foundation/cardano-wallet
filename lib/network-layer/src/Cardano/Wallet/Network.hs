@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -47,8 +48,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
-import Cardano.Pool.Types
-    ( StakePoolsSummary
+import Cardano.Slotting.Slot
+    ( SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -57,13 +58,11 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Block
     ( Block
-    , BlockHeader (..)
+    , BlockHeader
     , ChainPoint (..)
-    , ProtocolParameters
-    , SlotNo (..)
-    , SlottingParameters (..)
+    , slotNo
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( LightSummary
@@ -74,8 +73,17 @@ import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
+import Cardano.Wallet.Primitive.Types.ProtocolParameters
+    ( ProtocolParameters
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
+    ( SlottingParameters
+    )
+import Cardano.Wallet.Primitive.Types.StakePoolSummary
+    ( StakePoolsSummary
     )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx

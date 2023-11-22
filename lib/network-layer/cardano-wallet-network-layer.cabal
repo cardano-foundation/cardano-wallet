@@ -1,39 +1,65 @@
-cabal-version:      3.4
-name:               cardano-wallet-network-layer
-version:            0.1.0.0
-synopsis:           Node communication layer functionality.
+cabal-version:   3.4
+name:            cardano-wallet-network-layer
+version:         0.1.0.0
+synopsis:        Node communication layer functionality.
+
 -- description:
-homepage:           https://github.com/cardano-foundation/cardano-wallet
-license:            Apache-2.0
-license-file:       LICENSE
-author:             Cardano Foundation (High Assurance Lab)
-maintainer:         hal@cardanofoundation.org
+homepage:        https://github.com/cardano-foundation/cardano-wallet
+license:         Apache-2.0
+license-file:    LICENSE
+author:          Cardano Foundation (High Assurance Lab)
+maintainer:      hal@cardanofoundation.org
+
 -- copyright:
-category:           Network
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
+category:        Network
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+  ghc-options: -Wall
 
 library
-    import:           warnings
-    exposed-modules:  MyLib
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    base ^>=4.14.3.0
-    hs-source-dirs:   src
-    default-language: Haskell2010
+  import:           warnings
+  exposed-modules:  Cardano.Wallet.Network
 
-test-suite cardano-wallet-network-layer-test
-    import:           warnings
-    default-language: Haskell2010
-    -- other-modules:
-    -- other-extensions:
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Main.hs
-    build-depends:
-        base ^>=4.14.3.0,
-        cardano-wallet-network-layer
+  -- other-modules:
+  -- other-extensions:
+  build-depends:
+    , base                         ^>=4.14.3.0
+    , bytestring
+    , cardano-api
+    , cardano-balance-tx:internal
+    , cardano-ledger-core
+    , cardano-slotting
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cborg
+    , containers
+    , contra-tracer
+    , fmt
+    , generics-sop
+    , io-classes
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , memory
+    , network-mux
+    , nothunks
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , ouroboros-network-api
+    , ouroboros-network-framework
+    , ouroboros-network-protocols
+    , safe
+    , strict-stm
+    , text
+    , text-class
+    , time
+    , transformers
+    , typed-protocols
+    , unliftio
+
+  hs-source-dirs:   src
+  default-language: Haskell2010

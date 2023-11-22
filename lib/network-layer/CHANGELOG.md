@@ -1,5 +1,5 @@
-# Revision history for node-communication
+# Revision history for cardano-wallet-network-layer
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.1.0.0 -- 2023-11-23
 
-* First version. Released on an unsuspecting world.
+* First version. Extracted from wallet lib
