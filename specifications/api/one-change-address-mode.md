@@ -17,7 +17,7 @@ Any excess funds will be sent back to a *change address*
 which belongs to the wallet.
 
 By default, the Shelley-, Shared-, and Byron-style wallets
-create new a change address for every new transaction
+create a new change address for every new transaction
 in order to enhance privacy. However, when the "one change address mode" is enabled, a single, fixed address will be used for every change output.
 This reduces the number of addresses that the wallet creates,
 but makes it easier for outsiders to track which funds this wallet owns.

@@ -145,8 +145,8 @@ mkSharedStateFromRootXPrv
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-mkSharedStateFromRootXPrv kF (RootCredentials rootXPrv pwd) accIx mode =
-    mkSharedStateFromAccountXPub kF accXPub accIx mode
+mkSharedStateFromRootXPrv kF (RootCredentials rootXPrv pwd) accIx =
+    mkSharedStateFromAccountXPub kF accXPub accIx
   where
     accXPub = publicKey kF $ deriveAccountPrivateKey pwd rootXPrv accIx
 
