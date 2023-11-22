@@ -46,8 +46,10 @@ import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory
     )
 import Cardano.Wallet.Primitive.Types
+    ( SortOrder
+    )
+import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
-    , SortOrder
     )
 import Data.Store
     ( Query (..)

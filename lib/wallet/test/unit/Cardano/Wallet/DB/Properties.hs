@@ -47,7 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , WalletId (..)
     , WithOrigin (..)
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -126,6 +125,7 @@ import Test.QuickCheck.Monadic
     , run
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.List as L
 
 -- | How to boot a fresh database.
@@ -191,7 +191,11 @@ properties withBootDBLayer = describe "DB.Properties" $ do
                 (\db _ -> readTxHistory_ db)
                 ( let sort' =
                         GenTxHistory
-                            . filterTxHistory Nothing Descending wholeRange Nothing
+                            . filterTxHistory
+                                Nothing
+                                Descending
+                                Range.everything
+                                Nothing
                             . unGenTxHistory
                   in  Identity . sort' . fold
                 )
@@ -209,7 +213,14 @@ readTxHistory_
 readTxHistory_ DBLayer {..} =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
-            (readTransactions Nothing Descending wholeRange Nothing Nothing Nothing)
+            (readTransactions
+                Nothing
+                Descending
+                Range.everything
+                Nothing
+                Nothing
+                Nothing
+            )
 
 putTxHistory_
     :: DBLayer m s
@@ -390,7 +401,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) =
                             <$> readTransactions
                                 Nothing
                                 Descending
-                                wholeRange
+                                Range.everything
                                 Nothing
                                 Nothing
                                 Nothing

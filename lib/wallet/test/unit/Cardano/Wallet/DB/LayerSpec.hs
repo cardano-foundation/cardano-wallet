@@ -178,7 +178,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , GenesisParameters (..)
-    , Range
     , SlotNo (..)
     , SortOrder (..)
     , StartTime (..)
@@ -186,7 +185,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WithOrigin (At)
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -200,6 +198,9 @@ import Cardano.Wallet.Primitive.Types.Credentials
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
@@ -395,6 +396,7 @@ import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Info.Store as WalletInfo
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -658,7 +660,7 @@ fileModeSpec =  do
             testReopening
                 f
                 ( \db' ->
-                    readTransactions' db' Ascending wholeRange Nothing
+                    readTransactions' db' Ascending Range.everything Nothing
                 )
                 testTxs -- expected after opening db
 
@@ -668,7 +670,7 @@ fileModeSpec =  do
             testReopening
                 f
                 ( \db' ->
-                    readTransactions' db' Descending wholeRange Nothing
+                    readTransactions' db' Descending Range.everything Nothing
                 )
                 (reverse testTxs) -- expected after opening db
 
@@ -1367,7 +1369,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
             @TestState dbName
         $ \DBLayer{..} -> atomically $ do
             readTransactions
-                Nothing Descending wholeRange Nothing Nothing Nothing
+                Nothing Descending Range.everything Nothing Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
     length (filter isMsgManualMigration logs) `shouldBe` 1
@@ -1691,7 +1693,7 @@ getAvailableBalance :: DBLayer IO s -> IO Natural
 getAvailableBalance DBLayer{..} = do
     cp <- atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending Range.everything
                 (Just Pending) Nothing Nothing
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
@@ -1699,6 +1701,6 @@ getAvailableBalance DBLayer{..} = do
 getTxsInLedger :: DBLayer IO s -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending Range.everything
                 (Just InLedger) Nothing Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend

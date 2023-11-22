@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.Types
     , ChainPoint
     , DelegationCertificate (..)
     , GenesisParameters (..)
-    , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
@@ -95,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , chainPointFromBlockHeader
     , dlgCertPoolId
-    , isWithinRange
     , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -106,6 +104,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -162,6 +163,7 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -537,7 +539,7 @@ filterTxHistory
 filterTxHistory minWithdrawal order range address =
     filter (filterAddress address)
     . filter (filterWithdrawals minWithdrawal)
-    . filter ((`isWithinRange` range) . (slotNo :: TxMeta -> SlotNo) . snd)
+    . filter ((`Range.isWithin` range) . (slotNo :: TxMeta -> SlotNo) . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)

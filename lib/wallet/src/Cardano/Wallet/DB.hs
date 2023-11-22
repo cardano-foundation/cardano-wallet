@@ -76,7 +76,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
     , GenesisParameters
-    , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
@@ -91,6 +90,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx

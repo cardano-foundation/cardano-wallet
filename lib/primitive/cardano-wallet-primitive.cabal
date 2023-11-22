@@ -207,6 +207,7 @@ test-suite test
     Cardano.Wallet.Primitive.Types.CoinSpec
     Cardano.Wallet.Primitive.Types.HashSpec
     Cardano.Wallet.Primitive.Types.PoolIdSpec
+    Cardano.Wallet.Primitive.Types.RangeSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec
     Cardano.Wallet.Primitive.Types.TokenPolicySpec

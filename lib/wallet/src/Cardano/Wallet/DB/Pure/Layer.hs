@@ -41,7 +41,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..)
     , WalletId
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
@@ -68,6 +67,8 @@ import UnliftIO.Exception
     ( Exception
     , throwIO
     )
+
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -129,7 +130,7 @@ withBootDBLayer timeInterpreter wid params k = do
                         timeInterpreter
                         Nothing
                         Descending
-                        wholeRange
+                        Range.everything
                         Nothing
                         Nothing
                 let txPresent (TransactionInfo{..}) = txInfoId == tid
