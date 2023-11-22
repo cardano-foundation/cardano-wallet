@@ -99,13 +99,14 @@ Use the [Nix][] build if:
 Follow the instructions on the [Nix][] page to install and configure Nix.
 
 ```admonish warning
-Make sure that 
-As of 2022-12, the following information is out of date
-as https://hydra.iohk.io/ has been decomissioned.
+Make sure that you have set up the **binary cache for Haskell.nix**,
+[according to the instructions][haskell-nix-cache],
+or you **will** wait a long time building multiple copies of GHC.
+If Nix builds GHC, this is an indication that the cache
+has not been set up correctly.
 ```
 
-**Note**: It must be stressed that, if you see GHC being built by Nix,
-then you don't have the IOHK Hydra binary cache configured correctly.
+  [haskell-nix-cache]: https://input-output-hk.github.io/haskell.nix/tutorials/getting-started#setting-up-the-binary-cache
 
 To build the wallet for your current platform:
 
@@ -131,10 +132,10 @@ or more comfortably, for pre-configured networks (`mainnet`, `testnet`, ...):
 > nix run .#mainnet/wallet -- <optional additional cardano wallet arguments>
 ```
 
-You may run the integration tests with:
+You can run the integration tests with:
 
 ```console
-nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
+> nix build -L .#ci.x86_64-linux.tests.run.integration
 ```
 
 #### Cross-compiling with Nix
@@ -142,7 +143,7 @@ nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
 To build the wallet for Windows, from **Linux**:
 
 ```
-nix build .#hydraJobs.linux.windows.cardano-wallet
+> nix build .#ci.artifacts.win64.release
 ```
 
 #### Building straight from GitHub
