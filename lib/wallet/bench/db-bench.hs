@@ -102,6 +102,9 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     )
+import Cardano.Wallet.Address.Discovery
+    ( ChangeAddressMode (..)
+    )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..)
     , mkRndState
@@ -466,7 +469,7 @@ mkSeqState numAddrs _ = s
     }
   where
     s = mkSeqStateFromAccountXPub @'Mainnet
-        ourAccount Nothing purposeCIP1852 defaultAddressPoolGap
+        ourAccount Nothing purposeCIP1852 defaultAddressPoolGap IncreasingChangeAddresses
     fillPool :: SeqAddressPool r ShelleyKey -> SeqAddressPool r ShelleyKey
     fillPool (SeqAddressPool pool0) = SeqAddressPool $
         foldl' (\p ix -> AddressPool.update (gen ix) p) pool0 [0 .. numAddrs-1]
@@ -934,6 +937,7 @@ testCpByron = snd $ initWallet block0 initDummyRndState
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
 initDummySeqState = mkSeqStateFromRootXPrv
     ShelleyKeyS (RootCredentials xprv mempty) purposeCIP1852 defaultAddressPoolGap
+    IncreasingChangeAddresses
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15

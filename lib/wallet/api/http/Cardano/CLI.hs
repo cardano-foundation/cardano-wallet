@@ -186,6 +186,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ApiWallet
+    , ApiWalletPutDataExtended (..)
     , Base (Base16)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (ByronWalletPutPassphraseData)
@@ -194,7 +195,6 @@ import Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
-    , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , WalletPutPassphraseMnemonicData (WalletPutPassphraseMnemonicData)
     , WalletPutPassphraseOldPassphraseData (WalletPutPassphraseOldPassphraseData)
@@ -654,6 +654,7 @@ cmdWalletCreateFromMnemonic mkClient =
                 (ApiMnemonicT <$> wSndFactor)
                 (ApiT wName)
                 (ApiT wPwd)
+                Nothing
 
 -- | Arguments for 'wallet create from-public-key' command
 data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
@@ -737,7 +738,7 @@ cmdWalletUpdateName mkClient =
     exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
-            (WalletPutData $ Just (ApiT wName))
+            (ApiWalletPutDataExtended (Just (ApiT wName)) Nothing)
 
 data UpdatePassphraseCredential = MnemonicCredentials | OldPasswordCredentials
     deriving Eq

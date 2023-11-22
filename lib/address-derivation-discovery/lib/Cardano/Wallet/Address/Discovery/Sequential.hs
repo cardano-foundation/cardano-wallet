@@ -99,7 +99,8 @@ import Cardano.Wallet.Address.Derivation
     , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
+    ( ChangeAddressMode (..)
+    , CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
@@ -109,6 +110,7 @@ import Cardano.Wallet.Address.Discovery
     , dropLowerPendingIxs
     , emptyPendingIxs
     , nextChangeIndex
+    , pendingIxsFromList
     , pendingIxsToList
     )
 import Cardano.Wallet.Primitive.NetworkId
@@ -369,6 +371,8 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
+    , changeAddressMode :: ChangeAddressMode
+        -- ^ How to generate change addresses.
     }
     deriving stock (Generic)
 
@@ -395,9 +399,9 @@ instance
     , Eq (KeyFingerprint "payment" k)
     ) => Eq (SeqState n k)
   where
-    SeqState ai ae a1 a2 a3 a4 a5 == SeqState bi be b1 b2 b3 b4 b5
+    SeqState ai ae a1 a2 a3 a4 a5 a6 == SeqState bi be b1 b2 b3 b4 b5 b6
         = and
-            [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5
+            [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, a6 == b6
             , ae `match` be, ai `match` bi
             ]
       where
@@ -448,8 +452,9 @@ mkSeqStateFromAccountXPub
     -> Maybe (k 'PolicyK XPub)
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
+    -> ChangeAddressMode
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub policyXPubM purpose g = SeqState
+mkSeqStateFromAccountXPub accXPub policyXPubM purpose g change = SeqState
     { internalPool = newSeqAddressPool @n accXPub g
     , externalPool = newSeqAddressPool @n accXPub g
     , accountXPub = accXPub
@@ -457,6 +462,7 @@ mkSeqStateFromAccountXPub accXPub policyXPubM purpose g = SeqState
     , rewardAccountKey = rewardXPub
     , pendingChangeIxs = emptyPendingIxs
     , derivationPrefix = DerivationPrefix ( purpose, coinTypeAda, minBound )
+    , changeAddressMode = change
     }
   where
     -- This matches the reward address for "normal wallets". The accountXPub
@@ -536,8 +542,15 @@ instance
 
     genChange mkAddress st = (addr, st{pendingChangeIxs=pending'})
       where
+        ixMin = minBound @(Index 'Soft 'CredFromKeyK)
+        updatePending pendingIxs =
+            pendingIxsFromList $ L.nub $ (pendingIxsToList pendingIxs) <> [ixMin]
         (ix, pending') =
-            nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
+            case changeAddressMode st of
+                SingleChangeAddress ->
+                    ( ixMin, updatePending (pendingChangeIxs st) )
+                IncreasingChangeAddresses ->
+                    nextChangeIndex (getPool $ internalPool st) (pendingChangeIxs st)
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
         addr = mkAddress addressXPub (rewardAccountKey st)
 
@@ -576,7 +589,7 @@ isOwned st (rootPrv, pwd) addrRaw =
             <$> AddressPool.lookup addr pool
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _ _ _ _) a1 a2 =
+    compareDiscovery (SeqState !s1 !s2 _ _ _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT

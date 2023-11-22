@@ -260,6 +260,7 @@ library
     Cardano.Wallet.DB.Sqlite.Migration.SchemaVersion1
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Types
+    Cardano.Wallet.DB.Store.Checkpoints.Migration
     Cardano.Wallet.DB.Store.Checkpoints.Store
     Cardano.Wallet.DB.Store.Delegations.Layer
     Cardano.Wallet.DB.Store.Delegations.Migration
@@ -886,6 +887,7 @@ test-suite unit
     Cardano.Wallet.DB.Sqlite.Migration.NewSpec
     Cardano.Wallet.DB.Sqlite.TypesSpec
     Cardano.Wallet.DB.StateMachine
+    Cardano.Wallet.DB.Store.Checkpoints.MigrationSpec
     Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     Cardano.Wallet.DB.Store.Delegations.MigrationSpec
     Cardano.Wallet.DB.Store.Delegations.StoreSpec

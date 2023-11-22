@@ -90,6 +90,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , putRandomAddress
     , putRandomAddresses
     , putWallet
+    , putWalletByron
     , putWalletPassphrase
     , quitStakePool
     , selectCoins
@@ -247,7 +248,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery
+    ( ChangeAddressMode (..)
+    , CompareDiscovery
     , GenChange (ArgGenChange)
     , GetAccount
     , GetPurpose (..)
@@ -429,6 +431,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletPutData (..)
+    , ApiWalletPutDataExtended (..)
     , ApiWalletSignData (..)
     , ApiWalletUtxoSnapshot (..)
     , ApiWalletUtxoSnapshotEntry (..)
@@ -448,7 +452,6 @@ import Cardano.Wallet.Api.Types
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
-    , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , XPubOrSelf (..)
     , getApiMnemonicT
@@ -1088,7 +1091,8 @@ postShelleyWallet
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
-            (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP) purposeCIP1852 g
+            (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP)
+            purposeCIP1852 g changeAddrMode
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s genesisParams wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
@@ -1109,6 +1113,9 @@ postShelleyWallet ctx generateKey body = do
     wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     genesisParams = ctx ^. #netParams
+    changeAddrMode = case body ^. #oneChangeAddressMode of
+        Just True -> SingleChangeAddress
+        _         -> IncreasingChangeAddresses
 
 postAccountWallet
     :: forall ctx s k n w.
@@ -1130,7 +1137,7 @@ postAccountWallet
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub
-            (liftKey accXPub) Nothing purposeCIP1852 g
+            (liftKey accXPub) Nothing purposeCIP1852 g IncreasingChangeAddresses
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s genesisParams wid wName state)
         coworker
@@ -1276,7 +1283,8 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromRootXPrv kF
-            (RootCredentials rootXPrv pwdP) ix' g pTemplate dTemplateM
+            (RootCredentials rootXPrv pwdP) ix' changeAddrMode
+            g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
@@ -1315,6 +1323,9 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
     genesisParams = ctx ^. #netParams
+    changeAddrMode = case body ^. #oneChangeAddressMode of
+        Just True -> SingleChangeAddress
+        _         -> IncreasingChangeAddresses
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
@@ -1346,7 +1357,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromAccountXPub kF
-            (liftKey accXPub) acctIx g pTemplate dTemplateM
+            (liftKey accXPub) acctIx IncreasingChangeAddresses g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
@@ -1837,13 +1848,33 @@ listWallets ctx mkApiWallet = do
         . runHandler
         . getWallet ctx mkApiWallet
 
-putWallet
-    :: forall ctx s apiWallet
-     . ctx ~ ApiLayer s
+putWalletByron
+    :: forall ctx s apiWallet . ctx ~ ApiLayer s
     => ctx
     -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
-    -> WalletPutData
+    -> ApiWalletPutData
+    -> Handler apiWallet
+putWalletByron ctx mkApiWallet (ApiT wid) body = do
+    case body ^. #name of
+        Nothing ->
+            return ()
+        Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            handler $ W.updateWallet wrk (modify wName)
+    fst <$> getWallet ctx mkApiWallet (ApiT wid)
+
+modify :: W.WalletName -> WalletMetadata -> WalletMetadata
+modify wName meta = meta { name = wName }
+
+putWallet
+    :: forall ctx s apiWallet
+     . ( WalletFlavor s
+       , ctx ~ ApiLayer s
+       )
+    => ctx
+    -> MkApiWallet ctx s apiWallet
+    -> ApiT WalletId
+    -> ApiWalletPutDataExtended
     -> Handler apiWallet
 putWallet ctx mkApiWallet (ApiT wid) body = do
     case body ^. #name of
@@ -1851,10 +1882,26 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
             return ()
         Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             handler $ W.updateWallet wrk (modify wName)
+    case walletFlavor @s of
+        ShelleyWallet ->
+            case body ^. #oneChangeAddressMode of
+                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+                    handler $ W.setChangeAddressMode wrk (toOneAddrMode modeOnOff)
+                _ ->
+                    return ()
+        SharedWallet ->
+            case body ^. #oneChangeAddressMode of
+                Just modeOnOff -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+                    handler $ W.setChangeAddressModeShared wrk (toOneAddrMode modeOnOff)
+                _ ->
+                    return ()
+        _ ->
+            return ()
     fst <$> getWallet ctx mkApiWallet (ApiT wid)
   where
-    modify :: W.WalletName -> WalletMetadata -> WalletMetadata
-    modify wName meta = meta { name = wName }
+    toOneAddrMode = \case
+        True  -> SingleChangeAddress
+        False -> IncreasingChangeAddresses
 
 putWalletPassphrase
     :: forall ctx s k .

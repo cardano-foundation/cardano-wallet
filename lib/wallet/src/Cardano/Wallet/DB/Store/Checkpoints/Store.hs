@@ -448,6 +448,7 @@ instance
             , seqStatePolicyXPub = serializeXPub <$> Seq.policyXPub st
             , seqStateRewardXPub = serializeXPub $ Seq.rewardAccountKey st
             , seqStateDerivationPrefix = Seq.derivationPrefix st
+            , seqStateChangeAddrMode = Seq.changeAddressMode st
             }
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
@@ -460,7 +461,7 @@ instance
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes policyBytes rewardBytes prefix =
+        let SeqState _ eGap iGap accountBytes policyBytes rewardBytes prefix changeAddrMode =
                 entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
@@ -476,6 +477,7 @@ instance
             policyXPub
             rewardXPub
             prefix
+            changeAddrMode
 
     loadDiscoveries wid sl =
         SeqDiscoveries
@@ -548,8 +550,8 @@ instance
 
     insertPrologue wid (SharedPrologue st) = do
         let Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM
-                gap readiness = st
-        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM
+                gap modeOnOff readiness = st
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM modeOnOff
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
             insertCosigner (cosigners $ fromJust dTemplateM) Delegation
@@ -559,7 +561,7 @@ instance
                 deleteWhere [SharedStatePendingWalletId ==. wid]
                 dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
-        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM =
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM mode =
             do
                 deleteWhere [SharedStateWalletId ==. wid]
                 insert_ $ SharedState
@@ -570,6 +572,7 @@ instance
                     , sharedStateDelegationScript = template <$> dTemplateM
                     , sharedStateRewardAccount = rewardAcctM
                     , sharedStateDerivationPrefix = prefix
+                    , sharedStateChangeAddrMode = mode
                     }
 
         insertCosigner cs cred = do
@@ -604,7 +607,7 @@ instance
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
-        let SharedState _ accountBytes gap pScript dScriptM rewardAcctM prefix =
+        let SharedState _ accountBytes gap pScript dScriptM rewardAcctM prefix modeOnOff =
                 entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
         pCosigners <- lift $ selectCosigners @key wid Payment
@@ -617,7 +620,7 @@ instance
                 ScriptTemplate (Map.fromList $ prepareKeys dCosigners)
                 <$> dScriptM
             mkSharedState =
-                Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM gap
+                Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM gap modeOnOff
         pendingIxs <- lift selectSharedStatePendingIxs
         prologue <- lift $ multisigPoolAbsent wid <&> \case
             True ->  mkSharedState Shared.Pending

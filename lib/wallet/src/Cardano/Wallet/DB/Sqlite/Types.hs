@@ -44,6 +44,9 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Address.Derivation
     ( Role (..)
     )
+import Cardano.Wallet.Address.Discovery
+    ( ChangeAddressMode (..)
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -873,3 +876,24 @@ instance PersistField Spent where
 
 instance PersistFieldSql Spent where
     sqlType _ = sqlType (Proxy @(Maybe Word64))
+
+----------------------------------------------------------------------------
+-- ChangeAddressMode
+
+instance PersistFieldSql ChangeAddressMode where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField ChangeAddressMode where
+    toPersistValue = toPersistValue . textFromChangeAddressMode
+    fromPersistValue = changeAddressModeFromText <=< fromPersistValue
+
+changeAddressModeFromText :: Text -> Either Text ChangeAddressMode
+changeAddressModeFromText = \case
+    "single" -> Right SingleChangeAddress
+    "increasing" -> Right IncreasingChangeAddresses
+    other -> Left $ "Invalid ChangeAddressMode: " <> other
+
+textFromChangeAddressMode :: ChangeAddressMode -> Text
+textFromChangeAddressMode = \case
+    SingleChangeAddress -> "single"
+    IncreasingChangeAddresses -> "increasing"

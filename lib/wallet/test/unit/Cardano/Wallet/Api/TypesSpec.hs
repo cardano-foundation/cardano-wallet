@@ -234,6 +234,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletPutData (..)
+    , ApiWalletPutDataExtended (..)
     , ApiWalletSignData (..)
     , ApiWalletUtxoSnapshot (..)
     , ApiWalletUtxoSnapshotEntry (..)
@@ -258,7 +260,6 @@ import Cardano.Wallet.Api.Types
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
-    , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , WalletPutPassphraseMnemonicData (..)
     , WalletPutPassphraseOldPassphraseData (..)
@@ -818,7 +819,8 @@ spec = do
         jsonTest @TxMetadataWithSchema
         jsonTest @WalletOrAccountPostData
         jsonTest @WalletPostData
-        jsonTest @WalletPutData
+        jsonTest @ApiWalletPutData
+        jsonTest @ApiWalletPutDataExtended
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
@@ -1518,7 +1520,11 @@ instance Arbitrary (ByronWalletPostData '[12,15,18,21,24]) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary WalletPutData where
+instance Arbitrary ApiWalletPutData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiWalletPutDataExtended where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -2810,8 +2816,11 @@ instance ToSchema ByronWalletFromXPrvPostData where
 instance ToSchema SomeByronWalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "SomeByronWalletPostData"
 
-instance ToSchema WalletPutData where
+instance ToSchema ApiWalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
+
+instance ToSchema ApiWalletPutDataExtended where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutDataExtended"
 
 instance ToSchema SettingsPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSettingsPutData"

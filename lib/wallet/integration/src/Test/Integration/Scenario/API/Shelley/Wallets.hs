@@ -32,7 +32,9 @@ import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiByronWallet
     , ApiNetworkInformation
+    , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiVerificationKeyShelley (..)
     , ApiWallet
@@ -52,6 +54,12 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength
     , walletNameMinLength
+    )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( TxStatus (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText
@@ -210,7 +218,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectField #delegation (`shouldBe` notDelegating [])
             , expectField #passphrase (`shouldNotBe` Nothing)
             ]
-        let wid = getFromResponse id r
+        let wid = getFromResponse Prelude.id r
         eventually "Wallet state = Ready" $ do
             rg <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wid) Default Empty
@@ -234,7 +242,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     "passphrase": "12345678910"
                     } |]
             r <- postWallet ctx payload
-            let wid = getFromResponse id r
+            let wid = getFromResponse Prelude.id r
             verify r
                 [ expectResponseCode HTTP.status201
                 , expectField
@@ -273,7 +281,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
         --send funds
-        let wDest = getFromResponse id rInit
+        let wDest = getFromResponse Prelude.id rInit
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -490,7 +498,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             rW <- postWallet ctx payload
             verify rW expectations
 
-            let w = getFromResponse id rW
+            let w = getFromResponse Prelude.id rW
             rA <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley w) Default Empty
             _ <- request @ApiWallet ctx
@@ -550,6 +558,112 @@ spec = describe "SHELLEY_WALLETS" $ do
                     } |]
             r <- postWallet' ctx headers payload
             verify r expectations
+
+    it "WALLETS_CREATE_10 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
+        let verifyAddrs nTotal nUsed addrs = do
+                liftIO (length addrs `shouldBe` nTotal)
+                let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
+                liftIO (length onlyUsed `shouldBe` nUsed)
+
+        m21 <- liftIO $ genMnemonics M21
+        let payloadCreate = Json [json| {
+                "name": "Some Wallet",
+                "mnemonic_sentence": #{m21},
+                "passphrase": #{fixturePassphrase},
+                "one_change_address_mode": true
+                } |]
+        rWal <- postWallet ctx payloadCreate
+        expectResponseCode HTTP.status201 rWal
+        let wOneChangeAddr = getFromResponse Prelude.id rWal
+
+        -- new empty wallet has 20 unused external addresses and 0 used change addresses
+        let initialTotal1 = 20
+        let initialUsed1  = 0
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs initialTotal1 initialUsed1
+
+        wFixture <- fixtureWallet ctx
+        -- new fixture wallet has 20 unused external addresses, 10 used external addresses,
+        -- and 0 used change addresses
+        let initialTotal2 = 30
+        let initialUsed2  = 10
+        listAddresses @n ctx wFixture
+            >>= verifyAddrs initialTotal2 initialUsed2
+
+        --send funds to one change address wallet
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        addrs1 <- listAddresses @n ctx wOneChangeAddr
+        let destOneChange = (head addrs1) ^. #id
+        let payloadTx amt destination = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        let realizeTx wSrc amt dest = do
+                rTx <- request @(ApiTransaction n) ctx
+                    (Link.createTransactionOld @'Shelley wSrc) Default
+                    (payloadTx amt dest)
+                expectResponseCode HTTP.status202 rTx
+                let txid = getFromResponse #id rTx
+
+                eventually "Transaction is discovered" $ do
+                    request @(ApiTransaction n) ctx
+                        (Link.getTransaction @'Shelley wOneChangeAddr (ApiTxId txid)) Default Empty
+                        >>= expectField #status (`shouldBe` ApiT InLedger)
+                    request @(ApiTransaction n) ctx
+                        (Link.getTransaction @'Shelley wFixture (ApiTxId txid)) Default Empty
+                        >>= expectField #status (`shouldBe` ApiT InLedger)
+        forM_ [10,10,10] $ \num -> realizeTx wFixture (num * minUTxOValue') destOneChange
+
+        -- the fixture wallet has 20 unused external addresses, 10 used external addresses,
+        -- and 3 used change addresses as there were three txs sent and each tx used new change
+        -- address
+        listAddresses @n ctx wFixture
+            >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
+        -- the previously empty wallet has 20 unused external addresses and 0 used change addresses
+        -- and 1 used external address as three txs choose the same address as destination address
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs (initialTotal1+1) (initialUsed1+1)
+
+        addrs2 <- listAddresses @n ctx wFixture
+        let destFixture = (head addrs2) ^. #id
+        forM_ [1,1,1,1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
+
+        -- the fixture wallet has still 20 unused external addresses, 10 used external addresses,
+        -- and 3 used change addresses as five txs sent to it used its first, already used,
+        -- address
+        listAddresses @n ctx wFixture
+            >>= verifyAddrs (initialTotal2+3) (initialUsed2+3)
+        -- the one change address wallet has 20 unused external addresses and 1 used change addresses
+        -- and 1 used external address even as it sent 5 txs outside
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs (initialTotal1+2) (initialUsed1+2)
+
+        --let's switch off one change address mode
+        let putData = Json [json| {
+                "one_change_address_mode": false
+                } |]
+        let walIdOneChangeAddr = wOneChangeAddr ^. walletId
+        rPut <- request @ApiWallet ctx
+            ("PUT", "v2/wallets" </> walIdOneChangeAddr) Default putData
+        verify rPut
+            [ expectResponseCode HTTP.status200
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                    (`shouldBe` 20)
+            , expectField walletId (`shouldBe` walIdOneChangeAddr)
+            ]
+
+        forM_ [1,1] $ \num -> realizeTx wOneChangeAddr (num * minUTxOValue') destFixture
+        -- the one change address wallet has 20 unused external addresses and 3 used change addresses
+        -- and 1 used external address
+        listAddresses @n ctx wOneChangeAddr
+            >>= verifyAddrs (initialTotal1+4) (initialUsed1+4)
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -1195,15 +1309,15 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         r <- postWallet ctx payload
         verify r [ expectResponseCode HTTP.status201 ]
-        let apiWal = getFromResponse id r
+        let apiWal = getFromResponse Prelude.id r
 
         forM_ matrix $ \(role_, index, expected) ->
             counterexample (show role_ <> "/" <> show index) $ do
-                let link = Link.getWalletKey @'Shelley (apiWal ^. id) role_ index Nothing
+                let link = Link.getWalletKey @'Shelley (apiWal ^. #id) role_ index Nothing
                 rGet <- request @ApiVerificationKeyShelley ctx link Default Empty
                 verify rGet
                     [ expectResponseCode HTTP.status200
-                    , expectField id (\k -> toJSON k `shouldBe` toJSON expected)
+                    , expectField Prelude.id (\k -> toJSON k `shouldBe` toJSON expected)
                     ]
 
     it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
@@ -1269,7 +1383,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         --           706C65617365207369676E20746869732E # "please sign this."
         --
         let dummyChainCode = BS.replicate 32 0
-        let sigBytes = BL.toStrict $ getFromResponse id rSig
+        let sigBytes = BL.toStrict $ getFromResponse Prelude.id rSig
         let sig = CC.xsignature sigBytes
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
         let msgHash = unsafeFromHexText "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
@@ -1349,21 +1463,21 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
-    it "BYRON_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
+    it "BYRON_WALLETS_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
+    it "BYRON_WALLETS_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         r <- request @ApiWallet ctx
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_LIST_02,03 - \
+    it "BYRON_WALLETS_LIST_02,03 - \
         \Byron wallets listed only via Byron endpoints + \
         \Shelley wallets listed only via new endpoints" $ \ctx -> runResourceT $ do
         m1 <- liftIO $ genMnemonics M12
@@ -1406,7 +1520,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley3")
             ]
 
-    it "BYRON_LIST_04, DELETE_01 - \
+    it "BYRON_WALLETS_LIST_04, DELETE_01 - \
         \Deleted wallets cannot be listed" $ \ctx -> runResourceT $ do
         m1 <- liftIO $ genMnemonics M12
         m2 <- liftIO $ genMnemonics M12
@@ -1448,19 +1562,19 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
             ]
 
-    it "BYRON_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> runResourceT $ do
+    it "BYRON_WALLETS_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
+    it "BYRON_WALLETS_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> runResourceT $ do
+    it "WALLETS_NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> runResourceT $ do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx

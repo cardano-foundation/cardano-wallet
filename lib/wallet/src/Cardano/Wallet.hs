@@ -113,6 +113,8 @@ module Cardano.Wallet
     , putDelegationCertificate
     , readDelegation
     , getCurrentEpochSlotting
+    , setChangeAddressMode
+    , setChangeAddressModeShared
 
     -- * Shared Wallet
     , updateCosigner
@@ -316,7 +318,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , deriveAccountPrivateKeyShelley
     )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
+    ( ChangeAddressMode (..)
+    , CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
     , GetPurpose (..)
@@ -1011,6 +1014,7 @@ createIcarusWallet
     credentials = do
         let g = defaultAddressPoolGap
             s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
+                IncreasingChangeAddresses
             (hist, cp) = initWallet block0 s
         now <- getCurrentTime
         let meta =
@@ -3332,6 +3336,30 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
     pure policyXPub
   where
     db = ctx ^. dbLayer
+
+setChangeAddressMode
+    :: forall s n
+     . s ~ SeqState n ShelleyKey
+    => WalletLayer IO s
+    -> ChangeAddressMode
+    -> IO ()
+setChangeAddressMode ctx mode =
+    onWalletState ctx $ update $ \s ->
+        let (SeqPrologue seqState) = WS.prologue s
+            seqState' = seqState & #changeAddressMode .~ mode
+        in  [ReplacePrologue $ SeqPrologue seqState']
+
+setChangeAddressModeShared
+    :: forall s n
+     . s ~ SharedState n SharedKey
+    => WalletLayer IO s
+    -> ChangeAddressMode
+    -> IO ()
+setChangeAddressModeShared ctx mode =
+    onWalletState ctx $ update $ \s ->
+        let (SharedPrologue sharedState) = WS.prologue s
+            sharedState' = sharedState & #changeAddressMode .~ mode
+        in  [ReplacePrologue $ SharedPrologue sharedState']
 
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex

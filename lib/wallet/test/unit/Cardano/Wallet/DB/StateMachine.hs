@@ -76,7 +76,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey
     )
 import Cardano.Wallet.Address.Discovery
-    ( IsOurs
+    ( ChangeAddressMode
+    , IsOurs
     , PendingIxs
     )
 import Cardano.Wallet.Address.Discovery.Random
@@ -795,6 +796,9 @@ instance ToExpr a => ToExpr (Readiness a) where
     toExpr = genericToExpr
 
 instance ToExpr AddressPoolGap where
+    toExpr = genericToExpr
+
+instance ToExpr ChangeAddressMode where
     toExpr = genericToExpr
 
 instance ToExpr ScriptTemplate where

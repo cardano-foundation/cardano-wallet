@@ -38,6 +38,7 @@ module Cardano.Wallet.DB.Layer
 
     -- * Testing
     , withTestLoadDBLayerFromFile
+    , readWalletId
     ) where
 
 import Prelude
@@ -55,6 +56,8 @@ import Cardano.DB.Sqlite
     , SqliteContext (..)
     , matchWrongVersionError
     , newInMemorySqliteContext
+    , noAutoMigrations
+    , noManualMigration
     , runManualOldMigrations
     , withDBHandle
     , withSqliteContextFile
@@ -69,7 +72,6 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.DB.Sqlite.Migration.Old
     ( ManualMigration (..)
     , MigrationError
-    , noManualMigration
     )
 import Cardano.Slotting.Slot
     ( WithOrigin (..)
@@ -518,9 +520,6 @@ migrateDBFile tr walletF defaultFieldValues fp = runExceptT $ do
             noManualMigration
             (migrateManually trMigrations $ keyOfWallet walletF)
             defaultFieldValues
-
-noAutoMigrations :: Sqlite.Migration
-noAutoMigrations = pure ()
 
 throwMigrationError :: Either MigrationError a -> IO a
 throwMigrationError = either throwIO pure

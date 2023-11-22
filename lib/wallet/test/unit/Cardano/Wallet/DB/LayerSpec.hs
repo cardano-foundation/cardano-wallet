@@ -33,7 +33,8 @@
 -- >>> quickCheck $ prop_sequential db
 
 module Cardano.Wallet.DB.LayerSpec
-    ( spec, withinCopiedFile
+    ( spec
+    , withinCopiedFile
     ) where
 
 import Prelude
@@ -91,7 +92,8 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , generateKeyFromSeed
     )
 import Cardano.Wallet.Address.Discovery
-    ( KnownAddresses (..)
+    ( ChangeAddressMode (..)
+    , KnownAddresses (..)
     )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..)
@@ -1609,7 +1611,7 @@ testCp = snd $ initWallet block0 initDummyState
     initDummyState :: TestState
     initDummyState = mkSeqStateFromRootXPrv
         ShelleyKeyS (RootCredentials xprv mempty)
-        purposeCIP1852 defaultAddressPoolGap
+        purposeCIP1852 defaultAddressPoolGap IncreasingChangeAddresses
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty

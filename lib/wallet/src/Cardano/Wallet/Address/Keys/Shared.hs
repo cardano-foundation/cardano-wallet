@@ -56,7 +56,8 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     , replaceCosignersWithVerKeys
     )
 import Cardano.Wallet.Address.Discovery
-    ( coinTypeAda
+    ( ChangeAddressMode
+    , coinTypeAda
     , emptyPendingIxs
     )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -116,11 +117,12 @@ mkSharedStateFromAccountXPub
     => KeyFlavorS k
     -> k 'AccountK XPub
     -> Index 'Hardened 'AccountK
+    -> ChangeAddressMode
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-mkSharedStateFromAccountXPub kF accXPub accIx gap pTemplate dTemplateM =
+mkSharedStateFromAccountXPub kF accXPub accIx mode gap pTemplate dTemplateM =
     activate kF $ SharedState
         { derivationPrefix = DerivationPrefix (purposeCIP1854, coinTypeAda, accIx)
         , accountXPub = accXPub
@@ -128,6 +130,7 @@ mkSharedStateFromAccountXPub kF accXPub accIx gap pTemplate dTemplateM =
         , delegationTemplate = dTemplateM
         , rewardAccountKey = Nothing
         , poolGap = gap
+        , changeAddressMode = mode
         , ready = Pending
         }
 
@@ -137,6 +140,7 @@ mkSharedStateFromRootXPrv
     => KeyFlavorS k
     -> ClearCredentials k
     -> Index 'Hardened 'AccountK
+    -> ChangeAddressMode
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
