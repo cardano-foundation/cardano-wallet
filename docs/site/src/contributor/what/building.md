@@ -8,10 +8,11 @@
 | ----------------------------- | --------------------- | --------------- |
 | [ghc][]                       | == 9.2.8              | Required        |
 | [cabal][]                     | >= 3.4.0.0            | Required        |
-| [Nix](../contributing/nix.md) | >= 2.5.1              | Optional        |
+| [Nix][]                       | >= 2.5.1              | Optional        |
 
 [cabal]: https://www.haskell.org/cabal/download.html
 [ghc]: https://www.haskell.org/downloads/
+[nix]: https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html
 
 ## Cabal
 
@@ -86,7 +87,7 @@
 
 ## Nix
 
-Use the [Nix](../contributing/nix.md) build if:
+Use the [Nix][] build if:
 
 1. You don't have Haskell development tools installed, but you do have
    Nix installed.
@@ -95,10 +96,10 @@ Use the [Nix](../contributing/nix.md) build if:
 3. You would like to quickly grab a build of another branch from the
    Hydra cache, without needing to build it yourself.
 
-Follow the instructions on the [Nix](../contributing/nix.md)
-page to install _and configure_ Nix.
+Follow the instructions on the [Nix][] page to install and configure Nix.
 
 ```admonish warning
+Make sure that 
 As of 2022-12, the following information is out of date
 as https://hydra.iohk.io/ has been decomissioned.
 ```

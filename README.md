@@ -99,11 +99,11 @@ We provide executables as part of our [releases](https://github.com/cardano-foun
 
 ### Building from source
 
-See [Building](https://cardano-foundation.github.io/cardano-wallet/developers/Building)
+See [Building](https://cardano-foundation.github.io/cardano-wallet/contributor/what/building.html)
 
 ### Testing
 
-See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributing/Testing)
+See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributor/how/testing.html)
 
 ## History
 
