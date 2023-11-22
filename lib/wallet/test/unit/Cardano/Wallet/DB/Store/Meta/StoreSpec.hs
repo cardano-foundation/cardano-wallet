@@ -49,9 +49,11 @@ import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions
     )
 import Cardano.Wallet.Primitive.Types
-    ( Range (..)
-    , SortOrder (Ascending, Descending)
+    ( SortOrder (Ascending, Descending)
     , WalletId
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
     )
 import Control.Monad
     ( forM_

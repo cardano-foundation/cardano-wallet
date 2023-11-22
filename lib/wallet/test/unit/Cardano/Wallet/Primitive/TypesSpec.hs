@@ -70,8 +70,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , FeePolicy (..)
     , LinearFunction (..)
-    , Range (..)
-    , RangeBound (..)
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
@@ -79,23 +77,9 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , WalletId (..)
     , WalletName (..)
-    , isAfterRange
-    , isBeforeRange
-    , isSubrangeOf
-    , isWithinRange
-    , mapRangeLowerBound
-    , mapRangeUpperBound
-    , rangeHasLowerBound
-    , rangeHasUpperBound
-    , rangeIsFinite
-    , rangeIsSingleton
-    , rangeIsValid
-    , rangeLowerBound
-    , rangeUpperBound
     , unsafeEpochNo
     , walletNameMaxLength
     , walletNameMinLength
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -109,6 +93,24 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    , RangeBound (..)
+    , isAfterRange
+    , isBeforeRange
+    , isSubrangeOf
+    , isWithinRange
+    , mapRangeLowerBound
+    , mapRangeUpperBound
+    , rangeHasLowerBound
+    , rangeHasUpperBound
+    , rangeIsFinite
+    , rangeIsSingleton
+    , rangeIsValid
+    , rangeLowerBound
+    , rangeUpperBound
+    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)

@@ -477,7 +477,6 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , Range (..)
     , Signature (..)
     , Slot
     , SlottingParameters (..)
@@ -490,7 +489,6 @@ import Cardano.Wallet.Primitive.Types
     , dlgCertPoolId
     , stabilityWindowShelley
     , toSlot
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -508,6 +506,10 @@ import Cardano.Wallet.Primitive.Types.Credentials
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)

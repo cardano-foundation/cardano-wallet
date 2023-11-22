@@ -137,7 +137,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , LinearFunction (LinearFunction)
     , ProtocolParameters (..)
-    , Range (..)
     , Slot
     , SlotInEpoch (..)
     , SlotNo (..)
@@ -148,9 +147,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WithOrigin (..)
     , fromDecentralizationLevel
-    , rangeIsValid
     , unsafeEpochNo
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -162,6 +159,11 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    , rangeIsValid
+    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)

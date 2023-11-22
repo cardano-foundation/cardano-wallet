@@ -109,24 +109,6 @@ module Cardano.Wallet.Primitive.Types
     -- * Querying
     , SortOrder (..)
 
-    -- * Ranges
-    , Range (..)
-    , RangeBound (..)
-    , wholeRange
-    , isAfterRange
-    , isBeforeRange
-    , isSubrangeOf
-    , isWithinRange
-    , mapRangeLowerBound
-    , mapRangeUpperBound
-    , rangeIsFinite
-    , rangeIsSingleton
-    , rangeIsValid
-    , rangeHasLowerBound
-    , rangeHasUpperBound
-    , rangeLowerBound
-    , rangeUpperBound
-
     -- * Polymorphic
     , Signature (..)
 
@@ -206,24 +188,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters (..)
-    )
-import Cardano.Wallet.Primitive.Types.Range
-    ( Range (..)
-    , RangeBound (..)
-    , isAfterRange
-    , isBeforeRange
-    , isSubrangeOf
-    , isWithinRange
-    , mapRangeLowerBound
-    , mapRangeUpperBound
-    , rangeHasLowerBound
-    , rangeHasUpperBound
-    , rangeIsFinite
-    , rangeIsSingleton
-    , rangeIsValid
-    , rangeLowerBound
-    , rangeUpperBound
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)

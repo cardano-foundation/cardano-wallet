@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.Types
     , ChainPoint
     , DelegationCertificate (..)
     , GenesisParameters (..)
-    , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
@@ -95,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , chainPointFromBlockHeader
     , dlgCertPoolId
-    , isWithinRange
     , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -106,6 +104,10 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
+    , isWithinRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

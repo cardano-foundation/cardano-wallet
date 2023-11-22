@@ -133,7 +133,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy
     , GenesisParameters (..)
     , LinearFunction
-    , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
@@ -152,6 +151,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)

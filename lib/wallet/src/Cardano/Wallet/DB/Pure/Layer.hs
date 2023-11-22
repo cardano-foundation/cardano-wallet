@@ -41,7 +41,9 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..)
     , WalletId
-    , wholeRange
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)

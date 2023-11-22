@@ -165,7 +165,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , EpochLength (..)
-    , Range (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
@@ -187,6 +186,9 @@ import Cardano.Wallet.Primitive.Types.Credentials
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..)

@@ -178,7 +178,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , GenesisParameters (..)
-    , Range
     , SlotNo (..)
     , SortOrder (..)
     , StartTime (..)
@@ -186,7 +185,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WithOrigin (At)
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -200,6 +198,10 @@ import Cardano.Wallet.Primitive.Types.Credentials
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( Range
+    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle

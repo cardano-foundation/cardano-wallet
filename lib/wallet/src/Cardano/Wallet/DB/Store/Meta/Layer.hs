@@ -31,8 +31,10 @@ import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions
     )
 import Cardano.Wallet.Primitive.Types
+    ( SortOrder (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
-    , SortOrder (..)
     )
 import Data.Foldable
     ( toList
@@ -71,7 +73,7 @@ import GHC.Natural
     )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Range as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 

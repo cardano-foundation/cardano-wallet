@@ -47,10 +47,12 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , WalletId (..)
     , WithOrigin (..)
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Range
+    ( wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
