@@ -509,7 +509,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -815,6 +814,7 @@ import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -1086,7 +1086,7 @@ readWallet ctx = do
             readTransactions
                 Nothing
                 Descending
-                wholeRange
+                Range.everything
                 (Just Pending)
                 Nothing
                 Nothing
@@ -2107,7 +2107,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
                 readTransactions
                     Nothing
                     Descending
-                    wholeRange
+                    Range.everything
                     (Just Pending)
                     Nothing
                     Nothing
@@ -2297,7 +2297,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                Nothing Descending wholeRange (Just Pending) Nothing Nothing
+                Nothing Descending Range.everything (Just Pending) Nothing Nothing
 
         let utxo = availableUTxO @s pendingTxs wallet
 
@@ -2768,7 +2768,7 @@ listAssets ctx = db & \DBLayer{..} -> do
     txs <- atomically $
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
-        in readTransactions noMinWithdrawal Ascending wholeRange
+        in readTransactions noMinWithdrawal Ascending Range.everything
             allTxStatuses Nothing Nothing
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions

@@ -73,7 +73,7 @@ import GHC.Natural
     )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
-import qualified Cardano.Wallet.Primitive.Types.Range as W
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -138,8 +138,10 @@ instance Query QueryTxMeta where
             let whichMeta DB.TxMeta{..} =
                     and
                         $ catMaybes
-                            [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
-                            , (txMetaSlot <=) <$> W.inclusiveUpperBound range
+                            [ (txMetaSlot >=)
+                                <$> Range.inclusiveLowerBound range
+                            , (txMetaSlot <=)
+                                <$> Range.inclusiveUpperBound range
                             ]
                 reorder = case order of
                     Ascending -> sortOn ((,) <$> txMetaSlot <*> txMetaTxId)

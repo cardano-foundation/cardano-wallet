@@ -97,20 +97,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
     , RangeBound (..)
-    , isAfterRange
-    , isBeforeRange
     , isSubrangeOf
-    , isWithinRange
-    , mapRangeLowerBound
-    , mapRangeUpperBound
-    , rangeHasLowerBound
-    , rangeHasUpperBound
-    , rangeIsFinite
-    , rangeIsSingleton
-    , rangeIsValid
-    , rangeLowerBound
-    , rangeUpperBound
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -291,6 +278,7 @@ import UnliftIO.Exception
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.ByteString as BS
@@ -460,16 +448,16 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
         it "arbitrary ranges are valid" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeIsFinite r) "finite range" $
-                rangeIsValid r .&&.
-                    all rangeIsValid (shrink r)
+                cover 10 (Range.isFinite r) "finite range" $
+                Range.isValid r .&&.
+                    all Range.isValid (shrink r)
 
         it "arbitrary non-singleton ranges are valid" $
             withMaxSuccess 1000 $ property $ \(nsr :: NonSingletonRange Int) ->
                 let isValidNonSingleton (NonSingletonRange r) =
-                        rangeIsValid r && not (rangeIsSingleton r) in
+                        Range.isValid r && not (Range.isSingleton r) in
                 checkCoverage $
-                cover 10 (rangeIsFinite (getNonSingletonRange nsr))
+                cover 10 (Range.isFinite (getNonSingletonRange nsr))
                     "finite range" $
                 isValidNonSingleton nsr .&&.
                     all isValidNonSingleton (shrink nsr)
@@ -477,111 +465,112 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
         it "functions is{Before,Within,After}Range are mutually exclusive" $
             withMaxSuccess 1000 $ property $ \(a :: Integer) r ->
                 let options =
-                        [ (isBeforeRange)
-                        , (isWithinRange)
-                        , (isAfterRange) ] in
+                        [ (Range.isBefore)
+                        , (Range.isWithin)
+                        , (Range.isAfter) ] in
                 checkCoverage $
-                cover 10 (a `isBeforeRange` r) "isBeforeRange" $
-                cover 10 (a `isWithinRange` r) "isWithinRange" $
-                cover 10 (a `isAfterRange`  r) "isAfterRange"  $
+                cover 10 (a `Range.isBefore` r) "Range.isBefore" $
+                cover 10 (a `Range.isWithin` r) "Range.isWithin" $
+                cover 10 (a `Range.isAfter`  r) "Range.isAfter"  $
                 1 === length (filter (\f -> f a r) options)
 
-        it "pred (inclusiveLowerBound r) `isBeforeRange` r" $
+        it "pred (Range.inclusiveLowerBound r) `Range.isBefore` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                ((`isBeforeRange` r) . pred <$> inclusiveLowerBound r)
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                ((`Range.isBefore` r) . pred <$> Range.inclusiveLowerBound r)
                     =/= Just False
 
-        it "inclusiveLowerBound r `isWithinRange` r" $
+        it "Range.inclusiveLowerBound r `Range.isWithin` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                ((`isWithinRange` r) <$> inclusiveLowerBound r)
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                ((`Range.isWithin` r) <$> Range.inclusiveLowerBound r)
                     =/= Just False
 
-        it "inclusiveUpperBound r `isWithinRange` r" $
+        it "Range.inclusiveUpperBound r `Range.isWithin` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                ((`isWithinRange` r) <$> inclusiveUpperBound r)
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                ((`Range.isWithin` r) <$> Range.inclusiveUpperBound r)
                     =/= Just False
 
-        it "succ (inclusiveUpperBound r) `isAfterRange` r" $
+        it "succ (Range.inclusiveUpperBound r) `Range.isAfter` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                ((`isAfterRange` r) . succ <$> inclusiveUpperBound r)
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                ((`Range.isAfter` r) . succ <$> Range.inclusiveUpperBound r)
                     =/= Just False
 
-        it "a `isWithinRange` wholeRange == True" $
+        it "a `Range.isWithin` Range.everything == True" $
             property $ \(a :: Integer) ->
-                a `isWithinRange` wholeRange === True
+                a `Range.isWithin` Range.everything === True
 
-        it "rangeIsSingleton (Range a a)" $
+        it "Range.isSingleton (Range a a)" $
             property $ \(a :: Int) ->
-                Range (Just a) (Just a) `shouldSatisfy` rangeIsSingleton
+                Range (Just a) (Just a) `shouldSatisfy` Range.isSingleton
 
-        it "not (rangeIsSingleton (Range (pred a) a))" $
+        it "not (Range.isSingleton (Range (pred a) a))" $
             property $ \(a :: Int) ->
                 Range (Just (pred a)) (Just a)
-                    `shouldNotSatisfy` rangeIsSingleton
+                    `shouldNotSatisfy` Range.isSingleton
 
-        it "not (rangeIsSingleton (Range a (succ a)))" $
+        it "not (Range.isSingleton (Range a (succ a)))" $
             property $ \(a :: Int) ->
                 Range (Just a) (Just (succ a))
-                    `shouldNotSatisfy` rangeIsSingleton
+                    `shouldNotSatisfy` Range.isSingleton
 
-        it "rangeLowerBound r = rangeUpperBound r <=> rangeIsSingleton r" $
+        it "Range.lowerBound r = Range.upperBound r <=> Range.isSingleton r" $
             property $ \(r :: Range Bool) ->
                 checkCoverage $
-                cover 10 (rangeIsFinite r) "is finite" $
-                (rangeLowerBound r == rangeUpperBound r) === rangeIsSingleton r
+                cover 10 (Range.isFinite r) "is finite" $
+                (Range.lowerBound r == Range.upperBound r)
+                    === Range.isSingleton r
 
         it "r `isSubrangeOf` r" $
             property $ \(r :: Range Int) ->
                 r `isSubrangeOf` r
 
-        it "r `isSubrangeOf` wholeRange" $
+        it "r `isSubrangeOf` Range.everything" $
             property $ \(r :: Range Int) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                cover 10 (rangeIsFinite      r) "is finite" $
-                r `isSubrangeOf` wholeRange
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                cover 10 (Range.isFinite      r) "is finite" $
+                r `isSubrangeOf` Range.everything
 
         it "Range (succ a) b `isSubrangeOf` Range a b" $
             withMaxSuccess 1000 $ property $ \nsr ->
                 let r@(Range a b :: Range Int) = getNonSingletonRange nsr in
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                cover 10 (rangeIsFinite      r) "is finite" $
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                cover 10 (Range.isFinite      r) "is finite" $
                 Range (succ <$> a) b `isSubrangeOf` Range a b
 
         it "Range a (pred b) `isSubrangeOf` Range a b" $
             withMaxSuccess 1000 $ property $ \nsr ->
                 let r@(Range a b :: Range Int) = getNonSingletonRange nsr in
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                cover 10 (rangeIsFinite      r) "is finite" $
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                cover 10 (Range.isFinite      r) "is finite" $
                 Range a (pred <$> b) `isSubrangeOf` Range a b
 
         it "Range a b `isSubrangeOf` Range (pred a) b" $
             property $ \r@(Range a b :: Range Int) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                cover 10 (rangeIsFinite      r) "is finite" $
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                cover 10 (Range.isFinite      r) "is finite" $
                 Range a b `isSubrangeOf` Range (pred <$> a) b
 
         it "Range a b `isSubrangeOf` Range a (succ b)" $
             property $ \r@(Range a b :: Range Int) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                cover 10 (rangeHasUpperBound r) "has upper bound" $
-                cover 10 (rangeIsFinite      r) "is finite" $
+                cover 10 (Range.hasLowerBound r) "has lower bound" $
+                cover 10 (Range.hasUpperBound r) "has upper bound" $
+                cover 10 (Range.isFinite      r) "is finite" $
                 Range a b `isSubrangeOf` Range a (succ <$> b)
 
     describe "Range bounds" $ do
@@ -652,11 +641,11 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                 StartTime (getUniformTime t) < getGenesisBlockDate sps ==>
                     slotCeiling sps (getUniformTime t) === slotMinBound
 
-        it "slotStartTime slotMinBound `isAfterRange` r => \
+        it "slotStartTime slotMinBound `Range.isAfter` r => \
             \isNothing (slotRangeFromTimeRange r)" $
             withMaxSuccess 1000 $ property $ \sps r -> do
                 let r' = getUniformTime <$> r
-                slotStartTime sps slotMinBound `isAfterRange` r' ==>
+                slotStartTime sps slotMinBound `Range.isAfter` r' ==>
                     isNothing (slotRangeFromTimeRange' sps r')
 
         it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
@@ -769,8 +758,8 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                     startsWithin sr tr =
                         (`isSubrangeOf` tr) $ fmap (slotStartTime sps) sr
 
-                    lowerBoundPred = mapRangeLowerBound slotPred'
-                    upperBoundSucc = mapRangeUpperBound slotSucc'
+                    lowerBoundPred = Range.mapLowerBound slotPred'
+                    upperBoundSucc = Range.mapUpperBound slotSucc'
 
                     slotPred' :: SlotId -> SlotId
                     slotPred' s = fromMaybe slotMinBound $ slotPred sps s
@@ -783,18 +772,18 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                     "have no slot range" $
                 cover 50 (isJust maybeSlotRange)
                     "have slot range" $
-                cover 20 (fmap rangeHasLowerBound maybeSlotRange == Just True)
+                cover 20 (fmap Range.hasLowerBound maybeSlotRange == Just True)
                     "slot range has lower bound" $
-                cover 20 (fmap rangeHasUpperBound maybeSlotRange == Just True)
+                cover 20 (fmap Range.hasUpperBound maybeSlotRange == Just True)
                     "slot range has upper bound" $
-                cover 20 (fmap rangeIsFinite maybeSlotRange == Just True)
+                cover 20 (fmap Range.isFinite maybeSlotRange == Just True)
                     "slot range is finite" $
 
                 case maybeSlotRange of
                     Nothing ->
                         (Just True ===
                             ((< getGenesisBlockDate sps) . StartTime
-                                <$> inclusiveUpperBound timeRange))
+                                <$> Range.inclusiveUpperBound timeRange))
                     Just slotRange ->
                         -- Rule 1: Slot range is within specified time range:
                         (slotRange `startsWithin` timeRange)
@@ -802,13 +791,13 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                         -- Rule 2: Slot range lower bound is minimal:
                         (not (lowerBoundPred slotRange `startsWithin` timeRange)
                             -- Exceptions to the rule:
-                            || not (rangeHasLowerBound slotRange)
+                            || not (Range.hasLowerBound slotRange)
                             || lowerBoundPred slotRange == slotRange)
                         .&&.
                         -- Rule 3: Slot range upper bound is maximal:
                         (not (upperBoundSucc slotRange `startsWithin` timeRange)
                             -- Exceptions to the rule:
-                            || not (rangeHasUpperBound slotRange)
+                            || not (Range.hasUpperBound slotRange)
                             || upperBoundSucc slotRange == slotRange)
 
         it ("`slotStartTime . slotRangeFromTimeRange` is idempotent") $
@@ -1207,7 +1196,7 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
 makeNonSingletonRangeValid
     :: Ord a => NonSingletonRange a -> Maybe (NonSingletonRange a)
 makeNonSingletonRangeValid (NonSingletonRange r)
-    | rangeIsSingleton r = Nothing
+    | Range.isSingleton r = Nothing
     | otherwise = Just $ NonSingletonRange $ makeRangeValid r
 
 instance Arbitrary TxOut where

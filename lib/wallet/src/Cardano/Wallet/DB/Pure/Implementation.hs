@@ -107,7 +107,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
-    , isWithinRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -164,6 +163,7 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -539,7 +539,7 @@ filterTxHistory
 filterTxHistory minWithdrawal order range address =
     filter (filterAddress address)
     . filter (filterWithdrawals minWithdrawal)
-    . filter ((`isWithinRange` range) . (slotNo :: TxMeta -> SlotNo) . snd)
+    . filter ((`Range.isWithin` range) . (slotNo :: TxMeta -> SlotNo) . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)

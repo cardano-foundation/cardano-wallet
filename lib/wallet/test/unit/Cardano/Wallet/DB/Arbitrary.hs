@@ -162,8 +162,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
-    , rangeIsValid
-    , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -337,6 +335,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
+import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -394,7 +393,8 @@ instance Arbitrary GenTxHistory where
         -- tracked as part of the WalletState.
         filter (isInLedger . snd) <$> scale (min 25) arbitrary
       where
-        sortTxHistory = filterTxHistory Nothing Descending wholeRange Nothing
+        sortTxHistory =
+            filterTxHistory Nothing Descending Range.everything Nothing
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
@@ -590,7 +590,7 @@ instance Arbitrary UTxO where
 instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
     arbitrary = Range <$> arbitrary <*> arbitrary
 
-    shrink (Range from to) = filter rangeIsValid $
+    shrink (Range from to) = filter Range.isValid $
         [Range from' to | from' <- shrink from]
         ++ [Range from to' | to' <- shrink to]
 
