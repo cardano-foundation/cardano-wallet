@@ -5,7 +5,7 @@
   #
   # Cardano Wallet Flake Nix build
   #
-  # Nix Flake support instruction: https://nixos.wiki/wiki/Flakes
+  # See ./nix/README.md for more documentation about this file.
   #
   # Derivation attributes of this file can be build with "nix build .#<attribute>"
   # Discover attribute names using tab-completion in your shell.
@@ -26,9 +26,6 @@
   #     - cardano-wallet.latency
   #     - etc
   #   - dockerImage - tarball of the docker image
-  #
-  # Other documentation:
-  #   https://cardano-foundation.github.io/cardano-wallet/dev/Building#nix-build
   #
   ############################################################################
 
@@ -51,10 +48,6 @@
   #
   # (Running an item will typically also build it if it has not been built
   #  in the nix store already.)
-  #
-  # (In some cases, building or running fails with a segmentation fault;
-  #  the nix garbage collection is likely to blame.
-  #  Use `GC_DONT_GC=1 nix build …` as workaround.)
   #
   #
   # The CI-related outputs are
