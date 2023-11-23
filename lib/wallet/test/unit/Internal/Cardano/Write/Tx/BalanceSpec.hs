@@ -612,7 +612,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let CardanoApi.ShelleyTx _ tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
-        let outs = Write.outputs $ Write.txBody tx
+        let outs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
 
         let pp = def
                 & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte_Babbage
@@ -747,7 +747,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         :: CardanoApi.Tx CardanoApi.BabbageEra
         -> [Babbage.BabbageTxOut StandardBabbage]
     outputs (CardanoApi.Tx (CardanoApi.ShelleyTxBody _ body _ _ _ _ ) _) =
-        Write.outputs body
+        F.toList $ body ^. outputsTxBodyL
 
     mapFirst f (x:xs) = f x : xs
     mapFirst _ [] = error "mapFirst: empty list"
@@ -1517,7 +1517,7 @@ prop_balanceTransactionValid
         :: CardanoApi.Tx (CardanoApiEra era)
         -> Property
     _prop_outputsSatisfyMinAdaRequirement (CardanoApi.ShelleyTx _ tx) = do
-        let outputs = Write.outputs $ Write.txBody tx
+        let outputs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
         conjoin $ map valid outputs
       where
         valid :: TxOut era -> Property
@@ -1573,7 +1573,7 @@ prop_balanceTransactionValid
         Write.evaluateTransactionBalance
             ledgerPParams
             u
-            (Write.txBody $ fromCardanoApiTx tx)
+            ((fromCardanoApiTx tx) ^. bodyTxL)
 
     ledgerPParams = mockPParamsForBalancing @era
 

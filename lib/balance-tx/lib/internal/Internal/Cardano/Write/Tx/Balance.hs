@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -226,9 +225,7 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
-    , outputs
     , toCardanoApiTx
-    , txBody
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
@@ -868,7 +865,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Tx era -> Value
     txBalance
         = evaluateTransactionBalance pp combinedUTxO
-        . txBody
+        . view bodyTxL
 
     balanceAfterSettingMinFee
         :: Tx era

@@ -93,7 +93,6 @@ import Internal.Cardano.Write.Tx
     , StandardCrypto
     , TxIn
     , UTxO
-    , txBody
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
@@ -166,7 +165,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
       where
         parseRedeemer rd = do
             let mPtr = Alonzo.rdptr
-                    (txBody ledgerTx)
+                    (view bodyTxL ledgerTx)
                     (toScriptPurpose rd)
             ptr <- case mPtr of
                 SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
