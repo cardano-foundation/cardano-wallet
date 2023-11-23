@@ -116,11 +116,11 @@ library
     Cardano.Wallet.Primitive.Types.Block
     Cardano.Wallet.Primitive.Types.Block.Gen
     Cardano.Wallet.Primitive.Types.BlockSummary
+    Cardano.Wallet.Primitive.Types.Certificates
     Cardano.Wallet.Primitive.Types.Checkpoints.Policy
     Cardano.Wallet.Primitive.Types.Coin
     Cardano.Wallet.Primitive.Types.Coin.Gen
     Cardano.Wallet.Primitive.Types.DecentralizationLevel
-    Cardano.Wallet.Primitive.Types.DelegationCertificate
     Cardano.Wallet.Primitive.Types.EpochNo
     Cardano.Wallet.Primitive.Types.EraInfo
     Cardano.Wallet.Primitive.Types.ExecutionUnitPrices

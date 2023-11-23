@@ -25,7 +25,7 @@ import Cardano.Slotting.Slot
     ( SlotNo
     , WithOrigin (..)
     )
-import Cardano.Wallet.Primitive.Types.DelegationCertificate
+import Cardano.Wallet.Primitive.Types.Certificates
     ( DelegationCertificate
     )
 import Cardano.Wallet.Primitive.Types.Hash
