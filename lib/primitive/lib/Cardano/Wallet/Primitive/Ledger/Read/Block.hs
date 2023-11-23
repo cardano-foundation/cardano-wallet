@@ -1,7 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.Read.Primitive.Block
+module Cardano.Wallet.Primitive.Ledger.Read.Block
     ( primitiveBlock
     , fromCardanoBlock
     )
@@ -12,6 +12,15 @@ import Prelude hiding
     , (.)
     )
 
+import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    ( primitiveBlockHeader
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( primitiveTx
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    ( primitiveCertificates
+    )
 import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
@@ -34,15 +43,6 @@ import Cardano.Wallet.Read.Eras.EraFun
     , mapOnEraFun
     , (*&&&*)
     , (*****)
-    )
-import Cardano.Wallet.Read.Primitive.Block.Header
-    ( primitiveBlockHeader
-    )
-import Cardano.Wallet.Read.Primitive.Tx
-    ( primitiveTx
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( primitiveCertificates
     )
 import Cardano.Wallet.Read.Tx.Certificates
     ( getEraCertificates

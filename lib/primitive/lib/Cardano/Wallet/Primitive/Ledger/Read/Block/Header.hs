@@ -3,7 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.Read.Primitive.Block.Header
+module Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     , primitiveBlockHeader
     )

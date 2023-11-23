@@ -77,6 +77,9 @@ import Cardano.Wallet.Network
     , mapChainSyncLog
     , withFollowStatsMonitoring
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    ( getBlockHeader
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , TimeInterpreterLog
@@ -92,9 +95,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    )
-import Cardano.Wallet.Read.Primitive.Block.Header
-    ( getBlockHeader
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto

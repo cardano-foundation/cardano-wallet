@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( getOutputs
     , fromShelleyTxOut
     , fromMaryTxOut

@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
     ( getCollateralOutputs
     )
     where
@@ -10,12 +10,12 @@ import Prelude
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletTokenBundle
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromShelleyAddress
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
     , K (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromShelleyAddress
     )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
     ( CollateralOutputs (..)

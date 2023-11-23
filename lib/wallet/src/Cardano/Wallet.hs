@@ -432,6 +432,9 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toWallet
     , toWalletCoin
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
@@ -553,9 +556,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics
-    )
-import Cardano.Wallet.Read.Primitive.Block
-    ( fromCardanoBlock
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR

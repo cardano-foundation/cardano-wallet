@@ -1,34 +1,23 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx
-    , fromAllegraTx'
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
+    ( fromMaryTx
+    , fromMaryTx'
     )
     where
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyRole (..)
-    )
 import Cardano.Api
-    ( AllegraEra
+    ( MaryEra
     )
 import Cardano.Ledger.Api
     ( addrTxWitsL
@@ -38,18 +27,35 @@ import Cardano.Ledger.Api
     , certsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
+    , mintTxBodyL
     , outputsTxBodyL
     , scriptTxWitsL
     , vldtTxBodyL
     , witsTxL
     )
-import Cardano.Ledger.Core
-    ()
-import Cardano.Ledger.Shelley.Tx
-    ( ShelleyTx
-    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    ( anyEraCerts
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromShelleyTxIn
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    ( fromMaryMetadata
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
+    ( maryMint
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromMaryTxOut
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    ( afterShelleyValidityInterval
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (NativeExplicitScript)
@@ -57,38 +63,21 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( ScriptReference (ViaSpending)
     , TokenMapWithScripts
-    , emptyTokenMapWithScripts
     )
 import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     ( ValidityIntervalExplicit
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
+    , WitnessCountCtx
+    , toKeyRole
     )
 import Cardano.Wallet.Read.Eras
-    ( allegra
-    , inject
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromAllegraMetadata
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromAllegraTxOut
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals
+    ( inject
+    , mary
     )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..)
+    ( Tx (Tx)
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
@@ -104,22 +93,19 @@ import Control.Lens
     , (^.)
     , (^..)
     )
-import Data.Foldable
-    ( toList
-    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Set as Set
 
--- NOTE: For resolved inputs we have to pass in a dummy value of 0.
-
-fromAllegraTx
-    :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra)
+fromMaryTx
+    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra)
+    -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -127,41 +113,46 @@ fromAllegraTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromAllegraTx tx =
-    ( fromAllegraTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
+fromMaryTx tx witCtx =
+    ( fromMaryTx' tx
+    , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
+    , assetsToMint
+    , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
     , WitnessCount
         (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
         ((`NativeExplicitScript` ViaSpending)
-         . toWalletScript (\_vkey -> Payment)
+         . toWalletScript (toKeyRole witCtx)
             <$> tx ^.. witsTxL.scriptTxWitsL.folded)
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
+  where
+    (assetsToMint, assetsToBurn) =
+        maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
 
-fromAllegraTx' :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra) -> W.Tx
-fromAllegraTx' tx =
+fromMaryTx' ::
+    SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra) ->
+    W.Tx
+fromMaryTx' tx =
     W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject allegra $ Tx tx
+            Just $ renderTxToCBOR $ inject mary $ Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
         , resolvedCollateralInputs =
-            [] -- TODO: (ADP-957)
+            []
         , outputs =
-            fromAllegraTxOut <$> toList (tx ^. bodyTxL . outputsTxBodyL)
+            fromMaryTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
         , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Allegra.
+            Nothing -- Collateral outputs are not supported in Mary.
         , withdrawals =
             fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
-            fromAllegraMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
+            fromMaryMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
             Nothing
         }

@@ -6,7 +6,7 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
-module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( primitiveCertificates
     , anyEraCerts
     , fromStakeCredential

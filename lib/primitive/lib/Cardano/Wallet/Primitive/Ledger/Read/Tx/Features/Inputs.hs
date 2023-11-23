@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( getInputs
     , fromByronTxIn
     , fromShelleyTxIns

@@ -11,7 +11,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( mint
     , maryMint
     , alonzoMint
@@ -47,6 +47,9 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toWalletTokenPolicyId
     , toWalletTokenQuantity
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromShelleyTxIn
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -71,9 +74,6 @@ import Cardano.Wallet.Read.Eras
     ( (:*:) (..)
     , EraFun (..)
     , K (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn
     )
 import Cardano.Wallet.Read.Tx.Mint
     ( Mint (..)

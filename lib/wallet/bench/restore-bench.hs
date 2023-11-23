@@ -150,6 +150,9 @@ import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     , parseGenesisData
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block
+    ( fromCardanoBlock
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , availableUTxO
@@ -206,9 +209,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
-    )
-import Cardano.Wallet.Read.Primitive.Block
-    ( fromCardanoBlock
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)

@@ -4,13 +4,40 @@
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
-module Cardano.Wallet.Read.Primitive.Tx (
+module Cardano.Wallet.Primitive.Ledger.Read.Tx (
     fromCardanoTx,
     primitiveTx,
 ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
+    ( fromAllegraTx
+    , fromAllegraTx'
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
+    ( fromAlonzoTx
+    , fromAlonzoTx'
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
+    ( fromBabbageTx
+    , fromBabbageTx'
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
+    ( fromTxAux
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
+    ( fromConwayTx
+    , fromConwayTx'
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
+    ( fromMaryTx
+    , fromMaryTx'
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
+    ( fromShelleyTx
+    , fromShelleyTx'
+    )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( TokenMapWithScripts
     , emptyTokenMapWithScripts
@@ -28,33 +55,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Allegra
-    ( fromAllegraTx
-    , fromAllegraTx'
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    ( fromAlonzoTx
-    , fromAlonzoTx'
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx
-    , fromBabbageTx'
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Conway
-    ( fromConwayTx
-    , fromConwayTx'
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromMaryTx
-    , fromMaryTx'
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTx
-    , fromShelleyTx'
     )
 import Generics.SOP
     ( K (..)

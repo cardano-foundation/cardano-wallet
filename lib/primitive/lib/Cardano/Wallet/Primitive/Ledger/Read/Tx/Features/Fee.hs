@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Fee
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
     ( getFee)
     where
 

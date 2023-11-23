@@ -89,11 +89,11 @@ import Servant.Server
     , err500
     )
 
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Feature
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs as Feature
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Integrity as Feature
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Mint as Feature
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Validity as Feature
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates as Feature
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs as Feature
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity as Feature
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint as Feature
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity as Feature
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 

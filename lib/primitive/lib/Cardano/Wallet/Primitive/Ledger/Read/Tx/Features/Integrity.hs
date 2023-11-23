@@ -7,7 +7,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( integrity
     , txIntegrity
     )

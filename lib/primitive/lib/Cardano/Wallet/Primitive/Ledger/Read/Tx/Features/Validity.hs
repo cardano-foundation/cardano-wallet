@@ -8,7 +8,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( getValidity
     , afterShelleyValidityInterval
     , shelleyValidityInterval

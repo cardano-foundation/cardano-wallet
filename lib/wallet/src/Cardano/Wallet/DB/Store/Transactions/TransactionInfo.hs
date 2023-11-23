@@ -43,6 +43,33 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , fromTxOut
     , txCBORPrism
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
+    ( getCollateralInputs
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
+    ( getCollateralOutputs
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
+    ( getFee
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( getInputs
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    ( getMetadata
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( getOutputs
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
+    ( getScriptValidity
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    ( getValidity
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( getWithdrawals
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , interpretQuery
@@ -54,33 +81,6 @@ import Cardano.Wallet.Read.Eras
     , K
     , applyEraFun
     , extractEraValue
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    ( getCollateralInputs
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
-    ( getCollateralOutputs
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( getFee
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( getMetadata
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( getOutputs
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
-    ( getScriptValidity
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( getValidity
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( getWithdrawals
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR

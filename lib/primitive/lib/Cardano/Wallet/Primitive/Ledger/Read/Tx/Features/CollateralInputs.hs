@@ -1,18 +1,18 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
     ( getCollateralInputs
     )
     where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromShelleyTxIns
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
     , K (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIns
     )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( CollateralInputs (..)

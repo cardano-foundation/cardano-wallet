@@ -9,7 +9,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Shelley
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
     ( fromShelleyTx
     , fromShelleyTx'
     )
@@ -44,6 +44,21 @@ import Cardano.Ledger.Shelley.TxBody
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScriptFromShelley
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    ( anyEraCerts
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    ( fromShelleyMetadata
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromShelleyTxOut
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    ( shelleyValidityInterval
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (NativeExplicitScript)
     )
@@ -61,21 +76,6 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
 import Cardano.Wallet.Read.Eras
     ( inject
     , shelley
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromShelleyMetadata
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromShelleyTxOut
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( shelleyValidityInterval
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

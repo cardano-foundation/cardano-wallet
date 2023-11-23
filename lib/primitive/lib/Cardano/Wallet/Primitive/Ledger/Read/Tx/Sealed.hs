@@ -5,7 +5,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Sealed
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
     , anythingFromSealedTx
     ) where

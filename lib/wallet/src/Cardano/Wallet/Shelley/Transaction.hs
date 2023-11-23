@@ -101,6 +101,9 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( fromCardanoTx
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     )
@@ -144,9 +147,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx
-    ( fromCardanoTx
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses

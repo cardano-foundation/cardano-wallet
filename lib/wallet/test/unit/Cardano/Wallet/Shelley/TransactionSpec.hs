@@ -84,6 +84,9 @@ import Cardano.Wallet.Gen
     ( genMnemonic
     , genScript
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
+    ( txIntegrity
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
     )
@@ -157,9 +160,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
-    ( txIntegrity
     )
 import Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx

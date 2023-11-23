@@ -6,7 +6,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Byron
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
     ( fromTxAux
     )
     where
@@ -18,15 +18,15 @@ import Cardano.Chain.UTxO
     , Tx (..)
     , taTx
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromByronTxIn
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromByronTxOut
+    )
 import Cardano.Wallet.Read.Eras
     ( byron
     , inject
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromByronTxIn
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromByronTxOut
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

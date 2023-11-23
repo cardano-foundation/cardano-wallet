@@ -11,7 +11,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Alonzo
+module Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
     ( fromAlonzoTx
     , fromAlonzoTx'
     )
@@ -41,6 +41,28 @@ import Cardano.Ledger.Api
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    ( anyEraCerts
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromShelleyTxIn
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    ( fromAlonzoMetadata
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
+    ( alonzoMint
+    , fromLedgerScriptHash
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromAlonzoTxOut
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    ( afterShelleyValidityInterval
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals
+    )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (NativeExplicitScript, PlutusExplicitScript)
     )
@@ -61,28 +83,6 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
 import Cardano.Wallet.Read.Eras
     ( alonzo
     , inject
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromAlonzoMetadata
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( alonzoMint
-    , fromLedgerScriptHash
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromAlonzoTxOut
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( afterShelleyValidityInterval
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
