@@ -147,6 +147,9 @@ import Cardano.Wallet.Orphans
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (..)
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( StartTime (..)
+    )
 import Cardano.Wallet.Primitive.Types.Block
     ( Block (..)
     , BlockHeader (..)
@@ -172,6 +175,10 @@ import Cardano.Wallet.Primitive.Types.DelegationCertificate
     , dlgCertPoolId
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
+    ( EpochNo (..)
+    , isValidEpochNo
+    , unsafeEpochNo
+    )
 import Cardano.Wallet.Primitive.Types.EraInfo
     ( EraInfo (..)
     , emptyEraInfo
@@ -188,6 +195,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
+    ( SlotId (..)
+    , SlotInEpoch (..)
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)
@@ -302,10 +313,6 @@ import Network.URI
     , uriToString
     )
 
-import Cardano.Wallet.Primitive.Slotting
-    ( StartTime (..)
-    )
-import Cardano.Wallet.Primitive.Types.SlotId
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
