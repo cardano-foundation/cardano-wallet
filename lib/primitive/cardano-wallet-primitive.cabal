@@ -1,15 +1,15 @@
-cabal-version:      3.0
-name:               cardano-wallet-primitive
-version:            2023.7.18
-synopsis:           Selected primitive types for Cardano Wallet.
-description:        Please see README.md.
-homepage:           https://github.com/cardano-foundation/cardano-wallet
-author:             Cardano Foundation (High Assurance Lab)
-maintainer:         hal@cardanofoundation.org
-copyright:          2018-2022 IOHK, 2023 Cardano Foundation
-license:            Apache-2.0
-category:           Web
-build-type:         Simple
+cabal-version: 3.0
+name:          cardano-wallet-primitive
+version:       2023.7.18
+synopsis:      Selected primitive types for Cardano Wallet.
+description:   Please see README.md.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023 Cardano Foundation
+license:       Apache-2.0
+category:      Web
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -37,7 +37,6 @@ flag release
 library
   import:          language, opts-lib
   hs-source-dirs:  lib
-
   build-depends:
     , aeson
     , base
@@ -46,20 +45,28 @@ library
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-binary
     , cardano-api
+    , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-allegra
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
+    , cardano-ledger-core
+    , cardano-ledger-mary
+    , cardano-ledger-shelley
     , cardano-numeric
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , commutative-semigroups
-    , contra-tracer
     , containers
+    , contra-tracer
     , cryptonite
-    , delta-types
     , deepseq
+    , delta-types
     , errors
     , extra
     , fmt
@@ -79,6 +86,7 @@ library
     , nothunks
     , OddWord
     , ouroboros-consensus
+    , ouroboros-consensus-cardano
     , pretty-simple
     , QuickCheck
     , quiet
@@ -96,6 +104,7 @@ library
   exposed-modules:
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Convert
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
@@ -166,6 +175,8 @@ test-suite test
     , base58-bytestring
     , binary
     , bytestring
+    , cardano-addresses
+    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-ledger-byron-test
     , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley-test
@@ -174,9 +185,9 @@ test-suite test
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , deepseq
     , delta-store
     , delta-types
-    , deepseq
     , filepath
     , fmt
     , generic-arbitrary
@@ -188,6 +199,7 @@ test-suite test
     , lattices
     , MonadRandom
     , ouroboros-consensus
+    , ouroboros-consensus-cardano
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
@@ -201,9 +213,11 @@ test-suite test
     , transformers
     , unliftio
     , with-utf8
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
+    Cardano.Wallet.Primitive.ConvertSpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec

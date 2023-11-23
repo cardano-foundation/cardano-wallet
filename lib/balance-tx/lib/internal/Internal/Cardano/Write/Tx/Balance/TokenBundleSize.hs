@@ -35,13 +35,13 @@ import Internal.Cardano.Write.Tx
     , Version
     )
 
+import qualified Cardano.Wallet.Primitive.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.ByteString.Lazy as BL
 
 -- | Assesses a token bundle size in relation to the maximum size that can be

@@ -28,15 +28,15 @@ import Cardano.Ledger.Alonzo
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing)
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toWalletTokenBundle
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
     , K (..)
     )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletTokenBundle
     )
 import Cardano.Wallet.Util
     ( internalError
@@ -66,6 +66,7 @@ import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -74,7 +75,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 
 getOutputs :: EraFun Outputs (K [W.TxOut])
 getOutputs = EraFun

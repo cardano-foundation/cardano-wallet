@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
+module Cardano.Wallet.Primitive.ConvertSpec
     ( spec
     ) where
 
@@ -13,6 +13,11 @@ import Cardano.Address.Script
     ( KeyHash (..)
     , KeyRole (..)
     , Script (..)
+    )
+import Cardano.Wallet.Primitive.Convert
+    ( Convert (..)
+    , toLedgerTimelockScript
+    , toWalletScript
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -49,11 +54,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutCoin
     , shrinkTxOutCoin
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..)
-    , toLedgerTimelockScript
-    , toWalletScript
     )
 import Data.Proxy
     ( Proxy (..)
@@ -93,7 +93,7 @@ import Test.QuickCheck
 import qualified Data.ByteString as BS
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
+spec = describe "Cardano.Wallet.Primitive.ConvertSpec" $
 
     modifyMaxSuccess (const 1000) $ do
 

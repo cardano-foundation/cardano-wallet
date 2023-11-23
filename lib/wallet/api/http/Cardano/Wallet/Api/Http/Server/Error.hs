@@ -101,17 +101,17 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
+import Cardano.Wallet.Primitive.Convert
+    ( Convert (toWallet)
+    , toWalletAddress
+    , toWalletCoin
+    , toWalletTokenBundle
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (toWallet)
-    , toWalletAddress
-    , toWalletCoin
-    , toWalletTokenBundle
     )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..)

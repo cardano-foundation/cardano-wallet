@@ -383,6 +383,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Protocol.TPraos.BHeader as SL
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -407,7 +408,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Array as Array
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS

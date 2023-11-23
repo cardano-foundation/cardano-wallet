@@ -77,6 +77,9 @@ import Cardano.Wallet.Address.States.Families
     , KeyOf
     , NetworkOf
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toLedger
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminant
@@ -86,9 +89,6 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger
     )
 import Control.DeepSeq
     ( NFData (..)
