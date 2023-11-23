@@ -37,6 +37,35 @@ import Data.ByteString
 -- | The same as adopted in cryptonite.
 -- | The block size of AES is always 128 bits, so a 256 bit IV is not possible for most modes of operation.
 -- | These are the reasons we requires secret key to be 32 bytes and iv 16 bytes for AES256 used here.
+-- | Additionally, input length must be a multiple of block size, ie., 16 bytes.
+
+-- | Relation to openSSL
+-- | Let's prepare 32-byte secret key and 16-byte iv from passphrase "metadata-secret"
+-- | using PBKDF2 for 10000 iterations and salt "00000000". openSSL requires salt to be
+-- | represented as hex encoded with will be here "3030303030303030"
+-- |
+-- | $ openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "metadata-secret" -S 3030303030303030 -P
+-- | salt=3030303030303030
+-- | key=57FCB522B950BCB78138EECFE7FBE07881E5B49AAA2D1CD761D4495A09A5F16C
+-- | iv =41D88E094C8F202C7DF6654B7F40E5AF
+-- |
+-- | Now let's encrypt 16-byte payload "0000000000000000". Both secret key and iv must be hex-decoded.
+-- |
+-- | $ openssl enc -e -aes-256-cbc \
+-- | -K '57FCB522B950BCB78138EECFE7FBE07881E5B49AAA2D1CD761D4495A09A5F16C' \
+-- | -iv '41D88E094C8F202C7DF6654B7F40E5AF' -base64 -nosalt  <<< '0000000000000000'
+-- | /Nu/x5WeHn++YkLbIozfZHdt3sxYGhGNERXuX6hqnQU=
+-- | $ openssl enc -d -aes-256-cbc \
+-- | -K '57FCB522B950BCB78138EECFE7FBE07881E5B49AAA2D1CD761D4495A09A5F16C' \
+-- | -iv '41D88E094C8F202C7DF6654B7F40E5AF' -base64 -nosalt  <<< '/Nu/x5WeHn++YkLbIozfZHdt3sxYGhGNERXuX6hqnQU='
+-- | 0000000000000000
+-- |
+-- | Encryption and decryption works.
+-- | When we use the module's encrypt and decrypt for the same key, iv, and payload we have
+-- | payload === decrypt . encrypt $ payload
+-- | and encrypted payload is
+-- | /Nu/x5WeHn++YkLbIozfZA==
+-- | TO_DO understand this discrepancy
 
 -- | Initialize a block cipher
 initCipher
@@ -62,7 +91,7 @@ encrypt
     -> ByteString
     -- ^ iv, needs to be 16 bytes
     -> ByteString
-    -- ^ payload
+    -- ^ payload, must be a multiple of block size, ie., 16 bytes
     -> Either CryptoError ByteString
 encrypt key iv msg = do
    initedIV <- initIV iv
@@ -77,7 +106,7 @@ decrypt
     -> ByteString
     -- ^ iv, needs to be 16 bytes
     -> ByteString
-    -- ^ payload
+    -- ^ payload, must be a multiple of block size, ie., 16 bytes
     -> Either CryptoError ByteString
 decrypt key iv msg = do
    initedIV <- initIV iv

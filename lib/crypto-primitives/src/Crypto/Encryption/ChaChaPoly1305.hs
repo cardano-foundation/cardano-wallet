@@ -43,6 +43,7 @@ import qualified Debug.Trace as TR
 
 import qualified Crypto.Encryption.AES256CBC as AES256CBC
 import qualified Crypto.KeyDerivationFunction.PBKDF2 as My
+import qualified Data.ByteString.Char8 as B8
 
 -- | ChaCha20/Poly1305 encrypting the payload with passphrase and nonce.
 -- | The caller must ensure that the passphrase length is 32 bytes and
@@ -120,7 +121,7 @@ decryptPayload passphrase nonce bytes = do
 toSymmetricKey
     :: ByteString
     -> ByteString
-toSymmetricKey rawKey = TR.trace ("rawKey"<> show rawKey <> " out:"<>show (hex out)<>" salt:"<> show (hex salt)<>"\nout1a:"<> show (hex out1a)<>"\nout1b:"<> show (hex out1b)<>"\nout2:"<> show (base64 out2)<>"\nout3:"<> show out3<>"\nsalt:"<> show (T.encodeUtf8 "00000000")) $ out
+toSymmetricKey rawKey = TR.trace ("rawKey"<> show rawKey <> " out:"<>show (hex out)<>" salt:"<> show (hex salt)<>"\nout1a:"<> show (hex out1a)<>"\nout1b:"<> show (hex out1b)<>"\nout2:"<> show (base64 out2)<>"\nout3:"<> show out3<>"\nsalt:"<> show (B8.pack "00000000")) $ out
   where
     salt = "00000000"
     msg1 = "[\"Invoice-No: 123456789\",\"Order-No: 7654321\",\"Email: john@doe.com\"]"
@@ -131,7 +132,7 @@ toSymmetricKey rawKey = TR.trace ("rawKey"<> show rawKey <> " out:"<>show (hex o
         rawKey
         salt
     (out1a, out1b) = My.generateKeyForMetadata rawKey (Just salt)
-    (Right out2) = AES256CBC.encrypt out1a out1b (salt<>salt)
+    (Right out2) = AES256CBC.encrypt out1a out1b (B8.pack "0000000000000000")
     (Right out3) = AES256CBC.decrypt out1a out1b out2
 {--
     PBKDF2.generate
