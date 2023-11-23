@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Crypto.Encryption.AES256CBC
+module Crypto.Cipher.AES256CBC
     ( encrypt
     , decrypt
 
@@ -65,7 +65,7 @@ import Data.ByteString
 -- | payload === decrypt . encrypt $ payload
 -- | and encrypted payload is
 -- | /Nu/x5WeHn++YkLbIozfZA==
--- | TO_DO understand this discrepancy
+-- | TO_DO understand this discrepancy + sort out how to deal with payload that are not multitude of 16-bytes.
 
 -- | Initialize a block cipher
 initCipher
