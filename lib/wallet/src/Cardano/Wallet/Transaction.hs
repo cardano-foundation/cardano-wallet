@@ -73,9 +73,6 @@ import Cardano.Api
     )
 import Cardano.Api.Extra
     ()
-import Cardano.Pool.Types
-    ( PoolId
-    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
@@ -93,11 +90,18 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    ( AnyExplicitScript (..)
+    , changeRoleInAnyExplicitScript
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.PoolId
+    ( PoolId
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -330,34 +334,6 @@ data DelegationAction
 
 instance Buildable DelegationAction where
     build = genericF
-
-data AnyExplicitScript =
-      NativeExplicitScript !(Script KeyHash) !ScriptReference
-    | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-changeRoleInAnyExplicitScript
-    :: KeyRole
-    -> AnyExplicitScript
-    -> AnyExplicitScript
-changeRoleInAnyExplicitScript newrole = \case
-    NativeExplicitScript script scriptRole ->
-        let changeRole' = \case
-                RequireSignatureOf (KeyHash _ p) ->
-                   RequireSignatureOf $ KeyHash newrole p
-                RequireAllOf xs ->
-                   RequireAllOf (map changeRole' xs)
-                RequireAnyOf xs ->
-                   RequireAnyOf (map changeRole' xs)
-                RequireSomeOf m xs ->
-                   RequireSomeOf m (map changeRole' xs)
-                ActiveFromSlot s ->
-                   ActiveFromSlot s
-                ActiveUntilSlot s ->
-                   ActiveUntilSlot s
-        in NativeExplicitScript (changeRole' script) scriptRole
-    PlutusExplicitScript _ _  -> error "wrong usage"
 
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
