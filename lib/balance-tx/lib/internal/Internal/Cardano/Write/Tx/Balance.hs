@@ -291,7 +291,7 @@ import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
-import qualified Cardano.Wallet.Primitive.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
     )

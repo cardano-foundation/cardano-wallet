@@ -12,7 +12,7 @@
 -- Exposes a wallet-friendly interface to types and functions exported by the
 -- ledger specification.
 --
-module Cardano.Wallet.Primitive.Convert
+module Cardano.Wallet.Primitive.Ledger.Convert
     (
       -- * Conversions from wallet types to ledger specification types
       toLedgerAddress

@@ -427,7 +427,7 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedgerAddress
     , toWallet
     , toWalletCoin

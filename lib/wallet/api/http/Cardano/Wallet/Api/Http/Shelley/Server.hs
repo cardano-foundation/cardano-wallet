@@ -520,11 +520,11 @@ import Cardano.Wallet.Pools
     ( EpochInfo (..)
     , toEpochInfo
     )
-import Cardano.Wallet.Primitive.Convert
-    ( toLedger
-    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr
+    )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toLedger
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -886,7 +886,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

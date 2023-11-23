@@ -33,7 +33,7 @@ import Cardano.Ledger.Api
     , vldtTxBodyL
     , witsTxL
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
@@ -97,7 +97,7 @@ import Control.Lens
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

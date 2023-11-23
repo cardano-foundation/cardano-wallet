@@ -28,7 +28,7 @@ import Cardano.Ledger.Alonzo
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing)
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletTokenBundle
     )
 import Cardano.Wallet.Read.Eras
@@ -66,7 +66,7 @@ import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

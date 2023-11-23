@@ -101,7 +101,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
     , toWalletAddress
     , toWalletCoin

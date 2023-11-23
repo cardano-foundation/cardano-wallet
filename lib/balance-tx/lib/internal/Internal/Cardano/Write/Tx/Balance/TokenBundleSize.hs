@@ -35,7 +35,7 @@ import Internal.Cardano.Write.Tx
     , Version
     )
 
-import qualified Cardano.Wallet.Primitive.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )

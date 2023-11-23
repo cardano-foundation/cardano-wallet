@@ -59,7 +59,7 @@ import Cardano.Wallet.Address.States.Families
     , KeyOf
     , NetworkOf
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedger
     )
 import Cardano.Wallet.Primitive.NetworkId

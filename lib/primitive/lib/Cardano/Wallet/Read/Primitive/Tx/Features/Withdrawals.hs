@@ -34,7 +34,7 @@ import Data.Map.Strict
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certificates
 import qualified Data.Map as Map

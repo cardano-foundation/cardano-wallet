@@ -41,7 +41,7 @@ import Cardano.Ledger.Api
     , vldtTxBodyL
     , witsTxL
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     , toWalletTokenPolicyId
     )
@@ -141,7 +141,7 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Ledger.Mary.Value as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

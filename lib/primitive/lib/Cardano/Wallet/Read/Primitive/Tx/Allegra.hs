@@ -48,7 +48,7 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Shelley.Tx
     ( ShelleyTx
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
@@ -110,7 +110,7 @@ import Data.Foldable
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

@@ -110,7 +110,7 @@ library
   exposed-modules:
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
-    Cardano.Wallet.Primitive.Convert
+    Cardano.Wallet.Primitive.Ledger.Convert
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
@@ -252,7 +252,7 @@ test-suite test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
-    Cardano.Wallet.Primitive.ConvertSpec
+    Cardano.Wallet.Primitive.Ledger.ConvertSpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
