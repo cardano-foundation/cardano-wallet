@@ -83,7 +83,7 @@ import Control.Tracer
     ( Tracer
     , traceWith
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b256
     )
 import Data.Aeson

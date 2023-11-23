@@ -657,12 +657,12 @@ import Control.Tracer
     , contramap
     , traceWith
     )
-import Crypto.Encryption.ChaChaPoly1305
-    ( CryptoError
-    )
 import Crypto.Hash
     ( Blake2b_256
     , hash
+    )
+import Cryptography.Primitives
+    ( CryptoError
     )
 import Data.Bifunctor
     ( first

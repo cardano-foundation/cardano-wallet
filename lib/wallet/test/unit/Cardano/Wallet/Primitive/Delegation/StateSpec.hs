@@ -66,7 +66,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Control.Arrow
     ( first
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b224
     )
 import Data.Map

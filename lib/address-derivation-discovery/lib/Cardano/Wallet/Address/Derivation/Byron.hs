@@ -91,7 +91,7 @@ import Control.Lens
 import Crypto.Hash.Algorithms
     ( SHA512 (..)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b256
     )
 import Data.ByteArray

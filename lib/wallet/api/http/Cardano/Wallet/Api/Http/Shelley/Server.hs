@@ -715,11 +715,11 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
-import Crypto.Encryption.ChaChaPoly1305
+import Cryptography.KeyDerivationFunction.PBKDF2
+    ( generateKeyForMetadata
+    )
+import Cryptography.Primitives
     ( CryptoFailable (..)
-    , decryptPayload
-    , encryptPayload
-    , toSymmetricKey
     )
 import Data.Bifunctor
     ( first
@@ -928,6 +928,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Cryptography.Cipher.ChaChaPoly1305 as ChaChaPoly1305
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -3136,7 +3137,7 @@ toMetadataEncrypted apiEncrypt =
   where
     toBytes = BL.toStrict . Aeson.encode
 
-    encrypt = encryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce
+    encrypt = ChaChaPoly1305.encrypt (toMetadataEncryptedKey apiEncrypt) encryptionNonce
 
     toChunks bs res =
         if bs == BS.empty then
@@ -3155,7 +3156,7 @@ toMetadataEncryptedKey
     :: ApiEncryptMetadata
     -> ByteString
 toMetadataEncryptedKey apiEncrypt =
-    toSymmetricKey (BA.convert $ unPassphrase passphrase)
+    fst $ generateKeyForMetadata (BA.convert $ unPassphrase passphrase) Nothing
   where
     (ApiEncryptMetadata (ApiT passphrase)) = apiEncrypt
 
@@ -3191,7 +3192,7 @@ fromMetadataEncrypted apiEncrypt metadata =
             Right $ Map.foldl BS.append BS.empty $ Map.map extractBytes themap
 
     decrypt payload =
-        case decryptPayload (toMetadataEncryptedKey apiEncrypt) encryptionNonce payload of
+        case ChaChaPoly1305.decrypt (toMetadataEncryptedKey apiEncrypt) encryptionNonce payload of
             CryptoPassed res -> Right res
             CryptoFailed err -> Left $ ErrDecodeTxDecryptMetadata err
 

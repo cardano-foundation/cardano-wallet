@@ -1,12 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Crypto.Cipher.AES256CBC
+module Cryptography.Cipher.AES256CBC
     ( encrypt
     , decrypt
-
-    , CryptoError (..)
-    , CryptoFailable (..)
     ) where
 
 import Prelude

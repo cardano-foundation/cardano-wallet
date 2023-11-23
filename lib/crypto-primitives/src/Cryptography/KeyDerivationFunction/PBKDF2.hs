@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
-module  Crypto.KeyDerivationFunction.PBKDF2
+module Cryptography.KeyDerivationFunction.PBKDF2
     ( generateKey
     , generateKeyForMetadata
 

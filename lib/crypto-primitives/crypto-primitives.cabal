@@ -24,14 +24,14 @@ library
     -freverse-errors
 
   hs-source-dirs:     src
-  exposed-modules:    Crypto.Cipher.AES256CBC
-                      Crypto.Cipher.ChaChaPoly1305
-                      Crypto.Hash.Extra
-                      Crypto.KeyDerivationFunction.PBKDF2
+  exposed-modules:    Cryptography.Cipher.AES256CBC
+                      Cryptography.Cipher.ChaChaPoly1305
+                      Cryptography.Hash.Extra
+                      Cryptography.KeyDerivationFunction.PBKDF2
+                      Cryptography.Primitives
   build-depends:
     , base                    ^>=4.14.3
     , bytestring              ^>=0.10.12
     , cryptonite              ^>=0.30
     , memory                  ^>=0.18
     , cborg
-    , text
