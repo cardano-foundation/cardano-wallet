@@ -11,6 +11,18 @@ module Cardano.Wallet.Read.Primitive.Tx (
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( TokenMapWithScripts
+    , emptyTokenMapWithScripts
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount
+    , WitnessCountCtx
+    , emptyWitnessCount
+    )
 import Cardano.Wallet.Read
     ( Tx (..)
     )
@@ -44,14 +56,6 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTx
     , fromShelleyTx'
     )
-import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount
-    , WitnessCountCtx
-    , emptyTokenMapWithScripts
-    , emptyWitnessCount
-    )
 import Generics.SOP
     ( K (..)
     )
@@ -61,7 +65,7 @@ import qualified Cardano.Api.Byron as Cardano
     ( Tx (ByronTx)
     )
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 fromCardanoTx ::

@@ -44,6 +44,20 @@ import Cardano.Ledger.Shelley.TxBody
 import Cardano.Wallet.Primitive.Convert
     ( toWalletScriptFromShelley
     )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    ( AnyExplicitScript (NativeExplicitScript)
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( ScriptReference (..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( inject
     , shelley
@@ -76,14 +90,6 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    , emptyTokenMapWithScripts
-    )
 import Control.Lens
     ( folded
     , (^.)
@@ -99,12 +105,10 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn)
-    )
 import qualified Data.Set as Set
 
 fromShelleyTxIn

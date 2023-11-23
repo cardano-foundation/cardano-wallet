@@ -70,7 +70,7 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
 
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Protocol.TPraos.BHeader as SL
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Ouroboros.Network.Block as O
 

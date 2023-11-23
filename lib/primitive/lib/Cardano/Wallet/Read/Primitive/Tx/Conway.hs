@@ -50,6 +50,16 @@ import Cardano.Wallet.Primitive.Convert
     ( toWalletScript
     , toWalletTokenPolicyId
     )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    ( AnyExplicitScript (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( PlutusScriptInfo (PlutusScriptInfo)
+    , PlutusVersion (PlutusVersionV1, PlutusVersionV2, PlutusVersionV3)
+    , ReferenceInput (ReferenceInput)
+    , ScriptReference (..)
+    , TokenMapWithScripts
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..)
     )
@@ -58,6 +68,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount (WitnessCount)
+    , WitnessCountCtx
+    , toKeyRole
     )
 import Cardano.Wallet.Read.Eras
     ( conway
@@ -97,18 +115,6 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Transaction
-    ( AnyExplicitScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
-    , WitnessCountCtx
-    , toKeyRole
-    )
 import Control.Lens
     ( folded
     , (<&>)
@@ -140,7 +146,7 @@ import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Wallet.Primitive.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.List as L

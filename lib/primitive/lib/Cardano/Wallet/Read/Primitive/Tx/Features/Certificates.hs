@@ -41,17 +41,17 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Ledger.Shelley.TxBody
     ( DCert
     )
-import Cardano.Pool.Types
-    ( PoolId (PoolId)
-    , PoolOwner (PoolOwner)
-    )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Certificates
     ( PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId (PoolId)
+    , PoolOwner (PoolOwner)
     )
 import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     ( StakePoolMetadataHash (..)
@@ -86,9 +86,10 @@ import GHC.Stack
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Set as Set
 

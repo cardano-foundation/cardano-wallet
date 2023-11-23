@@ -55,6 +55,15 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     , toNestedList
     , toNestedMap
     )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( AnyScript (..)
+    , PlutusScriptInfo (PlutusScriptInfo)
+    , PlutusVersion (..)
+    , ReferenceInput (ReferenceInput)
+    , ScriptReference (ViaSpending)
+    , TokenMapWithScripts (TokenMapWithScripts)
+    , emptyTokenMapWithScripts
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..)
     )
@@ -74,15 +83,6 @@ import Cardano.Wallet.Read.Tx.ReferenceInputs
     )
 import Cardano.Wallet.Read.Tx.Witnesses
     ( Witnesses (..)
-    )
-import Cardano.Wallet.Transaction
-    ( AnyScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , emptyTokenMapWithScripts
     )
 import Data.Foldable
     ( toList

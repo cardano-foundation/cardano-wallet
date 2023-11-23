@@ -20,15 +20,15 @@ import Prelude
 import Cardano.Ledger.Api
     ( ValidityInterval (..)
     )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit (ValidityIntervalExplicit)
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
     , K (..)
     )
 import Cardano.Wallet.Read.Tx.Validity
     ( Validity (..)
-    )
-import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (ValidityIntervalExplicit)
     )
 import Data.Maybe.Strict
     ( StrictMaybe (..)

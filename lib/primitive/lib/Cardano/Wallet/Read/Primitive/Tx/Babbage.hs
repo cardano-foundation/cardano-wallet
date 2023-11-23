@@ -21,11 +21,9 @@ import Prelude
 import Cardano.Api
     ( BabbageEra
     )
-import Cardano.Ledger.Alonzo
-    ( AlonzoScript
-    )
 import Cardano.Ledger.Api
-    ( StandardCrypto
+    ( ScriptHash
+    , StandardCrypto
     , addrTxWitsL
     , auxDataTxL
     , bodyTxL
@@ -94,15 +92,26 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Transaction
+
+import Cardano.Ledger.Babbage
+    ( AlonzoScript
+    , BabbageTxOut
+    )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (..)
-    , PlutusScriptInfo (..)
-    , PlutusVersion (..)
-    , ReferenceInput (..)
-    , ScriptReference (..)
-    , TokenMapWithScripts (..)
-    , ValidityIntervalExplicit (..)
-    , WitnessCount (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( PlutusScriptInfo (PlutusScriptInfo)
+    , PlutusVersion (PlutusVersionV1, PlutusVersionV2, PlutusVersionV3)
+    , ReferenceInput (ReferenceInput)
+    , ScriptReference (ViaReferenceInput, ViaSpending)
+    , TokenMapWithScripts
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount (WitnessCount)
     , WitnessCountCtx
     , toKeyRole
     )
@@ -121,21 +130,19 @@ import Data.Maybe.Strict
 import Data.Word
     ( Word32
     )
-import Internal.Cardano.Write.Tx
-    ( BabbageTxOut
-    , StandardBabbage
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardBabbage
     )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Api.Scripts as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Wallet.Primitive.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.List as L
@@ -180,7 +187,7 @@ fromBabbageTx tx witCtx =
             -> BabbageTxOut StandardBabbage
             -> Maybe
                 ( ScriptReference
-                , Ledger.ScriptHash StandardCrypto
+                , ScriptHash StandardCrypto
                 , AlonzoScript StandardBabbage
                 )
         scriptWithHashIx ix txout =
@@ -205,7 +212,7 @@ fromBabbageTx tx witCtx =
 
     fromLedgerToAnyScript
         :: ( ScriptReference
-           , Ledger.ScriptHash StandardCrypto
+           , ScriptHash StandardCrypto
            , AlonzoScript StandardBabbage
            )
         -> (TokenPolicyId, AnyExplicitScript)
