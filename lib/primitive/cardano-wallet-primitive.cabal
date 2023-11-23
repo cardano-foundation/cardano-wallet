@@ -160,6 +160,7 @@ library
     Cardano.Wallet.Primitive.Types.UTxO
     Cardano.Wallet.Primitive.Types.UTxO.Gen
     Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    Cardano.Wallet.Primitive.Types.WitnessCount
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
