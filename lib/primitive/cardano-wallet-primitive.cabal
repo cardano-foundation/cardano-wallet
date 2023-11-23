@@ -135,6 +135,7 @@ library
     Cardano.Wallet.Primitive.Types.SlotId
     Cardano.Wallet.Primitive.Types.SlottingParameters
     Cardano.Wallet.Primitive.Types.SlottingParameters.Gen
+    Cardano.Wallet.Primitive.Types.StakePoolMetadata
     Cardano.Wallet.Primitive.Types.StakePoolSummary
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen

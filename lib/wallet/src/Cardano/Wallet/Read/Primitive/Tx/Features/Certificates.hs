@@ -41,10 +41,6 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Ledger.Shelley.TxBody
     ( DCert
     )
-import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    )
 import Cardano.Pool.Types
     ( PoolId (PoolId)
     , PoolOwner (PoolOwner)
@@ -56,6 +52,10 @@ import Cardano.Wallet.Primitive.Types
     ( PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    )
+import Cardano.Wallet.Primitive.Types.StakePoolMetadata
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..)
@@ -184,7 +184,8 @@ fromShelleyCert = \case
     SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
     SL.DCertMir{} -> W.CertificateOther W.MIRCertificate
 
-fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
+fromPoolMetadata :: SL.PoolMetadata
+    -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
     ( StakePoolMetadataUrl (urlToText (pmUrl meta))
     , StakePoolMetadataHash (pmHash meta)
