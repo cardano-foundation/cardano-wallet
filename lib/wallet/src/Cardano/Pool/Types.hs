@@ -18,14 +18,14 @@ module Cardano.Pool.Types
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.PoolId
     ( PoolId (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
     , poolIdBytesLength
+    )
+import Cardano.Wallet.Primitive.Types.StakePoolSummary
+    ( StakePoolsSummary (..)
     )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
@@ -43,14 +43,8 @@ import Data.Aeson
 import Data.ByteString
     ( ByteString
     )
-import Data.Map
-    ( Map
-    )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Percentage
     )
 import Data.Text
     ( Text
@@ -71,9 +65,6 @@ import Database.Persist.Sqlite
     )
 import Fmt
     ( Buildable (..)
-    , listF'
-    , mapF
-    , pretty
     )
 import GHC.Generics
     ( Generic
@@ -81,7 +72,6 @@ import GHC.Generics
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
-import qualified Data.Map as Map
 import qualified Data.Text as T
 
 -- | Very short name for a stake pool.
@@ -173,16 +163,3 @@ instance PersistField [PoolOwner] where
 
 instance PersistFieldSql [PoolOwner] where
     sqlType _ = sqlType (Proxy @Text)
-
-data StakePoolsSummary = StakePoolsSummary
-    { nOpt :: Int
-    , rewards :: Map PoolId Coin
-    , stake :: Map PoolId Percentage
-    } deriving (Show, Eq)
-
-instance Buildable StakePoolsSummary where
-    build StakePoolsSummary{nOpt,rewards,stake} = listF' id
-        [ "Stake: " <> mapF (Map.toList stake)
-        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
-        , "Optimum number of pools: " <> pretty nOpt
-        ]

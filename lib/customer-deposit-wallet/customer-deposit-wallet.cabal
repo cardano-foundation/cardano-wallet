@@ -50,6 +50,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-wallet
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-ledger-byron
     , containers
