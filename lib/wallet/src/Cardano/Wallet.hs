@@ -427,6 +427,11 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toLedgerAddress
+    , toWallet
+    , toWalletCoin
+    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
@@ -560,11 +565,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedgerAddress
-    , toWallet
-    , toWalletCoin
     )
 import Cardano.Wallet.Shelley.Transaction
     ( mkTransaction

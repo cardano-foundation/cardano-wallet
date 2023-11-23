@@ -33,6 +33,9 @@ import Cardano.Ledger.Api
     , vldtTxBodyL
     , witsTxL
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toWalletScript
+    )
 import Cardano.Wallet.Read.Eras
     ( inject
     , mary
@@ -70,9 +73,6 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -91,10 +91,10 @@ import Control.Lens
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Set as Set
 
 fromMaryTx

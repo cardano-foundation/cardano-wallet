@@ -18,8 +18,8 @@ import Cardano.Wallet.Read.Tx.Fee
     , FeeType
     )
 
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 
 getFee :: EraFun Fee (K (Maybe W.Coin))
 getFee = EraFun

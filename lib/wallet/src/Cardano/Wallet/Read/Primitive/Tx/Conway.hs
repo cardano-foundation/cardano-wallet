@@ -46,6 +46,10 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Babbage
     ( BabbageTxOut
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toWalletScript
+    , toWalletTokenPolicyId
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..)
     )
@@ -93,10 +97,6 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    , toWalletTokenPolicyId
-    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -139,10 +139,10 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Ledger.Mary.Value as SL
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

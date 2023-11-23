@@ -104,6 +104,7 @@ library
   exposed-modules:
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Convert
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
@@ -155,7 +156,6 @@ library
     Cardano.Wallet.Primitive.Types.TxParameters
     Cardano.Wallet.Primitive.Types.UTxO
     Cardano.Wallet.Primitive.Types.UTxO.Gen
-    Cardano.Wallet.Shelley.Compatibility.Ledger
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
@@ -217,6 +217,7 @@ test-suite test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
+    Cardano.Wallet.Primitive.ConvertSpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
@@ -231,7 +232,6 @@ test-suite test
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec
-    Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Data.QuantitySpec
     Spec
     SpecHook

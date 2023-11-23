@@ -520,6 +520,9 @@ import Cardano.Wallet.Pools
     ( EpochInfo (..)
     , toEpochInfo
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toLedger
+    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr
     )
@@ -638,9 +641,6 @@ import Cardano.Wallet.Registry
     , WorkerLog (..)
     , defaultWorkerAfter
     , workerResource
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTag
@@ -886,6 +886,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
+import qualified Cardano.Wallet.Primitive.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -905,7 +906,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F

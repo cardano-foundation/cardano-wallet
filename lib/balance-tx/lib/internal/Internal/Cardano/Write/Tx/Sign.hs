@@ -74,13 +74,13 @@ import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Wallet.Primitive.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map

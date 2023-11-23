@@ -41,6 +41,12 @@ import Cardano.Ledger.Shelley.TxWits
     ( ShelleyTxWits
     , scriptWits
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toWalletScript
+    , toWalletTokenName
+    , toWalletTokenPolicyId
+    , toWalletTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -68,12 +74,6 @@ import Cardano.Wallet.Read.Tx.ReferenceInputs
     )
 import Cardano.Wallet.Read.Tx.Witnesses
     ( Witnesses (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    , toWalletTokenName
-    , toWalletTokenPolicyId
-    , toWalletTokenQuantity
     )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)

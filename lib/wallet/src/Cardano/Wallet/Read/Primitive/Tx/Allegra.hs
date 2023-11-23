@@ -48,6 +48,9 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Shelley.Tx
     ( ShelleyTx
     )
+import Cardano.Wallet.Primitive.Convert
+    ( toWalletScript
+    )
 import Cardano.Wallet.Read.Eras
     ( allegra
     , inject
@@ -82,9 +85,6 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( shelleyWithdrawals
     )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ScriptReference (..)
@@ -104,10 +104,10 @@ import Data.Foldable
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Wallet.Primitive.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Ledger
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.

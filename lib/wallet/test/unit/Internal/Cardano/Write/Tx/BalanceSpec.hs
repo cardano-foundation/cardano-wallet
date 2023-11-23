@@ -416,6 +416,7 @@ import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
     ( Block (..)
     , BlockHeader (..)
@@ -454,7 +455,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as Convert
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
