@@ -64,7 +64,6 @@ library internal
     , cardano-ledger-shelley
     , cardano-slotting
     , cardano-strict-containers
-    , cardano-wallet-conversions
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
