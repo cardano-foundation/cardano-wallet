@@ -123,6 +123,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit (..)
+    )
 import Control.DeepSeq
     ( NFData (..)
     )
@@ -506,10 +509,3 @@ data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
-
-data ValidityIntervalExplicit = ValidityIntervalExplicit
-    { invalidBefore :: !(Quantity "slot" Word64)
-    , invalidHereafter :: !(Quantity "slot" Word64)
-    }
-    deriving (Generic, Eq, Show)
-    deriving anyclass NFData
