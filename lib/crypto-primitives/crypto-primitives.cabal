@@ -24,8 +24,9 @@ library
     -freverse-errors
 
   hs-source-dirs:     src
-  exposed-modules:    Crypto.Hash.Extra
+  exposed-modules:    Crypto.Encryption.AES256CBC
                       Crypto.Encryption.ChaChaPoly1305
+                      Crypto.Hash.Extra
                       Crypto.KeyDerivationFunction.PBKDF2
   build-depends:
     , base                    ^>=4.14.3
