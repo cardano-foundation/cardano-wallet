@@ -9,7 +9,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.PoolId
+import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     )
 import Data.Map

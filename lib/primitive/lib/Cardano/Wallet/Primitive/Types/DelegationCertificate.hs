@@ -10,7 +10,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.PoolId
+import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount

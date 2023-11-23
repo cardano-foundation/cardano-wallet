@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.PoolId
+import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount

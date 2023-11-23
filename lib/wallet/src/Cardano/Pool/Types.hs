@@ -2,9 +2,9 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Pool.Types
     ( StakePoolsSummary (..)
@@ -18,8 +18,9 @@ module Cardano.Pool.Types
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.PoolId
+import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
+    , PoolOwner (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
     , poolIdBytesLength
@@ -30,18 +31,12 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
 import Cardano.Wallet.Util
     ( ShowFmt (..)
     )
-import Control.DeepSeq
-    ( NFData
-    )
 import Control.Monad
     ( (>=>)
     )
 import Data.Aeson
     ( FromJSON (parseJSON)
     , ToJSON (toJSON)
-    )
-import Data.ByteString
-    ( ByteString
     )
 import Data.Proxy
     ( Proxy (..)
@@ -63,15 +58,10 @@ import Database.Persist.PersistValue.Extended
 import Database.Persist.Sqlite
     ( PersistFieldSql (..)
     )
-import Fmt
-    ( Buildable (..)
-    )
 import GHC.Generics
     ( Generic
     )
 
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Text as T
 
 -- | Very short name for a stake pool.
@@ -100,43 +90,6 @@ instance PersistField StakePoolTicker where
 
 instance PersistFieldSql StakePoolTicker where
     sqlType _ = sqlType (Proxy @Text)
-
--- | A stake pool owner, which is a public key encoded in bech32 with prefix
--- ed25519_pk.
-newtype PoolOwner = PoolOwner { getPoolOwner :: ByteString }
-    deriving (Generic, Eq, Show, Ord)
-
-poolOwnerPrefix :: Bech32.HumanReadablePart
-poolOwnerPrefix = [Bech32.humanReadablePart|ed25519_pk|]
-
-instance NFData PoolOwner
-
-instance Buildable PoolOwner where
-    build poolId = build (toText poolId)
-
-instance ToText PoolOwner where
-    toText = Bech32.encodeLenient poolOwnerPrefix
-        . Bech32.dataPartFromBytes
-        . getPoolOwner
-
-instance FromText PoolOwner where
-    fromText t = case fmap Bech32.dataPartToBytes <$> Bech32.decode t of
-        Left err ->
-            Left $ TextDecodingError $
-            "Stake pool owner is not a valid bech32 string: "
-            <> show err
-        Right (hrp, Just bytes)
-            | hrp == poolOwnerPrefix ->
-                Right $ PoolOwner bytes
-            | otherwise ->
-                Left $ TextDecodingError $
-                "Stake pool owner has wrong prefix:"
-                <> " expected "
-                <> T.unpack (Bech32.humanReadablePartToText poolOwnerPrefix)
-                <> " but got "
-                <> show hrp
-        Right (_, Nothing) ->
-                Left $ TextDecodingError "Stake pool owner is invalid"
 
 instance FromJSON PoolOwner where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText

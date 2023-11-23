@@ -37,7 +37,7 @@ module Light (
     , ChainPoint (..)
     , SyncProgress
     , Pool
-    , Light.Types.PoolId
+    , Light.Types.Pool
     ) where
 
 import Control.Monad

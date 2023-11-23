@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Cardano.Wallet.Primitive.Types.PoolId
+module Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     , poolIdBytesLength
     , decodePoolIdBech32
     , encodePoolIdBech32
+    , PoolOwner (..)
+    , poolOwnerPrefix
     )
 where
 
@@ -109,3 +111,40 @@ decodePoolIdBech32 t =
             [ "Invalid stake pool id: expecting a Bech32 encoded value"
             , "with human readable part of 'pool'."
             ]
+
+-- | A stake pool owner, which is a public key encoded in bech32 with prefix
+-- ed25519_pk.
+newtype PoolOwner = PoolOwner { getPoolOwner :: ByteString }
+    deriving (Generic, Eq, Show, Ord)
+
+poolOwnerPrefix :: Bech32.HumanReadablePart
+poolOwnerPrefix = [Bech32.humanReadablePart|ed25519_pk|]
+
+instance NFData PoolOwner
+
+instance Buildable PoolOwner where
+    build poolId = build (toText poolId)
+
+instance ToText PoolOwner where
+    toText = Bech32.encodeLenient poolOwnerPrefix
+        . Bech32.dataPartFromBytes
+        . getPoolOwner
+
+instance FromText PoolOwner where
+    fromText t = case fmap Bech32.dataPartToBytes <$> Bech32.decode t of
+        Left err ->
+            Left $ TextDecodingError $
+            "Stake pool owner is not a valid bech32 string: "
+            <> show err
+        Right (hrp, Just bytes)
+            | hrp == poolOwnerPrefix ->
+                Right $ PoolOwner bytes
+            | otherwise ->
+                Left $ TextDecodingError $
+                "Stake pool owner has wrong prefix:"
+                <> " expected "
+                <> T.unpack (Bech32.humanReadablePartToText poolOwnerPrefix)
+                <> " but got "
+                <> show hrp
+        Right (_, Nothing) ->
+                Left $ TextDecodingError "Stake pool owner is invalid"

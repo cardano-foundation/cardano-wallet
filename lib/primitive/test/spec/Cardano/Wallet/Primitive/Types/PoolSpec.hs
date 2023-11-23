@@ -1,13 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Primitive.Types.PoolIdSpec
+module Cardano.Wallet.Primitive.Types.PoolSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.PoolId
+import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
@@ -27,7 +27,7 @@ import Test.QuickCheck
 import qualified Data.ByteString as BS
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.Types.PoolId" $ do
+spec = describe "Cardano.Wallet.Primitive.Types.Pool" $ do
     it "Can roundtrip {decode,encode}PoolIdBech32"
         $ withMaxSuccess 1000
         $ forAll (PoolId . BS.pack <$> vector 32)
