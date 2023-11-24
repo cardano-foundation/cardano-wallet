@@ -11,6 +11,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{- HLINT ignore "Use section" -}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -868,7 +870,7 @@ withTestLoadDBLayerFromFile tr ti dbFile action = do
             dbFile
             noManualMigration
             noMigration
-            (`runQuery` readWalletId)
+            (flip runQuery readWalletId)
     case mwid of
         Nothing -> fail "No wallet id found in database"
         Just wid -> do
