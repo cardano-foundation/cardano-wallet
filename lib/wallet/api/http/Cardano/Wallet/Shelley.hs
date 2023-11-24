@@ -86,6 +86,9 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..)
     , withNodeStakePoolLayer
@@ -206,9 +209,6 @@ import Network.URI
     )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop
-    )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
     )
 import System.Exit
     ( ExitCode (..)

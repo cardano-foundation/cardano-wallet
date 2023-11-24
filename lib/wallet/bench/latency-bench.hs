@@ -89,6 +89,9 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.LocalCluster
     ( clusterConfigsDirParser
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
@@ -167,9 +170,6 @@ import Network.Wai.Middleware.Logging
     )
 import Numeric.Natural
     ( Natural
-    )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy
     )
 import System.Directory
     ( createDirectory

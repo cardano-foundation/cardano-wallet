@@ -24,6 +24,7 @@ library
   import:           warnings
   exposed-modules:
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Implementation.Ouroboros
     Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation

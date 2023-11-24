@@ -150,6 +150,10 @@ import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     , parseGenesisData
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    , tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
@@ -325,10 +329,6 @@ import Internal.Cardano.Write.Tx
 import Numeric
     ( fromRat
     , showFFloat
-    )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
-    , tunedForMainnetPipeliningStrategy
     )
 import Say
     ( sayErr

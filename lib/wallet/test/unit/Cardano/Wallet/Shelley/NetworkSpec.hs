@@ -29,6 +29,9 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
@@ -66,9 +69,6 @@ import Fmt
     ( build
     , fmt
     , indentF
-    )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy
     )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData

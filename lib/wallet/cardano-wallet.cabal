@@ -338,7 +338,6 @@ library
     Data.Vector.Shuffle
     Database.Persist.PersistValue.Extended
     Network.Ntp
-    Ouroboros.Network.Client.Wallet
     UnliftIO.Compat
 
   other-modules:   Paths_cardano_wallet
@@ -639,6 +638,7 @@ executable cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , contra-tracer
     , iohk-monitoring
     , iohk-monitoring-extra
@@ -923,6 +923,7 @@ test-suite integration
     , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
@@ -1000,6 +1001,7 @@ benchmark latency
     , cardano-wallet-application-extras
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , directory
     , filepath

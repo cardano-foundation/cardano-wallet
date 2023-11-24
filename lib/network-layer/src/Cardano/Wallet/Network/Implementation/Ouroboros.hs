@@ -6,6 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -21,7 +22,7 @@
 -- clients implement the logic and lift away concerns related to concrete
 -- data-type representation so that the code can be re-used / shared between
 -- Byron and Shelley.
-module Ouroboros.Network.Client.Wallet
+module Cardano.Wallet.Network.Implementation.Ouroboros
     (
       -- * ChainSyncFollowTip
       chainSyncFollowTip

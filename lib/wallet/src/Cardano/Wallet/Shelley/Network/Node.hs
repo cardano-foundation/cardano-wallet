@@ -73,6 +73,17 @@ import Cardano.Wallet.Network
     , mapChainSyncLog
     , withFollowStatsMonitoring
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( LSQ (..)
+    , LocalStateQueryCmd (..)
+    , LocalTxSubmissionCmd (..)
+    , PipeliningStrategy
+    , chainSyncFollowTip
+    , chainSyncWithBlocks
+    , localStateQuery
+    , localTxSubmission
+    , send
+    )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
     , protocolParametersFromUpdateState
@@ -318,17 +329,6 @@ import Ouroboros.Consensus.Shelley.Ledger.Config
 import Ouroboros.Network.Block
     ( Point
     , Tip (..)
-    )
-import Ouroboros.Network.Client.Wallet
-    ( LSQ (..)
-    , LocalStateQueryCmd (..)
-    , LocalTxSubmissionCmd (..)
-    , PipeliningStrategy
-    , chainSyncFollowTip
-    , chainSyncWithBlocks
-    , localStateQuery
-    , localTxSubmission
-    , send
     )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv

@@ -24,6 +24,9 @@ import Cardano.BM.Tracing
 import Cardano.Wallet.Network
     ( NetworkLayer
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
     , StandardCrypto
@@ -48,9 +51,6 @@ import Data.Text.Class
     )
 import GHC.Stack
     ( HasCallStack
-    )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
     )
 
 newtype NetworkLayerLog = NodeNetworkLog Node.Log
