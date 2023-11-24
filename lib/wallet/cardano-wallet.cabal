@@ -311,7 +311,6 @@ library
     Cardano.Wallet.Primitive.Types.UTxOStatistics
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
-    Cardano.Wallet.Shelley.Compatibility
     Cardano.Wallet.Shelley.Network
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction

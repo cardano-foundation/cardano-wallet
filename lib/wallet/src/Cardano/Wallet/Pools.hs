@@ -88,6 +88,12 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( StandardCrypto
+    , getBabbageProducer
+    , getConwayProducer
+    , getProducer
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , Qry
@@ -125,12 +131,6 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Registry
     ( AfterThreadLog
     , traceAfterThread
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( StandardCrypto
-    , getBabbageProducer
-    , getConwayProducer
-    , getProducer
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage

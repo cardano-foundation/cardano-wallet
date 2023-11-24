@@ -80,23 +80,7 @@ import Cardano.Wallet.Primitive.Ledger.Byron
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
-import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , TimeInterpreterLog
-    , currentRelativeTime
-    , mkTimeInterpreter
-    )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..)
-    , SyncTolerance
-    )
-import Cardano.Wallet.Primitive.Types
-    ( GenesisParameters (..)
-    )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
+import Cardano.Wallet.Primitive.Ledger.Shelley
     ( StandardCrypto
     , fromAllegraPParams
     , fromAlonzoPParams
@@ -118,6 +102,22 @@ import Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toShelleyCoin
     , unsealShelleyTx
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter
+    , TimeInterpreterLog
+    , currentRelativeTime
+    , mkTimeInterpreter
+    )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..)
+    , SyncTolerance
+    )
+import Cardano.Wallet.Primitive.Types
+    ( GenesisParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SealedTx (..)
     )
 import Control.Applicative
     ( liftA3

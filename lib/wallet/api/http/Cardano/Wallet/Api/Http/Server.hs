@@ -215,6 +215,9 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..)
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( rewardAccountFromAddress
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , networkIdVal
@@ -226,9 +229,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( rewardAccountFromAddress
     )
 import Control.Applicative
     ( liftA2

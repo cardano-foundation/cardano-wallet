@@ -70,6 +70,19 @@ import Cardano.Wallet.Flavor
     ( KeyFlavor
     , keyFlavor
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
+    , decentralizationLevelFromPParams
+    , fromCardanoValue
+    , fromTip
+    , interval0
+    , interval1
+    , invertUnitInterval
+    , toCardanoHash
+    , toCardanoValue
+    , toTip
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , SNetworkId (..)
@@ -101,19 +114,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
-    , decentralizationLevelFromPParams
-    , fromCardanoValue
-    , fromTip
-    , interval0
-    , interval1
-    , invertUnitInterval
-    , toCardanoHash
-    , toCardanoValue
-    , toTip
     )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord

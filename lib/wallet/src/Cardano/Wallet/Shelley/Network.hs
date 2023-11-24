@@ -24,6 +24,10 @@ import Cardano.BM.Tracing
 import Cardano.Wallet.Network
     ( NetworkLayer
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId
     )
@@ -32,10 +36,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
     )
 import Control.Monad.Trans.Cont
     ( ContT (ContT)

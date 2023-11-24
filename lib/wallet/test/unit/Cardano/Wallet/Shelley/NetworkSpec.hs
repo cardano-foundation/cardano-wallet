@@ -29,14 +29,14 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( fromGenesisData
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData
     )
 import Cardano.Wallet.Shelley.Network.Node
     ( Observer (..)

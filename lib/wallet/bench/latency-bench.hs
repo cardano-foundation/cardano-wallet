@@ -95,6 +95,9 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Pools
     ( StakePool
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( fromGenesisData
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant (..)
@@ -113,9 +116,6 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText

@@ -91,6 +91,10 @@ import Cardano.Wallet.Pools
     , withNodeStakePoolLayer
     , withStakePoolDbLayer
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , NetworkId
@@ -129,10 +133,6 @@ import Cardano.Wallet.Registry
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
     )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer
@@ -255,7 +255,7 @@ serveWallet
     -> Maybe TokenMetadataServer
     -> Block
     -- ^ The genesis block, or some starting point.
-    -- See also: 'Cardano.Wallet.Shelley.Compatibility#KnownNetwork'.
+    -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
     -> (URI -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode

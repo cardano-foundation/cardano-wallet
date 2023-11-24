@@ -186,7 +186,7 @@ mainnetNetworkParameters =
 -- it became an updateable protocol parameter.
 --
 -- NOTE: A bit weird to define in "Cardano.Wallet.Primitive.Ledger.Byron", but we
--- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
+-- need it both here and in "Cardano.Wallet.Primitive.Ledger.Shelley".
 maryTokenBundleMaxSize :: W.TokenBundleMaxSize
 maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4_000
 

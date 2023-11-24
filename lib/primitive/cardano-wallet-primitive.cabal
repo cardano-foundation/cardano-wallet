@@ -143,6 +143,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
+    Cardano.Wallet.Primitive.Ledger.Shelley
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
