@@ -193,6 +193,9 @@ import Cardano.Wallet.Primitive.Types.FeePolicy
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.NetworkParameters
+    ( NetworkParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
     )
@@ -502,23 +505,6 @@ instance ToText DerivationIndex where
 {-------------------------------------------------------------------------------
                               Network Parameters
 -------------------------------------------------------------------------------}
-
--- | Records the complete set of parameters currently in use by the network
---   that are relevant to the wallet.
---
-data NetworkParameters = NetworkParameters
-    { genesisParameters :: GenesisParameters
-       -- ^ See 'GenesisParameters'.
-    , slottingParameters :: SlottingParameters
-       -- ^ See 'SlottingParameters'.
-    , protocolParameters :: ProtocolParameters
-       -- ^ See 'ProtocolParameters'.
-    } deriving (Generic, Show, Eq)
-
-instance NFData NetworkParameters
-
-instance Buildable NetworkParameters where
-    build (NetworkParameters gp sp pp) = build gp <> build sp <> build pp
 
 instance PersistField StakeKeyCertificate where
     toPersistValue = toPersistValue . show

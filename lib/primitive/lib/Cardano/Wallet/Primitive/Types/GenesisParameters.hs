@@ -8,12 +8,26 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Slotting (StartTime (StartTime))
-import Cardano.Wallet.Primitive.Types.Hash (Hash (getHash))
-import Control.DeepSeq (NFData)
-import Data.ByteArray.Encoding (Base (Base16), convertToBase)
-import Fmt (Buildable (..), blockListF')
-import GHC.Generics (Generic)
+import Cardano.Wallet.Primitive.Slotting
+    ( StartTime (StartTime)
+    )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (getHash)
+    )
+import Control.DeepSeq
+    ( NFData
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertToBase
+    )
+import Fmt
+    ( Buildable (..)
+    , blockListF'
+    )
+import GHC.Generics
+    ( Generic
+    )
 
 import qualified Data.Text.Encoding as T
 

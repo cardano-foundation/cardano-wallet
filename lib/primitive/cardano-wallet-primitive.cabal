@@ -156,6 +156,7 @@ library
     Cardano.Wallet.Primitive.Types.FeePolicy
     Cardano.Wallet.Primitive.Types.GenesisParameters
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.NetworkParameters
     Cardano.Wallet.Primitive.Types.Pool
     Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.ProtocolParameters
