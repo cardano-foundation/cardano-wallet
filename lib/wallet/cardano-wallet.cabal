@@ -312,7 +312,6 @@ library
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Network
-    Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.Submissions.Operations
     Cardano.Wallet.Submissions.Primitives

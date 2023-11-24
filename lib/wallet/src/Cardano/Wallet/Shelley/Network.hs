@@ -14,7 +14,7 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
-import qualified Cardano.Wallet.Shelley.Network.Node as Node
+import qualified Cardano.Wallet.Network.Implementation as Node
 
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation

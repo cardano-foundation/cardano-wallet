@@ -150,6 +150,9 @@ import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     , parseGenesisData
     )
+import Cardano.Wallet.Network.Implementation
+    ( withNetworkLayer
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( PipeliningStrategy
     , tunedForMainnetPipeliningStrategy
@@ -221,9 +224,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
-    )
-import Cardano.Wallet.Shelley.Network.Node
-    ( withNetworkLayer
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer

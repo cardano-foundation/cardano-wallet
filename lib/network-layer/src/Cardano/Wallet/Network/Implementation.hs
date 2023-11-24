@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -21,7 +22,7 @@
 -- - Module's documentation in `ouroboros-network/typed-protocols/src/Network/TypedProtocols.hs`
 -- - Data Diffusion and Peer Networking in Shelley (see: https://raw.githubusercontent.com/wiki/cardano-foundation/cardano-wallet/data_diffusion_and_peer_networking_in_shelley.pdf)
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
-module Cardano.Wallet.Shelley.Network.Node
+module Cardano.Wallet.Network.Implementation
     ( withNetworkLayer
     , NetworkParams(..)
     , Observer (query, startObserving, stopObserving)
@@ -59,10 +60,7 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
     )
-import Cardano.Pool.Types
-    ( PoolId
-    , StakePoolsSummary (..)
-    )
+
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -84,6 +82,9 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     , localTxSubmission
     , send
     )
+import Cardano.Wallet.Network.Implementation.UnliftIO
+    ( coerceHandlers
+    )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
     , protocolParametersFromUpdateState
@@ -92,8 +93,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( StandardCrypto
-    , fromAllegraPParams
+    ( fromAllegraPParams
     , fromAlonzoPParams
     , fromBabbagePParams
     , fromConwayPParams
@@ -124,8 +124,29 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     , SyncTolerance
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Block
+    ( BlockHeader
+    )
+import Cardano.Wallet.Primitive.Types.EraInfo
+    ( EraInfo (..)
+    )
+import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.NetworkParameters
+    ( NetworkParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
+    )
+import Cardano.Wallet.Primitive.Types.ProtocolParameters
+    ( ProtocolParameters
+    )
+import Cardano.Wallet.Primitive.Types.SlottingParameters
+    ( SlottingParameters
+    )
+import Cardano.Wallet.Primitive.Types.StakePoolSummary
+    ( StakePoolsSummary (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -321,6 +342,7 @@ import Ouroboros.Consensus.Protocol.TPraos
     )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardConway
+    , StandardCrypto
     )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..)
@@ -384,9 +406,6 @@ import UnliftIO.Async
     ( async
     , link
     )
-import UnliftIO.Compat
-    ( coerceHandlers
-    )
 import UnliftIO.Concurrent
     ( ThreadId
     )
@@ -402,7 +421,6 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -425,7 +443,7 @@ withNetworkLayer
     -- ^ Logging of network layer startup
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -- ^ pipelining value by the block heigh
-    -> W.NetworkParameters
+    -> NetworkParameters
     -- ^ Initial blockchain parameters
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
@@ -449,8 +467,8 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
 -- | Network parameters and protocol parameters for the node's current tip.
 data NetworkParams = NetworkParams
     { protocolParams :: MaybeInRecentEra Write.PParams
-    , protocolParamsLegacy :: W.ProtocolParameters
-    , slottingParamsLegacy :: W.SlottingParameters
+    , protocolParamsLegacy :: ProtocolParameters
+    , slottingParamsLegacy :: SlottingParameters
     }
     deriving (Eq, Show)
 
@@ -458,7 +476,7 @@ withNodeNetworkLayerBase
     :: HasCallStack
     => Tracer IO Log
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
-    -> W.NetworkParameters
+    -> NetworkParameters
     -> CardanoNodeConn
     -> NodeToClientVersionData
     -> SyncTolerance
@@ -545,11 +563,11 @@ withNodeNetworkLayerBase
                 , syncProgress = _syncProgress interpreterVar
                 }
       where
-        gp@W.GenesisParameters
+        gp@GenesisParameters
             { getGenesisBlockHash
             , getGenesisBlockDate
-            } = W.genesisParameters np
-        sp = W.slottingParameters np
+            } = genesisParameters np
+        sp = slottingParameters np
         cfg = codecConfig sp
 
         connectNodeClient
@@ -837,7 +855,7 @@ mkWalletToNodeProtocols
      . (HasCallStack, MonadUnliftIO m, MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m Log
     -- ^ Base trace for underlying protocols
-    -> W.NetworkParameters
+    -> NetworkParameters
     -- ^ Initial blockchain parameters
     -> ( NetworkParams -> m ())
     -- ^ Notifier callback for when parameters for tip change.
@@ -876,7 +894,7 @@ mkWalletToNodeProtocols
 
         let queryParams = do
                 eraBounds <-
-                    W.EraInfo
+                    EraInfo
                         <$> LSQry (QueryAnytimeByron GetEraStart)
                         <*> LSQry (QueryAnytimeShelley GetEraStart)
                         <*> LSQry (QueryAnytimeAllegra GetEraStart)
@@ -886,7 +904,7 @@ mkWalletToNodeProtocols
 
                 sp <-
                     byronOrShelleyBased
-                        (pure $ W.slottingParameters np)
+                        (pure $ slottingParameters np)
                         ( (slottingParametersFromGenesis . getCompactGenesis)
                             <$> LSQry Shelley.GetGenesisConfig
                         )
@@ -929,7 +947,7 @@ mkWalletToNodeProtocols
 
         let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 
-        let cfg = codecConfig (W.slottingParameters np)
+        let cfg = codecConfig (slottingParameters np)
 
         -- NOTE: These are updated every block. This is far more often than
         -- necessary.
@@ -1138,7 +1156,7 @@ codecVersion version = verMap ! version
   where
     verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
-codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
+codecConfig :: SlottingParameters -> CodecConfig (CardanoBlock c)
 codecConfig sp =
     CardanoCodecConfig
         (byronCodecConfig sp)
@@ -1414,8 +1432,8 @@ data Log where
            )
         -> Log
     MsgPostTx :: W.SealedTx -> Log
-    MsgNodeTip :: W.BlockHeader -> Log
-    MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> Log
+    MsgNodeTip :: BlockHeader -> Log
+    MsgProtocolParameters :: ProtocolParameters -> SlottingParameters -> Log
     MsgLocalStateQueryError :: QueryClientName -> String -> Log
     MsgLocalStateQueryEraMismatch
         :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
@@ -1436,7 +1454,7 @@ data Log where
         -> Log
         -- ^ Number of pools in stake distribution, and rewards map,
         -- respectively.
-    MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> Log
+    MsgWatcherUpdate :: BlockHeader -> BracketLog -> Log
     MsgInterpreter :: CardanoInterpreter StandardCrypto -> Log
     -- TODO: Combine ^^ and vv
     MsgInterpreterLog :: TimeInterpreterLog -> Log

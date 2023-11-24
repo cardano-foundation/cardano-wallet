@@ -29,6 +29,12 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Implementation
+    ( Observer (..)
+    , ObserverLog (..)
+    , newObserver
+    , withNetworkLayer
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
     )
@@ -40,12 +46,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..)
-    )
-import Cardano.Wallet.Shelley.Network.Node
-    ( Observer (..)
-    , ObserverLog (..)
-    , newObserver
-    , withNetworkLayer
     )
 import Control.Monad
     ( replicateM
