@@ -119,10 +119,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
-import Cardano.Wallet.Primitive.Model
-    ( Wallet (..)
-    , unsafeInitWallet
-    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     , NetworkId (..)
@@ -416,13 +412,6 @@ import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
-import qualified Cardano.Wallet.Primitive.Types as W
-    ( Block (..)
-    , BlockHeader (..)
-    )
-import qualified Cardano.Wallet.Primitive.Types as W.Block
-    ( header
-    )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..)
     )
@@ -436,7 +425,6 @@ import qualified Cardano.Wallet.Primitive.Types.Credentials as W
     )
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
-    , mockHash
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
@@ -461,9 +449,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Quantity as W
-    ( Quantity (..)
-    )
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -2071,8 +2056,7 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
             dummyTimeTranslation
             utxoIndex
             dummyChangeAddrGen
-            (getState $ unsafeInitWallet utxo (W.Block.header block0)
-                DummyChangeState { nextUnusedIndex = 0 })
+            (DummyChangeState 0)
             partialTx
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
@@ -2220,18 +2204,6 @@ cardanoToWalletTxOut =
 --------------------------------------------------------------------------------
 -- Test values
 --------------------------------------------------------------------------------
-
-block0 :: W.Block
-block0 = W.Block
-    { header = W.BlockHeader
-        { slotNo = SlotNo 0
-        , blockHeight = W.Quantity 0
-        , headerHash = W.mockHash $ SlotNo 0
-        , parentHeaderHash = Nothing
-        }
-    , transactions = []
-    , delegations = []
-    }
 
 {- HLINT ignore costModelsForTesting "Use underscore" -}
 costModelsForTesting :: Alonzo.CostModels
