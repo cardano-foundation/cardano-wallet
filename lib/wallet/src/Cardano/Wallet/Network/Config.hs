@@ -44,7 +44,7 @@ import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..)
     )
 
-import qualified Cardano.Wallet.Byron.Compatibility as Byron
+import qualified Cardano.Wallet.Primitive.Ledger.Byron as Byron
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 
 -- | Shelley hard fork network configuration has two genesis data.

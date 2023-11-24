@@ -224,7 +224,7 @@ import Cardano.Slotting.Time
 import Cardano.Wallet.Address.Encoding
     ( fromStakeCredential
     )
-import Cardano.Wallet.Byron.Compatibility
+import Cardano.Wallet.Primitive.Ledger.Byron
     ( fromTxAux
     , maryTokenBundleMaxSize
     )

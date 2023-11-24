@@ -13,7 +13,7 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Byron.
-module Cardano.Wallet.Byron.Compatibility
+module Cardano.Wallet.Primitive.Ledger.Byron
     ( -- * Chain Parameters
       mainnetNetworkParameters
     , maryTokenBundleMaxSize
@@ -105,16 +105,27 @@ import Ouroboros.Network.Block
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Slotting.Slot as Slotting
+import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
+import qualified Cardano.Wallet.Primitive.Types.EraInfo as W
+import qualified Cardano.Wallet.Primitive.Types.FeePolicy as W
+import qualified Cardano.Wallet.Primitive.Types.GenesisParameters as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.NetworkParameters as W
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
+import qualified Cardano.Wallet.Primitive.Types.ProtocolParameters as W
+import qualified Cardano.Wallet.Primitive.Types.SlottingParameters as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundleMaxSize as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
+import qualified Cardano.Wallet.Primitive.Types.TxParameters as W
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 
@@ -174,7 +185,7 @@ mainnetNetworkParameters =
 -- The concept was introduced in Mary, and hard-coded to this value. In Alonzo
 -- it became an updateable protocol parameter.
 --
--- NOTE: A bit weird to define in "Cardano.Wallet.Byron.Compatibility", but we
+-- NOTE: A bit weird to define in "Cardano.Wallet.Primitive.Ledger.Byron", but we
 -- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
 maryTokenBundleMaxSize :: W.TokenBundleMaxSize
 maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4_000
@@ -195,7 +206,7 @@ emptyGenesis gp =
         , header =
             W.BlockHeader
                 { slotNo =
-                    W.SlotNo 0
+                    Slotting.SlotNo 0
                 , blockHeight =
                     Quantity 0
                 , headerHash =

@@ -63,10 +63,6 @@ import Cardano.Pool.Types
     ( PoolId
     , StakePoolsSummary (..)
     )
-import Cardano.Wallet.Byron.Compatibility
-    ( byronCodecConfig
-    , protocolParametersFromUpdateState
-    )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -76,6 +72,10 @@ import Cardano.Wallet.Network
     , mapChainFollower
     , mapChainSyncLog
     , withFollowStatsMonitoring
+    )
+import Cardano.Wallet.Primitive.Ledger.Byron
+    ( byronCodecConfig
+    , protocolParametersFromUpdateState
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader

@@ -39,6 +39,7 @@ library
   hs-source-dirs:  lib
   build-depends:
     , aeson
+    , array
     , base
     , bech32
     , bech32-th
@@ -50,10 +51,12 @@ library
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
+    , cardano-data
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
@@ -63,12 +66,14 @@ library
     , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-strict-containers
+    , cardano-wallet-launcher
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , commutative-semigroups
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , cryptonite
     , deepseq
     , delta-types
@@ -92,6 +97,8 @@ library
     , OddWord
     , ouroboros-consensus
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-protocol
+    , ouroboros-network
     , ouroboros-network-api
     , pretty-simple
     , QuickCheck
@@ -110,6 +117,7 @@ library
   exposed-modules:
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Ledger.Byron
     Cardano.Wallet.Primitive.Ledger.Convert
     Cardano.Wallet.Primitive.Ledger.Read.Block
     Cardano.Wallet.Primitive.Ledger.Read.Block.Header
