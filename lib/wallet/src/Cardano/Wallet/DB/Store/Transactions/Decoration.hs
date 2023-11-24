@@ -46,18 +46,18 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , fromTxCollateralOut
     , fromTxOut
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
+    ( getCollateralInputs
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( getInputs
+    )
 import Cardano.Wallet.Read.Eras
     ( EraValue
     , extractEraValue
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    ( getCollateralInputs
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( getInputs
     )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( getEraCollateralInputs

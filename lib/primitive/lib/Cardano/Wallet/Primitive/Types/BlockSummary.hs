@@ -49,7 +49,7 @@ import Cardano.Wallet.Primitive.Types.Block
     , chainPointFromBlockHeader
     , toSlot
     )
-import Cardano.Wallet.Primitive.Types.DelegationCertificate
+import Cardano.Wallet.Primitive.Types.Certificates
     ( DelegationCertificate
     , dlgCertAccount
     )

@@ -427,10 +427,13 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedgerAddress
     , toWallet
     , toWalletCoin
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Block
+    ( fromCardanoBlock
     )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
@@ -553,9 +556,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics
-    )
-import Cardano.Wallet.Read.Primitive.Block
-    ( fromCardanoBlock
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR

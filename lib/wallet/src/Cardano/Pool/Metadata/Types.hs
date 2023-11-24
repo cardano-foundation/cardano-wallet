@@ -3,7 +3,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Pool.Metadata.Types where
+{-# OPTIONS_GHC -Wno-orphans #-}
+
+module Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    , PoolMetadataGCStatus (..)
+    , UrlBuilder
+    )
+where
 
 import Prelude
 
@@ -11,12 +20,9 @@ import Cardano.Pool.Types
     ( PoolId
     , StakePoolTicker (unStakePoolTicker)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    , hashFromText
-    )
-import Control.DeepSeq
-    ( NFData
+import Cardano.Wallet.Primitive.Types.StakePoolMetadata
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     )
 import Control.Monad
     ( when
@@ -34,9 +40,6 @@ import Data.Aeson.Types
     ( ToJSON (toJSON)
     , Value (String)
     )
-import Data.ByteString
-    ( ByteString
-    )
 import Data.Proxy
     ( Proxy (Proxy)
     )
@@ -44,8 +47,7 @@ import Data.Text
     ( Text
     )
 import Data.Text.Class.Extended
-    ( FromText (fromText)
-    , ToText (toText)
+    ( ToText (toText)
     , fromText'
     , fromTextMaybe
     )
@@ -58,9 +60,6 @@ import Database.Persist.PersistValue.Extended
 import Database.Persist.Sql
     ( PersistField (..)
     , PersistFieldSql (..)
-    )
-import Fmt
-    ( Buildable (build)
     )
 import GHC.Generics
     ( Generic
@@ -90,24 +89,6 @@ data PoolMetadataGCStatus
     | HasRun POSIXTime     -- shows last GC
     deriving (Eq, Show, Generic)
 
--- | A newtype to wrap metadata hash.
---
--- NOTE: not using the 'Hash' type as this newtype is primarily for database
--- interop which doesn't quite like DataKinds.
-newtype StakePoolMetadataHash = StakePoolMetadataHash ByteString
-    deriving (Eq, Ord, Show, Generic)
-
-instance NFData StakePoolMetadataHash
-
-instance ToText StakePoolMetadataHash where
-    toText (StakePoolMetadataHash bytes) = toText (Hash bytes)
-
-instance FromText StakePoolMetadataHash where
-    fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
-
-instance Buildable StakePoolMetadataHash where
-    build (StakePoolMetadataHash hash) = build (Hash hash)
-
 instance PersistField StakePoolMetadataHash where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
@@ -133,19 +114,6 @@ instance FromJSON StakePoolMetadataHash where
 instance PathPiece StakePoolMetadataHash where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
-
--- | A newtype to wrap metadata Url, mostly needed for database lookups and
--- signature clarity.
-newtype StakePoolMetadataUrl = StakePoolMetadataUrl Text
-    deriving (Eq, Ord, Show, Generic)
-
-instance NFData StakePoolMetadataUrl
-
-instance ToText StakePoolMetadataUrl where
-    toText (StakePoolMetadataUrl url) = url
-
-instance FromText StakePoolMetadataUrl where
-    fromText = pure . StakePoolMetadataUrl
 
 instance PersistField StakePoolMetadataUrl where
     toPersistValue = toPersistValue . toText

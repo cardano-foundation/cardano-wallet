@@ -59,13 +59,13 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId
     , unProtocolMagicId
     )
-import Cardano.Wallet.Read.Primitive.Tx.Byron
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
     ( fromTxAux
     )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromByronTxIn
     )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromByronTxOut
     )
 import Cardano.Wallet.Unsafe

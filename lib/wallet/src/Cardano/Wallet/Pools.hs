@@ -82,6 +82,12 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , NetworkLayer (..)
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block
+    ( fromCardanoBlock
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    ( getBlockHeader
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , Qry
@@ -115,12 +121,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Read.Primitive.Block
-    ( fromCardanoBlock
-    )
-import Cardano.Wallet.Read.Primitive.Block.Header
-    ( getBlockHeader
     )
 import Cardano.Wallet.Registry
     ( AfterThreadLog

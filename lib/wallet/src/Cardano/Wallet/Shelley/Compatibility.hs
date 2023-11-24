@@ -228,20 +228,20 @@ import Cardano.Wallet.Byron.Compatibility
     ( fromTxAux
     , maryTokenBundleMaxSize
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( fromShelleyTxIn
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( fromCardanoValue
+    , fromShelleyAddress
+    , fromShelleyTxOut
+    )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , PoolCertificate
     , PoolRegistrationCertificate (..)
     , ProtocolParameters (txParameters)
     , TxParameters (getTokenBundleMaxSize)
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    ( fromShelleyTxIn
-    )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromCardanoValue
-    , fromShelleyAddress
-    , fromShelleyTxOut
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
@@ -383,7 +383,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Protocol.TPraos.BHeader as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

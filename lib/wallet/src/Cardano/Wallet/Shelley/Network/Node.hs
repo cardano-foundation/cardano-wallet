@@ -77,6 +77,9 @@ import Cardano.Wallet.Network
     , mapChainSyncLog
     , withFollowStatsMonitoring
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    ( getBlockHeader
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , TimeInterpreterLog
@@ -92,9 +95,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    )
-import Cardano.Wallet.Read.Primitive.Block.Header
-    ( getBlockHeader
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
@@ -400,7 +400,7 @@ import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
-import qualified Cardano.Wallet.Primitive.Convert as Ledger
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -64,9 +63,7 @@ import Cardano.Address.Derivation
     )
 import Cardano.Address.Script
     ( KeyHash (..)
-    , KeyRole (..)
     , Script (..)
-    , ScriptHash
     , ScriptTemplate
     )
 import Cardano.Api
@@ -74,9 +71,6 @@ import Cardano.Api
     )
 import Cardano.Api.Extra
     ()
-import Cardano.Pool.Types
-    ( PoolId
-    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
@@ -94,11 +88,15 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    ( AnyExplicitScript (..)
+    , changeRoleInAnyExplicitScript
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -107,8 +105,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId
     , TokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
+    , TokenMapWithScripts (..)
+    , emptyTokenMapWithScripts
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity
@@ -122,6 +126,17 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
+    ( ValidityIntervalExplicit (..)
+    )
+import Cardano.Wallet.Primitive.Types.WitnessCount
+    ( WitnessCount (..)
+    , WitnessCount (..)
+    , WitnessCountCtx (..)
+    , emptyWitnessCount
+    , emptyWitnessCount
+    , toKeyRole
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -138,20 +153,8 @@ import Data.Map.Strict
 import Data.Monoid.Monus
     ( (<\>)
     )
-import Data.Quantity
-    ( Quantity (..)
-    )
 import Data.Text
     ( Text
-    )
-import Data.Text.Class
-    ( FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    )
-import Data.Word
-    ( Word64
-    , Word8
     )
 import Fmt
     ( Buildable (..)
@@ -167,7 +170,6 @@ import Internal.Cardano.Write.Tx.SizeEstimation
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
-import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
@@ -332,137 +334,6 @@ data DelegationAction
 instance Buildable DelegationAction where
     build = genericF
 
-data PlutusVersion = PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-instance ToText PlutusVersion where
-    toText PlutusVersionV1 = "v1"
-    toText PlutusVersionV2 = "v2"
-    toText PlutusVersionV3 = "v3"
-
-instance FromText PlutusVersion where
-    fromText txt = case txt of
-        "v1" -> Right PlutusVersionV1
-        "v2" -> Right PlutusVersionV2
-        "v3" -> Right PlutusVersionV3
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given plutus version."
-            , "I am expecting one of the words 'v1' or"
-            , "'v2'."]
-
-data PlutusScriptInfo = PlutusScriptInfo
-    { languageVersion :: PlutusVersion
-    , scriptHash :: ScriptHash
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-newtype ReferenceInput = ReferenceInput TxIn
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
--- | ScriptReference depicts whether the script is referenced via spending
--- and is bound to be used in the same transaction or is referenced via
--- reference inputs and is to be used in other transactions. The the latter
--- case the script is referenced in other trasactions
-data ScriptReference =
-      ViaSpending
-    | ViaReferenceInput ReferenceInput
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-data AnyScript =
-      NativeScript !(Script KeyHash) !ScriptReference
-    | PlutusScript !PlutusScriptInfo !ScriptReference
-    | AnyScriptReference !ScriptHash ![ReferenceInput]
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-data TokenMapWithScripts = TokenMapWithScripts
-    { txTokenMap :: !TokenMap
-    , txScripts :: !(Map TokenPolicyId AnyScript)
-    } deriving (Show, Generic, Eq)
-
-emptyTokenMapWithScripts :: TokenMapWithScripts
-emptyTokenMapWithScripts = TokenMapWithScripts
-    { txTokenMap = mempty
-    , txScripts = Map.empty
-    }
-
-data AnyExplicitScript =
-      NativeExplicitScript !(Script KeyHash) !ScriptReference
-    | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-changeRoleInAnyExplicitScript
-    :: KeyRole
-    -> AnyExplicitScript
-    -> AnyExplicitScript
-changeRoleInAnyExplicitScript newrole = \case
-    NativeExplicitScript script scriptRole ->
-        let changeRole' = \case
-                RequireSignatureOf (KeyHash _ p) ->
-                   RequireSignatureOf $ KeyHash newrole p
-                RequireAllOf xs ->
-                   RequireAllOf (map changeRole' xs)
-                RequireAnyOf xs ->
-                   RequireAnyOf (map changeRole' xs)
-                RequireSomeOf m xs ->
-                   RequireSomeOf m (map changeRole' xs)
-                ActiveFromSlot s ->
-                   ActiveFromSlot s
-                ActiveUntilSlot s ->
-                   ActiveUntilSlot s
-        in NativeExplicitScript (changeRole' script) scriptRole
-    PlutusExplicitScript _ _  -> error "wrong usage"
-
-data WitnessCount = WitnessCount
-    { verificationKey :: Word8
-    , scripts :: [AnyExplicitScript]
-    , bootstrap :: Word8
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-emptyWitnessCount :: WitnessCount
-emptyWitnessCount = WitnessCount
-    { verificationKey = 0
-    , scripts = []
-    , bootstrap = 0
-    }
-
--- WitnessCount context is needed to differentiate verification keys present
--- in native scripts.
--- In shelley wallets they could be present due to only policy verification key.
--- In multisig wallet they could stem from payment, policy and delegation roles,
--- and as minting/burning and delegation support comes will be extended in additional
--- data attached in SharedWalletCtx to differentiate that.
--- WitnessCount is needed only during or after signing, in other phases it is not used.
-data WitnessCountCtx =
-      ShelleyWalletCtx KeyHash -- Policy
-    | SharedWalletCtx [KeyHash] -- Delegation key hashes of all cosigners
-    | AnyWitnessCountCtx
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-toKeyRole :: WitnessCountCtx -> Hash "VerificationKey" -> KeyRole
-toKeyRole witCtx (Hash key) = case witCtx of
-    ShelleyWalletCtx (KeyHash _ mypolicykey) ->
-        if key == mypolicykey then
-            Policy
-        else
-            Unknown
-    SharedWalletCtx stakingKeyHashes ->
-        let toStakeKey (KeyHash _ k) = k
-            isStakeKey = L.elem key (map toStakeKey stakingKeyHashes)
-        in if isStakeKey then
-               Delegation
-           else
-               Payment
-    AnyWitnessCountCtx -> Unknown
-
 data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
@@ -506,10 +377,3 @@ data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
-
-data ValidityIntervalExplicit = ValidityIntervalExplicit
-    { invalidBefore :: !(Quantity "slot" Word64)
-    , invalidHereafter :: !(Quantity "slot" Word64)
-    }
-    deriving (Generic, Eq, Show)
-    deriving anyclass NFData

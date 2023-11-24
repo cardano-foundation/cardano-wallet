@@ -98,8 +98,11 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
-import Cardano.Wallet.Primitive.Convert
+import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( fromCardanoTx
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -144,9 +147,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
-    )
-import Cardano.Wallet.Read.Primitive.Tx
-    ( fromCardanoTx
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( cardanoCertKeysForWitnesses
@@ -250,7 +250,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Wallet.Primitive.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Data.ByteString as BS

@@ -310,30 +310,6 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
-    Cardano.Wallet.Read.Primitive.Block
-    Cardano.Wallet.Read.Primitive.Block.Header
-    Cardano.Wallet.Read.Primitive.Tx
-    Cardano.Wallet.Read.Primitive.Tx.Allegra
-    Cardano.Wallet.Read.Primitive.Tx.Alonzo
-    Cardano.Wallet.Read.Primitive.Tx.Babbage
-    Cardano.Wallet.Read.Primitive.Tx.Byron
-    Cardano.Wallet.Read.Primitive.Tx.Conway
-    Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
-    Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
-    Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs
-    Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
-    Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
-    Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
-    Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    Cardano.Wallet.Read.Primitive.Tx.Mary
-    Cardano.Wallet.Read.Primitive.Tx.Sealed
-    Cardano.Wallet.Read.Primitive.Tx.Shelley
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility

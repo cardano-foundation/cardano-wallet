@@ -26,8 +26,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
     )
 
+import qualified Cardano.Wallet.Primitive.Ledger.Read.Block as New
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Read.Primitive.Block as New
 import qualified Data.ByteString.Char8 as B8
 
 -- Our benchmark harness.

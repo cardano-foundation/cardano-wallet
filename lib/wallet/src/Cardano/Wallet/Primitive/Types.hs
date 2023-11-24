@@ -9,7 +9,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -130,14 +129,6 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
-import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash
-    , StakePoolMetadataUrl
-    )
-import Cardano.Pool.Types
-    ( PoolId
-    , PoolOwner
-    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     , WithOrigin (..)
@@ -146,6 +137,9 @@ import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (..)
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( StartTime (..)
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( Block (..)
@@ -157,8 +151,22 @@ import Cardano.Wallet.Primitive.Types.Block
     , isGenesisBlockHeader
     , toSlot
     )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
+import Cardano.Wallet.Primitive.Types.Certificates
+    ( Certificate (..)
+    , CertificatePublicationTime (..)
+    , DelegationCertificate (..)
+    , NonWalletCertificate (..)
+    , PoolCertificate (..)
+    , PoolLifeCycleStatus (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    , StakeKeyCertificate (..)
+    , dlgCertAccount
+    , dlgCertPoolId
+    , getPoolCertificatePoolId
+    , getPoolRegistrationCertificate
+    , getPoolRetirementCertificate
+    , setPoolCertificatePoolId
     )
 import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     ( DecentralizationLevel (getDecentralizationLevel)
@@ -166,12 +174,11 @@ import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     , fromFederationPercentage
     , getFederationPercentage
     )
-import Cardano.Wallet.Primitive.Types.DelegationCertificate
-    ( DelegationCertificate (..)
-    , dlgCertAccount
-    , dlgCertPoolId
-    )
 import Cardano.Wallet.Primitive.Types.EpochNo
+    ( EpochNo (..)
+    , isValidEpochNo
+    , unsafeEpochNo
+    )
 import Cardano.Wallet.Primitive.Types.EraInfo
     ( EraInfo (..)
     , emptyEraInfo
@@ -186,8 +193,15 @@ import Cardano.Wallet.Primitive.Types.FeePolicy
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
+    )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.SlotId
+    ( SlotId (..)
+    , SlotInEpoch (..)
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)
@@ -241,17 +255,10 @@ import Data.ByteString
 import Data.Data
     ( Proxy (..)
     )
-import Data.Generics.Internal.VL.Lens
-    ( set
-    , view
-    )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type
-    )
-import Data.Quantity
-    ( Percentage (..)
     )
 import Data.Text
     ( Text
@@ -276,7 +283,6 @@ import Data.Time.Format
     )
 import Data.Word
     ( Word32
-    , Word64
     )
 import Database.Persist.Class.PersistField
     ( PersistField (fromPersistValue, toPersistValue)
@@ -302,10 +308,6 @@ import Network.URI
     , uriToString
     )
 
-import Cardano.Wallet.Primitive.Slotting
-    ( StartTime (..)
-    )
-import Cardano.Wallet.Primitive.Types.SlotId
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -544,150 +546,12 @@ instance Buildable GenesisParameters where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
         startTimeF (StartTime s) = build s
 
-{-------------------------------------------------------------------------------
-              Stake Pool Delegation and Registration Certificates
--------------------------------------------------------------------------------}
-
-data StakeKeyCertificate
-    = StakeKeyRegistration
-    | StakeKeyDeregistration
-    deriving (Generic, Show, Read, Eq)
-
-instance NFData StakeKeyCertificate
-
 instance PersistField StakeKeyCertificate where
     toPersistValue = toPersistValue . show
     fromPersistValue = fromPersistValueRead
 
 instance PersistFieldSql StakeKeyCertificate where
     sqlType _ = sqlType (Proxy @Text)
-
--- | Sum-type of pool registration- and retirement- certificates. Mirrors the
---  @PoolCert@ type in cardano-ledger-specs.
-data PoolCertificate
-    = Registration PoolRegistrationCertificate
-    | Retirement PoolRetirementCertificate
-    deriving (Generic, Show, Eq, Ord)
-
-instance NFData PoolCertificate
-
-getPoolCertificatePoolId :: PoolCertificate -> PoolId
-getPoolCertificatePoolId = \case
-    Registration cert ->
-        view #poolId cert
-    Retirement cert ->
-        view #poolId cert
-
-setPoolCertificatePoolId :: PoolId -> PoolCertificate -> PoolCertificate
-setPoolCertificatePoolId newPoolId = \case
-    Registration cert -> Registration
-        $ set #poolId newPoolId cert
-    Retirement cert -> Retirement
-        $ set #poolId newPoolId cert
-
--- | Pool ownership data from the stake pool registration certificate.
-data PoolRegistrationCertificate = PoolRegistrationCertificate
-    { poolId :: !PoolId
-    , poolOwners :: ![PoolOwner]
-    , poolMargin :: Percentage
-    , poolCost :: Coin
-    , poolPledge :: Coin
-    , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
-    } deriving (Generic, Show, Eq, Ord)
-
-instance NFData PoolRegistrationCertificate
-
-instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate {poolId, poolOwners}) = mempty
-        <> "Registration of "
-        <> build poolId
-        <> " owned by "
-        <> build poolOwners
-
-data PoolRetirementCertificate = PoolRetirementCertificate
-    { poolId :: !PoolId
-
-    -- | The first epoch when the pool becomes inactive.
-    , retirementEpoch :: !EpochNo
-    } deriving (Generic, Show, Eq, Ord)
-
-instance NFData PoolRetirementCertificate
-
-instance Buildable PoolRetirementCertificate where
-    build (PoolRetirementCertificate p e) = mempty
-        <> "Pool "
-        <> build p
-        <> " with retirement epoch "
-        <> build e
-
-data NonWalletCertificate
-    = GenesisCertificate
-    | MIRCertificate
-    deriving (Generic, Show, Read, Eq)
-
-instance ToText NonWalletCertificate where
-    toText GenesisCertificate = "genesis"
-    toText MIRCertificate = "mir"
-
-instance FromText NonWalletCertificate where
-    fromText "genesis" = Right GenesisCertificate
-    fromText "mir" = Right MIRCertificate
-    fromText _ = Left $ TextDecodingError
-        "expecting either 'genesis' or 'mir' for NonWalletCertificate text value"
-
-instance NFData NonWalletCertificate
-
-data Certificate =
-      CertificateOfDelegation DelegationCertificate
-    | CertificateOfPool PoolCertificate
-    | CertificateOther NonWalletCertificate
-    deriving (Generic, Show, Eq)
-
-instance NFData Certificate
-
--- | Represents an abstract notion of a certificate publication time.
---
--- Certificates published at later times take precedence over certificates
--- published at earlier times.
---
-data CertificatePublicationTime = CertificatePublicationTime
-    { slotNo
-        :: SlotNo
-    , slotInternalIndex
-        :: Word64
-        -- ^ Indicates the relative position of a publication within a slot.
-    }
-    deriving (Eq, Generic, Ord, Show)
-
--- | Indicates the current life cycle status of a pool.
---
-data PoolLifeCycleStatus
-    = PoolNotRegistered
-        -- ^ Indicates that a pool is not registered.
-    | PoolRegistered
-        PoolRegistrationCertificate
-        -- ^ Indicates that a pool is registered BUT NOT marked for retirement.
-        -- Records the latest registration certificate.
-    | PoolRegisteredAndRetired
-        PoolRegistrationCertificate
-        PoolRetirementCertificate
-        -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
-        -- Records the latest registration and retirement certificates.
-    deriving (Eq, Ord, Show)
-
-getPoolRegistrationCertificate
-    :: PoolLifeCycleStatus -> Maybe PoolRegistrationCertificate
-getPoolRegistrationCertificate = \case
-    PoolNotRegistered            -> Nothing
-    PoolRegistered           c   -> Just c
-    PoolRegisteredAndRetired c _ -> Just c
-
-getPoolRetirementCertificate
-    :: PoolLifeCycleStatus -> Maybe PoolRetirementCertificate
-getPoolRetirementCertificate = \case
-    PoolNotRegistered            -> Nothing
-    PoolRegistered           _   -> Nothing
-    PoolRegisteredAndRetired _ c -> Just c
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
