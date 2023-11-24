@@ -23,9 +23,10 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Cardano.Wallet.Network.Logging.Aggregation
-    Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Implementation.UnliftIO
+    Cardano.Wallet.Network.Logging
+    Cardano.Wallet.Network.Logging.Aggregation
 
   -- other-modules:
   -- other-extensions:
@@ -42,6 +43,7 @@ library
     , cborg
     , containers
     , contra-tracer
+    , exceptions
     , fmt
     , generics-sop
     , io-classes
