@@ -229,7 +229,6 @@ import Internal.Cardano.Write.Tx
     , outputs
     , toCardanoApiTx
     , txBody
-    , withConstraints
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
@@ -499,25 +498,24 @@ constructUTxOIndex
 constructUTxOIndex ledgerUTxO =
     UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
   where
-    era = recentEra @era
-    walletUTxO = toWalletUTxO era ledgerUTxO
+    walletUTxO = toWalletUTxO ledgerUTxO
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
 
 fromWalletUTxO
-    :: RecentEra era
-    -> W.UTxO
+    :: forall era. IsRecentEra era
+    => W.UTxO
     -> UTxO era
-fromWalletUTxO era (W.UTxO m) = withConstraints era $ UTxO
+fromWalletUTxO (W.UTxO m) = UTxO
     $ Map.mapKeys Convert.toLedger
-    $ Map.map (toLedgerTxOut era) m
+    $ Map.map (toLedgerTxOut (recentEra @era)) m
 
 toWalletUTxO
-    :: RecentEra era
-    -> UTxO era
+    :: forall era. IsRecentEra era
+    => UTxO era
     -> W.UTxO
-toWalletUTxO era (UTxO m) = withConstraints era $ W.UTxO
+toWalletUTxO (UTxO m) = W.UTxO
     $ Map.mapKeys Convert.toWallet
-    $ Map.map (toWalletTxOut era) m
+    $ Map.map (toWalletTxOut (recentEra @era)) m
 
 balanceTransaction
     :: forall era m changeState.
@@ -558,9 +556,7 @@ balanceTransaction
     partialTx
     = do
     let adjustedPartialTx = flip (over #tx) partialTx $
-            assignMinimalAdaQuantitiesToOutputsWithoutAda
-                (recentEra @era)
-                pp
+            assignMinimalAdaQuantitiesToOutputsWithoutAda pp
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
@@ -632,21 +628,18 @@ balanceTransaction
 -- function.
 --
 assignMinimalAdaQuantitiesToOutputsWithoutAda
-    :: forall era
-     . RecentEra era
-    -> PParams era
+    :: forall era. IsRecentEra era
+    => PParams era
     -> Tx era
     -> Tx era
-assignMinimalAdaQuantitiesToOutputsWithoutAda era pp =
-    withConstraints era
-        $ over (bodyTxL . outputsTxBodyL)
-        $ fmap modifyTxOut
+assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
+        over (bodyTxL . outputsTxBodyL) (fmap modifyTxOut)
   where
     modifyTxOut
         :: TxOut era
         -> TxOut era
-    modifyTxOut out = withConstraints era $ flip (over coinTxOutL) out $ \c ->
-        if c == mempty then computeMinimumCoinForTxOut era pp out else c
+    modifyTxOut out = flip (over coinTxOutL) out $ \c ->
+        if c == mempty then computeMinimumCoinForTxOut pp out else c
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
@@ -774,7 +767,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 pure $ W.Coin.unsafeFromIntegral c
             | otherwise ->
                 throwE
-                $ withConstraints era
                 $ ErrBalanceTxInternalError
                 $ ErrUnderestimatedFee
                     (Coin (-c))
@@ -791,7 +783,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
             ErrBalanceTxInternalError
-                $ withConstraints era
                 $ ErrUnderestimatedFee
                     (Convert.toLedgerCoin c)
                     candidateTx
@@ -832,39 +823,37 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
-        withConstraints era $ do
-            let res = flip map txIns $ \i-> do
-                    case txinLookup i combinedUTxO of
-                        Nothing ->
-                           Left i
-                        Just o -> do
-                            let i' = Convert.toWallet i
-                            let W.TxOut addr bundle = toWalletTxOut era o
-                            pure (WalletUTxO i' addr, bundle)
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
+        let res = flip map txIns $ \i-> do
+                case txinLookup i combinedUTxO of
+                    Nothing ->
+                       Left i
+                    Just o -> do
+                        let i' = Convert.toWallet i
+                        let W.TxOut addr bundle = toWalletTxOut era o
+                        pure (WalletUTxO i' addr, bundle)
 
-            case partitionEithers res of
-                ([], resolved) ->
-                    pure $ UTxOIndex.fromSequence resolved
-                (unresolvedInsHead:unresolvedInsTail, _) ->
-                    throwE
-                    . ErrBalanceTxUnresolvedInputs
-                    $ (unresolvedInsHead :| unresolvedInsTail)
+        case partitionEithers res of
+            ([], resolved) ->
+                pure $ UTxOIndex.fromSequence resolved
+            (unresolvedInsHead:unresolvedInsTail, _) ->
+                throwE
+                . ErrBalanceTxUnresolvedInputs
+                $ (unresolvedInsHead :| unresolvedInsTail)
       where
         txIns :: [TxIn]
-        txIns = withConstraints (recentEra @era) $
+        txIns =
             Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCount
         -> Tx era
         -> ExceptT (ErrBalanceTx era) m (Tx era)
-    guardTxSize witCount tx =
-        withConstraints era $ do
-            let maxSize = W.TxSize (pp ^. ppMaxTxSizeL)
-            when (estimateSignedTxSize era pp witCount tx > maxSize) $
-                throwE ErrBalanceTxMaxSizeLimitExceeded
-            pure tx
+    guardTxSize witCount tx = do
+        let maxSize = W.TxSize (pp ^. ppMaxTxSizeL)
+        when (estimateSignedTxSize pp witCount tx > maxSize) $
+            throwE ErrBalanceTxMaxSizeLimitExceeded
+        pure tx
 
     guardTxBalanced
         :: Tx era
@@ -879,9 +868,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Tx era -> Value
     txBalance
-        = withConstraints era
-        . evaluateTransactionBalance era pp combinedUTxO
-        . txBody era
+        = evaluateTransactionBalance pp combinedUTxO
+        . txBody
 
     balanceAfterSettingMinFee
         :: Tx era
@@ -889,10 +877,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO cardanoApiTxBody
-            minfee = Convert.toWalletCoin $ evaluateMinimumFee
-                era pp tx witCount
+            minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx era tx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = CardanoApi.fromMaryValue $ txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
@@ -916,7 +903,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO (recentEra @era) u'
+        let W.UTxO u = toWalletUTxO u'
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
                 case i `W.UTxO.lookup` walletUTxO of
                     Just o2 -> unless (o1 == o2) $ Left
@@ -927,11 +914,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         case conflicts of
             [] -> return ()
             (c : cs) -> throwE
-                $ withConstraints era
                 $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
     combinedUTxO :: UTxO era
-    combinedUTxO = withConstraints era $ mconcat
+    combinedUTxO = mconcat
          -- The @CardanoApi.UTxO@ can contain strictly more information than
          -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
          -- precedence. This matters if a user is trying to balance a tx making
@@ -945,9 +931,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractOutputsFromTx :: CardanoApi.Tx (CardanoApiEra era) -> [W.TxOut]
     extractOutputsFromTx (CardanoApi.ByronTx _) = case era of {}
     extractOutputsFromTx (CardanoApi.ShelleyTx _ tx) =
-        map fromLedgerTxOut
-        $ outputs era
-        $ txBody era tx
+        map fromLedgerTxOut $ outputs $ txBody tx
       where
         fromLedgerTxOut :: TxOut era -> W.TxOut
         fromLedgerTxOut o = case era of
@@ -958,15 +942,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx era partialTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers
-                era pp timeTranslation combinedUTxO redeemers tx'
+            assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
     guardExistingCollateral
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral tx = withConstraints era $ do
+    guardExistingCollateral tx = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
@@ -978,7 +961,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingTotalCollateral
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral tx = withConstraints era $ do
+    guardExistingTotalCollateral tx = do
         let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
         case totColl of
             SNothing -> return ()
@@ -987,7 +970,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingReturnCollateral
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral tx = withConstraints era $ do
+    guardExistingReturnCollateral tx = do
         let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
         case collRet of
             SNothing -> return ()
@@ -1044,14 +1027,10 @@ selectAssets pp utxoAssumptions outs redeemers
             mkTokenBundleSizeAssessor pp
         , computeMinimumAdaQuantity = \addr tokens -> Convert.toWallet $
             computeMinimumCoinForTxOut
-                era
                 pp
                 (mkLedgerTxOut era addr (W.TokenBundle W.txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut
-                era
-                pp
-                (mkLedgerTxOut era addr bundle)
+            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut era addr bundle)
         , computeMinimumCost = \skeleton -> mconcat
             [ feePadding
             , fee0
@@ -1065,10 +1044,10 @@ selectAssets pp utxoAssumptions outs redeemers
                     assumedInputScriptTemplate utxoAssumptions
                 }
             ] <\> boringFee
-        , maximumCollateralInputCount = withConstraints era $
+        , maximumCollateralInputCount =
             unsafeIntCast @Natural @Int $ pp ^. ppMaxCollateralInputsL
     , minimumCollateralPercentage =
-        withConstraints era $ pp ^. ppCollateralPercentageL
+        pp ^. ppCollateralPercentageL
     , maximumLengthChangeAddress =
         Convert.toWalletAddress $ maxLengthChangeAddress changeGen
     }
@@ -1113,7 +1092,7 @@ selectAssets pp utxoAssumptions outs redeemers
     txPlutusScriptExecutionCost = Convert.toWallet @W.Coin $
         if null redeemers
             then mempty
-            else maxScriptExecutionCost era pp
+            else maxScriptExecutionCost pp
 
     collateralRequirement =
         if txPlutusScriptExecutionCost > W.Coin 0
@@ -1265,13 +1244,13 @@ newtype ErrUpdateSealedTx
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateTx
-    :: forall era. RecentEra era
-    -> Tx era
+    :: forall era. IsRecentEra era
+    => Tx era
     -> TxUpdate
     -> Either ErrUpdateSealedTx (Tx era)
-updateTx era tx extraContent = withConstraints era $ do
+updateTx tx extraContent = do
     let tx' = tx
-            & over bodyTxL (modifyShelleyTxBody extraContent era)
+            & over bodyTxL (modifyShelleyTxBody extraContent)
             & over (witsTxL . scriptTxWitsL) (<> extraInputScripts')
 
     case numberOfExistingKeyWits of
@@ -1279,7 +1258,7 @@ updateTx era tx extraContent = withConstraints era $ do
         n -> Left $ ErrExistingKeyWitnesses n
   where
     numberOfExistingKeyWits :: Int
-    numberOfExistingKeyWits = withConstraints era $ sum
+    numberOfExistingKeyWits = sum
         [ Set.size $ tx ^. (witsTxL . addrTxWitsL)
         , Set.size $ tx ^. (witsTxL . bootAddrTxWitsL)
         ]
@@ -1288,11 +1267,11 @@ updateTx era tx extraContent = withConstraints era $ do
 
     extraInputScripts'
         :: Map (ScriptHash StandardCrypto) (Script era)
-    extraInputScripts' = withConstraints era $
+    extraInputScripts' =
         Map.fromList $ map (pairWithHash . convert) extraInputScripts
       where
         pairWithHash s = (hashScript s, s)
-        convert = flip toLedgerScript era
+        convert = flip toLedgerScript (recentEra @era)
 
     toLedgerScript
         :: CA.Script CA.KeyHash
@@ -1303,11 +1282,11 @@ updateTx era tx extraContent = withConstraints era $ do
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
 
 modifyShelleyTxBody
-    :: forall era. TxUpdate
-    -> RecentEra era
+    :: forall era. IsRecentEra era
+    => TxUpdate
     -> TxBody era
     -> TxBody era
-modifyShelleyTxBody txUpdate era = withConstraints era $
+modifyShelleyTxBody txUpdate =
     over feeTxBodyL modifyFee
     . over outputsTxBodyL
         (<> extraOutputs')
@@ -1316,6 +1295,7 @@ modifyShelleyTxBody txUpdate era = withConstraints era $
     . over collateralInputsTxBodyL
         (<> extraCollateral')
   where
+    era = recentEra @era
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.fromList (Convert.toLedger . fst <$> extraInputs)
@@ -1597,7 +1577,7 @@ coinSelectionErrorToBalanceTxError = \case
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
                 & toExternalUTxOMap
-                & fromWalletUTxO (recentEra @era)
+                & fromWalletUTxO
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }

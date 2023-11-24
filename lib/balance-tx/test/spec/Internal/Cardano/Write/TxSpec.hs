@@ -11,7 +11,8 @@ module Internal.Cardano.Write.TxSpec where
 import Prelude
 
 import Cardano.Ledger.Api
-    ( coinTxOutL
+    ( PParams
+    , coinTxOutL
     , ppCoinsPerUTxOByteL
     )
 import Control.Lens
@@ -27,7 +28,7 @@ import Data.Default
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra
     , BabbageEra
-    , RecentEra (..)
+    , ConwayEra
     , computeMinimumCoinForTxOut
     , datumHashFromBytes
     , datumHashToBytes
@@ -106,20 +107,20 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Babbage)"
                 $ property $ \out delta perByte -> do
-                    let pp = def & ppCoinsPerUTxOByteL .~ perByte
-                    let era = RecentEraBabbage
-                    let c = delta <> computeMinimumCoinForTxOut era pp out
-                    isBelowMinimumCoinForTxOut era pp
+                    let pp = (def :: PParams BabbageEra)
+                            & ppCoinsPerUTxOByteL .~ perByte
+                    let c = delta <> computeMinimumCoinForTxOut pp out
+                    isBelowMinimumCoinForTxOut pp
                         (out & coinTxOutL .~ c )
                         === False
 
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Conway)"
                 $ property $ \out delta perByte -> do
-                    let pp = def & ppCoinsPerUTxOByteL .~ perByte
-                    let era = RecentEraConway
-                    let c = delta <> computeMinimumCoinForTxOut era pp out
-                    isBelowMinimumCoinForTxOut era pp
+                    let pp = (def :: PParams ConwayEra)
+                            & ppCoinsPerUTxOByteL .~ perByte
+                    let c = delta <> computeMinimumCoinForTxOut pp out
+                    isBelowMinimumCoinForTxOut pp
                         (out & coinTxOutL .~ c)
                         === False
 

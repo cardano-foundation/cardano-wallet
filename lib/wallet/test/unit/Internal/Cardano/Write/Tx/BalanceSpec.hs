@@ -266,7 +266,6 @@ import Internal.Cardano.Write.Tx
     , toCardanoApiTx
     , toCardanoApiUTxO
     , utxoFromTxOutsInRecentEra
-    , withConstraints
     )
 import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -521,7 +520,6 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             evaluateMinimumFeeSize tx = fromIntegral
                 $ Write.unCoin
                 $ Write.evaluateMinimumFee
-                    (recentEra @era)
                     pp
                     (withNoKeyWits tx)
                     (KeyWitnessCount 0 (fromIntegral $ length wits))
@@ -530,8 +528,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
-                pp = withConstraints (recentEra @era) $
-                    Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
+                pp = Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
 
         let evaluateMinimumFeeDerivedWitSize tx
                 = evaluateMinimumFeeSize tx
@@ -613,17 +610,16 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
 
     it "assigns minimal ada quantities to outputs without ada" $ do
-        let era = RecentEraBabbage
         let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
         let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
         let CardanoApi.ShelleyTx _ tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
-        let outs = Write.outputs era $ Write.txBody era tx
+        let outs = Write.outputs $ Write.txBody tx
 
         let pp = def
                 & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte_Babbage
-        Write.isBelowMinimumCoinForTxOut era pp (head outs)
+        Write.isBelowMinimumCoinForTxOut pp (head outs)
             `shouldBe` False
 
         head outs `shouldBe` (Convert.toBabbageTxOut out')
@@ -754,7 +750,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         :: CardanoApi.Tx CardanoApi.BabbageEra
         -> [Babbage.BabbageTxOut StandardBabbage]
     outputs (CardanoApi.Tx (CardanoApi.ShelleyTxBody _ body _ _ _ _ ) _) =
-        Write.outputs RecentEraBabbage body
+        Write.outputs body
 
     mapFirst f (x:xs) = f x : xs
     mapFirst _ [] = error "mapFirst: empty list"
@@ -883,7 +879,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     ptx
                 combinedUTxO = toCardanoApiUTxO $ mconcat
                     [ view #inputs ptx
-                    , fromWalletUTxO RecentEraBabbage walletUTxO
+                    , fromWalletUTxO walletUTxO
                     ]
             in
                 case res of
@@ -1103,14 +1099,10 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         let pparams = mockPParamsForBalancing @era
             CardanoApi.Tx cardanoApiBody _ = toCardanoApiTx tx
             witCount dummyAddr = estimateKeyWitnessCount
-                (utxoPromisingInputsHaveAddress era dummyAddr tx)
+                (utxoPromisingInputsHaveAddress dummyAddr tx)
                 (cardanoApiBody)
-            era = recentEra @era
-
-            noScripts = withConstraints (recentEra @era)
-                $ Map.null $ tx ^. witsTxL . scriptTxWitsL
-            noBootWits = withConstraints (recentEra @era)
-                $ Set.null $ tx ^. witsTxL . bootAddrTxWitsL
+            noScripts = Map.null $ tx ^. witsTxL . scriptTxWitsL
+            noBootWits = Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
                 pendingWith $ "Test setup does not work for txs with " <> x
 
@@ -1118,7 +1110,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
 
         case (noScripts, noBootWits) of
                 (True, True) -> do
-                    estimateSignedTxSize era pparams (witCount vkCredAddr) tx
+                    estimateSignedTxSize pparams (witCount vkCredAddr) tx
                         `shouldBeInclusivelyWithin`
                         ( signedBinarySize - correction
                         , signedBinarySize
@@ -1126,7 +1118,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                 (False, False) ->
                     testDoesNotYetSupport "bootstrap wits + scripts"
                 (True, False) ->
-                    estimateSignedTxSize era pparams (witCount bootAddr) tx
+                    estimateSignedTxSize pparams (witCount bootAddr) tx
                         `shouldBeInclusivelyWithin`
                         ( signedBinarySize - correction
                         , signedBinarySize + bootWitsCanBeLongerBy
@@ -1161,13 +1153,12 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
     -- outputs with vk payment credentials.
     utxoPromisingInputsHaveAddress
-        :: forall era. HasCallStack
-        => RecentEra era
-        -> W.Address
+        :: forall era. (HasCallStack, IsRecentEra era)
+        => W.Address
         -> Tx era
         -> UTxO era
-    utxoPromisingInputsHaveAddress era addr tx =
-        utxoFromTxOutsInRecentEra era $
+    utxoPromisingInputsHaveAddress addr tx =
+        utxoFromTxOutsInRecentEra (recentEra @era) $
             [ (i
               , TxOutInRecentEra
                     (Convert.toLedger addr)
@@ -1181,8 +1172,8 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         allInputs
             :: Tx era
             -> [TxIn]
-        allInputs body = withConstraints era
-            $ Set.toList
+        allInputs body =
+            Set.toList
             $ body ^. (bodyTxL . allInputsTxBodyF)
 
     -- An address with a vk payment credential. For the test above, this is the
@@ -1211,7 +1202,7 @@ spec_updateTx = describe "updateTx" $ do
         txs <- readTestTransactions
         forM_ txs $ \(filepath, tx :: Tx era) -> do
             it ("without TxUpdate: " <> filepath) $ do
-                    let res = updateTx (recentEra @era) tx noTxUpdate
+                    let res = updateTx tx noTxUpdate
                     case res of
                         Left e ->
                             expectationFailure $
@@ -1261,7 +1252,6 @@ spec_updateTx = describe "updateTx" $ do
             let tx = deserializeBabbageTx
                     $ snd $ head signedTxs
             let res = updateTx
-                    RecentEraBabbage
                     tx
                     noTxUpdate
 
@@ -1339,7 +1329,7 @@ prop_balanceTransactionValid
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #inputs partialTx
-                <> fromWalletUTxO (recentEra @era) walletUTxO
+                <> fromWalletUTxO walletUTxO
         let originalTx = toCardanoApiTx (view #tx partialTx)
         let originalBalance = txBalance originalTx combinedUTxO
         let originalOuts = txOutputs originalTx
@@ -1511,9 +1501,8 @@ prop_balanceTransactionValid
         -> UTxO era
         -> Property
     prop_validSize tx@(CardanoApi.Tx body _) utxo = do
-        let era = recentEra @era
         let (W.TxSize size) =
-                estimateSignedTxSize era ledgerPParams
+                estimateSignedTxSize ledgerPParams
                     (estimateKeyWitnessCount utxo body)
                     (fromCardanoApiTx tx)
         let limit = ledgerPParams ^. ppMaxTxSizeL
@@ -1531,14 +1520,12 @@ prop_balanceTransactionValid
         :: CardanoApi.Tx (CardanoApiEra era)
         -> Property
     _prop_outputsSatisfyMinAdaRequirement (CardanoApi.ShelleyTx _ tx) = do
-        let outputs = Write.outputs era $ Write.txBody era tx
+        let outputs = Write.outputs $ Write.txBody tx
         conjoin $ map valid outputs
       where
-        era = recentEra @era
-
         valid :: TxOut era -> Property
         valid out = counterexample msg $ property $
-            not $ Write.isBelowMinimumCoinForTxOut era ledgerPParams out
+            not $ Write.isBelowMinimumCoinForTxOut ledgerPParams out
           where
             msg = unwords
                 [ "ada quantity is"
@@ -1548,16 +1535,14 @@ prop_balanceTransactionValid
                 , "\n"
                 , "Suggested ada quantity (may overestimate requirement):"
                 , show $ Write.computeMinimumCoinForTxOut
-                    (recentEra @era)
                     ledgerPParams
                     out
                 ]
 
     hasZeroAdaOutputs :: CardanoApi.Tx (CardanoApiEra era) -> Bool
     hasZeroAdaOutputs (CardanoApi.ShelleyTx _ tx) =
-        any hasZeroAda (Write.outputs era $ Write.txBody era tx)
+        any hasZeroAda (tx ^. bodyTxL . outputsTxBodyL)
       where
-        era = recentEra @era
         hasZeroAda (Write.BabbageTxOut _ val _ _) =
             Value.coin val == Ledger.Coin 0
 
@@ -1579,7 +1564,7 @@ prop_balanceTransactionValid
         -> UTxO era
         -> CardanoApi.Lovelace
     minFee tx@(CardanoApi.Tx body _) utxo = Write.toCardanoApiLovelace
-        $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
+        $ Write.evaluateMinimumFee ledgerPParams
             (fromCardanoApiTx tx)
             (estimateKeyWitnessCount utxo body)
 
@@ -1589,12 +1574,9 @@ prop_balanceTransactionValid
         -> CardanoApi.Value
     txBalance tx u = Write.toCardanoApiValue @era $
         Write.evaluateTransactionBalance
-            era
             ledgerPParams
             u
-            (Write.txBody era $ fromCardanoApiTx tx)
-      where
-        era = recentEra @era
+            (Write.txBody $ fromCardanoApiTx tx)
 
     ledgerPParams = mockPParamsForBalancing @era
 
@@ -1970,7 +1952,7 @@ prop_updateTx
 prop_updateTx tx extraIns extraCol extraOuts newFee = do
     let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
     let tx' = either (error . show) id
-            $ updateTx era tx extra
+            $ updateTx tx extra
     conjoin
         [ inputs tx' === inputs tx
             <> Set.fromList (fromWalletTxIn . fst <$> extraIns)
@@ -1987,16 +1969,12 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
     fromWalletTxOut = case era of
         RecentEraBabbage -> Convert.toBabbageTxOut
 
-    fromWalletTxIn = Write.withConstraints era Convert.toLedger
+    fromWalletTxIn = Convert.toLedger
 
-    inputs = Write.withConstraints era $
-        view (bodyTxL . inputsTxBodyL)
-    outputs = Write.withConstraints era $
-        view (bodyTxL . outputsTxBodyL)
-    collateralIns = Write.withConstraints era $
-        view (bodyTxL . collateralInputsTxBodyL)
-    fee = Write.withConstraints era $
-        view (bodyTxL . feeTxBodyL)
+    inputs = view (bodyTxL . inputsTxBodyL)
+    outputs = view (bodyTxL . outputsTxBodyL)
+    collateralIns = view (bodyTxL . collateralInputsTxBodyL)
+    fee = view (bodyTxL . feeTxBodyL)
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -2072,7 +2050,7 @@ balanceTx
                 partialTx
         pure (Write.toCardanoApiTx transactionInEra)
   where
-    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
+    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -2097,7 +2075,7 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
                 DummyChangeState { nextUnusedIndex = 0 })
             partialTx
   where
-    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO (recentEra @era) utxo
+    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
 deserializeBabbageTx :: ByteString -> Tx Write.BabbageEra
 deserializeBabbageTx = fromCardanoApiTx @BabbageEra . either (error . show) id
@@ -2208,7 +2186,6 @@ txMinFee
 txMinFee tx@(CardanoApi.Tx body _) u =
     Write.toCardanoApiLovelace $
     Write.evaluateMinimumFee
-        RecentEraBabbage
         (mockPParamsForBalancing @Write.BabbageEra)
         (fromCardanoApiTx tx)
         (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)

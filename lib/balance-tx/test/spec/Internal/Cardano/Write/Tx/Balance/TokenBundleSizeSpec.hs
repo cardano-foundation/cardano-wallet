@@ -31,12 +31,12 @@ import Data.Word
     ( Word64
     )
 import Internal.Cardano.Write.Tx
-    ( ProtVer (..)
+    ( IsRecentEra (..)
+    , ProtVer (..)
     , RecentEra (..)
     , StandardBabbage
     , StandardConway
     , Version
-    , withConstraints
     )
 import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     ( TokenBundleSizeAssessor
@@ -280,9 +280,10 @@ instance Arbitrary PParamsInRecentEra where
 
       where
         genPParams
-            :: RecentEra era
+            :: IsRecentEra era
+            => RecentEra era
             -> Gen (PParams era)
-        genPParams era = withConstraints era $ do
+        genPParams _era = do
             ver <- arbitrary
             maxSize <- genMaxSizeBytes
             return $ def
