@@ -222,9 +222,12 @@ test-suite test
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-api
+    , cardano-crypto-class
     , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-ledger-byron-test
     , cardano-ledger-core:{cardano-ledger-core, testlib}
+    , cardano-ledger-shelley
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-slotting
@@ -243,9 +246,12 @@ test-suite test
     , hspec-core
     , iohk-monitoring
     , lattices
+    , lens
     , MonadRandom
     , ouroboros-consensus
     , ouroboros-consensus-cardano
+    , ouroboros-network
+    , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
@@ -264,6 +270,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.Ledger.ConvertSpec
+    Cardano.Wallet.Primitive.Ledger.ShelleySpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec
