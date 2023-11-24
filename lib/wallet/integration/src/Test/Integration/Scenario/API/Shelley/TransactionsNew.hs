@@ -5278,7 +5278,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let metadataToBeEncrypted =
                 TxMetadataWithSchema TxMetadataNoSchema metadataRaw
         let encryptMetadata =
-                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
+                ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
         let payload = Json [json|{
                 "encrypt_metadata": #{toJSON encryptMetadata},
                 "metadata": #{toJSON metadataToBeEncrypted}

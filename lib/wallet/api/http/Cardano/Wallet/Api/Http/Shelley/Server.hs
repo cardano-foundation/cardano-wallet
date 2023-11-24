@@ -3158,7 +3158,7 @@ toMetadataEncryptedKey
 toMetadataEncryptedKey apiEncrypt =
     fst $ generateKeyForMetadata (BA.convert $ unPassphrase passphrase) Nothing
   where
-    (ApiEncryptMetadata (ApiT passphrase)) = apiEncrypt
+    (ApiEncryptMetadata (ApiT passphrase) _) = apiEncrypt
 
 -- When encryption is enabled we do the following:
 -- (a) recreate encrypted payload from chunks

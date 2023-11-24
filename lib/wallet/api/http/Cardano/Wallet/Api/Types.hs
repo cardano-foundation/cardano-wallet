@@ -197,6 +197,7 @@ module Cardano.Wallet.Api.Types
     , DRep (..)
     , DRepKeyHash (..)
     , DRepScriptHash (..)
+    , EncryptMetadataMethod (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1227,8 +1228,13 @@ data ApiMultiDelegationAction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-newtype ApiEncryptMetadata = ApiEncryptMetadata
-    { passphrase :: ApiT (Passphrase "lenient") }
+data EncryptMetadataMethod =  AES256CBC | ChaChaPoly1305
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiEncryptMetadata = ApiEncryptMetadata
+    { passphrase :: ApiT (Passphrase "lenient")
+    , enc :: Maybe EncryptMetadataMethod }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
@@ -2268,6 +2274,24 @@ instance ToJSON ApiStakeKeyIndex where
     toJSON (ApiStakeKeyIndex ix) = toJSON ix
 instance FromJSON ApiStakeKeyIndex where
     parseJSON val = ApiStakeKeyIndex <$> parseJSON val
+
+instance ToJSON EncryptMetadataMethod where
+    toJSON AES256CBC = "base"
+    toJSON ChaChaPoly1305 = "chachapoly1305"
+instance FromJSON EncryptMetadataMethod where
+    parseJSON t =
+        parseBase t <|> parseChaChaPoly1305 t
+      where
+        parseBase = withText "base" $ \txt ->
+            if txt == "base" then
+                pure AES256CBC
+            else
+                fail "'base' is expected."
+        parseChaChaPoly1305 = withText "ChaChaPoly1305" $ \txt ->
+            if txt == "chachapoly1305" then
+                pure ChaChaPoly1305
+            else
+                fail "'chachapoly1305' is expected."
 
 instance ToJSON ApiVoteAction where
     toJSON Abstain = "abstain"

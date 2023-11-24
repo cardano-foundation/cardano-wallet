@@ -3371,7 +3371,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let metadataToBeEncrypted =
                 TxMetadataWithSchema TxMetadataNoSchema metadataRaw
         let encryptMetadata =
-                ApiEncryptMetadata $ ApiT $ Passphrase "metadata-secret"
+                ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
         let payloadMetadata = Json [json|{
                 "encrypt_metadata": #{toJSON encryptMetadata},
                 "metadata": #{toJSON metadataToBeEncrypted}

@@ -1751,17 +1751,28 @@ x-transactionMetadata: &transactionMetadata
   # propertyNames:
   #   pattern: '^[0-9]+$'
 
+x-encryptionMethod: &encryptionMethod
+  type: string
+  enum:
+    - base
+    - chachapoly1305
+
 x-encryptMetadata: &encryptMetadata
   description: |
-    If used then metadata in transaction is going to be encrypted
-    via AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
-    PBKDF2 password stretching is used to get a 32-byte symmetric key.
-    PBKDF2 encryption using HMAC with the hash algorithm SHA512 is employed here.
+    If used then metadata in transaction is going to be encrypted by either
+    (a) base which is AES 256 using CBC mode or
+    (b) AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
+    PBKDF2 password stretching is used to get a 32-byte secret key and 16-byte iv
+    needed in (a) scheme.
+    PBKDF2 encryption algorithm using HMAC with the hash algorithm SHA256 is employed
+    using 10000 iterations. Nosalt is used at this moment. Randomized version with
+    salt is to be added in the future.
     The encrypted metadata is going to be stored in blockchain as a consequence.
   type: object
   required:
     - passphrase
   properties:
+    enc: *encryptionMethod
     passphrase: *lenientPassphrase
 
 x-transactionTTL: &transactionTTL
@@ -4823,6 +4834,17 @@ x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
       type: string
       enum: ['created_invalid_transaction']
 
+x-errInvalidMetadataDecryption: &errInvalidMetadataDecryption
+  <<: *responsesErr
+  title: invalid_metadata_decryption
+  properties:
+    message:
+      type: string
+      description: The encrypted metadata has either wrong structure, or cannot be decrypted or decoded.
+    code:
+      type: string
+      enum: ['invalid_metadata_decryption']
+
 x-errForeignTransaction: &errForeignTransaction
   <<: *responsesErr
   title: foreign_transaction
@@ -5942,6 +5964,13 @@ x-responsesDecodedTransaction: &responsesDecodedTransaction
     content:
       application/json:
         schema: *ApiDecodedTransaction
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidMetadataDecryption
 
 x-responsesSubmitTransaction: &responsesSubmitTransaction
   <<: *responsesErr400
