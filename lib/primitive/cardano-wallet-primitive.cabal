@@ -111,6 +111,30 @@ library
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
     Cardano.Wallet.Primitive.Ledger.Convert
+    Cardano.Wallet.Primitive.Ledger.Read.Block
+    Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    Cardano.Wallet.Primitive.Ledger.Read.Tx
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
@@ -130,6 +154,7 @@ library
     Cardano.Wallet.Primitive.Types.EraInfo
     Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
     Cardano.Wallet.Primitive.Types.FeePolicy
+    Cardano.Wallet.Primitive.Types.GenesisParameters
     Cardano.Wallet.Primitive.Types.Hash
     Cardano.Wallet.Primitive.Types.Pool
     Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -167,30 +192,6 @@ library
     Cardano.Wallet.Primitive.Types.UTxO.Gen
     Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     Cardano.Wallet.Primitive.Types.WitnessCount
-    Cardano.Wallet.Primitive.Ledger.Read.Block
-    Cardano.Wallet.Primitive.Ledger.Read.Block.Header
-    Cardano.Wallet.Primitive.Ledger.Read.Tx
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
