@@ -55,6 +55,7 @@ import Cardano.Ledger.Api
     , allInputsTxBodyF
     , bodyTxL
     , coinTxOutL
+    , mkBasicTx
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -889,15 +890,12 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         ]
 
     delegate :: PartialTx BabbageEra
-    delegate = PartialTx (fromCardanoApiTx $ CardanoApi.Tx body []) mempty []
+    delegate = PartialTx (mkBasicTx body) mempty []
       where
-        body = CardanoApi.ShelleyTxBody
-            CardanoApi.ShelleyBasedEraBabbage
-            (Ledger.mkBasicTxBody & certsTxBodyL .~ StrictSeq.fromList certs)
-            []
-            CardanoApi.TxBodyNoScriptData
-            Nothing
-            CardanoApi.TxScriptValidityNone
+        body :: TxBody BabbageEra
+        body =
+            mkBasicTxBody
+                & certsTxBodyL .~ StrictSeq.fromList certs
 
         stakeKey = KeyHashObj $ KeyHash
             "1866df9e2f1a61b522d1ef2518b51574a8205a70eafd257a9ad9949b"
