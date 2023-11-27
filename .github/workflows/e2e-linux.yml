@@ -113,3 +113,25 @@ jobs:
           test/e2e/state/logs
           test/e2e/state/configs
           test/e2e/state/wallet_db
+
+    - name: Slack Notification on failure
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: success()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'

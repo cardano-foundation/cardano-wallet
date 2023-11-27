@@ -27,6 +27,7 @@ jobs:
       BRANCH: ${{ github.event.inputs.branch || 'master' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
 
+
     steps:
     - name: Check space
       run: Get-PSDrive
@@ -146,3 +147,32 @@ jobs:
           C:/cardano-wallet/test/e2e/state/logs
           C:/cardano-wallet/test/e2e/state/configs
           C:/cardano-wallet/test/e2e/state/wallet_db
+
+
+
+  report:
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Slack Notification on failure
+      if: needs.test.result != 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: needs.test.result == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'
