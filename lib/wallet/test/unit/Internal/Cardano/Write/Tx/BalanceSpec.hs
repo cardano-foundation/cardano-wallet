@@ -67,7 +67,13 @@ import Cardano.Ledger.Language
     ( Language (..)
     )
 import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing)
+    ( Credential (KeyHashObj)
+    , Credential (..)
+    , DCert (DCertDeleg)
+    , DelegCert (..)
+    , Delegation (..)
+    , KeyHash (..)
+    , StrictMaybe (SJust, SNothing)
     , Withdrawals (..)
     )
 import Cardano.Mnemonic
@@ -77,9 +83,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Numeric.Util
     ( power
-    )
-import Cardano.Pool.Types
-    ( PoolId (..)
     )
 import Cardano.Wallet
     ( defaultChangeAddressGen
@@ -133,10 +136,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
-    , mkDelegationCertificates
-    )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -881,8 +880,6 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    rootK =
-        Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
     addr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
@@ -902,15 +899,14 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Nothing
             CardanoApi.TxScriptValidityNone
 
+        stakeKey = KeyHashObj $ KeyHash
+            "1866df9e2f1a61b522d1ef2518b51574a8205a70eafd257a9ad9949b"
+        pool = KeyHash
+            "ec28f33dcbe6d6400a1e5e339bd0647c202020202020202020202020"
         certs =
-            CardanoApi.toShelleyCertificate
-                <$> mkDelegationCertificates delegationAction (Left xpub)
-          where
-            poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
-                            \\ts\202l\f\249\194\187\230\131\141\198"
-
-            xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
-            delegationAction = JoinRegisteringKey poolId
+            [ DCertDeleg $ RegKey stakeKey
+            , DCertDeleg $ Delegate $ Delegation stakeKey pool
+            ]
 
     txFee :: CardanoApi.Tx CardanoApi.BabbageEra -> CardanoApi.Lovelace
     txFee (CardanoApi.Tx (CardanoApi.TxBody content) _) =
