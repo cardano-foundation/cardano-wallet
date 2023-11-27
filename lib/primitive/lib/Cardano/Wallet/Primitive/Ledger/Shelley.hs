@@ -23,7 +23,7 @@
 -- License: Apache-2.0
 --
 -- Conversion functions and static chain settings for Shelley.
-module Cardano.Wallet.Shelley.Compatibility
+module Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
     , StandardCrypto
     , StandardShelley
@@ -206,14 +206,6 @@ import Cardano.Ledger.PoolParams
 import Cardano.Ledger.Shelley.Genesis
     ( fromNominalDiffTimeMicro
     )
-import Cardano.Pool.Metadata.Types
-    ( StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    )
-import Cardano.Pool.Types
-    ( PoolId (..)
-    , PoolOwner (..)
-    )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     , EpochSize (..)
@@ -221,12 +213,14 @@ import Cardano.Slotting.Slot
 import Cardano.Slotting.Time
     ( SystemStart (..)
     )
-import Cardano.Wallet.Address.Encoding
-    ( fromStakeCredential
+import Cardano.Wallet.Primitive.Ledger.Byron
+    ( maryTokenBundleMaxSize
     )
-import Cardano.Wallet.Byron.Compatibility
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
     ( fromTxAux
-    , maryTokenBundleMaxSize
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    ( fromStakeCredential
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromShelleyTxIn
@@ -236,12 +230,20 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     , fromShelleyAddress
     , fromShelleyTxOut
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Block
     ( ChainPoint (..)
-    , PoolCertificate
+    )
+import Cardano.Wallet.Primitive.Types.Certificates
+    ( PoolCertificate
     , PoolRegistrationCertificate (..)
-    , ProtocolParameters (txParameters)
-    , TxParameters (getTokenBundleMaxSize)
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId (..)
+    , PoolOwner (..)
+    )
+import Cardano.Wallet.Primitive.Types.StakePoolMetadata
+    ( StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
@@ -383,14 +385,27 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Protocol.TPraos.BHeader as SL
+import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Block as W
+import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.DecentralizationLevel as W
+import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
+import qualified Cardano.Wallet.Primitive.Types.EraInfo as W
+import qualified Cardano.Wallet.Primitive.Types.ExecutionUnitPrices as W
+import qualified Cardano.Wallet.Primitive.Types.FeePolicy as W
+import qualified Cardano.Wallet.Primitive.Types.GenesisParameters as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.NetworkParameters as W
+import qualified Cardano.Wallet.Primitive.Types.ProtocolParameters as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Cardano.Wallet.Primitive.Types.SlottingParameters as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenBundleMaxSize as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
@@ -407,6 +422,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
+import qualified Cardano.Wallet.Primitive.Types.TxParameters as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.Array as Array
 import qualified Data.ByteString as BS
@@ -439,7 +455,7 @@ emptyGenesis gp = W.Block
     , delegations  = []
     , header = W.BlockHeader
         { slotNo =
-            W.SlotNo 0
+            Slotting.SlotNo 0
         , blockHeight =
             Quantity 0
         , headerHash =
@@ -581,7 +597,7 @@ fromTip
     -> W.BlockHeader
 fromTip genesisHash tip = case getPoint (getTipPoint tip) of
     Origin -> W.BlockHeader
-        { slotNo = W.SlotNo 0
+        { slotNo = Slotting.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
         , parentHeaderHash = Nothing
@@ -898,7 +914,7 @@ fromGenesisData g =
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
-            { slotNo = W.SlotNo 0
+            { slotNo = Slotting.SlotNo 0
             , blockHeight = Quantity 0
             , headerHash = dummyGenesisHash
             , parentHeaderHash = Nothing

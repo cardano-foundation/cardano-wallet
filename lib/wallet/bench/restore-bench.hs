@@ -150,8 +150,23 @@ import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     , parseGenesisData
     )
+import Cardano.Wallet.Network.Implementation
+    ( withNetworkLayer
+    )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    , tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( AnyCardanoEra (..)
+    , CardanoBlock
+    , NodeToClientVersionData
+    , StandardCrypto
+    , emptyGenesis
+    , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -209,17 +224,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( AnyCardanoEra (..)
-    , CardanoBlock
-    , NodeToClientVersionData
-    , StandardCrypto
-    , emptyGenesis
-    , numberOfTransactionsInBlock
-    )
-import Cardano.Wallet.Shelley.Network.Node
-    ( withNetworkLayer
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
@@ -326,10 +330,6 @@ import Numeric
     ( fromRat
     , showFFloat
     )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
-    , tunedForMainnetPipeliningStrategy
-    )
 import Say
     ( sayErr
     , sayShow
@@ -367,12 +367,12 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Sqlite
+import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
-import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

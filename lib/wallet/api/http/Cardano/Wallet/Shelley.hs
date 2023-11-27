@@ -86,10 +86,17 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..)
     , withNodeStakePoolLayer
     , withStakePoolDbLayer
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -129,10 +136,6 @@ import Cardano.Wallet.Registry
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
     )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer
@@ -207,9 +210,6 @@ import Network.URI
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop
     )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
-    )
 import System.Exit
     ( ExitCode (..)
     )
@@ -255,7 +255,7 @@ serveWallet
     -> Maybe TokenMetadataServer
     -> Block
     -- ^ The genesis block, or some starting point.
-    -- See also: 'Cardano.Wallet.Shelley.Compatibility#KnownNetwork'.
+    -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
     -> (URI -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode

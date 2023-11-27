@@ -39,6 +39,7 @@ library
   hs-source-dirs:  lib
   build-depends:
     , aeson
+    , array
     , base
     , bech32
     , bech32-th
@@ -50,10 +51,12 @@ library
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
+    , cardano-data
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
@@ -63,12 +66,14 @@ library
     , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-strict-containers
+    , cardano-wallet-launcher
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , cborg
     , commutative-semigroups
     , containers
     , contra-tracer
+    , crypto-hash-extra
     , cryptonite
     , deepseq
     , delta-types
@@ -92,6 +97,8 @@ library
     , OddWord
     , ouroboros-consensus
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-protocol
+    , ouroboros-network
     , ouroboros-network-api
     , pretty-simple
     , QuickCheck
@@ -110,7 +117,33 @@ library
   exposed-modules:
     Cardano.Wallet.Orphans
     Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Ledger.Byron
     Cardano.Wallet.Primitive.Ledger.Convert
+    Cardano.Wallet.Primitive.Ledger.Read.Block
+    Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    Cardano.Wallet.Primitive.Ledger.Read.Tx
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
+    Cardano.Wallet.Primitive.Ledger.Shelley
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.Slotting.Legacy
@@ -130,7 +163,9 @@ library
     Cardano.Wallet.Primitive.Types.EraInfo
     Cardano.Wallet.Primitive.Types.ExecutionUnitPrices
     Cardano.Wallet.Primitive.Types.FeePolicy
+    Cardano.Wallet.Primitive.Types.GenesisParameters
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.NetworkParameters
     Cardano.Wallet.Primitive.Types.Pool
     Cardano.Wallet.Primitive.Types.ProtocolMagic
     Cardano.Wallet.Primitive.Types.ProtocolParameters
@@ -167,30 +202,6 @@ library
     Cardano.Wallet.Primitive.Types.UTxO.Gen
     Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     Cardano.Wallet.Primitive.Types.WitnessCount
-    Cardano.Wallet.Primitive.Ledger.Read.Block
-    Cardano.Wallet.Primitive.Ledger.Read.Block.Header
-    Cardano.Wallet.Primitive.Ledger.Read.Tx
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
     Cardano.Wallet.Unsafe
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
@@ -211,9 +222,12 @@ test-suite test
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-api
+    , cardano-crypto-class
     , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
     , cardano-ledger-byron-test
     , cardano-ledger-core:{cardano-ledger-core, testlib}
+    , cardano-ledger-shelley
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-slotting
@@ -232,9 +246,12 @@ test-suite test
     , hspec-core
     , iohk-monitoring
     , lattices
+    , lens
     , MonadRandom
     , ouroboros-consensus
     , ouroboros-consensus-cardano
+    , ouroboros-network
+    , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
@@ -253,6 +270,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.Ledger.ConvertSpec
+    Cardano.Wallet.Primitive.Ledger.ShelleySpec
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
     Cardano.Wallet.Primitive.Types.AddressSpec

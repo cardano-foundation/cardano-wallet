@@ -23,18 +23,23 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Cardano.Wallet.Network.Logging.Aggregation
-    Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Implementation
+    Cardano.Wallet.Network.Implementation.Ouroboros
+    Cardano.Wallet.Network.Implementation.UnliftIO
+    Cardano.Wallet.Network.Logging
+    Cardano.Wallet.Network.Logging.Aggregation
 
   -- other-modules:
   -- other-extensions:
   build-depends:
-    , base                         ^>=4.14.3.0
+    , base                           ^>=4.14.3.0
     , bytestring
     , cardano-api
     , cardano-balance-tx:internal
+    , cardano-crypto-class
     , cardano-ledger-core
+    , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -42,19 +47,25 @@ library
     , cborg
     , containers
     , contra-tracer
+    , exceptions
     , fmt
     , generics-sop
     , io-classes
     , iohk-monitoring
     , iohk-monitoring-extra
     , memory
+    , mtl
     , network-mux
     , nothunks
     , ouroboros-consensus
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-diffusion
+    , ouroboros-consensus-protocol
+    , ouroboros-network
     , ouroboros-network-api
     , ouroboros-network-framework
     , ouroboros-network-protocols
+    , retry
     , safe
     , strict-stm
     , text
@@ -63,6 +74,7 @@ library
     , transformers
     , typed-protocols
     , unliftio
+    , unliftio-core
 
   hs-source-dirs:   src
   default-language: Haskell2010

@@ -435,6 +435,12 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( fromCardanoLovelace
+    , fromCardanoTxIn
+    , fromCardanoTxOut
+    , fromCardanoWdrls
+    )
 import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
@@ -559,12 +565,6 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoLovelace
-    , fromCardanoTxIn
-    , fromCardanoTxOut
-    , fromCardanoWdrls
     )
 import Cardano.Wallet.Shelley.Transaction
     ( mkTransaction

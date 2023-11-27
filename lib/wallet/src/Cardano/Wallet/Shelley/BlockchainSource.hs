@@ -11,11 +11,11 @@ module Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( NodeToClientVersionData
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( NodeToClientVersionData
     )
 
 data BlockchainSource

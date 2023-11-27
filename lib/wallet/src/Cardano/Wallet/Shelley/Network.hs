@@ -14,7 +14,7 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
-import qualified Cardano.Wallet.Shelley.Network.Node as Node
+import qualified Cardano.Wallet.Network.Implementation as Node
 
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation
@@ -24,6 +24,13 @@ import Cardano.BM.Tracing
 import Cardano.Wallet.Network
     ( NetworkLayer
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( PipeliningStrategy
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId
     )
@@ -32,10 +39,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , StandardCrypto
     )
 import Control.Monad.Trans.Cont
     ( ContT (ContT)
@@ -48,9 +51,6 @@ import Data.Text.Class
     )
 import GHC.Stack
     ( HasCallStack
-    )
-import Ouroboros.Network.Client.Wallet
-    ( PipeliningStrategy
     )
 
 newtype NetworkLayerLog = NodeNetworkLog Node.Log

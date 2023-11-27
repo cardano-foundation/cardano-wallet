@@ -190,8 +190,11 @@ import Cardano.Wallet.Primitive.Types.FeePolicy
     ( FeePolicy (..)
     , LinearFunction (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
+import Cardano.Wallet.Primitive.Types.GenesisParameters
+    ( GenesisParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.NetworkParameters
+    ( NetworkParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -295,7 +298,6 @@ import Database.Persist.Sql
     )
 import Fmt
     ( Buildable (..)
-    , blockListF'
     , prefixF
     , pretty
     , suffixF
@@ -503,48 +505,6 @@ instance ToText DerivationIndex where
 {-------------------------------------------------------------------------------
                               Network Parameters
 -------------------------------------------------------------------------------}
-
--- | Records the complete set of parameters currently in use by the network
---   that are relevant to the wallet.
---
-data NetworkParameters = NetworkParameters
-    { genesisParameters :: GenesisParameters
-       -- ^ See 'GenesisParameters'.
-    , slottingParameters :: SlottingParameters
-       -- ^ See 'SlottingParameters'.
-    , protocolParameters :: ProtocolParameters
-       -- ^ See 'ProtocolParameters'.
-    } deriving (Generic, Show, Eq)
-
-instance NFData NetworkParameters
-
-instance Buildable NetworkParameters where
-    build (NetworkParameters gp sp pp) = build gp <> build sp <> build pp
-
--- | Parameters defined by the __genesis block__.
---
--- At present, these values cannot be changed through the update system.
---
--- They can only be changed through a soft or hard fork.
---
-data GenesisParameters = GenesisParameters
-    { getGenesisBlockHash :: Hash "Genesis"
-        -- ^ Hash of the very first block
-    , getGenesisBlockDate :: StartTime
-        -- ^ Start time of the chain.
-    } deriving (Generic, Show, Eq)
-
-instance NFData GenesisParameters
-
-instance Buildable GenesisParameters where
-    build gp = blockListF' "" id
-        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash gp)
-        , "Genesis block date: " <> startTimeF (getGenesisBlockDate
-            (gp :: GenesisParameters))
-        ]
-      where
-        genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
-        startTimeF (StartTime s) = build s
 
 instance PersistField StakeKeyCertificate where
     toPersistValue = toPersistValue . show

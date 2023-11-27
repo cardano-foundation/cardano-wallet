@@ -104,6 +104,9 @@ import Cardano.Wallet.Network.Config
     ( NetworkConfiguration (..)
     , parseGenesisData
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
     , Settings (..)
@@ -174,9 +177,6 @@ import "optparse-applicative" Options.Applicative
     , option
     , progDesc
     , value
-    )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy
     )
 import System.Environment
     ( getArgs

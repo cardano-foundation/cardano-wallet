@@ -87,6 +87,10 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( toCardanoLovelace
+    , toCardanoTxIn
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
     )
@@ -163,10 +167,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoLovelace
-    , toCardanoTxIn
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTag (..)

@@ -89,11 +89,17 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.LocalCluster
     ( clusterConfigsDirParser
     )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
 import Cardano.Wallet.Pools
     ( StakePool
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -113,9 +119,6 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( fromGenesisData
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
@@ -167,9 +170,6 @@ import Network.Wai.Middleware.Logging
     )
 import Numeric.Natural
     ( Natural
-    )
-import Ouroboros.Network.Client.Wallet
-    ( tunedForMainnetPipeliningStrategy
     )
 import System.Directory
     ( createDirectory

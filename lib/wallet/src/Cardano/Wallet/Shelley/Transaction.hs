@@ -104,6 +104,21 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( fromCardanoTx
     )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( cardanoCertKeysForWitnesses
+    , fromCardanoAddress
+    , fromCardanoWdrls
+    , toCardanoLovelace
+    , toCardanoPolicyId
+    , toCardanoSimpleScript
+    , toCardanoStakeCredential
+    , toCardanoTxIn
+    , toCardanoTxOut
+    , toCardanoValue
+    , toStakeKeyDeregCert
+    , toStakeKeyRegCert
+    , toStakePoolDlgCert
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     )
@@ -147,21 +162,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
-    )
-import Cardano.Wallet.Shelley.Compatibility
-    ( cardanoCertKeysForWitnesses
-    , fromCardanoAddress
-    , fromCardanoWdrls
-    , toCardanoLovelace
-    , toCardanoPolicyId
-    , toCardanoSimpleScript
-    , toCardanoStakeCredential
-    , toCardanoTxIn
-    , toCardanoTxOut
-    , toCardanoValue
-    , toStakeKeyDeregCert
-    , toStakeKeyRegCert
-    , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
@@ -251,8 +251,8 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
+import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
