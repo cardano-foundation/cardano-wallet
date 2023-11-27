@@ -95,7 +95,7 @@ Running tests as such skips downloading latest wallet and node binaries.
 ### Test artifacts
 
 By default following locations are used for different artifacts used by the tests:
-- `./bins` - location for wallet and node binaries (will be downloaded here from [Buildkite](https://buildkite.com/cardanofoundation/cardano-wallet))
+- `./bins` - location for wallet and node binaries (will be downloaded here from [Buildkite](https://buildkite.com/cardano-foundation/cardano-wallet))
 - `./state` - wallet/node databases, logs and configs
 
 Locations are relative to `test/e2e` directory.

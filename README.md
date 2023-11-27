@@ -10,13 +10,13 @@
     <a href="https://github.com/cardano-foundation/cardano-wallet/releases">
         <img src="https://img.shields.io/github/release-pre/cardano-foundation/cardano-wallet.svg?style=for-the-badge"  />
     </a>
-    <a href="https://buildkite.com/cardanofoundation/cardano-wallet">
+    <a href="https://buildkite.com/cardano-foundation/cardano-wallet">
         <img src="https://img.shields.io/buildkite/da223f1dbf24e8a64a27f50a49190ce7a9ee867d221c20d70a/master?label=BUILD&style=for-the-badge"/>
     </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  />
     </a>
-    <a href="https://buildkite.com/cardanofoundation/cardano-wallet-nightly">
+    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-nightly">
         <img src="https://img.shields.io/buildkite/94de95cfe78b09c547cb109b0a44e6cd489341ea9e2c224ead/master?label=BENCHMARKS&style=for-the-badge"  />
     </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml">
