@@ -16,7 +16,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -55,11 +54,13 @@ import Cardano.Ledger.Api
     , allInputsTxBodyF
     , bodyTxL
     , coinTxOutL
+    , collateralReturnTxBodyL
     , mkBasicTx
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
     , serialiseAddr
+    , totalCollateralTxBodyL
     )
 import Cardano.Ledger.Era
     ( Era
@@ -76,6 +77,9 @@ import Cardano.Ledger.Shelley.API
     , KeyHash (..)
     , StrictMaybe (SJust, SNothing)
     , Withdrawals (..)
+    )
+import Cardano.Ledger.Val
+    ( (<->)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -162,9 +166,6 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
     ( evalState
     , state
-    )
-import Data.Bifunctor
-    ( first
     )
 import Data.ByteArray.Encoding
     ( Base (Base16)
@@ -255,6 +256,7 @@ import Internal.Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
     , UTxO
+    , Value
     , fromCardanoApiTx
     , fromCardanoApiUTxO
     , recentEra
@@ -597,7 +599,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     it "assigns minimal ada quantities to outputs without ada" $ do
         let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
         let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
-        let CardanoApi.ShelleyTx _ tx = either (error . show) id
+        let tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
         let outs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
@@ -611,7 +613,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "effect of txMaxSize on coin selection" $ do
 
-        let balanceWithDust = fmap fromCardanoApiTx . balanceTx
+        let balanceWithDust = balanceTx
                 dustWallet
                 mockPParamsForBalancing
                 dummyTimeTranslation
@@ -731,11 +733,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
   where
-    outputs
-        :: CardanoApi.Tx CardanoApi.BabbageEra
-        -> [Babbage.BabbageTxOut StandardBabbage]
-    outputs (CardanoApi.Tx (CardanoApi.ShelleyTxBody _ body _ _ _ _ ) _) =
-        F.toList $ body ^. outputsTxBodyL
+    outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
     mapFirst f (x:xs) = f x : xs
     mapFirst _ [] = error "mapFirst: empty list"
@@ -794,7 +792,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
-            let tx = fromCardanoApiTx $ either (error . show) id $ balanceTx
+            let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -862,7 +860,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
-                combinedUTxO = toCardanoApiUTxO $ mconcat
+                combinedUTxO = mconcat
                     [ view #inputs ptx
                     , fromWalletUTxO walletUTxO
                     ]
@@ -871,7 +869,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     Right tx
                         -> BalanceTxGoldenSuccess c
                                 (txFee tx)
-                                (txMinFee tx combinedUTxO)
+                                (minFee tx combinedUTxO)
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
@@ -906,11 +904,15 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
             ]
 
-    txFee :: CardanoApi.Tx CardanoApi.BabbageEra -> CardanoApi.Lovelace
-    txFee (CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txFee content of
-            CardanoApi.TxFeeExplicit _ c -> c
-            CardanoApi.TxFeeImplicit _ -> error "implicit fee"
+    minFee
+        :: IsRecentEra era
+        => Tx era
+        -> UTxO era
+        -> Coin
+    minFee tx u =
+        Write.evaluateMinimumFee mockPParamsForBalancing
+            tx
+            (estimateKeyWitnessCount u tx)
 
 spec_distributeSurplus :: Spec
 spec_distributeSurplus = describe "distributeSurplus" $ do
@@ -1076,10 +1078,9 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -> IO ()
     test _name bs tx = do
         let pparams = mockPParamsForBalancing @era
-            CardanoApi.Tx cardanoApiBody _ = toCardanoApiTx tx
             witCount dummyAddr = estimateKeyWitnessCount
                 (utxoPromisingInputsHaveAddress dummyAddr tx)
-                (cardanoApiBody)
+                tx
             noScripts = Map.null $ tx ^. witsTxL . scriptTxWitsL
             noBootWits = Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
@@ -1309,9 +1310,9 @@ prop_balanceTransactionValid
         let combinedUTxO =
                 view #inputs partialTx
                 <> fromWalletUTxO walletUTxO
-        let originalTx = toCardanoApiTx (view #tx partialTx)
+        let originalTx = view #tx partialTx
         let originalBalance = txBalance originalTx combinedUTxO
-        let originalOuts = txOutputs originalTx
+        let originalOuts = outputs originalTx
         let classifications =
                 classify (hasZeroAdaOutputs originalTx)
                     "partial tx had zero ada outputs"
@@ -1340,17 +1341,17 @@ prop_balanceTransactionValid
                 label "success"
                     $ classify (originalBalance == mempty)
                         "already balanced"
-                    $ classify (txFee tx > CardanoApi.Lovelace 1_000_000)
+                    $ classify (txFee tx > Coin 1_000_000)
                         "fee above 1 ada"
-                    $ classify (hasCollateral tx)
+                    $ classify (hasInsCollateral tx)
                         "balanced tx has collateral"
                     $ conjoin
                         [ txBalance tx combinedUTxO === mempty
                         , prop_validSize tx combinedUTxO
                         , prop_minfeeIsCovered tx combinedUTxO
                         , let
-                              minUTxOValue = CardanoApi.Lovelace 999_978
-                              upperBoundCostOfOutput = CardanoApi.Lovelace 1_000
+                              minUTxOValue = Coin 999_978
+                              upperBoundCostOfOutput = Coin 1_000
                           in
                               -- Coin selection should only pay more fees than
                               -- required when it can't afford to create a
@@ -1437,15 +1438,14 @@ prop_balanceTransactionValid
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
     prop_expectFeeExcessSmallerThan
-        :: CardanoApi.Lovelace
-        -> CardanoApi.Tx (CardanoApiEra era)
+        :: Coin
+        -> Tx era
         -> UTxO era
         -> Property
     prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
         let minfee = minFee tx utxo
-        let unLovelace (CardanoApi.Lovelace x) = x
-        let delta = CardanoApi.Lovelace $ (unLovelace fee) - (unLovelace minfee)
+        let delta = fee <-> minfee
         let msg = unwords
                 [ "The fee", showInParens fee
                 , "was", show delta
@@ -1457,14 +1457,13 @@ prop_balanceTransactionValid
         showInParens x = "(" <> show x <> ")"
 
     prop_minfeeIsCovered
-        :: CardanoApi.Tx (CardanoApiEra era)
+        :: Tx era
         -> UTxO era
         -> Property
     prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
         let minfee = minFee tx utxo
-        let unLovelace (CardanoApi.Lovelace x) = x
-        let delta = CardanoApi.Lovelace $ (unLovelace minfee) - (unLovelace fee)
+        let delta = minfee <-> fee
         let msg = unwords
                 [ "The minimum fee was"
                 , show minfee
@@ -1476,14 +1475,14 @@ prop_balanceTransactionValid
         counterexample msg $ property $ fee >= minfee
 
     prop_validSize
-        :: CardanoApi.Tx (CardanoApiEra era)
+        :: Tx era
         -> UTxO era
         -> Property
-    prop_validSize tx@(CardanoApi.Tx body _) utxo = do
+    prop_validSize tx utxo = do
         let (W.TxSize size) =
                 estimateSignedTxSize ledgerPParams
-                    (estimateKeyWitnessCount utxo body)
-                    (fromCardanoApiTx tx)
+                    (estimateKeyWitnessCount utxo tx)
+                    tx
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
@@ -1496,11 +1495,10 @@ prop_balanceTransactionValid
         counterexample msg $ property (size <= limit)
 
     _prop_outputsSatisfyMinAdaRequirement
-        :: CardanoApi.Tx (CardanoApiEra era)
+        :: Tx era
         -> Property
-    _prop_outputsSatisfyMinAdaRequirement (CardanoApi.ShelleyTx _ tx) = do
-        let outputs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
-        conjoin $ map valid outputs
+    _prop_outputsSatisfyMinAdaRequirement tx = do
+        conjoin $ map valid (outputs tx)
       where
         valid :: TxOut era -> Property
         valid out = counterexample msg $ property $
@@ -1518,52 +1516,36 @@ prop_balanceTransactionValid
                     out
                 ]
 
-    hasZeroAdaOutputs :: CardanoApi.Tx (CardanoApiEra era) -> Bool
-    hasZeroAdaOutputs (CardanoApi.ShelleyTx _ tx) =
+    ledgerPParams = mockPParamsForBalancing @era
+
+    hasZeroAdaOutputs :: Tx era -> Bool
+    hasZeroAdaOutputs tx =
         any hasZeroAda (tx ^. bodyTxL . outputsTxBodyL)
       where
         hasZeroAda (Write.BabbageTxOut _ val _ _) =
             Value.coin val == Ledger.Coin 0
 
-    hasCollateral :: CardanoApi.Tx (CardanoApiEra era) -> Bool
-    hasCollateral (CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txInsCollateral content of
-            CardanoApi.TxInsCollateralNone -> False
-            CardanoApi.TxInsCollateral _ [] -> False
-            CardanoApi.TxInsCollateral _ (_:_) -> True
-
-    txFee :: CardanoApi.Tx (CardanoApiEra era) -> CardanoApi.Lovelace
-    txFee (CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txFee content of
-            CardanoApi.TxFeeExplicit _ c -> c
-            CardanoApi.TxFeeImplicit i -> case i of {}
-
     minFee
-        :: CardanoApi.Tx (CardanoApiEra era)
+        :: Tx era
         -> UTxO era
-        -> CardanoApi.Lovelace
-    minFee tx@(CardanoApi.Tx body _) utxo = Write.toCardanoApiLovelace
-        $ Write.evaluateMinimumFee ledgerPParams
-            (fromCardanoApiTx tx)
-            (estimateKeyWitnessCount utxo body)
+        -> Coin
+    minFee tx utxo =
+        Write.evaluateMinimumFee ledgerPParams
+            tx
+            (estimateKeyWitnessCount utxo tx)
 
     txBalance
-        :: CardanoApi.Tx (CardanoApiEra era)
+        :: Tx era
         -> UTxO era
-        -> CardanoApi.Value
-    txBalance tx u = Write.toCardanoApiValue @era $
+        -> Value
+    txBalance tx u =
         Write.evaluateTransactionBalance
             ledgerPParams
             u
-            ((fromCardanoApiTx tx) ^. bodyTxL)
+            (tx ^. bodyTxL)
 
-    ledgerPParams = mockPParamsForBalancing @era
-
-    txOutputs
-        :: CardanoApi.Tx (CardanoApiEra era)
-        -> [CardanoApi.TxOut CardanoApi.CtxTx (CardanoApiEra era)]
-    txOutputs (CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        CardanoApi.txOuts content
+    outputs :: Tx era -> [TxOut era]
+    outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
@@ -1971,8 +1953,8 @@ data AnyChangeAddressGenWithState where
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
         W.Coin -- ^ Wallet balance
-        CardanoApi.Lovelace -- ^ Fee
-        CardanoApi.Lovelace -- ^ Minimum fee
+        Coin -- ^ Fee
+        Coin -- ^ Minimum fee
     | BalanceTxGoldenFailure W.Coin String
     deriving (Eq, Show)
 
@@ -2010,7 +1992,7 @@ balanceTx
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
-    -> Either (ErrBalanceTx era) (CardanoApi.Tx (CardanoApiEra era))
+    -> Either (ErrBalanceTx era) (Tx era)
 balanceTx
     (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
     protocolParameters
@@ -2027,7 +2009,7 @@ balanceTx
                 genChange
                 s
                 partialTx
-        pure (Write.toCardanoApiTx transactionInEra)
+        pure transactionInEra
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
@@ -2040,10 +2022,9 @@ balanceTransactionWithDummyChangeState
     -> PartialTx era
     -> Either
         (ErrBalanceTx era)
-        (CardanoApi.Tx (CardanoApiEra era), DummyChangeState)
+        (Tx era, DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
-        first Write.toCardanoApiTx <$>
         balanceTransaction
             utxoAssumptions
             mockPParamsForBalancing
@@ -2063,35 +2044,26 @@ hasInsCollateral
     :: forall era. IsRecentEra era
     => Tx era
     -> Bool
-hasInsCollateral
-    -- TODO: Use ledger functions here:
-    (toCardanoApiTx @era -> CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txInsCollateral content of
-            CardanoApi.TxInsCollateralNone -> False
-            CardanoApi.TxInsCollateral _ [] -> False
-            CardanoApi.TxInsCollateral _ _ -> True
+hasInsCollateral =
+    not . Set.null . view (bodyTxL . collateralInputsTxBodyL)
 
 hasReturnCollateral
     :: forall era. IsRecentEra era
     => Tx era
     -> Bool
-hasReturnCollateral
-    -- TODO: Use ledger functions here:
-    (toCardanoApiTx @era -> CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txReturnCollateral content of
-            CardanoApi.TxReturnCollateralNone -> False
-            CardanoApi.TxReturnCollateral _ _ -> True
+hasReturnCollateral tx =
+    case tx ^. bodyTxL . collateralReturnTxBodyL of
+        SJust _ -> True
+        SNothing -> False
 
 hasTotalCollateral
     :: forall era. IsRecentEra era
     => Tx era
     -> Bool
-hasTotalCollateral
-    -- TODO: Use ledger functions here:
-    (toCardanoApiTx @era -> CardanoApi.Tx (CardanoApi.TxBody content) _) =
-        case CardanoApi.txTotalCollateral content of
-            CardanoApi.TxTotalCollateralNone -> False
-            CardanoApi.TxTotalCollateral _ _ -> True
+hasTotalCollateral tx =
+    case tx ^. bodyTxL . totalCollateralTxBodyL of
+        SJust _ -> True
+        SNothing -> False
 
 mkTestWallet :: W.UTxO -> Wallet'
 mkTestWallet utxo =
@@ -2107,18 +2079,11 @@ mockPParamsForBalancing =
 
 paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
 paymentPartialTx txouts =
-    PartialTx (fromCardanoApiTx $ CardanoApi.Tx body []) mempty []
+    PartialTx (mkBasicTx body) mempty []
   where
-    body = CardanoApi.ShelleyTxBody
-        CardanoApi.ShelleyBasedEraBabbage
-        ( mkBasicTxBody &
-            outputsTxBodyL .~
+    body = mkBasicTxBody
+        & outputsTxBodyL .~
             StrictSeq.fromList (Convert.toBabbageTxOut <$> txouts)
-        )
-        []
-        CardanoApi.TxBodyNoScriptData
-        Nothing
-        CardanoApi.TxScriptValidityNone
 
 -- | Restricts the inputs list of the 'PartialTx' to the inputs of the
 -- underlying CBOR transaction. This allows us to "fix" the 'PartialTx' after
@@ -2157,17 +2122,6 @@ x `shouldBeInclusivelyWithin` (a, b) =
         , "[" <> show a <> ", " <> show b <> "]"
         ]
 
-txMinFee
-    :: CardanoApi.Tx CardanoApi.BabbageEra
-    -> CardanoApi.UTxO CardanoApi.BabbageEra
-    -> CardanoApi.Lovelace
-txMinFee tx@(CardanoApi.Tx body _) u =
-    Write.toCardanoApiLovelace $
-    Write.evaluateMinimumFee
-        (mockPParamsForBalancing @Write.BabbageEra)
-        (fromCardanoApiTx tx)
-        (estimateKeyWitnessCount (fromCardanoApiUTxO u) body)
-
 withValidityInterval
     :: ValidityInterval
     -> PartialTx BabbageEra
@@ -2194,6 +2148,9 @@ cardanoToWalletTxOut =
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
         RecentEraConway -> Convert.fromConwayTxOut x
+
+txFee :: IsRecentEra era => Tx era -> Coin
+txFee tx = tx ^. bodyTxL . feeTxBodyL
 
 --------------------------------------------------------------------------------
 -- Test values
@@ -2872,7 +2829,7 @@ instance Buildable BalanceTxGolden where
         , lovelaceF minfee
         ]
       where
-        lovelaceF (CardanoApi.Lovelace l)
+        lovelaceF (Coin l)
             | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
             | otherwise = pretty (W.Coin.unsafeFromIntegral l)
 
