@@ -567,11 +567,11 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkTransaction
+    ( _txRewardWithdrawalCost
+    , mkTransaction
     , mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
-    , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)

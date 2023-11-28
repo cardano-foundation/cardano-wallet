@@ -28,9 +28,9 @@ import Data.Tagged
     ( Tagged (..)
     )
 import Effectful
-    ( (:>)
-    , Eff
+    ( Eff
     , Effect
+    , (:>)
     )
 import Effectful.Dispatch.Dynamic
     ( interpret

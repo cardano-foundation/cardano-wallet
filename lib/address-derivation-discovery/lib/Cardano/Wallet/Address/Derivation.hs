@@ -155,8 +155,8 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Data.Word
     ( Word32

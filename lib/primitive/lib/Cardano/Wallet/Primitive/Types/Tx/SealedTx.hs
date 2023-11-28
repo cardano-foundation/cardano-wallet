@@ -83,8 +83,8 @@ import Data.Text
     ( Text
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Fmt
     ( Buildable (..)

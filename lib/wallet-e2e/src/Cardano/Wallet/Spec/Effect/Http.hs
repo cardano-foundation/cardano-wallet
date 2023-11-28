@@ -14,10 +14,10 @@ import Control.Exception
     ( try
     )
 import Effectful
-    ( (:>)
-    , Eff
+    ( Eff
     , Effect
     , IOE
+    , (:>)
     )
 import Effectful.Dispatch.Dynamic
     ( interpret

@@ -106,10 +106,10 @@ import Network.Wai.Handler.Warp
     , withApplication
     )
 import Servant.API
-    ( (:>)
-    , JSON
+    ( JSON
     , Post
     , ReqBody
+    , (:>)
     )
 import Servant.Server
     ( Handler (..)

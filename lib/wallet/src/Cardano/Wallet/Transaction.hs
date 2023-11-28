@@ -132,9 +132,7 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
-    , WitnessCount (..)
     , WitnessCountCtx (..)
-    , emptyWitnessCount
     , emptyWitnessCount
     , toKeyRole
     )

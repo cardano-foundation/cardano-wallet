@@ -17,7 +17,7 @@ import Data.Monoid
     ( First (..)
     )
 import Data.Profunctor.Unsafe
-    ( ( #. )
+    ( (#.)
     )
 
 infixl 8 ^?

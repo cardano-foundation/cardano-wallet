@@ -184,8 +184,8 @@ import Data.Semigroup.Cancellative
     ( Reductive ((</>))
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Fmt
     ( Buildable
@@ -290,18 +290,18 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
     )
-import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (..)
     )
@@ -313,14 +313,14 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn
     )
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map

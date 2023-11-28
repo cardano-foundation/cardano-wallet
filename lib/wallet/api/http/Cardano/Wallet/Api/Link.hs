@@ -200,8 +200,7 @@ import Numeric.Natural
     ( Natural
     )
 import Servant.API
-    ( (:>)
-    , Capture'
+    ( Capture'
     , Header'
     , IsElem
     , NoContentVerb
@@ -210,6 +209,7 @@ import Servant.API
     , ReflectMethod (..)
     , ReqBody
     , Verb
+    , (:>)
     )
 import Servant.Links
     ( HasLink (..)

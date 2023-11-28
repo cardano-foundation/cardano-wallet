@@ -68,10 +68,10 @@ import Cardano.Wallet.Submissions.Submissions
     )
 import Cardano.Wallet.Submissions.TxStatus
     ( TxStatus (..)
+    , _InSubmission
     , expirySlot
     , getTx
     , status
-    , _InSubmission
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
