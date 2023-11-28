@@ -897,13 +897,13 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             mkBasicTxBody
                 & certsTxBodyL .~ StrictSeq.fromList certs
 
-        stakeKey = KeyHashObj $ KeyHash
-            "1866df9e2f1a61b522d1ef2518b51574a8205a70eafd257a9ad9949b"
-        pool = KeyHash
-            "ec28f33dcbe6d6400a1e5e339bd0647c202020202020202020202020"
+        dummyStakeKey = KeyHashObj $ KeyHash
+            "00000000000000000000000000000000000000000000000000000000"
+        dummyPool = KeyHash
+            "00000000000000000000000000000000000000000000000000000001"
         certs =
-            [ DCertDeleg $ RegKey stakeKey
-            , DCertDeleg $ Delegate $ Delegation stakeKey pool
+            [ DCertDeleg $ RegKey dummyStakeKey
+            , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
             ]
 
     txFee :: CardanoApi.Tx CardanoApi.BabbageEra -> CardanoApi.Lovelace
