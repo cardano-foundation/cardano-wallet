@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils gnugrep gnused jq curl go-jira
+#! nix-shell -i bash -p nix coreutils gnugrep gnused jq curl
 # shellcheck shell=bash
 
 set -euo pipefail

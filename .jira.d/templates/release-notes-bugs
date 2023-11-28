@@ -1,3 +1,0 @@
-{{/* -*- mode: markdown -*- */ -}}
-{{ range .issues }}* {{ if (and env.showPriority .fields.priority) }}[{{ if .fields.customfield_12502.value }}S{{ .fields.customfield_12502.value }} {{end}}{{ .fields.priority.name }}] {{ end }}{{ .fields.summary }} ({{ .key }})
-{{ end }}

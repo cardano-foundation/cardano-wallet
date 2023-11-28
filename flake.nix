@@ -192,8 +192,6 @@
               haskellNix.overlay
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
-              # Other packages overlay
-              (import ./nix/overlays/pkgs.nix)
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
               overlay
