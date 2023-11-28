@@ -204,7 +204,6 @@ import GHC.Stack
 import Internal.Cardano.Write.Tx
     ( Address
     , AssetName
-    , CardanoApiEra
     , Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
@@ -225,7 +224,6 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
-    , toCardanoApiTx
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
@@ -872,18 +870,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m
             (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO cardanoApiTxBody
+        let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = CardanoApi.fromMaryValue $ txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
-      where
-        cardanoApiTxBody :: CardanoApi.TxBody (CardanoApiEra era)
-        cardanoApiTxBody =
-            let CardanoApi.Tx body _ = toCardanoApiTx tx
-            in body
 
     -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
     --

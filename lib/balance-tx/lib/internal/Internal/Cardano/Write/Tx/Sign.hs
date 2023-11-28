@@ -54,14 +54,14 @@ import Data.Monoid.Monus
     ( Monus ((<\>))
     )
 import Internal.Cardano.Write.Tx
-    ( CardanoApiEra
-    , IsRecentEra (..)
+    ( IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
     , RecentEra (..)
     , Tx
     , TxIn
     , UTxO
+    , toCardanoApiTx
     )
 import Numeric.Natural
     ( Natural
@@ -163,9 +163,9 @@ estimateKeyWitnessCount
     => UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
-    -> CardanoApi.TxBody (CardanoApiEra era)
+    -> Tx era
     -> KeyWitnessCount
-estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
+estimateKeyWitnessCount utxo tx =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
             case CardanoApi.txInsCollateral txbodycontent of
@@ -226,6 +226,9 @@ estimateKeyWitnessCount utxo txbody@(CardanoApi.TxBody txbodycontent) =
         in
             nonInputWits <> inputWits
   where
+    CardanoApi.Tx txbody@(CardanoApi.TxBody txbodycontent) _keyWits
+        = toCardanoApiTx tx
+
     scripts = case txbody of
         CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ ->
             shelleyBodyScripts
