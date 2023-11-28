@@ -24,6 +24,12 @@ jobs:
   test:
     runs-on: macos-latest
 
+    env:
+      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
+      BRANCH: ${{ github.event.inputs.branch || '' }}
+      TAGS: ${{ github.event.inputs.tags || 'all' }}
+
     steps:
     - uses: actions/checkout@v3
 
@@ -39,39 +45,45 @@ jobs:
     - name: Prepare MacOS
       run: brew install screen
 
-    - name: 🕒 Get Date/Time
-      id: date-time
-      shell: bash
-      run: |
-        echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
-
     - name: 💾 GH Cache node db
-      id: cache
+      id: cache-node
       uses: actions/cache@v3
       with:
-        path: test/e2e/state/node_db/${{ env.NETWORK }}
-        key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          node-db-${{ runner.os }}-${{ env.NETWORK }}-
-          node-db-Linux-${{ env.NETWORK }}-
+        path: test/e2e/state/node_db/preprod
+        key: node-db-e2e-macos-preprod
 
     - name: 💾 Cache wallet db
       id: cache-wallet
       uses: actions/cache@v3
       with:
-        path: test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-
+        path: test/e2e/state/wallet_db/preprod
+        key: wallet-db-e2-macos-preprod
+
+    - name: Fetch preprod snapshot
+      if: steps.cache-node.outputs.cache-hit != 'true'
+      run: |
+        mkdir state
+        cd state
+        mkdir node_db
+        cd node_db
+        mkdir preprod
+        cd preprod
+        curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json \
+            | jq -r .[].file_name > snapshot.json
+        curl -o - \
+            https://downloads.csnapshots.io/snapshots/testnet/$(cat snapshot.json) \
+            | lz4 -c -d - | tar -x -C .
+        mv db/* .
+
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
-      run: rake setup[$NETWORK,$BRANCH]
+      run: rake setup[preprod,$BRANCH]
 
     - name: 🔍 Display versions
       run: rake display_versions
 
     - name: 🚀 Start node and wallet
-      run: rake start_node_and_wallet[$NETWORK]
+      run: rake start_node_and_wallet[preprod]
 
     - name: ⏳ Wait until node is synced
       run: rake wait_until_node_synced
@@ -80,22 +92,28 @@ jobs:
       run: rake spec SPEC_OPTS="-t $TAGS"
 
     - name: 🏁 Stop node and wallet
-      run: rake stop_node_and_wallet[$NETWORK]
+      run: rake stop_node_and_wallet[preprod]
+
+    - name: 💾 GH Save Cache of node db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/node_db/preprod
+        key: node-db-e2e-macos-preprod
+
+    - name: 💾 GH Save Cache of wallet db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/wallet_db/preprod
+        key: wallet-db-e2e-macos-preprod
 
     - name: 📎 Upload state
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: ${{ runner.os }}-state
+        name: macos-state
         path: |
           test/e2e/state/logs
           test/e2e/state/configs
           test/e2e/state/wallet_db
-
-    env:
-      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
-      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
-      BRANCH: ${{ github.event.inputs.branch || '' }}
-      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
-      TAGS: ${{ github.event.inputs.tags || 'all' }}
