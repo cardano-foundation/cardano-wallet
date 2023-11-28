@@ -224,40 +224,31 @@ test-suite test
     , cardano-addresses
     , cardano-api
     , cardano-crypto-class
-    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
-    , cardano-ledger-byron-test
+    , cardano-ledger-allegra:{testlib}
     , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-slotting
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
     , deepseq
-    , delta-store
     , delta-types
     , filepath
     , fmt
     , generic-arbitrary
     , generic-lens
-    , hedgehog-quickcheck
     , hspec
     , hspec-core
     , iohk-monitoring
-    , lattices
     , lens
-    , MonadRandom
     , ouroboros-consensus
     , ouroboros-consensus-cardano
-    , ouroboros-network
     , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
     , quickcheck-monoid-subclasses
-    , quickcheck-quid
-    , should-not-typecheck
     , string-qq
     , text
     , text-class

@@ -53,48 +53,23 @@ library
   build-depends:
     , address-derivation-discovery
     , aeson
-    , aeson-pretty
-    , aeson-qq
-    , ansi-terminal
-    , array
     , async
     , base
-    , base16-bytestring
-    , base58-bytestring
-    , bech32
-    , bech32-th
-    , binary
     , bytestring
     , cardano-addresses
-    , cardano-addresses-cli
     , cardano-api
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
-    , cardano-cli
-    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-crypto-test
     , cardano-crypto-wrapper
-    , cardano-data
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
     , cardano-ledger-api
-    , cardano-ledger-babbage
-    , cardano-ledger-binary
     , cardano-ledger-byron
-    , cardano-ledger-byron-test
-    , cardano-ledger-conway
     , cardano-ledger-core
-    , cardano-ledger-mary
-    , cardano-ledger-shelley
-    , cardano-ledger-shelley-test
-    , cardano-numeric
-    , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-strict-containers
-    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -105,8 +80,6 @@ library
     , contra-tracer
     , crypto-hash-extra
     , cryptonite
-    , data-default
-    , data-interval
     , deepseq
     , delta-store
     , delta-types
@@ -114,7 +87,6 @@ library
     , directory
     , either
     , errors
-    , exact-combinatorics
     , exceptions
     , extra
     , fast-logger
@@ -122,13 +94,8 @@ library
     , filepath
     , fmt
     , foldl
-    , free
-    , generic-arbitrary
     , generic-lens
-    , generics-sop
     , hashable
-    , hedgehog
-    , hedgehog-quickcheck
     , http-api-data
     , http-client
     , http-client-tls
@@ -137,20 +104,13 @@ library
     , io-classes
     , iohk-monitoring
     , iohk-monitoring-extra                              ^>=0.1
-    , iproute
-    , lattices
     , lens
-    , lifted-async
     , list-transformer
-    , math-functions
     , memory
-    , monad-control
     , monad-logger
     , MonadRandom
     , monoid-subclasses
     , mtl
-    , network
-    , network-mux
     , network-uri
     , nothunks
     , ntp-client
@@ -158,59 +118,34 @@ library
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-consensus-cardano
-    , ouroboros-consensus-diffusion
-    , ouroboros-consensus-protocol
     , ouroboros-network
     , ouroboros-network-api
-    , ouroboros-network-framework
-    , ouroboros-network-protocols
     , path-pieces
     , persistent                                         ^>=2.13
     , persistent-sqlite                                  ^>=2.13
-    , persistent-template                                ^>=2.12
-    , plutus-core
-    , plutus-ledger-api
-    , pretty-simple
     , profunctors
     , QuickCheck                                         ^>=2.14.3
-    , quickcheck-instances
     , quiet
     , random
-    , random-shuffle
     , retry
     , safe
-    , safe-money
-    , scientific
-    , semialign
     , serialise
-    , servant-client
-    , servant-client-core
     , split
     , splitmix
     , statistics
     , stm
-    , streaming-commons
-    , strict-stm
     , string-interpolate
     , template-haskell
-    , temporary
     , text
     , text-class
     , these
     , time
-    , tls
-    , tracer-transformers
     , transformers
-    , transformers-base
-    , type-level-sets
-    , typed-process
-    , typed-protocols
     , unliftio
     , unliftio-core
     , unordered-containers
     , vector
     , Win32-network
-    , yaml
 
   exposed-modules:
     Cardano.Api.Extra
@@ -349,10 +284,8 @@ library cardano-wallet-api-http
     , address-derivation-discovery
     , aeson
     , aeson-pretty
-    , aeson-qq
     , ansi-terminal
     , base
-    , base58-bytestring
     , bech32
     , bech32-th
     , binary
@@ -362,22 +295,14 @@ library cardano-wallet-api-http
     , cardano-api
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
-    , cardano-cli
     , cardano-crypto
-    , cardano-data
     , cardano-ledger-alonzo
-    , cardano-ledger-api
-    , cardano-ledger-byron
     , cardano-ledger-core
-    , cardano-ledger-shelley
     , cardano-wallet
-    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , cardano-wallet-test-utils
-    , cborg
     , containers
     , contra-tracer
     , crypto-hash-extra
@@ -393,13 +318,11 @@ library cardano-wallet-api-http
     , hashable
     , http-api-data
     , http-client
-    , http-client-tls
     , http-media
     , http-types
     , int-cast
     , iohk-monitoring
     , iohk-monitoring-extra                              ^>=0.1
-    , lens
     , memory
     , mtl
     , network
@@ -407,26 +330,21 @@ library cardano-wallet-api-http
     , ntp-client
     , OddWord
     , optparse-applicative
-    , ouroboros-network
     , prettyprinter
     , quiet
     , random
-    , retry
     , safe
     , servant
     , servant-client
     , servant-client-core
     , servant-server
     , streaming-commons
-    , temporary
     , text
     , text-class
     , time
     , tls
     , transformers
-    , typed-process
     , unliftio
-    , unliftio-core
     , wai
     , wai-middleware-logging
     , warp
@@ -435,7 +353,6 @@ library cardano-wallet-api-http
     , x509
     , x509-store
     , x509-validation
-    , yaml
 
   exposed-modules:
     Cardano.CLI
@@ -477,7 +394,6 @@ library cardano-wallet-integration
     , aeson-qq
     , base
     , base16-bytestring
-    , base58-bytestring
     , bech32
     , bech32-th
     , bytestring
@@ -489,7 +405,6 @@ library cardano-wallet-integration
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-api-http
-    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
@@ -497,11 +412,9 @@ library cardano-wallet-integration
     , containers
     , crypto-hash-extra
     , cryptonite
-    , deepseq
     , directory
     , either
     , extra
-    , filepath
     , flat
     , fmt
     , generic-lens
@@ -512,19 +425,15 @@ library cardano-wallet-integration
     , http-client
     , http-types
     , HUnit
-    , iohk-monitoring
-    , lens
     , lens-aeson
     , local-cluster
     , memory
     , microstache
     , monad-loops
     , network-uri
-    , optparse-applicative
     , process
     , resourcet
     , retry
-    , say
     , serialise
     , string-interpolate
     , template-haskell
@@ -579,11 +488,9 @@ library cardano-wallet-bench
   build-depends:
     , aeson
     , base
-    , cardano-wallet
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , containers
     , criterion-measurement
     , deepseq
     , directory
@@ -595,7 +502,6 @@ library cardano-wallet-bench
     , say
     , text
     , text-class
-    , transformers
     , unliftio
 
   exposed-modules: Cardano.Wallet.BenchShared
@@ -605,7 +511,6 @@ library mock-token-metadata
   hs-source-dirs:  mock-token-metadata/src
   build-depends:
     , aeson
-    , ansi-wl-pprint
     , base
     , bytestring
     , cardano-wallet
@@ -613,15 +518,12 @@ library mock-token-metadata
     , generic-lens
     , memory
     , network-uri
-    , optparse-applicative
     , servant
     , servant-server
     , text
     , unliftio
     , unordered-containers
     , wai
-    , wai-extra
-    , wai-middleware-logging
     , warp
 
   exposed-modules: Cardano.Wallet.TokenMetadata.MockServer
@@ -678,28 +580,20 @@ test-suite unit
     , base58-bytestring
     , bech32
     , bech32-th
-    , binary
     , bytestring
     , cardano-addresses
     , cardano-api
     , cardano-api-extra
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
-    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-crypto-wrapper
-    , cardano-ledger-allegra:{cardano-ledger-allegra, testlib}
+    , cardano-ledger-allegra:{cardano-ledger-allegra}
     , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
     , cardano-ledger-api
-    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
-    , cardano-ledger-byron
-    , cardano-ledger-byron-test
-    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
+    , cardano-ledger-babbage:{cardano-ledger-babbage}
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-sl-x509
     , cardano-slotting
@@ -733,13 +627,10 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , generics-sop
-    , hedgehog
     , hedgehog-corpus
-    , hedgehog-quickcheck
     , hspec                                                     >=2.8.2
     , hspec-core                                                >=2.8.2
     , hspec-golden
-    , hspec-hedgehog
     , http-api-data
     , http-client
     , http-client-tls
@@ -752,7 +643,6 @@ test-suite unit
     , iohk-monitoring-extra
     , lattices
     , lens
-    , list-transformer
     , local-cluster
     , memory
     , mock-token-metadata
@@ -771,15 +661,11 @@ test-suite unit
     , ouroboros-network-api
     , persistent                                                ^>=2.13
     , persistent-sqlite                                         ^>=2.13
-    , plutus-core
-    , plutus-ledger-api
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-quid
     , quickcheck-state-machine                                  >=0.6.0
-    , quiet
     , random
     , regex-pcre-builtin
     , retry
@@ -787,13 +673,11 @@ test-suite unit
     , servant
     , servant-openapi3
     , servant-server
-    , should-not-typecheck
     , si-timers
     , sop-core
     , splitmix
     , std-gen-seed
     , string-interpolate
-    , string-qq
     , tagged                                                    ^>=0.8.7
     , temporary
     , temporary-extra
@@ -805,7 +689,6 @@ test-suite unit
     , tree-diff
     , unliftio
     , unliftio-core
-    , unordered-containers
     , wai
     , wai-extra
     , wai-middleware-logging
@@ -962,7 +845,6 @@ benchmark restore
     , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-api-http
-    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-integration
     , cardano-wallet-launcher
@@ -971,15 +853,11 @@ benchmark restore
     , containers
     , contra-tracer
     , crypto-hash-extra
-    , deepseq
     , filepath
     , fmt
-    , generic-lens
     , iohk-monitoring
     , iohk-monitoring-extra
-    , local-cluster
     , say
-    , string-interpolate
     , text
     , text-class
     , time
@@ -999,7 +877,6 @@ benchmark latency
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-integration
-    , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , directory
@@ -1034,10 +911,8 @@ benchmark db
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-wallet
-    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -1058,7 +933,6 @@ benchmark db
     , text
     , text-class
     , time
-    , transformers
     , unliftio
     , with-utf8
 
@@ -1077,24 +951,17 @@ benchmark api
     , cardano-api
     , cardano-balance-tx:internal
     , cardano-wallet
-    , cardano-wallet-application-extras
     , cardano-wallet-bench
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , containers
-    , deepseq
-    , directory
-    , filepath
     , fmt
     , iohk-monitoring
     , iohk-monitoring-extra
     , say
     , text
-    , text-class
     , time
-    , transformers
-    , unliftio
     , with-utf8
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
@@ -1107,12 +974,10 @@ benchmark erafun-benchmark
   build-depends:
     , base
     , bytestring
-    , cardano-crypto
     , cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-read
     , criterion
-    , random
     , time
 
   default-language: Haskell2010

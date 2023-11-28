@@ -35,15 +35,11 @@ library
     , delta-store
     , delta-types
     , exceptions
-    , fmt
     , generic-lens
     , io-classes
     , monad-logger
     , persistent
     , persistent-sqlite
-    , QuickCheck
-    , safe
-    , safe-exceptions
     , say
     , semigroupoids
     , stm
@@ -72,10 +68,7 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , io-classes
-    , io-sim
     , hspec
-    , QuickCheck
   build-tool-depends:
       hspec-discover:hspec-discover
   type:

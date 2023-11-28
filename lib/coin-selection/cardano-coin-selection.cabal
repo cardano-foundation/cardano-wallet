@@ -132,5 +132,4 @@ benchmark utxo-index
       , format-numbers
       , QuickCheck
       , tasty-bench
-      , tasty-hunit
       , text

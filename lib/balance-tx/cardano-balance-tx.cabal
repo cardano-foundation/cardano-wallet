@@ -80,7 +80,6 @@ library internal
     , ouroboros-consensus-cardano
     , pretty-simple
     , QuickCheck
-    , random
     , serialise
     , std-gen-seed
     , text
@@ -110,12 +109,12 @@ test-suite test
     , bytestring
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx:{cardano-balance-tx, internal}
+    , cardano-balance-tx:{internal}
     , cardano-coin-selection
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
-    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
+    , cardano-ledger-conway:{testlib}
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers

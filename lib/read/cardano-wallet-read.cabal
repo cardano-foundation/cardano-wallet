@@ -105,21 +105,16 @@ library
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
     , cardano-ledger-babbage
-    , cardano-ledger-babbage-test
     , cardano-ledger-binary
     , cardano-ledger-byron
-    , cardano-ledger-byron-test
     , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-ma-test
-    , cardano-ledger-shelley-test
     , cardano-protocol-tpraos
     , cardano-strict-containers
     , containers
     , deepseq
-    , directory
     , extra
     , fmt
     , generic-lens
@@ -157,13 +152,7 @@ test-suite test
     , bytestring
     , cardano-wallet-read
     , cardano-wallet-test-utils
-    , casing
-    , extra
-    , formatting
     , hspec
     , memory
-    , OddWord
     , QuickCheck
-    , text
-    , time
     , with-utf8

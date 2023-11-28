@@ -38,7 +38,6 @@ library
     , file-embed
     , formatting
     , hspec
-    , directory
     , either
     , fmt
     , generics-sop
