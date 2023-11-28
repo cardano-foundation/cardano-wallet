@@ -58,9 +58,6 @@ library
     , aeson-qq                           ^>=0.8.4
     , base
     , base58-bytestring                  ^>=0.1
-    , bech32                             ^>=1.1.2
-    , bech32-th
-    , binary                             ^>=0.8.8
     , bytestring                         ^>=0.10.12
     , cardano-addresses
     , cardano-api
@@ -79,7 +76,6 @@ library
     , containers                         ^>=0.6.5
     , contra-tracer
     , crypto-hash-extra                  ^>=0.1
-    , cryptonite                         ^>=0.30
     , directory
     , extra                              ^>=1.7
     , filepath
@@ -88,9 +84,7 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , lens                               ^>=5.1.1
-    , lobemo-backend-ekg
     , memory                             ^>=0.18
-    , network-uri                        ^>=2.6.4.2
     , OddWord                            ^>=1.0.1
     , optparse-applicative
     , ouroboros-network                  ^>=0.8.1

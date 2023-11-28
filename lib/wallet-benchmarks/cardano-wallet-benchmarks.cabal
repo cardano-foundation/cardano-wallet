@@ -32,17 +32,12 @@ benchmark memory
   build-depends:
     , base
     , cardano-wallet-launcher
-    , cardano-wallet-test-utils
-    , containers
     , contra-tracer
     , filepath
-    , fmt
     , iohk-monitoring
-    , network
     , process
     , temporary
     , text
     , text-class
-    , transformers
     , optparse-applicative
     , with-utf8

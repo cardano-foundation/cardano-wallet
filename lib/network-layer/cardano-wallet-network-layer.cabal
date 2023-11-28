@@ -43,17 +43,14 @@ library
     , cardano-slotting
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , cardano-wallet-read
     , cborg
     , containers
     , contra-tracer
     , exceptions
     , fmt
-    , generics-sop
     , io-classes
     , iohk-monitoring
     , iohk-monitoring-extra
-    , memory
     , mtl
     , network-mux
     , nothunks

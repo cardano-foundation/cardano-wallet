@@ -32,9 +32,7 @@ library
       base
     , containers
     , fmt
-    , QuickCheck
     , semigroupoids
-    , text
   hs-source-dirs:
       src
   exposed-modules:
@@ -55,9 +53,6 @@ test-suite unit
   build-depends:
       base
     , hspec
-    , QuickCheck
-    , fmt
-    , delta-types
   build-tool-depends:
       hspec-discover:hspec-discover
   type:

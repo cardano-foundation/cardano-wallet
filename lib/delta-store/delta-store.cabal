@@ -30,17 +30,11 @@ library
       -Werror
   build-depends:
       base
-    , containers
     , delta-types
-    , exceptions
     , fmt
     , io-classes
     , mtl
     , QuickCheck
-    , safe-exceptions
-    , semigroupoids
-    , stm
-    , text
     , transformers
   hs-source-dirs:
       src
@@ -63,8 +57,6 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , io-classes
-    , io-sim
     , hspec
     , QuickCheck
     , fmt
