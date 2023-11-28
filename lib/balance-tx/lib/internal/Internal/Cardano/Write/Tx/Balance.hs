@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -226,9 +225,7 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
-    , outputs
     , toCardanoApiTx
-    , txBody
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
@@ -285,7 +282,6 @@ import Text.Pretty.Simple
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
@@ -707,7 +703,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 pp
                 utxoAssumptions
-                (extractOutputsFromTx (toCardanoApiTx partialTx))
+                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
                 redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
@@ -869,7 +865,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Tx era -> Value
     txBalance
         = evaluateTransactionBalance pp combinedUTxO
-        . txBody
+        . view bodyTxL
 
     balanceAfterSettingMinFee
         :: Tx era
@@ -928,16 +924,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          , walletLedgerUTxO
          ]
 
-    extractOutputsFromTx :: CardanoApi.Tx (CardanoApiEra era) -> [W.TxOut]
-    extractOutputsFromTx (CardanoApi.ByronTx _) = case era of {}
-    extractOutputsFromTx (CardanoApi.ShelleyTx _ tx) =
-        map fromLedgerTxOut $ outputs $ txBody tx
-      where
-        fromLedgerTxOut :: TxOut era -> W.TxOut
-        fromLedgerTxOut o = case era of
-           RecentEraBabbage -> Convert.fromBabbageTxOut o
-           RecentEraConway -> Convert.fromConwayTxOut o
-
     assembleTransaction
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
@@ -989,7 +975,7 @@ selectAssets
      . IsRecentEra era
     => PParams era
     -> UTxOAssumptions
-    -> [W.TxOut]
+    -> [TxOut era]
     -> [Redeemer]
     -> UTxOSelection WalletUTxO
     -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
@@ -1001,12 +987,19 @@ selectAssets
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
     -> Either (ErrBalanceTx era) Selection
-selectAssets pp utxoAssumptions outs redeemers
+selectAssets pp utxoAssumptions outs' redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy = do
         validateTxOutputs'
         performSelection'
   where
     era = recentEra @era
+
+    outs = map fromLedgerTxOut outs'
+
+    fromLedgerTxOut :: TxOut era -> W.TxOut
+    fromLedgerTxOut o = case era of
+       RecentEraBabbage -> Convert.fromBabbageTxOut o
+       RecentEraConway -> Convert.fromConwayTxOut o
 
     validateTxOutputs'
         :: Either (ErrBalanceTx era) ()

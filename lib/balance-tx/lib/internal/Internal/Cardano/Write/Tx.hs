@@ -83,8 +83,6 @@ module Internal.Cardano.Write.Tx
     -- * Tx
     , Core.Tx
     , Core.TxBody
-    , txBody
-    , outputs
     , emptyTx
     , serializeTx
 
@@ -173,9 +171,7 @@ import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
 import Cardano.Ledger.Api
-    ( bodyTxL
-    , coinTxOutL
-    , outputsTxBodyL
+    ( coinTxOutL
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
@@ -222,9 +218,6 @@ import Data.ByteString.Short
     )
 import Data.Coerce
     ( coerce
-    )
-import Data.Foldable
-    ( toList
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -680,19 +673,6 @@ serializeTx
     => Core.Tx era
     -> ByteString
 serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
-
-txBody
-    :: IsRecentEra era
-    => Core.Tx era
-    -> Core.TxBody era
-txBody = (^. bodyTxL)
-
--- Until we have convenient lenses to use
-outputs
-    :: IsRecentEra era
-    => Core.TxBody era
-    -> [TxOut era]
-outputs body = toList $ body ^. outputsTxBodyL
 
 emptyTx
     :: IsRecentEra era
