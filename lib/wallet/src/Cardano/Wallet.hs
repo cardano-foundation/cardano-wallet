@@ -3558,6 +3558,7 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
+    | ErrConstructTxEncryptMetadata CryptoError
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

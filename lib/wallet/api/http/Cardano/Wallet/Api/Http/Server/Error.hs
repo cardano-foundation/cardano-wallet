@@ -511,6 +511,13 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
+        ErrConstructTxEncryptMetadata cryptoError ->
+            apiError err403 InvalidMetadataEncryption $ mconcat
+            [ "It looks like the metadata cannot be encrypted. "
+            , "The exact error is: "
+            , T.pack (show cryptoError)
+            ]
+
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case

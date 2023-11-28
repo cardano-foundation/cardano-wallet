@@ -1760,14 +1760,16 @@ x-encryptionMethod: &encryptionMethod
 x-encryptMetadata: &encryptMetadata
   description: |
     If used then metadata in transaction is going to be encrypted by either
-    (a) base which is AES 256 using CBC mode or
+    (a) base which is AES 256 using CBC mode which is a default method or
     (b) AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
     PBKDF2 password stretching is used to get a 32-byte secret key and 16-byte iv
     needed in (a) scheme.
     PBKDF2 encryption algorithm using HMAC with the hash algorithm SHA256 is employed
     using 10000 iterations. Nosalt is used at this moment. Randomized version with
     salt is to be added in the future.
-    The encrypted metadata is going to be stored in blockchain as a consequence.
+    Only metadata value under `msg` field is encrypted. If `msg` field is missing error
+    will be emitted.
+    Metadata encryption is in accordance to CIP 83 (https://cips.cardano.org/cips/cip83/).
   type: object
   required:
     - passphrase
@@ -4845,6 +4847,17 @@ x-errInvalidMetadataDecryption: &errInvalidMetadataDecryption
       type: string
       enum: ['invalid_metadata_decryption']
 
+x-errInvalidMetadataEncryption: &errInvalidMetadataEncryption
+  <<: *responsesErr
+  title: invalid_metadata_encryption
+  properties:
+    message:
+      type: string
+      description: The metadata has either wrong structure or cannot be encrypted.
+    code:
+      type: string
+      enum: ['invalid_metadata_encryption']
+
 x-errForeignTransaction: &errForeignTransaction
   <<: *responsesErr
   title: foreign_transaction
@@ -5926,6 +5939,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errValidityIntervalNotInsideScriptTimelock
             - <<: *errSharedWalletIncomplete
             - <<: *errDelegationInvalid
+            - <<: *errInvalidMetadataEncryption
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

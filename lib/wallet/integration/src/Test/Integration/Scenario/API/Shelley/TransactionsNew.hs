@@ -5283,7 +5283,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "encrypt_metadata": #{toJSON encryptMetadata},
                 "metadata": #{toJSON metadataToBeEncrypted}
             }|]
-        let expEncryptedMetadata =
+        let (Right expEncryptedMetadata) =
                 toMetadataEncrypted encryptMetadata metadataToBeEncrypted
         let expEncryptedMetadataSerialised =
                 ApiBytesT . Cardano.serialiseToCBOR $ expEncryptedMetadata

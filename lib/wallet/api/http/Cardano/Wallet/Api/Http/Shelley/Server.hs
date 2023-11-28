@@ -446,6 +446,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , EncryptMetadataMethod (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , KnownDiscovery (..)
@@ -928,6 +929,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Cryptography.Cipher.AES256CBC as AES256CBC
 import qualified Cryptography.Cipher.ChaChaPoly1305 as ChaChaPoly1305
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
@@ -2725,11 +2727,15 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    let metadata = case (body ^. #encryptMetadata, body ^. #metadata) of
+    metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
             (Just apiEncrypt, Just metadataWithSchema) ->
-                Just $ toMetadataEncrypted apiEncrypt metadataWithSchema
+                case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right meta ->
+                        pure $ Just meta
             _ ->
-                body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+                pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -3131,13 +3137,18 @@ encryptionNonce = "encrypt-data"
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
-    -> Cardano.TxMetadata
-toMetadataEncrypted apiEncrypt =
-    toMetadata . encrypt . toBytes
+    -> Either ErrConstructTx Cardano.TxMetadata
+toMetadataEncrypted apiEncrypt payload = do
+    encrypted <- encrypt . toBytes $ payload
+    pure $ toMetadata encrypted
   where
+    ((secretKey,iv), encMethod) = unwrapApiMetadata apiEncrypt
+
     toBytes = BL.toStrict . Aeson.encode
 
-    encrypt = ChaChaPoly1305.encrypt (toMetadataEncryptedKey apiEncrypt) encryptionNonce
+    encrypt = case encMethod of
+        ChaChaPoly1305 -> Right . ChaChaPoly1305.encrypt secretKey encryptionNonce
+        AES256CBC -> mapLeft ErrConstructTxEncryptMetadata . AES256CBC.encrypt secretKey iv
 
     toChunks bs res =
         if bs == BS.empty then
@@ -3152,13 +3163,15 @@ toMetadataEncrypted apiEncrypt =
         map Cardano.TxMetaBytes .
         flip toChunks []
 
-toMetadataEncryptedKey
+unwrapApiMetadata
     :: ApiEncryptMetadata
-    -> ByteString
-toMetadataEncryptedKey apiEncrypt =
-    fst $ generateKeyForMetadata (BA.convert $ unPassphrase passphrase) Nothing
+    -> ( (ByteString,ByteString), EncryptMetadataMethod )
+unwrapApiMetadata apiEncrypt =
+    ( generateKeyForMetadata (BA.convert $ unPassphrase passphrase) Nothing
+    , method )
   where
-    (ApiEncryptMetadata (ApiT passphrase) _) = apiEncrypt
+    (ApiEncryptMetadata (ApiT passphrase) methodM) = apiEncrypt
+    method = fromMaybe AES256CBC methodM
 
 -- When encryption is enabled we do the following:
 -- (a) recreate encrypted payload from chunks
@@ -3178,6 +3191,8 @@ fromMetadataEncrypted apiEncrypt metadata =
    decrypt >>=
    decodeFromJSON
   where
+    ( (secretKey, _iv), _encMethod) = unwrapApiMetadata apiEncrypt
+
     checkEncryptedMetadata =
         let checkElem (Cardano.TxMetaBytes _) = False
             checkElem _ = True
@@ -3192,7 +3207,7 @@ fromMetadataEncrypted apiEncrypt metadata =
             Right $ Map.foldl BS.append BS.empty $ Map.map extractBytes themap
 
     decrypt payload =
-        case ChaChaPoly1305.decrypt (toMetadataEncryptedKey apiEncrypt) encryptionNonce payload of
+        case ChaChaPoly1305.decrypt secretKey encryptionNonce payload of
             CryptoPassed res -> Right res
             CryptoFailed err -> Left $ ErrDecodeTxDecryptMetadata err
 
@@ -3350,11 +3365,15 @@ constructSharedTransaction
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    let md = case (body ^. #encryptMetadata, body ^. #metadata) of
-            (Just apiEncrypt, Just metadataWithSchema) ->
-                Just $ toMetadataEncrypted apiEncrypt metadataWithSchema
-            _ ->
-                body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+    md <- case (body ^. #encryptMetadata, body ^. #metadata) of
+              (Just apiEncrypt, Just metadataWithSchema) ->
+                  case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                      Left err ->
+                          liftHandler $ throwE err
+                      Right meta ->
+                          pure $ Just meta
+              _ ->
+                  pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter) <- liftHandler $
         parseValidityInterval ti (body ^. #validityInterval)
