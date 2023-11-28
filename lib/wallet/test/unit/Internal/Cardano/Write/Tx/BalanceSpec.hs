@@ -55,6 +55,7 @@ import Cardano.Ledger.Api
     , allInputsTxBodyF
     , bodyTxL
     , coinTxOutL
+    , mkBasicTx
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -67,7 +68,13 @@ import Cardano.Ledger.Language
     ( Language (..)
     )
 import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing)
+    ( Credential (KeyHashObj)
+    , Credential (..)
+    , DCert (DCertDeleg)
+    , DelegCert (..)
+    , Delegation (..)
+    , KeyHash (..)
+    , StrictMaybe (SJust, SNothing)
     , Withdrawals (..)
     )
 import Cardano.Mnemonic
@@ -77,9 +84,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Numeric.Util
     ( power
-    )
-import Cardano.Pool.Types
-    ( PoolId (..)
     )
 import Cardano.Wallet
     ( defaultChangeAddressGen
@@ -119,10 +123,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
-import Cardano.Wallet.Primitive.Model
-    ( Wallet (..)
-    , unsafeInitWallet
-    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     , NetworkId (..)
@@ -137,10 +137,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
-    , mkDelegationCertificates
-    )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -416,13 +412,6 @@ import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
-import qualified Cardano.Wallet.Primitive.Types as W
-    ( Block (..)
-    , BlockHeader (..)
-    )
-import qualified Cardano.Wallet.Primitive.Types as W.Block
-    ( header
-    )
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..)
     )
@@ -436,7 +425,6 @@ import qualified Cardano.Wallet.Primitive.Types.Credentials as W
     )
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
-    , mockHash
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
@@ -461,9 +449,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Quantity as W
-    ( Quantity (..)
-    )
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -896,8 +881,6 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    rootK =
-        Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
     addr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
@@ -907,25 +890,21 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         ]
 
     delegate :: PartialTx BabbageEra
-    delegate = PartialTx (fromCardanoApiTx $ CardanoApi.Tx body []) mempty []
+    delegate = PartialTx (mkBasicTx body) mempty []
       where
-        body = CardanoApi.ShelleyTxBody
-            CardanoApi.ShelleyBasedEraBabbage
-            (Ledger.mkBasicTxBody & certsTxBodyL .~ StrictSeq.fromList certs)
-            []
-            CardanoApi.TxBodyNoScriptData
-            Nothing
-            CardanoApi.TxScriptValidityNone
+        body :: TxBody BabbageEra
+        body =
+            mkBasicTxBody
+                & certsTxBodyL .~ StrictSeq.fromList certs
 
+        dummyStakeKey = KeyHashObj $ KeyHash
+            "00000000000000000000000000000000000000000000000000000000"
+        dummyPool = KeyHash
+            "00000000000000000000000000000000000000000000000000000001"
         certs =
-            CardanoApi.toShelleyCertificate
-                <$> mkDelegationCertificates delegationAction (Left xpub)
-          where
-            poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
-                            \\ts\202l\f\249\194\187\230\131\141\198"
-
-            xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
-            delegationAction = JoinRegisteringKey poolId
+            [ DCertDeleg $ RegKey dummyStakeKey
+            , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
+            ]
 
     txFee :: CardanoApi.Tx CardanoApi.BabbageEra -> CardanoApi.Lovelace
     txFee (CardanoApi.Tx (CardanoApi.TxBody content) _) =
@@ -2071,8 +2050,7 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
             dummyTimeTranslation
             utxoIndex
             dummyChangeAddrGen
-            (getState $ unsafeInitWallet utxo (W.Block.header block0)
-                DummyChangeState { nextUnusedIndex = 0 })
+            (DummyChangeState 0)
             partialTx
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
@@ -2220,18 +2198,6 @@ cardanoToWalletTxOut =
 --------------------------------------------------------------------------------
 -- Test values
 --------------------------------------------------------------------------------
-
-block0 :: W.Block
-block0 = W.Block
-    { header = W.BlockHeader
-        { slotNo = SlotNo 0
-        , blockHeight = W.Quantity 0
-        , headerHash = W.mockHash $ SlotNo 0
-        , parentHeaderHash = Nothing
-        }
-    , transactions = []
-    , delegations = []
-    }
 
 {- HLINT ignore costModelsForTesting "Use underscore" -}
 costModelsForTesting :: Alonzo.CostModels
