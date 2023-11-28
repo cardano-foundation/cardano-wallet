@@ -153,7 +153,7 @@
 <div class="table-wrapper"><table><thead><tr><th></th><th><strong>Supported version</strong></th><th><strong>Dependency?</strong></th></tr></thead><tbody>
 <tr><td><a href="https://www.haskell.org/downloads/">ghc</a></td><td>== 9.2.8</td><td>Required</td></tr>
 <tr><td><a href="https://www.haskell.org/cabal/download.html">cabal</a></td><td>&gt;= 3.4.0.0</td><td>Required</td></tr>
-<tr><td><a href="../contributing/nix.html">Nix</a></td><td>&gt;= 2.5.1</td><td>Optional</td></tr>
+<tr><td><a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a></td><td>&gt;= 2.5.1</td><td>Optional</td></tr>
 </tbody></table>
 </div>
 <h2 id="cabal"><a class="header" href="#cabal">Cabal</a></h2>
@@ -221,7 +221,7 @@ fail to build.</p>
 </li>
 </ol>
 <h2 id="nix"><a class="header" href="#nix">Nix</a></h2>
-<p>Use the <a href="../contributing/nix.html">Nix</a> build if:</p>
+<p>Use the <a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a> build if:</p>
 <ol>
 <li>You don't have Haskell development tools installed, but you do have
 Nix installed.</li>
@@ -230,20 +230,20 @@ tests under Wine.</li>
 <li>You would like to quickly grab a build of another branch from the
 Hydra cache, without needing to build it yourself.</li>
 </ol>
-<p>Follow the instructions on the <a href="../contributing/nix.html">Nix</a>
-page to install <em>and configure</em> Nix.</p>
+<p>Follow the instructions on the <a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a> page to install and configure Nix.</p>
 <div id="admonition-warning-1" class="admonition warning">
 <div class="admonition-title">
 <p>Warning</p>
 <p><a class="admonition-anchor-link" href="#admonition-warning-1"></a></p>
 </div>
 <div>
-<p>As of 2022-12, the following information is out of date
-as https://hydra.iohk.io/ has been decomissioned.</p>
+<p>Make sure that you have set up the <strong>binary cache for Haskell.nix</strong>,
+<a href="https://input-output-hk.github.io/haskell.nix/tutorials/getting-started#setting-up-the-binary-cache">according to the instructions</a>,
+or you <strong>will</strong> wait a long time building multiple copies of GHC.
+If Nix builds GHC, this is an indication that the cache
+has not been set up correctly.</p>
 </div>
 </div>
-<p><strong>Note</strong>: It must be stressed that, if you see GHC being built by Nix,
-then you don't have the IOHK Hydra binary cache configured correctly.</p>
 <p>To build the wallet for your current platform:</p>
 <pre><code>&gt; nix build
 </code></pre>
@@ -258,12 +258,12 @@ build from a nix cache rather than building locally.</p>
 
 &gt; nix run .#mainnet/wallet -- &lt;optional additional cardano wallet arguments&gt;
 </code></pre>
-<p>You may run the integration tests with:</p>
-<pre><code class="language-console">nix run .#packages.x86_64-linux.checks.cardano-wallet.integration
+<p>You can run the integration tests with:</p>
+<pre><code class="language-console">&gt; nix build -L .#ci.x86_64-linux.tests.run.integration
 </code></pre>
 <h4 id="cross-compiling-with-nix"><a class="header" href="#cross-compiling-with-nix">Cross-compiling with Nix</a></h4>
 <p>To build the wallet for Windows, from <strong>Linux</strong>:</p>
-<pre><code>nix build .#hydraJobs.linux.windows.cardano-wallet
+<pre><code>&gt; nix build .#ci.artifacts.win64.release
 </code></pre>
 <h4 id="building-straight-from-github"><a class="header" href="#building-straight-from-github">Building straight from GitHub</a></h4>
 <p>The following command will build the <code>master</code> branch, with the resulting executable appearing at <code>./result/bin/cardano-wallet</code>. To build another branch, add <code>/&lt;branch name, tag, or commit hash&gt;</code> (see <a href="https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references">Nix Manual: Flake References</a> for syntax). As before, if the target ref has already been built by Hydra, then it will be fetched from cache rather than built locally.</p>
