@@ -134,7 +134,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         ] ++ (with pkgs.buildPackages.buildPackages; [
           just
           adrgen
-          go-jira
           haskellPackages.ghcid
           pkgconfig
           nixpkgs-recent.python3Packages.openapi-spec-validator
