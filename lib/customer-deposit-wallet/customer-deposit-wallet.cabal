@@ -46,36 +46,19 @@ library
   build-depends:
     , async
     , base
-    , bech32
     , bytestring
-    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-ledger-byron
     , containers
     , contra-tracer
-    , deepseq
     , delta-store
     , delta-types
-    , directory
-    , filepath
-    , io-classes
-    , iohk-monitoring
     , iohk-monitoring-extra              ^>=0.1
-    , network
-    , network-mux
-    , network-uri
-    , nothunks
-    , ntp-client
-    , ouroboros-consensus-cardano
     , persistent                         ^>=2.13
-    , persistent-sqlite                  ^>=2.13
-    , persistent-template                ^>=2.12
-    , retry
     , text
     , time
-    , typed-protocols
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -111,15 +94,7 @@ library customer-deposit-wallet-http
   import:          language, opts-lib
   hs-source-dirs:  api/http
   build-depends:
-    , base
-    , aeson
     , customer-deposit-wallet
-    , http-api-data
-    , http-types
-    , optparse-applicative
-    , tls
-    , servant
-    , servant-server
   exposed-modules:
     Cardano.Wallet.Deposit.HTTP
 
@@ -128,7 +103,5 @@ executable customer-deposit-wallet
   hs-source-dirs: exe
   build-depends:
     , base
-    , customer-deposit-wallet
-    , customer-deposit-wallet-http
   main-is:
     customer-deposit-wallet.hs
