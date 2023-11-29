@@ -517,6 +517,11 @@ instance IsServerError ErrConstructTx where
             , "The exact error is: "
             , T.pack (show cryptoError)
             ]
+        ErrConstructTxIncorrectRawMetadata ->
+            apiError err403 InvalidMetadataEncryption $ mconcat
+            [ "It looks like the metadata to be encrypted does not "
+            , "have `msg` field which value is to be encrypted."
+            ]
 
 
 instance IsServerError ErrGetPolicyId where

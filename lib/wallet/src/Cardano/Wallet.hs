@@ -3559,6 +3559,7 @@ data ErrConstructTx
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
     | ErrConstructTxEncryptMetadata CryptoError
+    | ErrConstructTxIncorrectRawMetadata
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

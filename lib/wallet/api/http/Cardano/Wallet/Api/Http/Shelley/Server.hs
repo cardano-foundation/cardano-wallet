@@ -948,6 +948,8 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import qualified Debug.Trace as TR
+
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
 walletListenFromEnv :: Show e
@@ -3126,23 +3128,55 @@ encryptionNonce :: ByteString
 encryptionNonce = "encrypt-data"
 
 -- When encryption is enabled we do the following:
--- (a) toJSON on metadata,
--- (b) encrypt it
--- (c) and create new tx metadata
---     (0, TxMetaBytes chunk1)
---     (1, TxMetaBytes chunk2)
---     ....
---     (N, TxMetaBytes chunkN)
---     until encrypted metadata is accommodated
+-- (a) find field `msg`
+-- (b) encrypt its value if present, otherwise emit error
+-- (c) and update value of `msg` with the encrypted initial value encoded in base64
+--     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
+-- (d) add `enc` field with encryption method value ("base" or "chachapoly1305")
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
     -> Either ErrConstructTx Cardano.TxMetadata
 toMetadataEncrypted apiEncrypt payload = do
+    msgValue <- findMsgValue
     encrypted <- encrypt . toBytes $ payload
-    pure $ toMetadata encrypted
+    TR.trace ("msgValue: "<> show msgValue<>"\nfindMsgValue1: "<> show findMsgValue1) $ pure $ toMetadata encrypted
   where
     ((secretKey,iv), encMethod) = unwrapApiMetadata apiEncrypt
+
+    getMsgValue (Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            Just metaValue
+        else Nothing
+    getMsgValue _ = Nothing
+    join Nothing (Just val) = Just val
+    join (Just val) Nothing = Just val
+    join Nothing Nothing = Nothing
+    join (Just val1) (Just val2) = error "only one 'msg' field expected"
+    -- assumption: `msg` is not embedded beyond first level
+    -- we could change that in the future
+    inspectMetaPair (Cardano.TxMetaMap pairs) =
+        foldl join Nothing (getMsgValue <$> pairs)
+    inspectMetaPair _ = Nothing
+    mapMetaPair val Nothing = val
+    mapMetaPair _ (Just val) =
+        Cardano.TxMetaBytes $
+        BL.toStrict $
+        Aeson.encode $
+        Cardano.metadataValueToJsonNoSchema val
+    adjustVals val =
+        let temp = inspectMetaPair val
+        in mapMetaPair val temp
+    findMsgValue =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+            filteredMap = Map.filter (isJust . inspectMetaPair) themap
+        in if Map.size filteredMap == 1 then
+            Right $ Map.toList filteredMap
+           else
+            Left ErrConstructTxIncorrectRawMetadata
+    findMsgValue1 =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        in Map.map adjustVals themap
 
     toBytes = BL.toStrict . Aeson.encode
 

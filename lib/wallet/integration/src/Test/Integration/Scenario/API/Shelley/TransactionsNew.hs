@@ -104,6 +104,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
+    , EncryptMetadataMethod (..)
     , ResourceContext (..)
     , WalletStyle (..)
     , fromApiEra
@@ -543,7 +544,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_02c - Small metadata encrypted" $
         \ctx -> runResourceT $ do
-            let metadataRaw = TxMetadata (Map.fromList [(1,TxMetaText "hello")])
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (0,TxMetaText "hello")
+                                , (1,TxMetaMap [(TxMetaText "msg", TxMetaText "hello")])
+                                , (50, TxMetaNumber 1245)
+                                ])
             checkMetadataEncrytion ctx metadataRaw
 
     it "TRANS_NEW_CREATE_02d - Big metadata encrypted" $
@@ -5278,7 +5284,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let metadataToBeEncrypted =
                 TxMetadataWithSchema TxMetadataNoSchema metadataRaw
         let encryptMetadata =
-                ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
+                ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") (Just ChaChaPoly1305)
         let payload = Json [json|{
                 "encrypt_metadata": #{toJSON encryptMetadata},
                 "metadata": #{toJSON metadataToBeEncrypted}
