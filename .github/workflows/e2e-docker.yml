@@ -30,6 +30,14 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
+      WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
+      TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
+      TAGS: ${{ github.event.inputs.tags || 'all' }}
+      E2E_DOCKER_RUN: 1
+
     steps:
     - uses: actions/checkout@v3.2.0
 
@@ -55,31 +63,37 @@ jobs:
       run: bundle install
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
-      run: rake setup[$NETWORK]
+      run: rake setup[preprod]
 
-    - name: 🕒 Get Date/Time
-      id: date-time
-      shell: bash
-      run: |
-        echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
     - name: 💾 Cache node db
-      id: cache
+      id: cache-node
       uses: actions/cache@v3
       with:
-        path: test/e2e/state/node_db/${{ env.NETWORK }}
-        key: node-db-docker-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          node-db-docker-${{ env.NETWORK }}-
-          node-db-Linux-${{ env.NETWORK }}-
+        path: test/e2e/state/node_db/preprod
+        key: node-db-docker-linux-preprod
+
+    - name: Fetch preprod snapshot
+      if: steps.cache-node.outputs.cache-hit != 'true'
+      run: |
+        cd state
+        mkdir node_db
+        cd node_db
+        mkdir preprod
+        cd preprod
+        curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json \
+            | jq -r .[].file_name > snapshot.json
+        curl -o - \
+            https://downloads.csnapshots.io/snapshots/testnet/$(cat snapshot.json) \
+            | lz4 -c -d - | tar -x -C .
+        mv db/* .
 
     - name: 💾 Cache wallet db
       id: cache-wallet
       uses: actions/cache@v3
       with:
-        path: test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: wallet-db3-docker-${{ env.NETWORK }}-
+        path: test/e2e/state/wallet_db/preprod
+        key: wallet-db-docker-linux-preprod
 
     - name: 🚀 Start node and wallet
       run: |
@@ -87,9 +101,9 @@ jobs:
         echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
 
         NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} \
-        NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
-        DATA=`pwd`/state/node_db/$NETWORK \
-        WALLET_DATA=`pwd`/state/wallet_db/$NETWORK \
+        NODE_CONFIG_PATH=`pwd`/state/configs/preprod \
+        DATA=`pwd`/state/node_db/preprod \
+        WALLET_DATA=`pwd`/state/wallet_db/preprod \
         docker-compose -f docker-compose-test.yml up --detach
 
     - name: 🔍 Display versions
@@ -111,17 +125,44 @@ jobs:
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: ${{ runner.os }}-docker-logs
+        name: linux-docker-logs
         path: test/e2e/state/logs
 
     - name: Stop docker-compose
-      run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
-    env:
-      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
-      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
-      WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
-      TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
-      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
-      TAGS: ${{ github.event.inputs.tags || 'all' }}
-      E2E_DOCKER_RUN: 1
+      run: NODE_CONFIG_PATH=`pwd`/state/configs/preprod docker-compose -f docker-compose-test.yml down
+
+    - name: 💾 GH Save Cache of node db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/node_db/preprod
+        key: node-db-docker-linux-preprod
+
+    - name: 💾 GH Save Cache of wallet db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/wallet_db/preprod
+        key: wallet-db-docker-linux-preprod
+
+    - name: Slack Notification on failure
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: success()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'
