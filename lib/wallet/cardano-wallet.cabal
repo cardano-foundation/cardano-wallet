@@ -524,18 +524,15 @@ executable cardano-wallet
   hs-source-dirs: exe
   main-is:        cardano-wallet.hs
   build-depends:
-    , address-derivation-discovery
     , base
     , cardano-wallet
     , cardano-wallet-api-http
-    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
     , iohk-monitoring
     , iohk-monitoring-extra
     , lobemo-backend-ekg
-    , local-cluster
     , network-uri
     , optparse-applicative
     , text
@@ -782,7 +779,6 @@ test-suite integration
   hs-source-dirs:     test/integration test/data
   main-is:            shelley-integration-test.hs
   build-depends:
-    , address-derivation-discovery
     , base
     , cardano-addresses
     , cardano-ledger-shelley
@@ -798,7 +794,6 @@ test-suite integration
     , directory
     , either
     , filepath
-    , hspec
     , hspec-core
     , http-client
     , iohk-monitoring
@@ -807,7 +802,6 @@ test-suite integration
     , local-cluster
     , mock-token-metadata
     , network-uri
-    , string-interpolate
     , tagged                             ^>=0.8.7
     , temporary-extra
     , text
@@ -832,7 +826,6 @@ benchmark restore
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-bench
-    , cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
