@@ -50,10 +50,10 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2023-06-06T00:00:00Z
+index-state: 2023-11-26T00:00:00Z
 
 index-state:
-  , hackage.haskell.org 2023-06-06T00:00:00Z
+  , hackage.haskell.org 2023-11-26T00:00:00Z
   , cardano-haskell-packages 2023-06-05T06:39:32Z
 
 packages:
