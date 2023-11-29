@@ -89,7 +89,7 @@ library
     , with-utf8
 
 test-suite unit
-  import:             language, opts-exe, deps
+  import:             language, opts-exe
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
@@ -97,3 +97,26 @@ test-suite unit
   build-depends:      wai-middleware-logging
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:      Network.Wai.Middleware.LoggingSpec
+  build-depends:
+    , aeson
+    , base
+    , binary
+    , bytestring
+    , cardano-wallet-test-utils
+    , contra-tracer
+    , hspec
+    , http-client
+    , http-types
+    , iohk-monitoring
+    , network
+    , QuickCheck
+    , servant-server
+    , streaming-commons
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unordered-containers
+    , wai
+    , warp
+    , with-utf8
