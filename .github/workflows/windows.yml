@@ -1,4 +1,4 @@
-name: windows
+name: Windows Unit Tests
 
 on:
   schedule:
@@ -71,6 +71,41 @@ jobs:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-launcher-test-unit.exe --color'
         continue-on-error: true
+
+  report:
+    needs: [cardano-wallet-test-unit, text-class-test-unit, cardano-wallet-launcher-test-unit]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Slack Notification on failure
+      if: |
+            needs.cardano-wallet-launcher-test-unit.result != 'success' ||
+            needs.cardano-wallet-test-unit.result != 'success' ||
+            needs.text-class-test-unit.result != 'success'
+
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: |
+           needs.cardano-wallet-launcher-test-unit.result == 'success' &&
+           needs.cardano-wallet-test-unit.result == 'success' &&
+           needs.text-class-test-unit.result == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'
 
   # ADP-2517 - Fix integration tests on Windows
   # cardano-wallet-test-integration:
