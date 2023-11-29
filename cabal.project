@@ -123,13 +123,6 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/bech32.git
-    tag: e341e7f83d7b73f10baa87e946818b2c493cc5f5
-    --sha256: 1d891bpc1q1m1gqj02b4iv3kr4g9w7knlkq43hwbl9dn5k78aydc
-    subdir: bech32
-
-source-repository-package
-    type: git
     location: https://github.com/cardano-foundation/cardano-wallet-client.git
     tag: 353412ca621dc28af53e4a19795338b19bab1b7b
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
@@ -171,6 +164,14 @@ constraints:
   -- lower versions of katip won't build with the Win32-2.12.0.1
   -- which is shipped with the ghc-9.2.8
   , katip >= 0.8.7.4
+
+  -- Cardano dependencies
+  -- bech32 == 1.1.4
+  --   depends on optparse-applicative >= 0.18.1.0
+  --   which is not compatible with 0.17.1.0
+  --   due to a switch in prettyprinter dependency
+  , bech32 == 1.1.4
+  , optparse-applicative == 0.18.1.0
 
   -- Cardano Node dependencies:
   , cardano-api ^>=8.2
