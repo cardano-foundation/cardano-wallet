@@ -33,11 +33,40 @@ common opts-exe
   if flag(release)
     ghc-options: -O2 -Werror
 
-common deps
+library
+  import:          language, opts-lib
+  hs-source-dirs:  src
+  exposed-modules:
+    Network.Wai.Middleware.Logging
+    Network.Wai.Middleware.ServerError
   build-depends:
     , aeson
     , base
     , binary
+    , bytestring
+    , contra-tracer
+    , http-types
+    , iohk-monitoring
+    , servant-server
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unordered-containers
+    , wai
+
+test-suite unit
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Main.hs
+  build-depends:      wai-middleware-logging
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:      Network.Wai.Middleware.LoggingSpec
+  build-depends:
+    , aeson
+    , base
     , bytestring
     , cardano-wallet-test-utils
     , contra-tracer
@@ -51,26 +80,7 @@ common deps
     , streaming-commons
     , text
     , text-class
-    , time
     , unliftio
-    , unordered-containers
     , wai
     , warp
     , with-utf8
-
-library
-  import:          language, opts-lib, deps
-  hs-source-dirs:  src
-  exposed-modules:
-    Network.Wai.Middleware.Logging
-    Network.Wai.Middleware.ServerError
-
-test-suite unit
-  import:             language, opts-exe, deps
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test
-  main-is:            Main.hs
-  build-depends:      wai-middleware-logging
-  build-tool-depends: hspec-discover:hspec-discover
-  other-modules:      Network.Wai.Middleware.LoggingSpec
