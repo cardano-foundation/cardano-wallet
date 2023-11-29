@@ -185,11 +185,11 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
+              haskellNix.overlay
               iohkNix.overlays.utils
               iohkNix.overlays.crypto
               iohkNix.overlays.haskell-nix-extra
               iohkNix.overlays.cardano-lib
-              haskellNix.overlay
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
