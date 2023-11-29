@@ -39,6 +39,7 @@ module Cardano.Wallet.Launch.Cluster
       -- * Cluster node launcher
     , defaultPoolConfigs
     , clusterEraFromEnv
+    , localClusterConfigsFromEnv
     , clusterEraToString
     , withSMASH
 
@@ -1029,6 +1030,11 @@ clusterEraFromEnv =
         "babbage" -> pure BabbageHardFork
         _ -> die $ var ++ ": unknown era"
     withDefault = fromMaybe maxBound
+
+localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" String)
+localClusterConfigsFromEnv = lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
+    <&> Tagged @"cluster-configs"
+        . fromMaybe "../local-cluster/test/data/cluster-configs"
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case

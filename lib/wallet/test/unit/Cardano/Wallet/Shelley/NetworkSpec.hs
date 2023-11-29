@@ -24,6 +24,7 @@ import Cardano.Wallet.Launch.Cluster
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
+    , localClusterConfigsFromEnv
     , withCluster
     )
 import Cardano.Wallet.Network
@@ -72,9 +73,6 @@ import Fmt
     )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData
-    )
-import System.Environment
-    ( getEnv
     )
 import System.Environment.Extended
     ( isEnvSet
@@ -318,8 +316,7 @@ withTestNode tr action = do
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $
         \dir -> do
-            cfgClusterConfigs <-
-                Tagged @"cluster-configs" <$> getEnv "LOCAL_CLUSTER_CONFIGS"
+            cfgClusterConfigs <- localClusterConfigsFromEnv
             let clusterConfig = Cluster.Config
                     { cfgStakePools = defaultPoolConfigs
                     , cfgLastHardFork = BabbageHardFork
