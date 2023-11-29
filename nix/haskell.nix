@@ -391,7 +391,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
 
           # Disable scrypt support on ARM64
           ({ pkgs, ... }: {
-            packages.cardano-wallet.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
+            packages.address-derivation-discovery.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
           })
         ];
     })

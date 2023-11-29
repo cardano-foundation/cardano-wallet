@@ -37,19 +37,10 @@ flag release
   default:     False
   manual:      True
 
-flag scrypt
-  description: Enable compatibility support for legacy wallet passwords.
-  default:     True
-
 library
   import:          language, opts-lib
   hs-source-dirs:  src
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
-
   build-depends:
     , address-derivation-discovery
     , aeson
@@ -697,11 +688,6 @@ test-suite unit
     , x509
     , x509-store
     , yaml
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
-
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Byron.Codec.CborSpec
