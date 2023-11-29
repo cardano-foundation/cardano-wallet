@@ -69,24 +69,16 @@ library
     , base
     , binary
     , bytestring
-    , cardano-wallet-test-utils
     , contra-tracer
-    , hspec
-    , http-client
     , http-types
     , iohk-monitoring
-    , network
-    , QuickCheck
     , servant-server
-    , streaming-commons
     , text
     , text-class
     , time
     , unliftio
     , unordered-containers
     , wai
-    , warp
-    , with-utf8
 
 test-suite unit
   import:             language, opts-exe
