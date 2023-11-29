@@ -93,32 +93,15 @@ import Cardano.Wallet
     ( defaultChangeAddressGen
     )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (delegationAddress)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , Index
-    , Role (..)
     , hex
     , paymentAddress
-    )
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey
-    )
-import Cardano.Wallet.Address.Discovery
-    ( ChangeAddressMode (..)
     )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState
     , mkRndState
-    )
-import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState
-    , defaultAddressPoolGap
-    , purposeBIP44
-    , purposeCIP1852
-    )
-import Cardano.Wallet.Address.Keys.SequentialAny
-    ( mkSeqStateFromRootXPrv
     )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey
@@ -132,9 +115,6 @@ import Cardano.Wallet.Primitive.NetworkId
     , NetworkId (..)
     , SNetworkId (..)
     , withSNetworkId
-    )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..)
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -396,6 +376,9 @@ import Text.Read
     ( readMaybe
     )
 
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Derivation as CA
+import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Gen as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
@@ -412,7 +395,6 @@ import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
-import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..)
@@ -422,9 +404,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
-import qualified Cardano.Wallet.Primitive.Types.Credentials as W
-    ( RootCredentials (..)
-    )
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
     )
@@ -2202,31 +2181,27 @@ costModelsForTesting = either (error . show) id $ do
 dummyChangeAddrGen :: ChangeAddressGen DummyChangeState
 dummyChangeAddrGen = ChangeAddressGen
     { genChangeAddress = \(DummyChangeState i) ->
-        (addressAtIx $ toEnum i, DummyChangeState $ succ i)
+        (addressAtIx $ CA.unsafeMkIndex $ toEnum i, DummyChangeState $ succ i)
     , maxLengthChangeAddress = addressAtIx minBound
     }
   where
+    rootK = Shelley.genMasterKeyFromMnemonic dummyMnemonic mempty
+    accK = Shelley.deriveAccountPrivateKey rootK minBound
+    stakeK = CA.toXPub <$> Shelley.deriveDelegationPrivateKey accK
+
     addressAtIx
-        :: Index
-            'Cardano.Wallet.Address.Derivation.Soft
-            'CredFromKeyK
+        :: CA.Index 'CA.Soft 'CA.PaymentK
         -> Write.Address
-    addressAtIx ix = Convert.toLedgerAddress
-        $ paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
-        $ publicKey ShelleyKeyS
-        $ Shelley.ShelleyKey
-        $ Shelley.deriveAddressPrivateKeyShelley
-            pwd
-            acctK
-            Cardano.Wallet.Address.Derivation.UtxoInternal
-            ix
-    pwd = Passphrase ""
-    rootK = Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) pwd
-    acctK = Shelley.deriveAccountPrivateKeyShelley
-        purposeBIP44
-        pwd
-        (getRawKey ShelleyKeyS rootK)
-        minBound
+    addressAtIx ix = Convert.toLedgerAddress $ convert $
+        Shelley.delegationAddress
+            Shelley.shelleyMainnet
+            (Shelley.PaymentFromExtendedKey paymentK)
+            (Shelley.DelegationFromExtendedKey stakeK)
+      where
+        paymentK = CA.toXPub
+            <$> Shelley.deriveAddressPrivateKey accK Shelley.UTxOInternal ix
+
+    convert = W.Address . CA.unAddress
 
 dummyMnemonic :: SomeMnemonic
 dummyMnemonic = SomeMnemonic $ either (error . show) id
@@ -2248,16 +2223,8 @@ dummyByronChangeAddressGen = AnyChangeAddressGenWithState
 -- normal shelley wallets.
 dummyShelleyChangeAddressGen :: AnyChangeAddressGenWithState
 dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
-    (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey)
-        (delegationAddress @ShelleyKey SMainnet)
-        )
-    (mkSeqStateFromRootXPrv ShelleyKeyS
-        (W.RootCredentials rootK pwd)
-        purposeCIP1852
-        defaultAddressPoolGap IncreasingChangeAddresses)
-  where
-    pwd = Passphrase ""
-    rootK = Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
+    dummyChangeAddrGen
+    (DummyChangeState 0)
 
 dummyTimeTranslation :: TimeTranslation
 dummyTimeTranslation =
