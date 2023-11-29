@@ -33,31 +33,6 @@ common opts-exe
   if flag(release)
     ghc-options: -O2 -Werror
 
-common deps
-  build-depends:
-    , aeson
-    , base
-    , binary
-    , bytestring
-    , cardano-wallet-test-utils
-    , contra-tracer
-    , hspec
-    , http-client
-    , http-types
-    , iohk-monitoring
-    , network
-    , QuickCheck
-    , servant-server
-    , streaming-commons
-    , text
-    , text-class
-    , time
-    , unliftio
-    , unordered-containers
-    , wai
-    , warp
-    , with-utf8
-
 library
   import:          language, opts-lib
   hs-source-dirs:  src
