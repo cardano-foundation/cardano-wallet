@@ -59,19 +59,5 @@ in {
           && p.package.homepage == "https://github.com/cardano-foundation/cardano-wallet")
         cardanoWalletHaskellProject.pkg-set.config.packages);
 
-    ############################################################################
-    # Debugging tools
-
-    # Recursively traces an attrset as it's evaluated.
-    # This is helpful for debugging large attribute sets.
-    traceNames = let
-      go = prefix: builtins.mapAttrs (n: v:
-        if builtins.isAttrs v
-          then if v ? type && v.type == "derivation"
-            then __trace (prefix + n) v
-            else go (prefix + n + ".") v
-          else v);
-    in
-      go;
   };
 }
