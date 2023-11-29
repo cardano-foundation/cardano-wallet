@@ -447,10 +447,30 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
     describe 'Stake Pools GC Maintenance' do
       matrix = [{ 'direct' => 'not_applicable' },
-                { 'none' => 'not_applicable' },
-                { ENV.fetch('TESTS_E2E_SMASH', nil) => 'has_run' }]
+                { 'none' => 'not_applicable' }]
       matrix.each do |tc|
         it "GC metadata maintenance action on metadata source #{tc}" do
+          settings = CW.misc.settings
+          pools = SHELLEY.stake_pools
+
+          s = settings.update({ pool_metadata_source: tc.keys.first })
+          expect(s).to be_correct_and_respond 204
+
+          t = pools.trigger_maintenance_actions({ maintenance_action: 'gc_stake_pools' })
+          expect(t).to be_correct_and_respond 204
+
+          eventually "Maintenance action has status = #{tc.values.first}" do
+            r = pools.view_maintenance_actions
+            (r.code == 200) && (r.to_s.include? tc.values.first)
+          end
+        end
+      end
+    end
+    describe 'Stake Pools GC Maintenance' do
+      matrix = [{ ENV.fetch('TESTS_E2E_SMASH', nil) => 'has_run' }]
+      matrix.each do |tc|
+        it "GC metadata maintenance action on metadata source #{tc}" do
+          pending "GC metadata maintenance action on metadata source #{ENV.fetch('TESTS_E2E_SMASH', nil)}"
           settings = CW.misc.settings
           pools = SHELLEY.stake_pools
 
