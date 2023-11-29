@@ -105,7 +105,7 @@ library
     , nothunks
     , ntp-client
     , OddWord
-    , optparse-applicative
+    , optparse-applicative-fork
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network
@@ -279,7 +279,6 @@ library cardano-wallet-api-http
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-addresses-cli
     , cardano-api
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
@@ -317,7 +316,7 @@ library cardano-wallet-api-http
     , network-uri
     , ntp-client
     , OddWord
-    , optparse-applicative
+    , optparse-applicative-fork
     , prettyprinter
     , quiet
     , random
@@ -531,7 +530,7 @@ executable cardano-wallet
     , iohk-monitoring-extra
     , lobemo-backend-ekg
     , network-uri
-    , optparse-applicative
+    , optparse-applicative-fork
     , text
     , text-class
     , transformers
@@ -639,7 +638,7 @@ test-suite unit
     , nothunks
     , OddWord
     , openapi3                                                  ==3.2.3
-    , optparse-applicative
+    , optparse-applicative-fork
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network
@@ -650,7 +649,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                                  >=0.6.0
+    , quickcheck-state-machine                                  ^>=0.7.3
     , random
     , regex-pcre-builtin
     , retry

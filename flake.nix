@@ -143,11 +143,15 @@
     };
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.1.2";
+    cardano-addresses = {
+      url = "github:IntersectMBO/cardano-addresses?rev=44d5a9eb3505b6bfbf281d40fa88531c3253b771";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
-              ... }:
+              cardano-addresses, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -185,11 +189,12 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
+              haskellNix.overlay
               iohkNix.overlays.utils
               iohkNix.overlays.crypto
               iohkNix.overlays.haskell-nix-extra
               iohkNix.overlays.cardano-lib
-              haskellNix.overlay
+
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
@@ -208,12 +213,14 @@
 
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
           nodeProject = cardano-node-runtime.project.${system};
+          cardano-address = cardano-addresses.packages.${system}."cardano-addresses-cli:exe:cardano-address";
 
           project = (import ./nix/haskell.nix
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
               nodePkgs
+              cardano-address
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -238,7 +245,7 @@
 
                 # Adrestia tool belt
                 inherit (project.hsPkgs.bech32.components.exes) bech32;
-                inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+                inherit cardano-address;
 
                 # Cardano
                 cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;

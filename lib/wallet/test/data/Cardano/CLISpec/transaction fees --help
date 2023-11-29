@@ -1,6 +1,9 @@
-Usage:  transaction fees [--port INT] WALLET_ID
-                         (--payment PAYMENT) [--metadata JSON] 
-                         [--ttl DURATION]
+Usage:  transaction fees 
+                           [--port INT]
+                           WALLET_ID
+                           (--payment PAYMENT)
+                           [--metadata JSON]
+                           [--ttl DURATION]
 
   Estimate fees for a transaction.
 

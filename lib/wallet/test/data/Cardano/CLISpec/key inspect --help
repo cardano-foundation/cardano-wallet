@@ -1,8 +1,0 @@
-Usage:  key inspect 
-
-  Show information about a key
-
-Available options:
-  -h,--help                Show this help text
-
-The parent key is read from stdin.

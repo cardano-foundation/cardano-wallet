@@ -1,7 +1,11 @@
-Usage:  transaction list [--port INT] WALLET_ID [--start TIME] 
-                         [--end TIME] [--order ORDER] 
-                         [--simple-metadata] 
-                         [--max_count MAX_COUNT]
+Usage:  transaction list 
+                           [--port INT]
+                           WALLET_ID
+                           [--start TIME]
+                           [--end TIME]
+                           [--order ORDER]
+                           [--simple-metadata]
+                           [--max_count MAX_COUNT]
 
   List the transactions associated with a wallet.
 

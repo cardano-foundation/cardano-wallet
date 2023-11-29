@@ -1,9 +1,0 @@
-Usage:  recovery-phrase COMMAND
-
-  About recovery phrases
-
-Available options:
-  -h,--help                Show this help text
-
-Available commands:
-  generate                 Generate an English recovery phrase

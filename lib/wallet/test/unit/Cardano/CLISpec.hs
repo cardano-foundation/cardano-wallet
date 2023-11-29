@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -21,8 +20,6 @@ import Cardano.CLI
     , TxId
     , cli
     , cmdAddress
-    , cmdKey
-    , cmdMnemonic
     , cmdNetwork
     , cmdStakePool
     , cmdTransaction
@@ -66,8 +63,7 @@ import Data.Text.Class
     , TextDecodingError (..)
     , toText
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( ParserInfo
     , ParserPrefs
     , ParserResult (..)
@@ -141,8 +137,6 @@ spec = do
         let goldenDir = $(getTestData) </> "Cardano" </> "CLISpec"
         mapM_ (usageGolden goldenDir)
             [ ["--help"]
-            , ["recovery-phrase", "--help"]
-            , ["recovery-phrase", "generate", "--help"]
             , ["wallet", "--help"]
             , ["wallet", "list", "--help"]
             , ["wallet", "create", "from-recovery-phrase", "--help"]
@@ -167,11 +161,6 @@ spec = do
             , ["network", "information", "--help"]
             , ["network", "parameters", "--help"]
             , ["network", "clock", "--help"]
-            , ["key", "--help"]
-            , ["key", "from-recovery-phrase", "--help"]
-            , ["key", "child", "--help"]
-            , ["key", "public", "--help"]
-            , ["key", "inspect", "--help"]
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -397,8 +386,6 @@ defaultPrefs = prefs (mempty <> columns 65)
 
 parser :: ParserInfo (IO ())
 parser = cli $ mempty
-    <> cmdMnemonic
-    <> cmdKey
     <> cmdWallet cmdWalletCreate walletClient
     <> cmdTransaction transactionClient walletClient
     <> cmdAddress addressClient

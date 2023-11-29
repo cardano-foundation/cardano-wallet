@@ -1,8 +1,0 @@
-Usage:  key public (--without-chain-code | --with-chain-code)
-
-  Get the public counterpart of a private key
-
-Available options:
-  -h,--help                Show this help text
-
-The private key is read from stdin.To get extended public key pass '--with-chain-code'.To get public key pass '--without-chain-code'.
