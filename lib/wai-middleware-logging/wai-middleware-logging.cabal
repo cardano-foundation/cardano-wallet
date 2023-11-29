@@ -92,7 +92,6 @@ test-suite unit
   build-depends:
     , aeson
     , base
-    , binary
     , bytestring
     , cardano-wallet-test-utils
     , contra-tracer
@@ -106,9 +105,7 @@ test-suite unit
     , streaming-commons
     , text
     , text-class
-    , time
     , unliftio
-    , unordered-containers
     , wai
     , warp
     , with-utf8
