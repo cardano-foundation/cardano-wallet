@@ -733,6 +733,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
   where
+    outputs :: IsRecentEra era => Tx era -> [TxOut era]
     outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
     mapFirst f (x:xs) = f x : xs
