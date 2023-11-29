@@ -194,6 +194,10 @@ package cardano-config
 package cardano-node
   flags: -systemd
 
+-- Fail to build if there are any unused package dependencies:
+package *
+  ghc-options: -Wunused-packages
+
 -- -------------------------------------------------------------------------
 -- Enable specific tests in this repo
 
