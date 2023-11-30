@@ -131,9 +131,6 @@ import Control.Tracer
 import Data.Either.Combinators
     ( whenLeft
     )
-import Data.Functor
-    ( (<&>)
-    )
 import Data.IORef
     ( IORef
     , atomicModifyIORef'
@@ -178,7 +175,6 @@ import System.Environment
 import System.Environment.Extended
     ( envFromText
     , isEnvSet
-    , lookupEnvNonEmpty
     )
 import System.FilePath
     ( (</>)
@@ -357,9 +353,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
 
-        clusterConfigs <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
-            <&> Tagged @"cluster-configs"
-                . fromMaybe "../local-cluster/test/data/cluster-configs"
+        clusterConfigs <- Cluster.localClusterConfigsFromEnv
 
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
