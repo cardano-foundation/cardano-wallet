@@ -554,9 +554,9 @@ balanceTransaction
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                utxoAssumptions
                 pp
                 timeTranslation
+                utxoAssumptions
                 utxo
                 genChange
                 s
@@ -641,9 +641,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         ( MonadRandom m
         , IsRecentEra era
         )
-    => UTxOAssumptions
-    -> PParams era
+    => PParams era
     -> TimeTranslation
+    -> UTxOAssumptions
     -> UTxOIndex era
     -> ChangeAddressGen changeState
     -> changeState
@@ -651,9 +651,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    utxoAssumptions
     pp
     timeTranslation
+    utxoAssumptions
     (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
