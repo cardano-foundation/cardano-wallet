@@ -5,8 +5,11 @@ require 'cardano_wallet'
 require_relative 'env'
 require_relative 'helpers/utils'
 require_relative 'helpers/buildkite'
+require 'io/console'
 
 include Helpers::Utils
+
+$stdout.sync = true
 
 STATE = absolute_path ENV.fetch('TESTS_E2E_STATEDIR', nil)
 CONFIGS = absolute_path ENV.fetch('CARDANO_NODE_CONFIGS', nil)
@@ -124,7 +127,7 @@ task :wait_until_node_synced do
     current_time = Time.now
     while network.information['sync_progress']['status'] == 'syncing'
       log "Syncing node... #{network.information['sync_progress']['progress']['quantity']}%"
-      sleep 15
+      sleep 5
     end
   rescue StandardError
     retry if current_time <= timeout_treshold
