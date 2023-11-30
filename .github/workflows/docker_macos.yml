@@ -3,11 +3,7 @@ on:
   schedule:
   - cron:  "0 23 * * *"
   workflow_dispatch:
-    inputs:
-      network:
-        description: 'NETWORK'
-        required: true
-        default: 'mainnet'
+
 
 jobs:
   build:
@@ -17,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3.2.0
-      - uses: docker-practice/actions-setup-docker@1.0.11
+      - uses: docker-practice/actions-setup-docker@master
       - uses: ruby/setup-ruby@v1.127.0
         with:
           ruby-version: 2.7.1
@@ -28,4 +24,30 @@ jobs:
           docker-compose up -d
           ./scripts/connect_wallet.rb
         env:
-          NETWORK: ${{ github.event.inputs.network || 'mainnet' }}
+          NETWORK: preprod
+  report:
+    needs: [build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Slack Notification on failure
+      if: needs.build.result == 'failure'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: needs.build.result == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'

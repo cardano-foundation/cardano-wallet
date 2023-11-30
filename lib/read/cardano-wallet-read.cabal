@@ -5,7 +5,7 @@ synopsis:
   Primitive era-dependent operations to read the cardano blocks and transactions
 
 -- description:
-homepage:        https://github.com/cardanofoundation/cardano-wallet
+homepage:        https://github.com/cardano-foundation/cardano-wallet
 license:         Apache-2.0
 license-file:    LICENSE
 author:          Cardano Foundation (High Assurance Lab)

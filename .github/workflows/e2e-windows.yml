@@ -5,10 +5,6 @@ on:
   - cron:  "0 20 * * *"
   workflow_dispatch:
     inputs:
-      network:
-        description: 'Network'
-        required: true
-        default: 'preprod'
       branch:
         description: 'Run tests against branch'
         default: 'master'
@@ -17,7 +13,16 @@ on:
         default: 'all'
 jobs:
   test:
+
     runs-on: windows-latest
+
+    env:
+      NETWORK: preprod
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
+      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      BRANCH: ${{ github.event.inputs.branch || 'master' }}
+      TAGS: ${{ github.event.inputs.tags || 'all' }}
+
 
     steps:
     - name: Check space
@@ -52,6 +57,8 @@ jobs:
         choco install wget
         choco install unzip
         choco install nssm
+        choco install archiver
+
 
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e
@@ -61,27 +68,37 @@ jobs:
         echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
     - name: 💾 GH Cache node db
-      id: cache
+      id: cache-node
       uses: actions/cache@v3
       with:
-        path: C:/cardano-wallet/test/e2e/state/node_db/${{ env.NETWORK }}
-        key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          node-db-${{ runner.os }}-${{ env.NETWORK }}-
-          node-db-Linux-${{ env.NETWORK }}-
+        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
+        key: node-db-e2e-windows-preprod
 
     - name: 💾 Cache wallet db
       id: cache-wallet
       uses: actions/cache@v3
       with:
-        path: C:/cardano-wallet/test/e2e/state/wallet_db/${{ env.NETWORK }}
-        key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-
+        path: C:/cardano-wallet/test/e2e/state/wallet_db/preprod
+        key: wallet-db-e2e-windows-preprod
+
+    - name: Fetch preprod snapshot
+      if: steps.cache-node.outputs.cache-hit != 'true'
+      working-directory: C:/cardano-wallet/test/e2e
+      run: |
+        mkdir state
+        cd state
+        mkdir node_db
+        cd node_db
+        mkdir preprod
+        cd preprod
+        curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
+        curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/snapshots/testnet/$(cat snapshot.json)
+        arc unarchive snapshot.tar.lz4
+        mv db/* .
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake setup[%NETWORK%,%BRANCH%]
+      run: rake setup[preprod,%BRANCH%]
 
     - name: 🔍 Display versions
       working-directory: C:/cardano-wallet/test/e2e
@@ -89,7 +106,7 @@ jobs:
 
     - name: 🚀 Start node and wallet
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake start_node_and_wallet[%NETWORK%]
+      run: rake start_node_and_wallet[preprod]
 
     - name: ⏳ Wait until node is synced
       working-directory: C:/cardano-wallet/test/e2e
@@ -101,22 +118,57 @@ jobs:
 
     - name: 🏁 Stop node and wallet
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake stop_node_and_wallet[%NETWORK%]
+      run: rake stop_node_and_wallet[preprod]
+
+    - name: 💾 GH Save Cache of node db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/node_db/preprod
+        key: node-db-e2e-windows-preprod
+
+    - name: 💾 GH Save Cache of wallet db
+      if: always()
+      uses: actions/cache/save@v3
+      with:
+        path: test/e2e/state/wallet_db/preprod
+        key: wallet-db-e2e-windows-preprod
 
     - name: 📎 Upload state
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: ${{ runner.os }}-state
+        name: windows-state
         path: |
           C:/cardano-wallet/test/e2e/state/logs
           C:/cardano-wallet/test/e2e/state/configs
           C:/cardano-wallet/test/e2e/state/wallet_db
 
-    env:
-      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
-      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
-      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      BRANCH: ${{ github.event.inputs.branch || 'master' }}
-      NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
-      TAGS: ${{ github.event.inputs.tags || 'all' }}
+
+
+  report:
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Slack Notification on failure
+      if: needs.test.result != 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: needs.test.result == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'

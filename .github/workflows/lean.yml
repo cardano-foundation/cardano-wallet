@@ -6,6 +6,7 @@ on:
     paths: ['specifications/**.lean']
   pull_request:
     paths: ['specifications/**.lean']
+  workflow_dispatch:
 
 permissions:
   contents: read
