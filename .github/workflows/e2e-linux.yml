@@ -5,10 +5,7 @@ on:
   - cron:  "0 20 * * *"
   workflow_dispatch:
     inputs:
-      network:
-        description: 'Network'
-        required: true
-        default: 'preprod'
+
       branch:
         description: 'Run tests against branch'
         default: 'master'

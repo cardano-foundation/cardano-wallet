@@ -5,10 +5,6 @@ on:
   - cron:  "0 20 * * *"
   workflow_dispatch:
     inputs:
-      network:
-        description: 'Network'
-        required: true
-        default: 'preprod'
       branch:
         description: 'Run tests against branch'
         default: 'master'
@@ -21,7 +17,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
+      NETWORK: preprod
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BRANCH: ${{ github.event.inputs.branch || 'master' }}

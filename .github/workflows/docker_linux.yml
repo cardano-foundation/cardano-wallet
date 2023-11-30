@@ -3,11 +3,7 @@ on:
   schedule:
   - cron:  "0 23 * * *"
   workflow_dispatch:
-    inputs:
-      network:
-        description: 'NETWORK'
-        required: true
-        default: 'mainnet'
+
 
 jobs:
   build:
@@ -27,7 +23,7 @@ jobs:
           docker-compose up -d
           ./scripts/connect_wallet.rb
         env:
-          NETWORK: ${{ github.event.inputs.network || 'mainnet' }}
+          NETWORK: preprod
   report:
     needs: [build]
     if: always()

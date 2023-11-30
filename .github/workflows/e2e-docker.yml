@@ -13,10 +13,6 @@ on:
         description: 'Wallet tag (docker)'
         required: true
         default: 'dev-master'
-      network:
-        description: 'Network'
-        required: true
-        default: 'preprod'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
