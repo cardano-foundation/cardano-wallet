@@ -28,3 +28,29 @@ jobs:
           ./scripts/connect_wallet.rb
         env:
           NETWORK: ${{ github.event.inputs.network || 'mainnet' }}
+  report:
+    needs: [build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Slack Notification on failure
+      if: needs.build.result == 'failure'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':poop:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#FF0000'
+
+    - name: Slack Notification on success
+      if: needs.build.result == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_ICON_EMOJI: ':rocket:'
+          SLACK_USERNAME: 'GitHub Action'
+          SLACK_MESSAGE: |
+              *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_COLOR: '#00FF00'
