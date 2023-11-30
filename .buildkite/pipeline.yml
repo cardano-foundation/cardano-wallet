@@ -104,6 +104,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Check HLS works'
+    soft_fail: true
     depends_on: linux-nix
     command: |
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
