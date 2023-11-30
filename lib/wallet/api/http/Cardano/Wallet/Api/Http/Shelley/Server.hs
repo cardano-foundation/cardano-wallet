@@ -3464,9 +3464,9 @@ balanceTransaction
                 . fst
                 )
             $ Write.balanceTransaction
-                utxoAssumptions
                 pp
                 timeTranslation
+                utxoAssumptions
                 utxoIndex
                 (W.defaultChangeAddressGen argGenChange)
                 (getState wallet)

@@ -2353,9 +2353,9 @@ buildTransactionPure
     withExceptT Left $
         first Write.toCardanoApiTx <$>
         balanceTransaction @_ @_ @s
-            (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
             timeTranslation
+            (utxoAssumptionsForWallet (walletFlavor @s))
             utxoIndex
             changeAddrGen
             (getState wallet)
@@ -3006,9 +3006,9 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             res <- runExceptT $
                 first (Write.toCardanoApiTx @era) <$>
                     balanceTransaction @_ @_ @s
-                        (utxoAssumptionsForWallet (walletFlavor @s))
                         protocolParams
                         timeTranslation
+                        (utxoAssumptionsForWallet (walletFlavor @s))
                         utxoIndex
                         changeAddressGen
                         (getState wallet)

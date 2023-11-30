@@ -516,8 +516,7 @@ balanceTransaction
         ( MonadRandom m
         , IsRecentEra era
         )
-    => UTxOAssumptions
-    -> PParams era
+    => PParams era
     -- Protocol parameters. Can be retrieved via Local State Query to a
     -- local node.
     --
@@ -535,15 +534,16 @@ balanceTransaction
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code:
     -- https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
+    -> UTxOAssumptions
     -> UTxOIndex era
     -> ChangeAddressGen changeState
     -> changeState
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransaction
-    utxoAssumptions
     pp
     timeTranslation
+    utxoAssumptions
     utxo
     genChange
     s
@@ -554,9 +554,9 @@ balanceTransaction
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                utxoAssumptions
                 pp
                 timeTranslation
+                utxoAssumptions
                 utxo
                 genChange
                 s
@@ -641,9 +641,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         ( MonadRandom m
         , IsRecentEra era
         )
-    => UTxOAssumptions
-    -> PParams era
+    => PParams era
     -> TimeTranslation
+    -> UTxOAssumptions
     -> UTxOIndex era
     -> ChangeAddressGen changeState
     -> changeState
@@ -651,9 +651,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    utxoAssumptions
     pp
     timeTranslation
+    utxoAssumptions
     (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
