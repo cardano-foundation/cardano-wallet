@@ -284,10 +284,8 @@ data TxPayload era = TxPayload
     }
 
 constructUnsignedTx
-    :: forall era
-     . IsRecentEra era
-    => RecentEra era
-    -> Cardano.NetworkId
+    :: forall era. IsRecentEra era
+    => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
@@ -307,13 +305,10 @@ constructUnsignedTx
     -> Maybe (Script KeyHash)
     -- ^ Reference script
     -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
-constructUnsignedTx
-    _era networkId (md, certs) ttl wdrl
-    cs fee toMint toBurn =
-        mkUnsignedTx @era
-            ttl cs md wdrls certs (toCardanoLovelace fee)
-            (fst toMint) (fst toBurn) mintingScripts
-
+constructUnsignedTx networkId (md, certs) ttl wdrl cs fee toMint toBurn =
+    mkUnsignedTx @era
+        ttl cs md wdrls certs (toCardanoLovelace fee)
+        (fst toMint) (fst toBurn) mintingScripts
   where
     wdrls = mkWithdrawals networkId wdrl
     mintingScripts = Map.union (snd toMint) (snd toBurn)
@@ -670,7 +665,7 @@ mkUnsignedTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
-mkUnsignedTransaction era networkId stakeCred ctx selection = do
+mkUnsignedTransaction _era networkId stakeCred ctx selection = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = case selection of
@@ -694,17 +689,17 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
                 WithdrawalSelf rewardAcct _ _ ->
                     if ourRewardAcctM == Just rewardAcct
                     then
-                        constructUnsignedTx era
+                        constructUnsignedTx
                             networkId (md, []) ttl wdrl selection delta
                             assetsToBeMinted assetsToBeBurned
                             inpsScripts stakingScriptM refScriptM
                     else
-                        constructUnsignedTx era
+                        constructUnsignedTx
                             networkId (md, []) ttl wdrl selection delta
                             assetsToBeMinted assetsToBeBurned
                             inpsScripts Nothing refScriptM
                 _ ->
-                    constructUnsignedTx era
+                    constructUnsignedTx
                         networkId (md, []) ttl wdrl
                         selection delta assetsToBeMinted assetsToBeBurned
                         inpsScripts
@@ -722,7 +717,7 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
                             , "action"
                             ]
             let payload = (view #txMetadata ctx, certs)
-            constructUnsignedTx era networkId payload ttl wdrl
+            constructUnsignedTx networkId payload ttl wdrl
                 selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                 stakingScriptM refScriptM
 
