@@ -609,7 +609,9 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 , "or sending a smaller amount."
                 ]
 
-instance forall era. IsServerError (ErrBalanceTxInternalError era) where
+instance
+    Write.IsRecentEra era => IsServerError (ErrBalanceTxInternalError era)
+  where
     toServerError = \case
         ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
