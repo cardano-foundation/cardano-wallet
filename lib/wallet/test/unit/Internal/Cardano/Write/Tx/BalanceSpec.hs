@@ -1556,7 +1556,7 @@ prop_bootstrapWitnesses
   where
     emptyCardanoTxBody = body
       where
-        CardanoApi.Tx body _ = toCardanoApiTx $ Write.emptyTx era
+        CardanoApi.Tx body _ = toCardanoApiTx Write.emptyTx
 
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty

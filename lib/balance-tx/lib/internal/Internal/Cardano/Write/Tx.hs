@@ -675,11 +675,8 @@ serializeTx
     -> ByteString
 serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
 
-emptyTx
-    :: IsRecentEra era
-    => RecentEra era
-    -> Core.Tx era
-emptyTx _era = Core.mkBasicTx Core.mkBasicTxBody
+emptyTx :: IsRecentEra era => Core.Tx era
+emptyTx = Core.mkBasicTx Core.mkBasicTxBody
 
 --------------------------------------------------------------------------------
 -- Compatibility
