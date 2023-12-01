@@ -3153,7 +3153,7 @@ toMetadataEncrypted apiEncrypt payload = do
     join (Just val) Nothing = Just val
     join Nothing Nothing = Nothing
     join (Just val1) (Just val2) = error "only one 'msg' field expected"
-    -- assumption: `msg` is not embedded beyond first level
+    -- assumption: `msg` is not embedded beyond the first level
     -- we could change that in the future
     inspectMetaPair (Cardano.TxMetaMap pairs) =
         foldl join Nothing (getMsgValue <$> pairs)

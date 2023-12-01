@@ -117,6 +117,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
@@ -541,6 +542,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (#balance . #available . #toNatural)
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
+
+    it "TRANS_NEW_CREATE_02c - Incorrect metadata structure to be encrypted" $
+        \ctx -> runResourceT $ do
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (0,TxMetaText "hello")
+                                , (1,TxMetaMap [(TxMetaText "hello", TxMetaText "world")])
+                                , (50, TxMetaNumber 1245)
+                                ])
+            wa <- fixtureWallet ctx
+            let metadataToBeEncrypted =
+                    TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+            let encryptMetadata =
+                    ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") (Just ChaChaPoly1305)
+            let payload = Json [json|{
+                    "encrypt_metadata": #{toJSON encryptMetadata},
+                    "metadata": #{toJSON metadataToBeEncrypted}
+                }|]
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
     it "TRANS_NEW_CREATE_02c - Small metadata encrypted" $
         \ctx -> runResourceT $ do
