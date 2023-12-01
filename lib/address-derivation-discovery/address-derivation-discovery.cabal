@@ -56,6 +56,7 @@ library
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-byron
@@ -98,6 +99,7 @@ library
     Cardano.Wallet.Address.Derivation.Shelley
     Cardano.Wallet.Address.Discovery
     Cardano.Wallet.Address.Discovery.Random
+    Cardano.Wallet.Address.Discovery.RandomAny
     Cardano.Wallet.Address.Discovery.Sequential
     Cardano.Wallet.Address.Discovery.Shared
     Cardano.Wallet.Address.Encoding
