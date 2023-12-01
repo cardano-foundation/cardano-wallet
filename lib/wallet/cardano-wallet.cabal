@@ -74,7 +74,6 @@ library
     , deepseq
     , delta-store
     , delta-types
-    , digest
     , directory
     , either
     , errors
