@@ -76,7 +76,7 @@ METADATA = { '0' => { 'string' => 'cardano' },
              '4' => { 'map' => [{ 'k' => { 'string' => 'key' }, 'v' => { 'string' => 'value' } },
                                 { 'k' => { 'int' => 14 }, 'v' => { 'int' => 42 } }] } }.freeze
 
-# Testnet assets with metadata from mock server https://metadata.cardano-testnet.iohkdev.io/
+# Testnet assets with metadata from mock server https://metadata.world.dev.cardano.org/
 ASSETS = [{ 'policy_id' => 'ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a35309073',
             'asset_name' => '',
             'fingerprint' => 'asset1s3yhz885gnyu2wcpz5h275u37hw3axz3c9sfqu',

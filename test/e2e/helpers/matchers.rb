@@ -7,7 +7,7 @@ RSpec::Matchers.define :be_correct_and_respond do |code|
     if code == 204
       response.code == code
     else
-      ((response.code == code) && (response.headers >= { 'content-type' => ['application/json;charset=utf-8'] }))
+      response.code == code && response.headers >= { 'content-type' => ['application/json;charset=utf-8'] }
     end
   end
   failure_message do |response|

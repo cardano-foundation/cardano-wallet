@@ -30,7 +30,7 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
-      TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
+      TESTS_E2E_TOKEN_METADATA: https://metadata.world.dev.cardano.org/
       TAGS: ${{ github.event.inputs.tags || 'all' }}
       E2E_DOCKER_RUN: 1
 
@@ -95,7 +95,7 @@ jobs:
       run: |
         echo "Wallet: $WALLET"
         echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
-
+        echo $TESTS_E2E_TOKEN_METADATA
         NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} \
         NODE_CONFIG_PATH=`pwd`/state/configs/preprod \
         DATA=`pwd`/state/node_db/preprod \

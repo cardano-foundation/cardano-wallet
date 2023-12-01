@@ -83,7 +83,7 @@ For example on `preview` or `preprod` that would be:
   --node-socket /path/to/node.socket \
   --testnet byron-genesis.json \
   --database ./wallet-db \
-  --token-metadata-server https://metadata.cardano-testnet.iohkdev.io/
+  --token-metadata-server https://metadata.world.dev.cardano.org/
 ```
 
 Then, if you list assets associated with your wallet you will get their available metadata.

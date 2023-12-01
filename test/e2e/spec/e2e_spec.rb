@@ -2395,13 +2395,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                           nil, # validity_interval
                                                           o_enc) # encoding
           expect(tx_constructed).to be_correct_and_respond 202
-          expect(method("#{o_enc}?".to_sym).call(tx_constructed['transaction'])).to be true
+          expect(method("#{o_enc}?").call(tx_constructed['transaction'])).to be true
 
           tx_signed = SHELLEY.transactions.sign(@wid, PASS,
                                                 tx_constructed['transaction'],
                                                 o_enc)
           expect(tx_signed).to be_correct_and_respond 202
-          expect(method("#{o_enc}?".to_sym).call(tx_signed['transaction'])).to be true
+          expect(method("#{o_enc}?").call(tx_signed['transaction'])).to be true
         end
       end
     end
