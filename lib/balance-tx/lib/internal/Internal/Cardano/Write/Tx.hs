@@ -658,11 +658,12 @@ utxoFromTxOuts = Shelley.UTxO . Map.fromList
 -- and could possibly become failable again with future eras.
 utxoFromTxOutsInRecentEra
     :: forall era. IsRecentEra era
-    => RecentEra era
-    -> [(TxIn, TxOutInRecentEra)]
+    => [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO era
-utxoFromTxOutsInRecentEra era =
+utxoFromTxOutsInRecentEra =
     Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
+  where
+    era = recentEra @era
 
 --------------------------------------------------------------------------------
 -- Tx
