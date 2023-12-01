@@ -101,6 +101,7 @@ library
     Cardano.Wallet.Address.Discovery.Random
     Cardano.Wallet.Address.Discovery.RandomAny
     Cardano.Wallet.Address.Discovery.Sequential
+    Cardano.Wallet.Address.Discovery.SequentialAny
     Cardano.Wallet.Address.Discovery.Shared
     Cardano.Wallet.Address.Encoding
     Cardano.Wallet.Address.HasDelegation

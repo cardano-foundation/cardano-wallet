@@ -156,7 +156,6 @@ library
     Cardano.Pool.Rank.Likelihood
     Cardano.Pool.Types
     Cardano.Wallet
-    Cardano.Wallet.Address.Discovery.SequentialAny
     Cardano.Wallet.Address.Keys.BoundedAddressLength
     Cardano.Wallet.Address.Keys.MintBurn
     Cardano.Wallet.Address.Keys.PersistPrivateKey
