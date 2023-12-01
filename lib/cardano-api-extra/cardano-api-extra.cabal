@@ -47,7 +47,6 @@ library
     , cardano-crypto-test
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
-    , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-core
     , cardano-ledger-shelley

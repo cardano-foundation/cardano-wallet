@@ -173,7 +173,9 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
             (Nothing, _) | crc32 bytes < p && correctAddressType ->
                 let
                     (path, gen') = findUnusedPath
-                        (gen inner) (accountIndex inner) (unavailablePaths inner)
+                        (gen inner)
+                        (accountIndex inner)
+                        (unavailablePaths inner)
 
                     inner' = addDiscoveredAddress
                         addr Used path (inner { gen = gen' })
@@ -183,7 +185,8 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
             (Nothing, _) ->
                 (Nothing, st)
       where
-        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
+        p = floor
+            (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
 
         double :: Integral a => a -> Double
         double = fromIntegral
