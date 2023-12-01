@@ -653,10 +653,8 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
 -- in separate step.
 --
 mkUnsignedTransaction
-    :: forall era
-     . Write.IsRecentEra era
-    => Write.RecentEra era
-    -> NetworkId
+    :: forall era. Write.IsRecentEra era
+    => NetworkId
     -> Either XPub (Maybe (Script KeyHash))
     -- ^ Reward account public key or optional script hash.
     -> TransactionCtx
@@ -665,7 +663,7 @@ mkUnsignedTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
-mkUnsignedTransaction _era networkId stakeCred ctx selection = do
+mkUnsignedTransaction networkId stakeCred ctx selection = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = case selection of

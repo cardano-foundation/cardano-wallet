@@ -765,8 +765,7 @@ import GHC.TypeNats
     ( Nat
     )
 import Internal.Cardano.Write.Tx
-    ( recentEra
-    , toRecentEraGADT
+    ( toRecentEraGADT
     )
 import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -2342,7 +2341,7 @@ buildTransactionPure
     = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction (recentEra @era)
+            mkUnsignedTransaction
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
@@ -2460,9 +2459,9 @@ constructTransaction
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction era db txCtx preSel = do
+constructTransaction _era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction era netId (Left $ fromJust xpub) txCtx (Left preSel)
+    mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
     netId = networkIdVal $ sNetworkId @n
@@ -2480,7 +2479,7 @@ constructUnbalancedSharedTransaction
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2500,7 +2499,7 @@ constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
                 in replaceCosignersWithVerKeys role' template ix
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction era netId (Right scriptM) txCtx (Left sel)
+            mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)
     pure (sealedTx, getScript)
   where
     netId = networkIdVal $ sNetworkId @n
@@ -2990,7 +2989,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 $ Write.fromWalletUTxO
                 $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
-            mkUnsignedTransaction era
+            mkUnsignedTransaction
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
@@ -3024,8 +3023,6 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                     -> throwE e
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
   where
-    era = recentEra @era
-
     wrapErrBalanceTx
         = throwWrappedErr ExceptionBalanceTx
 
