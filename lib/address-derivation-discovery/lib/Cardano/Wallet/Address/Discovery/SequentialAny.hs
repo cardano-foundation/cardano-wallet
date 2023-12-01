@@ -209,8 +209,10 @@ instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
 instance ( (key == SharedKey) ~ 'False, Eq (SeqState n key))
     => AddressBookIso (SeqAnyState n key p)
   where
-    data Prologue (SeqAnyState n key p) = PS (Prologue (Seq.SeqState n key))
-    data Discoveries (SeqAnyState n key p) = DS (Discoveries (Seq.SeqState n key))
+    data Prologue (SeqAnyState n key p) =
+        PS (Prologue (Seq.SeqState n key))
+    data Discoveries (SeqAnyState n key p) =
+        DS (Discoveries (Seq.SeqState n key))
 
     addressIso = withIso addressIso $ \from to ->
         let from2 st = let (a,b) = from $ innerState st in (PS a, DS b)
