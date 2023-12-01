@@ -2413,12 +2413,12 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- lift readCheckpoint
-            (Write.PParamsInAnyRecentEra era _pp, _)
+            (Write.PParamsInAnyRecentEra (_era :: Write.RecentEra era) _pp, _)
                 <- liftIO $ readNodeTipStateForTxWrite nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
                 rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction era net kF rewardAcnt keyFrom txCtx sel
+                mkTransaction @era net kF rewardAcnt keyFrom txCtx sel
             let amountOut :: Coin =
                     F.fold $
                         fmap TxOut.coin (sel ^. #change) <>

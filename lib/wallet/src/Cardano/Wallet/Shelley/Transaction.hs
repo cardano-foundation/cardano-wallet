@@ -320,9 +320,7 @@ constructUnsignedTx
 
 mkTransaction
     :: forall era k. IsRecentEra era
-    => RecentEra era
-    -- ^ Era for which the transaction should be created.
-    -> Cardano.NetworkId
+    => Cardano.NetworkId
     -> KeyFlavorS k
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account.
@@ -334,7 +332,7 @@ mkTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTransaction _era networkId keyF stakeCreds addrResolver ctx cs = do
+mkTransaction networkId keyF stakeCreds addrResolver ctx cs = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = selectionDelta cs
