@@ -1035,7 +1035,7 @@ localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" FilePath)
 localClusterConfigsFromEnv = lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
     <&> Tagged @"cluster-configs"
     . fromMaybe
-        ("../local-cluster" </> "test" </> "data" </> "cluster-configs")
+        (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case
