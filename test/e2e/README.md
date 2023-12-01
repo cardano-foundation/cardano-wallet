@@ -33,8 +33,8 @@ If there is a need to update the mnemonics to new ones, it is certainly possible
 
 Please note that the wallets used in tests must have ADA and specific assets on their balance. Test ADA can be obtained from the [Faucet](https://docs.cardano.org/cardano-testnet/tools/faucet/). The assets required on the wallet's balance are:
 
--   SadCoin (with [metadata](https://metadata.cardano-testnet.iohkdev.io/metadata/ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a35309073))
--   HappyCoin (with [metadata](https://metadata.cardano-testnet.iohkdev.io/metadata/919e8a1922aaa764b1d66407c6f62244e77081215f385b60a62091494861707079436f696e))
+-   SadCoin (with [metadata](https://metadata.world.dev.cardano.org/metadata/ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a35309073))
+-   HappyCoin (with [metadata](https://metadata.world.dev.cardano.org/metadata/919e8a1922aaa764b1d66407c6f62244e77081215f385b60a62091494861707079436f696e))
 
 Both assets have metadata in the [Testnet Metadata Registry](https://github.com/input-output-hk/metadata-registry-testnet), and there are tests in place to ensure that the wallet reads data from there correctly. Both assets can be minted outside of the wallet using tools such as `cardano-cli` or [token-minter](https://github.com/piotr-iohk/token_minter), and then sent to the balances of the fixture wallets. Policy scripts and keys required for minting are availeble in [tests/e2e/fixtuers/wallet_assets](https://github.com/cardano-foundation/cardano-wallet/tree/master/test/e2e/fixtures/wallet_assets).
 
@@ -71,7 +71,7 @@ cardano-node and cardano-wallet are started as separate Windows services using [
 One can also start tests against cardano-wallet docker. There is docker-compose-test.yml provided that includes cardano-node and cardano-wallet. To start it several env variables need to be set to feed docker-compose:
 >```bash
 >NETWORK=preprod \
->TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
+>TESTS_E2E_TOKEN_METADATA=https://metadata.world.dev.cardano.org/ \
 >WALLET=dev-master \
 >NODE=8.1.1 \
 >NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \

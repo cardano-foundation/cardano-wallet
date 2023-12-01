@@ -24,7 +24,7 @@ ENV['TESTS_WALLET_DB'] ||= File.join(ENV.fetch('TESTS_E2E_STATEDIR', nil), 'wall
 # NOTE: Running `rake run_on[testnet,local]' overrides this and assumes node and wallet on $PATH
 ENV['TESTS_E2E_BINDIR'] ||= './bins'
 
-ENV['TESTS_E2E_TOKEN_METADATA'] ||= 'http://metadata.world.dev.cardano.org'
+ENV['TESTS_E2E_TOKEN_METADATA'] ||= 'https://metadata.world.dev.cardano.org'
 ENV['TESTS_E2E_SMASH'] ||= 'https://smash.shelley-qa.dev.cardano.org/'
 ENV['WALLET_PORT'] ||= '8090'
 ENV['NETWORK'] ||= 'preprod'

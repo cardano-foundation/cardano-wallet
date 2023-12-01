@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-NETWORK=testnet \
-TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
+NETWORK=preprod \
+TESTS_E2E_TOKEN_METADATA=https://metadata.world.dev.cardano.org/ \
 WALLET=dev-master \
-NODE=1.34.1 \
+NODE=8.1.1 \
 NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
 DATA=`pwd`/state/node_db/$NETWORK \
 WALLET_DATA=`pwd`/state/wallet_db/$NETWORK \
