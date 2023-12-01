@@ -572,10 +572,10 @@ test-suite unit
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-ledger-allegra:{cardano-ledger-allegra}
+    , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
-    , cardano-ledger-babbage:{cardano-ledger-babbage}
+    , cardano-ledger-babbage
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-numeric
@@ -603,7 +603,7 @@ test-suite unit
     , delta-types
     , directory
     , either
-    , extra                                                     >=1.6.17
+    , extra                                              >=1.6.17
     , file-embed
     , filepath
     , fmt
@@ -612,8 +612,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                                                     >=2.8.2
-    , hspec-core                                                >=2.8.2
+    , hspec                                              >=2.8.2
+    , hspec-core                                         >=2.8.2
     , hspec-golden
     , http-api-data
     , http-client
@@ -637,19 +637,19 @@ test-suite unit
     , network-uri
     , nothunks
     , OddWord
-    , openapi3                                                  ==3.2.3
+    , openapi3                                           ==3.2.3
     , optparse-applicative-fork
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network
     , ouroboros-network-api
-    , persistent                                                ^>=2.13
-    , persistent-sqlite                                         ^>=2.13
+    , persistent                                         ^>=2.13
+    , persistent-sqlite                                  ^>=2.13
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                                  ^>=0.7.3
+    , quickcheck-state-machine                           ^>=0.7.3
     , random
     , regex-pcre-builtin
     , retry
@@ -662,7 +662,7 @@ test-suite unit
     , splitmix
     , std-gen-seed
     , string-interpolate
-    , tagged                                                    ^>=0.8.7
+    , tagged                                             ^>=0.8.7
     , temporary
     , temporary-extra
     , text
@@ -681,6 +681,7 @@ test-suite unit
     , x509
     , x509-store
     , yaml
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Byron.Codec.CborSpec
