@@ -2465,19 +2465,15 @@ constructTransaction db txCtx preSel = do
     netId = networkIdVal $ sNetworkId @n
 
 constructUnbalancedSharedTransaction
-    :: forall n era.
-        ( Write.IsRecentEra era
-        , HasSNetworkId n
-        )
-    => Write.RecentEra era
-    -> DBLayer IO (SharedState n SharedKey)
+    :: forall n era. (Write.IsRecentEra era, HasSNetworkId n)
+    => DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =

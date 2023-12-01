@@ -3227,7 +3227,7 @@ constructSharedTransaction
             trWorker = MsgWallet >$< wrk ^. logger
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        (Write.PParamsInAnyRecentEra era pp, _)
+        (Write.PParamsInAnyRecentEra (_era :: Write.RecentEra era) pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
 
@@ -3269,7 +3269,7 @@ constructSharedTransaction
                         Just (ApiPaymentAddresses content) ->
                             F.toList (addressAmountToTxOut <$> content)
                 (unbalancedTx, scriptLookup) <- liftHandler $
-                    W.constructUnbalancedSharedTransaction @n era
+                    W.constructUnbalancedSharedTransaction @n @era
                     db txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
