@@ -244,9 +244,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: cardano-address: haskell-nix.cabalP
                   fi
                 '';
 
-                # provide cardano-node & cardano-cli to tests
+                # provide cardano-address, cardano-node & cardano-cli to tests
                 unit.build-tools = cardanoNodeExes;
-                integration.build-tools = cardanoNodeExes;
+                integration.build-tools = [ cardano-address ] ++ cardanoNodeExes;
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
