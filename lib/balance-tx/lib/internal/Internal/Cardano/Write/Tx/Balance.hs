@@ -403,12 +403,11 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError era
-    = IsRecentEra era
-        => ErrUnderestimatedFee Coin (Tx era) KeyWitnessCount
+    = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCount
     | ErrFailedBalancing Value
 
-deriving instance Eq (ErrBalanceTxInternalError era)
-deriving instance Show (ErrBalanceTxInternalError era)
+deriving instance IsRecentEra era => Eq (ErrBalanceTxInternalError era)
+deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
