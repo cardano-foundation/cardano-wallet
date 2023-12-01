@@ -522,12 +522,10 @@ prop_signTransaction_addsRewardAccountKey
                     tl (AnyCardanoEra era) AnyWitnessCountCtx
                     (const Nothing) Nothing creds utxo Nothing sealedTx
 
-                recentEra = fromJust $ Write.toRecentEra era
-
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
                     InAnyCardanoEra era <$>
-                        [ mkShelleyWitness recentEra txBody rawRewardK
+                        [ mkShelleyWitness txBody rawRewardK
                         ]
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
@@ -602,12 +600,10 @@ prop_signTransaction_addsExtraKeyWitnesses
                 Nothing
                 sealedTx
 
-            recentEra = fromJust $ Write.toRecentEra era
-
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
             expectedWits = withCardanoApiConstraints era $
                 InAnyCardanoEra era
-                    . mkShelleyWitness recentEra txBody <$> extraKeys
+                    . mkShelleyWitness txBody <$> extraKeys
 
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -742,12 +738,10 @@ prop_signTransaction_addsTxInWitnesses
                     Nothing
                     sealedTx
 
-                recentEra = fromJust $ Write.toRecentEra era
-
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
                     InAnyCardanoEra era
-                        . mkShelleyWitness recentEra txBody <$> extraKeys
+                        . mkShelleyWitness txBody <$> extraKeys
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -796,12 +790,10 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         Nothing
                         sealedTx
 
-                    recentEra = fromJust $ Write.toRecentEra era
-
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                     expectedWits = withCardanoApiConstraints era $
                         InAnyCardanoEra era
-                            . mkShelleyWitness recentEra txBody <$> extraKeys
+                            . mkShelleyWitness txBody <$> extraKeys
 
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -1315,7 +1307,7 @@ makeShelleyTx
     => RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
-makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
+makeShelleyTx _era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
@@ -1323,7 +1315,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     unsigned = either (error . show) id $
         mkUnsignedTx (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
-    addrWits = map (mkShelleyWitness era unsigned) pairs
+    addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
         , collateral = []

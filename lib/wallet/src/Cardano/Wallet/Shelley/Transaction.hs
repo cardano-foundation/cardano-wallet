@@ -523,26 +523,26 @@ signTransaction
         (k, pwd) <- resolveAddress addr
         let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagForKey keyF of
-            TxWitnessShelleyUTxO -> mkShelleyWitness era body pk
+            TxWitnessShelleyUTxO -> mkShelleyWitness body pk
             TxWitnessByronUTxO -> mkByronWitness era body networkId addr pk
 
     mkWdrlCertWitness
         :: RewardAccount
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkWdrlCertWitness a =
-        mkShelleyWitness era body <$> resolveRewardAcct a
+        mkShelleyWitness body <$> resolveRewardAcct a
 
     mkPolicyWitness
         :: KeyHash
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkPolicyWitness a =
-        mkShelleyWitness era body <$> resolvePolicyKey a
+        mkShelleyWitness body <$> resolvePolicyKey a
 
     mkStakingScriptWitness
         :: KeyHash
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkStakingScriptWitness a =
-        mkShelleyWitness era body <$> resolveStakingKeyInScript a
+        mkShelleyWitness body <$> resolveStakingKeyInScript a
 
     mkExtraWitness
         :: Cardano.Hash Cardano.PaymentKey
@@ -557,7 +557,7 @@ signTransaction
                 (Cardano.PaymentCredentialByKey vkh)
                 Cardano.NoStakeAddress
         (k, pwd) <- resolveAddress (fromCardanoAddress addr)
-        pure $ mkShelleyWitness era body (getRawKey keyF k, pwd)
+        pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
     :: KeyFlavorS k
@@ -1127,11 +1127,10 @@ mkWithdrawals networkId wdrl = case wdrl of
 
 mkShelleyWitness
     :: Write.IsRecentEra era
-    => RecentEra era
-    -> Cardano.TxBody (CardanoApiEra era)
+    => Cardano.TxBody (CardanoApiEra era)
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkShelleyWitness _era body key =
+mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
