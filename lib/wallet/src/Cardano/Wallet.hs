@@ -2452,14 +2452,12 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall n era
-     . (Write.IsRecentEra era, HasSNetworkId n)
-    => Write.RecentEra era
-    -> DBLayer IO (SeqState n ShelleyKey)
+    :: forall n era. (Write.IsRecentEra era, HasSNetworkId n)
+    => DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction _era db txCtx preSel = do
+constructTransaction db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
