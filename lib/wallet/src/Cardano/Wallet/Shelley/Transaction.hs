@@ -308,10 +308,10 @@ constructUnsignedTx
     -- ^ Reference script
     -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
 constructUnsignedTx
-    era networkId (md, certs) ttl wdrl
+    _era networkId (md, certs) ttl wdrl
     cs fee toMint toBurn =
         mkUnsignedTx @era
-            era ttl cs md wdrls certs (toCardanoLovelace fee)
+            ttl cs md wdrls certs (toCardanoLovelace fee)
             (fst toMint) (fst toBurn) mintingScripts
 
   where
@@ -334,7 +334,7 @@ mkTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
+mkTransaction _era networkId keyF stakeCreds addrResolver ctx cs = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = selectionDelta cs
@@ -349,7 +349,6 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
-            era
             ttl
             (Right cs)
             md
@@ -772,8 +771,7 @@ mkDelegationCertificates da cred =
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
     :: forall era. Write.IsRecentEra era
-    => Write.RecentEra era
-    -> (Maybe SlotNo, SlotNo)
+    => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
@@ -787,7 +785,6 @@ mkUnsignedTx
     -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
 mkUnsignedTx
-    era
     ttl
     cs
     md
@@ -984,6 +981,9 @@ mkUnsignedTx
                         , quantity = q
                         , quantityMaxBound = txOutMaxTokenQuantity
                         }
+
+    era :: Write.RecentEra era
+    era = Write.recentEra @era
 
     metadataSupported
         :: Cardano.TxMetadataSupportedInEra (Write.CardanoApiEra era)
