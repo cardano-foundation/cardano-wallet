@@ -1254,11 +1254,11 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
       where
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-              mkByronWitness era unsignedTx net addr
+              mkByronWitness unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta cs
           unsigned = either (error . show) id $
-              mkUnsignedTx (Nothing, slotNo) (Right cs) md mempty [] fee
+              mkUnsignedTx @era (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
           cs = Selection
             { inputs = NE.fromList inps

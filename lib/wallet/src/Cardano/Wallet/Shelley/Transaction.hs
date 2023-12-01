@@ -429,8 +429,6 @@ signTransaction
     =
     Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
  where
-    era = Write.recentEra @era
-
     Cardano.Tx body wits = Write.toCardanoApiTx txToSign
 
     wits' = mconcat
@@ -524,7 +522,7 @@ signTransaction
         let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagForKey keyF of
             TxWitnessShelleyUTxO -> mkShelleyWitness body pk
-            TxWitnessByronUTxO -> mkByronWitness era body networkId addr pk
+            TxWitnessByronUTxO -> mkByronWitness body networkId addr pk
 
     mkWdrlCertWitness
         :: RewardAccount
@@ -1139,16 +1137,14 @@ mkShelleyWitness body key =
 
 mkByronWitness
     :: forall era. IsRecentEra era
-    => RecentEra era
-    -> Cardano.TxBody (CardanoApiEra era)
+    => Cardano.TxBody (CardanoApiEra era)
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkByronWitness _ (Byron.ByronTxBody _ :: Cardano.TxBody byronEra) _ _ _ =
+mkByronWitness (Byron.ByronTxBody _ :: Cardano.TxBody byronEra) _ _ _ =
     case Write.recentEra @(ShelleyLedgerEra byronEra) of {}
 mkByronWitness
-    era
     (Cardano.ShelleyTxBody
         cardanoEra
         body
@@ -1162,7 +1158,7 @@ mkByronWitness
     Cardano.ShelleyBootstrapWitness cardanoEra $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
-    txHash = case era of
+    txHash = case Write.recentEra @era of
         RecentEraBabbage -> Crypto.castHash $ Crypto.hashWith serialize' body
         RecentEraConway  -> Crypto.castHash $ Crypto.hashWith serialize' body
 

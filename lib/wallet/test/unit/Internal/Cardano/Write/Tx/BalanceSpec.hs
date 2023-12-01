@@ -1584,10 +1584,10 @@ prop_bootstrapWitnesses
         in
             case era of
                 RecentEraConway ->
-                    mkByronWitness era body net addr
+                    mkByronWitness body net addr
                         (getRawKey ByronKeyS addrK, pwd)
                 RecentEraBabbage ->
-                    mkByronWitness era body net addr
+                    mkByronWitness body net addr
                         (getRawKey ByronKeyS addrK, pwd)
 
 -- A helper function to generate properties for 'distributeSurplus' on
