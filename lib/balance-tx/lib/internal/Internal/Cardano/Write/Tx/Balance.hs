@@ -411,9 +411,9 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
-    = ErrBalanceTxUpdateError ErrUpdateTx
-    | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
+    = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
+    | ErrBalanceTxExistingKeyWitnesses Int
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
@@ -869,7 +869,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
+        tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = CardanoApi.fromMaryValue $ txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
@@ -917,7 +917,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
+        tx' <- left updateTxErrorToBalanceTxError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
@@ -1563,6 +1563,10 @@ coinSelectionErrorToBalanceTxError = \case
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }
+
+updateTxErrorToBalanceTxError :: ErrUpdateTx -> ErrBalanceTx era
+updateTxErrorToBalanceTxError = \case
+    ErrUpdateTxExistingKeyWitnesses i -> ErrBalanceTxExistingKeyWitnesses i
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs

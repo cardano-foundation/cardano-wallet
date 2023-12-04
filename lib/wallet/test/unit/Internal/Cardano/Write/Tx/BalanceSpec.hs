@@ -1369,7 +1369,7 @@ prop_balanceTransactionValid
                         (True, True) ->
                             label "shortfall of both ada and non-ada assets"
                                 $ property True
-            Left (ErrBalanceTxUpdateError (ErrUpdateTxExistingKeyWitnesses _)) ->
+            Left (ErrBalanceTxExistingKeyWitnesses _) ->
                 label "existing key wits" $ property True
             Left
                 (ErrBalanceTxOutputError
