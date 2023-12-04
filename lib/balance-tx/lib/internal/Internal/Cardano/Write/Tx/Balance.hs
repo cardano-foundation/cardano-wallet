@@ -436,7 +436,7 @@ data ErrBalanceTx era
 deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
 deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 
--- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
+-- | A 'PartialTx' is an an unbalanced transaction along with the necessary
 -- information to balance it.
 --
 -- The 'TxIn's of the 'inputs' must exactly match the inputs contained in the
@@ -1209,7 +1209,7 @@ data TxFeeUpdate
 
 newtype ErrUpdateSealedTx
     = ErrExistingKeyWitnesses Int
-    -- ^ The `SealedTx` could not be updated because the *n* existing
+    -- ^ The transaction could not be updated because the *n* existing
     -- key-witnesses would be rendered invalid.
     deriving (Generic, Eq, Show)
 
