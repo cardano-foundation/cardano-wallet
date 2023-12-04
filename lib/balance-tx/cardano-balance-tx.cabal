@@ -88,7 +88,6 @@ library internal
     Internal.Cardano.Write.Tx
     Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection
-    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
     Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     Internal.Cardano.Write.Tx.Gen
     Internal.Cardano.Write.Tx.Redeemers
