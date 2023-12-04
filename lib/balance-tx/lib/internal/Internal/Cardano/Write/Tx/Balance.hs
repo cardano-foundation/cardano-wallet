@@ -36,7 +36,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrUpdateTx (..)
     , ErrAssignRedeemers (..)
 
     -- * Change addresses
@@ -64,6 +63,7 @@ module Internal.Cardano.Write.Tx.Balance
     , noTxUpdate
     , updateTx
     , TxFeeUpdate (..)
+    , ErrUpdateTx (..)
 
     -- ** distributeSurplus
     , distributeSurplus
