@@ -54,7 +54,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: test/e2e/state/wallet_db/preprod
-        key: wallet-db-e2-macos-preprod
+        key: wallet-db-e2e-macos-preprod
 
     - name: Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
