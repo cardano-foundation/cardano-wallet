@@ -64,6 +64,8 @@ jobs:
         with:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
+        env:
+          LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
 
   text-class-test-unit:
     name: 'test-class:unit'
