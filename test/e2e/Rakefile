@@ -127,11 +127,16 @@ task :wait_until_node_synced do
     current_time = Time.now
     while network.information['sync_progress']['status'] == 'syncing'
       log "Syncing node... #{network.information['sync_progress']['progress']['quantity']}%"
+
       sleep 5
     end
-  rescue StandardError
-    retry if current_time <= timeout_treshold
-    raise("[#{Time.now}] Could not connect to wallet within #{timeout} seconds...")
+  rescue StandardError => e
+    if current_time <= timeout_treshold then
+      log "Retrying after error #{e}"
+      sleep 5
+      retry
+    end
+    raise("[#{Time.now}] Could not connect to wallet within #{timeout} seconds, last error: #{e}")
   end
 
   log '>> Cardano-node and cardano-wallet are synced! <<'

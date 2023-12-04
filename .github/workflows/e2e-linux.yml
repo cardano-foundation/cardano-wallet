@@ -46,13 +46,6 @@ jobs:
         path: test/e2e/state/node_db/preprod
         key: node-db-e2e-linux-preprod
 
-    - name: 💾 Cache wallet db
-      id: cache-wallet
-      uses: actions/cache@v3
-      with:
-        path: test/e2e/state/wallet_db/preprod
-        key: wallet-db-e2e-linux-preprod
-
     - name: Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
@@ -93,13 +86,6 @@ jobs:
       with:
         path: test/e2e/state/node_db/preprod
         key: node-db-e2e-linux-preprod
-
-    - name: 💾 GH Save Cache of wallet db
-      if: always()
-      uses: actions/cache/save@v3
-      with:
-        path: test/e2e/state/wallet_db/preprod
-        key: wallet-db-e2e-linux-preprod
 
     - name: 📎 Upload state
       uses: actions/upload-artifact@v3
