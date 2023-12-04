@@ -280,6 +280,9 @@ import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Val as Val
+    ( coin
+    )
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
@@ -680,7 +683,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
-                balance0
+                (CardanoApi.fromMaryValue balance0)
                 (fromCardanoApiLovelace minfee0)
                 randomSeed
                 genChange
@@ -730,8 +733,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     (balance, candidateMinFee, witCount) <-
         balanceAfterSettingMinFee candidateTx
-    surplus <- case CardanoApi.selectLovelace balance of
-        (CardanoApi.Lovelace c)
+    surplus <- case Val.coin balance of
+        (Coin c)
             | c >= 0 ->
                 pure $ W.Coin.unsafeFromIntegral c
             | otherwise ->
@@ -843,13 +846,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m
-            (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
+            (Value, CardanoApi.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
-        let balance = CardanoApi.fromMaryValue $ txBalance tx'
+        let balance = txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
 
