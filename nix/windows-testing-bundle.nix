@@ -18,6 +18,7 @@
 let
   testData = {
     wallet = ../lib/wallet/test/data;
+    local-cluster = ../lib/local-cluster/test/data;
   };
 
   name = "cardano-wallet-${cardano-wallet.version}-tests-win64";
