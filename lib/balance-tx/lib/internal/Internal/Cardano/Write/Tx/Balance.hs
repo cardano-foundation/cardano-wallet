@@ -684,7 +684,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 (CardanoApi.fromMaryValue balance0)
-                (fromCardanoApiLovelace minfee0)
+                (Convert.toWalletCoin minfee0)
                 randomSeed
                 genChange
                 selectionStrategy
@@ -722,13 +722,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     . snd
                     ) <$> extraInputs <> extraCollateral'
         extraCollateral = fst <$> extraCollateral'
-        unsafeFromLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs
         , extraInputScripts
-        , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
+        , feeUpdate = UseNewTxFee $ Convert.toWalletCoin minfee0
         }
 
     (balance, candidateMinFee, witCount) <-
@@ -746,7 +745,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     witCount
 
     let feeAndChange = TxFeeAndChange
-            (unsafeFromLovelace candidateMinFee)
+            (Convert.toWalletCoin candidateMinFee)
             (extraOutputs)
         feePerByte = getFeePerByte pp
 
@@ -845,15 +844,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     balanceAfterSettingMinFee
         :: Tx era
-        -> ExceptT (ErrBalanceTx era) m
-            (Value, CardanoApi.Lovelace, KeyWitnessCount)
+        -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = txBalance tx'
-            minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
+            minfee' = Coin $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
 
     -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
@@ -932,8 +930,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
-
-    fromCardanoApiLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
 
 -- | Select assets to cover the specified balance and fee.
 --
