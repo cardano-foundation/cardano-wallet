@@ -253,7 +253,7 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrMoreSurplusNeeded (..)
-    , ErrUpdateSealedTx (..)
+    , ErrUpdateTx (..)
     , PartialTx (..)
     , Redeemer (..)
     , TxFeeAndChange (..)

@@ -17,7 +17,7 @@ module Cardano.Write.Tx
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrUpdateSealedTx (..)
+    , ErrUpdateTx (..)
 
     -- * UTxO-related types and functions
     , UTxO
@@ -41,7 +41,7 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrUpdateSealedTx (..)
+    , ErrUpdateTx (..)
     , UTxOAssumptions
     , UTxOIndex
     , balanceTransaction

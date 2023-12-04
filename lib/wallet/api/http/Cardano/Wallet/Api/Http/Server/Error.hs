@@ -125,7 +125,7 @@ import Cardano.Write.Tx
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
-    , ErrUpdateSealedTx (..)
+    , ErrUpdateTx (..)
     )
 import Control.Monad.Except
     ( ExceptT

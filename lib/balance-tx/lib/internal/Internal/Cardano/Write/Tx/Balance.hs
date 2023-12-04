@@ -36,7 +36,7 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrUpdateSealedTx (..)
+    , ErrUpdateTx (..)
     , ErrAssignRedeemers (..)
 
     -- * Change addresses
@@ -411,7 +411,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
-    = ErrBalanceTxUpdateError ErrUpdateSealedTx
+    = ErrBalanceTxUpdateError ErrUpdateTx
     | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
@@ -1207,7 +1207,7 @@ data TxFeeUpdate
         -- ^ Specify a new fee to use instead.
     deriving (Eq, Show)
 
-newtype ErrUpdateSealedTx
+newtype ErrUpdateTx
     = ErrExistingKeyWitnesses Int
     -- ^ The transaction could not be updated because the *n* existing
     -- key-witnesses would be rendered invalid.
@@ -1229,7 +1229,7 @@ updateTx
     :: forall era. IsRecentEra era
     => Tx era
     -> TxUpdate
-    -> Either ErrUpdateSealedTx (Tx era)
+    -> Either ErrUpdateTx (Tx era)
 updateTx tx extraContent = do
     let tx' = tx
             & over bodyTxL (modifyShelleyTxBody extraContent)
