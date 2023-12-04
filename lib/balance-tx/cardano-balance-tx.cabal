@@ -65,13 +65,11 @@ library internal
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-primitive
-    , cardano-wallet-test-utils
     , cborg
     , containers
     , deepseq
     , fmt
     , generic-lens
-    , generics-sop
     , int-cast
     , lens
     , MonadRandom
@@ -88,7 +86,6 @@ library internal
     Internal.Cardano.Write.Tx
     Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection
-    Internal.Cardano.Write.Tx.Balance.CoinSelection.Gen
     Internal.Cardano.Write.Tx.Balance.TokenBundleSize
     Internal.Cardano.Write.Tx.Gen
     Internal.Cardano.Write.Tx.Redeemers
