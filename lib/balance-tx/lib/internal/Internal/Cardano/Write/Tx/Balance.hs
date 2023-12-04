@@ -183,10 +183,6 @@ import Data.Monoid.Monus
 import Data.Semigroup.Cancellative
     ( Reductive ((</>))
     )
-import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
-    )
 import Fmt
     ( Buildable
     , Builder
@@ -324,25 +320,6 @@ import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
-
--- | Helper wrapper type for the sake of logging.
-data BuildableInAnyEra tx = forall era.
-    ( Eq (tx era)
-    , Show (tx era)
-    , Buildable (tx era)
-    ) => BuildableInAnyEra (CardanoApi.CardanoEra era) (tx era)
-
-instance Show (BuildableInAnyEra a) where
-    show (BuildableInAnyEra _ a) = show a
-
-instance Eq (BuildableInAnyEra a) where
-    BuildableInAnyEra era1 thing1 == BuildableInAnyEra era2 thing2 =
-        case testEquality era1 era2 of
-            Just Refl -> thing1 == thing2
-            Nothing -> False
-
-instance Buildable (BuildableInAnyEra a) where
-    build (BuildableInAnyEra _ x) = build x
 
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
