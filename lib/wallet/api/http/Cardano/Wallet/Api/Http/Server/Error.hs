@@ -125,7 +125,6 @@ import Cardano.Write.Tx
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
-    , ErrUpdateSealedTx (..)
     )
 import Control.Monad.Except
     ( ExceptT
@@ -531,7 +530,7 @@ instance IsServerError ErrWriteTxEra where
 
 instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
     toServerError = \case
-        ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
+        ErrBalanceTxExistingKeyWitnesses n ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "
                 , T.pack (show n), " "

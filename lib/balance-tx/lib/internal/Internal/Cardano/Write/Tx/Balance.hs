@@ -36,7 +36,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , ErrUpdateSealedTx (..)
     , ErrAssignRedeemers (..)
 
     -- * Change addresses
@@ -64,6 +63,7 @@ module Internal.Cardano.Write.Tx.Balance
     , noTxUpdate
     , updateTx
     , TxFeeUpdate (..)
+    , ErrUpdateTx (..)
 
     -- ** distributeSurplus
     , distributeSurplus
@@ -411,9 +411,11 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
-    = ErrBalanceTxUpdateError ErrUpdateSealedTx
-    | ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
+    = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
+    | ErrBalanceTxExistingKeyWitnesses Int
+    -- ^ Indicates that a transaction could not be balanced because a given
+    -- number of existing key witnesses would be rendered invalid.
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
@@ -436,7 +438,7 @@ data ErrBalanceTx era
 deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
 deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 
--- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
+-- | A 'PartialTx' is an an unbalanced transaction along with the necessary
 -- information to balance it.
 --
 -- The 'TxIn's of the 'inputs' must exactly match the inputs contained in the
@@ -869,7 +871,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
+        tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = CardanoApi.fromMaryValue $ txBalance tx'
             minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
         return (balance, minfee', witCount)
@@ -917,7 +919,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
+        tx' <- left updateTxErrorToBalanceTxError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
@@ -1207,9 +1209,9 @@ data TxFeeUpdate
         -- ^ Specify a new fee to use instead.
     deriving (Eq, Show)
 
-newtype ErrUpdateSealedTx
-    = ErrExistingKeyWitnesses Int
-    -- ^ The `SealedTx` could not be updated because the *n* existing
+newtype ErrUpdateTx
+    = ErrUpdateTxExistingKeyWitnesses Int
+    -- ^ The transaction could not be updated because the *n* existing
     -- key-witnesses would be rendered invalid.
     deriving (Generic, Eq, Show)
 
@@ -1229,7 +1231,7 @@ updateTx
     :: forall era. IsRecentEra era
     => Tx era
     -> TxUpdate
-    -> Either ErrUpdateSealedTx (Tx era)
+    -> Either ErrUpdateTx (Tx era)
 updateTx tx extraContent = do
     let tx' = tx
             & over bodyTxL (modifyShelleyTxBody extraContent)
@@ -1237,7 +1239,7 @@ updateTx tx extraContent = do
 
     case numberOfExistingKeyWits of
         0 -> Right tx'
-        n -> Left $ ErrExistingKeyWitnesses n
+        n -> Left $ ErrUpdateTxExistingKeyWitnesses n
   where
     numberOfExistingKeyWits :: Int
     numberOfExistingKeyWits = sum
@@ -1563,6 +1565,10 @@ coinSelectionErrorToBalanceTxError = \case
             , minimumCollateralAmount
                 = Convert.toLedgerCoin minimumSelectionAmount
             }
+
+updateTxErrorToBalanceTxError :: ErrUpdateTx -> ErrBalanceTx era
+updateTxErrorToBalanceTxError = \case
+    ErrUpdateTxExistingKeyWitnesses i -> ErrBalanceTxExistingKeyWitnesses i
 
 --------------------------------------------------------------------------------
 -- Validation of transaction outputs
