@@ -333,7 +333,7 @@
                 linuxReleaseExes = [
                   linuxPackages.cardano-wallet
                   linuxPackages.bech32
-                  linuxPackages.cardano-address
+                  # linuxPackages.cardano-address
                   nodePkgs.hydraJobs.musl.cardano-cli
                   nodePkgs.hydraJobs.musl.cardano-node
                 ];
@@ -341,7 +341,7 @@
                 checkReleaseContents = jobs: map (exe: jobs.${exe}) [
                   "cardano-wallet"
                   "bech32"
-                  "cardano-address"
+                  # "cardano-address"
                   "cardano-cli"
                   "cardano-node"
                 ];
@@ -363,7 +363,7 @@
                     exes = [
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
-                      windowsPackages.cardano-address
+                      # windowsPackages.cardano-address
                       nodePkgs.hydraJobs.windows.cardano-cli
                       nodePkgs.hydraJobs.windows.cardano-node
                     ];
@@ -389,7 +389,7 @@
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
-                    macOsPkgs.cardano-address
+                    # macOsPkgs.cardano-address
                     nodePkgs.hydraJobs.native.cardano-cli
                     nodePkgs.hydraJobs.native.cardano-node
                   ];
@@ -403,7 +403,7 @@
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
-                    macOsPkgs.cardano-address
+                    # macOsPkgs.cardano-address
                     nodePkgs.hydraJobs.native.cardano-cli
                     nodePkgs.hydraJobs.native.cardano-node
                   ];
