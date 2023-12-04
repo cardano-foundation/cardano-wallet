@@ -239,7 +239,7 @@ main = withUtf8 $ do
                         , WC.walletListenPort =
                             Nothing
                         , WC.walletByronGenesisForTestnet = Just $
-                            clusterDir Path.</> [Path.relfile|genesis.byron.json|]
+                            clusterDir Path.</> [Path.relfile|genesis-byron.json|]
                         }
                     )
                     (WC.stop . fst)
