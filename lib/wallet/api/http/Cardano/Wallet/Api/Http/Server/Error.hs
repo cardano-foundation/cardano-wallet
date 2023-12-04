@@ -531,7 +531,7 @@ instance IsServerError ErrWriteTxEra where
 
 instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
     toServerError = \case
-        ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
+        ErrBalanceTxUpdateError (ErrUpdateTxExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "
                 , T.pack (show n), " "

@@ -1214,7 +1214,7 @@ spec_updateTx = describe "updateTx" $ do
                     tx
                     noTxUpdate
 
-            res `shouldBe` Left (ErrExistingKeyWitnesses 1)
+            res `shouldBe` Left (ErrUpdateTxExistingKeyWitnesses 1)
 
         it "returns `Left err` when extra body content is non-empty" $ do
             pendingWith "todo: add test data"
@@ -1369,7 +1369,7 @@ prop_balanceTransactionValid
                         (True, True) ->
                             label "shortfall of both ada and non-ada assets"
                                 $ property True
-            Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
+            Left (ErrBalanceTxUpdateError (ErrUpdateTxExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
                 (ErrBalanceTxOutputError

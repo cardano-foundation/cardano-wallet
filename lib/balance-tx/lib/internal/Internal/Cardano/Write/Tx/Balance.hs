@@ -1208,7 +1208,7 @@ data TxFeeUpdate
     deriving (Eq, Show)
 
 newtype ErrUpdateTx
-    = ErrExistingKeyWitnesses Int
+    = ErrUpdateTxExistingKeyWitnesses Int
     -- ^ The transaction could not be updated because the *n* existing
     -- key-witnesses would be rendered invalid.
     deriving (Generic, Eq, Show)
@@ -1237,7 +1237,7 @@ updateTx tx extraContent = do
 
     case numberOfExistingKeyWits of
         0 -> Right tx'
-        n -> Left $ ErrExistingKeyWitnesses n
+        n -> Left $ ErrUpdateTxExistingKeyWitnesses n
   where
     numberOfExistingKeyWits :: Int
     numberOfExistingKeyWits = sum
