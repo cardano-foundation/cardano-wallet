@@ -65,13 +65,11 @@ library internal
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-primitive
-    , cardano-wallet-test-utils
     , cborg
     , containers
     , deepseq
     , fmt
     , generic-lens
-    , generics-sop
     , int-cast
     , lens
     , MonadRandom
