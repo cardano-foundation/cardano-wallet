@@ -414,6 +414,8 @@ data ErrBalanceTx era
     = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingKeyWitnesses Int
+    -- ^ Indicates that a transaction could not be balanced because a given
+    -- number of existing key witnesses would be rendered invalid.
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
