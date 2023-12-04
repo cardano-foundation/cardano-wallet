@@ -8,6 +8,18 @@ on:
       branch:
         description: 'Run tests against branch'
         default: 'master'
+      status:
+        description: 'Run tests against status (use `any` as wildcard)'
+        default: 'passed'
+        required: true
+        type: choice
+        options:
+          - passed
+          - any
+      build:
+        description: 'Run tests against build number'
+        required: false
+        default: 'latest'
 
 jobs:
   setup:
@@ -29,7 +41,9 @@ jobs:
         working-directory: ${{ env.WORK_DIR }}
         run: |
           bundle install
-          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64]
+          echo "STATUS = ${{ github.event.inputs.status }}"
+          echo "BUILD = ${{ github.event.inputs.build }}"
+          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64,${{ github.event.inputs.status }},${{ github.event.inputs.build }}]
 
       - name: Report version
         working-directory: ${{ env.WORK_DIR }}
@@ -50,6 +64,8 @@ jobs:
         with:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
+        env:
+          LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
 
   text-class-test-unit:
     name: 'test-class:unit'

@@ -1031,10 +1031,11 @@ clusterEraFromEnv =
         _ -> die $ var ++ ": unknown era"
     withDefault = fromMaybe maxBound
 
-localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" String)
+localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" FilePath)
 localClusterConfigsFromEnv = lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
     <&> Tagged @"cluster-configs"
-        . fromMaybe "../local-cluster/test/data/cluster-configs"
+    . fromMaybe
+        (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case

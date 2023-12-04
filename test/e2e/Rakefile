@@ -242,12 +242,16 @@ task :display_versions, [:bin_dir] do |_task, args|
   end
 end
 
-task :get_latest_windows_tests, [:branch, :destination] do |_task, args|
-  branch = args[:branch] || 'master'
+task :get_latest_windows_tests, [:branch, :destination, :status, :build] do |_task, args|
   destination = args[:destination] || 'cardano-wallet-tests-win64'
   job_key = 'build-windows-tests'
   bk = Buildkite.new
-  last_build = bk.last_build_number(branch: branch, state: 'passed')
+  status = args[:status]
+  branch = args[:branch] || 'master'
+  build = args[:build] || 'latest'
+  options = status == 'any' ? { branch: branch } : { branch: branch, state: status }
+  last_build =
+    build == 'latest' ? bk.last_build_number(options) : build
   log "Latest passing buildkite '#{bk.pipeline}' pipeline for branch '#{branch}' is #{last_build}"
   jobs = bk.jobs(last_build)
   mk_dir(destination)
