@@ -37,11 +37,7 @@ module Cardano.Wallet.Primitive.Ledger.Convert
       --   types
     , Convert (..)
 
-      -- * Conversions for transaction outputs
-    , toShelleyTxOut
-    , toAllegraTxOut
-    , toMaryTxOut
-    , toAlonzoTxOut
+      -- * Conversions for transaction outputs in recent eras
     , toBabbageTxOut
     , toConwayTxOut
     , fromBabbageTxOut
@@ -119,20 +115,14 @@ import Numeric.Natural
     ( Natural
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
+    ( StandardBabbage
     , StandardConway
     , StandardCrypto
-    , StandardMary
-    , StandardShelley
     )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Allegra.Scripts as Scripts
-import qualified Cardano.Ledger.Alonzo as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as LCore
@@ -140,7 +130,6 @@ import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Cardano.Ledger.Shelley.TxBody as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -332,35 +321,8 @@ toWalletAddress :: Ledger.Addr StandardCrypto -> Address
 toWalletAddress = Address . Ledger.serialiseAddr
 
 --------------------------------------------------------------------------------
--- Conversions for 'TxOut'
+-- Conversions for 'TxOut' (in recent eras)
 --------------------------------------------------------------------------------
-
-toShelleyTxOut
-    :: TxOut
-    -> Shelley.ShelleyTxOut StandardShelley
-toShelleyTxOut (TxOut addr bundle) =
-    Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
-
-toAllegraTxOut
-    :: TxOut
-    -> Shelley.ShelleyTxOut StandardAllegra
-toAllegraTxOut (TxOut addr bundle) =
-    Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
-
-toMaryTxOut
-    :: TxOut
-    -> Shelley.ShelleyTxOut StandardMary
-toMaryTxOut (TxOut addr bundle) =
-    Shelley.ShelleyTxOut (toLedger addr) (toLedger bundle)
-
-toAlonzoTxOut
-    :: TxOut
-    -> Alonzo.AlonzoTxOut StandardAlonzo
-toAlonzoTxOut (TxOut addr bundle) =
-    Alonzo.AlonzoTxOut
-        (toLedger addr)
-        (toLedger bundle)
-        Ledger.SNothing
 
 toBabbageTxOut
     :: HasCallStack
