@@ -142,7 +142,6 @@ import Cardano.Wallet.Primitive.Types.TokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , mkTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -326,6 +325,7 @@ import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -1328,7 +1328,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrsMint <- listAddresses @n ctx wa
         let addrMint = (addrsMint !! 1) ^. #id
-        let Right tokenName' = mkTokenName "ab12"
+        let Right tokenName' = TokenName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_id": #{toText policyId'},
@@ -3800,7 +3800,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName "ab12"
+        let (Right tokenName') = TokenName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [{
@@ -3840,7 +3840,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName "ab12"
+        let (Right tokenName') = TokenName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3894,7 +3894,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName "ab12"
+        let (Right tokenName') = TokenName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3943,7 +3943,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName "ab12"
+        let (Right tokenName') = TokenName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_script_template":
@@ -3992,7 +3992,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName ""
+        let (Right tokenName') = TokenName.fromByteString ""
         let payloadMint = Json [json|{
                 "mint_burn": [
                     { "policy_script_template":
@@ -4041,7 +4041,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wForeign
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = mkTokenName "ab12"
+        let (Right tokenName') = TokenName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [

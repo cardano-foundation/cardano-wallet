@@ -6,9 +6,9 @@
 
 module Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , mkTokenName
-    , nullTokenName
-    , tokenNameMaxLength
+    , empty
+    , fromByteString
+    , maxLength
     ) where
 
 import Prelude
@@ -64,13 +64,13 @@ newtype TokenName =
     deriving anyclass Hashable
 
 -- | Construct a 'TokenName', validating that the length does not exceed
---   'tokenNameMaxLength'.
+--   'maxLength'.
 --
-mkTokenName :: ByteString -> Either String TokenName
-mkTokenName bs
-    | BS.length bs <= tokenNameMaxLength = Right $ UnsafeTokenName bs
+fromByteString :: ByteString -> Either String TokenName
+fromByteString bs
+    | BS.length bs <= maxLength = Right $ UnsafeTokenName bs
     | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
-        ++ " exceeds maximum of " ++ show tokenNameMaxLength
+        ++ " exceeds maximum of " ++ show maxLength
 
 -- | The empty asset name.
 --
@@ -78,13 +78,13 @@ mkTokenName bs
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
 --
-nullTokenName :: TokenName
-nullTokenName = UnsafeTokenName ""
+empty :: TokenName
+empty = UnsafeTokenName ""
 
 -- | The maximum length of a valid token name.
 --
-tokenNameMaxLength :: Int
-tokenNameMaxLength = 32
+maxLength :: Int
+maxLength = 32
 
 instance NFData TokenName
 
@@ -102,6 +102,6 @@ instance ToText TokenName where
 
 instance FromText TokenName where
     fromText = first TextDecodingError
-        . either (Left . ("TokenName is not hex-encoded: " ++)) mkTokenName
+        . either (Left . ("TokenName is not hex-encoded: " ++)) fromByteString
         . convertFromBase Base16
         . T.encodeUtf8

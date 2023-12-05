@@ -1074,7 +1074,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let ep = Link.getAsset wal polId TokenName.nullTokenName
+        let ep = Link.getAsset wal polId TokenName.empty
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r

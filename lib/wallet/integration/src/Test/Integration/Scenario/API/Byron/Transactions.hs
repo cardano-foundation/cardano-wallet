@@ -316,7 +316,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         wal <- srcFixture ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let ep = Link.getByronAsset wal polId TokenName.nullTokenName
+        let ep = Link.getByronAsset wal polId TokenName.empty
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r

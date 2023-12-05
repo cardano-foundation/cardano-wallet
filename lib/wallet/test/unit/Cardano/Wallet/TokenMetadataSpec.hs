@@ -21,9 +21,6 @@ import Cardano.Wallet.Primitive.Types.TokenMetadata
     , AssetMetadata (..)
     , AssetURL (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( nullTokenName
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
@@ -78,6 +75,8 @@ import Test.Utils.Paths
 import Test.Utils.Trace
     ( traceSpec
     )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 
 spec :: Spec
 spec = do
@@ -140,14 +139,18 @@ spec = do
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
                 client <- newMetadataClient tr (Just srv)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
-                let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
+                let aid = AssetId
+                        (UnsafeTokenPolicyId (unsafeFromText subj))
+                        TokenName.empty
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
 
         it "ill-formatted entry doesn't make the entire response fail to parse" $ \tr -> do
             withMetadataServer (queryServerStatic golden2File) $ \srv -> do
                 client <- newMetadataClient tr (Just srv)
-                let aid subj = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
+                let aid subj = AssetId
+                        (UnsafeTokenPolicyId (unsafeFromText subj))
+                        TokenName.empty
                 let aid1 = aid "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid2 = aid "bad00000000000000000000000000000000000000000000000000000"
                 getTokenMetadata client [aid1, aid2]
@@ -156,7 +159,9 @@ spec = do
         it "missing subject" $ \tr ->
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
                 client <- newMetadataClient tr (Just srv)
-                let aid = AssetId (UnsafeTokenPolicyId (Hash "a")) nullTokenName
+                let aid = AssetId
+                        (UnsafeTokenPolicyId (Hash "a"))
+                        TokenName.empty
                 res <- getTokenMetadata client [aid]
                 res `shouldBe` Right []
 

@@ -59,7 +59,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , nullTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -104,6 +103,7 @@ import qualified Cardano.Address.Style.Icarus as Icarus
 import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -311,7 +311,7 @@ maryIntegrationTestFunds tips =
 
     bundle p assets = TokenBundle.fromNestedList tips [(p, NE.fromList assets)]
 
-    simple p = bundle p [(nullTokenName, TokenQuantity 1_000_000_000)]
+    simple p = bundle p [(TokenName.empty, TokenQuantity 1_000_000_000)]
     fruit p =
         bundle
             p
