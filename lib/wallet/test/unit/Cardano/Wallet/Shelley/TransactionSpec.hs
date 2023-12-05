@@ -129,12 +129,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (UnsafeTokenName)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenPolicyId
     , shrinkTokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

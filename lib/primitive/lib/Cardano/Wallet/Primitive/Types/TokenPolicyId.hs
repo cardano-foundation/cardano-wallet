@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 
-module Cardano.Wallet.Primitive.Types.TokenPolicy
+module Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     ) where
 

@@ -187,7 +187,7 @@ library
     Cardano.Wallet.Primitive.Types.TokenMetadata
     Cardano.Wallet.Primitive.Types.TokenName
     Cardano.Wallet.Primitive.Types.TokenName.Gen
-    Cardano.Wallet.Primitive.Types.TokenPolicy
+    Cardano.Wallet.Primitive.Types.TokenPolicyId
     Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     Cardano.Wallet.Primitive.Types.TokenQuantity
     Cardano.Wallet.Primitive.Types.TokenQuantity.Gen

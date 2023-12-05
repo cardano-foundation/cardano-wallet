@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.Types.TokenMetadata
 import Cardano.Wallet.Primitive.Types.TokenName
     ( nullTokenName
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
 import Cardano.Wallet.TokenMetadata

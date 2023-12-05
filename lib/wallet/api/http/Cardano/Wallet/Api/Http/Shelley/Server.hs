@@ -605,7 +605,7 @@ import Cardano.Wallet.Primitive.Types.TokenName
     , nullTokenName
     , tokenNameMaxLength
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
