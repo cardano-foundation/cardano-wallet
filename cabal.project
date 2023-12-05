@@ -195,7 +195,7 @@ package cardano-node
   flags: -systemd
 
 -- Fail to build if there are any unused package dependencies:
-package *
+program-options
   ghc-options: -Wunused-packages
 
 -- -------------------------------------------------------------------------
