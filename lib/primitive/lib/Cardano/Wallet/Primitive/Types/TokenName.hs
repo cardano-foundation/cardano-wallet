@@ -6,7 +6,7 @@
 
 module Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , mkTokenName
+    , fromByteString
     , nullTokenName
     , tokenNameMaxLength
     ) where
@@ -66,8 +66,8 @@ newtype TokenName =
 -- | Construct a 'TokenName', validating that the length does not exceed
 --   'tokenNameMaxLength'.
 --
-mkTokenName :: ByteString -> Either String TokenName
-mkTokenName bs
+fromByteString :: ByteString -> Either String TokenName
+fromByteString bs
     | BS.length bs <= tokenNameMaxLength = Right $ UnsafeTokenName bs
     | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
         ++ " exceeds maximum of " ++ show tokenNameMaxLength
@@ -102,6 +102,6 @@ instance ToText TokenName where
 
 instance FromText TokenName where
     fromText = first TextDecodingError
-        . either (Left . ("TokenName is not hex-encoded: " ++)) mkTokenName
+        . either (Left . ("TokenName is not hex-encoded: " ++)) fromByteString
         . convertFromBase Base16
         . T.encodeUtf8

@@ -47,7 +47,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , mkTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
@@ -193,6 +192,7 @@ import Test.Utils.Paths
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Foldable as F
@@ -848,7 +848,7 @@ testMapPrettyNested = [s|
 --------------------------------------------------------------------------------
 
 dummyTokenName :: ByteString -> TokenName
-dummyTokenName t = fromRight reportError $ mkTokenName t
+dummyTokenName t = fromRight reportError $ TokenName.fromByteString t
   where
     reportError = error $
         "Unable to construct dummy token name from bytes: " <> show t
