@@ -3,6 +3,7 @@ name: Windows Unit Tests
 on:
   schedule:
   - cron:  "0 20 * * *"
+
   workflow_dispatch:
     inputs:
       branch:
@@ -43,7 +44,7 @@ jobs:
           bundle install
           echo "STATUS = ${{ github.event.inputs.status }}"
           echo "BUILD = ${{ github.event.inputs.build }}"
-          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64,${{ github.event.inputs.status }},${{ github.event.inputs.build }}]
+          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64,${{ github.event.inputs.status || 'any' }},${{ github.event.inputs.build || 'latest' }}]
 
       - name: Report version
         working-directory: ${{ env.WORK_DIR }}
