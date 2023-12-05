@@ -6,8 +6,8 @@
 
 module Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
+    , empty
     , fromByteString
-    , nullTokenName
     , tokenNameMaxLength
     ) where
 
@@ -78,8 +78,8 @@ fromByteString bs
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
 --
-nullTokenName :: TokenName
-nullTokenName = UnsafeTokenName ""
+empty :: TokenName
+empty = UnsafeTokenName ""
 
 -- | The maximum length of a valid token name.
 --
