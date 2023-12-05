@@ -66,14 +66,14 @@ import Prelude hiding
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn

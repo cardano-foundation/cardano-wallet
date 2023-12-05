@@ -147,8 +147,10 @@ import Numeric.Natural
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS

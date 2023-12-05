@@ -17,9 +17,8 @@
 --
 module Cardano.Wallet.Primitive.Types.TokenBundle
     (
-    -- * Types
+    -- * Type
       TokenBundle (..)
-    , AssetId (..)
 
     -- * Construction
     , empty
@@ -79,19 +78,23 @@ import Prelude hiding
 import Algebra.PartialOrd
     ( PartialOrd (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , Flat (..)
+    ( Flat (..)
     , Lexicographic (..)
     , Nested (..)
     , TokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

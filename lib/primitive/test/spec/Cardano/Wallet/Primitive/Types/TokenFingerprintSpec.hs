@@ -1,4 +1,4 @@
-module Cardano.Wallet.Primitive.Types.TokenPolicySpec
+module Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
     ( spec
     ) where
 
@@ -7,11 +7,15 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( TokenFingerprint (..)
-    , TokenName (..)
-    , TokenPolicyId (..)
     , mkTokenFingerprint
+    )
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( TokenName (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex

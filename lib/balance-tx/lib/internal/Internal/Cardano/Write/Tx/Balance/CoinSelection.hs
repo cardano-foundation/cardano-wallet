@@ -125,6 +125,9 @@ import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.AssetId as W
+    ( AssetId
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin
     )
@@ -133,8 +136,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId
-    , TokenMap
+    ( TokenMap
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( txOutMaxCoin

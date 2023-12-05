@@ -511,6 +511,9 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( ChainEvents
     )
@@ -2766,7 +2769,7 @@ listTransactions ctx mMinWithdrawal mStart mEnd order mLimit mAddress
 listAssets
     :: IsOurs s Address
     => WalletLayer IO s
-    -> IO (Set TokenMap.AssetId)
+    -> IO (Set AssetId)
 listAssets ctx = db & \DBLayer{..} -> do
     cp <- atomically readCheckpoint
     txs <- atomically $
@@ -2774,7 +2777,7 @@ listAssets ctx = db & \DBLayer{..} -> do
             allTxStatuses = Nothing
         in readTransactions noMinWithdrawal Ascending Range.everything
             allTxStatuses Nothing Nothing
-    let txAssets :: TransactionInfo -> Set TokenMap.AssetId
+    let txAssets :: TransactionInfo -> Set AssetId
         txAssets = Set.unions
             . map (TokenBundle.getAssets . view #tokens)
             . filter ourOut

@@ -22,20 +22,22 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..)
     , addressParity
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , shrinkAssetId
-    )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , TokenPolicyId (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)

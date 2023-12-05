@@ -347,6 +347,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -360,33 +366,37 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId (..)
-    , TokenBundle
+    ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
+    ( TokenFingerprint
+    , mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , genTokenMapSmallRange
+    ( genTokenMapSmallRange
     , shrinkTokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenMetadata
     ( AssetDecimals (..)
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    , TokenFingerprint
-    , TokenName (..)
-    , TokenPolicyId (..)
-    , mkTokenFingerprint
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( TokenName (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

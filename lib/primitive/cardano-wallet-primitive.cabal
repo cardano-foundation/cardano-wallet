@@ -151,6 +151,8 @@ library
     Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.AnyExplicitScripts
+    Cardano.Wallet.Primitive.Types.AssetId
+    Cardano.Wallet.Primitive.Types.AssetId.Gen
     Cardano.Wallet.Primitive.Types.Block
     Cardano.Wallet.Primitive.Types.Block.Gen
     Cardano.Wallet.Primitive.Types.BlockSummary
@@ -180,11 +182,15 @@ library
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
+    Cardano.Wallet.Primitive.Types.TokenFingerprint
     Cardano.Wallet.Primitive.Types.TokenMap
     Cardano.Wallet.Primitive.Types.TokenMap.Gen
     Cardano.Wallet.Primitive.Types.TokenMapWithScripts
-    Cardano.Wallet.Primitive.Types.TokenPolicy
-    Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    Cardano.Wallet.Primitive.Types.TokenMetadata
+    Cardano.Wallet.Primitive.Types.TokenName
+    Cardano.Wallet.Primitive.Types.TokenName.Gen
+    Cardano.Wallet.Primitive.Types.TokenPolicyId
+    Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     Cardano.Wallet.Primitive.Types.TokenQuantity
     Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     Cardano.Wallet.Primitive.Types.Tx
@@ -271,8 +277,8 @@ test-suite test
     Cardano.Wallet.Primitive.Types.PoolSpec
     Cardano.Wallet.Primitive.Types.RangeSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec
-    Cardano.Wallet.Primitive.Types.TokenPolicySpec
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec

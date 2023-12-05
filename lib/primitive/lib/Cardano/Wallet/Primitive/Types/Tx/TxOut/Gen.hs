@@ -18,6 +18,9 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress
     , shrinkAddress
     )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetIdLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -27,9 +30,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

@@ -432,12 +432,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -646,7 +648,10 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
+import qualified Cardano.Wallet.Primitive.Types.TokenMetadata as W
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson

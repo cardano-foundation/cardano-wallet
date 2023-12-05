@@ -22,34 +22,42 @@ import Prelude
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( AssetIdF (..)
+    , genAssetId
+    , genAssetIdLargeRange
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , Flat (..)
+    ( Flat (..)
     , Lexicographic (..)
     , Nested (..)
     , TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( AssetIdF (..)
-    , genAssetId
-    , genAssetIdLargeRange
-    , genTokenMapPartition
+    ( genTokenMapPartition
     , genTokenMapSmallRange
-    , shrinkAssetId
     , shrinkTokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , TokenPolicyId
     , mkTokenName
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
-    , genTokenPolicyId
     , shrinkTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
+    ( genTokenPolicyId
     , shrinkTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity

@@ -9,19 +9,23 @@ module Cardano.Wallet.TokenMetadataSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenMetadata
     ( AssetDecimals (..)
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    , TokenPolicyId (..)
-    , nullTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( nullTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.TokenMetadata
     ( BatchResponse (..)

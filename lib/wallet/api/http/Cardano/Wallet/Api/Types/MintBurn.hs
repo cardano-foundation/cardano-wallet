@@ -39,13 +39,17 @@ import Cardano.Wallet.Api.Types.Key
     )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
+    ( mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( toNestedList
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , TokenPolicyId
-    , mkTokenFingerprint
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (unTokenQuantity)
@@ -74,8 +78,10 @@ import Numeric.Natural
     ( Natural
     )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 

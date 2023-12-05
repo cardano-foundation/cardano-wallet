@@ -284,6 +284,9 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
     )
+import qualified Cardano.Wallet.Primitive.Types.AssetId as W
+    ( AssetId (..)
+    )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
@@ -293,9 +296,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId (..)
-    )
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (..)
     )

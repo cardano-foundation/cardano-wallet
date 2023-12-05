@@ -128,6 +128,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -138,8 +141,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (TokenQuantity)
@@ -252,6 +254,7 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
+import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -935,7 +938,7 @@ mkUnsignedTx
                     witMap =
                             Map.map toScriptWitnessGeneral $
                             Map.mapKeys
-                                (toCardanoPolicyId . TokenMap.tokenPolicyId)
+                                (toCardanoPolicyId . AssetId.tokenPolicyId)
                             mintingSource
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx

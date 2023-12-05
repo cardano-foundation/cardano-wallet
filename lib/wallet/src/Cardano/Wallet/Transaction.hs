@@ -92,6 +92,9 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (..)
     , changeRoleInAnyExplicitScript
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -102,8 +105,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( AnyScript (..)

@@ -127,6 +127,14 @@ import Cardano.CoinSelection.UTxOSelection.Gen
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    , genAssetIdLargeRange
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -149,22 +157,20 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRangePositive
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , genAssetIdLargeRange
-    , genTokenMapSmallRange
-    , shrinkAssetId
+    ( genTokenMapSmallRange
     , shrinkTokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , TokenPolicyId (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

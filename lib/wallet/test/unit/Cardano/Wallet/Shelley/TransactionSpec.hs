@@ -104,6 +104,9 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -119,18 +122,19 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId
-    , TokenBundle
+    ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (UnsafeTokenName)
-    , TokenPolicyId
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     ( genTokenPolicyId
     , shrinkTokenPolicyId
     )
@@ -1616,7 +1620,7 @@ instance Arbitrary AnyRecentEra where
 
 instance Arbitrary AssetId where
     arbitrary =
-        TokenBundle.AssetId
+        AssetId
         <$> arbitrary
         -- In the calculation of the size of the Tx, the minting of assets
         -- increases the size of the Tx by both a constant factor per asset

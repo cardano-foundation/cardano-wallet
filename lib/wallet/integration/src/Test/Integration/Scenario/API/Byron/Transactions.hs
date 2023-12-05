@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
@@ -132,7 +132,8 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -302,7 +303,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         wal <- srcFixture ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 'x'
+        let assName = TokenName.UnsafeTokenName $ B8.replicate 4 'x'
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
@@ -315,7 +316,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         wal <- srcFixture ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let ep = Link.getByronAsset wal polId TokenPolicy.nullTokenName
+        let ep = Link.getByronAsset wal polId TokenName.nullTokenName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r

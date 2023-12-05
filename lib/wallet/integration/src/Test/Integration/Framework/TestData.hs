@@ -120,9 +120,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity
@@ -156,7 +158,7 @@ import Test.Integration.Framework.DSL
     , json
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenMetadata as W
 import qualified Data.Map as Map
 
 falseWalletIds :: [(String, String)]
