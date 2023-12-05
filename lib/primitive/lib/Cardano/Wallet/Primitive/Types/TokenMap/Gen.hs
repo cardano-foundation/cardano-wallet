@@ -15,9 +15,11 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenMap
+import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
-    , TokenMap
+    )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName

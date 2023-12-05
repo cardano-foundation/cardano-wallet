@@ -22,12 +22,14 @@ import Prelude
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , Flat (..)
+    ( Flat (..)
     , Lexicographic (..)
     , Nested (..)
     , TokenMap

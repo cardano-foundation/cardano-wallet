@@ -158,12 +158,14 @@ import Cardano.Startup
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId (..)
-    , TokenBundle (..)
+    ( TokenBundle (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)

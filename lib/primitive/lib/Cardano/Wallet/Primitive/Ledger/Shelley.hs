@@ -389,6 +389,7 @@ import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.AssetId as W
 import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1253,7 +1254,7 @@ toCardanoValue tb = Cardano.valueFromList $
     map (bimap toCardanoAssetId toQuantity) bundle
   where
     (coin, bundle) = TokenBundle.toFlatList tb
-    toCardanoAssetId (TokenBundle.AssetId pid name) =
+    toCardanoAssetId (W.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
     toCardanoAssetName (W.UnsafeTokenName name) =

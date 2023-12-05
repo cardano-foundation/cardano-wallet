@@ -432,12 +432,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

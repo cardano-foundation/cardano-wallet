@@ -32,6 +32,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -39,8 +42,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
-    , Lexicographic (..)
+    ( Lexicographic (..)
     )
 import Control.DeepSeq
     ( NFData (..)

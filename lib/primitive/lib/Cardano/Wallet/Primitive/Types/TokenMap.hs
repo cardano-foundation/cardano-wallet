@@ -20,9 +20,8 @@
 --
 module Cardano.Wallet.Primitive.Types.TokenMap
     (
-    -- * Types
+    -- * Type
       TokenMap
-    , AssetId (..)
 
     -- * Construction
     , empty
@@ -93,6 +92,9 @@ import Algebra.PartialOrd
     )
 import Cardano.Numeric.Util
     ( equipartitionNatural
+    )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
@@ -243,19 +245,6 @@ newtype TokenMap = TokenMap
 instance NFData TokenMap
 instance Hashable TokenMap where
     hashWithSalt = hashUsing toNestedList
-
--- | A combination of a token policy identifier and a token name that can be
---   used as a compound identifier.
---
-data AssetId = AssetId
-    { tokenPolicyId
-        :: !TokenPolicyId
-    , tokenName
-        :: !TokenName
-    }
-    deriving stock (Eq, Generic, Ord, Read, Show)
-
-instance NFData AssetId
 
 --------------------------------------------------------------------------------
 -- Ordering

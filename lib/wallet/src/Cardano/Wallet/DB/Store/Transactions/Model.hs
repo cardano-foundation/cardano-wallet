@@ -50,11 +50,11 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (AssetId)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName

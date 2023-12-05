@@ -181,6 +181,9 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -716,7 +719,7 @@ mkOutputs prefix nOuts nAssets =
         (mkAddress prefix i)
         (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens))
     tokens =
-        [ ( TokenMap.AssetId (mkTokenPolicyId (ac `mod` 10)) (mkTokenName ac)
+        [ ( AssetId (mkTokenPolicyId (ac `mod` 10)) (mkTokenName ac)
           , TokenQuantity 42
           )
         | !ac <- [1 .. nAssets]

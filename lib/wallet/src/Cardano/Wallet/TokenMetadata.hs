@@ -90,11 +90,11 @@ import Cardano.BM.Extra
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMetadata
     ( AssetDecimals (..)

@@ -378,6 +378,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -1039,7 +1042,7 @@ isValidRandomDerivationPath path =
 
 pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
 pickAnAsset tm = case TokenMap.toFlatList tm of
-    (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
+    (AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
         ((toText pid, toText an), q)
     _ -> error "pickAnAsset: empty TokenMap"
 

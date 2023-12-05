@@ -49,6 +49,9 @@ import Cardano.Api
     )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -57,9 +60,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)

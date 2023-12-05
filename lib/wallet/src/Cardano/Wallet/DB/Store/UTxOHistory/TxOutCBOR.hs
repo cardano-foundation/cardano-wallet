@@ -9,6 +9,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (AssetId)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -19,8 +22,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (TokenBundle)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (AssetId)
-    , fromFlatList
+    ( fromFlatList
     , toFlatList
     )
 import Cardano.Wallet.Primitive.Types.TokenName

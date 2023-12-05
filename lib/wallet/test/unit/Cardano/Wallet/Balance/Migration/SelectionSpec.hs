@@ -29,6 +29,9 @@ import Cardano.Wallet.Balance.Migration.Selection
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -43,8 +46,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     , TokenBundle (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..)
-    , TokenMap
+    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)

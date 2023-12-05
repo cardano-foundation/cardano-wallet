@@ -30,15 +30,15 @@ import Cardano.CoinSelection.UTxOIndex.Internal
     , categorizeTokenBundle
     , checkInvariant
     )
+import Cardano.Wallet.Primitive.Types.AssetId
+    ( AssetId
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive
     , shrinkTokenBundleSmallRangePositive
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId

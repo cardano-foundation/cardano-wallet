@@ -145,14 +145,14 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Cardano.Wallet.Primitive.Types.AssetId as W
+    ( AssetId
+    )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-    ( AssetId
-    )
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
