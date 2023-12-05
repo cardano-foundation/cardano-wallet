@@ -8,7 +8,7 @@ module Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     , empty
     , fromByteString
-    , tokenNameMaxLength
+    , maxLength
     ) where
 
 import Prelude
@@ -64,13 +64,13 @@ newtype TokenName =
     deriving anyclass Hashable
 
 -- | Construct a 'TokenName', validating that the length does not exceed
---   'tokenNameMaxLength'.
+--   'maxLength'.
 --
 fromByteString :: ByteString -> Either String TokenName
 fromByteString bs
-    | BS.length bs <= tokenNameMaxLength = Right $ UnsafeTokenName bs
+    | BS.length bs <= maxLength = Right $ UnsafeTokenName bs
     | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
-        ++ " exceeds maximum of " ++ show tokenNameMaxLength
+        ++ " exceeds maximum of " ++ show maxLength
 
 -- | The empty asset name.
 --
@@ -83,8 +83,8 @@ empty = UnsafeTokenName ""
 
 -- | The maximum length of a valid token name.
 --
-tokenNameMaxLength :: Int
-tokenNameMaxLength = 32
+maxLength :: Int
+maxLength = 32
 
 instance NFData TokenName
 

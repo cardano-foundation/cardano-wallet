@@ -604,7 +604,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , tokenNameMaxLength
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -2974,9 +2973,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
           where
             assetNameTooLong mb = case mb ^. #mintBurnData of
                 Left (ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                    BS.length bs > tokenNameMaxLength
+                    BS.length bs > TokenName.maxLength
                 Right (ApiMintBurnDataFromInput _ _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                    BS.length bs > tokenNameMaxLength
+                    BS.length bs > TokenName.maxLength
                 _ -> error "at this moment there should be asset name attributed"
 
         guardAssetQuantityOutOfBounds
