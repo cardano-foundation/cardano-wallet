@@ -32,12 +32,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
     )
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
+    ( genTokenNameLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange
-    , genTokenPolicyIdLargeRange
+    ( genTokenPolicyIdLargeRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

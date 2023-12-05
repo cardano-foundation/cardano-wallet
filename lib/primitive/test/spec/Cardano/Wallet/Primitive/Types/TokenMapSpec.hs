@@ -45,13 +45,15 @@ import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
     , mkTokenName
     )
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
+    ( genTokenName
+    , shrinkTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName
-    , genTokenPolicyId
-    , shrinkTokenName
+    ( genTokenPolicyId
     , shrinkTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity

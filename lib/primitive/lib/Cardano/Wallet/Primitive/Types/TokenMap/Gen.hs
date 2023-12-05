@@ -19,14 +19,16 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     , TokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
     , genTokenNameLargeRange
-    , genTokenPolicyId
-    , genTokenPolicyIdLargeRange
     , shrinkTokenName
-    , shrinkTokenPolicyId
     , testTokenNames
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenPolicyId
+    , genTokenPolicyIdLargeRange
+    , shrinkTokenPolicyId
     , testTokenPolicyIds
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity

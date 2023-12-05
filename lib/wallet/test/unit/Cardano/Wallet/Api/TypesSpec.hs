@@ -378,6 +378,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenName.Gen
+    ( genTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -386,9 +389,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , TokenFingerprint
     , TokenPolicyId (..)
     , mkTokenFingerprint
-    )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenName
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
