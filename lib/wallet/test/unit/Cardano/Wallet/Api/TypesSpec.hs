@@ -379,6 +379,12 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genTokenMapSmallRange
     , shrinkTokenMap
     )
+import Cardano.Wallet.Primitive.Types.TokenMetadata
+    ( AssetDecimals (..)
+    , AssetLogo (..)
+    , AssetMetadata (..)
+    , AssetURL (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     )
@@ -386,11 +392,7 @@ import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetDecimals (..)
-    , AssetLogo (..)
-    , AssetMetadata (..)
-    , AssetURL (..)
-    , TokenPolicyId (..)
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

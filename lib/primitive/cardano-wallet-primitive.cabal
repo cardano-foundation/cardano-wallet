@@ -184,6 +184,7 @@ library
     Cardano.Wallet.Primitive.Types.TokenMap
     Cardano.Wallet.Primitive.Types.TokenMap.Gen
     Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    Cardano.Wallet.Primitive.Types.TokenMetadata
     Cardano.Wallet.Primitive.Types.TokenName
     Cardano.Wallet.Primitive.Types.TokenName.Gen
     Cardano.Wallet.Primitive.Types.TokenPolicy

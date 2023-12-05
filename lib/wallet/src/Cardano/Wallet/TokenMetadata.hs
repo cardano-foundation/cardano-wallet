@@ -96,21 +96,23 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenMetadata
     ( AssetDecimals (..)
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    , TokenPolicyId (..)
     , validateMetadataDecimals
     , validateMetadataDescription
     , validateMetadataLogo
     , validateMetadataName
     , validateMetadataTicker
     , validateMetadataURL
+    )
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( TokenName (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId (..)
     )
 import Control.Applicative
     ( (<|>)

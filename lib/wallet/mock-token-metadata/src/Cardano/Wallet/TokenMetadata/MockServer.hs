@@ -37,14 +37,16 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenMetadata
+    ( AssetDecimals (..)
+    , AssetLogo (..)
+    , AssetURL (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetDecimals (..)
-    , AssetLogo (..)
-    , AssetURL (..)
-    , TokenPolicyId (..)
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)

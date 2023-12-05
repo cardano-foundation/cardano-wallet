@@ -158,7 +158,7 @@ import Test.Integration.Framework.DSL
     , json
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenMetadata as W
 import qualified Data.Map as Map
 
 falseWalletIds :: [(String, String)]
