@@ -20,12 +20,12 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
     , shrinkAssetId
+    )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)

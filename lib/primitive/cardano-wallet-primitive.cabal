@@ -152,6 +152,7 @@ library
     Cardano.Wallet.Primitive.Types.Address.Gen
     Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     Cardano.Wallet.Primitive.Types.AssetId
+    Cardano.Wallet.Primitive.Types.AssetId.Gen
     Cardano.Wallet.Primitive.Types.Block
     Cardano.Wallet.Primitive.Types.Block.Gen
     Cardano.Wallet.Primitive.Types.BlockSummary

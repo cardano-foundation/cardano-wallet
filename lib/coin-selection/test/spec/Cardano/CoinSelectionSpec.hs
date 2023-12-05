@@ -67,6 +67,9 @@ import Cardano.CoinSelection.UTxOSelection.Gen
     ( genUTxOSelection
     , shrinkUTxOSelection
     )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -87,8 +90,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , genTokenMap
+    ( genTokenMap
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity

@@ -18,6 +18,10 @@ import Cardano.CoinSelection.Balance
 import Cardano.CoinSelection.Context
     ( SelectionContext (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -27,10 +31,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , shrinkAssetId
     )
 import Generics.SOP
     ( NP (..)

@@ -130,6 +130,11 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetId.Gen
+    ( genAssetId
+    , genAssetIdLargeRange
+    , shrinkAssetId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -155,10 +160,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId
-    , genAssetIdLargeRange
-    , genTokenMapSmallRange
-    , shrinkAssetId
+    ( genTokenMapSmallRange
     , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenName
