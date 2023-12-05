@@ -738,6 +738,7 @@ import Data.Either
 import Data.Either.Extra
     ( eitherToMaybe
     , mapLeft
+    , mapRight
     )
 import Data.Function
     ( (&)
@@ -3138,9 +3139,10 @@ toMetadataEncrypted
     -> TxMetadataWithSchema
     -> Either ErrConstructTx Cardano.TxMetadata
 toMetadataEncrypted apiEncrypt payload = do
-    msgValue <- findMsgValue
+    msgValues <- findMsgValues
+    msgValues' <- mapM encryptingMsg msgValues
     encrypted <- encrypt . toBytes $ payload
-    TR.trace ("msgValue: "<> show msgValue<>"\nfindMsgValue1: "<> show findMsgValue1) $ pure $ toMetadata encrypted
+    TR.trace ("msgValues: "<> show msgValues<>"msgValues': "<> show msgValues'<>"\nfindMsgValue1: "<> show findMsgValue1) $ pure $ toMetadata encrypted
   where
     ((secretKey,iv), encMethod) = unwrapApiMetadata apiEncrypt
 
@@ -3149,14 +3151,14 @@ toMetadataEncrypted apiEncrypt payload = do
             Just metaValue
         else Nothing
     getMsgValue _ = Nothing
-    join Nothing (Just val) = Just val
-    join (Just val) Nothing = Just val
-    join Nothing Nothing = Nothing
-    join (Just val1) (Just val2) = error "only one 'msg' field expected"
+    merge Nothing (Just val) = Just val
+    merge (Just val) Nothing = Just val
+    merge Nothing Nothing = Nothing
+    merge (Just _) (Just _) = error "only one 'msg' field expected"
     -- assumption: `msg` is not embedded beyond the first level
     -- we could change that in the future
     inspectMetaPair (Cardano.TxMetaMap pairs) =
-        foldl join Nothing (getMsgValue <$> pairs)
+        foldl merge Nothing (getMsgValue <$> pairs)
     inspectMetaPair _ = Nothing
     mapMetaPair val Nothing = val
     mapMetaPair _ (Just val) =
@@ -3167,13 +3169,30 @@ toMetadataEncrypted apiEncrypt payload = do
     adjustVals val =
         let temp = inspectMetaPair val
         in mapMetaPair val temp
-    findMsgValue =
+    findMsgValues =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filter (isJust . inspectMetaPair) themap
         in if Map.size filteredMap == 1 then
             Right $ Map.toList filteredMap
            else
             Left ErrConstructTxIncorrectRawMetadata
+    encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            let encrypted = encrypt $
+                    BL.toStrict $
+                    Aeson.encode $
+                    Cardano.metadataValueToJsonNoSchema metaValue
+                toPair enc =
+                    ( Cardano.TxMetaText metaField
+                    , Cardano.TxMetaBytes enc
+                    )
+            in mapRight toPair encrypted
+        else Right pair
+    encryptPairIfQualifies pair = Right pair
+    encryptingMsg (key, Cardano.TxMetaMap pairs) = do
+        pair' <- mapM encryptPairIfQualifies pairs
+        pure (key, Cardano.TxMetaMap pair')
+    encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
     findMsgValue1 =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
         in Map.map adjustVals themap
