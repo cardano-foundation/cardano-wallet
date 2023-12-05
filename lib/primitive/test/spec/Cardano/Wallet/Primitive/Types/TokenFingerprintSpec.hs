@@ -1,4 +1,4 @@
-module Cardano.Wallet.Primitive.Types.TokenPolicySpec
+module Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
     ( spec
     ) where
 
