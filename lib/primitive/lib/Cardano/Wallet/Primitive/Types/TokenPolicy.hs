@@ -210,20 +210,23 @@ instance ToText TokenFingerprint where
     toText = unTokenFingerprint
 
 instance FromText TokenFingerprint where
-    fromText txt = case Bech32.decodeLenient txt of
-        Left{} -> Left invalidBech32String
-        Right (hrp, dp)
-            | hrp /= tokenFingerprintHrp -> Left unrecognizedHrp
-            | otherwise -> case BS.length <$> Bech32.dataPartToBytes dp of
-                Just 20 -> Right (UnsafeTokenFingerprint txt)
-                _ -> Left invalidDatapart
-      where
-        invalidBech32String = TextDecodingError
-            "A 'TokenFingerprint' must be a valid bech32-encoded string."
-        unrecognizedHrp = TextDecodingError
-            "Expected 'asset' as a human-readable part, but got something else."
-        invalidDatapart = TextDecodingError
-            "Expected a Blake2b-160 digest as data payload, but got something else."
+    fromText = tokenFingerprintFromText
+
+tokenFingerprintFromText :: Text -> Either TextDecodingError TokenFingerprint
+tokenFingerprintFromText txt = case Bech32.decodeLenient txt of
+    Left{} -> Left invalidBech32String
+    Right (hrp, dp)
+        | hrp /= tokenFingerprintHrp -> Left unrecognizedHrp
+        | otherwise -> case BS.length <$> Bech32.dataPartToBytes dp of
+            Just 20 -> Right (UnsafeTokenFingerprint txt)
+            _ -> Left invalidDatapart
+  where
+    invalidBech32String = TextDecodingError
+        "A 'TokenFingerprint' must be a valid bech32-encoded string."
+    unrecognizedHrp = TextDecodingError
+        "Expected 'asset' as a human-readable part, but got something else."
+    invalidDatapart = TextDecodingError
+        "Expected a Blake2b-160 digest as data payload, but got something else."
 
 -- | Information about an asset, from a source external to the chain.
 data AssetMetadata = AssetMetadata
@@ -261,31 +264,41 @@ instance FromText AssetURL where
     fromText = first TextDecodingError . validateMetadataURL
 
 newtype AssetDecimals = AssetDecimals
-  { unAssetDecimals :: Int
-  } deriving (Eq, Ord, Generic)
-  deriving (Show) via (Quiet AssetDecimals)
+    { unAssetDecimals :: Int
+    } deriving (Eq, Ord, Generic)
+    deriving (Show) via (Quiet AssetDecimals)
 
 instance NFData AssetDecimals
 
 instance ToText AssetDecimals where
-  toText = T.pack . show . unAssetDecimals
+    toText = T.pack . show . unAssetDecimals
 
 instance FromText AssetDecimals where
-  fromText t = do
-    unvalidated <- AssetDecimals <$> fromText t
-    first TextDecodingError $ validateMetadataDecimals unvalidated
+    fromText t = do
+        unvalidated <- AssetDecimals <$> fromText t
+        first TextDecodingError $ validateMetadataDecimals unvalidated
 
 validateMinLength :: Int -> Text -> Either String Text
 validateMinLength n text
     | len >= n = Right text
-    | otherwise = Left $ "Length must be at least " ++ show n ++ " characters, got " ++ show len
+    | otherwise = Left $ mconcat
+        [ "Length must be at least "
+        , show n
+        , " characters, got "
+        , show len
+        ]
   where
     len = T.length text
 
 validateMaxLength :: Int -> Text -> Either String Text
 validateMaxLength n text
     | len <= n = Right text
-    | otherwise = Left $ "Length must be no more than " ++ show n ++ " characters, got " ++ show len
+    | otherwise = Left $ mconcat
+        [ "Length must be no more than "
+        , show n
+        , " characters, got "
+        , show len
+        ]
   where
     len = T.length text
 
@@ -302,22 +315,29 @@ validateMetadataURL :: Text -> Either String AssetURL
 validateMetadataURL = fmap AssetURL .
     (validateMaxLength 250 >=> validateURI >=> validateHttps)
   where
-      validateURI = maybe (Left "Not an absolute URI") Right
-          . parseAbsoluteURI
-          . T.unpack
-      validateHttps u@(uriScheme -> scheme)
-          | scheme == "https:" = Right u
-          | otherwise = Left $ "Scheme must be https: but got " ++ scheme
+    validateURI = maybe (Left "Not an absolute URI") Right
+        . parseAbsoluteURI
+        . T.unpack
+    validateHttps u@(uriScheme -> scheme)
+        | scheme == "https:" = Right u
+        | otherwise = Left $ "Scheme must be https: but got " ++ scheme
 
 validateMetadataLogo :: AssetLogo -> Either String AssetLogo
 validateMetadataLogo logo
     | len <= maxLen = Right logo
-    | otherwise = Left $ "Length must be no more than " ++ show maxLen ++ " bytes, got " ++ show len
+    | otherwise = Left $ mconcat
+        [ "Length must be no more than "
+        , show maxLen
+        , " bytes, got "
+        , show len
+        ]
   where
     len = BS.length $ unAssetLogo logo
     maxLen = 65536
 
 validateMetadataDecimals :: AssetDecimals -> Either String AssetDecimals
 validateMetadataDecimals (AssetDecimals n)
-  | n >= 0 && n <= 255 = Right $ AssetDecimals n
-  | otherwise          = Left "Decimal value must be between [0, 255] inclusive."
+    | n >= 0 && n <= 255 =
+        Right $ AssetDecimals n
+    | otherwise =
+        Left "Decimal value must be between [0, 255] inclusive."
