@@ -35,11 +35,11 @@ import Cardano.Wallet.Primitive.Types.TokenName
 import Cardano.Wallet.Primitive.Types.TokenName.Gen
     ( genTokenNameLargeRange
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenPolicyIdLargeRange
-    )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
+    ( genTokenPolicyIdLargeRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

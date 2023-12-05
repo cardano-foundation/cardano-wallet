@@ -25,7 +25,7 @@ import Cardano.Wallet.Primitive.Types.TokenName.Gen
     , shrinkTokenName
     , testTokenNames
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     ( genTokenPolicyId
     , genTokenPolicyIdLargeRange
     , shrinkTokenPolicyId

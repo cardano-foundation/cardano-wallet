@@ -1,4 +1,4 @@
-module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+module Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     (
     -- * Generators and shrinkers
       genTokenPolicyId
