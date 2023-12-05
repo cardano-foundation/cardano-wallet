@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -40,7 +39,6 @@ module Internal.Cardano.Write.Tx.SizeEstimation
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
     )
-
     where
 
 import Prelude
