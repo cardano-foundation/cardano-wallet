@@ -367,6 +367,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
+    ( TokenFingerprint
+    , mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     )
@@ -386,9 +390,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    , TokenFingerprint
     , TokenPolicyId (..)
-    , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)

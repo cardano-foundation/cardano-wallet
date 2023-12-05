@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta

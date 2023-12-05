@@ -137,13 +137,15 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
+    ( mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     , mkTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..)
-    , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

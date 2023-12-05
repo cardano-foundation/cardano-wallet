@@ -180,6 +180,7 @@ library
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     Cardano.Wallet.Primitive.Types.TokenBundleMaxSize
+    Cardano.Wallet.Primitive.Types.TokenFingerprint
     Cardano.Wallet.Primitive.Types.TokenMap
     Cardano.Wallet.Primitive.Types.TokenMap.Gen
     Cardano.Wallet.Primitive.Types.TokenMapWithScripts

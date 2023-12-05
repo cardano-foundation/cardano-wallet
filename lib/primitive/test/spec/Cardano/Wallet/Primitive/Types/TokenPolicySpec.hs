@@ -7,13 +7,15 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenFingerprint
+    ( TokenFingerprint (..)
+    , mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenFingerprint (..)
-    , TokenPolicyId (..)
-    , mkTokenFingerprint
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
