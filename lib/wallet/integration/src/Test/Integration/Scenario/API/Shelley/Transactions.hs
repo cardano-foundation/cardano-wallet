@@ -235,6 +235,7 @@ import Web.HttpApiData
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -1062,7 +1063,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 'x'
+        let assName = TokenName.UnsafeTokenName $ B8.replicate 4 'x'
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
@@ -1073,7 +1074,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let ep = Link.getAsset wal polId TokenPolicy.nullTokenName
+        let ep = Link.getAsset wal polId TokenName.nullTokenName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r

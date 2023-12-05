@@ -57,10 +57,12 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , TokenPolicyId
     , nullTokenName
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

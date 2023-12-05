@@ -25,9 +25,11 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     , TokenMap
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , TokenPolicyId (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

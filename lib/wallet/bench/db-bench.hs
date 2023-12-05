@@ -193,7 +193,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity

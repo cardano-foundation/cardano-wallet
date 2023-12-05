@@ -15,13 +15,15 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( nullTokenName
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
     , TokenPolicyId (..)
-    , nullTokenName
     )
 import Cardano.Wallet.TokenMetadata
     ( BatchResponse (..)

@@ -72,6 +72,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W

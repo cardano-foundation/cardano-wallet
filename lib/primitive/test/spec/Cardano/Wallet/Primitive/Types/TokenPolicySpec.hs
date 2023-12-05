@@ -7,9 +7,11 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenFingerprint (..)
-    , TokenName (..)
     , TokenPolicyId (..)
     , mkTokenFingerprint
     )

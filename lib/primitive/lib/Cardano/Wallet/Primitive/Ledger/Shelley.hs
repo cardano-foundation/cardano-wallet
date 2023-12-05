@@ -406,6 +406,7 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.SlottingParameters as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundleMaxSize as W
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W

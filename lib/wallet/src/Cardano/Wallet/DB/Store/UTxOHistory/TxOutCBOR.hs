@@ -23,9 +23,11 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     , fromFlatList
     , toFlatList
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (UnsafeTokenName)
-    , TokenPolicyId (UnsafeTokenPolicyId)
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId (UnsafeTokenPolicyId)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (TokenQuantity)

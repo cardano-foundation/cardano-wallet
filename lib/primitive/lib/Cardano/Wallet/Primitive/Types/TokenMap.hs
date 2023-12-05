@@ -94,9 +94,11 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( equipartitionNatural
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName
-    , TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

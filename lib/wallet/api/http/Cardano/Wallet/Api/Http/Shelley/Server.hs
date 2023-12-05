@@ -600,11 +600,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     , TokenMap
     , fromFlatList
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
+import Cardano.Wallet.Primitive.Types.TokenName
     ( TokenName (..)
-    , TokenPolicyId (..)
     , nullTokenName
     , tokenNameMaxLength
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)

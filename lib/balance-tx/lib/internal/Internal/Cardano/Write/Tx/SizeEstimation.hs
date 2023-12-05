@@ -81,7 +81,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( AssetId (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
