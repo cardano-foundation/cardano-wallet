@@ -13,7 +13,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3.2.0
-      - uses: docker-practice/actions-setup-docker@master
+      - run: |
+            brew install docker
+            brew install docker-compose
+
+            mkdir -p ~/.docker/cli-plugins \
+                ln -sfn $HOMEBREW_PREFIX/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
+
       - uses: ruby/setup-ruby@v1.127.0
         with:
           ruby-version: 2.7.1
@@ -21,7 +27,7 @@ jobs:
         run: gem install cardano_wallet
       - name: Check docker-compose
         run: |
-          docker-compose up -d
+          docker compose up -d
           ./scripts/connect_wallet.rb
         env:
           NETWORK: preprod
