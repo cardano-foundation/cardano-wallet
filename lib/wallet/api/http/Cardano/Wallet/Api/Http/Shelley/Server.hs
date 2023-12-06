@@ -954,7 +954,6 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import qualified Debug.Trace as TR
 
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
@@ -3146,8 +3145,7 @@ toMetadataEncrypted
 toMetadataEncrypted apiEncrypt payload = do
     msgValues <- findMsgValues
     msgValues' <- mapM encryptingMsg msgValues
-    encrypted <- encrypt . toBytes $ payload
-    TR.trace ("msgValues: "<> show msgValues<>"msgValues': "<> show msgValues'<>"\nfindMsgValue1: "<> show findMsgValue1) $ pure $ toMetadata encrypted
+    pure $ updateTxMetadata msgValues'
   where
     ((secretKey,iv), encMethod) = unwrapApiMetadata apiEncrypt
 
@@ -3165,15 +3163,6 @@ toMetadataEncrypted apiEncrypt payload = do
     inspectMetaPair (Cardano.TxMetaMap pairs) =
         foldl merge Nothing (getMsgValue <$> pairs)
     inspectMetaPair _ = Nothing
-    mapMetaPair val Nothing = val
-    mapMetaPair _ (Just val) =
-        Cardano.TxMetaBytes $
-        BL.toStrict $
-        Aeson.encode $
-        Cardano.metadataValueToJsonNoSchema val
-    adjustVals val =
-        let temp = inspectMetaPair val
-        in mapMetaPair val temp
     findMsgValues =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filter (isJust . inspectMetaPair) themap
@@ -3188,13 +3177,22 @@ toMetadataEncrypted apiEncrypt payload = do
                     BL.toStrict $
                     Aeson.encode $
                     Cardano.metadataValueToJsonNoSchema metaValue
-                toPair enc =
-                    ( Cardano.TxMetaText metaField
-                    , Cardano.TxMetaList (map Cardano.TxMetaText $ flip toTextChunks [] $ toBase64Text enc)
+                encMethodEntry =
+                    ( Cardano.TxMetaText "enc"
+                    , case encMethod of
+                          ChaChaPoly1305 -> Cardano.TxMetaText  "chachapoly1305"
+                          AES256CBC -> Cardano.TxMetaText "base"
                     )
+                toPair enc =
+                    [ ( Cardano.TxMetaText metaField
+                      , Cardano.TxMetaList
+                        ( map Cardano.TxMetaText $ flip toTextChunks [] $ toBase64Text enc )
+                      )
+                    , encMethodEntry
+                    ]
             in mapRight toPair encrypted
-        else Right pair
-    encryptPairIfQualifies pair = Right pair
+        else Right [pair]
+    encryptPairIfQualifies pair = Right [pair]
     toBase64Text = T.decodeUtf8 . convertToBase Base64
     toTextChunks txt res =
         if txt == T.empty then
@@ -3203,31 +3201,17 @@ toMetadataEncrypted apiEncrypt payload = do
             let (front, back) = T.splitAt 64 txt
             in toTextChunks back (front:res)
     encryptingMsg (key, Cardano.TxMetaMap pairs) = do
-        pair' <- mapM encryptPairIfQualifies pairs
-        pure (key, Cardano.TxMetaMap pair')
+        pairs' <- mapM encryptPairIfQualifies pairs
+        pure (key, Cardano.TxMetaMap $ concat pairs')
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
-    findMsgValue1 =
-        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
-        in Map.map adjustVals themap
 
-    toBytes = BL.toStrict . Aeson.encode
+    updateTxMetadata =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        in Cardano.TxMetadata . foldr (\(k,v) -> Map.insert k v) themap
 
     encrypt = case encMethod of
         ChaChaPoly1305 -> Right . ChaChaPoly1305.encrypt secretKey encryptionNonce
         AES256CBC -> mapLeft ErrConstructTxEncryptMetadata . AES256CBC.encrypt secretKey iv
-
-    toChunks bs res =
-        if bs == BS.empty then
-            reverse res
-        else
-            let (front, back) = BS.splitAt 64 bs
-            in toChunks back (front:res)
-    toMetadata =
-        Cardano.TxMetadata .
-        Map.fromList .
-        zipWith (,) [0..] .
-        map Cardano.TxMetaBytes .
-        flip toChunks []
 
 unwrapApiMetadata
     :: ApiEncryptMetadata
