@@ -1,23 +1,25 @@
-############################################################################
+###############################################################################
 # Release package
 #
 # This bundles up the build of the given exes, with their
 # dependencies, and sets up the Hydra build artifact.
 #
-############################################################################
+###############################################################################
 
 { pkgs
+, walletLib
 , platform
 , exes
 , format
 }:
 
 let
-  inherit (pkgs) lib cardanoWalletLib;
+  inherit (pkgs) lib;
 
   exe = assert lib.assertMsg (lib.length exes > 0) "empty list of exes";
     lib.head exes;
-  name = "${cardanoWalletLib.versionTag exe.meta.name}-${platform}";
+  name =
+    "${walletLib.gitTagFromCabalVersion exe.meta.name}-${platform}";
 
   makeTarball = format == "tar.gz";
   makeZip = format == "zip";

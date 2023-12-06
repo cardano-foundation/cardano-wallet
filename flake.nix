@@ -334,6 +334,7 @@
               linux64.release =
                 import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = linuxReleaseExes;
                   platform = "linux64";
                   format = "tar.gz";
@@ -345,6 +346,7 @@
                 in {
                   release = import ./nix/release-package.nix {
                     inherit pkgs;
+                    walletLib = lib;
                     exes = [
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
@@ -371,6 +373,7 @@
               macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
@@ -385,6 +388,7 @@
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
