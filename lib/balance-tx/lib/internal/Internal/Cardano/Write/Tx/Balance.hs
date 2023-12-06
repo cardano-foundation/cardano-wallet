@@ -683,7 +683,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
-                (CardanoApi.fromMaryValue balance0)
+                balance0
                 (Convert.toWalletCoin minfee0)
                 randomSeed
                 genChange
@@ -947,7 +947,7 @@ selectAssets
     -> UTxOSelection WalletUTxO
     -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
     -- inputs or collateral.
-    -> CardanoApi.Value
+    -> Value
     -- ^ Balance to cover.
     -> W.Coin
     -- ^ Current minimum fee (before selecting assets).
@@ -1034,7 +1034,7 @@ selectAssets pp utxoAssumptions outs' redeemers
         }
       where
         (balancePositive, balanceNegative) =
-            posAndNegFromCardanoApiValue balance
+            posAndNegFromCardanoApiValue (CardanoApi.fromMaryValue balance)
         valueOfOutputs = F.foldMap' (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
