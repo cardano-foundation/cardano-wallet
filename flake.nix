@@ -213,7 +213,8 @@
 
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
           nodeProject = cardano-node-runtime.project.${system};
-          cardano-address = cardano-addresses.packages.${system}."cardano-addresses-cli:exe:cardano-address";
+          cardanoAddrPkgs = cardano-addresses.packages.${system};
+          cardano-address = cardanoAddrPkgs."cardano-addresses-cli:exe:cardano-address";
 
           project = (import ./nix/haskell.nix
               CHaP
@@ -333,7 +334,7 @@
                 linuxReleaseExes = [
                   linuxPackages.cardano-wallet
                   linuxPackages.bech32
-                  # linuxPackages.cardano-address
+                  cardanoAddrPkgs."x86_64-unknown-linux-musl:cardano-addresses-cli:exe:cardano-address"
                   nodePkgs.hydraJobs.musl.cardano-cli
                   nodePkgs.hydraJobs.musl.cardano-node
                 ];
@@ -341,7 +342,7 @@
                 checkReleaseContents = jobs: map (exe: jobs.${exe}) [
                   "cardano-wallet"
                   "bech32"
-                  # "cardano-address"
+                  "cardano-address"
                   "cardano-cli"
                   "cardano-node"
                 ];
@@ -363,7 +364,7 @@
                     exes = [
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
-                      # windowsPackages.cardano-address
+                      cardanoAddrPkgs."x86_64-w64-mingw32:cardano-addresses-cli:exe:cardano-address"
                       nodePkgs.hydraJobs.windows.cardano-cli
                       nodePkgs.hydraJobs.windows.cardano-node
                     ];
