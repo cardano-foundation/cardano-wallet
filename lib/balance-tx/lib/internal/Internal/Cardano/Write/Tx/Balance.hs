@@ -15,7 +15,6 @@
 {-# LANGUAGE TypeApplications #-}
 
 {- HLINT ignore "Use ||" -}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
@@ -280,8 +279,6 @@ import Text.Pretty.Simple
     )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
@@ -1697,6 +1694,3 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)
-
-fromCardanoApiValue :: CardanoApi.Value -> W.TokenBundle
-fromCardanoApiValue = Convert.toWalletTokenBundle . CardanoApi.toMaryValue
