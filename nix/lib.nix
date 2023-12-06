@@ -32,6 +32,11 @@ rec {
     setEmptyAttrsWithCondition
       (path: !lib.any (name: name == "unit" || name == "test") path);
 
+  /* Recursively remove all attributes named `recurseForDerivations`.
+  */
+  removeRecurse =
+    lib.filterAttrsRecursive (n: _: n != "recurseForDerivations");
+
   /* Recursively traces an attrset as it's evaluated.
      This is helpful for debugging large attribute sets.
   */

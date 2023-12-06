@@ -153,7 +153,6 @@
       lib = import ./nix/lib.nix nixpkgs.lib;
       config = import ./nix/config.nix nixpkgs.lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;
-      removeRecurse = lib.filterAttrsRecursive (n: _: n != "recurseForDerivations");
       inherit (iohkNix.lib) evalService;
 
       # Definitions
@@ -246,9 +245,10 @@
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
                 # `tests` are the test suites which have been built.
-                tests = removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
+                tests =
+                  lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                 # `checks` are the result of executing the tests.
-                checks = removeRecurse (
+                checks = lib.removeRecurse (
                   lib.recursiveUpdate
                     (collectChecks isProjectPackage coveredProject.hsPkgs)
                     # Run the integration tests in the previous era too:
@@ -274,7 +274,8 @@
                     )
                 );
                 # `benchmarks` are only built, not run.
-                benchmarks = removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+                benchmarks =
+                  lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
               };
             in
             self;
