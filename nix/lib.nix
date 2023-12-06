@@ -5,6 +5,9 @@ lib
 :
 
 {
+  # Imports from nixpkgs.lib
+  inherit (lib) filterAttrsRecursive recursiveUpdate collect 
+                optionalAttrs mapAttrs isDerivation;
 
   /* Recursively traces an attrset as it's evaluated.
      This is helpful for debugging large attribute sets.

@@ -149,13 +149,17 @@
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
               ... }:
     let
-      inherit (nixpkgs) lib;
-      config = import ./nix/config.nix lib customConfig;
+      # Import libraries      
+      lib = import ./nix/lib.nix nixpkgs.lib;
+      config = import ./nix/config.nix nixpkgs.lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;
       removeRecurse = lib.filterAttrsRecursive (n: _: n != "recurseForDerivations");
       inherit (iohkNix.lib) evalService;
+
+      # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
       defaultSystem = lib.head supportedSystems;
+
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
