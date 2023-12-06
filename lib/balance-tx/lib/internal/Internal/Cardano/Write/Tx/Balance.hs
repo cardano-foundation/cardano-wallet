@@ -948,8 +948,10 @@ selectAssets
     -> UTxOSelection WalletUTxO
     -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
     -- inputs or collateral.
-    -> CardanoApi.Value -- Balance to cover
-    -> W.Coin -- Current minfee (before selecting assets)
+    -> CardanoApi.Value
+    -- ^ Balance to cover.
+    -> W.Coin
+    -- ^ Current minimum fee (before selecting assets).
     -> StdGenSeed
     -> ChangeAddressGen changeState
     -> SelectionStrategy
