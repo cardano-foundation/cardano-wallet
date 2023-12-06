@@ -42,8 +42,8 @@ import Cardano.Ledger.Shelley.TxWits
     , scriptWits
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toWalletScript
-    , toWalletAssetName
+    ( toWalletAssetName
+    , toWalletScript
     , toWalletTokenPolicyId
     , toWalletTokenQuantity
     )

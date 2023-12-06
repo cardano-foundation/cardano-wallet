@@ -26,7 +26,7 @@ import GHC.Generics
 data AssetId = AssetId
     { tokenPolicyId
         :: !TokenPolicyId
-    , tokenName
+    , assetName
         :: !AssetName
     }
     deriving stock (Eq, Generic, Ord, Read, Show)

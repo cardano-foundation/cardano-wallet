@@ -78,7 +78,7 @@ instance Function AssetIdF where
     function = functionMap show read
 
 instance CoArbitrary AssetIdF where
-    coarbitrary (AssetIdF AssetId {tokenName, tokenPolicyId}) genB = do
-        let n = fromMaybe 0 (elemIndex tokenName testAssetNames)
+    coarbitrary (AssetIdF AssetId {assetName, tokenPolicyId}) genB = do
+        let n = fromMaybe 0 (elemIndex assetName testAssetNames)
         let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
         variant (n + m) genB

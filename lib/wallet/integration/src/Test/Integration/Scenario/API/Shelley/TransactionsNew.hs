@@ -1328,12 +1328,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrsMint <- listAddresses @n ctx wa
         let addrMint = (addrsMint !! 1) ^. #id
-        let Right tokenName' = AssetName.fromByteString "ab12"
+        let Right assetName' = AssetName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_id": #{toText policyId'},
                     "reference_input": #{toJSON refInp},
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{addrMint},
@@ -1361,7 +1361,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 unScriptHash $
                 toScriptHash scriptUsed
         let tokens' = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
+                (AssetId tokenPolicyId' assetName')
                 (TokenQuantity 1_000)
 
         eventually "wallet holds minted assets" $ do
@@ -1379,7 +1379,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "mint_burn": [{
                     "policy_id": #{toText policyId'},
                     "reference_input": #{toJSON refInp},
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "burn" :
                               { "quantity": 1000
@@ -1608,7 +1608,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokenPolicyId' =
                 UnsafeTokenPolicyId $ Hash
                 "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I"
-        let tokenName' = UnsafeAssetName "HappyCoin"
+        let assetName' = UnsafeAssetName "HappyCoin"
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
@@ -1619,10 +1619,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let scriptUsed = RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
 
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
-                { assetName = ApiT tokenName'
+                { assetName = ApiT assetName'
                 , quantity = 50_000
                 , fingerprint =
-                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                    ApiT $ mkTokenFingerprint tokenPolicyId' assetName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
@@ -1860,13 +1860,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let tokenName' = UnsafeAssetName "ReferencePlutusScriptAsset"
+        let assetName' = UnsafeAssetName "ReferencePlutusScriptAsset"
         let tokenPolicyId' = UnsafeTokenPolicyId $ Hash plutusScriptHash
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
-                { assetName = ApiT tokenName'
+                { assetName = ApiT assetName'
                 , quantity = 1
                 , fingerprint =
-                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                    ApiT $ mkTokenFingerprint tokenPolicyId' assetName'
                 }
         let refScript = AnyScriptReference (ScriptHash plutusScriptHash) [refInp]
         let apiTokens = ApiTokens
@@ -2006,14 +2006,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let tokenName' = UnsafeAssetName "ReferenceSimpleScriptAsset"
+        let assetName' = UnsafeAssetName "ReferenceSimpleScriptAsset"
         let (ScriptHash nativeScriptHash) = toScriptHash nativeScript
         let tokenPolicyId' = UnsafeTokenPolicyId $ Hash nativeScriptHash
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
-                { assetName = ApiT tokenName'
+                { assetName = ApiT assetName'
                 , quantity = 1
                 , fingerprint =
-                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                    ApiT $ mkTokenFingerprint tokenPolicyId' assetName'
                 }
         let refScript = AnyScriptReference (ScriptHash nativeScriptHash) [refInp]
         let apiTokens = ApiTokens
@@ -3800,7 +3800,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString "ab12"
+        let (Right assetName') = AssetName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [{
@@ -3809,7 +3809,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                            [ "cosigner#0"
                            ]
                         },
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
@@ -3823,7 +3823,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetsCheck ctx wa tokenName' payload scriptUsed
+        mintAssetsCheck ctx wa assetName' payload scriptUsed
 
     it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
        \successful as validity interval is inside time interval \
@@ -3840,7 +3840,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString "ab12"
+        let (Right assetName') = AssetName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3862,7 +3862,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                              { "active_until": #{sl + 11} }
                            ]
                         },
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "mint" :
                               { "receiving_address": #{destination},
@@ -3877,7 +3877,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ActiveUntilSlot (fromIntegral $ sl + 11)
                 ]
 
-        mintAssetsCheck ctx wa tokenName' payload scriptUsed
+        mintAssetsCheck ctx wa assetName' payload scriptUsed
 
     it "TRANS_NEW_CREATE_10e - \
         \Minting assets with timelocks not successful as validity interval \
@@ -3894,7 +3894,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString "ab12"
+        let (Right assetName') = AssetName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3917,7 +3917,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 , { "active_from": 5 }
                                 ]
                             }
-                        , "asset_name": #{toText tokenName'}
+                        , "asset_name": #{toText assetName'}
                         , "operation":
                             { "mint":
                                 { "receiving_address": #{destination}
@@ -3943,7 +3943,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString "ab12"
+        let (Right assetName') = AssetName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_script_template":
@@ -3951,7 +3951,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             [ "cosigner#0"
                             ]
                         },
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "mint" :
                             { "receiving_address": #{destination},
@@ -3965,7 +3965,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetsCheck ctx wa tokenName' payloadMint scriptUsed
+        mintAssetsCheck ctx wa assetName' payloadMint scriptUsed
 
         let payloadBurn = Json [json|{
                 "mint_burn": [{
@@ -3974,7 +3974,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             [ "cosigner#0"
                             ]
                         },
-                    "asset_name": #{toText tokenName'},
+                    "asset_name": #{toText assetName'},
                     "operation":
                         { "burn" :
                             { "quantity": 50000
@@ -3983,7 +3983,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
+        burnAssetsCheck ctx wa assetName' payloadBurn scriptUsed
 
     it "TRANS_NEW_CREATE_10g - Burning assets without timelock and token name" $
         \ctx -> runResourceT $ do
@@ -3992,7 +3992,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString ""
+        let (Right assetName') = AssetName.fromByteString ""
         let payloadMint = Json [json|{
                 "mint_burn": [
                     { "policy_script_template":
@@ -4014,7 +4014,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ RequireSignatureOf policyKeyHash
                 ]
 
-        mintAssetsCheck ctx wa tokenName' payloadMint scriptUsed
+        mintAssetsCheck ctx wa assetName' payloadMint scriptUsed
 
         let payloadBurn = Json [json|{
                 "mint_burn": [{
@@ -4031,7 +4031,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        burnAssetsCheck ctx wa tokenName' payloadBurn scriptUsed
+        burnAssetsCheck ctx wa assetName' payloadBurn scriptUsed
 
     it "TRANS_NEW_CREATE_10h - \
         \Minting assets without timelock to foreign address" $
@@ -4041,7 +4041,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wForeign
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = AssetName.fromByteString "ab12"
+        let (Right assetName') = AssetName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [
@@ -4050,7 +4050,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                            [ "cosigner#0"
                            ]
                         }
-                    , "asset_name": #{toText tokenName'}
+                    , "asset_name": #{toText assetName'}
                     , "operation":
                         { "mint":
                             { "receiving_address": #{destination}
@@ -4067,7 +4067,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         (initialBalance, expectedFee, tokens') <-
             mintAssetsCheckWithoutBalanceCheck
-                ctx wa tokenName' payload scriptUsed
+                ctx wa assetName' payload scriptUsed
 
         let minutxo = (minUTxOValue (_mainEra ctx) :: Natural)
         -- we are sending to external address and it must be more than minimum
@@ -5005,7 +5005,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> (KeyHash -> Script KeyHash)
         -> m (Natural, Natural, TokenMap.TokenMap)
     mintAssetsCheckWithoutBalanceCheck
-        ctx wa tokenName' payload scriptUsedF = do
+        ctx wa assetName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -5038,14 +5038,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 unScriptHash $
                 toScriptHash scriptUsed
         let tokens' = TokenMap.singleton
-                (AssetId tokenPolicyId' tokenName')
+                (AssetId tokenPolicyId' assetName')
                 (TokenQuantity 50_000)
 
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
-                { assetName = ApiT tokenName'
+                { assetName = ApiT assetName'
                 , quantity = 50_000
                 , fingerprint =
-                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                    ApiT $ mkTokenFingerprint tokenPolicyId' assetName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
@@ -5103,11 +5103,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m ()
-    mintAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+    mintAssetsCheck ctx wa assetName' payload scriptUsedF = do
 
         (initialBalance, expectedFee, tokens') <-
             mintAssetsCheckWithoutBalanceCheck
-                ctx wa tokenName' payload scriptUsedF
+                ctx wa assetName' payload scriptUsedF
 
         eventually
             "Wallet balance is decreased by fee and holds minted assets" $ do
@@ -5132,7 +5132,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m ()
-    burnAssetsCheck ctx wa tokenName' payload scriptUsedF = do
+    burnAssetsCheck ctx wa assetName' payload scriptUsedF = do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -5154,10 +5154,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $ toScriptHash scriptUsed
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
-                { assetName = ApiT tokenName'
+                { assetName = ApiT assetName'
                 , quantity = 50_000
                 , fingerprint =
-                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                    ApiT $ mkTokenFingerprint tokenPolicyId' assetName'
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'

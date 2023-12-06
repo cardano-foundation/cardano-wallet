@@ -314,8 +314,8 @@ estimateTxSize skeleton =
     -- We consider "native asset" to just be the "multiasset<uint>" part of the
     -- above, hence why we don't also include the size of the coin. Where this
     -- is used, the size of the coin and array are are added too.
-    sizeOf_NativeAsset W.AssetId {tokenName}
-        = sizeOf_MultiAsset sizeOf_LargeUInt tokenName
+    sizeOf_NativeAsset W.AssetId {assetName}
+        = sizeOf_MultiAsset sizeOf_LargeUInt assetName
 
     -- multiasset<a> = { * policy_id => { * asset_name => a } }
     -- policy_id = scripthash

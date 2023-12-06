@@ -396,7 +396,7 @@ instance IsServerError ErrMkTransaction where
                 , ". Token policy identifier: "
                 , pretty (view (#asset . #tokenPolicyId) e)
                 , ". Asset name: "
-                , pretty (view (#asset . #tokenName) e)
+                , pretty (view (#asset . #assetName) e)
                 , ". Token quantity specified: "
                 , pretty (view #quantity e)
                 , ". Maximum allowable token quantity: "

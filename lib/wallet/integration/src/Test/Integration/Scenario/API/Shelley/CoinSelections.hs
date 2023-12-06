@@ -364,9 +364,9 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let assetCount = 1_280
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"
-            let tokenNames = UnsafeAssetName . T.encodeUtf8 . T.singleton <$>
+            let assetNames = UnsafeAssetName . T.encodeUtf8 . T.singleton <$>
                     ['a' ..]
-            let assetIds = AssetId policyId <$> take assetCount tokenNames
+            let assetIds = AssetId policyId <$> take assetCount assetNames
             let nonAdaQuantities = TokenMap.fromFlatList $
                     (, TokenQuantity 1) <$> assetIds
             sourceWallet <- fixtureWallet ctx

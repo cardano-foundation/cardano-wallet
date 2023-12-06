@@ -55,8 +55,8 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata
     )
 import Cardano.Wallet.Faucet
-    ( seaHorsePolicyId
-    , seaHorseAssetName
+    ( seaHorseAssetName
+    , seaHorsePolicyId
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
