@@ -279,7 +279,6 @@ import Internal.Cardano.Write.Tx.Balance
     , maximumCostOfIncreasingCoin
     , mergeSignedValue
     , noTxUpdate
-    , posAndNegFromCardanoApiValue
     , sizeOfCoin
     , splitSignedValue
     , updateTx
@@ -546,10 +545,6 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                     & tabulateOverestimation
 
     balanceTransactionGoldenSpec
-
-    describe "posAndNegFromCardanoApiValue" $
-        it "roundtrips with toCardanoApiValue" $
-            property prop_posAndNegFromCardanoApiValueRoundtrip
 
     describe "change address generation" $ do
         let balance' =
@@ -1905,16 +1900,6 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
     mres = distributeSurplusDelta
         feePolicy surplus (TxFeeAndChange fee0 change0)
     maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
-
-prop_posAndNegFromCardanoApiValueRoundtrip :: Property
-prop_posAndNegFromCardanoApiValueRoundtrip =
-    forAll CardanoApi.genSignedValue $ \v ->
-    let
-        (pos, neg) = posAndNegFromCardanoApiValue v
-    in
-        walletToCardanoValue pos <>
-        (CardanoApi.negateValue (walletToCardanoValue neg))
-        === v
 
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997

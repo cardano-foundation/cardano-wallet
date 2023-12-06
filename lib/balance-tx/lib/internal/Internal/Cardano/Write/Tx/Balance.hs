@@ -15,6 +15,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 {- HLINT ignore "Use ||" -}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
@@ -54,7 +55,6 @@ module Internal.Cardano.Write.Tx.Balance
     , constructUTxOIndex
 
     -- * Utilities
-    , posAndNegFromCardanoApiValue
     , fromWalletUTxO
     , toWalletUTxO
     , splitSignedValue
@@ -145,10 +145,6 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State
     ( runState
     , state
-    )
-import Data.Bifunctor
-    ( bimap
-    , second
     )
 import Data.Bits
     ( Bits
@@ -328,7 +324,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
-import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
@@ -1140,19 +1135,6 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
         addr <- state genChange
         pure $ W.TxOut (Convert.toWalletAddress addr) bundle
     pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
-
--- | Convert a 'CardanoApi.Value' into a positive and negative component. Useful
--- to convert the potentially negative balance of a partial tx into
--- TokenBundles.
-posAndNegFromCardanoApiValue
-    :: CardanoApi.Value
-    -> (W.TokenBundle, W.TokenBundle)
-posAndNegFromCardanoApiValue
-    = bimap
-        (fromCardanoApiValue . CardanoApi.valueFromList)
-        (fromCardanoApiValue . CardanoApi.valueFromList . L.map (second negate))
-    . L.partition ((>= 0) . snd)
-    . CardanoApi.valueToList
 
 unsafeIntCast
     :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
