@@ -160,14 +160,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address
     , AddressState
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -221,7 +221,7 @@ import Web.HttpApiData
     )
 
 import qualified Cardano.Wallet.Api as Api
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 
 --
 -- Wallets
@@ -582,10 +582,10 @@ getAsset
         )
     => w
     -> TokenPolicyId
-    -> TokenName
+    -> AssetName
     -> (Method, Text)
 getAsset w pid n
-    | n == TokenName.empty = endpoint @Api.GetAssetDefault mkURLDefault
+    | n == AssetName.empty = endpoint @Api.GetAssetDefault mkURLDefault
     | otherwise = endpoint @Api.GetAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)
@@ -609,10 +609,10 @@ getByronAsset
         )
     => w
     -> TokenPolicyId
-    -> TokenName
+    -> AssetName
     -> (Method, Text)
 getByronAsset w pid n
-    | n == TokenName.empty = endpoint @Api.GetByronAssetDefault mkURLDefault
+    | n == AssetName.empty = endpoint @Api.GetByronAssetDefault mkURLDefault
     | otherwise = endpoint @Api.GetByronAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)

@@ -145,11 +145,11 @@ import Numeric.Natural
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
@@ -314,11 +314,11 @@ instance ToJSON (ApiT AnyExplicitScript) where
                 , "reference" .= toJSON refInput
                 ]
 
-instance FromJSON (ApiT W.TokenName) where
+instance FromJSON (ApiT W.AssetName) where
     parseJSON = withText "AssetName"
-        (fmap (ApiT . W.UnsafeTokenName) . eitherToParser . fromHexText)
-instance ToJSON (ApiT W.TokenName) where
-    toJSON = toJSON . hexText . W.unTokenName . getApiT
+        (fmap (ApiT . W.UnsafeAssetName) . eitherToParser . fromHexText)
+instance ToJSON (ApiT W.AssetName) where
+    toJSON = toJSON . hexText . W.unAssetName . getApiT
 
 instance FromJSON (ApiT W.TokenFingerprint) where
     parseJSON = fromTextApiT "TokenFingerprint"

@@ -74,12 +74,12 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
     ( AssetId (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
@@ -314,8 +314,8 @@ estimateTxSize skeleton =
     -- We consider "native asset" to just be the "multiasset<uint>" part of the
     -- above, hence why we don't also include the size of the coin. Where this
     -- is used, the size of the coin and array are are added too.
-    sizeOf_NativeAsset W.AssetId {tokenName}
-        = sizeOf_MultiAsset sizeOf_LargeUInt tokenName
+    sizeOf_NativeAsset W.AssetId {assetName}
+        = sizeOf_MultiAsset sizeOf_LargeUInt assetName
 
     -- multiasset<a> = { * policy_id => { * asset_name => a } }
     -- policy_id = scripthash
@@ -329,7 +329,7 @@ estimateTxSize skeleton =
 
     -- asset_name = bytes .size (0..32)
     sizeOf_AssetName name
-        = 2 + fromIntegral (BS.length $ W.unTokenName name)
+        = 2 + fromIntegral (BS.length $ W.unAssetName name)
 
     -- Coins can really vary so it's very punishing to always assign them the
     -- upper bound. They will typically be between 3 and 9 bytes (only 6 bytes

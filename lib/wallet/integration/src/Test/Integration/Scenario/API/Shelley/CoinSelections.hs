@@ -41,11 +41,11 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -329,7 +329,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     it "WALLETS_COIN_SELECTION_07 - \
         \Single output with excessively high token quantity." $
         \ctx -> runResourceT $ do
-            let assetName = UnsafeTokenName "1"
+            let assetName = UnsafeAssetName "1"
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"
             let adaQuantity = Quantity . minUTxOValue $ _mainEra ctx
@@ -364,9 +364,9 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let assetCount = 1_280
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"
-            let tokenNames = UnsafeTokenName . T.encodeUtf8 . T.singleton <$>
+            let assetNames = UnsafeAssetName . T.encodeUtf8 . T.singleton <$>
                     ['a' ..]
-            let assetIds = AssetId policyId <$> take assetCount tokenNames
+            let assetIds = AssetId policyId <$> take assetCount assetNames
             let nonAdaQuantities = TokenMap.fromFlatList $
                     (, TokenQuantity 1) <$> assetIds
             sourceWallet <- fixtureWallet ctx

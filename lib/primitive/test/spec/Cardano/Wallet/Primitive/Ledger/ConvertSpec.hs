@@ -19,6 +19,12 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toLedgerTimelockScript
     , toWalletScript
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
+    ( genAssetNameLargeRange
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -28,12 +34,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
-    )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
-    ( genTokenNameLargeRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -105,7 +105,7 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec" $
 
         ledgerRoundtrip $ Proxy @Coin
         ledgerRoundtrip $ Proxy @TokenBundle
-        ledgerRoundtrip $ Proxy @TokenName
+        ledgerRoundtrip $ Proxy @AssetName
         ledgerRoundtrip $ Proxy @TokenPolicyId
         ledgerRoundtrip $ Proxy @TokenQuantity
         ledgerRoundtrip $ Proxy @TxIn
@@ -152,8 +152,8 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
 
-instance Arbitrary TokenName where
-    arbitrary = genTokenNameLargeRange
+instance Arbitrary AssetName where
+    arbitrary = genAssetNameLargeRange
     -- No shrinking
 
 instance Arbitrary TokenPolicyId where

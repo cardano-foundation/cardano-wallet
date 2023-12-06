@@ -585,6 +585,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -601,9 +604,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     , fromFlatList
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -890,9 +890,9 @@ import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx
     , sealedTxFromCardano
@@ -2235,7 +2235,7 @@ getAsset
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
-    -> ApiT TokenName
+    -> ApiT AssetName
     -> Handler ApiAsset
 getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
     assetId <- liftHandler . findAsset =<< listAssetsBase ctx wid
@@ -2245,7 +2245,7 @@ getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
         . F.find (== (AssetId policyId assetName))
     client = ctx ^. tokenMetadataClient
 
--- | The handler for 'getAsset' when 'TokenName' is empty.
+-- | The handler for 'getAsset' when 'AssetName' is empty.
 getAssetDefault
     :: forall ctx s .
         ( ctx ~ ApiLayer s
@@ -2256,7 +2256,7 @@ getAssetDefault
     -> ApiT WalletId
     -> ApiT TokenPolicyId
     -> Handler ApiAsset
-getAssetDefault ctx wid pid = getAsset ctx wid pid (ApiT TokenName.empty)
+getAssetDefault ctx wid pid = getAsset ctx wid pid (ApiT AssetName.empty)
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -2943,11 +2943,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
           where
             updateFromScript :: ApiMintBurnDataFromScript n -> ApiMintBurnDataFromScript n
             updateFromScript mbd = case mbd ^. #assetName of
-                Nothing -> mbd {assetName = Just (ApiT TokenName.empty)}
+                Nothing -> mbd {assetName = Just (ApiT AssetName.empty)}
                 Just _ -> mbd
             updateFromInp :: ApiMintBurnDataFromInput n -> ApiMintBurnDataFromInput n
             updateFromInp mbd = case mbd ^. #assetName of
-                Nothing -> mbd {assetName = Just (ApiT TokenName.empty)}
+                Nothing -> mbd {assetName = Just (ApiT AssetName.empty)}
                 Just _ -> mbd
 
         guardWrongMintingTemplate
@@ -2972,10 +2972,10 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             when (any assetNameTooLong mbs)$ Left ErrConstructTxAssetNameTooLong
           where
             assetNameTooLong mb = case mb ^. #mintBurnData of
-                Left (ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                    BS.length bs > TokenName.maxLength
-                Right (ApiMintBurnDataFromInput _ _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                    BS.length bs > TokenName.maxLength
+                Left (ApiMintBurnDataFromScript _ (Just (ApiT (UnsafeAssetName bs))) _) ->
+                    BS.length bs > AssetName.maxLength
+                Right (ApiMintBurnDataFromInput _ _ (Just (ApiT (UnsafeAssetName bs))) _) ->
+                    BS.length bs > AssetName.maxLength
                 _ -> error "at this moment there should be asset name attributed"
 
         guardAssetQuantityOutOfBounds

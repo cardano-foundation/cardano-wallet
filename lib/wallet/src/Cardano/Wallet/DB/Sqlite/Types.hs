@@ -79,6 +79,9 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     , AddressState (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -87,9 +90,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -345,11 +345,11 @@ instance PathPiece TxId where
 -- Tokens
 --------------------------------------------------------------------------------
 
-instance PersistField TokenName where
+instance PersistField AssetName where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql TokenName where
+instance PersistFieldSql AssetName where
     sqlType _ = sqlType (Proxy @Text)
 
 instance PersistField TokenPolicyId where

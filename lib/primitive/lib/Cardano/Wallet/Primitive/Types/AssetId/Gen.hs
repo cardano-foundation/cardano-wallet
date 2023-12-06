@@ -13,11 +13,11 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
-    ( genTokenName
-    , genTokenNameLargeRange
-    , shrinkTokenName
-    , testTokenNames
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
+    ( genAssetName
+    , genAssetNameLargeRange
+    , shrinkAssetName
+    , testAssetNames
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     ( genTokenPolicyId
@@ -51,12 +51,12 @@ import Test.QuickCheck.Extra
 --------------------------------------------------------------------------------
 
 genAssetId :: Gen AssetId
-genAssetId = genSized2With AssetId genTokenPolicyId genTokenName
+genAssetId = genSized2With AssetId genTokenPolicyId genAssetName
 
 shrinkAssetId :: AssetId -> [AssetId]
 shrinkAssetId (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
     (p, shrinkTokenPolicyId)
-    (t, shrinkTokenName)
+    (t, shrinkAssetName)
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a large range (to minimize collisions)
@@ -65,7 +65,7 @@ shrinkAssetId (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
 genAssetIdLargeRange :: Gen AssetId
 genAssetIdLargeRange = AssetId
     <$> genTokenPolicyIdLargeRange
-    <*> genTokenNameLargeRange
+    <*> genAssetNameLargeRange
 
 --------------------------------------------------------------------------------
 -- Filtering functions
@@ -78,7 +78,7 @@ instance Function AssetIdF where
     function = functionMap show read
 
 instance CoArbitrary AssetIdF where
-    coarbitrary (AssetIdF AssetId {tokenName, tokenPolicyId}) genB = do
-        let n = fromMaybe 0 (elemIndex tokenName testTokenNames)
+    coarbitrary (AssetIdF AssetId {assetName, tokenPolicyId}) genB = do
+        let n = fromMaybe 0 (elemIndex assetName testAssetNames)
         let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
         variant (n + m) genB

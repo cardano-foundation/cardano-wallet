@@ -81,6 +81,9 @@ import Algebra.PartialOrd
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -89,9 +92,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     , Lexicographic (..)
     , Nested (..)
     , TokenMap
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -277,7 +277,7 @@ empty = mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
 --
 fromFlatList
@@ -288,17 +288,17 @@ fromFlatList c = TokenBundle c . TokenMap.fromFlatList
 
 -- | Creates a token bundle from a coin and a nested list of token quantities.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
 --
 fromNestedList
     :: Coin
-    -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
+    -> [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))]
     -> TokenBundle
 fromNestedList c = TokenBundle c . TokenMap.fromNestedList
 
 fromNestedMap
-    :: (Coin, Map TokenPolicyId (Map TokenName TokenQuantity))
+    :: (Coin, Map TokenPolicyId (Map AssetName TokenQuantity))
     -> TokenBundle
 fromNestedMap (c, m) = TokenBundle c (TokenMap.fromNestedMap m)
 

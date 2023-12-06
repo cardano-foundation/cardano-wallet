@@ -353,6 +353,12 @@ import Cardano.Wallet.Primitive.Types.AssetId
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
+    ( genAssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -388,12 +394,6 @@ import Cardano.Wallet.Primitive.Types.TokenMetadata
     , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
-    ( genTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -2170,7 +2170,7 @@ instance HasSNetworkId n => Arbitrary (ApiConstructTransaction n) where
 
 instance Arbitrary ApiTokenAmountFingerprint where
     arbitrary = do
-        name <- genTokenName
+        name <- genAssetName
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
         ApiTokenAmountFingerprint (ApiT name)
@@ -2253,7 +2253,7 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromScript n) where
                 ]
             ]
         <*> oneof
-            [ Just . ApiT <$> genTokenName
+            [ Just . ApiT <$> genAssetName
             , pure Nothing
             ]
         <*> arbitrary
@@ -2263,7 +2263,7 @@ instance HasSNetworkId n => Arbitrary (ApiMintBurnDataFromInput n) where
         <$> (ReferenceInput <$> arbitrary)
         <*> arbitrary
         <*> oneof
-            [ Just . ApiT <$> genTokenName
+            [ Just . ApiT <$> genAssetName
             , pure Nothing
             ]
         <*> arbitrary
@@ -2308,8 +2308,8 @@ instance Arbitrary ApiMintBurnInfo where
 instance Arbitrary TokenPolicyId where
     arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
 
-instance Arbitrary TokenName where
-    arbitrary = UnsafeTokenName . BS.pack <$> vector 32
+instance Arbitrary AssetName where
+    arbitrary = UnsafeAssetName . BS.pack <$> vector 32
 
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary

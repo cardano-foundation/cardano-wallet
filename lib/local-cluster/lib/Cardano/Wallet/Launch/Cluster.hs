@@ -161,14 +161,14 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)
@@ -2271,7 +2271,7 @@ sendFaucet tr config conn what targets = do
                     ++ map (("+ " ++) . cliAsset) (TokenMap.toFlatList tokens)
             ]
         cliAsset (aid, (TokenQuantity q)) = unwords [show q, cliAssetId aid]
-        cliAssetId (AssetId pid (UnsafeTokenName name)) =
+        cliAssetId (AssetId pid (UnsafeAssetName name)) =
             mconcat
                 [ T.unpack (toText pid)
                 , if B8.null name then "" else "."

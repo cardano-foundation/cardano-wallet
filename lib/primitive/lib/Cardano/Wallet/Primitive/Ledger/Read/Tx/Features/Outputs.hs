@@ -69,11 +69,11 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -157,12 +157,12 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
           | otherwise = internalError "negative token quantity"
 
     mkBundle assets =
-        [ (W.AssetId (mkPolicyId p) (mkTokenName n), mkQuantity q)
+        [ (W.AssetId (mkPolicyId p) (mkAssetName n), mkQuantity q)
         | (Cardano.AssetId p n, Cardano.Quantity q) <- assets
         ]
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
-    mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
+    mkAssetName = W.UnsafeAssetName . Cardano.serialiseToRawBytes
 
 fromByronTxOut :: Byron.TxOut -> W.TxOut
 fromByronTxOut (Byron.TxOut addr coin) = W.TxOut

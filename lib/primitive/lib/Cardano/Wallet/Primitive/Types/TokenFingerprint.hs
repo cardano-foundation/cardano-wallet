@@ -14,11 +14,11 @@ module Cardano.Wallet.Primitive.Types.TokenFingerprint
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (UnsafeTokenPolicyId)
@@ -70,11 +70,11 @@ newtype TokenFingerprint =
 
 instance NFData TokenFingerprint
 
--- | Construct a fingerprint from a 'TokenPolicyId' and 'TokenName'. The
+-- | Construct a fingerprint from a 'TokenPolicyId' and 'AssetName'. The
 -- fingerprint is not necessarily unique, but can be used in user-facing
 -- interfaces as a comparison mechanism.
-mkTokenFingerprint :: TokenPolicyId -> TokenName -> TokenFingerprint
-mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)
+mkTokenFingerprint :: TokenPolicyId -> AssetName -> TokenFingerprint
+mkTokenFingerprint (UnsafeTokenPolicyId (Hash p)) (UnsafeAssetName n)
     = (p <> n)
     & convert . hash @_ @Blake2b_160
     & Bech32.encodeLenient tokenFingerprintHrp . Bech32.dataPartFromBytes

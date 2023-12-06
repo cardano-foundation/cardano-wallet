@@ -14,6 +14,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -26,9 +29,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -241,13 +241,13 @@ testUTxOMapKeys = [0 ..]
 makeTestAssetId :: Natural -> AssetId
 makeTestAssetId n = AssetId
     (makeTestTokenPolicyId (n `div` 4))
-    (makeTestTokenName     (n `mod` 4))
+    (makeTestAssetName     (n `mod` 4))
 
 makeTestTokenPolicyId :: Natural -> TokenPolicyId
 makeTestTokenPolicyId = UnsafeTokenPolicyId . mockHash
 
-makeTestTokenName :: Natural -> TokenName
-makeTestTokenName = UnsafeTokenName . getHash . mockHash
+makeTestAssetName :: Natural -> AssetName
+makeTestAssetName = UnsafeAssetName . getHash . mockHash
 
 minimalCoin :: Coin
 minimalCoin = Coin 1

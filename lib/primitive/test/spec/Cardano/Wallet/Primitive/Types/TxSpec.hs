@@ -24,11 +24,11 @@ import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
     , shrinkAssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -235,8 +235,8 @@ instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
 
-deriving anyclass instance CoArbitrary TokenName
-deriving anyclass instance Function TokenName
+deriving anyclass instance CoArbitrary AssetName
+deriving anyclass instance Function AssetName
 
 deriving anyclass instance CoArbitrary TokenPolicyId
 deriving anyclass instance Function TokenPolicyId

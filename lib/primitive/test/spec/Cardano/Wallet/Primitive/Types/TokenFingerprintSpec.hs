@@ -4,15 +4,15 @@ module Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( TokenFingerprint (..)
     , mkTokenFingerprint
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -86,6 +86,6 @@ goldenTestCIP14
 goldenTestCIP14 rawPolicyId rawAssetName rawFingerprint =
     it ("golden test CIP-0014 - " <> T.unpack rawFingerprint) $ do
         let policyId = UnsafeTokenPolicyId $ Hash $ unsafeFromHex rawPolicyId
-        let assetName = UnsafeTokenName $ unsafeFromHex rawAssetName
+        let assetName = UnsafeAssetName $ unsafeFromHex rawAssetName
         let fingerprint = UnsafeTokenFingerprint rawFingerprint
         mkTokenFingerprint policyId assetName `shouldBe` fingerprint

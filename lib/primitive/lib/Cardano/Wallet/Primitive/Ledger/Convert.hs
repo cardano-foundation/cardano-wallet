@@ -19,7 +19,7 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toLedgerCoin
     , toLedgerTokenBundle
     , toLedgerTokenPolicyId
-    , toLedgerTokenName
+    , toLedgerAssetName
     , toLedgerTokenQuantity
     , toLedgerTimelockScript
 
@@ -28,7 +28,7 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toWalletCoin
     , toWalletTokenBundle
     , toWalletTokenPolicyId
-    , toWalletTokenName
+    , toWalletAssetName
     , toWalletTokenQuantity
     , toWalletScript
     , toWalletScriptFromShelley
@@ -61,6 +61,9 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -69,9 +72,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -198,7 +198,7 @@ toLedgerTokenBundle bundle =
         & Map.map mapInner
         & Ledger.MultiAsset
     mapInner inner = inner
-        & Map.mapKeys toLedgerTokenName
+        & Map.mapKeys toLedgerAssetName
         & Map.map toLedgerTokenQuantity
 
 toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
@@ -211,24 +211,24 @@ toWalletTokenBundle
         & Map.mapKeys toWalletTokenPolicyId
         & Map.map mapInner
     mapInner inner = inner
-        & Map.mapKeys toWalletTokenName
+        & Map.mapKeys toWalletAssetName
         & Map.map toWalletTokenQuantity
 
 --------------------------------------------------------------------------------
--- Conversions for 'TokenName'
+-- Conversions for 'AssetName'
 --------------------------------------------------------------------------------
 
-instance Convert TokenName Ledger.AssetName where
-    toLedger = toLedgerTokenName
-    toWallet = toWalletTokenName
+instance Convert AssetName Ledger.AssetName where
+    toLedger = toLedgerAssetName
+    toWallet = toWalletAssetName
 
-toLedgerTokenName :: TokenName -> Ledger.AssetName
-toLedgerTokenName (UnsafeTokenName bytes) =
+toLedgerAssetName :: AssetName -> Ledger.AssetName
+toLedgerAssetName (UnsafeAssetName bytes) =
     Ledger.AssetName $ toShort bytes
 
-toWalletTokenName :: Ledger.AssetName -> TokenName
-toWalletTokenName (Ledger.AssetName bytes) =
-    UnsafeTokenName $ fromShort bytes
+toWalletAssetName :: Ledger.AssetName -> AssetName
+toWalletAssetName (Ledger.AssetName bytes) =
+    UnsafeAssetName $ fromShort bytes
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TokenPolicyId'

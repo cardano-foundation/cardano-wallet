@@ -39,14 +39,14 @@ import Cardano.Wallet.Api.Types.Key
     )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( toNestedList
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -78,15 +78,15 @@ import Numeric.Natural
     ( Natural
     )
 
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
-    { assetName :: ApiT W.TokenName
+    { assetName :: ApiT W.AssetName
     , quantity :: Natural
     , fingerprint :: ApiT W.TokenFingerprint
     }
@@ -128,7 +128,7 @@ includePolicyKeyInfo (TokenMapWithScripts tokenMap _) xpubM =
         xpubM
 
 fromIdScriptAssets
-    :: ( TokenPolicyId , AnyScript, NE.NonEmpty (TokenName, TokenQuantity) )
+    :: ( TokenPolicyId , AnyScript, NE.NonEmpty (AssetName, TokenQuantity) )
     -> ApiTokens
 fromIdScriptAssets (policy, script, tokens') = ApiTokens
     { policyId = ApiT policy
@@ -138,7 +138,7 @@ fromIdScriptAssets (policy, script, tokens') = ApiTokens
 
 toTokenAmountFingerprint
     :: TokenPolicyId
-    -> (TokenName, TokenQuantity)
+    -> (AssetName, TokenQuantity)
     -> ApiTokenAmountFingerprint
 toTokenAmountFingerprint policy (name, tokenquantity) =
     ApiTokenAmountFingerprint
@@ -150,7 +150,7 @@ toTokenAmountFingerprint policy (name, tokenquantity) =
 toIdScriptAssets
     :: Map TokenPolicyId b
     -> TokenMap.TokenMap
-    -> [(TokenPolicyId, b, NE.NonEmpty (TokenName, TokenQuantity))]
+    -> [(TokenPolicyId, b, NE.NonEmpty (AssetName, TokenQuantity))]
 toIdScriptAssets scriptmap tokenmap =
     [ (policy, askForScript policy scriptmap, tokenQuantities)
     | (policy, tokenQuantities) <- toNestedList tokenmap

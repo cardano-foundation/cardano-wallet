@@ -87,8 +87,8 @@ import qualified Cardano.Wallet.Address.Discovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -202,7 +202,7 @@ TxOutToken
     txOutTokenTxId      TxId              sql=tx_id
     txOutTokenTxIndex   Word32            sql=tx_index
     txOutTokenPolicyId  W.TokenPolicyId   sql=token_policy_id
-    txOutTokenName      W.TokenName       sql=token_name
+    txOutTokenName      W.AssetName       sql=token_name
     txOutTokenQuantity  W.TokenQuantity   sql=token_quantity
 
     Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
@@ -239,7 +239,7 @@ TxCollateralOut
 TxCollateralOutToken
     txCollateralOutTokenTxId     TxId            sql=tx_id
     txCollateralOutTokenPolicyId W.TokenPolicyId sql=token_policy_id
-    txCollateralOutTokenName     W.TokenName     sql=token_name
+    txCollateralOutTokenName     W.AssetName     sql=token_name
     txCollateralOutTokenQuantity W.TokenQuantity sql=token_quantity
 
     Primary txCollateralOutTokenTxId txCollateralOutTokenPolicyId txCollateralOutTokenName
@@ -327,7 +327,7 @@ UTxOToken                               sql=utxo_token
     utxoTokenTxId      TxId             sql=tx_id
     utxoTokenTxIndex   Word32           sql=tx_index
     utxoTokenPolicyId  W.TokenPolicyId  sql=token_policy_id
-    utxoTokenName      W.TokenName      sql=token_name
+    utxoTokenName      W.AssetName      sql=token_name
     utxoTokenQuantity  W.TokenQuantity  sql=token_quantity
 
     Primary

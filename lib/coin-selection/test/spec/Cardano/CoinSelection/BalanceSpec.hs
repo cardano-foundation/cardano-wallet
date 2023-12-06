@@ -135,6 +135,12 @@ import Cardano.Wallet.Primitive.Types.AssetId.Gen
     , genAssetIdLargeRange
     , shrinkAssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
+    ( genAssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -162,12 +168,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMapSmallRange
     , shrinkTokenMap
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
-    ( genTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -530,13 +530,13 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_runRoundRobin_identity" $
             property $ prop_runRoundRobin_identity @Int
         it "prop_runRoundRobin_iterationCount" $
-            property $ prop_runRoundRobin_iterationCount @TokenName @Word8
+            property $ prop_runRoundRobin_iterationCount @AssetName @Word8
         it "prop_runRoundRobin_iterationOrder" $
-            property $ prop_runRoundRobin_iterationOrder @TokenName @Word8
+            property $ prop_runRoundRobin_iterationOrder @AssetName @Word8
         it "prop_runRoundRobin_generationCount" $
-            property $ prop_runRoundRobin_generationCount @TokenName @Word8
+            property $ prop_runRoundRobin_generationCount @AssetName @Word8
         it "prop_runRoundRobin_generationOrder" $
-            property $ prop_runRoundRobin_generationOrder @TokenName @Word8
+            property $ prop_runRoundRobin_generationOrder @AssetName @Word8
 
     describe "Utility functions" $ do
 
@@ -3124,13 +3124,13 @@ unit_makeChange =
         . fmap (second TokenQuantity)
 
     assetA :: AssetId
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "1")
 
     assetB :: AssetId
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeAssetName "")
 
     assetC :: AssetId
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "2")
 
 --------------------------------------------------------------------------------
 -- Collating non-user-specified asset quantities.
@@ -3418,7 +3418,7 @@ unit_assignCoinsToChangeMaps =
         . fmap (second TokenQuantity)
 
     assetA :: AssetId
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "1")
 
 --------------------------------------------------------------------------------
 -- Making change for coins
@@ -3523,7 +3523,7 @@ unit_makeChangeForNonUserSpecifiedAsset =
     m = TokenMap.fromFlatList
 
     assetA :: AssetId
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "1")
 
 --------------------------------------------------------------------------------
 -- Making change for multiple non-user-specified assets
@@ -3827,13 +3827,13 @@ unit_makeChangeForUserSpecifiedAsset =
     m = TokenMap.fromFlatList
 
     assetA :: AssetId
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "1")
 
     assetB :: AssetId
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeAssetName "")
 
     assetC :: AssetId
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeAssetName "2")
 
 --------------------------------------------------------------------------------
 -- Splitting bundles with excessive asset counts
@@ -4309,7 +4309,7 @@ matchSingletonList = \case
     _   -> Nothing
 
 mockAsset :: ByteString -> AssetId
-mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeTokenName "1")
+mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeAssetName "1")
 
 mockAssetQuantity :: ByteString -> Natural -> (AssetId, TokenQuantity)
 mockAssetQuantity a q = (mockAsset a, TokenQuantity q)
@@ -4375,8 +4375,8 @@ instance Arbitrary AssetId where
 instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
 
-instance Arbitrary (MockRoundRobinState TokenName Word8) where
-    arbitrary = genMockRoundRobinState genTokenName arbitrary
+instance Arbitrary (MockRoundRobinState AssetName Word8) where
+    arbitrary = genMockRoundRobinState genAssetName arbitrary
     shrink = shrinkMockRoundRobinState shrink
 
 instance Arbitrary TokenBundle where

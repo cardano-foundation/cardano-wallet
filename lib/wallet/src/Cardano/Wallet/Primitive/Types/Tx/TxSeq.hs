@@ -116,6 +116,9 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -124,9 +127,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
     ( StateDeltaSeq
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -543,7 +543,7 @@ shrinkTxIds s = mapTxIds toSimpleTxId s
 simpleAssetIds :: [AssetId]
 simpleAssetIds
     = AssetId (UnsafeTokenPolicyId $ Hash mempty)
-    . UnsafeTokenName
+    . UnsafeAssetName
     . T.encodeUtf8
     . T.pack
     . show <$> [0 :: Integer ..]

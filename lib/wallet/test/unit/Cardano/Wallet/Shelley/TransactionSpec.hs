@@ -107,6 +107,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName (UnsafeAssetName)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -127,9 +130,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (UnsafeTokenName)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -1629,7 +1629,7 @@ instance Arbitrary AssetId where
         -- asset, whereas the size of an asset name has a maximum of 32 bytes).
         -- So we create a generator here that forces the variable factor to
         -- dominate so we can test the sanity of the estimation algorithm.
-        <*> (UnsafeTokenName . BS.pack <$> vector 128)
+        <*> (UnsafeAssetName . BS.pack <$> vector 128)
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

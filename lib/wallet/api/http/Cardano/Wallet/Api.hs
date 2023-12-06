@@ -280,11 +280,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -538,7 +538,7 @@ type GetAsset = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "assets"
     :> Capture "policyId" (ApiT TokenPolicyId)
-    :> Capture "assetName" (ApiT TokenName)
+    :> Capture "assetName" (ApiT AssetName)
     :> Get '[JSON] ApiAsset
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/getAssetDefault
@@ -867,7 +867,7 @@ type GetByronAsset = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "assets"
     :> Capture "policyId" (ApiT TokenPolicyId)
-    :> Capture "assetName" (ApiT TokenName)
+    :> Capture "assetName" (ApiT AssetName)
     :> Get '[JSON] ApiAsset
 
 -- | https://cardano-foundation.github.io/cardano-wallet/api/#operation/getByronAssetDefault
