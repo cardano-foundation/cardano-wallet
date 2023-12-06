@@ -170,18 +170,6 @@
       };
       nixosModules.cardano-wallet = nixosModule;
 
-      # Helper functions for separating unit and integration tests
-      setEmptyAttrsWithCondition = cond:
-        lib.mapAttrsRecursiveCond
-          (value: !(lib.isDerivation value)) # do not modify attributes of derivations
-          (path: value: if cond path then {} else value);
-      keepIntegrationChecks =
-        setEmptyAttrsWithCondition
-          (path: !lib.any (lib.hasPrefix "integration") path);
-      keepUnitChecks =
-        setEmptyAttrsWithCondition
-          (path: !lib.any (name: name == "unit" || name == "test") path);
-
       # Define flake outputs for a particular system.
       mkOutputs = system:
         let
@@ -474,7 +462,7 @@
               meta.description = "Run unit tests";
               constituents =
                 lib.collect lib.isDerivation
-                  (keepUnitChecks packages.checks);
+                  (lib.keepUnitChecks packages.checks);
             };
           ci.tests.run.integration = pkgs.releaseTools.aggregate
             {
@@ -482,7 +470,7 @@
               meta.description = "Run integration tests";
               constituents =
                 lib.collect lib.isDerivation
-                  (keepIntegrationChecks packages.checks);
+                  (lib.keepIntegrationChecks packages.checks);
             };
         };
 
