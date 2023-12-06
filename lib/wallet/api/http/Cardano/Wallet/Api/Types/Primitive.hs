@@ -314,11 +314,11 @@ instance ToJSON (ApiT AnyExplicitScript) where
                 , "reference" .= toJSON refInput
                 ]
 
-instance FromJSON (ApiT W.TokenName) where
+instance FromJSON (ApiT W.AssetName) where
     parseJSON = withText "AssetName"
-        (fmap (ApiT . W.UnsafeTokenName) . eitherToParser . fromHexText)
-instance ToJSON (ApiT W.TokenName) where
-    toJSON = toJSON . hexText . W.unTokenName . getApiT
+        (fmap (ApiT . W.UnsafeAssetName) . eitherToParser . fromHexText)
+instance ToJSON (ApiT W.AssetName) where
+    toJSON = toJSON . hexText . W.unAssetName . getApiT
 
 instance FromJSON (ApiT W.TokenFingerprint) where
     parseJSON = fromTextApiT "TokenFingerprint"

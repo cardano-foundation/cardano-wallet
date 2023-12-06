@@ -56,7 +56,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     )
 import Cardano.Wallet.Faucet
     ( seaHorsePolicyId
-    , seaHorseTokenName
+    , seaHorseAssetName
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -234,7 +234,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.Aeson as Aeson
@@ -901,7 +901,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             responses <- forM sourceWallets $ \(wSrc, nPerAddr) -> do
                 let seaHorses = map $ \ix ->
                         (( toText seaHorsePolicyId
-                        , toText $ seaHorseTokenName ix)
+                        , toText $ seaHorseAssetName ix)
                         , 1)
                 payload <- mkTxPayloadMA @n
                     destAddr
@@ -1063,7 +1063,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let assName = TokenName.UnsafeTokenName $ B8.replicate 4 'x'
+        let assName = AssetName.UnsafeAssetName $ B8.replicate 4 'x'
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
@@ -1074,7 +1074,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
-        let ep = Link.getAsset wal polId TokenName.empty
+        let ep = Link.getAsset wal polId AssetName.empty
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r

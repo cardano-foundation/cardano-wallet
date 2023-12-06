@@ -329,7 +329,7 @@ estimateTxSize skeleton =
 
     -- asset_name = bytes .size (0..32)
     sizeOf_AssetName name
-        = 2 + fromIntegral (BS.length $ W.unTokenName name)
+        = 2 + fromIntegral (BS.length $ W.unAssetName name)
 
     -- Coins can really vary so it's very punishing to always assign them the
     -- upper bound. They will typically be between 3 and 9 bytes (only 6 bytes

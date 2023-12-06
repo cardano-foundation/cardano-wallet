@@ -43,7 +43,7 @@ import Cardano.Ledger.Shelley.TxWits
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
-    , toWalletTokenName
+    , toWalletAssetName
     , toWalletTokenPolicyId
     , toWalletTokenQuantity
     )
@@ -222,7 +222,7 @@ fromLedgerMintValue (MultiAsset ledgerTokens) = (assetsToMint, assetsToBurn)
         & TokenMap.fromNestedMap
 
     mapInner inner = inner
-        & Map.mapKeys toWalletTokenName
+        & Map.mapKeys toWalletAssetName
         & Map.map toWalletTokenQuantity
 
 fromMaryScriptMap

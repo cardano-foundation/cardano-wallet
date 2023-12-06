@@ -148,7 +148,7 @@ import Cardano.Wallet.Primitive.Types.Address
     , AddressState
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -863,7 +863,7 @@ instance ToExpr TokenBundle where
 instance ToExpr TokenMap where
     toExpr = genericToExpr . TokenMap.toNestedList
 
-instance ToExpr TokenName where
+instance ToExpr AssetName where
     toExpr = genericToExpr
 
 instance ToExpr TokenPolicyId where

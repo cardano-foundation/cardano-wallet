@@ -121,7 +121,7 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -565,7 +565,7 @@ errMsg403OutputTokenBundleSizeExceedsLimit
 errMsg403OutputTokenQuantityExceedsLimit
     :: Address
     -> TokenPolicyId
-    -> TokenName
+    -> AssetName
     -> TokenQuantity
     -- ^ Specified token quantity
     -> TokenQuantity

@@ -33,7 +33,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -1063,7 +1063,7 @@ mockAssetIds :: [AssetId]
 mockAssetIds =
     [ AssetId i n
     | i <- UnsafeTokenPolicyId . Hash . B8.singleton <$> ['0' .. '3']
-    , n <- UnsafeTokenName . B8.singleton <$> ['0' .. '3']
+    , n <- UnsafeAssetName . B8.singleton <$> ['0' .. '3']
     ]
 
 --------------------------------------------------------------------------------

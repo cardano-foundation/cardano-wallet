@@ -1,22 +1,22 @@
 module Cardano.Wallet.Primitive.Types.AssetName.Gen
     (
     -- * Generators and shrinkers
-      genTokenName
-    , genTokenNameLargeRange
-    , shrinkTokenName
+      genAssetName
+    , genAssetNameLargeRange
+    , shrinkAssetName
 
     -- * Test values
-    , testTokenNames
+    , testAssetNames
 
     -- * Creation of test values
-    , mkTokenName
+    , mkAssetName
 
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Test.QuickCheck
     ( Gen
@@ -32,29 +32,29 @@ import qualified Data.ByteString.Char8 as B8
 -- Token names chosen from a range that depends on the size parameter
 --------------------------------------------------------------------------------
 
-genTokenName :: Gen TokenName
-genTokenName = sized $ \n -> elements $ take (max 1 n) testTokenNames
+genAssetName :: Gen AssetName
+genAssetName = sized $ \n -> elements $ take (max 1 n) testAssetNames
 
-shrinkTokenName :: TokenName -> [TokenName]
-shrinkTokenName i
+shrinkAssetName :: AssetName -> [AssetName]
+shrinkAssetName i
     | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head testTokenNames
+    simplest = head testAssetNames
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a large range (to minimize the risk of collisions)
 --------------------------------------------------------------------------------
 
-genTokenNameLargeRange :: Gen TokenName
-genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
+genAssetNameLargeRange :: Gen AssetName
+genAssetNameLargeRange = UnsafeAssetName . BS.pack <$> vector 32
 
 --------------------------------------------------------------------------------
 -- Internal utilities
 --------------------------------------------------------------------------------
 
-testTokenNames :: [TokenName]
-testTokenNames = mkTokenName <$> ['A' .. 'Z']
+testAssetNames :: [AssetName]
+testAssetNames = mkAssetName <$> ['A' .. 'Z']
 
-mkTokenName :: Char -> TokenName
-mkTokenName = UnsafeTokenName . B8.snoc "Token"
+mkAssetName :: Char -> AssetName
+mkAssetName = UnsafeAssetName . B8.snoc "Token"

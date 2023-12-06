@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -221,11 +221,11 @@ mkTxCollateral tid (ix, (txCollateral, txOut)) =
     }
 
 -- The key to sort TxCollateralOutToken
-tokenCollateralOrd :: TxCollateralOutToken -> (TokenPolicyId, TokenName)
+tokenCollateralOrd :: TxCollateralOutToken -> (TokenPolicyId, AssetName)
 tokenCollateralOrd = txCollateralOutTokenPolicyId &&& txCollateralOutTokenName
 
 -- The key to sort TxOutToken
-tokenOutOrd :: TxOutToken -> (TokenPolicyId, TokenName)
+tokenOutOrd :: TxOutToken -> (TokenPolicyId, AssetName)
 tokenOutOrd = txOutTokenPolicyId &&& txOutTokenName
 
 mkTxOut

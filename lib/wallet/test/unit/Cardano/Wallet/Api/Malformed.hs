@@ -102,7 +102,7 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMaxLength
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -283,7 +283,7 @@ instance Malformed (PathParam (ApiT TokenPolicyId)) where
         msgMalformed = "Invalid tokenPolicy hash: expecting a hex-encoded value that is 28 bytes in length."
         msgWrongLength = msgMalformed
 
-instance Wellformed (PathParam (ApiT TokenName)) where
+instance Wellformed (PathParam (ApiT AssetName)) where
     wellformed = PathParam <$>
         [ T.replicate 64 "0"
         , ""
@@ -292,15 +292,15 @@ instance Wellformed (PathParam (ApiT TokenName)) where
         , "e29883"
         ]
 
-instance Malformed (PathParam (ApiT TokenName)) where
+instance Malformed (PathParam (ApiT AssetName)) where
     malformed = first PathParam <$>
         [ ( T.replicate 65 "0", msgWrongLength )
         , ( "f", msgWrongLength )
         , ( "patate", msgMalformed )
         ]
       where
-        msgWrongLength = "TokenName is not hex-encoded: base16: input: invalid length"
-        msgMalformed = "TokenName is not hex-encoded: base16: input: invalid encoding at offset: 0"
+        msgWrongLength = "AssetName is not hex-encoded: base16: input: invalid length"
+        msgMalformed = "AssetName is not hex-encoded: base16: input: invalid encoding at offset: 0"
 
 --
 -- Class instances (BodyParam)

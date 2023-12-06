@@ -8,7 +8,7 @@ module Cardano.Wallet.Primitive.Types.AssetId
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -27,7 +27,7 @@ data AssetId = AssetId
     { tokenPolicyId
         :: !TokenPolicyId
     , tokenName
-        :: !TokenName
+        :: !AssetName
     }
     deriving stock (Eq, Generic, Ord, Read, Show)
 

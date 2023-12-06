@@ -15,7 +15,7 @@ module Cardano.Wallet.Faucet
     , nextWallet
 
       -- * Sea horses
-    , seaHorseTokenName
+    , seaHorseAssetName
     , seaHorsePolicyId
 
       -- * Integration test funds
@@ -52,7 +52,7 @@ import Cardano.Mnemonic
     , SomeMnemonic (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -102,7 +102,7 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Icarus as Icarus
 import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
-import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
@@ -311,13 +311,13 @@ maryIntegrationTestFunds tips =
 
     bundle p assets = TokenBundle.fromNestedList tips [(p, NE.fromList assets)]
 
-    simple p = bundle p [(TokenName.empty, TokenQuantity 1_000_000_000)]
+    simple p = bundle p [(AssetName.empty, TokenQuantity 1_000_000_000)]
     fruit p =
         bundle
             p
-            [ (UnsafeTokenName "apple", TokenQuantity 65_000_000)
-            , (UnsafeTokenName "banana", TokenQuantity 66_000_000)
-            , (UnsafeTokenName "cherry", TokenQuantity 67_000_000)
+            [ (UnsafeAssetName "apple", TokenQuantity 65_000_000)
+            , (UnsafeAssetName "banana", TokenQuantity 66_000_000)
+            , (UnsafeAssetName "cherry", TokenQuantity 67_000_000)
             ]
     combined p = simple p `TokenBundle.add` fruit p
 
@@ -340,7 +340,7 @@ seaHorseTestAssets nPerAddr c addrs =
     mint :: (t -> a) -> (t, b) -> (a, [b])
     mint mk (pid, info) = (mk pid, [info])
     seaHorse is p = bundle p $ flip map is $ \i ->
-        (seaHorseTokenName i, TokenQuantity 1)
+        (seaHorseAssetName i, TokenQuantity 1)
     bundle p assets = TokenBundle.fromNestedList c [(p, NE.fromList assets)]
 
 seaHorsePolicyId :: TokenPolicyId
@@ -359,9 +359,9 @@ seaHorseAssetScript =
             )
         )
 
-seaHorseTokenName :: Int -> TokenName
-seaHorseTokenName i =
-    UnsafeTokenName
+seaHorseAssetName :: Int -> AssetName
+seaHorseAssetName i =
+    UnsafeAssetName
         $ B8.pack
         $ "00000000000000000SeaHorse" <> show i
 

@@ -32,11 +32,11 @@ import Cardano.Wallet.Primitive.Types.AssetId.Gen
     , shrinkAssetId
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.AssetName.Gen
-    ( genTokenName
-    , shrinkTokenName
+    ( genAssetName
+    , shrinkAssetName
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -191,7 +191,7 @@ import Test.Utils.Paths
     ( getTestData
     )
 
-import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson.Types as Aeson
@@ -370,7 +370,7 @@ prop_fromFlatList assetQuantities = checkCoverage $ property $
         Map.toList $ Map.fromListWith TokenQuantity.add assetQuantities
 
 prop_fromNestedList
-    :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
+    :: [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))]
     -> Property
 prop_fromNestedList assetQuantities = checkCoverage $ property $
     cover 2 (length flattenedAssetQuantities == length combinedAssetQuantities)
@@ -719,7 +719,7 @@ testZeroValuedTokenQuantityFlat =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = dummyTokenName "DUMMY-TOKEN"
+    token = dummyAssetName "DUMMY-TOKEN"
     json =
         [aesonQQ|
           [ { "policy_id": #{policy}
@@ -742,7 +742,7 @@ testZeroValuedTokenQuantityNested =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = dummyTokenName "DUMMY-TOKEN"
+    token = dummyAssetName "DUMMY-TOKEN"
     json =
         [aesonQQ|
           [ { "policy_id": #{policy}
@@ -799,7 +799,7 @@ testPrettyNested =
 testMap :: TokenMap
 testMap = testMapData
     & fmap (second TokenQuantity)
-    & fmap (first (bimap dummyTokenPolicyId dummyTokenName))
+    & fmap (first (bimap dummyTokenPolicyId dummyAssetName))
     & fmap (first (uncurry AssetId))
     & TokenMap.fromFlatList
 
@@ -847,8 +847,8 @@ testMapPrettyNested = [s|
 -- Utilities
 --------------------------------------------------------------------------------
 
-dummyTokenName :: ByteString -> TokenName
-dummyTokenName t = fromRight reportError $ TokenName.fromByteString t
+dummyAssetName :: ByteString -> AssetName
+dummyAssetName t = fromRight reportError $ AssetName.fromByteString t
   where
     reportError = error $
         "Unable to construct dummy token name from bytes: " <> show t
@@ -919,12 +919,12 @@ instance Arbitrary (Large TokenMap) where
             <*> genTokenQuantityPositive
     -- No shrinking
 
-instance Arbitrary TokenName where
-    arbitrary = genTokenName
-    shrink = shrinkTokenName
+instance Arbitrary AssetName where
+    arbitrary = genAssetName
+    shrink = shrinkAssetName
 
-deriving anyclass instance CoArbitrary TokenName
-deriving anyclass instance Function TokenName
+deriving anyclass instance CoArbitrary AssetName
+deriving anyclass instance Function AssetName
 
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyId

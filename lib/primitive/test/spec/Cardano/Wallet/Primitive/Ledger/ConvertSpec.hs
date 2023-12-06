@@ -20,10 +20,10 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toWalletScript
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.AssetName.Gen
-    ( genTokenNameLargeRange
+    ( genAssetNameLargeRange
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -105,7 +105,7 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec" $
 
         ledgerRoundtrip $ Proxy @Coin
         ledgerRoundtrip $ Proxy @TokenBundle
-        ledgerRoundtrip $ Proxy @TokenName
+        ledgerRoundtrip $ Proxy @AssetName
         ledgerRoundtrip $ Proxy @TokenPolicyId
         ledgerRoundtrip $ Proxy @TokenQuantity
         ledgerRoundtrip $ Proxy @TxIn
@@ -152,8 +152,8 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
     shrink = shrinkTokenBundleSmallRange
 
-instance Arbitrary TokenName where
-    arbitrary = genTokenNameLargeRange
+instance Arbitrary AssetName where
+    arbitrary = genAssetNameLargeRange
     -- No shrinking
 
 instance Arbitrary TokenPolicyId where

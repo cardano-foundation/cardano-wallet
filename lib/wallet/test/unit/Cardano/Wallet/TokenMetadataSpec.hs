@@ -76,7 +76,7 @@ import Test.Utils.Trace
     ( traceSpec
     )
 
-import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 
 spec :: Spec
 spec = do
@@ -141,7 +141,7 @@ spec = do
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId
                         (UnsafeTokenPolicyId (unsafeFromText subj))
-                        TokenName.empty
+                        AssetName.empty
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
 
@@ -150,7 +150,7 @@ spec = do
                 client <- newMetadataClient tr (Just srv)
                 let aid subj = AssetId
                         (UnsafeTokenPolicyId (unsafeFromText subj))
-                        TokenName.empty
+                        AssetName.empty
                 let aid1 = aid "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid2 = aid "bad00000000000000000000000000000000000000000000000000000"
                 getTokenMetadata client [aid1, aid2]
@@ -161,7 +161,7 @@ spec = do
                 client <- newMetadataClient tr (Just srv)
                 let aid = AssetId
                         (UnsafeTokenPolicyId (Hash "a"))
-                        TokenName.empty
+                        AssetName.empty
                 res <- getTokenMetadata client [aid]
                 res `shouldBe` Right []
 

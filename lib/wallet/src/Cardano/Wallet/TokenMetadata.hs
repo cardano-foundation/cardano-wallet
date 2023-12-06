@@ -94,7 +94,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -542,7 +542,7 @@ getTokenMetadata (TokenMetadataClient client) as =
 -- | Creates a metadata server subject from an AssetId. The subject is the
 -- policy id and asset name hex-encoded.
 assetIdToSubject :: AssetId -> Subject
-assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
+assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeAssetName n)) =
     Subject $ T.decodeLatin1 $ convertToBase Base16 (p <> n)
 
 -- | Convert metadata server properties response into an 'AssetMetadata' record.

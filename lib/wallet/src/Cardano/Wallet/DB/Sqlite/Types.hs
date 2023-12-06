@@ -80,7 +80,7 @@ import Cardano.Wallet.Primitive.Types.Address
     , AddressState (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -345,11 +345,11 @@ instance PathPiece TxId where
 -- Tokens
 --------------------------------------------------------------------------------
 
-instance PersistField TokenName where
+instance PersistField AssetName where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql TokenName where
+instance PersistFieldSql AssetName where
     sqlType _ = sqlType (Proxy @Text)
 
 instance PersistField TokenPolicyId where

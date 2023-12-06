@@ -82,7 +82,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -293,12 +293,12 @@ fromFlatList c = TokenBundle c . TokenMap.fromFlatList
 --
 fromNestedList
     :: Coin
-    -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
+    -> [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))]
     -> TokenBundle
 fromNestedList c = TokenBundle c . TokenMap.fromNestedList
 
 fromNestedMap
-    :: (Coin, Map TokenPolicyId (Map TokenName TokenQuantity))
+    :: (Coin, Map TokenPolicyId (Map AssetName TokenQuantity))
     -> TokenBundle
 fromNestedMap (c, m) = TokenBundle c (TokenMap.fromNestedMap m)
 

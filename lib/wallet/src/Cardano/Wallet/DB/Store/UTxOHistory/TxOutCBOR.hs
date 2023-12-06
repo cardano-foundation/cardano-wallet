@@ -13,7 +13,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (UnsafeTokenName)
+    ( AssetName (UnsafeAssetName)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -86,7 +86,7 @@ encodeTxOut (TxOut (Address addr) (TokenBundle (Coin c) m)) =
                 <> foldMap
                     ( \( AssetId
                             (UnsafeTokenPolicyId (Hash policy))
-                            (UnsafeTokenName name)
+                            (UnsafeAssetName name)
                         , TokenQuantity quant
                         ) ->
                             encodeListLen 3
@@ -114,7 +114,7 @@ decodeTxOut = do
                         return
                             ( AssetId
                                 (UnsafeTokenPolicyId (Hash policy))
-                                (UnsafeTokenName name)
+                                (UnsafeAssetName name)
                             , TokenQuantity $
                                 fromIntegral quant
                             )

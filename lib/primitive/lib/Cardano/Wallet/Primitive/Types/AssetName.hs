@@ -5,7 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     , empty
     , fromByteString
     , maxLength
@@ -56,20 +56,20 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
 
 -- | Token names, defined by the monetary policy script.
-newtype TokenName =
-    -- | Construct a 'TokenName' without any validation.
-    UnsafeTokenName { unTokenName :: ByteString }
+newtype AssetName =
+    -- | Construct a 'AssetName' without any validation.
+    UnsafeAssetName { unAssetName :: ByteString }
     deriving stock (Eq, Ord, Generic)
-    deriving (Read, Show) via (Quiet TokenName)
+    deriving (Read, Show) via (Quiet AssetName)
     deriving anyclass Hashable
 
--- | Construct a 'TokenName', validating that the length does not exceed
+-- | Construct a 'AssetName', validating that the length does not exceed
 --   'maxLength'.
 --
-fromByteString :: ByteString -> Either String TokenName
+fromByteString :: ByteString -> Either String AssetName
 fromByteString bs
-    | BS.length bs <= maxLength = Right $ UnsafeTokenName bs
-    | otherwise = Left $ "TokenName length " ++ show (BS.length bs)
+    | BS.length bs <= maxLength = Right $ UnsafeAssetName bs
+    | otherwise = Left $ "AssetName length " ++ show (BS.length bs)
         ++ " exceeds maximum of " ++ show maxLength
 
 -- | The empty asset name.
@@ -78,30 +78,30 @@ fromByteString bs
 -- asset, or where one asset should be considered as the "default" token for the
 -- policy.
 --
-empty :: TokenName
-empty = UnsafeTokenName ""
+empty :: AssetName
+empty = UnsafeAssetName ""
 
 -- | The maximum length of a valid token name.
 --
 maxLength :: Int
 maxLength = 32
 
-instance NFData TokenName
+instance NFData AssetName
 
-instance Buildable TokenName where
+instance Buildable AssetName where
     build = build . toText
 
-instance FromJSON TokenName where
+instance FromJSON AssetName where
     parseJSON = parseJSON >=> either (fail . show) pure . fromText
 
-instance ToJSON TokenName where
+instance ToJSON AssetName where
     toJSON = toJSON . toText
 
-instance ToText TokenName where
-    toText = T.decodeLatin1 . convertToBase Base16 . unTokenName
+instance ToText AssetName where
+    toText = T.decodeLatin1 . convertToBase Base16 . unAssetName
 
-instance FromText TokenName where
+instance FromText AssetName where
     fromText = first TextDecodingError
-        . either (Left . ("TokenName is not hex-encoded: " ++)) fromByteString
+        . either (Left . ("AssetName is not hex-encoded: " ++)) fromByteString
         . convertFromBase Base16
         . T.encodeUtf8

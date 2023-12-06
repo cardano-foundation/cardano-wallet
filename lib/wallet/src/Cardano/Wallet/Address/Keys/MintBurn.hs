@@ -48,7 +48,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName
+    ( AssetName
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -92,7 +92,7 @@ toTokenMapAndScript
     => KeyFlavorS key
     -> Script Cosigner
     -> Map Cosigner XPub
-    -> TokenName
+    -> AssetName
     -> Natural
     -> (AssetId, TokenQuantity, Script KeyHash)
 toTokenMapAndScript kf scriptTempl cosignerMap tName val =

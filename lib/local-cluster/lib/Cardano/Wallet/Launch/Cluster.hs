@@ -162,7 +162,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -2271,7 +2271,7 @@ sendFaucet tr config conn what targets = do
                     ++ map (("+ " ++) . cliAsset) (TokenMap.toFlatList tokens)
             ]
         cliAsset (aid, (TokenQuantity q)) = unwords [show q, cliAssetId aid]
-        cliAssetId (AssetId pid (UnsafeTokenName name)) =
+        cliAssetId (AssetId pid (UnsafeAssetName name)) =
             mconcat
                 [ T.unpack (toText pid)
                 , if B8.null name then "" else "."

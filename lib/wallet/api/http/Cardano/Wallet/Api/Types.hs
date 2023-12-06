@@ -773,7 +773,7 @@ newtype ApiPostPolicyIdData = ApiPostPolicyIdData
 
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
-    , assetName :: ApiT W.TokenName
+    , assetName :: ApiT W.AssetName
     , fingerprint :: ApiT W.TokenFingerprint
     , metadata :: Maybe ApiAssetMetadata
     , metadataError :: Maybe ApiMetadataError
@@ -3404,7 +3404,7 @@ data ApiMintBurnDataFromScript (n :: NetworkDiscriminant) = ApiMintBurnDataFromS
         -- ^ A script regulating minting/burning policy. 'self' is expected
         -- in place of verification key.
     , assetName
-        :: !(Maybe (ApiT W.TokenName))
+        :: !(Maybe (ApiT W.AssetName))
         -- ^ The name of the asset to mint/burn.
     , operation
         :: !(ApiMintBurnOperation n)
@@ -3422,7 +3422,7 @@ data ApiMintBurnDataFromInput (n :: NetworkDiscriminant) = ApiMintBurnDataFromIn
         :: !(ApiT W.TokenPolicyId)
         -- ^ A policy id of the script regulating minting/burning policy.
     , assetName
-        :: !(Maybe (ApiT W.TokenName))
+        :: !(Maybe (ApiT W.AssetName))
         -- ^ The name of the asset to mint/burn.
     , operation
         :: !(ApiMintBurnOperation n)

@@ -129,7 +129,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -324,7 +324,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE
@@ -1328,7 +1328,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         addrsMint <- listAddresses @n ctx wa
         let addrMint = (addrsMint !! 1) ^. #id
-        let Right tokenName' = TokenName.fromByteString "ab12"
+        let Right tokenName' = AssetName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_id": #{toText policyId'},
@@ -1608,7 +1608,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let tokenPolicyId' =
                 UnsafeTokenPolicyId $ Hash
                 "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I"
-        let tokenName' = UnsafeTokenName "HappyCoin"
+        let tokenName' = UnsafeAssetName "HappyCoin"
         let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
@@ -1860,7 +1860,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let tokenName' = UnsafeTokenName "ReferencePlutusScriptAsset"
+        let tokenName' = UnsafeAssetName "ReferencePlutusScriptAsset"
         let tokenPolicyId' = UnsafeTokenPolicyId $ Hash plutusScriptHash
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
                 { assetName = ApiT tokenName'
@@ -2006,7 +2006,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, policyKeyHashPayload) <-
             unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
 
-        let tokenName' = UnsafeTokenName "ReferenceSimpleScriptAsset"
+        let tokenName' = UnsafeAssetName "ReferenceSimpleScriptAsset"
         let (ScriptHash nativeScriptHash) = toScriptHash nativeScript
         let tokenPolicyId' = UnsafeTokenPolicyId $ Hash nativeScriptHash
         let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
@@ -3800,7 +3800,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString "ab12"
+        let (Right tokenName') = AssetName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [{
@@ -3840,7 +3840,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString "ab12"
+        let (Right tokenName') = AssetName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3894,7 +3894,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString "ab12"
+        let (Right tokenName') = AssetName.fromByteString "ab12"
 
         rSlot <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
@@ -3943,7 +3943,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString "ab12"
+        let (Right tokenName') = AssetName.fromByteString "ab12"
         let payloadMint = Json [json|{
                 "mint_burn": [{
                     "policy_script_template":
@@ -3992,7 +3992,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wa
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString ""
+        let (Right tokenName') = AssetName.fromByteString ""
         let payloadMint = Json [json|{
                 "mint_burn": [
                     { "policy_script_template":
@@ -4041,7 +4041,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wForeign
         let destination = (addrs !! 1) ^. #id
 
-        let (Right tokenName') = TokenName.fromByteString "ab12"
+        let (Right tokenName') = AssetName.fromByteString "ab12"
 
         let payload = Json [json|{
                 "mint_burn": [
@@ -5000,7 +5000,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
-        -> TokenName
+        -> AssetName
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m (Natural, Natural, TokenMap.TokenMap)
@@ -5099,7 +5099,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
-        -> TokenName
+        -> AssetName
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m ()
@@ -5128,7 +5128,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
-        -> TokenName
+        -> AssetName
         -> Payload
         -> (KeyHash -> Script KeyHash)
         -> m ()

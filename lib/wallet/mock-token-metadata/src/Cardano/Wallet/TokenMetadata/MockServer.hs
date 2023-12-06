@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetName
-    ( TokenName (..)
+    ( AssetName (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -223,7 +223,7 @@ assetIdFromSubject :: Subject -> AssetId
 assetIdFromSubject =
     mk . BS.splitAt 32 . unsafeFromHex . T.encodeUtf8 . unSubject
   where
-    mk (p, n) = AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)
+    mk (p, n) = AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeAssetName n)
 
 {-------------------------------------------------------------------------------
                               JSON orphans

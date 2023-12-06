@@ -1257,8 +1257,8 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoAssetId (W.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
-    toCardanoAssetName (W.UnsafeTokenName name) =
-        just "toCardanoValue" "TokenName"
+    toCardanoAssetName (W.UnsafeAssetName name) =
+        just "toCardanoValue" "AssetName"
         [ eitherToMaybe
             $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
         ]
