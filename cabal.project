@@ -186,8 +186,12 @@ if impl(ghc == 8.10.7)
 -- ----------------------------------------------------------------
 -- Flags for dependencies
 
+package bitvec
+  flags: -simd
+
 package cardano-config
   flags: -systemd
+
 package cardano-node
   flags: -systemd
 

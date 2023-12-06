@@ -189,9 +189,9 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
+              iohkNix.overlays.crypto
               haskellNix.overlay
               iohkNix.overlays.utils
-              iohkNix.overlays.crypto
               iohkNix.overlays.haskell-nix-extra
               iohkNix.overlays.cardano-lib
 
