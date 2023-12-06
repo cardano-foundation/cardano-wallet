@@ -76,7 +76,7 @@ import Test.Utils.Trace
     ( traceSpec
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 
 spec :: Spec
 spec = do

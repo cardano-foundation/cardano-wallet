@@ -585,6 +585,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -601,9 +604,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     , fromFlatList
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -890,9 +890,9 @@ import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx
     , sealedTxFromCardano

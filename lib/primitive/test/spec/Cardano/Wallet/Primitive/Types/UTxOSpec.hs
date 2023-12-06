@@ -29,12 +29,12 @@ import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
     , shrinkAssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)

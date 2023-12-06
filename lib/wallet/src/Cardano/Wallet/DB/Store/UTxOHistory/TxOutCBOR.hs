@@ -12,6 +12,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (AssetId)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (UnsafeTokenName)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -24,9 +27,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( fromFlatList
     , toFlatList
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (UnsafeTokenName)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (UnsafeTokenPolicyId)

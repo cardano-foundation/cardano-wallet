@@ -81,6 +81,9 @@ import Algebra.PartialOrd
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -89,9 +92,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     , Lexicographic (..)
     , Nested (..)
     , TokenMap
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId

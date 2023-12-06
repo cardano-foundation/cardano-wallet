@@ -280,11 +280,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId

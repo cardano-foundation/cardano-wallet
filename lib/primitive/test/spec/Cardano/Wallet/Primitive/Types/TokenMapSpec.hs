@@ -31,6 +31,13 @@ import Cardano.Wallet.Primitive.Types.AssetId.Gen
     , genAssetIdLargeRange
     , shrinkAssetId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
+    ( genTokenName
+    , shrinkTokenName
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -44,13 +51,6 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMapPartition
     , genTokenMapSmallRange
     , shrinkTokenMap
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
-    )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
-    ( genTokenName
-    , shrinkTokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -191,8 +191,8 @@ import Test.Utils.Paths
     ( getTestData
     )
 
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Foldable as F

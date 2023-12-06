@@ -131,8 +131,8 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

@@ -96,7 +96,7 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (AssetId)
     )
-import Cardano.Wallet.Primitive.Types.TokenName
+import Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId

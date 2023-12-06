@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types
     ( WalletId
     , walletNameMaxLength
     )
-import Cardano.Wallet.Primitive.Types.TokenName
+import Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId

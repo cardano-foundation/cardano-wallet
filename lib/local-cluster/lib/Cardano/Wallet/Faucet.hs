@@ -51,14 +51,14 @@ import Cardano.Mnemonic
     ( Mnemonic
     , SomeMnemonic (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -102,8 +102,8 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Icarus as Icarus
 import qualified Cardano.Wallet.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T

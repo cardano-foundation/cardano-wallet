@@ -120,7 +120,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
-import Cardano.Wallet.Primitive.Types.TokenName
+import Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId

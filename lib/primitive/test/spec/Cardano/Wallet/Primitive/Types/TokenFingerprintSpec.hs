@@ -4,15 +4,15 @@ module Cardano.Wallet.Primitive.Types.TokenFingerprintSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( TokenFingerprint (..)
     , mkTokenFingerprint
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)

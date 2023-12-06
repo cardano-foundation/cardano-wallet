@@ -390,6 +390,7 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -407,7 +408,6 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.SlottingParameters as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundleMaxSize as W
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W

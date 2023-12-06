@@ -53,11 +53,11 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (AssetId)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId

@@ -128,6 +128,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -139,9 +142,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     )
 import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( mkTokenFingerprint
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
@@ -324,8 +324,8 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map

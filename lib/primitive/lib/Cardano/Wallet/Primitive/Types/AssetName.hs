@@ -4,7 +4,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Cardano.Wallet.Primitive.Types.TokenName
+module Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName (..)
     , empty
     , fromByteString

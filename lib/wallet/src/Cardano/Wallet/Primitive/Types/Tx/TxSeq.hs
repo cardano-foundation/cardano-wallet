@@ -116,6 +116,9 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -124,9 +127,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
     ( StateDeltaSeq
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)

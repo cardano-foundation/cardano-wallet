@@ -87,8 +87,8 @@ import qualified Cardano.Wallet.Address.Discovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.TokenName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

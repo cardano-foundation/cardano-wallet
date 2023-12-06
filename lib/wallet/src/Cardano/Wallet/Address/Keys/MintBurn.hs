@@ -47,11 +47,11 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)

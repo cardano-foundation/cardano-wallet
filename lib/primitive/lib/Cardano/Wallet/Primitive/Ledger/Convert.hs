@@ -61,6 +61,9 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -69,9 +72,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)

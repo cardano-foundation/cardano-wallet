@@ -160,14 +160,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address
     , AddressState
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( TokenName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
-    )
-import Cardano.Wallet.Primitive.Types.TokenName
-    ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId
@@ -221,7 +221,7 @@ import Web.HttpApiData
     )
 
 import qualified Cardano.Wallet.Api as Api
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 
 --
 -- Wallets

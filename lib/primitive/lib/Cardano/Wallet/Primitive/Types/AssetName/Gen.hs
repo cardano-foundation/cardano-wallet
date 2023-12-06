@@ -1,4 +1,4 @@
-module Cardano.Wallet.Primitive.Types.TokenName.Gen
+module Cardano.Wallet.Primitive.Types.AssetName.Gen
     (
     -- * Generators and shrinkers
       genTokenName
@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.Types.TokenName.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenName
+import Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName (..)
     )
 import Test.QuickCheck

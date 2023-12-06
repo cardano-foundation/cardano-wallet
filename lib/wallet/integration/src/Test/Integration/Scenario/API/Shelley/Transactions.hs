@@ -234,8 +234,8 @@ import Web.HttpApiData
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.AssetName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenName as TokenName
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson

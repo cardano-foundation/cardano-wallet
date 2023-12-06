@@ -13,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenName.Gen
+import Cardano.Wallet.Primitive.Types.AssetName.Gen
     ( genTokenName
     , genTokenNameLargeRange
     , shrinkTokenName

@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.AssetId
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenName
+import Cardano.Wallet.Primitive.Types.AssetName
     ( TokenName
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
