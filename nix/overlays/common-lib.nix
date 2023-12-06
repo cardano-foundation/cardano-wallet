@@ -4,12 +4,6 @@ self: super: let
 in {
   cardanoWalletLib = {
 
-    # lib.cleanSourceWith filter function which removes socket files
-    # from a source tree. This files can be created by cardano-node and
-    # cause errors when nix attempts to copy them into the store.
-    removeSocketFilesFilter = _path: type:
-      lib.elem type ["regular" "directory" "symlink" ];
-
     # Convert version strings from Cabal format (YYYY.M.D)
     # to git tag format (vYYYY-MM-DD).
     versionTag = cabalName: let
