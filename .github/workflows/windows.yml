@@ -31,6 +31,13 @@ jobs:
     runs-on: windows-2022
     name: Download testing bundle
     steps:
+      - name: Set commit status as pending
+        uses: myrotvorets/set-commit-status-action@v2.0.0
+        with:
+          sha: ${{ github.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: pending
+
       - uses: actions/checkout@v3.2.0
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1.127.0
@@ -123,6 +130,28 @@ jobs:
           SLACK_MESSAGE: |
               *Job Link:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SLACK_COLOR: '#00FF00'
+
+    - name: Set final commit status on success
+      uses: myrotvorets/set-commit-status-action@v2.0.0
+      if: |
+           needs.cardano-wallet-launcher-test-unit.result == 'success' &&
+           needs.cardano-wallet-test-unit.result == 'success' &&
+           needs.text-class-test-unit.result == 'success'
+      with:
+        sha: ${{ github.sha }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        status: 'success'
+
+    - name: Set final commit status on non-success
+      uses: myrotvorets/set-commit-status-action@v2.0.0
+      if: |
+           needs.cardano-wallet-launcher-test-unit.result != 'success' ||
+           needs.cardano-wallet-test-unit.result != 'success' ||
+           needs.text-class-test-unit.result != 'success'
+      with:
+        sha: ${{ github.sha }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        status: 'failure'
 
   # ADP-2517 - Fix integration tests on Windows
   # cardano-wallet-test-integration:
