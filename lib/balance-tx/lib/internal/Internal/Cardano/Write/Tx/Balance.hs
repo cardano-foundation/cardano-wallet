@@ -851,7 +851,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = txBalance tx'
-            minfee' = Coin $ W.Coin.toInteger minfee
+            minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
     -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
