@@ -725,6 +725,10 @@ import Cryptography.Primitives
 import Data.Bifunctor
     ( first
     )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertToBase
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -942,6 +946,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 import qualified Internal.Cardano.Write.Tx.Sign as Write
@@ -3129,9 +3134,9 @@ encryptionNonce :: ByteString
 encryptionNonce = "encrypt-data"
 
 -- When encryption is enabled we do the following:
--- (a) find field `msg`
--- (b) encrypt its value if present, otherwise emit error
--- (c) and update value of `msg` with the encrypted initial value encoded in base64
+-- (a) find field(s) `msg` in the first level value pairs for each key
+-- (b) encrypt the 'msg' values if present, otherwise emit error
+-- (c) and update value of `msg` with the encrypted initial value(s) encoded in base64
 --     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
 -- (d) add `enc` field with encryption method value ("base" or "chachapoly1305")
 toMetadataEncrypted
@@ -3172,23 +3177,31 @@ toMetadataEncrypted apiEncrypt payload = do
     findMsgValues =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filter (isJust . inspectMetaPair) themap
-        in if Map.size filteredMap == 1 then
+        in if Map.size filteredMap >= 1 then
             Right $ Map.toList filteredMap
            else
             Left ErrConstructTxIncorrectRawMetadata
     encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
-            let encrypted = encrypt $
+            let encrypted =
+                    encrypt $
                     BL.toStrict $
                     Aeson.encode $
                     Cardano.metadataValueToJsonNoSchema metaValue
                 toPair enc =
                     ( Cardano.TxMetaText metaField
-                    , Cardano.TxMetaBytes enc
+                    , Cardano.TxMetaList (map Cardano.TxMetaText $ flip toTextChunks [] $ toBase64Text enc)
                     )
             in mapRight toPair encrypted
         else Right pair
     encryptPairIfQualifies pair = Right pair
+    toBase64Text = T.decodeUtf8 . convertToBase Base64
+    toTextChunks txt res =
+        if txt == T.empty then
+            reverse res
+        else
+            let (front, back) = T.splitAt 64 txt
+            in toTextChunks back (front:res)
     encryptingMsg (key, Cardano.TxMetaMap pairs) = do
         pair' <- mapM encryptPairIfQualifies pairs
         pure (key, Cardano.TxMetaMap pair')

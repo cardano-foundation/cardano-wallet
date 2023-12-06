@@ -567,13 +567,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
-    it "TRANS_NEW_CREATE_02c - Small metadata encrypted" $
+    it "TRANS_NEW_CREATE_02c - Small metadata encrypted one msg" $
         \ctx -> runResourceT $ do
             let metadataRaw =
                     TxMetadata (Map.fromList
                                 [ (0,TxMetaText "hello")
                                 , (1,TxMetaMap [(TxMetaText "msg", TxMetaText "hello")])
                                 , (50, TxMetaNumber 1245)
+                                ])
+            checkMetadataEncrytion ctx metadataRaw
+
+    it "TRANS_NEW_CREATE_02c - Small metadata encrypted more than one msg" $
+        \ctx -> runResourceT $ do
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (0,TxMetaText "hello")
+                                , (1,TxMetaMap [(TxMetaText "msg", TxMetaText "client1 secrets")])
+                                , (50, TxMetaNumber 1245)
+                                , (10,TxMetaMap [(TxMetaText "msg", TxMetaText "client10 secrets"), (TxMetaText "else", TxMetaText "client10 no secrets")])
                                 ])
             checkMetadataEncrytion ctx metadataRaw
 
