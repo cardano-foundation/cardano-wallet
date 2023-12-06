@@ -149,13 +149,15 @@
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
               ... }:
     let
-      inherit (nixpkgs) lib;
-      config = import ./nix/config.nix lib customConfig;
+      # Import libraries      
+      lib = import ./nix/lib.nix nixpkgs.lib;
+      config = import ./nix/config.nix nixpkgs.lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;
-      removeRecurse = lib.filterAttrsRecursive (n: _: n != "recurseForDerivations");
       inherit (iohkNix.lib) evalService;
+
+      # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
-      defaultSystem = lib.head supportedSystems;
+
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
@@ -165,18 +167,6 @@
         services.cardano-node.package = lib.mkDefault self.defaultPackage.${pkgs.system};
       };
       nixosModules.cardano-wallet = nixosModule;
-
-      # Helper functions for separating unit and integration tests
-      setEmptyAttrsWithCondition = cond:
-        lib.mapAttrsRecursiveCond
-          (value: !(lib.isDerivation value)) # do not modify attributes of derivations
-          (path: value: if cond path then {} else value);
-      keepIntegrationChecks =
-        setEmptyAttrsWithCondition
-          (path: !lib.any (lib.hasPrefix "integration") path);
-      keepUnitChecks =
-        setEmptyAttrsWithCondition
-          (path: !lib.any (name: name == "unit" || name == "test") path);
 
       # Define flake outputs for a particular system.
       mkOutputs = system:
@@ -255,9 +245,10 @@
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
                 # `tests` are the test suites which have been built.
-                tests = removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
+                tests =
+                  lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                 # `checks` are the result of executing the tests.
-                checks = removeRecurse (
+                checks = lib.removeRecurse (
                   lib.recursiveUpdate
                     (collectChecks isProjectPackage coveredProject.hsPkgs)
                     # Run the integration tests in the previous era too:
@@ -283,7 +274,8 @@
                     )
                 );
                 # `benchmarks` are only built, not run.
-                benchmarks = removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+                benchmarks =
+                  lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
               };
             in
             self;
@@ -342,6 +334,7 @@
               linux64.release =
                 import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = linuxReleaseExes;
                   platform = "linux64";
                   format = "tar.gz";
@@ -353,6 +346,7 @@
                 in {
                   release = import ./nix/release-package.nix {
                     inherit pkgs;
+                    walletLib = lib;
                     exes = [
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
@@ -379,6 +373,7 @@
               macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
@@ -393,6 +388,7 @@
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
@@ -423,7 +419,7 @@
               inherit dockerImage;
               inherit (config) dockerHubRepoName;
             };
-            inherit (pkgs) checkCabalProject cabalProjectRegenerate;
+            inherit (pkgs) checkCabalProject;
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs project;
@@ -470,7 +466,7 @@
               meta.description = "Run unit tests";
               constituents =
                 lib.collect lib.isDerivation
-                  (keepUnitChecks packages.checks);
+                  (lib.keepUnitChecks packages.checks);
             };
           ci.tests.run.integration = pkgs.releaseTools.aggregate
             {
@@ -478,7 +474,7 @@
               meta.description = "Run integration tests";
               constituents =
                 lib.collect lib.isDerivation
-                  (keepIntegrationChecks packages.checks);
+                  (lib.keepIntegrationChecks packages.checks);
             };
         };
 
