@@ -158,7 +158,6 @@
 
       # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
-      defaultSystem = lib.head supportedSystems;
 
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
