@@ -199,7 +199,7 @@
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
           nodeProject = cardano-node-runtime.project.${system};
 
-          project = (import ./nix/haskell.nix
+          walletProject = (import ./nix/haskell.nix
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
@@ -312,25 +312,25 @@
           };
 
           # One ${system} can cross-compile artifacts for other platforms.
-          mkReleaseArtifacts =
+          mkReleaseArtifacts = project:
             let # compiling with musl gives us a statically linked executable
-                linuxPackages = mkPackages project.projectCross.musl64;
-                linuxReleaseExes = [
-                  linuxPackages.cardano-wallet
-                  linuxPackages.bech32
-                  linuxPackages.cardano-address
-                  nodePkgs.hydraJobs.musl.cardano-cli
-                  nodePkgs.hydraJobs.musl.cardano-node
-                ];
-                # Which exes should be put in the release archives.
-                checkReleaseContents = jobs: map (exe: jobs.${exe}) [
-                  "cardano-wallet"
-                  "bech32"
-                  "cardano-address"
-                  "cardano-cli"
-                  "cardano-node"
-                ];
-            in project: lib.optionalAttrs buildPlatform.isLinux {
+              linuxPackages = mkPackages project.projectCross.musl64;
+              linuxReleaseExes = [
+                linuxPackages.cardano-wallet
+                linuxPackages.bech32
+                linuxPackages.cardano-address
+                nodePkgs.hydraJobs.musl.cardano-cli
+                nodePkgs.hydraJobs.musl.cardano-node
+              ];
+              # Which exes should be put in the release archives.
+              checkReleaseContents = jobs: map (exe: jobs.${exe}) [
+                "cardano-wallet"
+                "bech32"
+                "cardano-address"
+                "cardano-cli"
+                "cardano-node"
+              ];
+            in lib.optionalAttrs buildPlatform.isLinux {
               linux64.release =
                 import ./nix/release-package.nix {
                   inherit pkgs;
@@ -404,7 +404,7 @@
         in
         rec {
 
-          legacyPackages = project;
+          legacyPackages = walletProject;
 
           # Built by `nix build .`
           defaultPackage = packages.cardano-wallet;
@@ -412,8 +412,12 @@
           # Run by `nix run .`
           defaultApp = apps.cardano-wallet;
 
-          packages = mkPackages project // mkScripts project // rec {
-            dockerImage = mkDockerImage (mkPackages project.projectCross.musl64);
+          packages =
+             mkPackages walletProject
+          // mkScripts walletProject
+          // rec {
+            dockerImage =
+              mkDockerImage (mkPackages walletProject.projectCross.musl64);
             pushDockerImage = import ./.buildkite/docker-build-push.nix {
               hostPkgs = import hostNixpkgs { inherit system; };
               inherit dockerImage;
@@ -422,7 +426,8 @@
             inherit (pkgs) checkCabalProject;
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
-              inherit pkgs project;
+              inherit pkgs;
+              project = walletProject;
             };
           }) // {
             # Continuous integration builds
@@ -443,7 +448,7 @@
                   lib.collect lib.isDerivation packages.benchmarks;
               };
             };
-            ci.artifacts = mkReleaseArtifacts project // {
+            ci.artifacts = mkReleaseArtifacts walletProject // {
               dockerImage = packages.dockerImage;
             };
           };
@@ -458,7 +463,7 @@
             };
           apps = lib.mapAttrs mkApp packages;
 
-          devShells = mkDevShells project;
+          devShells = mkDevShells walletProject;
 
           ci.tests.run.unit = pkgs.releaseTools.aggregate
             {
