@@ -3985,7 +3985,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa assetName' payloadBurn scriptUsed
 
-    it "TRANS_NEW_CREATE_10g - Burning assets without timelock and token name" $
+    it "TRANS_NEW_CREATE_10g - Burning assets without timelock and asset name" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx

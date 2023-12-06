@@ -497,7 +497,7 @@ singleton = setQuantity empty
 
 -- | Creates a token map from a flat list.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
 --
 fromFlatList :: [(AssetId, TokenQuantity)] -> TokenMap
@@ -507,7 +507,7 @@ fromFlatList = F.foldl' acc empty
 
 -- | Creates a token map from a nested list.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant map.
 --
 fromNestedList

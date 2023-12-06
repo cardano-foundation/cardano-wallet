@@ -55,15 +55,15 @@ import Quiet
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
 
--- | Token names, defined by the monetary policy script.
+-- | Asset names, defined by the monetary policy script.
 newtype AssetName =
-    -- | Construct a 'AssetName' without any validation.
+    -- | Construct an 'AssetName' without any validation.
     UnsafeAssetName { unAssetName :: ByteString }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet AssetName)
     deriving anyclass Hashable
 
--- | Construct a 'AssetName', validating that the length does not exceed
+-- | Construct an 'AssetName', validating that the length does not exceed
 --   'maxLength'.
 --
 fromByteString :: ByteString -> Either String AssetName
@@ -81,7 +81,7 @@ fromByteString bs
 empty :: AssetName
 empty = UnsafeAssetName ""
 
--- | The maximum length of a valid token name.
+-- | The maximum length of a valid asset name.
 --
 maxLength :: Int
 maxLength = 32

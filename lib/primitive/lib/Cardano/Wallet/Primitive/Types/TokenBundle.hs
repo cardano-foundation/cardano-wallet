@@ -277,7 +277,7 @@ empty = mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
 --
 fromFlatList
@@ -288,7 +288,7 @@ fromFlatList c = TokenBundle c . TokenMap.fromFlatList
 
 -- | Creates a token bundle from a coin and a nested list of token quantities.
 --
--- If a token name appears more than once in the list under the same policy,
+-- If an asset name appears more than once in the list under the same policy,
 -- its associated quantities will be added together in the resultant bundle.
 --
 fromNestedList

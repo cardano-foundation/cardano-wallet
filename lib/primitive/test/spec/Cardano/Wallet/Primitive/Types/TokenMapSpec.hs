@@ -719,7 +719,7 @@ testZeroValuedTokenQuantityFlat =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-TOKEN"
+    token = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
           [ { "policy_id": #{policy}
@@ -742,7 +742,7 @@ testZeroValuedTokenQuantityNested =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-TOKEN"
+    token = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
           [ { "policy_id": #{policy}
@@ -851,7 +851,7 @@ dummyAssetName :: ByteString -> AssetName
 dummyAssetName t = fromRight reportError $ AssetName.fromByteString t
   where
     reportError = error $
-        "Unable to construct dummy token name from bytes: " <> show t
+        "Unable to construct dummy asset name from bytes: " <> show t
 
 -- The input must be a character in the range [0-9] or [A-Z].
 --

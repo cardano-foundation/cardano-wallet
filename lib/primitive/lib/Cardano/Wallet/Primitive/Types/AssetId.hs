@@ -20,7 +20,7 @@ import GHC.Generics
     ( Generic
     )
 
--- | A combination of a token policy identifier and a token name that can be
+-- | A combination of a token policy identifier and an asset name that can be
 --   used as a compound identifier.
 --
 data AssetId = AssetId

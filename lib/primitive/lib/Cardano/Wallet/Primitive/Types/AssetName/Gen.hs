@@ -29,7 +29,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
 --------------------------------------------------------------------------------
--- Token names chosen from a range that depends on the size parameter
+-- Asset names chosen from a range that depends on the size parameter
 --------------------------------------------------------------------------------
 
 genAssetName :: Gen AssetName
@@ -43,7 +43,7 @@ shrinkAssetName i
     simplest = head testAssetNames
 
 --------------------------------------------------------------------------------
--- Token names chosen from a large range (to minimize the risk of collisions)
+-- Asset names chosen from a large range (to minimize the risk of collisions)
 --------------------------------------------------------------------------------
 
 genAssetNameLargeRange :: Gen AssetName
@@ -57,4 +57,4 @@ testAssetNames :: [AssetName]
 testAssetNames = mkAssetName <$> ['A' .. 'Z']
 
 mkAssetName :: Char -> AssetName
-mkAssetName = UnsafeAssetName . B8.snoc "Token"
+mkAssetName = UnsafeAssetName . B8.snoc "Asset"
