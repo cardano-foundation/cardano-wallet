@@ -1042,8 +1042,7 @@ selectAssets pp utxoAssumptions outs' redeemers
         , selectionStrategy = selectionStrategy
         }
       where
-        (balancePositive, balanceNegative) =
-            posAndNegFromCardanoApiValue (CardanoApi.fromMaryValue balance)
+        (balanceNegative, balancePositive) = splitSignedValue balance
         valueOfOutputs = F.foldMap' (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
