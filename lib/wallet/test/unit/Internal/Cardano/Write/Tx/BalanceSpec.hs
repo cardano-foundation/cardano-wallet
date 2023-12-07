@@ -38,6 +38,9 @@ import Cardano.Binary
     , serialize'
     , unsafeDeserialize'
     )
+import Cardano.Crypto.Wallet
+    ( toXPub
+    )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..)
     )
@@ -108,9 +111,6 @@ import Cardano.Wallet.Address.Discovery.Random
     )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor
-    )
-import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKey
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
@@ -1581,14 +1581,14 @@ prop_bootstrapWitnesses
             addrK = addrKeyAtIx $ toEnum $ fromEnum ix
             addr = case net of
                 CardanoApi.Mainnet ->
-                    paymentAddress SMainnet $ publicKey ByronKeyS addrK
+                    paymentAddress SMainnet $ over byronKey toXPub addrK
                 CardanoApi.Testnet _magic ->
                     -- The choice of network magic here is not important. The
                     -- size of the witness will not be affected by it. What may
                     -- affect the size, is the 'CardanoApi.NetworkId' we pass to
                     -- 'mkByronWitness' above.
                     withSNetworkId (NTestnet 0) $ \testnet ->
-                        paymentAddress testnet $ publicKey ByronKeyS addrK
+                        paymentAddress testnet $ over byronKey toXPub addrK
         in
             case era of
                 RecentEraConway ->
