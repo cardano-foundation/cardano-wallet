@@ -49,6 +49,7 @@ library
     , iohk-monitoring
     , int-cast
     , lattices
+    , monoid-subclasses
     , optparse-applicative
     , pretty-simple
     , QuickCheck
@@ -105,6 +106,7 @@ test-suite unit
     , generic-lens
     , generics-sop
     , lattices
+    , monoid-subclasses
     , safe
     , silently
     , QuickCheck
