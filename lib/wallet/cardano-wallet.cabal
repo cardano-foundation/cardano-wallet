@@ -573,10 +573,12 @@ test-suite unit
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-crypto-wrapper
     , cardano-ledger-allegra:{cardano-ledger-allegra}
     , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage}
+    , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-numeric
