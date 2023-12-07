@@ -2,6 +2,7 @@
 
 module Cardano.Wallet.Address.Constants
     ( maxLengthAddressForByron
+    , maxLengthAddressForIcarus
     )
     where
 
@@ -37,6 +38,20 @@ maxLengthAddressForByron =
     passphrase :: Passphrase "addr-derivation-payload"
     passphrase = Passphrase $ BA.convert $ BS.replicate 32 0
 
+    xpub :: CC.XPub
+    xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
+      where
+        xprvPass = mempty :: BS.ByteString
+
+maxLengthAddressForIcarus :: Address
+maxLengthAddressForIcarus =
+    Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress
+            xpub
+            [ CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
+            ]
+  where
     xpub :: CC.XPub
     xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
       where
