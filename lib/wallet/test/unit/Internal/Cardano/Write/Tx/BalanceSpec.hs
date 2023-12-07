@@ -96,6 +96,9 @@ import Cardano.Wallet.Address.Derivation
     , hex
     , paymentAddress
     )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( byronKey
+    )
 import Cardano.Wallet.Address.Discovery
     ( GenChange (ArgGenChange, genChange)
     )
@@ -107,8 +110,7 @@ import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey
-    , publicKey
+    ( publicKey
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
@@ -1591,10 +1593,10 @@ prop_bootstrapWitnesses
             case era of
                 RecentEraConway ->
                     mkByronWitness era body net addr
-                        (getRawKey ByronKeyS addrK, pwd)
+                        (view byronKey addrK, pwd)
                 RecentEraBabbage ->
                     mkByronWitness era body net addr
-                        (getRawKey ByronKeyS addrK, pwd)
+                        (view byronKey addrK, pwd)
 
 -- A helper function to generate properties for 'distributeSurplus' on
 -- success.
