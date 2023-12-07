@@ -578,6 +578,7 @@ test-suite unit
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage}
     , cardano-ledger-core
+    , cardano-ledger-mary:testlib
     , cardano-ledger-shelley
     , cardano-numeric
     , cardano-sl-x509
@@ -612,6 +613,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , generics-sop
+    , groups
     , hedgehog-corpus
     , hspec                                                     >=2.8.2
     , hspec-core                                                >=2.8.2

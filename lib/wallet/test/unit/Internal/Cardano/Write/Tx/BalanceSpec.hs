@@ -167,12 +167,18 @@ import Data.Either
 import Data.Function
     ( (&)
     )
+import Data.Functor
+    ( (<&>)
+    )
 import Data.Functor.Identity
     ( Identity
     )
 import Data.Generics.Internal.VL.Lens
     ( over
     , view
+    )
+import Data.Group
+    ( Group (invert)
     )
 import Data.IntCast
     ( intCast
@@ -311,6 +317,8 @@ import System.Random.StdGenSeed
     ( StdGenSeed (..)
     , stdGenFromSeed
     )
+import Test.Cardano.Ledger.Mary.Arbitrary
+    ()
 import Test.Hspec
     ( Spec
     , describe
@@ -1943,6 +1951,10 @@ data BalanceTxGolden =
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
 
+-- | Encapsulates a value that may be negative or positive or a mixture of both.
+newtype MixedSign a = MixedSign a
+    deriving (Eq, Show)
+
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
@@ -2478,6 +2490,19 @@ instance Arbitrary (W.Hash "Tx") where
 instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
+
+-- At the time of writing, the 'Arbitrary' instance for 'Value' only generates
+-- values without any negative components.
+--
+-- In order to allow for generation of values that may have both negative and
+-- positive components, use the following instance:
+--
+instance Arbitrary (MixedSign Value) where
+    arbitrary = MixedSign <$> ((<>) <$> genNegative <*> genPositive)
+      where
+        genNegative = arbitrary <&> invert
+        genPositive = arbitrary
+    shrink (MixedSign v) = MixedSign <$> shrink v
 
 instance Arbitrary (PartialTx Write.BabbageEra) where
     arbitrary = do
