@@ -2219,7 +2219,7 @@ dummyMnemonic = SomeMnemonic $ either (error . show) id
 -- "byron wallets".
 dummyByronChangeAddressGen :: AnyChangeAddressGenWithState
 dummyByronChangeAddressGen = AnyChangeAddressGenWithState
-    defaultChangeAddressGen
+    dummyChangeAddressGen
     (mkRndState byronRootK 0)
   where
     byronRootK = Byron.generateKeyFromSeed mw mempty
@@ -2227,8 +2227,8 @@ dummyByronChangeAddressGen = AnyChangeAddressGenWithState
         (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
     pwd = mempty
 
-    defaultChangeAddressGen :: ChangeAddressGen (RndState 'Mainnet)
-    defaultChangeAddressGen = ChangeAddressGen
+    dummyChangeAddressGen :: ChangeAddressGen (RndState 'Mainnet)
+    dummyChangeAddressGen = ChangeAddressGen
         (first Convert.toLedgerAddress <$> genChange (byronRootK, pwd))
         (Convert.toLedgerAddress maxLengthAddressForByron)
 
