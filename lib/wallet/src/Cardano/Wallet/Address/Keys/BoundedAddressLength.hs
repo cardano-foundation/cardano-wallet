@@ -6,20 +6,17 @@ module Cardano.Wallet.Address.Keys.BoundedAddressLength
     )
     where
 
-import Prelude
-
 import Cardano.Wallet.Address.Constants
     ( maxLengthAddressForByron
     , maxLengthAddressForIcarus
+    , maxLengthAddressForShelley
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (Address)
+    ( Address
     )
-
-import qualified Data.ByteString as BS
 
 -- | Returns the longest address that the wallet can generate for a given
 --   key.
@@ -41,6 +38,3 @@ maxLengthAddressFor keyS = case keyS of
     IcarusKeyS -> maxLengthAddressForIcarus
     ShelleyKeyS -> maxLengthAddressForShelley
     SharedKeyS -> maxLengthAddressForShelley
-
-maxLengthAddressForShelley :: Address
-maxLengthAddressForShelley = Address $ BS.replicate 57 0

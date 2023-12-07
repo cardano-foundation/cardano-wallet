@@ -3,6 +3,7 @@
 module Cardano.Wallet.Address.Constants
     ( maxLengthAddressForByron
     , maxLengthAddressForIcarus
+    , maxLengthAddressForShelley
     )
     where
 
@@ -56,3 +57,6 @@ maxLengthAddressForIcarus =
     xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
       where
         xprvPass = mempty :: BS.ByteString
+
+maxLengthAddressForShelley :: Address
+maxLengthAddressForShelley = Address $ BS.replicate 57 0
