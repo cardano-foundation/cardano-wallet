@@ -359,7 +359,10 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( report
+    ( DisjointPair
+    , genDisjointPair
+    , report
+    , shrinkDisjointPair
     , shrinkNatural
     , (.>=.)
     )
@@ -2510,6 +2513,10 @@ instance Arbitrary StdGenSeed  where
 instance Arbitrary W.TokenBundle where
     arbitrary = W.genTokenBundleSmallRange
     shrink = W.shrinkTokenBundleSmallRange
+
+instance Arbitrary (DisjointPair W.TokenBundle) where
+    arbitrary = genDisjointPair W.genTokenBundle
+    shrink = shrinkDisjointPair W.shrinkTokenBundle
 
 instance Arbitrary (TxBalanceSurplus W.Coin) where
     -- We want to test cases where the surplus is zero. So it's important that
