@@ -57,6 +57,8 @@ module Internal.Cardano.Write.Tx.Balance
     , posAndNegFromCardanoApiValue
     , fromWalletUTxO
     , toWalletUTxO
+    , splitSignedValue
+    , mergeSignedValue
 
     -- ** updateTx
     , TxUpdate (..)
@@ -113,6 +115,10 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.BaseTypes
     ( StrictMaybe (..)
     )
+import Cardano.Ledger.Mary.Value
+    ( MaryValue (MaryValue)
+    , MultiAsset (MultiAsset)
+    )
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
@@ -164,6 +170,9 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Generics.Labels
     ()
+import Data.Group
+    ( Group (invert)
+    )
 import Data.IntCast
     ( intCastMaybe
     )
@@ -1153,6 +1162,25 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
+
+mergeSignedValue :: (W.TokenBundle, W.TokenBundle) -> Value
+mergeSignedValue (bNegative, bPositive) = vNegative <> vPositive
+  where
+    vNegative = Convert.toLedger bNegative & invert
+    vPositive = Convert.toLedger bPositive
+
+splitSignedValue :: Value -> (W.TokenBundle, W.TokenBundle)
+splitSignedValue v = (bNegative, bPositive)
+  where
+    bNegative = Convert.toWallet . filterPositive $ invert v
+    bPositive = Convert.toWallet . filterPositive $        v
+
+    filterPositive :: Value -> Value
+    filterPositive (MaryValue a (MultiAsset m)) =
+        MaryValue aPositive (MultiAsset mPositive)
+      where
+        aPositive = if a > 0 then a else 0
+        mPositive = Map.map (Map.filter (> 0)) m
 
 --------------------------------------------------------------------------------
 -- updateTx

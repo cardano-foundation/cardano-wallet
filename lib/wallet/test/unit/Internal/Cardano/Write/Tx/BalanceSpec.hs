@@ -16,6 +16,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -213,6 +214,9 @@ import Data.Text
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
     )
+import Data.Tuple
+    ( swap
+    )
 import Data.Word
     ( Word8
     )
@@ -273,9 +277,11 @@ import Internal.Cardano.Write.Tx.Balance
     , distributeSurplusDelta
     , fromWalletUTxO
     , maximumCostOfIncreasingCoin
+    , mergeSignedValue
     , noTxUpdate
     , posAndNegFromCardanoApiValue
     , sizeOfCoin
+    , splitSignedValue
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
@@ -369,6 +375,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( DisjointPair
     , genDisjointPair
+    , getDisjointPair
     , report
     , shrinkDisjointPair
     , shrinkNatural
@@ -722,6 +729,25 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 `shouldBe`
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
+
+    describe "Merging and splitting signed values" $ do
+
+        it "prop_mergeSignedValue_invert_swap" $
+            prop_mergeSignedValue_invert_swap
+                & property
+                & checkCoverage
+        it "prop_splitSignedValue_invert_swap" $
+            prop_splitSignedValue_invert_swap
+                & property
+                & checkCoverage
+        it "prop_mergeSignedValue_splitSignedValue" $
+            prop_mergeSignedValue_splitSignedValue
+                & property
+                & checkCoverage
+        it "prop_splitSignedValue_mergeSignedValue" $
+            prop_splitSignedValue_mergeSignedValue
+                & property
+                & checkCoverage
   where
     outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
@@ -1927,6 +1953,34 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
     collateralIns = view (bodyTxL . collateralInputsTxBodyL)
     fee = view (bodyTxL . feeTxBodyL)
 
+prop_mergeSignedValue_invert_swap :: (W.TokenBundle, W.TokenBundle) -> Property
+prop_mergeSignedValue_invert_swap p@(b1, b2) =
+    invert (mergeSignedValue p) === mergeSignedValue (swap p)
+    & cover 10
+        (tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0)
+        "tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0"
+
+prop_splitSignedValue_invert_swap :: MixedSign Value -> Property
+prop_splitSignedValue_invert_swap (MixedSign v) =
+    splitSignedValue (invert v) === swap (splitSignedValue v)
+    & cover 10
+        (valueHasNegativeAndPositiveParts v)
+        "valueHasNegativeAndPositiveParts v"
+
+prop_mergeSignedValue_splitSignedValue :: DisjointPair W.TokenBundle -> Property
+prop_mergeSignedValue_splitSignedValue (getDisjointPair -> (b1, b2)) =
+    (splitSignedValue . mergeSignedValue) (b1, b2) === (b1, b2)
+    & cover 10
+        (tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0)
+        "tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0"
+
+prop_splitSignedValue_mergeSignedValue :: MixedSign Value -> Property
+prop_splitSignedValue_mergeSignedValue (MixedSign v) =
+    (mergeSignedValue . splitSignedValue) v === v
+    & cover 10
+        (valueHasNegativeAndPositiveParts v)
+        "valueHasNegativeAndPositiveParts v"
+
 --------------------------------------------------------------------------------
 -- Utility types
 --------------------------------------------------------------------------------
@@ -2115,6 +2169,15 @@ x `shouldBeInclusivelyWithin` (a, b) =
         , "not in the expected interval"
         , "[" <> show a <> ", " <> show b <> "]"
         ]
+
+tokenBundleSize :: W.TokenBundle -> Int
+tokenBundleSize = Set.size . W.TokenBundle.getAssets
+
+valueHasNegativeAndPositiveParts :: Value -> Bool
+valueHasNegativeAndPositiveParts v =
+    tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0
+  where
+    (b1, b2) = splitSignedValue v
 
 withValidityInterval
     :: ValidityInterval
