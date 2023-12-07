@@ -193,10 +193,6 @@ module Cardano.Wallet.Api.Types
     , ApiDecodeTransactionPostData (..)
     , fromApiDecodeTransactionPostData
     , toApiDecodeTransactionPostData
-    , ApiVoteAction (..)
-    , DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -398,6 +394,11 @@ import Cardano.Wallet.Api.Types.Transaction
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+import Cardano.Wallet.Delegation.Model
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Pools
     ( EpochInfo
@@ -1233,13 +1234,14 @@ newtype ApiEncryptMetadata = ApiEncryptMetadata
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
 
-newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
-    deriving (Generic, Eq, Ord)
-
-instance NFData DRepKeyHash
-
 instance Show DRepKeyHash where
     show p = "(DRep key hash " <> show (encodeDRepKeyHashBech32 p) <> ")"
+
+instance Show DRepScriptHash where
+    show p = "(DRep script hash " <> show (encodeDRepScriptHashBech32 p) <> ")"
+
+deriving instance Show DRep
+deriving instance Show VoteAction
 
 -- | Encode 'DRepKeyHash' as Bech32 with "drep_vkh" hrp.
 encodeDRepKeyHashBech32 :: DRepKeyHash -> T.Text
@@ -1265,13 +1267,6 @@ decodeDRepKeyHashBech32 t =
             ]
         hrp = [Bech32.humanReadablePart|drep_vkh|]
 
-newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
-    deriving (Generic, Eq, Ord)
-
-instance NFData DRepScriptHash
-
-instance Show DRepScriptHash where
-    show p = "(DRep script hash " <> show (encodeDRepScriptHashBech32 p) <> ")"
 
 -- | Encode 'DRepScriptHash' as Bech32 with "drep_script" hrp.
 encodeDRepScriptHashBech32 :: DRepScriptHash -> T.Text
@@ -1297,19 +1292,6 @@ decodeDRepScriptHashBech32 t =
             ]
         hrp = [Bech32.humanReadablePart|drep_script|]
 
-data DRep =
-    DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
--- | Vote action.
-data ApiVoteAction
-    = Abstain
-    | NoConfidence
-    | VoteTo !DRep
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) =
     ApiConstructTransactionData
@@ -1319,7 +1301,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) =
     , encryptMetadata :: !(Maybe ApiEncryptMetadata)
     , mintBurn :: !(Maybe (NonEmpty (ApiMintBurnData n)))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
-    , vote :: !(Maybe ApiVoteAction)
+    , vote :: !(Maybe (ApiT VoteAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
     , referencePolicyScriptTemplate :: !(Maybe (ApiT (Script Cosigner)))
     , encoding :: !(Maybe ApiSealedTxEncoding)
@@ -2269,15 +2251,15 @@ instance ToJSON ApiStakeKeyIndex where
 instance FromJSON ApiStakeKeyIndex where
     parseJSON val = ApiStakeKeyIndex <$> parseJSON val
 
-instance ToJSON ApiVoteAction where
-    toJSON Abstain = "abstain"
-    toJSON NoConfidence = "no_confidence"
-    toJSON (VoteTo drep) = case drep of
+instance ToJSON (ApiT VoteAction) where
+    toJSON (ApiT Abstain) = "abstain"
+    toJSON (ApiT NoConfidence) = "no_confidence"
+    toJSON (ApiT (VoteTo drep)) = case drep of
         DRepFromKeyHash keyhash ->
             String $ encodeDRepKeyHashBech32 keyhash
         DRepFromScriptHash scripthash ->
             String $ encodeDRepScriptHashBech32 scripthash
-instance FromJSON ApiVoteAction where
+instance FromJSON (ApiT VoteAction) where
     parseJSON t =
         parseAbstain t <|> parseNoConfidence t <|> parseKeyHash t <|> parseScriptHash t
       where
@@ -2285,20 +2267,20 @@ instance FromJSON ApiVoteAction where
             case decodeDRepKeyHashBech32 txt of
                 Left (TextDecodingError err) -> fail err
                 Right keyhash ->
-                    pure $ VoteTo $ DRepFromKeyHash keyhash
+                    pure $ ApiT $ VoteTo $ DRepFromKeyHash keyhash
         parseScriptHash = withText "DRepScriptHash" $ \txt ->
             case decodeDRepScriptHashBech32 txt of
                 Left (TextDecodingError err) -> fail err
                 Right scripthash ->
-                    pure $ VoteTo $ DRepFromScriptHash scripthash
+                    pure $ ApiT $ VoteTo $ DRepFromScriptHash scripthash
         parseAbstain = withText "Abstain" $ \txt ->
             if txt == "abstain" then
-                pure Abstain
+                pure $ ApiT Abstain
             else
                 fail "'abstain' is expected."
         parseNoConfidence = withText "NoConfidence" $ \txt ->
             if txt == "no_confidence" then
-                pure NoConfidence
+                pure $ ApiT NoConfidence
             else
                 fail "'no_confidence' is expected."
 

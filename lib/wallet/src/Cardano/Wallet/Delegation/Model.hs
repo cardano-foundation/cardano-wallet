@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -11,10 +14,20 @@ module Cardano.Wallet.Delegation.Model
     , Status (..)
     , History
     , status
+    , DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     ) where
 
 import Prelude
 
+import Control.DeepSeq
+    ( NFData (..)
+    )
+import Data.ByteString
+    ( ByteString
+    )
 import Data.Delta
     ( Delta (..)
     )
@@ -23,6 +36,9 @@ import Data.Function
     )
 import Data.Map.Strict
     ( Map
+    )
+import GHC.Generics
+    ( Generic
     )
 
 import qualified Data.Map.Strict as Map
@@ -73,3 +89,26 @@ cut op = fst . Map.spanAntitone op
 -- | Status of the delegation at a given slot.
 status :: Ord slot => slot -> History slot pool -> Status pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)
+
+newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
+    deriving (Generic, Eq, Ord)
+
+instance NFData DRepKeyHash
+
+newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
+    deriving (Generic, Eq, Ord)
+
+instance NFData DRepScriptHash
+
+data DRep =
+    DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+
+-- | Vote action.
+data VoteAction
+    = Abstain
+    | NoConfidence
+    | VoteTo !DRep
+    deriving (Eq, Generic)
+    deriving anyclass NFData
