@@ -1973,22 +1973,25 @@ balanceTx
     -> PartialTx era
     -> Either (ErrBalanceTx era) (Tx era)
 balanceTx
-    (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
+    (Wallet' utxoAssumptions utxo changeAddrGen)
     protocolParameters
     timeTranslation
     seed
     partialTx
-    = (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
-        (transactionInEra, _nextChangeState) <-
-            balanceTransaction
-                protocolParameters
-                timeTranslation
-                utxoAssumptions
-                utxoIndex
-                genChange
-                s
-                partialTx
-        pure transactionInEra
+    =
+    case changeAddrGen of
+        AnyChangeAddressGenWithState genChangeAddr s ->
+            (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
+                (transactionInEra, _nextChangeState) <-
+                    balanceTransaction
+                        protocolParameters
+                        timeTranslation
+                        utxoAssumptions
+                        utxoIndex
+                        genChangeAddr
+                        s
+                        partialTx
+                pure transactionInEra
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
