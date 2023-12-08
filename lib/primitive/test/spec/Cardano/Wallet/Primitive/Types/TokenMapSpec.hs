@@ -26,8 +26,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
-    ( AssetIdF (..)
-    , genAssetId
+    ( genAssetId
     , genAssetIdLargeRange
     , shrinkAssetId
     )
@@ -416,29 +415,29 @@ prop_toNestedList_fromNestedList b =
 --------------------------------------------------------------------------------
 
 -- | Verify that all assets in the resulting filtered map satisfy the predicate.
-prop_filter_conjoin :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_conjoin :: Fun AssetId Bool -> TokenMap -> Property
 prop_filter_conjoin f b =
     let
-        as = TokenMap.getAssets $ TokenMap.filter (applyFun f . AssetIdF) b
+        as = TokenMap.getAssets $ TokenMap.filter (applyFun f) b
     in
-        Set.foldr ((&&) . applyFun f . AssetIdF) True as === True
+        Set.foldr ((&&) . applyFun f) True as === True
 
 -- | Verify that we can partition the token map using the predicate, and recover
 -- the original map by computing the union of both partitions.
-prop_filter_partition :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_partition :: Fun AssetId Bool -> TokenMap -> Property
 prop_filter_partition f b =
     let
-        l = TokenMap.filter (applyFun f . AssetIdF) b
-        r = TokenMap.filter (not . applyFun f . AssetIdF) b
+        l = TokenMap.filter (applyFun f) b
+        r = TokenMap.filter (not . applyFun f) b
     in
         (l <> r) === b
 
 -- | Verify that filtering twice has the same effect as filtering once.
-prop_filter_twice :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_twice :: Fun AssetId Bool -> TokenMap -> Property
 prop_filter_twice f b =
     let
-        once  = TokenMap.filter (applyFun f . AssetIdF) b
-        twice = TokenMap.filter (applyFun f . AssetIdF) once
+        once  = TokenMap.filter (applyFun f) b
+        twice = TokenMap.filter (applyFun f) once
     in
         once === twice
 
