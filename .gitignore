@@ -45,7 +45,7 @@ cabal.project.diff
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json
 *.faulty.reencoded.json
-lib/wallet/test/data/balanceTx/**/actual
+lib/balance-tx/test/data/balanceTx/**/actual
 
 ### Release scripts output
 /GENERATED_*.md
