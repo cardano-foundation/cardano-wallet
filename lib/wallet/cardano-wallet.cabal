@@ -570,22 +570,14 @@ test-suite unit
     , cardano-api
     , cardano-api-extra
     , cardano-balance-tx:{cardano-balance-tx, internal}
-    , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-crypto-wrapper
-    , cardano-ledger-allegra:{cardano-ledger-allegra}
     , cardano-ledger-alonzo
-    , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage}
-    , cardano-ledger-byron
     , cardano-ledger-core
-    , cardano-ledger-mary:testlib
     , cardano-ledger-shelley
-    , cardano-numeric
     , cardano-sl-x509
     , cardano-slotting
-    , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-application-extras
@@ -615,11 +607,9 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , generics-sop
-    , groups
     , hedgehog-corpus
     , hspec                                                     >=2.8.2
     , hspec-core                                                >=2.8.2
-    , hspec-golden
     , http-api-data
     , http-client
     , http-client-tls
@@ -645,7 +635,6 @@ test-suite unit
     , openapi3                                                  ==3.2.3
     , optparse-applicative
     , ouroboros-consensus
-    , ouroboros-consensus-cardano
     , ouroboros-network
     , ouroboros-network-api
     , persistent                                                ^>=2.13
@@ -665,7 +654,6 @@ test-suite unit
     , si-timers
     , sop-core
     , splitmix
-    , std-gen-seed
     , string-interpolate
     , tagged                                                    ^>=0.8.7
     , temporary
@@ -770,7 +758,6 @@ test-suite unit
     Data.Time.TextSpec
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
-    Internal.Cardano.Write.Tx.BalanceSpec
     Spec
     SpecHook
 
