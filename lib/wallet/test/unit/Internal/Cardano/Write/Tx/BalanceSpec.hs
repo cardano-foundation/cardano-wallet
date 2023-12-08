@@ -16,6 +16,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -172,12 +173,18 @@ import Data.Either
 import Data.Function
     ( (&)
     )
+import Data.Functor
+    ( (<&>)
+    )
 import Data.Functor.Identity
     ( Identity
     )
 import Data.Generics.Internal.VL.Lens
     ( over
     , view
+    )
+import Data.Group
+    ( Group (invert)
     )
 import Data.IntCast
     ( intCast
@@ -211,6 +218,9 @@ import Data.Text
     )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
+    )
+import Data.Tuple
+    ( swap
     )
 import Data.Word
     ( Word8
@@ -272,9 +282,10 @@ import Internal.Cardano.Write.Tx.Balance
     , distributeSurplusDelta
     , fromWalletUTxO
     , maximumCostOfIncreasingCoin
+    , mergeSignedValue
     , noTxUpdate
-    , posAndNegFromCardanoApiValue
     , sizeOfCoin
+    , splitSignedValue
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
@@ -316,6 +327,8 @@ import System.Random.StdGenSeed
     ( StdGenSeed (..)
     , stdGenFromSeed
     )
+import Test.Cardano.Ledger.Mary.Arbitrary
+    ()
 import Test.Hspec
     ( Spec
     , describe
@@ -364,7 +377,11 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( report
+    ( DisjointPair
+    , genDisjointPair
+    , getDisjointPair
+    , report
+    , shrinkDisjointPair
     , shrinkNatural
     , (.>=.)
     )
@@ -533,10 +550,6 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                     & tabulateOverestimation
 
     balanceTransactionGoldenSpec
-
-    describe "posAndNegFromCardanoApiValue" $
-        it "roundtrips with toCardanoApiValue" $
-            property prop_posAndNegFromCardanoApiValueRoundtrip
 
     describe "change address generation" $ do
         let balance' =
@@ -716,6 +729,25 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 `shouldBe`
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
+
+    describe "Merging and splitting signed values" $ do
+
+        it "prop_mergeSignedValue_invert_swap" $
+            prop_mergeSignedValue_invert_swap
+                & property
+                & checkCoverage
+        it "prop_splitSignedValue_invert_swap" $
+            prop_splitSignedValue_invert_swap
+                & property
+                & checkCoverage
+        it "prop_mergeSignedValue_splitSignedValue" $
+            prop_mergeSignedValue_splitSignedValue
+                & property
+                & checkCoverage
+        it "prop_splitSignedValue_mergeSignedValue" $
+            prop_splitSignedValue_mergeSignedValue
+                & property
+                & checkCoverage
   where
     outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
@@ -1874,16 +1906,6 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
         feePolicy surplus (TxFeeAndChange fee0 change0)
     maxCoinCostIncrease = maximumCostOfIncreasingCoin feePolicy
 
-prop_posAndNegFromCardanoApiValueRoundtrip :: Property
-prop_posAndNegFromCardanoApiValueRoundtrip =
-    forAll CardanoApi.genSignedValue $ \v ->
-    let
-        (pos, neg) = posAndNegFromCardanoApiValue v
-    in
-        walletToCardanoValue pos <>
-        (CardanoApi.negateValue (walletToCardanoValue neg))
-        === v
-
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
@@ -1921,6 +1943,34 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
     collateralIns = view (bodyTxL . collateralInputsTxBodyL)
     fee = view (bodyTxL . feeTxBodyL)
 
+prop_mergeSignedValue_invert_swap :: (W.TokenBundle, W.TokenBundle) -> Property
+prop_mergeSignedValue_invert_swap p@(b1, b2) =
+    invert (mergeSignedValue p) === mergeSignedValue (swap p)
+    & cover 10
+        (tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0)
+        "tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0"
+
+prop_splitSignedValue_invert_swap :: MixedSign Value -> Property
+prop_splitSignedValue_invert_swap (MixedSign v) =
+    splitSignedValue (invert v) === swap (splitSignedValue v)
+    & cover 10
+        (valueHasNegativeAndPositiveParts v)
+        "valueHasNegativeAndPositiveParts v"
+
+prop_mergeSignedValue_splitSignedValue :: DisjointPair W.TokenBundle -> Property
+prop_mergeSignedValue_splitSignedValue (getDisjointPair -> (b1, b2)) =
+    (splitSignedValue . mergeSignedValue) (b1, b2) === (b1, b2)
+    & cover 10
+        (tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0)
+        "tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0"
+
+prop_splitSignedValue_mergeSignedValue :: MixedSign Value -> Property
+prop_splitSignedValue_mergeSignedValue (MixedSign v) =
+    (mergeSignedValue . splitSignedValue) v === v
+    & cover 10
+        (valueHasNegativeAndPositiveParts v)
+        "valueHasNegativeAndPositiveParts v"
+
 --------------------------------------------------------------------------------
 -- Utility types
 --------------------------------------------------------------------------------
@@ -1944,6 +1994,10 @@ data BalanceTxGolden =
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
+
+-- | Encapsulates a value that may be negative or positive or a mixture of both.
+newtype MixedSign a = MixedSign a
+    deriving (Eq, Show)
 
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
@@ -2108,6 +2162,15 @@ x `shouldBeInclusivelyWithin` (a, b) =
         , "not in the expected interval"
         , "[" <> show a <> ", " <> show b <> "]"
         ]
+
+tokenBundleSize :: W.TokenBundle -> Int
+tokenBundleSize = Set.size . W.TokenBundle.getAssets
+
+valueHasNegativeAndPositiveParts :: Value -> Bool
+valueHasNegativeAndPositiveParts v =
+    tokenBundleSize b1 > 0 && tokenBundleSize b2 > 0
+  where
+    (b1, b2) = splitSignedValue v
 
 withValidityInterval
     :: ValidityInterval
@@ -2489,6 +2552,19 @@ instance Arbitrary (Index 'WholeDomain depth) where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
 
+-- At the time of writing, the 'Arbitrary' instance for 'Value' only generates
+-- values without any negative components.
+--
+-- In order to allow for generation of values that may have both negative and
+-- positive components, use the following instance:
+--
+instance Arbitrary (MixedSign Value) where
+    arbitrary = MixedSign <$> ((<>) <$> genNegative <*> genPositive)
+      where
+        genNegative = arbitrary <&> invert
+        genPositive = arbitrary
+    shrink (MixedSign v) = MixedSign <$> shrink v
+
 instance Arbitrary (PartialTx Write.BabbageEra) where
     arbitrary = do
         let era = CardanoApi.BabbageEra
@@ -2523,6 +2599,10 @@ instance Arbitrary StdGenSeed  where
 instance Arbitrary W.TokenBundle where
     arbitrary = W.genTokenBundleSmallRange
     shrink = W.shrinkTokenBundleSmallRange
+
+instance Arbitrary (DisjointPair W.TokenBundle) where
+    arbitrary = genDisjointPair W.genTokenBundle
+    shrink = shrinkDisjointPair W.shrinkTokenBundle
 
 instance Arbitrary (TxBalanceSurplus W.Coin) where
     -- We want to test cases where the surplus is zero. So it's important that

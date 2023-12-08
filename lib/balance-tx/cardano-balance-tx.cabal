@@ -70,6 +70,7 @@ library internal
     , deepseq
     , fmt
     , generic-lens
+    , groups
     , int-cast
     , lens
     , MonadRandom

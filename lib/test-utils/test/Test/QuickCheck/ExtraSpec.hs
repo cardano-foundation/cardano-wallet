@@ -43,6 +43,9 @@ import Data.Maybe
     ( isJust
     , isNothing
     )
+import Data.Monoid.Monus
+    ( Monus ((<\>))
+    )
 import Data.Set
     ( Set
     )
@@ -90,10 +93,13 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , genShrinkSequence
     , genericRoundRobinShrink
+    , getDisjointPair
     , interleaveRoundRobin
+    , makeDisjointPair
     , partitionList
     , selectMapEntries
     , selectMapEntry
+    , shrinkDisjointPair
     , shrinkSpace
     , shrinkWhile
     , shrinkWhileSteps
@@ -243,6 +249,17 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     prop_shrinkWhileSteps_satisfy
                         @Int & property
                 unit_shrinkWhileSteps_Int
+
+    describe "Disjoint pairs" $ do
+
+        it "prop_makeDisjointPair_getDisjointPair_areDisjoint" $
+            prop_makeDisjointPair_getDisjointPair_areDisjoint
+                & property
+                & checkCoverage
+        it "prop_shrinkDisjointPair_getDisjointPair_areDisjoint" $
+            prop_shrinkDisjointPair_getDisjointPair_areDisjoint
+                & property
+                & checkCoverage
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
@@ -837,6 +854,48 @@ unit_shrinkWhileSteps_Int = unitTests
             , result = []
             }
         ]
+
+--------------------------------------------------------------------------------
+-- Disjoint pairs
+--------------------------------------------------------------------------------
+
+-- For convenience, when testing properties of disjoint pairs, we test with
+-- sets of small integer values.
+--
+-- However, these properties should also hold for any type that is an instance
+-- of 'Monus'.
+
+-- The result of making a disjoint pair should be disjoint.
+prop_makeDisjointPair_getDisjointPair_areDisjoint
+    :: Set Int
+    -> Set Int
+    -> Property
+prop_makeDisjointPair_getDisjointPair_areDisjoint s1 s2 =
+    areDisjoint (getDisjointPair (makeDisjointPair s1 s2)) === True
+    & cover 10
+        (notDisjoint (s1, s2) && (d1 /= mempty && d2 /= mempty))
+        "notDisjoint (s1, s2) && (d1 /= mempty && d2 /= mempty)"
+  where
+    (d1, d2) = getDisjointPair (makeDisjointPair s1 s2)
+
+-- The results of shrinking a disjoint pair should all be disjoint.
+prop_shrinkDisjointPair_getDisjointPair_areDisjoint
+    :: Set Int
+    -> Set Int
+    -> Property
+prop_shrinkDisjointPair_getDisjointPair_areDisjoint s1 s2 =
+    all (areDisjoint . getDisjointPair) (shrinkDisjointPair shrink p) === True
+    & cover 10
+        (length (shrinkDisjointPair shrink p) >= 8)
+        "length (shrinkDisjointPair shrink p) >= 8"
+  where
+    p = makeDisjointPair s1 s2
+
+areDisjoint :: (Eq a, Monus a) => (a, a) -> Bool
+areDisjoint (v1, v2) = (v1 <\> v2 == v1) && (v2 <\> v1 == v2)
+
+notDisjoint :: (Eq a, Monus a) => (a, a) -> Bool
+notDisjoint = not . areDisjoint
 
 --------------------------------------------------------------------------------
 -- Unit test support

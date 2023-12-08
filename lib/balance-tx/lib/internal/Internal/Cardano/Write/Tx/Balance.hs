@@ -54,9 +54,10 @@ module Internal.Cardano.Write.Tx.Balance
     , constructUTxOIndex
 
     -- * Utilities
-    , posAndNegFromCardanoApiValue
     , fromWalletUTxO
     , toWalletUTxO
+    , splitSignedValue
+    , mergeSignedValue
 
     -- ** updateTx
     , TxUpdate (..)
@@ -113,6 +114,10 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.BaseTypes
     ( StrictMaybe (..)
     )
+import Cardano.Ledger.Mary.Value
+    ( MaryValue (MaryValue)
+    , MultiAsset (MultiAsset)
+    )
 import Cardano.Ledger.UTxO
     ( txinLookup
     )
@@ -140,10 +145,6 @@ import Control.Monad.Trans.State
     ( runState
     , state
     )
-import Data.Bifunctor
-    ( bimap
-    , second
-    )
 import Data.Bits
     ( Bits
     )
@@ -164,6 +165,9 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Generics.Labels
     ()
+import Data.Group
+    ( Group (invert)
+    )
 import Data.IntCast
     ( intCastMaybe
     )
@@ -275,11 +279,12 @@ import Text.Pretty.Simple
     )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Val as Val
+    ( coin
+    )
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address
@@ -316,7 +321,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
-import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
@@ -681,7 +685,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 balance0
-                (fromCardanoApiLovelace minfee0)
+                (Convert.toWalletCoin minfee0)
                 randomSeed
                 genChange
                 selectionStrategy
@@ -719,19 +723,18 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     . snd
                     ) <$> extraInputs <> extraCollateral'
         extraCollateral = fst <$> extraCollateral'
-        unsafeFromLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs
         , extraInputScripts
-        , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
+        , feeUpdate = UseNewTxFee $ Convert.toWalletCoin minfee0
         }
 
     (balance, candidateMinFee, witCount) <-
         balanceAfterSettingMinFee candidateTx
-    surplus <- case CardanoApi.selectLovelace balance of
-        (CardanoApi.Lovelace c)
+    surplus <- case Val.coin balance of
+        (Coin c)
             | c >= 0 ->
                 pure $ W.Coin.unsafeFromIntegral c
             | otherwise ->
@@ -743,7 +746,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     witCount
 
     let feeAndChange = TxFeeAndChange
-            (unsafeFromLovelace candidateMinFee)
+            (Convert.toWalletCoin candidateMinFee)
             (extraOutputs)
         feePerByte = getFeePerByte pp
 
@@ -842,15 +845,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     balanceAfterSettingMinFee
         :: Tx era
-        -> ExceptT (ErrBalanceTx era) m
-            (CardanoApi.Value, CardanoApi.Lovelace, KeyWitnessCount)
+        -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO tx
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
-        let balance = CardanoApi.fromMaryValue $ txBalance tx'
-            minfee' = CardanoApi.Lovelace $ W.Coin.toInteger minfee
+        let balance = txBalance tx'
+            minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
     -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
@@ -930,8 +932,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
-    fromCardanoApiLovelace (CardanoApi.Lovelace l) = W.Coin.unsafeFromIntegral l
-
 -- | Select assets to cover the specified balance and fee.
 --
 -- If the transaction contains redeemers, the function will also ensure the
@@ -948,8 +948,10 @@ selectAssets
     -> UTxOSelection WalletUTxO
     -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
     -- inputs or collateral.
-    -> CardanoApi.Value -- Balance to cover
-    -> W.Coin -- Current minfee (before selecting assets)
+    -> Value
+    -- ^ Balance to cover.
+    -> W.Coin
+    -- ^ Current minimum fee (before selecting assets).
     -> StdGenSeed
     -> ChangeAddressGen changeState
     -> SelectionStrategy
@@ -1032,8 +1034,7 @@ selectAssets pp utxoAssumptions outs' redeemers
         , selectionStrategy = selectionStrategy
         }
       where
-        (balancePositive, balanceNegative) =
-            posAndNegFromCardanoApiValue balance
+        (balanceNegative, balancePositive) = splitSignedValue balance
         valueOfOutputs = F.foldMap' (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
@@ -1132,19 +1133,6 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
         pure $ W.TxOut (Convert.toWalletAddress addr) bundle
     pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
 
--- | Convert a 'CardanoApi.Value' into a positive and negative component. Useful
--- to convert the potentially negative balance of a partial tx into
--- TokenBundles.
-posAndNegFromCardanoApiValue
-    :: CardanoApi.Value
-    -> (W.TokenBundle, W.TokenBundle)
-posAndNegFromCardanoApiValue
-    = bimap
-        (fromCardanoApiValue . CardanoApi.valueFromList)
-        (fromCardanoApiValue . CardanoApi.valueFromList . L.map (second negate))
-    . L.partition ((>= 0) . snd)
-    . CardanoApi.valueToList
-
 unsafeIntCast
     :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
     => a
@@ -1152,6 +1140,25 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
+
+mergeSignedValue :: (W.TokenBundle, W.TokenBundle) -> Value
+mergeSignedValue (bNegative, bPositive) = vNegative <> vPositive
+  where
+    vNegative = Convert.toLedger bNegative & invert
+    vPositive = Convert.toLedger bPositive
+
+splitSignedValue :: Value -> (W.TokenBundle, W.TokenBundle)
+splitSignedValue v = (bNegative, bPositive)
+  where
+    bNegative = Convert.toWallet . filterPositive $ invert v
+    bPositive = Convert.toWallet . filterPositive $        v
+
+    filterPositive :: Value -> Value
+    filterPositive (MaryValue a (MultiAsset m)) =
+        MaryValue aPositive (MultiAsset mPositive)
+      where
+        aPositive = if a > 0 then a else 0
+        mPositive = Map.map (Map.filter (> 0)) m
 
 --------------------------------------------------------------------------------
 -- updateTx
@@ -1687,6 +1694,3 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)
-
-fromCardanoApiValue :: CardanoApi.Value -> W.TokenBundle
-fromCardanoApiValue = Convert.toWalletTokenBundle . CardanoApi.toMaryValue

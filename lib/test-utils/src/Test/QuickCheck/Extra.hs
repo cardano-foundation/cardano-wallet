@@ -81,6 +81,13 @@ module Test.QuickCheck.Extra
     , ScaleDiv (..)
     , ScaleMod (..)
 
+      -- * Disjoint pairs
+    , DisjointPair
+    , makeDisjointPair
+    , getDisjointPair
+    , genDisjointPair
+    , shrinkDisjointPair
+
       -- * Utilities
     , interleaveRoundRobin
 
@@ -105,6 +112,9 @@ import Data.Map.Strict
 import Data.Maybe
     ( listToMaybe
     , mapMaybe
+    )
+import Data.Monoid.Monus
+    ( Monus ((<\>))
     )
 import Data.Set
     ( Set
@@ -763,6 +773,39 @@ instance (Arbitrary a, KnownNat n, 1 <= n) => Arbitrary (ScaleMod n a) where
       where
         n = fromIntegral $ natVal $ Proxy @n
     shrink = shrinkMapBy ScaleMod unScaleMod shrink
+
+--------------------------------------------------------------------------------
+-- Disjoint pairs
+--------------------------------------------------------------------------------
+
+-- | Represents a pair of values that are disjoint to one another.
+--
+-- A pair of values 'v1' and 'v2' are disjoint if and only if:
+--
+-- @
+-- (v1 <\> v2 == v1) && (v2 <\> v1 == v2)
+-- @
+--
+data DisjointPair a = DisjointPair !a !a
+    deriving (Eq, Show)
+
+makeDisjointPair :: Monus a => a -> a -> DisjointPair a
+makeDisjointPair a1 a2 = DisjointPair (a1 <\> a2) (a2 <\> a1)
+
+getDisjointPair :: DisjointPair a -> (a, a)
+getDisjointPair (DisjointPair a1 a2) = (a1, a2)
+
+genDisjointPair :: Monus a => Gen a -> Gen (DisjointPair a)
+genDisjointPair genItem = makeDisjointPair <$> genItem <*> genItem
+
+shrinkDisjointPair
+    :: (Eq a, Monus a)
+    => (a -> [a])
+    -> (DisjointPair a -> [DisjointPair a])
+shrinkDisjointPair shrinkItem p@(DisjointPair a1 a2) =
+    filter (/= p) $
+    uncurry makeDisjointPair <$>
+    liftShrink2 shrinkItem shrinkItem (a1, a2)
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
