@@ -56,7 +56,6 @@ library
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-byron
