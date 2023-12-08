@@ -32,6 +32,9 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv
     )
+import Cardano.Ledger.Address
+    ( Addr (AddrBootstrap)
+    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
     )
@@ -105,7 +108,6 @@ import System.Random
     )
 
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
-import qualified Internal.Cardano.Write.UTxOAssumptions as UTxOAssumptions
 
 --------------------------------------------------------------------------------
 --
@@ -192,9 +194,9 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
         double = fromIntegral
 
         correctAddressType =
-            UTxOAssumptions.validateAddress
-                UTxOAssumptions.AllByronKeyPaymentCredentials
-                (toLedger $ Address bytes)
+            case toLedger (Address bytes) of
+                AddrBootstrap _ -> True
+                _anythingElse -> False
 
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)

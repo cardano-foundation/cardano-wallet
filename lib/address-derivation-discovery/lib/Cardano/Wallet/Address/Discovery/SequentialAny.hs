@@ -46,6 +46,12 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub
     )
+import Cardano.Ledger.Address
+    ( Addr (Addr)
+    )
+import Cardano.Ledger.Credential
+    ( Credential (KeyHashObj)
+    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
     )
@@ -123,7 +129,6 @@ import GHC.TypeLits
 
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Internal.Cardano.Write.UTxOAssumptions as UTxOAssumptions
 
 {-------------------------------------------------------------------------------
     SeqAnyState
@@ -183,9 +188,9 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
         double = fromIntegral
 
         correctAddressType =
-            UTxOAssumptions.validateAddress
-                UTxOAssumptions.AllKeyPaymentCredentials
-                (toLedger $ Address bytes)
+            case toLedger (Address bytes) of
+                (Addr _ KeyHashObj {} _) -> True
+                _anythingElse -> False
 
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)

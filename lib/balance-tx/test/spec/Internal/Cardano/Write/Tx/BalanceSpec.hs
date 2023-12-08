@@ -40,7 +40,8 @@ import Cardano.Binary
     , unsafeDeserialize'
     )
 import Cardano.Crypto.Wallet
-    ( toXPub
+    ( XPrv
+    , toXPub
     )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..)
@@ -48,6 +49,7 @@ import Cardano.Ledger.Alonzo.TxInfo
 import Cardano.Ledger.Api
     ( AllegraEraTxBody (..)
     , AlonzoEraTxBody (..)
+    , BootstrapWitness
     , EraTx (witsTxL)
     , EraTxBody (..)
     , EraTxWits (bootAddrTxWitsL, scriptTxWitsL)
@@ -68,6 +70,9 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Era
     ( Era
+    )
+import Cardano.Ledger.Keys.Bootstrap
+    ( makeBootstrapWitness
     )
 import Cardano.Ledger.Language
     ( Language (..)
@@ -113,17 +118,22 @@ import Cardano.Wallet.Address.Discovery.Random
     ( RndState
     , mkRndState
     )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ()
+import Cardano.Wallet.Address.Encoding
+    ( toHDPayloadAddress
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     , NetworkId (..)
     , SNetworkId (..)
     , withSNetworkId
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
-    )
-import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -245,6 +255,7 @@ import Internal.Cardano.Write.Tx
     , FeePerByte (..)
     , IsRecentEra (..)
     , RecentEra (..)
+    , StandardCrypto
     , Tx
     , TxIn
     , TxOut
@@ -402,8 +413,13 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Api as CardanoApi
+import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Gen as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
+import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
@@ -1275,7 +1291,7 @@ spec_updateTx = describe "updateTx" $ do
 
 prop_balanceTransactionExistingReturnCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet'
+    => Wallet
     -> ShowBuildable (PartialTx era)
     -> StdGenSeed
     -> Property
@@ -1292,7 +1308,7 @@ prop_balanceTransactionExistingReturnCollateral
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet'
+    => Wallet
     -> ShowBuildable (PartialTx era)
     -> StdGenSeed
     -> Property
@@ -1316,12 +1332,12 @@ prop_balanceTransactionValid
     :: forall era. era ~ Write.BabbageEra
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
-    => Wallet'
+    => Wallet
     -> ShowBuildable (PartialTx Write.BabbageEra)
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid
-    wallet@(Wallet' _ walletUTxO _) (ShowBuildable partialTx) seed =
+    wallet@(Wallet _ walletUTxO _) (ShowBuildable partialTx) seed =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #inputs partialTx
@@ -1579,29 +1595,30 @@ prop_bootstrapWitnesses
     -- ^ Index for the first of the 'n' addresses.
     -> Property
 prop_bootstrapWitnesses
-    p n (AnyRecentEra (era :: RecentEra era)) net accIx addr0Ix =
+    p n (AnyRecentEra (_ :: RecentEra era)) net accIx addr0Ix =
     let
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
         -- around, to ensure we always have 'n' unique indices.
         addrIxs = take (fromIntegral n)
             $ [addr0Ix .. maxBound] ++ filter (< addr0Ix) [minBound .. addr0Ix]
-        body = emptyCardanoTxBody
-        wits :: [CardanoApi.KeyWitness (CardanoApiEra era)]
-        wits = map (dummyWitForIx body) addrIxs
-    in
-        p n (fromCardanoApiTx $ CardanoApi.Tx body wits)
-  where
-    emptyCardanoTxBody = body
-      where
-        CardanoApi.Tx body _ = toCardanoApiTx $ Write.emptyTx era
 
+        body = mkBasicTxBody
+
+        wits :: [BootstrapWitness StandardCrypto]
+        wits = map (dummyWitForIx body) addrIxs
+
+        tx = mkBasicTx body
+            & (witsTxL . bootAddrTxWitsL) .~ Set.fromList wits
+    in
+        p n tx
+  where
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty
 
     dummyWitForIx
-        :: CardanoApi.TxBody (CardanoApiEra era)
+        :: TxBody era
         -> Index 'WholeDomain 'CredFromKeyK
-        -> CardanoApi.KeyWitness (CardanoApiEra era)
+        -> BootstrapWitness StandardCrypto
     dummyWitForIx body ix =
         let
             accK = Byron.deriveAccountPrivateKey pwd rootK accIx
@@ -1619,13 +1636,28 @@ prop_bootstrapWitnesses
                     withSNetworkId (NTestnet 0) $ \testnet ->
                         paymentAddress testnet $ over byronKey toXPub addrK
         in
-            case era of
-                RecentEraConway ->
-                    mkByronWitness era body net addr
-                        (view byronKey addrK, pwd)
-                RecentEraBabbage ->
-                    mkByronWitness era body net addr
-                        (view byronKey addrK, pwd)
+            mkByronWitness body net addr
+                (view byronKey addrK, pwd)
+
+    -- TODO [ADP-2675] Avoid duplication with "Shelley.Transaction"
+    -- https://cardanofoundation.atlassian.net/browse/ADP-2675
+    mkByronWitness
+        :: TxBody era
+        -> CardanoApi.NetworkId
+        -> W.Address
+        -> (XPrv, Passphrase "encryption")
+        -> BootstrapWitness StandardCrypto
+    mkByronWitness body network addr encryptedKey =
+        makeBootstrapWitness txHash (decrypt encryptedKey) addrAttr
+      where
+        txHash = Crypto.castHash $ Crypto.hashWith serialize' body
+
+        decrypt (xprv, pwd') = CC.SigningKey
+            $ Crypto.HD.xPrvChangePass pwd' BS.empty xprv
+
+        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
+            (toHDPayloadAddress addr)
+            (CardanoApi.toByronNetworkMagic network)
 
 -- A helper function to generate properties for 'distributeSurplus' on
 -- success.
@@ -2002,8 +2034,8 @@ newtype MixedSign a = MixedSign a
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
-data Wallet' = Wallet' UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
-    deriving Show via (ShowBuildable Wallet')
+data Wallet = Wallet UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
+    deriving Show via (ShowBuildable Wallet)
 
 --------------------------------------------------------------------------------
 -- Utility functions
@@ -2025,32 +2057,30 @@ addExtraTxIns extraIns =
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
     :: forall era. IsRecentEra era
-    => Wallet'
+    => Wallet
     -> Write.PParams era
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
     -> Either (ErrBalanceTx era) (Tx era)
 balanceTx
-    (Wallet' utxoAssumptions utxo changeAddrGen)
+    (Wallet utxoAssumptions utxo (AnyChangeAddressGenWithState genChangeAddr s))
     protocolParameters
     timeTranslation
     seed
     partialTx
     =
-    case changeAddrGen of
-        AnyChangeAddressGenWithState genChangeAddr s ->
-            (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
-                (transactionInEra, _nextChangeState) <-
-                    balanceTransaction
-                        protocolParameters
-                        timeTranslation
-                        utxoAssumptions
-                        utxoIndex
-                        genChangeAddr
-                        s
-                        partialTx
-                pure transactionInEra
+    (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
+        (transactionInEra, _nextChangeState) <-
+            balanceTransaction
+                protocolParameters
+                timeTranslation
+                utxoAssumptions
+                utxoIndex
+                genChangeAddr
+                s
+                partialTx
+        pure transactionInEra
   where
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
@@ -2106,9 +2136,9 @@ hasTotalCollateral tx =
         SJust _ -> True
         SNothing -> False
 
-mkTestWallet :: W.UTxO -> Wallet'
+mkTestWallet :: W.UTxO -> Wallet
 mkTestWallet utxo =
-    Wallet' AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
+    Wallet AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
 mockPParamsForBalancing
     :: forall era . IsRecentEra era => Write.PParams era
@@ -2646,13 +2676,13 @@ instance Arbitrary W.TxOut where
         | bundle' <- W.shrinkTokenBundleSmallRange bundle
         ]
 
-instance Arbitrary Wallet' where
+instance Arbitrary Wallet where
     arbitrary = oneof
-        [ Wallet' AllKeyPaymentCredentials
+        [ Wallet AllKeyPaymentCredentials
             <$> genWalletUTxO genShelleyVkAddr
             <*> pure dummyShelleyChangeAddressGen
 
-        , Wallet' AllByronKeyPaymentCredentials
+        , Wallet AllByronKeyPaymentCredentials
             <$> genWalletUTxO genByronVkAddr
             <*> pure dummyByronChangeAddressGen
         ]
@@ -2686,8 +2716,8 @@ instance Arbitrary Wallet' where
                   where
                     era = CardanoApi.BabbageEra
 
-    shrink (Wallet' utxoAssumptions utxo changeAddressGen) =
-        [ Wallet' utxoAssumptions utxo' changeAddressGen
+    shrink (Wallet utxoAssumptions utxo changeAddressGen) =
+        [ Wallet utxoAssumptions utxo' changeAddressGen
         | utxo' <- shrinkUTxO utxo
         ]
       where
@@ -2893,8 +2923,8 @@ instance Buildable BalanceTxGolden where
             | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
             | otherwise = pretty (W.Coin.unsafeFromIntegral l)
 
-instance Buildable Wallet' where
-    build (Wallet' assumptions utxo changeAddressGen) =
+instance Buildable Wallet where
+    build (Wallet assumptions utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
             [ nameF "assumptions" $ build assumptions
             , nameF "changeAddressGen" $ build changeAddressGen

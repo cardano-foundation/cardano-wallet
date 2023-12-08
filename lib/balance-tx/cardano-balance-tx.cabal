@@ -99,35 +99,67 @@ test-suite test
   import:             language, opts-exe
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/spec
+  hs-source-dirs:     test/spec test/data
   main-is:            run-test-suite.hs
   build-depends:
+    , address-derivation-discovery
     , aeson
     , base
     , bytestring
+    , cardano-addresses
     , cardano-api
     , cardano-api-extra
-    , cardano-balance-tx:{internal}
+    , cardano-balance-tx:internal
+    , cardano-binary
     , cardano-coin-selection
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-wrapper
+    , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
-    , cardano-ledger-conway:{testlib}
+    , cardano-ledger-byron
+    , cardano-ledger-conway:testlib
+    , cardano-ledger-core
+    , cardano-ledger-mary:testlib
+    , cardano-ledger-shelley
+    , cardano-numeric
+    , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , cborg
     , containers
     , data-default
+    , directory
+    , filepath
+    , fmt
+    , generic-lens
     , generics-sop
+    , groups
     , hspec
     , hspec-core
+    , hspec-golden
+    , int-cast
     , lens
+    , memory
+    , MonadRandom
     , monoid-subclasses
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
+    , std-gen-seed
+    , text
+    , time
+    , transformers
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
+    Internal.Cardano.Write.Tx.BalanceSpec
     Internal.Cardano.Write.TxSpec
     Spec
