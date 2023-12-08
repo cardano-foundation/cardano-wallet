@@ -161,5 +161,6 @@ test-suite test
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
     Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
     Internal.Cardano.Write.Tx.BalanceSpec
+    Internal.Cardano.Write.Tx.SignSpec
     Internal.Cardano.Write.TxSpec
     Spec

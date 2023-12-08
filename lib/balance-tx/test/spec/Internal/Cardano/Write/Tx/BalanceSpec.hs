@@ -39,24 +39,18 @@ import Cardano.Binary
     , serialize'
     , unsafeDeserialize'
     )
-import Cardano.Crypto.Wallet
-    ( XPrv
-    , toXPub
-    )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..)
     )
 import Cardano.Ledger.Api
     ( AllegraEraTxBody (..)
     , AlonzoEraTxBody (..)
-    , BootstrapWitness
     , EraTx (witsTxL)
     , EraTxBody (..)
     , EraTxWits (bootAddrTxWitsL, scriptTxWitsL)
     , MaryEraTxBody (..)
     , ShelleyEraTxBody (..)
     , ValidityInterval (..)
-    , addrTxWitsL
     , allInputsTxBodyF
     , bodyTxL
     , coinTxOutL
@@ -64,15 +58,11 @@ import Cardano.Ledger.Api
     , mkBasicTx
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
-    , ppMinFeeAL
     , serialiseAddr
     , totalCollateralTxBodyL
     )
 import Cardano.Ledger.Era
     ( Era
-    )
-import Cardano.Ledger.Keys.Bootstrap
-    ( makeBootstrapWitness
     )
 import Cardano.Ledger.Language
     ( Language (..)
@@ -102,14 +92,9 @@ import Cardano.Wallet.Address.Constants
     ( maxLengthAddressForByron
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
+    ( DerivationType (..)
     , Index
     , hex
-    , paymentAddress
-    )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( byronKey
     )
 import Cardano.Wallet.Address.Discovery
     ( GenChange (genChange)
@@ -120,17 +105,8 @@ import Cardano.Wallet.Address.Discovery.Random
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ()
-import Cardano.Wallet.Address.Encoding
-    ( toHDPayloadAddress
-    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , withSNetworkId
-    )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -139,8 +115,7 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex
     )
 import Control.Lens
-    ( set
-    , (%~)
+    ( (%~)
     , (.~)
     , (^.)
     )
@@ -196,9 +171,6 @@ import Data.Generics.Internal.VL.Lens
 import Data.Group
     ( Group (invert)
     )
-import Data.IntCast
-    ( intCast
-    )
 import Data.List
     ( isSuffixOf
     , sortOn
@@ -232,9 +204,6 @@ import Data.Time.Clock.POSIX
 import Data.Tuple
     ( swap
     )
-import Data.Word
-    ( Word8
-    )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -247,15 +216,13 @@ import GHC.Stack
     ( HasCallStack
     )
 import Internal.Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    , BabbageEra
+    ( BabbageEra
     , CardanoApiEra
     , Coin (..)
     , Datum (..)
     , FeePerByte (..)
     , IsRecentEra (..)
     , RecentEra (..)
-    , StandardCrypto
     , Tx
     , TxIn
     , TxOut
@@ -300,19 +267,12 @@ import Internal.Cardano.Write.Tx.Balance
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..)
-    , estimateKeyWitnessCount
+    ( estimateKeyWitnessCount
     , estimateSignedTxSize
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( sizeOf_BootstrapWitnesses
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
     , timeTranslationFromEpochInfo
-    )
-import Numeric.Natural
-    ( Natural
     )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
@@ -370,7 +330,6 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
-    , elements
     , forAll
     , frequency
     , label
@@ -381,7 +340,6 @@ import Test.QuickCheck
     , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
-    , tabulate
     , vectorOf
     , withMaxSuccess
     , (===)
@@ -394,7 +352,6 @@ import Test.QuickCheck.Extra
     , report
     , shrinkDisjointPair
     , shrinkNatural
-    , (.>=.)
     )
 import Test.QuickCheck.Gen
     ( Gen (..)
@@ -413,13 +370,8 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Gen as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
-import qualified Cardano.Chain.Common as Byron
-import qualified Cardano.Crypto as CC
-import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
@@ -499,71 +451,6 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "produces valid transactions or fails"
         $ property prop_balanceTransactionValid
-
-    describe "bootstrap witnesses" $ do
-        -- Used in 'estimateTxSize', and in turn used by coin-selection
-        let coinSelectionEstimatedSize :: Natural -> Natural
-            coinSelectionEstimatedSize = W.unTxSize . sizeOf_BootstrapWitnesses
-
-        let withNoKeyWits tx = tx
-                & (witsTxL . addrTxWitsL) .~ mempty
-                & (witsTxL . bootAddrTxWitsL) .~ mempty
-
-        let measuredWitSize
-                :: IsRecentEra era
-                => Tx era
-                -> Natural
-            measuredWitSize tx = fromIntegral
-                $ serializedSize tx
-                - serializedSize (withNoKeyWits tx)
-
-        let evaluateMinimumFeeSize
-                :: forall era. IsRecentEra era
-                => Tx era
-                -> Natural
-            evaluateMinimumFeeSize tx = fromIntegral
-                $ Write.unCoin
-                $ Write.evaluateMinimumFee
-                    pp
-                    (withNoKeyWits tx)
-                    (KeyWitnessCount 0 (fromIntegral $ length wits))
-              where
-                wits = tx ^. witsTxL . bootAddrTxWitsL
-
-                -- Dummy PParams to ensure a Coin-delta corresponds to a
-                -- size-delta.
-                pp = Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
-
-        let evaluateMinimumFeeDerivedWitSize tx
-                = evaluateMinimumFeeSize tx
-                - evaluateMinimumFeeSize (withNoKeyWits tx)
-
-        it "coin-selection's size estimation == balanceTx's size estimation"
-            $ property
-            $ prop_bootstrapWitnesses
-            $ \n tx -> do
-                let balanceSize = evaluateMinimumFeeDerivedWitSize tx
-                let csSize = coinSelectionEstimatedSize $ intCast n
-                balanceSize === csSize
-                -- >= would suffice, but we can be stronger
-
-        it "balanceTx's size estimation >= measured serialized size"
-            $ property
-            $ prop_bootstrapWitnesses
-            $ \n tx -> do
-                let estimated = evaluateMinimumFeeDerivedWitSize tx
-                let measured = measuredWitSize tx
-                let overestimation
-                        | estimated > measured = estimated - measured
-                        | otherwise            = 0
-
-                let tabulateOverestimation = tabulate "overestimation/wit" $
-                        if n == 0
-                        then [show overestimation <> " (but with no wits)"]
-                        else [show $ overestimation `div` fromIntegral n]
-
-                estimated .>=. measured
-                    & tabulateOverestimation
 
     balanceTransactionGoldenSpec
 
@@ -1579,86 +1466,6 @@ prop_balanceTransactionValid
     outputs :: Tx era -> [TxOut era]
     outputs = F.toList . view (bodyTxL . outputsTxBodyL)
 
-{-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
-prop_bootstrapWitnesses
-    :: (forall era. IsRecentEra era => Word8 -> Tx era -> Property)
-    -> Word8
-    -- ^ Number of bootstrap witnesses.
-    --
-    -- Testing with [0, 255] should be sufficient.
-    -> AnyRecentEra
-    -> CardanoApi.NetworkId
-    -- ^ Network - will be encoded inside the witness.
-    -> Index 'WholeDomain 'AccountK
-    -- ^ Account index - will be encoded inside the witness.
-    -> Index 'WholeDomain 'CredFromKeyK
-    -- ^ Index for the first of the 'n' addresses.
-    -> Property
-prop_bootstrapWitnesses
-    p n (AnyRecentEra (_ :: RecentEra era)) net accIx addr0Ix =
-    let
-        -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
-        -- around, to ensure we always have 'n' unique indices.
-        addrIxs = take (fromIntegral n)
-            $ [addr0Ix .. maxBound] ++ filter (< addr0Ix) [minBound .. addr0Ix]
-
-        body = mkBasicTxBody
-
-        wits :: [BootstrapWitness StandardCrypto]
-        wits = map (dummyWitForIx body) addrIxs
-
-        tx = mkBasicTx body
-            & (witsTxL . bootAddrTxWitsL) .~ Set.fromList wits
-    in
-        p n tx
-  where
-    rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
-    pwd = mempty
-
-    dummyWitForIx
-        :: TxBody era
-        -> Index 'WholeDomain 'CredFromKeyK
-        -> BootstrapWitness StandardCrypto
-    dummyWitForIx body ix =
-        let
-            accK = Byron.deriveAccountPrivateKey pwd rootK accIx
-            addrKeyAtIx i = Byron.deriveAddressPrivateKey pwd accK i
-
-            addrK = addrKeyAtIx $ toEnum $ fromEnum ix
-            addr = case net of
-                CardanoApi.Mainnet ->
-                    paymentAddress SMainnet $ over byronKey toXPub addrK
-                CardanoApi.Testnet _magic ->
-                    -- The choice of network magic here is not important. The
-                    -- size of the witness will not be affected by it. What may
-                    -- affect the size, is the 'CardanoApi.NetworkId' we pass to
-                    -- 'mkByronWitness' above.
-                    withSNetworkId (NTestnet 0) $ \testnet ->
-                        paymentAddress testnet $ over byronKey toXPub addrK
-        in
-            mkByronWitness body net addr
-                (view byronKey addrK, pwd)
-
-    -- TODO [ADP-2675] Avoid duplication with "Shelley.Transaction"
-    -- https://cardanofoundation.atlassian.net/browse/ADP-2675
-    mkByronWitness
-        :: TxBody era
-        -> CardanoApi.NetworkId
-        -> W.Address
-        -> (XPrv, Passphrase "encryption")
-        -> BootstrapWitness StandardCrypto
-    mkByronWitness body network addr encryptedKey =
-        makeBootstrapWitness txHash (decrypt encryptedKey) addrAttr
-      where
-        txHash = Crypto.castHash $ Crypto.hashWith serialize' body
-
-        decrypt (xprv, pwd') = CC.SigningKey
-            $ Crypto.HD.xPrvChangePass pwd' BS.empty xprv
-
-        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-            (toHDPayloadAddress addr)
-            (CardanoApi.toByronNetworkMagic network)
-
 -- A helper function to generate properties for 'distributeSurplus' on
 -- success.
 --
@@ -2176,12 +1983,6 @@ restrictResolution (PartialTx tx inputs redeemers) =
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
 
-serializedSize
-    :: forall era. IsRecentEra era
-    => Tx era
-    -> Int
-serializedSize = BS.length . serializeTx
-
 -- | Checks for membership in the given closed interval [a, b]
 shouldBeInclusivelyWithin :: (Ord a, Show a) => a -> (a, a) -> IO ()
 x `shouldBeInclusivelyWithin` (a, b) =
@@ -2488,12 +2289,6 @@ testStdGenSeed = StdGenSeed 0
 -- Arbitrary instances, generators, and shrinkers
 --------------------------------------------------------------------------------
 
-instance Arbitrary AnyRecentEra where
-    arbitrary = elements
-        [ AnyRecentEra RecentEraBabbage
-        , AnyRecentEra RecentEraConway
-        ]
-
 instance
     CardanoApi.IsCardanoEra era =>
     Arbitrary (CardanoApi.AddressInEra era)
@@ -2505,12 +2300,6 @@ instance
     Arbitrary (CardanoApi.TxOutDatum ctx era)
   where
     arbitrary = CardanoApi.genTxOutDatum CardanoApi.cardanoEra
-
-instance Arbitrary CardanoApi.NetworkId where
-    arbitrary = oneof
-        [ pure CardanoApi.Mainnet
-        , CardanoApi.Testnet . CardanoApi.NetworkMagic <$> arbitrary
-        ]
 
 instance
     CardanoApi.IsCardanoEra era =>
