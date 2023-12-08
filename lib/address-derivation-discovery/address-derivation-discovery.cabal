@@ -90,6 +90,7 @@ library
   exposed-modules:
     Cardano.Byron.Codec.Cbor
     Cardano.Wallet.Address.Book
+    Cardano.Wallet.Address.Constants
     Cardano.Wallet.Address.Derivation
     Cardano.Wallet.Address.Derivation.Byron
     Cardano.Wallet.Address.Derivation.Icarus
