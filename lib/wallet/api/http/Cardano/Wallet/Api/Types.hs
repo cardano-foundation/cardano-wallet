@@ -1234,15 +1234,6 @@ newtype ApiEncryptMetadata = ApiEncryptMetadata
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
 
-instance Show DRepKeyHash where
-    show p = "(DRep key hash " <> show (encodeDRepKeyHashBech32 p) <> ")"
-
-instance Show DRepScriptHash where
-    show p = "(DRep script hash " <> show (encodeDRepScriptHashBech32 p) <> ")"
-
-deriving instance Show DRep
-deriving instance Show VoteAction
-
 -- | Encode 'DRepKeyHash' as Bech32 with "drep_vkh" hrp.
 encodeDRepKeyHashBech32 :: DRepKeyHash -> T.Text
 encodeDRepKeyHashBech32 =

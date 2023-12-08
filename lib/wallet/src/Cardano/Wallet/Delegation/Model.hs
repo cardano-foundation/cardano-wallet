@@ -48,6 +48,8 @@ data Operation slot pool
     = Register slot
     | Deregister slot
     | Delegate pool slot
+    | DelegateAndVote pool VoteAction slot
+    | Vote VoteAction slot
     | Rollback slot
     deriving (Show)
 
@@ -56,10 +58,17 @@ slotOf :: Operation slot pool -> slot
 slotOf (Register x) = x
 slotOf (Deregister x) = x
 slotOf (Delegate _ x) = x
+slotOf (DelegateAndVote _ _ x) = x
+slotOf (Vote _ x) = x
 slotOf (Rollback x) = x
 
 -- | Valid state for the delegations, independent of time.
-data Status pool = Inactive | Registered | Active pool
+data Status pool
+    = Inactive
+    | Registered
+    | Active pool
+    | ActiveAndVoted pool VoteAction
+    | Voted VoteAction
     deriving (Show, Eq)
 
 -- | Delegation history implementation.
@@ -74,10 +83,55 @@ instance (Ord slot, Eq pool) => Delta (Operation slot pool) where
         miss = status slot hist'
         wanted = transition r $ status slot hist
 
+--                                              DelegateAndVote
+--                                                     |
+--                                           Delegate  |   Vote
+--                                               |     |    | -------
+--                                               v     v    v |     |
+--                     ------------  Register   ---------------     | Register
+--                     | Inactive |-----------> |  Registered |------
+--                     ------------             ---------------
+--                                 ----------    |     |    |    ---------
+--                                 |        |    v     |    v    |       |
+--                                 |       ----------  |  ---------      | Vote
+--                        Delegate --------| Active |  |  | Voted | ------
+--                                         ----------  |  ---------
+--                                           Vote |    |      | Delegate
+--                                DelegateAndVote v    v      v
+--                                               ------------------
+--                                               | ActiveAndVoted |----
+--                                               ------------------   | Delegate
+--                                                         |          | DelegateAndVote
+--                                                         ------------ Vote
+--
+--
+--                     ------------ Deregister  ---------------
+--                     | Inactive |<----------- |  Registered |
+--                     ------------             ---------------
+--                     |  |  |  |
+--                     |  |  |  | Deregister
+--                     |  |  |  |       ----------     ---------
+--                     |  |  |  --------| Active |     | Voted |
+--                     |  |             ----------     ---------
+--                     |  |        Deregister             |
+--                     |  ---------------------------------
+--                     |                         ------------------
+--                     --------------------------| ActiveAndVoted |
+--                             Deregister        ------------------
+--
 transition :: Operation slot pool -> Status pool -> Status pool
 transition (Register _) Inactive = Registered
 transition (Delegate p _) Registered = Active p
+transition (Vote v _) Registered = Voted v
+transition (DelegateAndVote p v _) Registered = ActiveAndVoted p v
+transition (Vote v _) (Voted _) = Voted v
+transition (Delegate p _) (Voted v) = ActiveAndVoted p v
+transition (Vote v _) (Active p) = ActiveAndVoted p v
 transition (Delegate p _) (Active _) = Active p
+transition (DelegateAndVote p v _) (Active _) = ActiveAndVoted p v
+transition (DelegateAndVote p v _) (ActiveAndVoted _ _) = ActiveAndVoted p v
+transition (Delegate p _) (ActiveAndVoted _ v) = ActiveAndVoted p v
+transition (Vote v _) (ActiveAndVoted p _) = ActiveAndVoted p v
 transition (Deregister _) _ = Inactive
 transition _ s = s
 
@@ -91,18 +145,18 @@ status :: Ord slot => slot -> History slot pool -> Status pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)
 
 newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
-    deriving (Generic, Eq, Ord)
+    deriving (Generic, Eq, Ord, Show)
 
 instance NFData DRepKeyHash
 
 newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
-    deriving (Generic, Eq, Ord)
+    deriving (Generic, Eq, Ord, Show)
 
 instance NFData DRepScriptHash
 
 data DRep =
     DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 -- | Vote action.
@@ -110,5 +164,5 @@ data VoteAction
     = Abstain
     | NoConfidence
     | VoteTo !DRep
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Show)
     deriving anyclass NFData
