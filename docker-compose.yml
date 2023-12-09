@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:8.1.2
+    image: inputoutput/cardano-node:8.7.2
     environment:
       NETWORK:
       CARDANO_NODE_SOCKET_PATH: /ipc/node.socket
