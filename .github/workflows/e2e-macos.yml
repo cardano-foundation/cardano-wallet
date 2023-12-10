@@ -52,7 +52,7 @@ jobs:
     - name: Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
-        mkdir state
+        mkdir state || true
         cd state
         mkdir node_db
         cd node_db
