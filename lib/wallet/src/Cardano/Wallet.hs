@@ -1891,7 +1891,7 @@ buildCoinSelectionForTransaction
     -> Coin
     -- ^ protocol parameter deposit amount
     -> Maybe DelegationAction
-    -> Cardano.Tx (Write.CardanoApiEra era)
+    -> Write.Tx era
     -> CoinSelection
 buildCoinSelectionForTransaction
     wallet paymentOutputs depositRefund delegationAction cardanoTx =
@@ -1933,7 +1933,7 @@ buildCoinSelectionForTransaction
   where
     Cardano.TxBody Cardano.TxBodyContent
         { txIns, txOuts, txInsCollateral, txWithdrawals } =
-            Cardano.getTxBody cardanoTx
+            Cardano.getTxBody $ Write.toCardanoApiTx cardanoTx
 
     resolveInput txIn = do
         (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)

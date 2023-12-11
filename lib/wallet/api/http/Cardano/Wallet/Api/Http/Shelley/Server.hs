@@ -2044,7 +2044,6 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
 
         (cardanoTx, walletState) <-
             liftIO $
-            first Write.toCardanoApiTx <$>
             W.buildTransaction @s
             db timeTranslation genChange pp txCtx paymentOuts
 
@@ -2111,7 +2110,6 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (cardanoTx, walletState) <-
-            first Write.toCardanoApiTx <$>
             W.buildTransaction @s
             db timeTranslation changeAddrGen pp txCtx paymentOuts
 
@@ -2169,7 +2167,6 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (cardanoTx, walletState) <-
-            first Write.toCardanoApiTx <$>
             W.buildTransaction @s
             db timeTranslation changeAddrGen pp txCtx paymentOuts
 
