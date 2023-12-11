@@ -153,8 +153,8 @@ source-repository-package
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
     subdir: generated
 
--- -------------------------------------------------------------------------
--- Constraints tweaking
+--------------------------------------------------------------------------------
+-- BEGIN Constraints tweaking section
 
 -- cardano-addresses unit tests bring in some version constraint conflicts.
 --
@@ -204,8 +204,14 @@ constraints:
 if impl(ghc == 8.10.7)
   constraints: process == 1.6.13.2
 
--- ----------------------------------------------------------------
--- Flags for dependencies
+-- END Constraints tweaking section
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Flags for dependencies without an S-R-P pragma should be kept in this section
+-- (conversely, flags for the S-R-P dependencies should be kept within the
+-- same section where an S-R-P pragma is located,
+-- for them to be managed together)
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
