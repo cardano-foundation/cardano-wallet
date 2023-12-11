@@ -32,7 +32,9 @@ steps:
 
   - label: 'Cabal Release Build works in the nix shell'
     depends_on: linux-nix
-    command: 'nix develop -c cabal build all -frelease'
+    command: |
+      nix develop -c cabal update
+      nix develop -c cabal build all -frelease
     agents:
       system: ${linux}
     env:
