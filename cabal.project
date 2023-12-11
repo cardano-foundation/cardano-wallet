@@ -83,10 +83,8 @@ packages:
   , lib/wallet/
   , lib/wallet-e2e/
 
--- Using RDRAND instead of /dev/urandom as an entropy source for key
--- generation is dubious. Set the flag so we use /dev/urandom by default.
-package cryptonite
-  flags: -support_rdrand
+--------------------------------------------------------------------------------
+-- BEGIN OpenAPI
 
 -- Using a fork until our patches can be merged upstream
 
@@ -103,6 +101,9 @@ source-repository-package
   location: https://github.com/paolino/openapi3
   tag: f22c31611c295637a3e72b341cd1c56d1d87b993
   --sha256: 10l7wlaz9rcr3fysi1vwg7qqa826bb7nidkpx9jy1q7ja7ddw47i
+
+-- END OpenAPI
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- BEGIN Cardano Addresses Dependency
@@ -206,8 +207,14 @@ if impl(ghc == 8.10.7)
 -- ----------------------------------------------------------------
 -- Flags for dependencies
 
+-- Using RDRAND instead of /dev/urandom as an entropy source for key
+-- generation is dubious. Set the flag so we use /dev/urandom by default.
+package cryptonite
+  flags: -support_rdrand
+
 package cardano-config
   flags: -systemd
+
 package cardano-node
   flags: -systemd
 
