@@ -34,10 +34,8 @@ module Cardano.CoinSelection
     -- * Selection deltas
     , SelectionDelta (..)
     , selectionDeltaAllAssets
-    , selectionDeltaCoin
     , selectionHasValidSurplus
     , selectionMinimumCost
-    , selectionSurplusCoin
 
     -- * Selection collateral
     , SelectionCollateralError (..)
@@ -143,7 +141,6 @@ import Numeric.Natural
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.CoinSelection.Collateral as Collateral
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -1051,13 +1048,6 @@ verifySelectionCollateralError cs ps e =
 selectionDeltaAllAssets :: Selection ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets = Balance.selectionDeltaAllAssets . toBalanceResult
 
--- | Calculates the ada selection delta.
---
--- See 'SelectionDelta'.
---
-selectionDeltaCoin :: Selection ctx -> SelectionDelta Coin
-selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
-
 -- | Indicates whether or not a selection has a valid surplus.
 --
 -- This function returns 'True' if and only if the selection has a delta that
@@ -1090,17 +1080,6 @@ selectionMaximumCost constraints params selection =
     Balance.selectionMaximumCost
         (fst $ toBalanceConstraintsParams (constraints, params))
         (toBalanceResult selection)
-
--- | Calculates the ada selection surplus, assuming there is a surplus.
---
--- If there is a surplus, then this function returns that surplus.
--- If there is a deficit, then this function returns zero.
---
--- Use 'selectionDeltaCoin' if you wish to handle the case where there is
--- a deficit.
---
-selectionSurplusCoin :: Selection ctx -> Coin
-selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
 
 --------------------------------------------------------------------------------
 -- Selection collateral

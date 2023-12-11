@@ -11,7 +11,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -205,11 +204,6 @@ import Data.Semigroup.Cancellative
     )
 import Data.Set
     ( Set
-    )
-import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockMapF
     )
 import GHC.Generics
     ( Generic
@@ -545,14 +539,6 @@ data SelectionDelta a
     = SelectionSurplus a
     | SelectionDeficit a
     deriving (Eq, Functor, Show)
-
-instance Buildable a => Buildable (SelectionDelta a) where
-    build d = case d of
-        SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
-        SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
-      where
-        buildMap :: [(String, Builder)] -> Builder
-        buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Calculates the selection delta for all assets.
 --

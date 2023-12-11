@@ -47,7 +47,6 @@ library
     , deepseq
     , exact-combinatorics
     , extra
-    , fmt
     , generic-lens
     , generics-sop
     , int-cast

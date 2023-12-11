@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -18,16 +17,10 @@ module Cardano.CoinSelection.Context
 
 import Prelude
 
-import Fmt
-    ( Buildable
-    )
-
 -- | Provides a shared context for types used by coin selection.
 --
 class
-    ( Buildable (Address c)
-    , Buildable (UTxO c)
-    , Ord (Address c)
+    ( Ord (Address c)
     , Ord (UTxO c)
     , Show (Address c)
     , Show (UTxO c)
