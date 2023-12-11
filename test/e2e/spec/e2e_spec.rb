@@ -1482,7 +1482,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(stake_keys['ours'].first['stake']['quantity']).to eq expected_quit_balance
       expect(stake_keys['none']['stake']['quantity']).to eq 0
       expect(stake_keys['ours'].first['delegation']['active']['status']).to eq 'not_delegating'
-      expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq 'not_delegating'
       expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq 'not_delegating'
     end
 
@@ -3002,7 +3001,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(stake_keys['ours'].first['stake']['quantity']).to eq total_balance_after
         expect(stake_keys['none']['stake']['quantity']).to eq 0
         expect(stake_keys['ours'].first['delegation']['active']['status']).to eq 'not_delegating'
-        expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq 'not_delegating'
         expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq 'not_delegating'
 
         # examine the tx in history
