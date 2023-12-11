@@ -1886,8 +1886,10 @@ buildCoinSelectionForTransaction
        , s ~ SeqState n k
        )
     => Wallet s
-    -> [TxOut] -- ^ payment outputs to exclude from change outputs
-    -> Coin -- ^ protocol parameter deposit amount
+    -> [TxOut]
+    -- ^ payment outputs to exclude from change outputs
+    -> Coin
+    -- ^ protocol parameter deposit amount
     -> Maybe DelegationAction
     -> Cardano.Tx (Write.CardanoApiEra era)
     -> CoinSelection
@@ -2294,7 +2296,8 @@ buildTransaction
     -> ChangeAddressGen s
     -> Write.PParams era
     -> TransactionCtx
-    -> [TxOut] -- ^ payment outputs
+    -> [TxOut]
+    -- ^ payment outputs
     -> IO (Cardano.Tx (Write.CardanoApiEra era), Wallet s)
 buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
@@ -2304,7 +2307,12 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                Nothing Descending Range.everything (Just Pending) Nothing Nothing
+                Nothing
+                Descending
+                Range.everything
+                (Just Pending)
+                Nothing
+                Nothing
 
         let utxo = availableUTxO @s pendingTxs wallet
 
