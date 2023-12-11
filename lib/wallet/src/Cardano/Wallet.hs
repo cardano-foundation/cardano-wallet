@@ -2299,7 +2299,7 @@ buildTransaction
     -> TransactionCtx
     -> [TxOut]
     -- ^ payment outputs
-    -> IO (Cardano.Tx (Write.CardanoApiEra era), Wallet s)
+    -> IO (Write.Tx era, Wallet s)
 buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
@@ -2317,8 +2317,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         let utxo = availableUTxO @s pendingTxs wallet
 
-        fmap (\s' -> wallet { getState = s' }) .
-            first Write.toCardanoApiTx <$>
+        fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @era
                 wallet
                 timeTranslation
