@@ -104,6 +104,9 @@ source-repository-package
   tag: f22c31611c295637a3e72b341cd1c56d1d87b993
   --sha256: 10l7wlaz9rcr3fysi1vwg7qqa826bb7nidkpx9jy1q7ja7ddw47i
 
+--------------------------------------------------------------------------------
+-- BEGIN Cardano Addresses Dependency
+
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-addresses
@@ -112,8 +115,22 @@ source-repository-package
     subdir: command-line
             core
 
-package cardano-addresses
-  ghc-options: -Wno-incomplete-uni-patterns
+-- Normally cabal won't apply ghc-options which we specify to build packages
+-- to their "regular" dependencies.
+-- However, the dependencies declared using the `source-repository-package`
+-- pragma are an exception to this rule.
+-- This is why we need to manually control options that are applied to the
+-- `cardano-addresses` package by declaring them explicitly here.
+--
+-- Cardano Addresses CLI uses an outdated version of the `optparse-applicative`
+-- library. This causes a deprecation warning to be emitted when building.
+-- We don't want to promote this warning to an error level as it break the
+-- release build and cardano-addresses codebase is not under our control.
+package cardano-addresses-cli
+    ghc-options: -Wwarn=deprecations
+
+-- END Cardano Addresses Dependency
+--------------------------------------------------------------------------------
 
 source-repository-package
     type: git
