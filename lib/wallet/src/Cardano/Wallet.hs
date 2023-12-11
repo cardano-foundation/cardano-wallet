@@ -3024,8 +3024,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                         changeAddressGen
                         (getState wallet)
                         ptx
-            case res of
-                Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet)
+            case fst <$> res of
+                Right (Cardano.Tx (Cardano.TxBody bodyContent) _)
                     -> pure $ case Cardano.txFee bodyContent of
                         Cardano.TxFeeExplicit _ coin
                             -> Fee (fromCardanoLovelace coin)
