@@ -1,0 +1,28 @@
+name: RC git tag update
+on:
+  schedule:
+  - cron:  "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3.2.0
+      - run: |
+            # retag old rc tag
+            old=$(git rev-list -n 1 rc-latest)
+            if [ $? -eq 0 ]; then
+                date=$(git show -s --format=%ci rc | awk '{print $1}')
+                git tag -d rc-latest
+                git tag rc-$date $old
+                git push origin rc-$date
+            else
+                echo "RC tagging starts from scratch"
+            fi
+            # tag new rc-latest
+            id=$(curl -X GET -H "Authorization: Bearer ${BUILDKITE_API_TOKEN}" \
+                "https://api.buildkite.com/v2/organizations/cardano-foundation/pipelines/cardano-wallet/builds" \
+                | jq -r '[.[] | select(.state == "passed" and .branch == "master") | .commit][0]')
+            git tag rc-latest $id
+            git push origin rc-latest
