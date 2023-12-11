@@ -34,7 +34,6 @@ module Cardano.CoinSelection
     -- * Selection deltas
     , SelectionDelta (..)
     , selectionDeltaAllAssets
-    , selectionDeltaCoin
     , selectionHasValidSurplus
     , selectionMinimumCost
     , selectionSurplusCoin
@@ -143,7 +142,6 @@ import Numeric.Natural
 import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.CoinSelection.Collateral as Collateral
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -1050,13 +1048,6 @@ verifySelectionCollateralError cs ps e =
 --
 selectionDeltaAllAssets :: Selection ctx -> SelectionDelta TokenBundle
 selectionDeltaAllAssets = Balance.selectionDeltaAllAssets . toBalanceResult
-
--- | Calculates the ada selection delta.
---
--- See 'SelectionDelta'.
---
-selectionDeltaCoin :: Selection ctx -> SelectionDelta Coin
-selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection has a valid surplus.
 --
