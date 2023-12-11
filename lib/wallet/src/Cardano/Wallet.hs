@@ -4,7 +4,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -269,6 +268,10 @@ import Cardano.BM.Extra
 import Cardano.Crypto.Wallet
     ( toXPub
     )
+import Cardano.Ledger.Api
+    ( bodyTxL
+    , feeTxBodyL
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -436,8 +439,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromCardanoLovelace
-    , fromCardanoTxIn
+    ( fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
     )
@@ -816,6 +818,7 @@ import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.DB.WalletState as WS
+import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
@@ -1886,13 +1889,15 @@ buildCoinSelectionForTransaction
        , s ~ SeqState n k
        )
     => Wallet s
-    -> [TxOut] -- ^ payment outputs to exclude from change outputs
-    -> Coin -- ^ protocol parameter deposit amount
+    -> [TxOut]
+    -- ^ payment outputs to exclude from change outputs
+    -> Coin
+    -- ^ protocol parameter deposit amount
     -> Maybe DelegationAction
-    -> Cardano.Tx (Write.CardanoApiEra era)
+    -> Write.Tx era
     -> CoinSelection
 buildCoinSelectionForTransaction
-    wallet paymentOutputs depositRefund delegationAction cardanoTx =
+    wallet paymentOutputs depositRefund delegationAction tx =
     CoinSelection
     { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
     , outputs = paymentOutputs
@@ -1931,7 +1936,7 @@ buildCoinSelectionForTransaction
   where
     Cardano.TxBody Cardano.TxBodyContent
         { txIns, txOuts, txInsCollateral, txWithdrawals } =
-            Cardano.getTxBody cardanoTx
+            Cardano.getTxBody $ Write.toCardanoApiTx tx
 
     resolveInput txIn = do
         (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
@@ -2207,6 +2212,7 @@ buildAndSignTransactionPure
     pp txLayer changeAddrGen preSelection txCtx = do
     wallet <- get
     (unsignedBalancedTx, updatedWalletState) <- lift $
+        first Write.toCardanoApiTx <$>
         buildTransactionPure @s @era
             wallet
             timeTranslation
@@ -2294,8 +2300,9 @@ buildTransaction
     -> ChangeAddressGen s
     -> Write.PParams era
     -> TransactionCtx
-    -> [TxOut] -- ^ payment outputs
-    -> IO (Cardano.Tx (Write.CardanoApiEra era), Wallet s)
+    -> [TxOut]
+    -- ^ payment outputs
+    -> IO (Write.Tx era, Wallet s)
 buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
@@ -2304,7 +2311,12 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                Nothing Descending Range.everything (Just Pending) Nothing Nothing
+                Nothing
+                Descending
+                Range.everything
+                (Just Pending)
+                Nothing
+                Nothing
 
         let utxo = availableUTxO @s pendingTxs wallet
 
@@ -2339,7 +2351,7 @@ buildTransactionPure
     -> ExceptT
         (Either (ErrBalanceTx era) ErrConstructTx)
         (Rand StdGen)
-        (Cardano.Tx (Write.CardanoApiEra era), s)
+        (Write.Tx era, s)
 buildTransactionPure
     wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
     = do
@@ -2354,7 +2366,6 @@ buildTransactionPure
             Write.constructUTxOIndex @era $
             Write.fromWalletUTxO utxo
     withExceptT Left $
-        first Write.toCardanoApiTx <$>
         balanceTransaction @_ @_ @s
             pparams
             timeTranslation
@@ -3007,25 +3018,21 @@ transactionFee DBLayer{atomically, walletState} protocolParams
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
-                first (Write.toCardanoApiTx @era) <$>
-                    balanceTransaction @_ @_ @s
-                        protocolParams
-                        timeTranslation
-                        (utxoAssumptionsForWallet (walletFlavor @s))
-                        utxoIndex
-                        changeAddressGen
-                        (getState wallet)
-                        ptx
-            case res of
-                Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet)
-                    -> pure $ case Cardano.txFee bodyContent of
-                        Cardano.TxFeeExplicit _ coin
-                            -> Fee (fromCardanoLovelace coin)
-                        Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
-                            -> case Write.recentEra @era of {}
-                Left (e@(ErrBalanceTxUnableToCreateChange _))
-                    -> throwE e
-                Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
+                balanceTransaction @_ @_ @s
+                    protocolParams
+                    timeTranslation
+                    (utxoAssumptionsForWallet (walletFlavor @s))
+                    utxoIndex
+                    changeAddressGen
+                    (getState wallet)
+                    ptx
+            case fst <$> res of
+                Right tx ->
+                    pure $ Fee $ Convert.toWallet $ tx ^. bodyTxL . feeTxBodyL
+                Left (e@(ErrBalanceTxUnableToCreateChange _)) ->
+                    throwE e
+                Left otherErr ->
+                    throwIO $ ExceptionBalanceTx otherErr
   where
     era = recentEra @era
 

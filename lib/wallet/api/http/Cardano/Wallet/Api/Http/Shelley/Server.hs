@@ -2042,7 +2042,9 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
 
-        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s
+        (tx, walletState) <-
+            liftIO $
+            W.buildTransaction @s
             db timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2051,7 +2053,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                     paymentOuts
                     (W.getStakeKeyDeposit pp)
                     Nothing -- delegation action
-                    cardanoTx
+                    tx
 
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
@@ -2107,9 +2109,9 @@ selectCoinsForJoin ctx@ApiLayer{..}
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s
-            db timeTranslation changeAddrGen pp txCtx
-            paymentOuts
+        (tx, walletState) <-
+            W.buildTransaction @s
+            db timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @n
@@ -2117,7 +2119,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
                     paymentOuts
                     (W.getStakeKeyDeposit pp)
                     (Just action)
-                    cardanoTx
+                    tx
 
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
@@ -2164,7 +2166,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s
+        (tx, walletState) <-
+            W.buildTransaction @s
             db timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2173,7 +2176,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
                     paymentOuts
                     (W.getStakeKeyDeposit pp)
                     (Just action)
-                    cardanoTx
+                    tx
 
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
