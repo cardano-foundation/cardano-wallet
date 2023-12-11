@@ -36,7 +36,6 @@ module Cardano.CoinSelection
     , selectionDeltaAllAssets
     , selectionHasValidSurplus
     , selectionMinimumCost
-    , selectionSurplusCoin
 
     -- * Selection collateral
     , SelectionCollateralError (..)
@@ -1081,17 +1080,6 @@ selectionMaximumCost constraints params selection =
     Balance.selectionMaximumCost
         (fst $ toBalanceConstraintsParams (constraints, params))
         (toBalanceResult selection)
-
--- | Calculates the ada selection surplus, assuming there is a surplus.
---
--- If there is a surplus, then this function returns that surplus.
--- If there is a deficit, then this function returns zero.
---
--- Use 'selectionDeltaCoin' if you wish to handle the case where there is
--- a deficit.
---
-selectionSurplusCoin :: Selection ctx -> Coin
-selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
 
 --------------------------------------------------------------------------------
 -- Selection collateral
