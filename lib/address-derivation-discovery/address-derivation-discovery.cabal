@@ -1,6 +1,6 @@
 cabal-version:      3.8
 name:               address-derivation-discovery
-version:            2023.12.7
+version:            2023.7.18
 synopsis:           Address derivation and discovery.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
