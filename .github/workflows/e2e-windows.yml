@@ -78,7 +78,7 @@ jobs:
       if: steps.cache-node.outputs.cache-hit != 'true'
       working-directory: C:/cardano-wallet/test/e2e
       run: |
-        mkdir state
+        mkdir state -ErrorAction SilentlyContinue
         cd state
         mkdir node_db
         cd node_db

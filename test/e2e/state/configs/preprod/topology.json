@@ -1,0 +1,9 @@
+{
+          "Producers": [
+            {
+              "addr": "preprod-node.world.dev.cardano.org",
+              "port": 30000,
+              "valency": 2
+            }
+          ]
+        }

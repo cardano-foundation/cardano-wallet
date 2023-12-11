@@ -312,7 +312,7 @@ task :get_latest_configs, [:env] do |_task, args|
   env = args[:env]
   out = File.join(CONFIGS, env)
 
-  if File.exist?(out) && !File.writable?(out)
+  if File.exist?(out)
     # The config directory is probably a /nix/store path
     log ">> Using config directory '#{out}'"
   else
