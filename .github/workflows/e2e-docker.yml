@@ -2,7 +2,7 @@ name: E2E Docker
 
 on:
   schedule:
-  - cron:  "0 0 * * *"
+  - cron:  "0 6 * * *"
   workflow_dispatch:
     inputs:
       nodeTag:
@@ -35,7 +35,10 @@ jobs:
       E2E_DOCKER_RUN: 1
 
     steps:
-    - uses: actions/checkout@v3.2.0
+    - name: Checkout the rc-latest tag
+      uses: actions/checkout@v4.1.1
+      with:
+        ref: rc-latest
 
     - name: Get supported node tag
       run: |

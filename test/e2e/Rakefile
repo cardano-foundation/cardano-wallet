@@ -131,7 +131,7 @@ task :wait_until_node_synced do
       sleep 5
     end
   rescue StandardError => e
-    if current_time <= timeout_treshold then
+    if current_time <= timeout_treshold
       log "Retrying after error #{e}"
       sleep 5
       retry

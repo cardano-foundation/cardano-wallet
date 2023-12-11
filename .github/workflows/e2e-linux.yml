@@ -2,7 +2,7 @@ name: E2E Linux
 
 on:
   schedule:
-  - cron:  "0 20 * * *"
+  - cron:  "0 0 * * *"
   workflow_dispatch:
     inputs:
 
@@ -28,7 +28,10 @@ jobs:
       TAGS: ${{ github.event.inputs.tags || 'all' }}
 
     steps:
-    - uses: actions/checkout@v3.2.0
+    - name: Checkout the rc-latest tag
+      uses: actions/checkout@v4.1.1
+      with:
+        ref: rc-latest
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1.127.0

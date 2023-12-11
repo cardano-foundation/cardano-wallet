@@ -2,7 +2,7 @@ name: E2E Windows
 
 on:
   schedule:
-  - cron:  "0 20 * * *"
+  - cron:  "0 21 * * *"
   workflow_dispatch:
     inputs:
       branch:
@@ -38,9 +38,8 @@ jobs:
     - name: Checkout
       shell: bash
       run: |
-        git clone https://github.com/cardano-foundation/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
+        git clone -b rc-latest https://github.com/cardano-foundation/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
         cd /c/cardano-wallet
-        git checkout ${GITHUB_REF#refs/heads/}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1.127.0
