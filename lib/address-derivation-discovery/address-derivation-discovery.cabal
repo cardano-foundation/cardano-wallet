@@ -43,7 +43,9 @@ library
   hs-source-dirs:  lib
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
-  if flag(scrypt)
+  -- scrypt depends on sse2, which in turn is not reasonably available
+  -- on anything but x86_64.
+  if flag(scrypt) && arch(x86_64)
     cpp-options:   -DHAVE_SCRYPT
     build-depends: scrypt
 
