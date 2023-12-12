@@ -10,18 +10,11 @@ module Internal.Cardano.Write.UTxOAssumptions
     -- * UTxOAssumptions
       UTxOAssumptions (..)
     , assumedInputScriptTemplate
-
-    -- * Validation
-    , validateAddress
     )
     where
 
 import Prelude
 
-import Cardano.Ledger.Shelley.API
-    ( Addr (..)
-    , Credential (..)
-    )
 import Internal.Cardano.Write.Tx
     ( Address
     )
@@ -48,11 +41,3 @@ assumedInputScriptTemplate = \case
     AllKeyPaymentCredentials -> Nothing
     AllByronKeyPaymentCredentials -> Nothing
     AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
-
-validateAddress :: UTxOAssumptions -> Address -> Bool
-validateAddress = valid
-  where
-    valid AllKeyPaymentCredentials          (Addr _ KeyHashObj{}    _) = True
-    valid AllScriptPaymentCredentialsFrom{} (Addr _ ScriptHashObj{} _) = True
-    valid AllByronKeyPaymentCredentials     (AddrBootstrap _)          = True
-    valid _                                 _                          = False
