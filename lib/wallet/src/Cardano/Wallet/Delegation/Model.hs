@@ -97,7 +97,7 @@ instance (Ord slot, Eq pool) => Delta (Operation slot pool) where
 --                        Delegate --------| Active |  |  | Voted | ------
 --                                         ----------  |  ---------
 --                                           Vote |    |      | Delegate
---                                DelegateAndVote v    v      v
+--                                DelegateAndVote v    v      v DelegateAndVote
 --                                               ------------------
 --                                               | ActiveAndVoted |----
 --                                               ------------------   | Delegate
@@ -126,6 +126,7 @@ transition (Vote v _) Registered = Voted v
 transition (DelegateAndVote p v _) Registered = ActiveAndVoted p v
 transition (Vote v _) (Voted _) = Voted v
 transition (Delegate p _) (Voted v) = ActiveAndVoted p v
+transition (DelegateAndVote p v _) (Voted _) = ActiveAndVoted p v
 transition (Vote v _) (Active p) = ActiveAndVoted p v
 transition (Delegate p _) (Active _) = Active p
 transition (DelegateAndVote p v _) (Active _) = ActiveAndVoted p v
