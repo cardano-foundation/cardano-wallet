@@ -251,16 +251,8 @@ steps:
       - windows-testing-bundle
       - e2e
     if: '(build.branch =~ /^release-candidate/)' #build.branch =~ /\/feature$$/
-    commands:
-      - old=$(git rev-list -n 1 rc-latest)
-      - if [ $? -eq 0 ]; then
-          date=$(git show -s --format=%ci rc-latest | awk '{print $1}')
-          git tag --delete rc-latest
-          git push origin --delete rc-latest
-          git tag rc-$date $old
-          git push origin rc-$date
-        else
-          echo "RC tagging starts from scratch"
-        fi
-      - git tag rc-latest $BUILDKITE_COMMIT
-      - git push origin rc-latest
+    command: .buildkite/retag-rc-latest.sh
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
