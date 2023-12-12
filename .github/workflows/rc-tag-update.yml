@@ -14,7 +14,8 @@ jobs:
             old=$(git rev-list -n 1 rc-latest)
             if [ $? -eq 0 ]; then
                 date=$(git show -s --format=%ci rc | awk '{print $1}')
-                git tag -d rc-latest
+                git tag --delete rc-latest
+                git push origin --delete rc-latest
                 git tag rc-$date $old
                 git push origin rc-$date
             else
