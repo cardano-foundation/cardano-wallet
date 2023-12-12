@@ -23,7 +23,7 @@ import Cardano.Numeric.Util
     ( inAscendingPartialOrder
     )
 import Cardano.Wallet.Primitive.Types.AssetId
-    ( AssetId (..)
+    ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
@@ -717,11 +717,11 @@ testZeroValuedTokenQuantityFlat =
     Aeson.parseEither (parseJSON @(Flat TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
+    policyId = dummyTokenPolicyId 'A'
     token = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
-          [ { "policy_id": #{policy}
+          [ { "policy_id": #{policyId}
             , "asset_name": #{token}
             , "quantity": 0
             }
@@ -732,7 +732,7 @@ testZeroValuedTokenQuantityFlat =
         , "Encountered zero-valued quantity for token"
         , show (toText token)
         , "within policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testZeroValuedTokenQuantityNested :: Expectation
@@ -740,11 +740,11 @@ testZeroValuedTokenQuantityNested =
     Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
+    policyId = dummyTokenPolicyId 'A'
     token = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
-          [ { "policy_id": #{policy}
+          [ { "policy_id": #{policyId}
             , "tokens": [{"asset_name": #{token}, "quantity": 0}]
             }
           ]
@@ -754,7 +754,7 @@ testZeroValuedTokenQuantityNested =
         , "Encountered zero-valued quantity for token"
         , show (toText token)
         , "within policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testEmptyTokenList :: Expectation
@@ -762,12 +762,12 @@ testEmptyTokenList =
     Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
-    json = [aesonQQ|[{"policy_id": #{policy}, "tokens": []}]|]
+    policyId = dummyTokenPolicyId 'A'
+    json = [aesonQQ|[{"policy_id": #{policyId}, "tokens": []}]|]
     message = unwords
         [ failurePreamble
         , "Encountered empty token list for policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testJson
