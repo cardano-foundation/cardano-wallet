@@ -1,0 +1,17 @@
+agents:
+  queue: "cardano-wallet"
+
+env:
+  LC_ALL: "C.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+  TMPDIR: "/cache"
+
+steps:
+  - label: 'Build Docker Image (linux)'
+    key: build-docker
+    command:
+      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+      - "./docker-build-push"
+    agents:
+      system: x86_64-linux
