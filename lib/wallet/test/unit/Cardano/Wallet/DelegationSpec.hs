@@ -22,6 +22,12 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
     )
+import Cardano.Wallet.Delegation.Model
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , WalletDelegation (..)
@@ -67,6 +73,7 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , NonEmptyList (..)
     , Property
     , applyArbitrary4
@@ -236,6 +243,17 @@ instance Arbitrary WalletDelegation where
     arbitrary = WalletDelegation
         <$> arbitrary
         <*> oneof [ pure [], vector 1, vector 2 ]
+
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary VoteAction where
+    arbitrary =
+        oneof [pure Abstain, pure NoConfidence, arbitrary]
 
 instance Arbitrary WalletDelegationStatus where
     shrink = genericShrink

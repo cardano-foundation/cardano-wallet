@@ -133,6 +133,9 @@ import Cardano.Slotting.Slot
     ( SlotNo (..)
     , WithOrigin (..)
     )
+import Cardano.Wallet.Delegation.Model
+    ( VoteAction
+    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -405,6 +408,8 @@ instance Buildable WalletId where
 data WalletDelegationStatus
     = NotDelegating
     | Delegating !PoolId
+    | Voting !VoteAction
+    | DelegatingVoting !PoolId !VoteAction
     deriving (Generic, Eq, Show)
 instance NFData WalletDelegationStatus
 
@@ -412,6 +417,8 @@ instance Buildable WalletDelegationStatus where
     build = \case
         NotDelegating -> "∅"
         Delegating poolId -> build poolId
+        Voting action -> build action
+        DelegatingVoting poolId action -> build poolId <> ", " <> build action
 
 data WalletDelegationNext = WalletDelegationNext
     { changesAt :: !EpochNo
@@ -443,6 +450,8 @@ instance IsDelegatingTo WalletDelegationStatus where
     isDelegatingTo predicate = \case
         Delegating pid -> predicate pid
         NotDelegating  -> False
+        Voting _ -> False
+        DelegatingVoting pid _ -> predicate pid
 
 instance IsDelegatingTo WalletDelegationNext where
     isDelegatingTo predicate WalletDelegationNext{status} =

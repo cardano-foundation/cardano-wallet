@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -36,6 +37,9 @@ import Data.Function
     )
 import Data.Map.Strict
     ( Map
+    )
+import Fmt
+    ( Buildable (..)
     )
 import GHC.Generics
     ( Generic
@@ -160,6 +164,11 @@ data DRep =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+instance Buildable DRep where
+    build = \case
+        DRepFromKeyHash key -> "key"
+        DRepFromScriptHash script -> "script"
+
 -- | Vote action.
 data VoteAction
     = Abstain
@@ -167,3 +176,9 @@ data VoteAction
     | VoteTo !DRep
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+instance Buildable VoteAction where
+    build = \case
+        Abstain -> "abstaining"
+        NoConfidence -> "casting no confidence"
+        VoteTo drep -> "voting to " <> build drep
