@@ -334,9 +334,9 @@ instance Buildable (Flat TokenMap) where
         buildTokenMap =
             buildList buildAssetQuantity . toFlatList
         buildAssetQuantity (AssetId policyId assetName, quantity) = buildMap
-            [ ("policy",
+            [ ("policyId",
                 build policyId)
-            , ("token",
+            , ("assetName",
                 build assetName)
             , ("quantity",
                 build quantity)
@@ -348,13 +348,13 @@ instance Buildable (Nested TokenMap) where
         buildTokenMap =
             buildList buildPolicy . MonoidMap.toList
         buildPolicy (policyId, assetMap) = buildMap
-            [ ("policy",
+            [ ("policyId",
                 build policyId)
             , ("tokens",
                 buildList buildTokenQuantity (MonoidMap.toList assetMap))
             ]
         buildTokenQuantity (assetName, quantity) = buildMap
-            [ ("token",
+            [ ("assetName",
                 build assetName)
             , ("quantity",
                 build quantity)

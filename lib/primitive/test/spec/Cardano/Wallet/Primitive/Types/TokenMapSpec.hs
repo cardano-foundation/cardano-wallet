@@ -23,7 +23,7 @@ import Cardano.Numeric.Util
     ( inAscendingPartialOrder
     )
 import Cardano.Wallet.Primitive.Types.AssetId
-    ( AssetId (..)
+    ( AssetId (AssetId)
     )
 import Cardano.Wallet.Primitive.Types.AssetId.Gen
     ( genAssetId
@@ -717,12 +717,12 @@ testZeroValuedTokenQuantityFlat =
     Aeson.parseEither (parseJSON @(Flat TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-ASSET"
+    policyId = dummyTokenPolicyId 'A'
+    assetName = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
-          [ { "policy_id": #{policy}
-            , "asset_name": #{token}
+          [ { "policy_id": #{policyId}
+            , "asset_name": #{assetName}
             , "quantity": 0
             }
           ]
@@ -730,9 +730,9 @@ testZeroValuedTokenQuantityFlat =
     message = unwords
         [ failurePreamble
         , "Encountered zero-valued quantity for token"
-        , show (toText token)
+        , show (toText assetName)
         , "within policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testZeroValuedTokenQuantityNested :: Expectation
@@ -740,21 +740,21 @@ testZeroValuedTokenQuantityNested =
     Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-ASSET"
+    policyId = dummyTokenPolicyId 'A'
+    assetName = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
-          [ { "policy_id": #{policy}
-            , "tokens": [{"asset_name": #{token}, "quantity": 0}]
+          [ { "policy_id": #{policyId}
+            , "tokens": [{"asset_name": #{assetName}, "quantity": 0}]
             }
           ]
         |]
     message = unwords
         [ failurePreamble
         , "Encountered zero-valued quantity for token"
-        , show (toText token)
+        , show (toText assetName)
         , "within policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testEmptyTokenList :: Expectation
@@ -762,12 +762,12 @@ testEmptyTokenList =
     Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
         Left message
   where
-    policy = dummyTokenPolicyId 'A'
-    json = [aesonQQ|[{"policy_id": #{policy}, "tokens": []}]|]
+    policyId = dummyTokenPolicyId 'A'
+    json = [aesonQQ|[{"policy_id": #{policyId}, "tokens": []}]|]
     message = unwords
         [ failurePreamble
         , "Encountered empty token list for policy"
-        , show (toText policy) <> "."
+        , show (toText policyId) <> "."
         ]
 
 testJson
@@ -812,33 +812,33 @@ testMapData =
 
 testMapPrettyFlat :: Text
 testMapPrettyFlat = [s|
-- policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: 4150504c45
+- policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  assetName: 4150504c45
   quantity: 1
-- policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: 41564f4341444f
+- policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  assetName: 41564f4341444f
   quantity: 2
-- policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: 42414e414e41
+- policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  assetName: 42414e414e41
   quantity: 3
-- policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: 424c55454245525259
+- policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  assetName: 424c55454245525259
   quantity: 4
 |]
 
 testMapPrettyNested :: Text
 testMapPrettyNested = [s|
-- policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
-    - token: 4150504c45
+    - assetName: 4150504c45
       quantity: 1
-    - token: 41564f4341444f
+    - assetName: 41564f4341444f
       quantity: 2
-- policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+- policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   tokens:
-    - token: 42414e414e41
+    - assetName: 42414e414e41
       quantity: 3
-    - token: 424c55454245525259
+    - assetName: 424c55454245525259
       quantity: 4
 |]
 
