@@ -54,7 +54,6 @@ module Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
-    , toCardanoApiLovelace
     , toCardanoApiTx
 
     -- ** Existential wrapper
@@ -81,7 +80,6 @@ module Internal.Cardano.Write.Tx
     -- * Tx
     , Core.Tx
     , Core.TxBody
-    , emptyTx
     , serializeTx
 
     -- * TxId
@@ -132,7 +130,6 @@ module Internal.Cardano.Write.Tx
     -- * UTxO
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
-    , utxoFromTxOuts
 
     -- * Policy and asset identifiers
     , PolicyId
@@ -643,13 +640,6 @@ isBelowMinimumCoinForTxOut pp out =
 -- UTxO
 --------------------------------------------------------------------------------
 
--- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
-utxoFromTxOuts
-    :: IsRecentEra era
-    => [(TxIn, Core.TxOut era)]
-    -> Shelley.UTxO era
-utxoFromTxOuts = Shelley.UTxO . Map.fromList
-
 -- | Construct a 'UTxO era' using 'TxOutInRecentEra'.
 --
 -- Used to have a possibility for failure when we supported Alonzo and Babbage,
@@ -671,12 +661,6 @@ serializeTx
     => Core.Tx era
     -> ByteString
 serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
-
-emptyTx
-    :: IsRecentEra era
-    => RecentEra era
-    -> Core.Tx era
-emptyTx _era = Core.mkBasicTx Core.mkBasicTxBody
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -722,9 +706,6 @@ fromCardanoApiUTxO =
     . Map.map
         (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
     . CardanoApi.unUTxO
-
-toCardanoApiLovelace :: Coin -> CardanoApi.Lovelace
-toCardanoApiLovelace = CardanoApi.fromShelleyLovelace
 
 --------------------------------------------------------------------------------
 -- PParams

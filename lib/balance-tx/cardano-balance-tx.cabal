@@ -103,7 +103,6 @@ test-suite test
   main-is:            run-test-suite.hs
   build-depends:
     , address-derivation-discovery
-    , aeson
     , base
     , bytestring
     , cardano-addresses

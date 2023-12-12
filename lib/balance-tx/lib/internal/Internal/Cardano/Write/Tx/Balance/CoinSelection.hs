@@ -51,7 +51,6 @@ module Internal.Cardano.Write.Tx.Balance.CoinSelection
 
     -- * Selection skeletons
     , SelectionSkeleton (..)
-    , emptySkeleton
 
     -- * Selection errors
     , BalanceInsufficientError (..)
@@ -342,15 +341,6 @@ data SelectionSkeleton = SelectionSkeleton
         :: ![Set W.AssetId]
     }
     deriving (Eq, Generic, Show)
-
--- | Creates an empty 'SelectionSkeleton'.
---
-emptySkeleton :: SelectionSkeleton
-emptySkeleton = SelectionSkeleton
-    { skeletonInputCount = 0
-    , skeletonOutputs = mempty
-    , skeletonChange = mempty
-    }
 
 toExternalSelectionSkeleton
     :: Internal.SelectionSkeleton WalletSelectionContext
