@@ -333,11 +333,11 @@ instance Buildable (Flat TokenMap) where
       where
         buildTokenMap =
             buildList buildAssetQuantity . toFlatList
-        buildAssetQuantity (AssetId policyId token, quantity) = buildMap
+        buildAssetQuantity (AssetId policyId assetName, quantity) = buildMap
             [ ("policy",
                 build policyId)
             , ("token",
-                build token)
+                build assetName)
             , ("quantity",
                 build quantity)
             ]
@@ -353,9 +353,9 @@ instance Buildable (Nested TokenMap) where
             , ("tokens",
                 buildList buildTokenQuantity (MonoidMap.toList assetMap))
             ]
-        buildTokenQuantity (token, quantity) = buildMap
+        buildTokenQuantity (assetName, quantity) = buildMap
             [ ("token",
-                build token)
+                build assetName)
             , ("quantity",
                 build quantity)
             ]
@@ -385,9 +385,9 @@ jsonFailWithEmptyTokenList policyId = jsonFailWith $ unwords
     ]
 
 jsonFailWithZeroValueTokenQuantity :: TokenPolicyId -> AssetName -> Parser a
-jsonFailWithZeroValueTokenQuantity policyId token = jsonFailWith $ unwords
+jsonFailWithZeroValueTokenQuantity policyId assetName = jsonFailWith $ unwords
     [ "Encountered zero-valued quantity for token"
-    , show (toText token)
+    , show (toText assetName)
     , "within policy"
     , show (toText policyId)
     ]
@@ -399,17 +399,18 @@ jsonFailWithZeroValueTokenQuantity policyId token = jsonFailWith $ unwords
 instance ToJSON (Flat TokenMap) where
     toJSON = toJSON . fmap fromTuple . toFlatList . getFlat
       where
-        fromTuple (AssetId policyId t, q) = FlatAssetQuantity policyId t q
+        fromTuple (AssetId policyId assetName, q) =
+            FlatAssetQuantity policyId assetName q
 
 instance FromJSON (Flat TokenMap) where
     parseJSON =
         fmap (Flat . fromFlatList) . mapM parseTuple <=< parseJSON
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
-        parseTuple (FlatAssetQuantity policyId t q) = do
+        parseTuple (FlatAssetQuantity policyId assetName q) = do
             when (TokenQuantity.isZero q) $
-                jsonFailWithZeroValueTokenQuantity policyId t
-            pure (AssetId policyId t, q)
+                jsonFailWithZeroValueTokenQuantity policyId assetName
+            pure (AssetId policyId assetName, q)
 
 -- Used for JSON serialization only: not exported.
 data FlatAssetQuantity = FlatAssetQuantity
@@ -451,10 +452,10 @@ instance FromJSON (Nested TokenMap) where
             :: TokenPolicyId
             -> NestedTokenQuantity
             -> Parser (AssetName, TokenQuantity)
-        parseToken policyId (NestedTokenQuantity token quantity) = do
+        parseToken policyId (NestedTokenQuantity assetName quantity) = do
             when (TokenQuantity.isZero quantity) $
-                jsonFailWithZeroValueTokenQuantity policyId token
-            pure (token, quantity)
+                jsonFailWithZeroValueTokenQuantity policyId assetName
+            pure (assetName, quantity)
 
 -- Used for JSON serialization only: not exported.
 data NestedMapEntry = NestedMapEntry
@@ -513,9 +514,9 @@ fromFlatList = F.foldl' acc empty
 fromNestedList
     :: [(TokenPolicyId, NonEmpty (AssetName, TokenQuantity))] -> TokenMap
 fromNestedList entries = fromFlatList
-    [ (AssetId policyId token, quantity)
+    [ (AssetId policyId assetName, quantity)
     | (policyId, tokenQuantities) <- entries
-    , (token, quantity) <- NE.toList tokenQuantities
+    , (assetName, quantity) <- NE.toList tokenQuantities
     ]
 
 -- | Creates a token map from a nested map.
@@ -531,9 +532,9 @@ fromNestedMap = TokenMap . MonoidMap.fromMap . fmap MonoidMap.fromMap
 --
 toFlatList :: TokenMap -> [(AssetId, TokenQuantity)]
 toFlatList b =
-    [ (AssetId policyId token, quantity)
+    [ (AssetId policyId assetName, quantity)
     | (policyId, tokenQuantities) <- toNestedList b
-    , (token, quantity) <- NE.toList tokenQuantities
+    , (assetName, quantity) <- NE.toList tokenQuantities
     ]
 
 -- | Converts a token map to a nested list.
@@ -640,8 +641,8 @@ isNotEmpty = not . MonoidNull.null
 -- function returns a value of zero.
 --
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
-getQuantity (TokenMap m) (AssetId policyId token) =
-    MonoidMap.get token (MonoidMap.get policyId m)
+getQuantity (TokenMap m) (AssetId policyId assetName) =
+    MonoidMap.get assetName (MonoidMap.get policyId m)
 
 -- | Updates the quantity associated with a given asset.
 --
@@ -649,8 +650,8 @@ getQuantity (TokenMap m) (AssetId policyId token) =
 -- the given asset.
 --
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
-setQuantity (TokenMap m) (AssetId policyId token) quantity =
-    TokenMap $ MonoidMap.adjust (MonoidMap.set token quantity) policyId m
+setQuantity (TokenMap m) (AssetId policyId assetName) quantity =
+    TokenMap $ MonoidMap.adjust (MonoidMap.set assetName quantity) policyId m
 
 -- | Returns true if and only if the given map has a non-zero quantity for the
 --   given asset.
@@ -669,8 +670,8 @@ adjustQuantity
     -> AssetId
     -> (TokenQuantity -> TokenQuantity)
     -> TokenMap
-adjustQuantity (TokenMap m) (AssetId policyId token) f =
-    TokenMap $ MonoidMap.adjust (MonoidMap.adjust f token) policyId m
+adjustQuantity (TokenMap m) (AssetId policyId assetName) f =
+    TokenMap $ MonoidMap.adjust (MonoidMap.adjust f assetName) policyId m
 
 -- | Removes the quantity associated with the given asset.
 --
