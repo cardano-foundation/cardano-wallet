@@ -938,7 +938,7 @@ mkUnsignedTx
                     witMap =
                             Map.map toScriptWitnessGeneral $
                             Map.mapKeys
-                                (toCardanoPolicyId . AssetId.tokenPolicyId)
+                                (toCardanoPolicyId . AssetId.policyId)
                             mintingSource
                     ctx = Cardano.BuildTxWith witMap
                 in Cardano.TxMintValue mintedEra (mintValue <> burnValue) ctx

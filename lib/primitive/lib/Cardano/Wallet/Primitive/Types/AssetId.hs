@@ -24,7 +24,7 @@ import GHC.Generics
 --   used as a compound identifier.
 --
 data AssetId = AssetId
-    { tokenPolicyId
+    { policyId
         :: !TokenPolicyId
     , assetName
         :: !AssetName
