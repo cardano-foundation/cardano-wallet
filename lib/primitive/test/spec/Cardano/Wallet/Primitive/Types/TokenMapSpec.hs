@@ -813,16 +813,16 @@ testMapData =
 testMapPrettyFlat :: Text
 testMapPrettyFlat = [s|
 - policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: 4150504c45
+  assetName: 4150504c45
   quantity: 1
 - policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: 41564f4341444f
+  assetName: 41564f4341444f
   quantity: 2
 - policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: 42414e414e41
+  assetName: 42414e414e41
   quantity: 3
 - policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: 424c55454245525259
+  assetName: 424c55454245525259
   quantity: 4
 |]
 
@@ -830,15 +830,15 @@ testMapPrettyNested :: Text
 testMapPrettyNested = [s|
 - policyId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
-    - token: 4150504c45
+    - assetName: 4150504c45
       quantity: 1
-    - token: 41564f4341444f
+    - assetName: 41564f4341444f
       quantity: 2
 - policyId: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   tokens:
-    - token: 42414e414e41
+    - assetName: 42414e414e41
       quantity: 3
-    - token: 424c55454245525259
+    - assetName: 424c55454245525259
       quantity: 4
 |]
 
