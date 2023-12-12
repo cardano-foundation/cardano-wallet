@@ -394,7 +394,7 @@ instance IsServerError ErrMkTransaction where
                 , "Destination address: "
                 , pretty (view #address e)
                 , ". Token policy identifier: "
-                , pretty (view (#asset . #tokenPolicyId) e)
+                , pretty (view (#asset . #policyId) e)
                 , ". Asset name: "
                 , pretty (view (#asset . #assetName) e)
                 , ". Token quantity specified: "
