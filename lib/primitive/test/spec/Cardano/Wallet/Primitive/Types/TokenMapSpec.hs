@@ -718,11 +718,11 @@ testZeroValuedTokenQuantityFlat =
         Left message
   where
     policyId = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-ASSET"
+    assetName = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
           [ { "policy_id": #{policyId}
-            , "asset_name": #{token}
+            , "asset_name": #{assetName}
             , "quantity": 0
             }
           ]
@@ -730,7 +730,7 @@ testZeroValuedTokenQuantityFlat =
     message = unwords
         [ failurePreamble
         , "Encountered zero-valued quantity for token"
-        , show (toText token)
+        , show (toText assetName)
         , "within policy"
         , show (toText policyId) <> "."
         ]
@@ -741,18 +741,18 @@ testZeroValuedTokenQuantityNested =
         Left message
   where
     policyId = dummyTokenPolicyId 'A'
-    token = dummyAssetName "DUMMY-ASSET"
+    assetName = dummyAssetName "DUMMY-ASSET"
     json =
         [aesonQQ|
           [ { "policy_id": #{policyId}
-            , "tokens": [{"asset_name": #{token}, "quantity": 0}]
+            , "tokens": [{"asset_name": #{assetName}, "quantity": 0}]
             }
           ]
         |]
     message = unwords
         [ failurePreamble
         , "Encountered zero-valued quantity for token"
-        , show (toText token)
+        , show (toText assetName)
         , "within policy"
         , show (toText policyId) <> "."
         ]
