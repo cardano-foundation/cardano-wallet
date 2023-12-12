@@ -37,9 +37,6 @@
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/docker_linux.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_linux.yml?label=Docker-compose Linux&style=for-the-badge&branch=master"  />
     </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/docker_macos.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_macos.yml?label=Docker-compose Macos&style=for-the-badge&branch=master"  />
-    </a>
 </p>
 
 
