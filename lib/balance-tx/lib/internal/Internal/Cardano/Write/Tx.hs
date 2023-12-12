@@ -131,7 +131,6 @@ module Internal.Cardano.Write.Tx
     -- * UTxO
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
-    , utxoFromTxOuts
 
     -- * Policy and asset identifiers
     , PolicyId
@@ -641,13 +640,6 @@ isBelowMinimumCoinForTxOut pp out =
 --------------------------------------------------------------------------------
 -- UTxO
 --------------------------------------------------------------------------------
-
--- | Construct a 'UTxO era' using 'TxIn's and 'TxOut's in said era.
-utxoFromTxOuts
-    :: IsRecentEra era
-    => [(TxIn, Core.TxOut era)]
-    -> Shelley.UTxO era
-utxoFromTxOuts = Shelley.UTxO . Map.fromList
 
 -- | Construct a 'UTxO era' using 'TxOutInRecentEra'.
 --
