@@ -169,7 +169,7 @@ steps:
     agents:
       system: ${macos}
 
-  - block: "Build package and docker image (linux)"
+  - block: "Build package (linux)"
     depends_on: linux-nix
     if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
     key: trigger-build-linux-package
@@ -179,18 +179,6 @@ steps:
     key: build-linux
     command: nix build -o result/linux .#ci.artifacts.linux64.release
     artifact_paths: [ "./result/linux/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
-
-  - label: 'Build Docker Image (linux)'
-    depends_on: [linux-nix, trigger-build-linux-package]
-    key: build-docker
-    command:
-      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
-      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-      - "./docker-build-push"
     agents:
       system: ${linux}
     env:
