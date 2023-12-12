@@ -54,7 +54,6 @@ module Internal.Cardano.Write.Tx
     , fromCardanoApiTx
     , toCardanoApiUTxO
     , fromCardanoApiUTxO
-    , toCardanoApiLovelace
     , toCardanoApiTx
 
     -- ** Existential wrapper
@@ -722,9 +721,6 @@ fromCardanoApiUTxO =
     . Map.map
         (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
     . CardanoApi.unUTxO
-
-toCardanoApiLovelace :: Coin -> CardanoApi.Lovelace
-toCardanoApiLovelace = CardanoApi.fromShelleyLovelace
 
 --------------------------------------------------------------------------------
 -- PParams
