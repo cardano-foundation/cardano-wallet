@@ -77,10 +77,10 @@ in
     if [[ "$git_tag" =~ ^v20 ]]; then
       tags+=( "${image.imageTag}" )
       tags+=( "latest" )
-    elif [[ "$git_branch" = master ]]; then
-      tags+=( "$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$git_branch/)" )
+    elif [[ "$git_tag" = "rc-latest" ]]; then
+      tags+=( "${git_tag}" )
     else
-      echo 'Not pushing docker image because this is not a master branch or v20* tag build.'
+      echo 'Not pushing docker image because this is neither a rc-latest nor a v20* tag build.'
     fi
 
     echo
