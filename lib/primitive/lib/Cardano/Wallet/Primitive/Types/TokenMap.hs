@@ -399,18 +399,18 @@ jsonFailWithZeroValueTokenQuantity policyId assetName = jsonFailWith $ unwords
 instance ToJSON (Flat TokenMap) where
     toJSON = toJSON . fmap fromTuple . toFlatList . getFlat
       where
-        fromTuple (AssetId policyId assetName, q) =
-            FlatAssetQuantity policyId assetName q
+        fromTuple (AssetId policyId assetName, quantity) =
+            FlatAssetQuantity policyId assetName quantity
 
 instance FromJSON (Flat TokenMap) where
     parseJSON =
         fmap (Flat . fromFlatList) . mapM parseTuple <=< parseJSON
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
-        parseTuple (FlatAssetQuantity policyId assetName q) = do
-            when (TokenQuantity.isZero q) $
+        parseTuple (FlatAssetQuantity policyId assetName quantity) = do
+            when (TokenQuantity.isZero quantity) $
                 jsonFailWithZeroValueTokenQuantity policyId assetName
-            pure (AssetId policyId assetName, q)
+            pure (AssetId policyId assetName, quantity)
 
 -- Used for JSON serialization only: not exported.
 data FlatAssetQuantity = FlatAssetQuantity
