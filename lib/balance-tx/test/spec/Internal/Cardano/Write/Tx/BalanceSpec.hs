@@ -919,7 +919,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         ]
 
     delegate :: PartialTx BabbageEra
-    delegate = PartialTx (mkBasicTx body) mempty []
+    delegate = PartialTx (mkBasicTx body) mempty [] mempty
       where
         body :: TxBody BabbageEra
         body =
@@ -943,7 +943,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     minFee tx u =
         Write.evaluateMinimumFee mockPParamsForBalancing
             tx
-            (estimateKeyWitnessCount u tx)
+            (estimateKeyWitnessCount u tx mempty)
 
 spec_distributeSurplus :: Spec
 spec_distributeSurplus = describe "distributeSurplus" $ do
@@ -1112,6 +1112,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             witCount dummyAddr = estimateKeyWitnessCount
                 (utxoPromisingInputsHaveAddress dummyAddr tx)
                 tx
+                mempty
             noScripts = Map.null $ tx ^. witsTxL . scriptTxWitsL
             noBootWits = Set.null $ tx ^. witsTxL . bootAddrTxWitsL
             testDoesNotYetSupport x =
@@ -1512,7 +1513,10 @@ prop_balanceTransactionValid
     prop_validSize tx utxo = do
         let (W.TxSize size) =
                 estimateSignedTxSize ledgerPParams
-                    (estimateKeyWitnessCount utxo tx)
+                    (estimateKeyWitnessCount
+                        utxo
+                        tx
+                        (intendedNumberOfTimelockSigners partialTx))
                     tx
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -1563,7 +1567,8 @@ prop_balanceTransactionValid
     minFee tx utxo =
         Write.evaluateMinimumFee ledgerPParams
             tx
-            (estimateKeyWitnessCount utxo tx)
+            (estimateKeyWitnessCount utxo tx
+                (intendedNumberOfTimelockSigners partialTx))
 
     txBalance
         :: Tx era
@@ -2149,7 +2154,7 @@ mockPParamsForBalancing =
 
 paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
 paymentPartialTx txouts =
-    PartialTx (mkBasicTx body) mempty []
+    PartialTx (mkBasicTx body) mempty [] mempty
   where
     body = mkBasicTxBody
         & outputsTxBodyL .~
@@ -2164,13 +2169,13 @@ restrictResolution
     :: forall era. IsRecentEra era
     => PartialTx era
     -> PartialTx era
-restrictResolution (PartialTx tx inputs redeemers) =
+restrictResolution (PartialTx tx inputs redeemers timelockSigners) =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO @era inputs
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx @era tx))
         inputs' = fromCardanoApiUTxO @era (CardanoApi.UTxO u')
     in
-        PartialTx tx inputs' redeemers
+        PartialTx tx inputs' redeemers timelockSigners
   where
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
@@ -2410,7 +2415,7 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     }
 
 pingPong_1 :: PartialTx BabbageEra
-pingPong_1 = PartialTx tx mempty []
+pingPong_1 = PartialTx tx mempty [] mempty
   where
     tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
         [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
@@ -2451,6 +2456,7 @@ pingPong_2 = PartialTx
             (unsafeFromHex "D87A80")
             (Convert.toLedger (W.TxIn (W.Hash tid) 0))
         ]
+    , intendedNumberOfTimelockSigners = mempty
     }
   where
     tid = B8.replicate 32 '1'
@@ -2613,12 +2619,13 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
             (fromCardanoApiTx tx)
             (fromCardanoApiUTxO inputUTxO)
             (redeemers)
-    shrink (PartialTx tx inputUTxO redeemers) =
-        [ PartialTx tx inputUTxO' redeemers
+            mempty
+    shrink (PartialTx tx inputUTxO redeemers timelockSigners) =
+        [ PartialTx tx inputUTxO' redeemers timelockSigners
         | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $
-            PartialTx (fromCardanoApiTx tx') inputUTxO redeemers
+            PartialTx (fromCardanoApiTx tx') inputUTxO redeemers timelockSigners
         | tx' <- shrinkTxBabbage (toCardanoApiTx tx)
         ]
 

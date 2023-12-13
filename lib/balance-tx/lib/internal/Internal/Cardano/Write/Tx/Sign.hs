@@ -1,6 +1,9 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -17,6 +20,7 @@ module Internal.Cardano.Write.Tx.Sign
       estimateSignedTxSize
 
     , KeyWitnessCount (..)
+    , IntendedNumberOfTimelockSigners (..)
     , estimateKeyWitnessCount
 
     , estimateMaxWitnessRequiredPerInput
@@ -26,10 +30,19 @@ module Internal.Cardano.Write.Tx.Sign
 
 import Prelude
 
+import Cardano.Ledger.Allegra.Scripts
+    ( Timelock
+    )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( ExtendedUTxO (txscripts)
+    )
 import Cardano.Ledger.Api
     ( Addr (..)
+    , ScriptHash
+    , StandardCrypto
     , addrTxOutL
     , addrTxWitsL
+    , bodyTxL
     , bootAddrTxWitsL
     , ppMinFeeAL
     , sizeTxF
@@ -39,7 +52,8 @@ import Cardano.Ledger.Credential
     ( Credential (..)
     )
 import Cardano.Ledger.UTxO
-    ( txinLookup
+    ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
+    , txinLookup
     )
 import Control.Lens
     ( view
@@ -57,7 +71,7 @@ import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
-    , RecentEra (..)
+    , Script
     , Tx
     , TxIn
     , UTxO
@@ -69,7 +83,6 @@ import Numeric.Natural
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -83,6 +96,12 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+import Data.Map.Strict
+    ( Map
+    )
+import Data.Set
+    ( Set
+    )
 import qualified Internal.Cardano.Write.Tx as Write
 
 -- | Estimate the size of the transaction when fully signed.
@@ -164,8 +183,9 @@ estimateKeyWitnessCount
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> Tx era
+    -> IntendedNumberOfTimelockSigners
     -> KeyWitnessCount
-estimateKeyWitnessCount utxo tx =
+estimateKeyWitnessCount utxo tx intendedTimelockSigners =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
             case CardanoApi.txInsCollateral txbodycontent of
@@ -193,28 +213,13 @@ estimateKeyWitnessCount utxo tx =
             CardanoApi.TxCertificatesNone -> 0
             CardanoApi.TxCertificates _ certs _ ->
                 sumVia estimateDelegSigningKeys certs
-        scriptVkWitsUpperBound =
-            fromIntegral
-            $ sumVia estimateMaxWitnessRequiredPerInput
-            $ mapMaybe toTimelockScript scripts
-        -- when wallets uses reference input it means script containing its
-        -- policy key was already published in previous tx if so we need to add
-        -- one witness that will stem from policy signing key. As it is not
-        -- allowed to publish and consume in the same transaction we are not
-        -- going to double count.
-        txRefInpsWit = case CardanoApi.txInsReference txbodycontent of
-            CardanoApi.TxInsReferenceNone -> 0
-            CardanoApi.TxInsReference{} ->
-                case CardanoApi.txMintValue txbodycontent of
-                    CardanoApi.TxMintNone -> 0
-                    CardanoApi.TxMintValue{} -> 1
+
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
             txUpdateProposal' +
             fromIntegral txCerts +
-            scriptVkWitsUpperBound +
-            txRefInpsWit
+            fromIntegral scriptVkCount
         inputWits = KeyWitnessCount
             { nKeyWits = fromIntegral
                 . length
@@ -226,16 +231,48 @@ estimateKeyWitnessCount utxo tx =
         in
             nonInputWits <> inputWits
   where
-    CardanoApi.Tx txbody@(CardanoApi.TxBody txbodycontent) _keyWits
+    CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
         = toCardanoApiTx tx
 
-    scripts = case txbody of
-        CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ ->
-            shelleyBodyScripts
-        CardanoApi.ByronTxBody {} ->
-            error "estimateKeyWitnessCount: ByronTxBody"
+    -- In the original implementation we consider available scripts. In the
+    -- future we may want to only consider the required scripts, but this would
+    -- require changing signTx in tandem.
+    --
+    -- However, to enable  ADP-3197 (Re-remove wallet-specific assumptions from `balanceTx`)
+    -- we need access to the "required" mint script hash. To avoid breaking
+    -- compatibility with signTx we use the union of the two.
+    scriptVkCount :: Natural
+    scriptVkCount = sum $ Map.elems $ Map.unionWith
+        (\_est spec -> spec)
+        upperBoundEstimatedTimelockVkCounts
+        specifiedTimelockVkCounts
+      where
+        specifiedTimelockVkCounts :: Map (ScriptHash StandardCrypto) Natural
+        specifiedTimelockVkCounts = Map.fromList $ mapMaybe resolve
+            $ F.toList scriptsNeeded
+          where
+            resolve
+                :: (ScriptHash StandardCrypto)
+                -> Maybe (ScriptHash StandardCrypto, Natural)
+            resolve h = (h,) <$> Map.lookup h
+                (getIntendedNumberOfTimelockSigners intendedTimelockSigners)
 
-    dummyKeyRole = CA.Payment
+        upperBoundEstimatedTimelockVkCounts
+            :: Map (ScriptHash StandardCrypto) Natural
+        upperBoundEstimatedTimelockVkCounts = Map.mapMaybe
+            (fmap (estimateMaxWitnessRequiredPerInput . toCAScript)
+                . toTimelockScript)
+            scriptsAvailable
+
+        scriptsNeeded :: Set (ScriptHash StandardCrypto)
+        scriptsNeeded =
+            getScriptsHashesNeeded
+            $ getScriptsNeeded utxo
+            $ view bodyTxL tx
+
+        scriptsAvailable
+            :: Map (ScriptHash StandardCrypto) (Script era)
+        scriptsAvailable = txscripts utxo tx
 
     estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
     estimateDelegSigningKeys = \case
@@ -251,20 +288,16 @@ estimateKeyWitnessCount utxo tx =
         estimateWitNumForCred = \case
             CardanoApi.StakeCredentialByKey _ -> 1
             CardanoApi.StakeCredentialByScript _ -> 0
+
+    toCAScript = Convert.toWalletScript (const dummyKeyRole)
+      where
+        dummyKeyRole = CA.Payment
+
     toTimelockScript
         :: Ledger.Script era
-        -> Maybe (CA.Script CA.KeyHash)
-    toTimelockScript anyScript = case recentEra @era of
-        RecentEraConway ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
-        RecentEraBabbage ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
+        -> Maybe (Timelock era)
+    toTimelockScript (Alonzo.TimelockScript timelock) = Just timelock
+    toTimelockScript (Alonzo.PlutusScript _ _)        = Nothing
 
     hasScriptCred
         :: UTxO era
@@ -294,6 +327,13 @@ estimateKeyWitnessCount utxo tx =
                     [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
                     , "Caller is expected to ensure this does not happen."
                     ]
+
+newtype IntendedNumberOfTimelockSigners = IntendedNumberOfTimelockSigners
+    { getIntendedNumberOfTimelockSigners
+        :: (Map (ScriptHash StandardCrypto) Natural)
+    }
+    deriving (Show, Eq)
+    deriving newtype (Monoid, Semigroup)
 
 --------------------------------------------------------------------------------
 -- Helpers

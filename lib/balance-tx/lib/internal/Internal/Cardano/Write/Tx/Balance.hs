@@ -251,7 +251,8 @@ import Internal.Cardano.Write.Tx.Redeemers
     , assignScriptRedeemers
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( estimateKeyWitnessCount
+    ( IntendedNumberOfTimelockSigners (..)
+    , estimateKeyWitnessCount
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -438,6 +439,7 @@ data PartialTx era = PartialTx
     , inputs :: UTxO era
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
+    , intendedNumberOfTimelockSigners :: IntendedNumberOfTimelockSigners
     }
     deriving Generic
 
@@ -446,11 +448,15 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers)
+    build (PartialTx tx (UTxO ins) redeemers nTimelockWits)
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
+            , nameF "intended number of timelock signers"
+                $ blockListF' "-" (build . show)
+                    $ Map.toList
+                    $ getIntendedNumberOfTimelockSigners nTimelockWits
             ]
       where
         inF = build . show
@@ -637,7 +643,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers)
+    ptx@(PartialTx partialTx inputUTxO redeemers nTimelockWits)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
@@ -795,7 +801,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
         let res = flip map txIns $ \i-> do
                 case txinLookup i combinedUTxO of
                     Nothing ->
@@ -847,7 +853,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO tx
+        let witCount = estimateKeyWitnessCount combinedUTxO tx nTimelockWits
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update

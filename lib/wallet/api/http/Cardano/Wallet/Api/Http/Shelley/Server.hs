@@ -919,6 +919,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
+import Internal.Cardano.Write.Tx.Sign
+    ( IntendedNumberOfTimelockSigners
+    )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
@@ -2864,11 +2867,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
+        let intendedNumberOfTimelockSigners = mempty -- TODO
+
         balancedTx <-
             balanceTransaction
                 api
                 argGenChange
                 (utxoAssumptionsForWallet (walletFlavor @s))
+                intendedNumberOfTimelockSigners
                 apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
@@ -3292,6 +3298,7 @@ constructSharedTransaction
                         (Shared.paymentTemplate (getState cp))
                         (scriptLookup . Convert.toWalletAddress)
                     )
+                    mempty
                     (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -3458,11 +3465,12 @@ balanceTransaction
     => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
+    -> IntendedNumberOfTimelockSigners
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
 balanceTransaction
-    ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
+    ctx@ApiLayer{..} argGenChange utxoAssumptions timelockSigners (ApiT wid) body = do
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3517,6 +3525,7 @@ balanceTransaction
             (Write.fromCardanoApiTx tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
+            timelockSigners
 
 decodeTransaction
     :: forall s n
