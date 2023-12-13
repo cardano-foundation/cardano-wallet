@@ -1242,6 +1242,18 @@ toApiWalletDelegation W.WalletDelegation{active,next} ti = do
             , changesAt = mepochInfo
             }
 
+        W.Voting _ -> ApiWalletDelegationNext
+            { status = Voting
+            , target = Nothing
+            , changesAt = mepochInfo
+            }
+
+        W.DelegatingVoting pid _ -> ApiWalletDelegationNext
+            { status = DelegatingAndVoting
+            , target = Just (ApiT pid)
+            , changesAt = mepochInfo
+            }
+
 --------------------- Shared Wallet
 
 postSharedWallet

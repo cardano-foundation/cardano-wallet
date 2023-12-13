@@ -1011,6 +1011,8 @@ data ApiWalletDelegationNext = ApiWalletDelegationNext
 data ApiWalletDelegationStatus
     = NotDelegating
     | Delegating
+    | Voting
+    | DelegatingAndVoting
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultSum ApiWalletDelegationStatus
     deriving anyclass NFData
