@@ -12,7 +12,7 @@ on:
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
-        default: 'dev-master'
+        default: 'rc-latest'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
@@ -29,7 +29,7 @@ jobs:
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
-      WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
+      WALLET: ${{ github.event.inputs.walletTag || 'rc-latest' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.world.dev.cardano.org/
       TAGS: ${{ github.event.inputs.tags || 'all' }}
       E2E_DOCKER_RUN: 1
@@ -38,7 +38,7 @@ jobs:
     - name: Checkout the rc-latest tag
       uses: actions/checkout@v4.1.1
       with:
-        ref: rc-latest
+        ref: ${{ github.event.inputs.walletTag || 'rc-latest' }}
 
     - name: Get supported node tag
       run: |
@@ -62,7 +62,7 @@ jobs:
       run: bundle install
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
-      run: rake setup[preprod]
+      run: rake setup[preprod,${{ env.WALLET}}]
 
 
     - name: 💾 Cache node db
