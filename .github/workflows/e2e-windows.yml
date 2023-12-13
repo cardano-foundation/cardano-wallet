@@ -7,7 +7,7 @@ on:
     inputs:
       branch:
         description: 'Run tests against branch'
-        default: 'master'
+        default: 'rc-latest'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
@@ -20,7 +20,7 @@ jobs:
       NETWORK: preprod
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      BRANCH: ${{ github.event.inputs.branch || 'master' }}
+      BRANCH: ${{ github.event.inputs.branch || 'rc-latest' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
 
 
@@ -38,7 +38,7 @@ jobs:
     - name: Checkout
       shell: bash
       run: |
-        git clone -b rc-latest https://github.com/cardano-foundation/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
+        git clone -b $BRANCH https://github.com/cardano-foundation/cardano-wallet.git C:/cardano-wallet --depth 1 --no-single-branch
         cd /c/cardano-wallet
 
     - name: Set up Ruby
