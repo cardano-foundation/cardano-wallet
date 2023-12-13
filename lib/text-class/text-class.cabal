@@ -1,5 +1,5 @@
 name:                text-class
-version:             2023.7.18
+version:             2023.12.13
 synopsis:            Extra helpers to convert data-types to and from Text
 homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              Cardano Foundation (High Assurance Lab)
