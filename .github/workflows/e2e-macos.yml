@@ -8,7 +8,7 @@ on:
 
       branch:
         description: 'Run tests against branch'
-        default: 'master'
+        default: 'rc-latest'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
@@ -24,7 +24,7 @@ jobs:
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
-      BRANCH: ${{ github.event.inputs.branch || '' }}
+      BRANCH: ${{ github.event.inputs.branch || 'rc-latest' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
 
     steps:
@@ -32,7 +32,7 @@ jobs:
     - name: Checkout the rc-latest tag
       uses: actions/checkout@v4.1.1
       with:
-        ref: rc-latest
+        ref: ${{ github.event.inputs.branch || '' }}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1.127.0
