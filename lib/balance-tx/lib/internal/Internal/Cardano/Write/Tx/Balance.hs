@@ -251,7 +251,7 @@ import Internal.Cardano.Write.Tx.Redeemers
     , assignScriptRedeemers
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( IntendedNumberOfTimelockSigners (..)
+    ( SpecifiedTimelockScriptVkCounts (..)
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     )
@@ -439,7 +439,7 @@ data PartialTx era = PartialTx
     , inputs :: UTxO era
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
-    , intendedNumberOfTimelockSigners :: IntendedNumberOfTimelockSigners
+    , timelockVkCounts :: SpecifiedTimelockScriptVkCounts
     }
     deriving Generic
 
@@ -448,7 +448,7 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers nTimelockWits)
+    build (PartialTx tx (UTxO ins) redeemers timelockVkCounts)
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
@@ -456,7 +456,7 @@ instance IsRecentEra era => Buildable (PartialTx era)
             , nameF "intended number of timelock signers"
                 $ blockListF' "-" (build . show)
                     $ Map.toList
-                    $ getIntendedNumberOfTimelockSigners nTimelockWits
+                    $ getSpecifiedTimelockScriptVkCounts timelockVkCounts
             ]
       where
         inF = build . show

@@ -814,6 +814,9 @@ import Internal.Cardano.Write.Tx.Balance
     ( Redeemer (..)
     , UTxOAssumptions (..)
     )
+import Internal.Cardano.Write.Tx.Sign
+    ( SpecifiedTimelockScriptVkCounts
+    )
 import Network.Ntp
     ( NtpClient
     , getNtpStatus
@@ -919,9 +922,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
-import Internal.Cardano.Write.Tx.Sign
-    ( IntendedNumberOfTimelockSigners
-    )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
@@ -2867,14 +2867,30 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
-        let intendedNumberOfTimelockSigners = mempty -- TODO
+        -- We need to assume that mint/burn scripts in reference inputs require
+        -- 1 vk witness each, and we need to tell 'balanceTransaction' about
+        -- this assumption.
+        let intendedSignersForMintBurn
+                :: ApiMintBurnData n -> Write.SpecifiedTimelockScriptVkCounts
+            intendedSignersForMintBurn mb = case mb ^. #mintBurnData of
+                Left ApiMintBurnDataFromScript{} -> mempty
+                Right (ApiMintBurnDataFromInput _ (ApiT policyId) _ _) ->
+                    let
+                        Write.PolicyID policyId' =
+                            Convert.toLedgerTokenPolicyId policyId
+                    in
+                        Write.SpecifiedTimelockScriptVkCounts
+                            $ Map.singleton policyId' 1
+        let intendedMintBurnVkCount =
+                foldMap intendedSignersForMintBurn
+                $ maybe [] NE.toList mintBurnDatum
 
         balancedTx <-
             balanceTransaction
                 api
                 argGenChange
                 (utxoAssumptionsForWallet (walletFlavor @s))
-                intendedNumberOfTimelockSigners
+                intendedMintBurnVkCount
                 apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
@@ -3465,7 +3481,7 @@ balanceTransaction
     => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
-    -> IntendedNumberOfTimelockSigners
+    -> SpecifiedTimelockScriptVkCounts
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
