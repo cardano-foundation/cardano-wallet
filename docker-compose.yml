@@ -2,12 +2,12 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:8.1.2
+    image: inputoutput/cardano-node:${NODE_TAG}
     environment:
       NETWORK:
       CARDANO_NODE_SOCKET_PATH: /ipc/node.socket
     volumes:
-      - node-${NETWORK}-db:/data
+      - ${NODE_DB}:/data
       - node-ipc:/ipc
     restart: on-failure
     logging:
@@ -18,12 +18,12 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: cardanofoundation/cardano-wallet:2023.7.18
+    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     volumes:
-      - wallet-${NETWORK}-db:/wallet-db
+      - ${WALLET_DB}:/wallet-db
       - node-ipc:/ipc
     ports:
-      - 8090:8090
+      - ${WALLET_PORT}:8090
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
@@ -41,11 +41,4 @@ services:
         max-size: "50m"
 
 volumes:
-  node-mainnet-db:
-  wallet-mainnet-db:
-  node-preprod-db:
-  wallet-preprod-db:
-  node-preview-db:
-  wallet-preview-db:
   node-ipc:
-  node-config:
