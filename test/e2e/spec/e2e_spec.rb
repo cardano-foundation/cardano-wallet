@@ -2077,7 +2077,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('AmazingNFTIdontHave')}"
+        expect(tx_constructed['message'].to_s).to include "assetName: #{asset_name('AmazingNFTIdontHave')}"
         expect(tx_constructed['message'].to_s).to include 'quantity: 1'
       end
 
@@ -2115,7 +2115,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('MintIt')}"
+        expect(tx_constructed['message'].to_s).to include "assetName: #{asset_name('MintIt')}"
         expect(tx_constructed['message'].to_s).to include 'quantity: 1000'
 
         #  - correct policy_script but too much
@@ -2129,7 +2129,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['message'].to_s).to include "token: #{asset_name('MintIt')}"
+        expect(tx_constructed['message'].to_s).to include "assetName: #{asset_name('MintIt')}"
         expect(tx_constructed['message'].to_s).to include 'quantity: 22'
 
         # Burn it:
@@ -2200,7 +2200,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['message'].to_s).to include "token: #{assets_name}"
+        expect(tx_constructed['message'].to_s).to include "assetName: #{assets_name}"
         expect(tx_constructed['message'].to_s).to include "quantity: #{assets_quantity}"
 
         # Send them back to src wallet:
@@ -2274,7 +2274,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                             mint)
             expect(tx_constructed).to be_correct_and_respond code
             expect(tx_constructed['code'].to_s).to eq message
-            # expect(tx_constructed['message'].to_s).to include "token: #{asset_name('AmazingNFTIdontHave')}"
+            # expect(tx_constructed['message'].to_s).to include "assetName: #{asset_name('AmazingNFTIdontHave')}"
             # expect(tx_constructed['message'].to_s).to include "quantity: 1"
           end
 

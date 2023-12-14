@@ -23,6 +23,7 @@ in pkgs.mkShell {
   ] ++ pkgs.lib.optionals bins [
     cardanoWallet.cardano-wallet
     cardanoWallet.cardano-node
+    cardanoWallet.cardano-cli
   ];
   CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
 }
