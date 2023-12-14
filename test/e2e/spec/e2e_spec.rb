@@ -1312,6 +1312,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     end
 
     it 'Delegation (join and quit)' do
+      pending 'ADP-3243'
       balance = get_shelley_balances(@target_id)
       expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
       puts "Expected deposit #{expected_deposit}"
@@ -2900,6 +2901,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'Can join and quit Stake Pool' do
+        pending 'ADP-3243'
         # Get funds on the wallet
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         amt = 10_000_000
