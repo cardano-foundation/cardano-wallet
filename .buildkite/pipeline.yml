@@ -31,6 +31,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Cabal Release Build works in the nix shell'
+    key: cabal-release
     depends_on: linux-nix
     command: |
       nix develop -c cabal update
@@ -41,6 +42,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Run unit tests (linux)'
+    key: linux-tests-unit
     depends_on: linux-nix
     command: 'nix build -L .#ci.${linux}.tests.run.unit'
     agents:
@@ -49,6 +51,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Run integration tests (linux)'
+    key: linux-tests-integration
     command: 'nix build -L .#ci.${linux}.tests.run.integration'
     agents:
       system: ${linux}
@@ -56,6 +59,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Build benchmarks (linux)'
+    key: build-benchmarks
     depends_on: linux-nix
     command: 'nix build .#ci.benchmarks.all'
     agents:
@@ -64,6 +68,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Check Cabal Configure'
+    key: cabal-configure
     depends_on: linux-nix
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
@@ -72,6 +77,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Check code format'
+    key: code-format
     depends_on: linux-nix
     command: 'nix develop --command .buildkite/check-code-format.sh'
     agents:
@@ -80,6 +86,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Check HLint'
+    key: hlint
     depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
@@ -88,6 +95,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Validate OpenAPI Specification'
+    key: openapi
     depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
@@ -104,6 +112,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Lint bash shell scripts'
+    key: lint-bash
     depends_on: linux-nix
     commands:
       - 'echo +++ Shellcheck'
@@ -114,7 +123,7 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Check HLS works'
-    soft_fail: true
+    key: hls
     depends_on: linux-nix
     command: |
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
@@ -142,9 +151,9 @@ steps:
       TMPDIR: "/cache"
 
   - block: "macOS steps"
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     depends_on: linux-nix
     key: trigger-macos
-    if: 'build.branch != "master"'
 
   - label: 'Check nix (macOS)'
     depends_on: trigger-macos
@@ -155,15 +164,15 @@ steps:
       system: ${macos}
 
   - label: 'Run unit tests (macOS, x86_64)'
+    key: macos-tests-unit
     depends_on: macos-nix
-    key: macos-build-tests
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.x86_64-darwin.tests.run.unit'
     agents:
       system: ${macos}
 
   - label: 'Build package (macOS, x86_64)'
+    key: macos-package
     depends_on: macos-nix
-    key: build-macos
     command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
@@ -171,12 +180,12 @@ steps:
 
   - block: "Build package (linux)"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     key: trigger-build-linux-package
 
   - label: 'Build package (linux)'
+    key: linux-package
     depends_on: [linux-nix, trigger-build-linux-package]
-    key: build-linux
     command: nix build -o result/linux .#ci.artifacts.linux64.release
     artifact_paths: [ "./result/linux/**" ]
     agents:
@@ -186,12 +195,12 @@ steps:
 
   - block: "Build windows artifacts"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master")'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     key: trigger-build-windows-artifacts
 
   - label: 'Build package (windows)'
+    key: windows-package
     depends_on: [linux-nix, trigger-build-windows-artifacts]
-    key: build-windows
     command: nix build -o result/windows .#ci.artifacts.win64.release
     artifact_paths: [ "./result/windows/**" ]
     agents:
@@ -200,8 +209,8 @@ steps:
       TMPDIR: "/cache"
 
   - label: 'Build testing bundle (windows)'
+    key: windows-testing-bundle
     depends_on: [linux-nix, trigger-build-windows-artifacts]
-    key: build-windows-tests
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
@@ -210,13 +219,39 @@ steps:
       TMPDIR: "/cache"
 
   - block: "Run E2E tests"
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     depends_on: linux-nix
     key: trigger-e2e-tests
 
   - label: "Run E2E tests"
+    key: e2e
     depends_on: trigger-e2e-tests
-    key: run-e2e-tests
     command: 'nix develop --command bash -c "just e2e-local"'
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
+
+  - label: Manage rc-latest tags
+    depends_on:
+      - cabal-release
+      - linux-tests-unit
+      - linux-tests-integration
+      - cabal-configure
+      - code-format
+      - hlint
+      - openapi
+      - lint-bash
+      - hls
+      - build-benchmarks
+      - macos-tests-unit
+      - macos-package
+      - linux-package
+      - windows-package
+      - windows-testing-bundle
+      - e2e
+    if: '(build.branch =~ /^release-candidate/)' #build.branch =~ /\/feature$$/
+    command: .buildkite/retag-rc-latest.sh
     agents:
       system: ${linux}
     env:
