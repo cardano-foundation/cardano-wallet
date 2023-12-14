@@ -56,11 +56,52 @@ start with Daedalus.
 
 ## Quickstart
 
-The `cardano-wallet` executable is an HTTP server that manages your wallet(s). Here is one way to start the server using Docker:
+The `cardano-wallet` executable is an HTTP server that manages your wallet(s). Here is one way to start both node and wallet using Docker:
 
-```
-wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
-NETWORK=mainnet docker-compose up
+Prerequisties:
+    - 100GB of disk space
+    - 10GB of RAM
+
+```bash
+# set the network, mainnet or preprod
+export NETWORK=preprod
+
+# set a directory for the node-db
+export NODE_DB=`pwd`/node-db
+
+# clean up the node-db directory
+rm -rf $NODE_DB/db
+
+if [$NETWORK == "mainnet"]
+then
+    # download the node-db snapshot, or wait for the node to sync for a long time
+    curl -o - https://downloads.csnapshots.io/snapshots/mainnet/$(curl -s https://downloads.csnapshots.io/snapshots/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
+elif [$NETWORK == "preprod"]
+    curl -o - https://downloads.csnapshots.io/snapshots/testnet/$(curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
+else
+    echo "NETWORK must be mainnet or preprod"
+    exit 1
+fi
+
+# set the node tag and wallet tag to compatible versions
+export NODE_TAG=8.1.2
+export WALLET_TAG=v2023-12-15
+
+# set a directory for the wallet-db
+export WALLET_DB=`pwd`/wallet-db
+
+# set a port for the wallet server
+export WALLET_PORT=8090
+
+# get the docker-compose.yml file
+rm -rf docker-compose.yml
+wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/$WALLET_TAG/docker-compose.yml
+
+# start the services
+docker-compose up
+
+# clear the services
+docker-compose down
 ```
 
 Fantastic! The server is up-and-running, waiting for HTTP requests on `localhost:8090/v2` e.g.:
@@ -89,7 +130,7 @@ We provide executables as part of our [releases](https://github.com/cardano-foun
 >
 > | cardano-wallet | cardano-node (compatible versions) |
 > | --- | --- |
-> | `master` branch | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
+> | [v2023-12-15](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-12-15) | [8.1.2](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.2) |
 > | [v2023-07-18](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
 > | [v2023-04-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
 > | [v2022-12-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
@@ -109,16 +150,16 @@ Previously, during the Byron phase, the wallet was part of the [cardano-sl](http
 
 ## Documentation
 
-| Link                                                                                               | Audience                                                     |
-| ---                                                                                                | ---                                                          |
-| [Documentation](https://cardano-foundation.github.io/cardano-wallet/)                                     |  |
-| • [User Manual](https://cardano-foundation.github.io/cardano-wallet/user) | Users of Cardano Wallet                              |
-| &nbsp;&nbsp;⤷ [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user/cli) | Users of the Cardano Wallet API                              |
-| &nbsp;&nbsp;⤷ [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
-| • [Design Documents](https://cardano-foundation.github.io/cardano-wallet/design)                     | Anyone interested in wallet design and specifications|
-| &nbsp;&nbsp;⤷ [Specifications](https://cardano-foundation.github.io/cardano-wallet/design/specs)                     | Anyone interested in wallet design and specifications|
-| • [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor)                     | Anyone interested in the project and our development process |
-| [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                                     | Anyone interested in the project and our development process |
+| Link                                                                                             | Audience                                                     |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [Documentation](https://cardano-foundation.github.io/cardano-wallet/)                            |                                                              |
+| • [User Manual](https://cardano-foundation.github.io/cardano-wallet/user)                        | Users of Cardano Wallet                                      |
+| &nbsp;&nbsp;⤷ [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user/cli)         | Users of the Cardano Wallet API                              |
+| &nbsp;&nbsp;⤷ [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)  | Users of the Cardano Wallet API                              |
+| • [Design Documents](https://cardano-foundation.github.io/cardano-wallet/design)                 | Anyone interested in wallet design and specifications        |
+| &nbsp;&nbsp;⤷ [Specifications](https://cardano-foundation.github.io/cardano-wallet/design/specs) | Anyone interested in wallet design and specifications        |
+| • [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor)          | Anyone interested in the project and our development process |
+| [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                            | Anyone interested in the project and our development process |
 
 <hr/>
 
