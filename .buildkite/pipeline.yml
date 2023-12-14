@@ -30,9 +30,14 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Cabal Release Build works in the nix shell'
-    key: cabal-release
+  - block: "Run cabal release"
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     depends_on: linux-nix
+    key: cabal-release-block
+
+  - label: 'Cabal build all -frelease'
+    key: cabal-release
+    depends_on: cabal-release-block
     command: |
       nix develop -c cabal update
       nix develop -c cabal build all -frelease
