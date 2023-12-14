@@ -63,7 +63,7 @@ wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/
 NETWORK=mainnet docker-compose up
 ```
 
-Fantastic! The server is up-and-running, waiting for HTTP requests on `localhost:8090/v2` e.g.:
+Fantas2023-12-15erver is up-and-running, waiting for HTTP requests on `localhost:80902023-12-15
 
 ```
 curl http://localhost:8090/v2/network/information
@@ -84,15 +84,6 @@ NixOS users can also use the [NixOS service](https://cardano-foundation.github.i
 ### Executables (Linux / Windows / Mac OS)
 
 We provide executables as part of our [releases](https://github.com/cardano-foundation/cardano-wallet/releases). Please also see the installation instructions highlighted in the release notes.
-
-> **Latest releases**
->
-> | cardano-wallet | cardano-node (compatible versions) |
-> | --- | --- |
-> | `master` branch | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-07-18](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-04-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
-> | [v2022-12-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
 
 ### Building from source
 
