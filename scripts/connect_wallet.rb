@@ -5,6 +5,8 @@ require 'cardano_wallet'
 timeout = 100
 threshold = Time.now + timeout
 
+$stdout.sync = true
+
 def is_connected?
   begin
     CardanoWallet.new.misc.network.information

@@ -1,8 +1,21 @@
-name: Docker-compose Linux
+name: Docker-compose smoke test
 on:
   schedule:
   - cron:  "0 23 * * *"
   workflow_dispatch:
+    inputs:
+      nodeTag:
+        description: 'Node docker image tag'
+        required: true
+        default: '8.1.2'
+      walletTag:
+        description: 'Wallet docker image tag'
+        required: true
+        default: 'rc-latest'
+      branch:
+        description: 'Branch to checkout'
+        required: true
+        default: 'rc-latest'
 
 
 jobs:
@@ -12,7 +25,10 @@ jobs:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3.2.0
+      - uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.branch || 'rc-latest'}}
+
       - uses: ruby/setup-ruby@v1.127.0
         with:
           ruby-version: 2.7.1
@@ -23,7 +39,12 @@ jobs:
           docker-compose up -d
           ./scripts/connect_wallet.rb
         env:
-          NETWORK: preprod
+            NODE_TAG: ${{ github.event.inputs.nodeTag || '8.1.2'}}
+            WALLET_TAG: ${{ github.event.inputs.walletTag || 'rc-latest'}}
+            NETWORK: preprod
+            WALLET_DB: /tmp/wallet-db
+            NODE_DB: /tmp/node-db
+            WALLET_PORT: 8090
   report:
     needs: [build]
     if: always()
