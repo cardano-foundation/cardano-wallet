@@ -4,8 +4,7 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( coarbitraryTxIn
-    , genTxHash
+    ( genTxHash
     , genTxIndex
     , genTxIn
     , genTxInLargeRange
@@ -39,7 +38,6 @@ import Data.Word
 import Test.QuickCheck
     ( Gen
     , arbitrary
-    , coarbitrary
     , elements
     , sized
     )
@@ -102,13 +100,6 @@ shrinkTxIn :: TxIn -> [TxIn]
 shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
     (h, shrinkTxHash)
     (i, shrinkTxIndex)
-
---------------------------------------------------------------------------------
--- Transaction input functions
---------------------------------------------------------------------------------
-
-coarbitraryTxIn :: TxIn -> Gen a -> Gen a
-coarbitraryTxIn = coarbitrary . show
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a large range (to minimize collisions)
