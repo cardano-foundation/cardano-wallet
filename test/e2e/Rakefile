@@ -382,7 +382,7 @@ task :setup, [:env, :branch, :skip_configs] do |_task, args|
   Rake::Task[:secrets_decode].invoke
 end
 
-task :run_on, [:env, :sync_strategy, :skip_configs, :branch] do |_task, args|
+task :run_on, [:env, :branch, :sync_strategy, :skip_configs] do |_task, args|
   log '>> Setting up env and running tests...'
   log "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
