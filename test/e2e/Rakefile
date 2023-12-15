@@ -244,7 +244,7 @@ end
 
 task :get_latest_windows_tests, [:branch, :destination, :status, :build] do |_task, args|
   destination = args[:destination] || 'cardano-wallet-tests-win64'
-  job_key = 'build-windows-tests'
+  job_key = 'windows-testing-bundle'
   bk = Buildkite.new
   status = args[:status]
   branch = args[:branch] || 'master'
@@ -268,15 +268,15 @@ task :get_bins, [:nb] do |_task, args|
   mk_dir(BINS)
 
   if linux?
-    job_key = 'build-linux'
+    job_key = 'linux-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif win?
-    job_key = 'build-windows'
+    job_key = 'windows-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif mac?
-    job_key = 'build-macos'
+    job_key = 'macos-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   end
@@ -294,15 +294,15 @@ task :get_latest_bins, [:branch, :state] do |_task, args|
   mk_dir(BINS)
 
   if linux?
-    job_key = 'build-linux'
+    job_key = 'linux-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif win?
-    job_key = 'build-windows'
+    job_key = 'windows-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif mac?
-    job_key = 'build-macos'
+    job_key = 'macos-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   end
