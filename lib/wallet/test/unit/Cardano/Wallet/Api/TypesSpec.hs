@@ -1615,9 +1615,10 @@ instance Arbitrary ApiWalletDelegationNext where
     arbitrary = oneof
         [ ApiWalletDelegationNext Api.Delegating
             <$> fmap Just arbitrary
+            <*> pure Nothing
             <*> fmap Just arbitrary
         , ApiWalletDelegationNext Api.NotDelegating
-            Nothing . Just <$> arbitrary
+            Nothing Nothing . Just <$> arbitrary
         ]
 
 instance Arbitrary (Passphrase "lenient") where

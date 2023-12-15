@@ -1002,6 +1002,7 @@ data ApiWalletDelegation = ApiWalletDelegation
 data ApiWalletDelegationNext = ApiWalletDelegationNext
     { status :: !ApiWalletDelegationStatus
     , target :: !(Maybe (ApiT PoolId))
+    , voted :: !(Maybe (ApiT VoteAction))
     , changesAt :: !(Maybe EpochInfo)
     }
     deriving (Eq, Generic, Show)

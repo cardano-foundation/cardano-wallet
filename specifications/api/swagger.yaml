@@ -1995,6 +1995,8 @@ x-delegationStatus: &delegationStatus
   enum:
     - not_delegating
     - delegating
+    - voting
+    - delegating_and_voting
 
 x-addressIndex: &addressIndex
   type: number
@@ -2912,6 +2914,19 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiVoteAction: &ApiVoteAction
+      description: |
+        Voting action. One can abstain, give no confidence vote
+        or vote for a representative by specifying its key hash or script hash.
+        Voting can be done together with delegation action.
+      oneOf:
+        - type: string
+          enum:
+            - abstain
+            - no_confidence
+        - type: string
+          <<: *drep
+
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
@@ -2921,6 +2936,7 @@ components:
       properties:
         status: *delegationStatus
         target: *delegationTarget
+        voted: *ApiVoteAction
         changes_at: *epochInfo
       example:
         status: not_delegating
@@ -2943,6 +2959,7 @@ components:
           properties:
             status: *delegationStatus
             target: *delegationTarget
+            voted: *ApiVoteAction
           example:
             status: delegating
             target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
@@ -3716,19 +3733,6 @@ components:
             policy_id: *assetPolicyId
             asset_name: *assetName
             operation: *ApiMintBurnOperation
-
-    ApiVoteAction: &ApiVoteAction
-      description: |
-        Voting action. One can abstain, give no confidence vote
-        or vote for a representative by specifying its key hash or script hash.
-        Voting can be done together with delegation action.
-      oneOf:
-        - type: string
-          enum:
-            - abstain
-            - no_confidence
-        - type: string
-          <<: *drep
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
