@@ -157,7 +157,11 @@ steps:
       TMPDIR: "/cache"
 
   - block: "macOS steps"
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
     key: trigger-macos
 
@@ -185,8 +189,12 @@ steps:
       system: ${macos}
 
   - block: "Build package (linux)"
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
     key: trigger-build-linux-package
 
   - label: 'Build package (linux)'
@@ -200,8 +208,12 @@ steps:
       TMPDIR: "/cache"
 
   - block: "Build windows artifacts"
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
     key: trigger-build-windows-artifacts
 
   - label: 'Build package (windows)'
@@ -225,7 +237,11 @@ steps:
       TMPDIR: "/cache"
 
   - block: "Run E2E tests"
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
     key: trigger-e2e-tests
 
@@ -256,7 +272,7 @@ steps:
       - windows-package
       - windows-testing-bundle
       - e2e
-    if: '(build.branch =~ /^release-candidate/)' #build.branch =~ /\/feature$$/
+    if: build.branch =~ /^release-candidate/
     command: .buildkite/retag-rc-latest.sh
     agents:
       system: ${linux}
