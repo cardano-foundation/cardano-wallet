@@ -225,8 +225,12 @@ package cardano-node
   flags: -systemd
 
 --------------------------------------------------------------------------------
--- Detection of unused package dependencies
+-- Default settings for all packages
 --------------------------------------------------------------------------------
+
+-- By default, we write IDE information for all packages.
+program-options
+  ghc-options: -fwrite-ide-info
 
 -- By default, we fail to build if there are any unused package dependencies.
 program-options
@@ -247,63 +251,48 @@ test-show-details: direct
 
 package delta-store
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package delta-types
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-balance-tx
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-coin-selection
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-api-http
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-cli
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-launcher
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-primitive
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-text-class
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-numeric
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-integration
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-test-utils
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package std-gen-seed
   tests: True
-  ghc-options: -fwrite-ide-info
 
 package wai-middleware-logging
   tests: True
-  ghc-options: -fwrite-ide-info
 
 -- Now disable all other tests with a global flag.
 -- This is what they do in cardano-node/cabal.project.
