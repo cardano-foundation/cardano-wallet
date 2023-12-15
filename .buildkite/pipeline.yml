@@ -30,9 +30,14 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Cabal Release Build works in the nix shell'
-    key: cabal-release
+  - block: "Run cabal release"
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     depends_on: linux-nix
+    key: cabal-release-block
+
+  - label: 'Cabal build all -frelease'
+    key: cabal-release
+    depends_on: cabal-release-block
     command: |
       nix develop -c cabal update
       nix develop -c cabal build all -frelease
@@ -133,6 +138,7 @@ steps:
       TMPDIR: "/cache"
 
   - block: 'Run benchmark (api)'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
     depends_on: linux-nix
     key: trigger-benchmark-api
 
@@ -151,7 +157,11 @@ steps:
       TMPDIR: "/cache"
 
   - block: "macOS steps"
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
     key: trigger-macos
 
@@ -179,8 +189,12 @@ steps:
       system: ${macos}
 
   - block: "Build package (linux)"
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     key: trigger-build-linux-package
 
   - label: 'Build package (linux)'
@@ -194,8 +208,12 @@ steps:
       TMPDIR: "/cache"
 
   - block: "Build windows artifacts"
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     key: trigger-build-windows-artifacts
 
   - label: 'Build package (windows)'
@@ -219,7 +237,11 @@ steps:
       TMPDIR: "/cache"
 
   - block: "Run E2E tests"
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
+    if: |
+      build.branch !~ /^gh-readonly-queue\/master/
+        && build.branch != "master"
+        && build.branch !~ /^release-candidate/
+        && build.branch != "rc-latest"
     depends_on: linux-nix
     key: trigger-e2e-tests
 
@@ -250,7 +272,7 @@ steps:
       - windows-package
       - windows-testing-bundle
       - e2e
-    if: '(build.branch =~ /^release-candidate/)' #build.branch =~ /\/feature$$/
+    if: build.branch =~ /^release-candidate/
     command: .buildkite/retag-rc-latest.sh
     agents:
       system: ${linux}
