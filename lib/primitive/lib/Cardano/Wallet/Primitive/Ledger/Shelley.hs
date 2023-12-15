@@ -33,20 +33,13 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , NodeToClientVersionData
     , nodeToClientVersions
 
-      -- * Node Connection
-    , localNodeConnectInfo
-
       -- * Genesis
     , emptyGenesis
 
       -- * Eras
     , AnyCardanoEra (..)
-    , AnyShelleyBasedEra (..)
     , CardanoEra (..)
     , ShelleyBasedEra (..)
-    , shelleyBasedToCardanoEra
-    , shelleyToCardanoEra
-    , getShelleyBasedEra
 
       -- * Conversions
     , toCardanoHash
@@ -55,7 +48,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromPoint
     , toCardanoTxId
     , toCardanoTxIn
-    , toCardanoUTxO
     , fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
@@ -80,19 +72,10 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromBabbagePParams
     , fromConwayPParams
     , fromLedgerExUnits
-    , toLedgerExUnits
     , fromCardanoAddress
-    , toSystemStart
     , fromShelleyTxIn
-    , toCostModelsAsArray
     , toCardanoPolicyId
     , toCardanoSimpleScript
-    , toCardanoSimpleScriptV1
-    , fromCardanoSimpleScript
-
-      -- * Unsafe conversions
-    , unsafeLovelaceToWalletCoin
-    , unsafeValueToLovelace
 
       -- ** Stake pools
     , fromPoolId
@@ -129,7 +112,6 @@ import Cardano.Address.Derivation
     )
 import Cardano.Address.Script
     ( KeyHash (..)
-    , KeyRole (..)
     , Script (..)
     )
 import Cardano.Api
@@ -139,25 +121,18 @@ import Cardano.Api
     , AsType (..)
     , BabbageEra
     , CardanoEra (..)
-    , CardanoEraStyle (..)
     , CardanoMode
-    , ConsensusModeParams (CardanoModeParams)
     , ConwayEra
     , EraInMode (..)
-    , File (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
-    , LocalNodeConnectInfo (LocalNodeConnectInfo)
     , MaryEra
     , NetworkId
     , ShelleyEra
     , TxInMode (..)
-    , cardanoEraStyle
     )
 import Cardano.Api.Shelley
-    ( InAnyShelleyBasedEra (..)
-    , IsShelleyBasedEra (..)
-    , ShelleyBasedEra (..)
+    ( ShelleyBasedEra (..)
     , ShelleyGenesis (..)
     )
 import Cardano.Chain.Block
@@ -170,10 +145,6 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     , hashToBytes
-    )
-import Cardano.Launcher.Node
-    ( CardanoNodeConn
-    , nodeSocketFile
     )
 import Cardano.Ledger.Api
     ( ppCollateralPercentageL
@@ -209,9 +180,6 @@ import Cardano.Ledger.Shelley.Genesis
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     , EpochSize (..)
-    )
-import Cardano.Slotting.Time
-    ( SystemStart (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( maryTokenBundleMaxSize
@@ -256,9 +224,6 @@ import Cardano.Wallet.Util
     ( internalError
     , tina
     )
-import Control.Applicative
-    ( Const (..)
-    )
 import Control.Lens
     ( view
     , (&)
@@ -266,9 +231,6 @@ import Control.Lens
     )
 import Crypto.Hash.Extra
     ( blake2b224
-    )
-import Data.Array
-    ( Array
     )
 import Data.Bifunctor
     ( bimap
@@ -370,7 +332,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -380,7 +341,6 @@ import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
@@ -425,8 +385,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
 import qualified Cardano.Wallet.Primitive.Types.TxParameters as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.Array as Array
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
@@ -796,13 +754,6 @@ fromLedgerExUnits (Alonzo.ExUnits mem steps) =
     , executionMemory = mem
     }
 
-toLedgerExUnits :: W.ExecutionUnits -> Alonzo.ExUnits
-toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory} =
-    Alonzo.ExUnits
-    { Alonzo.exUnitsMem = executionMemory
-    , Alonzo.exUnitsSteps = executionSteps
-    }
-
 txParametersFromPParams
     :: Ledger.EraPParams era
     => W.TokenBundleMaxSize
@@ -821,14 +772,6 @@ txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
   where
     coinToDouble :: Ledger.Coin -> Double
     coinToDouble = fromRational . Ledger.coinToRational
-
-toCostModelsAsArray
-    :: Map Alonzo.Language Alonzo.CostModel
-    -> Array Alonzo.Language Alonzo.CostModel
-toCostModelsAsArray costModels =
-    Array.array (minBound, maxBound) [ (k, v) | (k, v) <- Map.toList costModels ]
-
---------------------------------------------------------------------------------
 
 desiredNumberOfStakePoolsFromPParams
     :: (HasCallStack, Ledger.EraPParams era) => Ledger.PParams era -> Word16
@@ -853,22 +796,6 @@ slottingParametersFromGenesis g =
         , getSecurityParameter =
             Quantity . fromIntegral $ sgSecurityParam g
         }
-
--- note: upcasts Word32 -> Word64
-getCardanoEpochSlots :: W.SlottingParameters -> Cardano.EpochSlots
-getCardanoEpochSlots =
-    Cardano.EpochSlots . fromIntegral . W.unEpochLength . W.getEpochLength
-
-localNodeConnectInfo
-    :: W.SlottingParameters
-    -> NetworkId
-    -> CardanoNodeConn
-    -> LocalNodeConnectInfo CardanoMode
-localNodeConnectInfo slottingParameters networkId nodeConn =
-    LocalNodeConnectInfo
-        (CardanoModeParams (getCardanoEpochSlots slottingParameters))
-        networkId
-        (File (nodeSocketFile nodeConn))
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
@@ -1059,9 +986,6 @@ fromUnitInterval x =
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
 
-toSystemStart :: W.StartTime -> SystemStart
-toSystemStart (W.StartTime t) = SystemStart t
-
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
 
@@ -1087,13 +1011,6 @@ toCardanoStakeCredential = \case
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
-
-toCardanoUTxO :: ShelleyBasedEra era -> W.UTxO -> Cardano.UTxO era
-toCardanoUTxO era = Cardano.UTxO
-    . Map.fromList
-    . map (bimap toCardanoTxIn (toCardanoTxOut era Nothing))
-    . Map.toList
-    . W.unUTxO
 
 toCardanoTxOut
     :: HasCallStack
@@ -1294,43 +1211,6 @@ toCardanoSimpleScript = \case
         Cardano.RequireTimeBefore
         (O.SlotNo $ fromIntegral slot)
 
-fromCardanoSimpleScript
-    :: Cardano.SimpleScript
-    -> Script KeyHash
-fromCardanoSimpleScript = \case
-    Cardano.RequireSignature (Cardano.PaymentKeyHash (Ledger.KeyHash h)) ->
-        let payload = hashToBytes h
-        in RequireSignatureOf (KeyHash Policy payload)
-    Cardano.RequireAllOf contents ->
-        RequireAllOf $ map fromCardanoSimpleScript contents
-    Cardano.RequireAnyOf contents ->
-        RequireAnyOf $ map fromCardanoSimpleScript contents
-    Cardano.RequireMOf num contents ->
-         RequireSomeOf (fromIntegral num) $
-            map fromCardanoSimpleScript contents
-    Cardano.RequireTimeAfter (O.SlotNo s) ->
-         ActiveFromSlot $ fromIntegral s
-    Cardano.RequireTimeBefore (O.SlotNo s) ->
-        ActiveUntilSlot $ fromIntegral s
-
-toCardanoSimpleScriptV1
-    :: Script KeyHash
-    -> Cardano.SimpleScript
-toCardanoSimpleScriptV1 = \case
-    RequireSignatureOf (KeyHash _ keyhash) ->
-        case eitherToMaybe $ Cardano.deserialiseFromRawBytes
-            (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
-                Just payKeyHash -> Cardano.RequireSignature payKeyHash
-                Nothing -> error "Hash key not valid"
-    RequireAllOf contents ->
-        Cardano.RequireAllOf $ map toCardanoSimpleScriptV1 contents
-    RequireAnyOf contents ->
-        Cardano.RequireAnyOf $ map toCardanoSimpleScriptV1 contents
-    RequireSomeOf num contents ->
-        Cardano.RequireMOf (fromIntegral num) $
-            map toCardanoSimpleScriptV1 contents
-    _ -> error "timelocks not available in SimpleScriptV1"
-
 just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
@@ -1449,38 +1329,6 @@ unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
     Cardano.InAnyCardanoEra ConwayEra tx ->
         TxInMode tx ConwayEraInCardanoMode
 
--- | Converts a 'ShelleyBasedEra' to the broader 'CardanoEra'.
-shelleyBasedToCardanoEra :: ShelleyBasedEra era -> CardanoEra era
-shelleyBasedToCardanoEra = \case
-    Cardano.ShelleyBasedEraShelley -> ShelleyEra
-    Cardano.ShelleyBasedEraAllegra -> AllegraEra
-    Cardano.ShelleyBasedEraMary    -> MaryEra
-    Cardano.ShelleyBasedEraAlonzo  -> AlonzoEra
-    Cardano.ShelleyBasedEraBabbage -> BabbageEra
-    Cardano.ShelleyBasedEraConway  -> ConwayEra
-
--- | An existential type like 'AnyCardanoEra', but for 'ShelleyBasedEra'.
-data AnyShelleyBasedEra where
-     AnyShelleyBasedEra :: IsShelleyBasedEra era -- Provide class constraint
-                        => ShelleyBasedEra era   -- and explicit value.
-                        -> AnyShelleyBasedEra    -- and that's it.
-
-instance Show AnyShelleyBasedEra where
-    show (AnyShelleyBasedEra era) = "AnyShelleyBasedEra " ++ show era
-
-anyShelleyBasedEra :: InAnyShelleyBasedEra (Const ()) -> AnyShelleyBasedEra
-anyShelleyBasedEra (InAnyShelleyBasedEra era _) = AnyShelleyBasedEra era
-
-shelleyToCardanoEra :: AnyShelleyBasedEra -> AnyCardanoEra
-shelleyToCardanoEra (AnyShelleyBasedEra era) =
-    AnyCardanoEra (shelleyBasedToCardanoEra era)
-
-getShelleyBasedEra :: AnyCardanoEra -> Maybe AnyShelleyBasedEra
-getShelleyBasedEra (AnyCardanoEra e) = case cardanoEraStyle e of
-    LegacyByronEra -> Nothing
-    ShelleyBasedEra era -> Just
-        (anyShelleyBasedEra (InAnyShelleyBasedEra era (Const ())))
-
 instance (forall era. IsCardanoEra era => Show (thing era)) =>
     Show (InAnyCardanoEra thing) where
     show (InAnyCardanoEra era thing) =
@@ -1491,40 +1339,6 @@ instance (forall era. IsCardanoEra era => Eq (thing era)) =>
     InAnyCardanoEra e1 a == InAnyCardanoEra e2 b = case testEquality e1 e2 of
         Just Refl -> a == b
         Nothing -> False
-
---------------------------------------------------------------------------------
--- Unsafe conversions
---------------------------------------------------------------------------------
-
--- | Extracts a 'Coin' value from a 'Cardano.Lovelace' value.
---
--- Fails with a run-time error if the value is negative.
---
-unsafeLovelaceToWalletCoin :: HasCallStack => Cardano.Lovelace -> W.Coin
-unsafeLovelaceToWalletCoin (Cardano.Lovelace v) =
-  case intCastMaybe @Integer @Natural v of
-      Nothing -> error $ unwords
-          [ "unsafeLovelaceToWalletCoin:"
-          , "encountered negative value:"
-          , show v
-          ]
-      Just lovelaceNonNegative ->
-          W.Coin lovelaceNonNegative
-
--- | Extracts a 'Cardano.Lovelace' value from a 'Cardano.Value'.
---
--- Fails with a run-time error if the 'Cardano.Value' contains any non-ada
--- assets.
---
-unsafeValueToLovelace :: HasCallStack => Cardano.Value -> Cardano.Lovelace
-unsafeValueToLovelace v =
-    case Cardano.valueToLovelace v of
-        Nothing -> error $ unwords
-            [ "unsafeValueToLovelace:"
-            , "encountered value with non-ada assets:"
-            , show v
-            ]
-        Just lovelace -> lovelace
 
 {-------------------------------------------------------------------------------
                                     Logging
