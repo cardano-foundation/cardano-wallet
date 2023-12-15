@@ -138,6 +138,7 @@ steps:
       TMPDIR: "/cache"
 
   - block: 'Run benchmark (api)'
+    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
     depends_on: linux-nix
     key: trigger-benchmark-api
 
