@@ -33,7 +33,7 @@ jobs:
       - name: '📥 Checkout repository'
         uses: actions/checkout@v3.2.0
       - name: 'Set up Ruby'
-        uses: ruby/setup-ruby@v1.127.0
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.7
       - name: 'Install dependencies'

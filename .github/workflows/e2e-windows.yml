@@ -42,7 +42,7 @@ jobs:
         cd /c/cardano-wallet
 
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1.127.0
+      uses: ruby/setup-ruby@v1
       with:
         ruby-version: 2.7.1
         bundler-cache: true
