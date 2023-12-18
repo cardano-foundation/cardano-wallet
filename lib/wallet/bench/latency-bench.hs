@@ -499,7 +499,7 @@ walletApiBench capture ctx = do
             (Link.createTransactionOld @'Shelley wal2) Default payloadTxTo5Addr
         fmtResult "postTransTo5Addrs  " t7a
 
-        let assetsToSend = walMA ^. #assets . #total . #getApiT
+        let assetsToSend = walMA ^. #assets . #total
         let val = minUTxOValue era <$ pickAnAsset assetsToSend
         payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
         t7b <- measureApiLogs capture $ request @(ApiTransaction n) ctx
@@ -518,7 +518,7 @@ walletApiBench capture ctx = do
             (Link.listAssets walMA) Default Empty
         fmtResult "listMultiAssets    " t10
 
-        let assetsSrc = walMA ^. #assets . #total . #getApiT
+        let assetsSrc = walMA ^. #assets . #total
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc
         t11 <- measureApiLogs capture $ request @([ApiAsset]) ctx

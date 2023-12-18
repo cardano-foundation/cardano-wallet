@@ -235,7 +235,6 @@ import Web.HttpApiData
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -757,10 +756,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         w <- fixtureMultiAssetWallet ctx
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         verify r
-            [ expectField (#assets . #available . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
-            , expectField (#assets . #total . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
+            [ expectField (#assets . #available)
+                (`shouldNotBe` mempty)
+            , expectField (#assets . #total)
+                (`shouldNotBe` mempty)
             ]
 
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
@@ -779,7 +778,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (_, Right wal) = ra
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -801,10 +800,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 , expectField (#balance . #total . #getQuantity)
                     (`shouldBe` minCoin)
                 ]
@@ -822,7 +821,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (_, Right wal) = ra
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -850,7 +849,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (_, Right wal) = ra
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -866,10 +865,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
     it "TRANS_ASSETS_CREATE_02c - Send SeaHorses" $
@@ -938,7 +937,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wal <- getWallet ctx wSrc
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -986,10 +985,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
     it "TRANS_ASSETS_LIST_01 - Asset list present" $
@@ -997,7 +996,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         wal <- fixtureMultiAssetWallet ctx
 
-        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        let assetsSrc = wal ^. (#assets . #total)
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc
@@ -1041,7 +1040,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wal <- fixtureMultiAssetWallet ctx
 
         -- pick an asset from the fixture wallet
-        assetsSrc <- view (#assets . #total . #getApiT) <$> getWallet ctx wal
+        assetsSrc <- view (#assets . #total) <$> getWallet ctx wal
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc

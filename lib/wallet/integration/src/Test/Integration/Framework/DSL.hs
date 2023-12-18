@@ -334,6 +334,12 @@ import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
     , ApiLimit (..)
     )
+import Cardano.Wallet.Api.Types.WalletAsset
+    ( ApiWalletAsset (..)
+    )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets (..)
+    )
 import Cardano.Wallet.Compat
     ( (^?)
     )
@@ -377,9 +383,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
-    )
-import Cardano.Wallet.Primitive.Types.AssetId
-    ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -647,8 +650,6 @@ import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -1040,11 +1041,11 @@ isValidRandomDerivationPath path =
       ] `isPrefixOf` NE.toList path
     )
 
-pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
-pickAnAsset tm = case TokenMap.toFlatList tm of
-    (AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
-        ((toText pid, toText an), q)
-    _ -> error "pickAnAsset: empty TokenMap"
+pickAnAsset :: ApiWalletAssets -> ((Text, Text), Natural)
+pickAnAsset (ApiWalletAssets assets) = case assets of
+    (ApiWalletAsset (ApiT p) (ApiT a) q):_ ->
+        ((toText p, toText a), q)
+    _ -> error "pickAnAsset: empty list"
 
 -- Like mkTxPayload, except that assets are included in the payment.
 -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
@@ -1841,7 +1842,7 @@ fixtureMultiAssetRandomWallet ctx = do
     expectSuccess r
 
     -- pick out assets to send
-    let assetsSrc = wMA ^. #assets . #total . #getApiT
+    let assetsSrc = wMA ^. #assets . #total
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -1859,10 +1860,10 @@ fixtureMultiAssetRandomWallet ctx = do
         rb <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wB) Default Empty
         verify rb
-            [ expectField (#assets . #available . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
-            , expectField (#assets . #total . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
+            [ expectField (#assets . #available)
+                (`shouldNotBe` mempty)
+            , expectField (#assets . #total)
+                (`shouldNotBe` mempty)
             , expectField (#state . #getApiT) (`shouldBe` Ready)
             ]
         return (getResponse rb)
@@ -1879,7 +1880,7 @@ fixtureMultiAssetIcarusWallet ctx = do
     wB <- fixtureIcarusWallet ctx
 
     -- pick out assets to send
-    let assetsSrc = wMA ^. #assets . #total . #getApiT
+    let assetsSrc = wMA ^. #assets . #total
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -1897,10 +1898,10 @@ fixtureMultiAssetIcarusWallet ctx = do
         rb <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wB) Default Empty
         verify rb
-            [ expectField (#assets . #available . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
-            , expectField (#assets . #total . #getApiT)
-                (`shouldNotBe` TokenMap.empty)
+            [ expectField (#assets . #available)
+                (`shouldNotBe` mempty)
+            , expectField (#assets . #total)
+                (`shouldNotBe` mempty)
             ]
         return (getResponse rb)
 

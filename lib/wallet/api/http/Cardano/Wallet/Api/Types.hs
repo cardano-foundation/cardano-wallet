@@ -972,8 +972,8 @@ data ApiWalletBalance = ApiWalletBalance
     deriving anyclass NFData
 
 data ApiWalletAssetsBalance = ApiWalletAssetsBalance
-    { available :: !(ApiT TokenMap)
-    , total :: !(ApiT TokenMap)
+    { available :: !ApiWalletAssets
+    , total :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletAssetsBalance

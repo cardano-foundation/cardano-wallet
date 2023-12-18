@@ -132,7 +132,6 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -159,7 +158,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         -- pick out an asset to send
-        let assetsSrc = wSrc ^. #assets . #total . #getApiT
+        let assetsSrc = wSrc ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let val = minUTxOValue' <$ pickAnAsset assetsSrc
@@ -176,10 +175,10 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
     describe "BYRON_TRANS_ASSETS_CREATE_02 - Multi-asset transaction with too little ADA" $
@@ -191,7 +190,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         -- pick out an asset to send
-        let assetsSrc = wSrc ^. #assets . #total . #getApiT
+        let assetsSrc = wSrc ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let val = minUTxOValue' <$ pickAnAsset assetsSrc
@@ -214,7 +213,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         -- pick out an asset to send
-        let assetsSrc = wSrc ^. #assets . #total . #getApiT
+        let assetsSrc = wSrc ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -230,10 +229,10 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
     describe "BYRON_TRANS_ASSETS_LIST_01 - Asset list present" $
@@ -243,7 +242,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         wal <- srcFixture ctx
 
-        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        let assetsSrc = wal ^. (#assets . #total)
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc
@@ -281,7 +280,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         wal <- srcFixture ctx
 
         -- pick an asset from the fixture wallet
-        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        let assetsSrc = wal ^. (#assets . #total)
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc

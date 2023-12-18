@@ -79,6 +79,9 @@ import Data.Generics.Internal.VL.Lens
 import Data.Quantity
     ( Quantity (..)
     )
+import GHC.Exts
+    ( IsList (toList)
+    )
 import Numeric.Natural
     ( Natural
     )
@@ -133,6 +136,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -264,8 +268,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 >>= flip verify
                 [ expectField (#balance . #available . #getQuantity)
                     (.> 0)
-                , expectField (#assets . #available . #getApiT)
-                    ((.> 0) . TokenMap.size)
+                , expectField (#assets . #available)
+                    ((.> 0) . length . toList)
                 ]
 
             targetWallet <- emptyWallet ctx
@@ -429,8 +433,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#balance . #total . #getQuantity)
                     (`shouldBe` expectedBalanceAda)
-                , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
+                , expectField (#assets . #available)
+                    ((`shouldBe` expectedAssetCount) . length . toList)
                 ]
             let expectedSourceDistributionAfterMinting =
                     [ ( 10_000_000, 120)
@@ -549,8 +553,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#balance . #total . #getQuantity)
                     (`shouldBe` expectedBalanceAda)
-                , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
+                , expectField (#assets . #available)
+                    ((`shouldBe` expectedAssetCount) . length . toList)
                 ]
             let expectedSourceDistributionAfterMinting =
                     [ ( 10_000_000, 120)
@@ -1051,17 +1055,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (`shouldBe` expectedAdaBalance)
                     , expectField (#balance . #total . #getQuantity)
                         (`shouldBe` expectedAdaBalance)
-                    , expectField (#assets . #available . #getApiT)
-                        ((`shouldBe` 8) . TokenMap.size)
-                    , expectField (#assets . #total . #getApiT)
-                        ((`shouldBe` 8) . TokenMap.size)
+                    , expectField (#assets . #available)
+                        ((`shouldBe` 8) . length . toList)
+                    , expectField (#assets . #total)
+                        ((`shouldBe` 8) . length . toList)
                     ]
                 let balanceAda = response
                         & getFromResponse (#balance . #available . #getQuantity)
                         & fromIntegral
                         & Coin
                 let balanceAssets = response
-                        & getFromResponse (#assets . #available . #getApiT)
+                        & getFromResponse (#assets . #available)
+                        & ApiWalletAssets.toTokenMap
                 pure $ TokenBundle balanceAda balanceAssets
 
             -- Create an empty target wallet:
@@ -1125,6 +1130,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Check that funds become available in the target wallet:
             let expectedTargetBalance = expectedAdaBalance - expectedFee
+            let expectedSourceBalance = ApiWalletAssets.fromTokenMap
+                    (view #tokens sourceBalance)
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley targetWallet) Default Empty
                 >>= flip verify
@@ -1135,11 +1142,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (#balance . #total)
                     (`shouldBe` Quantity expectedTargetBalance)
                 , expectField
-                    (#assets . #available . #getApiT)
-                    (`shouldBe` view #tokens sourceBalance)
+                    (#assets . #available)
+                    (`shouldBe` expectedSourceBalance)
                 , expectField
-                    (#assets . #total . #getApiT)
-                    (`shouldBe` view #tokens sourceBalance)
+                    (#assets . #total)
+                    (`shouldBe` expectedSourceBalance)
                 ]
 
             -- Check that the source wallet has been depleted:
@@ -1154,11 +1161,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (#balance . #total)
                     (`shouldBe` Quantity 0)
                 , expectField
-                    (#assets . #available . #getApiT)
-                    (`shouldSatisfy` TokenMap.isEmpty)
+                    (#assets . #available)
+                    (`shouldBe` mempty)
                 , expectField
-                    (#assets . #total . #getApiT)
-                    (`shouldSatisfy` TokenMap.isEmpty)
+                    (#assets . #total)
+                    (`shouldBe` mempty)
                 ]
   where
     -- Compute the fee associated with an API transaction.

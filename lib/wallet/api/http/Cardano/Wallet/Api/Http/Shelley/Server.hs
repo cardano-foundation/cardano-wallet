@@ -1197,8 +1197,10 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
             , reward = Coin.toQuantity reward
             }
         , assets = ApiWalletAssetsBalance
-            { available = ApiT (available ^. #tokens)
-            , total = ApiT (total ^. #tokens)
+            { available =
+                ApiWalletAssets.fromTokenMap (available ^. #tokens)
+            , total =
+                ApiWalletAssets.fromTokenMap (total ^. #tokens)
             }
         , delegation = apiDelegation
         , id = ApiT wid
@@ -1451,8 +1453,10 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                 , reward = Coin.toQuantity reward
                 }
             , assets = ApiWalletAssetsBalance
-                { available = ApiT (available ^. #tokens)
-                , total = ApiT (total ^. #tokens)
+                { available =
+                    ApiWalletAssets.fromTokenMap (available ^. #tokens)
+                , total =
+                    ApiWalletAssets.fromTokenMap (total ^. #tokens)
                 }
             , state = ApiT progress
             , tip = tip'
@@ -1598,8 +1602,10 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             , total = Coin.toQuantity $ TokenBundle.getCoin total
             }
         , assets = ApiWalletAssetsBalance
-            { available = ApiT (available ^. #tokens)
-            , total = ApiT (total ^. #tokens)
+            { available =
+                ApiWalletAssets.fromTokenMap (available ^. #tokens)
+            , total =
+                ApiWalletAssets.fromTokenMap (total ^. #tokens)
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
