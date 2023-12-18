@@ -291,6 +291,9 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiWitnessCount (..)
     , mkApiWitnessCount
     )
+import Cardano.Wallet.Api.Types.WalletAsset
+    ( ApiWalletAsset (..)
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
     )
@@ -814,6 +817,7 @@ spec = do
         jsonTest @ApiVerificationKeyShared
         jsonTest @ApiVerificationKeyShelley
         jsonTest @ApiWallet
+        jsonTest @ApiWalletAsset
         jsonTest @ApiWalletDelegation
         jsonTest @ApiWalletDelegationNext
         jsonTest @ApiWalletDelegationStatus
@@ -1397,6 +1401,10 @@ instance Arbitrary (Quantity "percent" Percentage) where
     arbitrary = Quantity <$> genPercentage
 
 instance Arbitrary ApiWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiWalletAsset where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
