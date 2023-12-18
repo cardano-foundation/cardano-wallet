@@ -57,6 +57,7 @@ steps:
 
   - label: 'Run integration tests (linux)'
     key: linux-tests-integration
+    depends_on: linux-nix
     command: 'nix build -L .#ci.${linux}.tests.run.integration'
     agents:
       system: ${linux}
