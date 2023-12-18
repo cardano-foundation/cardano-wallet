@@ -22,7 +22,7 @@
 --
 -- For full documentation of the key derivation schemes,
 -- see the "Cardano.Crypto.Wallet" module, and the implementation in
--- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
+-- <https://github.com/IntersectMBO/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
 module Cardano.Wallet.Address.Derivation.Byron
     ( -- * Types

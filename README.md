@@ -89,10 +89,10 @@ We provide executables as part of our [releases](https://github.com/cardano-foun
 >
 > | cardano-wallet | cardano-node (compatible versions) |
 > | --- | --- |
-> | `master` branch | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-07-18](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/input-output-hk/cardano-node/releases/tag/8.1.1) |
-> | [v2023-04-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
-> | [v2022-12-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | `master` branch | [8.1.1](https://github.com/IntersectMBO/cardano-node/releases/tag/8.1.1) |
+> | [v2023-07-18](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-07-18) | [8.1.1](https://github.com/IntersectMBO/cardano-node/releases/tag/8.1.1) |
+> | [v2023-04-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2023-04-14) | [1.35.4](https://github.com/IntersectMBO/cardano-node/releases/tag/1.35.4) |
+> | [v2022-12-14](https://github.com/cardano-foundation/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/IntersectMBO/cardano-node/releases/tag/1.35.4) |
 
 ### Building from source
 

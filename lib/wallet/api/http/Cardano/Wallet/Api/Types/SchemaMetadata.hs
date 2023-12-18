@@ -13,7 +13,7 @@
 -- License: Apache-2.0
 --
 -- A wrapper around TxMetadata to allow different JSON codecs. (ADP-1596)
--- see https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/TxMetadata.hs
+-- see https://github.com/IntersectMBO/cardano-node/blob/master/cardano-api/src/Cardano/Api/TxMetadata.hs
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api

@@ -46,7 +46,7 @@ The CLI commands for `wallet`, `transaction` and `address` only output valid JSO
 
 ### serve
 
-Serve API that listens for commands/actions. Before launching user should start [`cardano-node`](https://github.com/input-output-hk/cardano-node).
+Serve API that listens for commands/actions. Before launching user should start [`cardano-node`](https://github.com/IntersectMBO/cardano-node).
 
 ```console
 Usage: cardano-wallet serve [--listen-address HOST]

@@ -142,14 +142,14 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.1.2";
+    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=8.1.2";
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
               ... }:
     let
-      # Import libraries      
+      # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
       config = import ./nix/config.nix nixpkgs.lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;

@@ -529,7 +529,7 @@ class HardDerivation (key :: Depth -> Type -> Type) where
     type AddressCredential key :: Depth
 
     -- | Derives account private key from the given root private key, using
-    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- derivation scheme 2 (see <https://github.com/IntersectMBO/cardano-crypto/ cardano-crypto>
     -- package for more details).
     --
     -- NOTE: The caller is expected to provide the corresponding passphrase (and
@@ -543,7 +543,7 @@ class HardDerivation (key :: Depth -> Type -> Type) where
         -> key 'AccountK XPrv
 
     -- | Derives address private key from the given account private key, using
-    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- derivation scheme 2 (see <https://github.com/IntersectMBO/cardano-crypto/ cardano-crypto>
     -- package for more details).
     --
     -- It is preferred to use 'deriveAddressPublicKey' whenever possible to avoid
@@ -563,7 +563,7 @@ class HardDerivation (key :: Depth -> Type -> Type) where
 -- | An interface for doing soft derivations from an account public key
 class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     -- | Derives address public key from the given account public key, using
-    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- derivation scheme 2 (see <https://github.com/IntersectMBO/cardano-crypto/ cardano-crypto>
     -- package for more details).
     --
     -- This is the preferred way of deriving new sequential address public keys.

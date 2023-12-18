@@ -50,24 +50,24 @@ As a pre-requisite, you may want to install and configure [Nix](https://nixos.or
 | [cardano-rosetta][cardano-rosetta]       | [releases][release-cardano-rosetta] | ✔️     | ✔️     | ❌       |
 | [cardano-wallet][cardano-wallet]         | [releases][release-cardano-wallet]  | ✔️     | ✔️     | ✔️       |
 
-[cardano-node]: https://github.com/input-output-hk/cardano-node
-[cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync
-[cardano-submit-api]: https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api
+[cardano-node]: https://github.com/IntersectMBO/cardano-node
+[cardano-db-sync]: https://github.com/IntersectMBO/cardano-db-sync
+[cardano-submit-api]: https://github.com/IntersectMBO/cardano-node/tree/master/cardano-submit-api
 [cardano-rosetta]: https://github.com/input-output-hk/cardano-rosetta
-[cardano-graphql]: https://github.com/input-output-hk/cardano-graphql
+[cardano-graphql]: https://github.com/cardano-foundation/cardano-graphql
 [cardano-wallet]: https://github.com/cardano-foundation/cardano-wallet
 
-[release-cardano-node]: https://github.com/input-output-hk/cardano-node/releases
-[release-cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync/releases
-[release-cardano-graphql]: https://github.com/input-output-hk/cardano-graphql/releases
+[release-cardano-node]: https://github.com/IntersectMBO/cardano-node/releases
+[release-cardano-db-sync]: https://github.com/IntersectMBO/cardano-db-sync/releases
+[release-cardano-graphql]: https://github.com/cardano-foundation/cardano-graphql/releases
 [release-cardano-rosetta]: https://github.com/input-output-hk/cardano-rosetta/releases
 [release-cardano-wallet]: https://github.com/cardano-foundation/cardano-wallet/releases
 
-[cardano-node]: https://github.com/input-output-hk/cardano-node
-[cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync
+[cardano-node]: https://github.com/IntersectMBO/cardano-node
+[cardano-db-sync]: https://github.com/IntersectMBO/cardano-db-sync
 [cardano-submit-api]: https://github.com/input-output-hk/cardano-rest
 
-[doc-cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync/blob/master/nix/docker.nix#L1-L35
+[doc-cardano-db-sync]: https://github.com/IntersectMBO/cardano-db-sync/blob/master/nix/docker.nix#L1-L35
 [doc-cardano-rest]: https://github.com/input-output-hk/cardano-rest/wiki/Docker
-[doc-cardano-graphql]: https://github.com/input-output-hk/cardano-graphql/wiki/Docker
+[doc-cardano-graphql]: https://github.com/cardano-foundation/cardano-graphql/wiki/Docker
 [doc-cardano-rosetta]: https://github.com/input-output-hk/cardano-rosetta

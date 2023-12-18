@@ -222,7 +222,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       ##
       # This test is trying to spend utxo from a script address
       # that will always fail.
-      # Script: https://github.com/input-output-hk/cardano-node/blob/master/scripts/plutus/scripts/v2/always-fails.plutus
+      # Script: https://github.com/IntersectMBO/cardano-node/blob/master/scripts/plutus/scripts/v2/always-fails.plutus
       #
       # The spending transaction sets:
       # - collateral return output to be sent to wallet address

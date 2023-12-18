@@ -110,7 +110,7 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/cardano-addresses
+    location: https://github.com/IntersectMBO/cardano-addresses
     tag: 44d5a9eb3505b6bfbf281d40fa88531c3253b771
     --sha256: 16rja48ryfjw3531kf15w0h3cdmscqgs8l1z1i2mvahq1vlhr2y6
     subdir: command-line
@@ -141,7 +141,7 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/input-output-hk/bech32.git
+    location: https://github.com/IntersectMBO/bech32.git
     tag: e341e7f83d7b73f10baa87e946818b2c493cc5f5
     --sha256: 1d891bpc1q1m1gqj02b4iv3kr4g9w7knlkq43hwbl9dn5k78aydc
     subdir: bech32

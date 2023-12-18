@@ -30,7 +30,7 @@ body:
 
         1. You have reason to believe that this is caused by cardano-wallet and not
         [Daedalus](https://github.com/input-output-hk/daedalus) or
-        [cardano-node](https://github.com/input-output-hk/cardano-node).
+        [cardano-node](https://github.com/IntersectMBO/cardano-node).
 
         2. You are using the latest
         [`cardano-wallet` release](https://github.com/cardano-foundation/cardano-wallet/releases).

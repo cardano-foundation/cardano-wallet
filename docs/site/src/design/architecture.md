@@ -59,8 +59,8 @@ The core [cardano-node], which participates in the Cardano network, and maintain
 
 [SMASH] is a proxy for stake pool metadata.
 
-[cardano-node]: https://github.com/input-output-hk/cardano-node
+[cardano-node]: https://github.com/IntersectMBO/cardano-node
 [cardano-wallet]: https://github.com/cardano-foundation/cardano-wallet
-[cardano-launcher]: https://github.com/input-output-hk/cardano-launcher
+[cardano-launcher]: https://github.com/IntersectMBO/cardano-launcher
 [daedalus]: https://github.com/input-output-hk/daedalus
 [SMASH]: https://github.com/input-output-hk/smash
