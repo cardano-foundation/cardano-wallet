@@ -294,6 +294,9 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Api.Types.WalletAsset
     ( ApiWalletAsset (..)
     )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets (..)
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
     )
@@ -1405,6 +1408,10 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiWalletAsset where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiWalletAssets where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

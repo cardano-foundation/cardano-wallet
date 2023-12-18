@@ -393,6 +393,9 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiWithdrawalGeneral (..)
     , ResourceContext (..)
     )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets
+    )
 import Cardano.Wallet.Pools
     ( EpochInfo
     , StakePool (..)
@@ -926,7 +929,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Ord, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiCoinSelectionOutput n)

@@ -885,6 +885,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
@@ -4715,7 +4716,7 @@ mkApiCoinSelectionOutput :: forall n. TxOut -> ApiCoinSelectionOutput n
 mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
     ApiCoinSelectionOutput (ApiAddress addr)
     (Coin.toQuantity amount)
-    (ApiT assets)
+    (ApiWalletAssets.fromTokenMap assets)
 
 mkApiCoinSelectionChange
     :: forall n
