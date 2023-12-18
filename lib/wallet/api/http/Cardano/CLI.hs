@@ -1846,7 +1846,7 @@ initTracer loggerName outputs = do
     ekgEnabled >>= flip when (startCapturingMetrics tr)
     pure (sb, (cfg, tr))
   where
-    -- https://github.com/input-output-hk/cardano-node/blob/f7d57e30c47028ba2aeb306a4f21b47bb41dec01/cardano-node/src/Cardano/Node/Configuration/Logging.hs#L224
+    -- https://github.com/IntersectMBO/cardano-node/blob/f7d57e30c47028ba2aeb306a4f21b47bb41dec01/cardano-node/src/Cardano/Node/Configuration/Logging.hs#L224
     startCapturingMetrics :: Trace IO Text -> IO ()
     startCapturingMetrics trace0 = do
       let trace = appendName "metrics" trace0

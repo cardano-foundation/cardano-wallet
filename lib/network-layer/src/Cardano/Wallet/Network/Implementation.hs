@@ -1721,7 +1721,7 @@ currentEra = eraIndexToAnyCardanoEra <$> LSQry (QueryHardFork GetCurrentEra)
 -- This mapping replaces a conversion between enumerations.
 --
 -- The following is used as a reference for the index mapping:
--- https://github.com/input-output-hk/cardano-node/blob/3531289c9f79eab7ac5d3272ce6e6821504fec4c/cardano-api/src/Cardano/Api/Eras.hs#L188
+-- https://github.com/IntersectMBO/cardano-node/blob/3531289c9f79eab7ac5d3272ce6e6821504fec4c/cardano-api/src/Cardano/Api/Eras.hs#L188
 eraIndexToAnyCardanoEra :: EraIndex xs -> AnyCardanoEra
 eraIndexToAnyCardanoEra index =
     case eraIndexToInt index of

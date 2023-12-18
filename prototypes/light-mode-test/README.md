@@ -31,7 +31,7 @@ This prototype explores whether we can implement a "light mode" for cardano-wall
 * Projects like [cardano-graphql][] also allow us to query the *ledger state*, albeit with a lower level of trust than Proof-of-Stake.
 * In cardano-wallet, the data type `NetworkLayer` collects all functions necessary to gather blockchain data. Chances are that changes to the code are confined to providing a second implementation of this type.
 
-  [cardano-graphql]: https://github.com/input-output-hk/cardano-graphql/
+  [cardano-graphql]: https://github.com/cardano-foundation/cardano-graphql/
 
 ## In-Scope
 

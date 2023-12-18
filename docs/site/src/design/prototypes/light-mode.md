@@ -189,7 +189,7 @@ See also the `light-mode-test` prototype!
 * [Cardano-launcher][] will have to be modified to not launch the `cardano-node` process when the cardano-wallet is launched in light-mode.
 * Provision of the data source and of the transaction submission service is outside the scope of light-mode; we assume these services will be operated and paid for by someone. (Any light wallet assumes this.) In the MVP, we use [Blockfrost][] for demonstration purposes.
 
-  [cardano-launcher]: https://github.com/input-output-hk/cardano-launcher
+  [cardano-launcher]: https://github.com/IntersectMBO/cardano-launcher
 
 # Design alternatives
 

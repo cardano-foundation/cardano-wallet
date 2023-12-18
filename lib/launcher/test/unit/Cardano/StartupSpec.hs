@@ -199,7 +199,7 @@ captureLogging' = fmap fst . captureLogging
 -- | Run an IO action allowing interruptions on windows.
 -- Any 'IOException's are rethrown.
 -- The action should not throw any exception other than 'IOException'.
--- Example: https://github.com/input-output-hk/ouroboros-network/blob/69d62063e59f966dc90bda5b4d0ac0a11efd3657/Win32-network/src/System/Win32/Async/Socket.hs#L46-L59
+-- Example: https://github.com/IntersectMBO/ouroboros-network/blob/69d62063e59f966dc90bda5b4d0ac0a11efd3657/Win32-network/src/System/Win32/Async/Socket.hs#L46-L59
 wrapIO :: IO a -> IO a
 #if defined(WINDOWS)
 wrapIO action = do

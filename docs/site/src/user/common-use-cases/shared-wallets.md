@@ -15,7 +15,7 @@ This guide shows you how to create a shared wallet and make a shared transaction
 ```
 
 ```admonish note
-The script templates use Cardano [simple scripts](https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md) therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore [`POST /shared-wallets`](https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) swagger specification for more details.
+The script templates use Cardano [simple scripts](https://github.com/IntersectMBO/cardano-node/blob/master/doc/reference/simple-scripts.md) therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore [`POST /shared-wallets`](https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) swagger specification for more details.
 ```
 
 ### Template examples

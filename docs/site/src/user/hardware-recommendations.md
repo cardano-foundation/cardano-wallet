@@ -1,6 +1,6 @@
 ## Hardware recommendations
 
-As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node's [release page](https://github.com/input-output-hk/cardano-node/releases). For most cases cardano-node's hardware requirements are good enough to cover requirements of running cardano-wallet as well.
+As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node's [release page](https://github.com/IntersectMBO/cardano-node/releases). For most cases cardano-node's hardware requirements are good enough to cover requirements of running cardano-wallet as well.
 
 Here are some general hardware recommendations for running cardano-wallet:
 

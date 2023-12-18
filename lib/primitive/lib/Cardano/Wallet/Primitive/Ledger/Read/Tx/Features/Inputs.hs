@@ -75,7 +75,7 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     -- During the Vasil hard-fork the cardano-ledger team moved from
     -- representing transaction indices with Word16s, to using Word64s (see
     -- commit
-    -- https://github.com/input-output-hk/cardano-ledger/commit/4097a9055e6ea57161755e6a8cbfcf719b65e9ab).
+    -- https://github.com/IntersectMBO/cardano-ledger/commit/4097a9055e6ea57161755e6a8cbfcf719b65e9ab).
     -- However, the valid range is still 0 <= x <= (maxBound :: Word16), so we
     -- reflect that here.
     unsafeCast :: Word64 -> Word32

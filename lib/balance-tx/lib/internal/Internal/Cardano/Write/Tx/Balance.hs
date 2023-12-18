@@ -512,7 +512,7 @@ balanceTransaction
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code:
-    -- https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
+    -- https://github.com/IntersectMBO/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOAssumptions
     -> UTxOIndex era
     -> ChangeAddressGen changeState

@@ -733,7 +733,7 @@ genScriptData =
 
         -- NOTE: Negative values would trigger "Impossible" errors to be
         -- thrown. This seems expected and fine:
-        -- https://github.com/input-output-hk/cardano-ledger/pull/2333#issuecomment-864159342
+        -- https://github.com/IntersectMBO/cardano-ledger/pull/2333#issuecomment-864159342
         genConstructorIx :: Gen Integer
         genConstructorIx = frequency
             [ (45, arbitrarySizedNatural)
@@ -1060,7 +1060,7 @@ genRational =
     ratioToRational = toRational
 
 -- TODO: consolidate this back to just genRational once this is merged:
--- https://github.com/input-output-hk/cardano-ledger/pull/2330
+-- https://github.com/IntersectMBO/cardano-ledger/pull/2330
 genRationalInt64 :: Gen Rational
 genRationalInt64 =
     (\d -> ratioToRational (1 % d)) <$> genDenominator
@@ -1291,7 +1291,7 @@ genStakePoolRelay = do
     castPort :: Ledger.Port -> PortNumber
     castPort = fromInteger . toInteger . Ledger.portToWord16
 
-    -- See https://github.com/input-output-hk/cardano-ledger-1-tech-writing-tweaks/blob/2de173e8574ab079c9e18013d7906c20a70a7251/eras/shelley/test-suite/src/Test/Cardano/Ledger/Shelley/Serialisation/Generators/Genesis.hs#L113
+    -- See https://github.com/IntersectMBO/cardano-ledger-1-tech-writing-tweaks/blob/2de173e8574ab079c9e18013d7906c20a70a7251/eras/shelley/test-suite/src/Test/Cardano/Ledger/Shelley/Serialisation/Generators/Genesis.hs#L113
     genLedgerStakePoolRelay :: Gen Ledger.StakePoolRelay
     genLedgerStakePoolRelay = oneof
         [ Ledger.SingleHostAddr

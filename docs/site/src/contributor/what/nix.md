@@ -19,7 +19,7 @@ The minimum required version of Nix is 2.5.
 
 To improve build speed, it is **highly recommended** (but not mandatory) to configure the **binary cache maintained by IOG**.
 
-See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md) or [cardano-node/doc/getting-started/building-the-node-using-nix.md](https://github.com/input-output-hk/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix)
+See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md) or [cardano-node/doc/getting-started/building-the-node-using-nix.md](https://github.com/IntersectMBO/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix)
 for instructions on how to configure the IOG binary cache on your system.
 
 ## Building with Nix

@@ -91,7 +91,7 @@ wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/
 NETWORK=mainnet docker-compose up
 ```
 
-There is also an example configuration for [cardano-graphql](https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml).
+There is also an example configuration for [cardano-graphql](https://github.com/cardano-foundation/cardano-graphql/blob/master/docker-compose.yml).
 
 [inputoutput-cardano-node]: https://hub.docker.com/r/inputoutput/cardano-node
 [inputoutput-cardano-db-sync]: https://hub.docker.com/r/inputoutput/cardano-db-sync
@@ -99,4 +99,4 @@ There is also an example configuration for [cardano-graphql](https://github.com/
 [inputoutput-cardano-wallet]: https://hub.docker.com/r/cardanofoundation/cardano-wallet
 [inputoutput-cardano-rosetta]: https://hub.docker.com/r/inputoutput/cardano-rosetta
 
-[doc-cardano-node]: https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25
+[doc-cardano-node]: https://github.com/IntersectMBO/cardano-node/blob/master/nix/docker.nix#L1-L25

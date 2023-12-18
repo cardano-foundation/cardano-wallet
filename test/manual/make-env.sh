@@ -20,7 +20,7 @@ pushd $(mktemp -d)
 curl -L -o cardano-wallet.tar.gz "https://github.com/cardano-foundation/cardano-wallet/archive/refs/tags/v${WALLET_VERSION}.tar.gz"
 tar -xzf cardano-wallet.tar.gz
 
-curl -L -o cardano-node.tar.gz "https://github.com/input-output-hk/cardano-node/archive/refs/tags/${NODE_VERSION}.tar.gz"
+curl -L -o cardano-node.tar.gz "https://github.com/IntersectMBO/cardano-node/archive/refs/tags/${NODE_VERSION}.tar.gz"
 tar -xzf cardano-node.tar.gz
 
 WALLET_DIR=cardano-wallet-${WALLET_VERSION}

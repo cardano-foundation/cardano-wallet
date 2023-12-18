@@ -85,7 +85,7 @@ import qualified Data.Text as T
 --
 -- This is necessary when running cardano-wallet as a subprocess of Daedalus.
 -- For more details, see
--- <https://github.com/input-output-hk/cardano-launcher/blob/master/docs/windows-clean-shutdown.md>
+-- <https://github.com/IntersectMBO/cardano-launcher/blob/master/docs/windows-clean-shutdown.md>
 --
 -- It works simply by reading from 'stdin', which is otherwise unused by the API
 -- server. Once end-of-file is reached, it cancels the action, causing the

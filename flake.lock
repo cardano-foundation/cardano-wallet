@@ -300,13 +300,13 @@
       "locked": {
         "lastModified": 1690209950,
         "narHash": "sha256-d0V8N+y/OarYv6GQycGXnbPly7GeJRBEeE1017qj9eI=",
-        "owner": "input-output-hk",
+        "owner": "IntersectMBO",
         "repo": "cardano-node",
         "rev": "d2d90b48c5577b4412d5c9c9968b55f8ab4b9767",
         "type": "github"
       },
       "original": {
-        "owner": "input-output-hk",
+        "owner": "IntersectMBO",
         "ref": "8.1.2",
         "repo": "cardano-node",
         "type": "github"

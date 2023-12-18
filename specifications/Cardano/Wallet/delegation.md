@@ -13,7 +13,7 @@ Here, the `Delegations` type only keeps track of the final change to the delegat
 
 See the [Shelley ledger specification, Section 9 "Delegation"][ledger-spec] for more details.
 
-  [ledger-spec]: https://github.com/input-output-hk/cardano-ledger/releases/latest/download/shelley-ledger.pdf
+  [ledger-spec]: https://github.com/IntersectMBO/cardano-ledger/releases/latest/download/shelley-ledger.pdf
 
 # Data type
 

@@ -66,7 +66,7 @@ Cardano Mode is the default. I'm not aware of too many people using single-era m
 
 ## Specifications
 
-Formal specifications (and the actual implementations!) for each Cardano era exist in the [input-output-hk/cardano-ledger](https://github.com/input-output-hk/cardano-ledger) repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the [`README.md`](https://github.com/input-output-hk/cardano-ledger/blob/master/README.md) for links to PDFs and/or build instructions.
+Formal specifications (and the actual implementations!) for each Cardano era exist in the [IntersectMBO/cardano-ledger](https://github.com/IntersectMBO/cardano-ledger) repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the [`README.md`](https://github.com/IntersectMBO/cardano-ledger/blob/master/README.md) for links to PDFs and/or build instructions.
 
 ### Decentralized Update Proposals
 

@@ -20,8 +20,8 @@ Service applications for integrating with Cardano.
 - [cardano-transactions]: Utilities for constructing and signing transactions.
 - [bech32][bech32]: Haskell implementation of the Bech32 address format (BIP 0173).
 
-[cardano‑addresses]: https://github.com/input-output-hk/cardano-addresses
-[bech32]: https://github.com/input-output-hk/bech32
+[cardano‑addresses]: https://github.com/IntersectMBO/cardano-addresses
+[bech32]: https://github.com/IntersectMBO/bech32
 
 
 ## High-Level Dependency Diagram
@@ -70,8 +70,8 @@ The core [cardano-node][], which participates in the Cardano network, and mainta
 
 An implementation of the protocol is [here][ouroboros-network], deployed as stake pool nodes and relay nodes to form the Cardano network.
 
-[ouroboros-network]: https://github.com/input-output-hk/ouroboros-network
-[cardano-node]: https://github.com/input-output-hk/cardano-node
+[ouroboros-network]: https://github.com/IntersectMBO/ouroboros-network
+[cardano-node]: https://github.com/IntersectMBO/cardano-node
 
 ### [cardano-wallet]
 
@@ -205,7 +205,7 @@ flowchart TB
 | [cardano‑launcher]  | Typescript library for starting and stopping [cardano-wallet] and [cardano-node] |       | ❌    | ✔       | ✔    | ✔      |
 | [cardano‑addresses] | Address validation and inspection                                                | ✔     | ✔    | ✔       | ✔    | ✔      |
 
-[cardano‑launcher]: https://github.com/input-output-hk/cardano-launcher
+[cardano‑launcher]: https://github.com/IntersectMBO/cardano-launcher
 
 ### Formal Specifications
 
@@ -230,15 +230,15 @@ does not benefit from the same care in documentation than other tools above.
 
 
 [cardano-cli]: https://docs.cardano.org/projects/cardano-node/en/latest/reference/cardano-node-cli-reference.html
-[cardano-coin-selection]: https://github.com/input-output-hk/cardano-coin-selection
-[cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync
-[cardano-graphql]: https://github.com/input-output-hk/cardano-graphql
-[cardano-node]: https://github.com/input-output-hk/cardano-node
+[cardano-coin-selection]: https://github.com/IntersectMBO/cardano-coin-selection
+[cardano-db-sync]: https://github.com/IntersectMBO/cardano-db-sync
+[cardano-graphql]: https://github.com/cardano-foundation/cardano-graphql
+[cardano-node]: https://github.com/IntersectMBO/cardano-node
 [cardano-rest]: https://github.com/input-output-hk/cardano-rest
 [cardano-serialization-lib]: https://github.com/Emurgo/cardano-serialization-lib
 [cardano-sl-explorer]: https://cardanodocs.com/technical/explorer/api/
-[cardano-submit-api]: https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api
-[cardano-transactions]: https://github.com/input-output-hk/cardano-transactions
+[cardano-submit-api]: https://github.com/IntersectMBO/cardano-node/tree/master/cardano-submit-api
+[cardano-transactions]: https://github.com/IntersectMBO/cardano-transactions
 [cardano-wallet]: https://github.com/cardano-foundation/cardano-wallet
 [ouroboros]: https://iohk.io/en/research/library/papers/ouroboros-praosan-adaptively-securesemi-synchronous-proof-of-stake-protocol/
 [react-native-haskell-shelley]: https://github.com/Emurgo/react-native-haskell-shelley
