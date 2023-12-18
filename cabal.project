@@ -67,6 +67,7 @@ packages:
   , lib/delta-store/
   , lib/delta-table
   , lib/delta-types/
+  , lib/faucet/
   , lib/iohk-monitoring-extra/
   , lib/launcher/
   , lib/local-cluster/

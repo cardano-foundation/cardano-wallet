@@ -1,0 +1,230 @@
+{
+    "components": {
+        "schemas": {
+            "AddressIndex": {
+                "description": "Index of an address derived from a mnemonic.",
+                "example": 0,
+                "format": "int32",
+                "minimum": 0,
+                "title": "AddressIndex",
+                "type": "integer"
+            },
+            "AddressStyle": {
+                "description": "Cardano Address style",
+                "enum": [
+                    "shelley",
+                    "icarus",
+                    "byron"
+                ],
+                "example": "shelley",
+                "title": "AddressStyle",
+                "type": "string"
+            },
+            "FaucetAddress": {
+                "description": "Cardano address of some type",
+                "example": "7028bbd1f7aebb3bc59e13597f333aeefb8f5ab78eda962de1d605b388",
+                "title": "FaucetAddress"
+            },
+            "IndexedAddress": {
+                "description": "A natural index uniquely identifies an Address",
+                "example": {
+                    "address": "7028bbd1f7aebb3bc59e13597f333aeefb8f5ab78eda962de1d605b388",
+                    "index": 42
+                },
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/FaucetAddress"
+                    },
+                    "index": {
+                        "$ref": "#/components/schemas/AddressIndex"
+                    }
+                },
+                "title": "IndexedAddress",
+                "type": "object"
+            },
+            "IndexedMnemonic": {
+                "description": "A natural index uniquely identifies a Mnemonic",
+                "example": {
+                    "index": 42,
+                    "mnemonic": "vintage poem topic machine hazard cement dune glimpse fix brief account badge mass silly business"
+                },
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/MnemonicIndex"
+                    },
+                    "mnemonic": {
+                        "$ref": "#/components/schemas/Mnemonic"
+                    }
+                },
+                "title": "IndexedMnemonic",
+                "type": "object"
+            },
+            "Mnemonic": {
+                "description": "BIP-39 mnemonic sentence",
+                "example": "vintage poem topic machine hazard cement dune glimpse fix brief account badge mass silly business",
+                "title": "Mnemonic"
+            },
+            "MnemonicIndex": {
+                "description": "Index of a mnemonic in the collection",
+                "example": 0,
+                "format": "int32",
+                "minimum": 0,
+                "title": "MnemonicIndex",
+                "type": "integer"
+            },
+            "NetworkTag": {
+                "description": "Network tag is a \"magic\" constant associated with a network. It is mainly used in: \n- Address payloads, to discriminate addresses between networks.\n- At the network level, when doing handshake with nodes.",
+                "example": 0,
+                "format": "uint32",
+                "title": "NetworkTag",
+                "type": "integer"
+            },
+            "[IndexedAddress]": {
+                "items": {
+                    "$ref": "#/components/schemas/IndexedAddress"
+                },
+                "type": "array"
+            },
+            "[IndexedMnemonic]": {
+                "items": {
+                    "$ref": "#/components/schemas/IndexedMnemonic"
+                },
+                "type": "array"
+            }
+        }
+    },
+    "info": {
+        "description": "This API exposes functionality to manage assets within the Cardano test cluster:\n   - Get mnemonics from which various types of wallets could be restored such that they contain test funds (ADA, custom assets, rewards).\n   - Track already used mnemonics;",
+        "license": {
+            "name": "Apache 2",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "title": "Faucet API",
+        "version": "0.1"
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/mnemonics/{index}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Mnemonic"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Mnemonic by index",
+                "tags": [
+                    "Mnemonics"
+                ]
+            },
+            "parameters": [
+                {
+                    "in": "path",
+                    "name": "index",
+                    "schema": {
+                        "$ref": "#/components/schemas/MnemonicIndex"
+                    }
+                }
+            ]
+        },
+        "/mnemonics/{index}/addresses/{style}/{networkTag}/{minIndex}/{maxIndex}": {
+            "get": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "index",
+                        "schema": {
+                            "$ref": "#/components/schemas/MnemonicIndex"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "style",
+                        "schema": {
+                            "$ref": "#/components/schemas/AddressStyle"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "networkTag",
+                        "schema": {
+                            "$ref": "#/components/schemas/NetworkTag"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "minIndex",
+                        "schema": {
+                            "$ref": "#/components/schemas/AddressIndex"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "maxIndex",
+                        "schema": {
+                            "$ref": "#/components/schemas/AddressIndex"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/[IndexedAddress]"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Collection of mnemonic addresses viewed by a range of indexes",
+                "tags": [
+                    "Addresses"
+                ]
+            }
+        },
+        "/mnemonics/{minIndex}/{maxIndex}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/[IndexedMnemonic]"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Collection of mnemonics viewed by index range (inclusive)",
+                "tags": [
+                    "Mnemonics"
+                ]
+            },
+            "parameters": [
+                {
+                    "in": "path",
+                    "name": "minIndex",
+                    "schema": {
+                        "$ref": "#/components/schemas/MnemonicIndex"
+                    }
+                },
+                {
+                    "in": "path",
+                    "name": "maxIndex",
+                    "schema": {
+                        "$ref": "#/components/schemas/MnemonicIndex"
+                    }
+                }
+            ]
+        }
+    }
+}
