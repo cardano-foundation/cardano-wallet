@@ -2871,7 +2871,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 singleton $ AddressAmount
                                     { address = ApiAddress addr
                                     , amount  = Quantity 10_000_000
-                                    , assets  = ApiT TokenMap.empty
+                                    , assets  = mempty
                                     }
                             pure $ head . view #inputs <$> result
                     txOutRef <- fromEither =<< getFreshUTxO

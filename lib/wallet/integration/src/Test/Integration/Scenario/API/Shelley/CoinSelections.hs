@@ -118,6 +118,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.HashSet as Set
@@ -341,7 +342,8 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             targetAddress : _ <- fmap (view #id) <$>
                 listAddresses @n ctx targetWallet
             let payment = AddressAmount
-                    targetAddress adaQuantity (ApiT nonAdaQuantities)
+                    targetAddress adaQuantity $
+                    ApiWalletAssets.fromTokenMap nonAdaQuantities
             let makeRequest = selectCoins
                     @_ @'Shelley ctx sourceWallet (payment :| [])
             makeRequest >>= flip verify
@@ -374,7 +376,8 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             targetAddress : _ <- fmap (view #id) <$>
                 listAddresses @n ctx targetWallet
             let payment = AddressAmount
-                    targetAddress adaQuantity (ApiT nonAdaQuantities)
+                    targetAddress adaQuantity $
+                    ApiWalletAssets.fromTokenMap nonAdaQuantities
             let makeRequest = selectCoins
                     @_ @'Shelley ctx sourceWallet (payment :| [])
             makeRequest >>= flip verify

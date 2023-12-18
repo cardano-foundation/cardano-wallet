@@ -3068,7 +3068,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
                 addressAmountToTxOut $
-                AddressAmount addr (Quantity 0) (ApiT assets)
+                AddressAmount addr (Quantity 0) $
+                ApiWalletAssets.fromTokenMap assets
         in
         map toTxOut
             . Map.toList
@@ -3093,7 +3094,7 @@ toUnsignedTxOut = \case
     ExternalOutput o ->
         let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
 
@@ -4924,7 +4925,10 @@ toAddressAmount
      . TxOut
     -> AddressAmount (ApiAddress n)
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-    AddressAmount (ApiAddress addr) (Coin.toQuantity coin) (ApiT assets)
+    AddressAmount
+        (ApiAddress addr)
+        (Coin.toQuantity coin)
+        (ApiWalletAssets.fromTokenMap assets)
 
 mkApiFee
     :: Maybe Coin
@@ -4947,8 +4951,10 @@ mkApiWithdrawal (acct, c) =
 addressAmountToTxOut
     :: AddressAmount (ApiAddress n)
     -> TxOut
-addressAmountToTxOut (AddressAmount (ApiAddress addr) c (ApiT assets)) =
-    TxOut addr (TokenBundle.TokenBundle (Coin.fromQuantity c) assets)
+addressAmountToTxOut (AddressAmount (ApiAddress addr) c assets) =
+    TxOut addr $ TokenBundle.TokenBundle
+        (Coin.fromQuantity c)
+        (ApiWalletAssets.toTokenMap assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity

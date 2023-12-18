@@ -160,7 +160,6 @@ import Servant
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
 
 newtype ApiAddress (n :: NetworkDiscriminant)
@@ -302,7 +301,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
 data AddressAmount addr = AddressAmount
     { address :: addr
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving ToJSON via DefaultRecord (AddressAmount addr)
