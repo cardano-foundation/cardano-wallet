@@ -5,9 +5,17 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
 
 import qualified Network.HTTP.Client as Http
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
+import Cardano.Mnemonic
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert
     , runAssertFailsFast
+    )
+import Cardano.Wallet.Spec.Effect.Faucet
+    ( FxFaucet
+    , runFaucetPure
     )
 import Cardano.Wallet.Spec.Effect.Http
     ( FxHttp
@@ -67,6 +75,7 @@ import Test.Syd
 type Story a =
     Eff
         [ FxQuery
+        , FxFaucet
         , FxHttp
         , FxRandom
         , FxTimeout
@@ -114,6 +123,7 @@ interpretStory configuredNetwork story' = do
     stdGen <- initStdGen
     story'
         & runQuery configuredNetwork
+        & runFaucetPure (SomeMnemonic Mnemonics.preregKeyWallet :| [])
         & runHttpClient connectionManager
         & runRandom stdGen
         & runTimeout

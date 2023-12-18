@@ -4,15 +4,17 @@
 
 module Cardano.Wallet.Spec.Effect.Random where
 
-import qualified Cardano.Mnemonic as Cardano
-import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
+import qualified Cardano.Mnemonic.Extended as Cardano
 import qualified Cardano.Wallet.Spec.Data.WalletName as WalletName
 import qualified Data.ByteString.Base58 as Base58
 import qualified Data.Text as T
 import qualified Effectful.State.Static.Local as State
 
-import Cardano.Wallet.Spec.Data.Mnemonic
-    ( Mnemonic
+import Cardano.Mnemonic
+    ( SomeMnemonic
+    )
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToSentence
     )
 import Cardano.Wallet.Spec.Data.WalletName
     ( WalletName
@@ -61,15 +63,20 @@ import System.Random.Stateful
     )
 
 data FxRandom :: Effect where
-    RandomMnemonic :: FxRandom m Mnemonic
+    RandomMnemonic :: FxRandom m SomeMnemonic
     RandomWalletName :: Tagged "Prefix" Text -> FxRandom m WalletName
 
 $(makeEffect ''FxRandom)
 
-runRandomMock :: Mnemonic -> (FxTrace :> es) => Eff (FxRandom : es) a -> Eff es a
+runRandomMock
+    :: (FxTrace :> es)
+    => SomeMnemonic
+    -> Eff (FxRandom : es) a
+    -> Eff es a
 runRandomMock mnemonic = interpret \_ -> \case
     RandomMnemonic -> do
-        trace $ "Generated a [mock] random mnemonic: " <> Mnemonic.toText mnemonic
+        trace $ "Generated a [mock] random mnemonic: "
+            <> someMnemonicToSentence mnemonic
         pure mnemonic
     RandomWalletName (Tagged prefix) -> do
         let name = WalletName.mkUnsafe $ prefix <> "#12345"
@@ -90,13 +97,10 @@ runRandom gen = reinterpret (evalState gen) \_ -> \case
         mnemonic <-
             either
                 (fail . show)
-                (pure
-                    . Mnemonic.unsafeFromList
-                    . Cardano.mnemonicToText
-                    . Cardano.entropyToMnemonic
-                    )
+                (pure . Cardano.SomeMnemonic . Cardano.entropyToMnemonic)
                 (toEntropy @256 randomByteString)
-        trace $ "Generated a random mnemonic: " <> Mnemonic.toText mnemonic
+        trace $ "Generated a random mnemonic: "
+            <> someMnemonicToSentence mnemonic
         pure mnemonic
     RandomWalletName (Tagged prefix) -> do
         randomSuffix <- uniformByteStringM 10 stGen

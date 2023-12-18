@@ -42,8 +42,9 @@ common options
   ghc-options:
     -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
     -Wmissing-deriving-strategies -Wunused-foralls -Wunused-foralls
-    -fprint-explicit-foralls -fprint-explicit-kinds -Wcompat
-    -Widentities -Werror=incomplete-patterns -Wredundant-constraints
+    -fprint-explicit-foralls -fprint-explicit-kinds
+    -fprint-potential-instances -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
     -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
     -fprint-expanded-synonyms -fwarn-unused-do-bind
     -fwarn-incomplete-uni-patterns -freverse-errors
@@ -65,6 +66,7 @@ library
     , cardano-wallet-client  ^>=0.1
     , effectful-core         ^>=2.2.2.0
     , effectful-th           ^>=1.0.0.1
+    , faucet
     , http-client            ^>=0.7.13.1
     , http-types             ^>=0.12.3
     , local-cluster          ^>=0.1
@@ -76,7 +78,6 @@ library
     , retry                  ^>=0.9.3.1
     , sydtest                ^>=0.15
     , tagged                 ^>=0.8.7
-    , tagged                 ^>=0.8.7
     , text                   ^>=1.2.4.1
     , time                   ^>=1.9.3
     , timespan               ^>=0.4
@@ -85,7 +86,6 @@ library
   exposed-modules:
     Cardano.Wallet.Spec
     Cardano.Wallet.Spec.Data.AdaBalance
-    Cardano.Wallet.Spec.Data.Mnemonic
     Cardano.Wallet.Spec.Data.Network.Info
     Cardano.Wallet.Spec.Data.Network.NodeStatus
     Cardano.Wallet.Spec.Data.TestNetwork
@@ -93,6 +93,7 @@ library
     Cardano.Wallet.Spec.Data.WalletId
     Cardano.Wallet.Spec.Data.WalletName
     Cardano.Wallet.Spec.Effect.Assert
+    Cardano.Wallet.Spec.Effect.Faucet
     Cardano.Wallet.Spec.Effect.Http
     Cardano.Wallet.Spec.Effect.Query
     Cardano.Wallet.Spec.Effect.Random
@@ -120,12 +121,12 @@ executable wallet-e2e
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules: Options
   build-depends:
-    , base                         ^>=4.14.3.0
+    , base                  ^>=4.14.3.0
     , cardano-wallet-e2e
-    , optparse-applicative         ^>=0.17.1
-    , path                         ^>=0.9.2
-    , path-io                      ^>=1.7.0
-    , relude                       ^>=1.2.0.0
-    , sydtest                      ^>=0.15
-    , tagged                       ^>=0.8.7
-    , with-utf8                    ^>=1.0.2.4
+    , optparse-applicative  ^>=0.17.1
+    , path                  ^>=0.9.2
+    , path-io               ^>=1.7.0
+    , relude                ^>=1.2.0.0
+    , sydtest               ^>=0.15
+    , tagged                ^>=0.8.7
+    , with-utf8             ^>=1.0.2.4

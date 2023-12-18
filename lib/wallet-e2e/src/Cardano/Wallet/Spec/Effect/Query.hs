@@ -2,7 +2,6 @@
 
 module Cardano.Wallet.Spec.Effect.Query where
 
-import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
 import qualified Cardano.Wallet.Spec.Data.Network.NodeStatus as NodeStatus
 import qualified Cardano.Wallet.Spec.Data.WalletId as WalletId
 import qualified Cardano.Wallet.Spec.Data.WalletName as WalletName
@@ -17,14 +16,16 @@ import qualified Wallet.Operations.GetWallet as GW
 import qualified Wallet.Operations.ListWallets as LW
 import qualified Wallet.Operations.PostWallet as PW
 
+import Cardano.Mnemonic.Extended
+    ( SomeMnemonic
+    , someMnemonicToSentence
+    , someMnemonicToWords
+    )
 import Cardano.Wallet.Cli.Launcher
     ( walletInstanceApiUrl
     )
 import Cardano.Wallet.Spec.Data.AdaBalance
     ( AdaBalance (..)
-    )
-import Cardano.Wallet.Spec.Data.Mnemonic
-    ( Mnemonic
     )
 import Cardano.Wallet.Spec.Data.Network.Info
     ( NetworkInfo (..)
@@ -99,7 +100,7 @@ import Prelude hiding
 
 data FxQuery :: Effect where
     ListKnownWallets :: FxQuery m (Set Wallet)
-    CreateWalletFromMnemonic :: WalletName -> Mnemonic -> FxQuery m Wallet
+    CreateWalletFromMnemonic :: WalletName -> SomeMnemonic -> FxQuery m Wallet
     GetWallet :: WalletId -> FxQuery m Wallet
     DeleteWallet :: Wallet -> FxQuery m ()
     QueryNetworkInfo :: FxQuery m NetworkInfo
@@ -122,7 +123,7 @@ runQueryMock db0 = reinterpret (evalState db0) \_ -> \case
                     { walletId =
                         WalletId.fromNel
                             $ NE.intersperse "."
-                            $ Mnemonic.toWords mnemonic
+                            $ someMnemonicToWords mnemonic
                     , walletName = name
                     , walletBalance =
                         AdaBalance
@@ -206,13 +207,13 @@ runQuery configuredNetwork = interpret \_ -> \case
         trace $ "Listing known wallets (" <> show (length knownWallets) <> ")"
         pure knownWallets
     CreateWalletFromMnemonic name mnemonic -> do
-        trace $ "Creating a wallet from mnemonic: " <> Mnemonic.toText mnemonic
+        trace $ "Creating a wallet from mnemonic: " <> someMnemonicToSentence mnemonic
         resp <-
             runClient
                 $ PW.postWallet
                 $ PW.PostWalletRequestBodyVariant1
                 $ PW.mkPostWalletRequestBodyOneOf1
-                    (toList (Mnemonic.toWords mnemonic))
+                    (toList (someMnemonicToWords mnemonic))
                     (WalletName.toText name)
                     "Secure Passphrase"
         assertEq

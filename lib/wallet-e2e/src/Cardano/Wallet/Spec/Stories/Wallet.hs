@@ -3,6 +3,7 @@ module Cardano.Wallet.Spec.Stories.Wallet
     , createdWalletListed
     , createdWalletRetrievable
     , createdWalletHasZeroAda
+    , faucetWalletHasNonZeroAda
     ) where
 
 import Cardano.Wallet.Spec.Data.AdaBalance
@@ -22,6 +23,11 @@ import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert
     , assert
     , assertEq
+    , assertGt
+    )
+import Cardano.Wallet.Spec.Effect.Faucet
+    ( FxFaucet
+    , useFaucetMnemonic
     )
 import Cardano.Wallet.Spec.Effect.Query
     ( FxQuery
@@ -79,6 +85,15 @@ createdWalletHasZeroAda = do
         (walletBalance wallet)
         zeroAdaBalance
 
+faucetWalletHasNonZeroAda
+  :: FxStory fxs '[FxQuery, FxRandom, FxFaucet, FxAssert] ()
+faucetWalletHasNonZeroAda = do
+    wallet <- createFaucetWallet
+    assertGt
+        "faucet wallet has non-zero ADA balance"
+        (walletBalance wallet)
+        zeroAdaBalance
+
 --------------------------------------------------------------------------------
 -- Re-usable sequences of actions ----------------------------------------------
 
@@ -86,4 +101,10 @@ createFreshWallet :: FxStory fxs '[FxQuery, FxRandom] Wallet
 createFreshWallet = do
     name <- randomWalletName "Test Wallet"
     mnemonic <- randomMnemonic
+    createWalletFromMnemonic name mnemonic
+
+createFaucetWallet :: FxStory fxs '[FxQuery, FxRandom, FxFaucet] Wallet
+createFaucetWallet = do
+    name <- randomWalletName "Faucet Wallet"
+    mnemonic <- useFaucetMnemonic
     createWalletFromMnemonic name mnemonic
