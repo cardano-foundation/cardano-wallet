@@ -587,8 +587,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [dlg] -> do
                     (dlg ^. #status) `shouldBe` Delegating
                     (dlg ^. #target) `shouldBe` Just (ApiT pool1)
-                    (view #epochNumber <$> dlg ^. #changesAt) `shouldBe`
-                        Just (currentEpoch + 2)
+                    (view #epochNumber <$> dlg ^. #changesAt) `shouldSatisfy`
+                        (\x -> x == Just (currentEpoch + 2)
+                            || x == Just (currentEpoch + 3)
+                            -- ^^^^ This is to reduce flakiness of the test.
+                            -- The reason why we can't be sure which epoch
+                            -- exactly the delegation change will happen is
+                            -- because the transaction might be submitted
+                            -- just before the epoch boundary, and the
+                            -- transaction might be included in the next
+                            -- epoch.
+                        )
                 _ -> fail "next delegation should contain exactly one element"
             ]
 
