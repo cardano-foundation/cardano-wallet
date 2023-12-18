@@ -143,11 +143,15 @@
     };
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=8.1.2";
+    cardano-addresses = {
+      url = "github:IntersectMBO/cardano-addresses?rev=44d5a9eb3505b6bfbf281d40fa88531c3253b771";
+      flake = true;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
-              ... }:
+              cardano-addresses, ... }:
     let
       # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
@@ -175,11 +179,12 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
-              iohkNix.overlays.utils
               iohkNix.overlays.crypto
+              haskellNix.overlay
+              iohkNix.overlays.utils
               iohkNix.overlays.haskell-nix-extra
               iohkNix.overlays.cardano-lib
-              haskellNix.overlay
+
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
@@ -198,12 +203,15 @@
 
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
           nodeProject = cardano-node-runtime.project.${system};
+          cardanoAddrPkgs = cardano-addresses.packages.${system};
+          cardano-address = cardanoAddrPkgs."cardano-addresses-cli:exe:cardano-address";
 
           walletProject = (import ./nix/haskell.nix
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
               nodePkgs
+              cardano-address
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -228,7 +236,7 @@
 
                 # Adrestia tool belt
                 inherit (project.hsPkgs.bech32.components.exes) bech32;
-                inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+                inherit cardano-address;
 
                 # Cardano
                 cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;
@@ -314,22 +322,22 @@
           # One ${system} can cross-compile artifacts for other platforms.
           mkReleaseArtifacts = project:
             let # compiling with musl gives us a statically linked executable
-              linuxPackages = mkPackages project.projectCross.musl64;
-              linuxReleaseExes = [
-                linuxPackages.cardano-wallet
-                linuxPackages.bech32
-                linuxPackages.cardano-address
-                nodePkgs.hydraJobs.musl.cardano-cli
-                nodePkgs.hydraJobs.musl.cardano-node
-              ];
-              # Which exes should be put in the release archives.
-              checkReleaseContents = jobs: map (exe: jobs.${exe}) [
-                "cardano-wallet"
-                "bech32"
-                "cardano-address"
-                "cardano-cli"
-                "cardano-node"
-              ];
+                linuxPackages = mkPackages project.projectCross.musl64;
+                linuxReleaseExes = [
+                  linuxPackages.cardano-wallet
+                  linuxPackages.bech32
+                  cardanoAddrPkgs."x86_64-unknown-linux-musl:cardano-addresses-cli:exe:cardano-address"
+                  nodePkgs.hydraJobs.musl.cardano-cli
+                  nodePkgs.hydraJobs.musl.cardano-node
+                ];
+                # Which exes should be put in the release archives.
+                checkReleaseContents = jobs: map (exe: jobs.${exe}) [
+                  "cardano-wallet"
+                  "bech32"
+                  "cardano-address"
+                  "cardano-cli"
+                  "cardano-node"
+                ];
             in lib.optionalAttrs buildPlatform.isLinux {
               linux64.release =
                 import ./nix/release-package.nix {
@@ -350,7 +358,7 @@
                     exes = [
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
-                      windowsPackages.cardano-address
+                      cardanoAddrPkgs."x86_64-w64-mingw32:cardano-addresses-cli:exe:cardano-address"
                       nodePkgs.hydraJobs.windows.cardano-cli
                       nodePkgs.hydraJobs.windows.cardano-node
                     ];
@@ -377,7 +385,7 @@
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
-                    macOsPkgs.cardano-address
+                    cardanoAddrPkgs."cardano-addresses-cli:exe:cardano-address"
                     nodePkgs.hydraJobs.native.cardano-cli
                     nodePkgs.hydraJobs.native.cardano-node
                   ];
@@ -392,7 +400,7 @@
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
-                    macOsPkgs.cardano-address
+                    cardanoAddrPkgs."cardano-addresses-cli:exe:cardano-address"
                     nodePkgs.hydraJobs.native.cardano-cli
                     nodePkgs.hydraJobs.native.cardano-node
                   ];

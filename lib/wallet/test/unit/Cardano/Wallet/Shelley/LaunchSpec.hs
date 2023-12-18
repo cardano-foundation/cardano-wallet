@@ -1,4 +1,3 @@
-{-# LANGUAGE PackageImports #-}
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -12,7 +11,7 @@ import Prelude
 import Cardano.Wallet.CLI
     ( nodeSocketOption
     )
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( ParserResult (..)
     , defaultPrefs
     , execParserPure

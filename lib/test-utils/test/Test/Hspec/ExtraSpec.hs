@@ -15,6 +15,9 @@ import Control.Monad.IO.Unlift
 import Data.Bifunctor
     ( first
     )
+import Data.Char
+    ( isSpace
+    )
 import Data.Function
     ( on
     )
@@ -193,6 +196,8 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
                 . filter (not . ("Finished in" `isPrefixOf`))
                 . filter (not . ("Randomized" `isPrefixOf`))
                 . filter (not . ("retry:" `isPrefixOf`))
+                . filter (not . ("To rerun use:" `isPrefixOf`))
+                . map (dropWhile isSpace)
                 . lines
 
     -- | Returns an IO action that is different every time you run it!,

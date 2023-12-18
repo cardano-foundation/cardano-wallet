@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RecordWildCards #-}
 
 import Prelude
@@ -59,7 +58,7 @@ import qualified Cardano.BM.Setup as Log
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
 import qualified Cardano.Launcher.Wallet as C
-import qualified "optparse-applicative" Options.Applicative as O
+import qualified Options.Applicative as O
 import qualified System.Process as S
 
 -- See ADP-1910 for Options.Applicative usage

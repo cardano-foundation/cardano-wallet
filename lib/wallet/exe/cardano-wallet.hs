@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -49,8 +48,6 @@ import Cardano.CLI
     , Mode (..)
     , cli
     , cmdAddress
-    , cmdKey
-    , cmdMnemonic
     , cmdNetwork
     , cmdStakePool
     , cmdTransaction
@@ -164,7 +161,7 @@ import Main.Utf8
 import Network.URI
     ( URI
     )
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( CommandFields
     , Mod
     , Parser
@@ -204,8 +201,6 @@ main = withUtf8 $ do
     enableWindowsANSI
     runCli $ cli $ mempty
         <> cmdServe
-        <> cmdMnemonic
-        <> cmdKey
         <> cmdWallet cmdWalletCreate walletClient
         <> cmdAddress addressClient
         <> cmdTransaction transactionClient walletClient

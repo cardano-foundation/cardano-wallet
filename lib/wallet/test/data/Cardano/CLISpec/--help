@@ -12,8 +12,6 @@ Available options:
   -h,--help                Show this help text
 
 Available commands:
-  recovery-phrase          About recovery phrases
-  key                      About public/private keys
   wallet                   About wallets
   transaction              About transactions
   address                  About addresses

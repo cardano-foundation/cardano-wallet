@@ -117,10 +117,7 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import qualified Data.Text as T
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n . HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
@@ -412,10 +409,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                     \ natural number between 10 and 100000."
                 o `shouldBe` mempty
 
-emptyWalletFromPubKeyViaCLI
-    :: Context
-    -> String
-    -> ResourceT IO ApiWallet
+emptyWalletFromPubKeyViaCLI :: Context -> String -> ResourceT IO ApiWallet
 emptyWalletFromPubKeyViaCLI ctx name = do
     Stdout m <- generateMnemonicsViaCLI []
     let accXPub = pubKeyFromMnemonics' (words m)

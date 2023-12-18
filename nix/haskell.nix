@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: cardano-address: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -128,14 +128,14 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         nativeBuildInputs = with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
           nodePkgs.cardano-node
-          cardano-addresses-cli.components.exes.cardano-address
+          cardano-address
           bech32.components.exes.bech32
           pretty-simple.components.exes.pretty-simple
         ] ++ (with pkgs.buildPackages.buildPackages; [
           just
           adrgen
           haskellPackages.ghcid
-          pkgconfig
+          pkg-config
           nixpkgs-recent.python3Packages.openapi-spec-validator
           (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
           sqlite-interactive
@@ -244,9 +244,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   fi
                 '';
 
-                # provide cardano-node & cardano-cli to tests
+                # provide cardano-address, cardano-node & cardano-cli to tests
                 unit.build-tools = cardanoNodeExes;
-                integration.build-tools = cardanoNodeExes;
+                integration.build-tools = [ cardano-address ] ++ cardanoNodeExes;
               };
 
               # Add node backend to the PATH of the latency benchmarks, and
@@ -296,16 +296,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               # Add shell completions for tools.
               packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
               packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
-              packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
               packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
-            })
-
-          # Provide the git revision for cardano-addresses
-          ({ config, ... }:
-            {
-              packages.cardano-addresses-cli.components.library.preBuild = ''
-                export GITREV=${config.hsPkgs.cardano-addresses-cli.src.rev}
-              '';
             })
 
           # Provide the swagger file in an environment variable for
@@ -381,13 +372,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               doHaddock = false;
             }
           ))
-
-          # Silence some warnings about "cleaning component source not
-          # supported for hpack package" which appear in nix-shell
-          {
-            packages.cardano-addresses.cabal-generator = lib.mkForce null;
-            packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
-          }
 
           # Disable scrypt support on ARM64
           ({ pkgs, ... }: {

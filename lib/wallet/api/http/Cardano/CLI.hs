@@ -12,7 +12,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,7 +31,6 @@ module Cardano.CLI
     , runCli
 
     -- * Commands
-    , cmdMnemonic
     , cmdWallet
     , cmdWalletCreate
     , cmdByronWalletCreate
@@ -41,7 +39,6 @@ module Cardano.CLI
     , cmdStakePool
     , cmdNetwork
     , cmdVersion
-    , cmdKey
 
     -- * Option & Argument Parsers
     , optionT
@@ -326,7 +323,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import GHC.Num
     ( Natural
     )
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( ArgumentFields
     , CommandFields
     , Mod
@@ -361,7 +358,7 @@ import "optparse-applicative" Options.Applicative
     , switch
     , value
     )
-import "optparse-applicative" Options.Applicative.Types
+import Options.Applicative.Types
     ( ReadM (..)
     , readerAsk
     )
@@ -386,7 +383,7 @@ import System.Console.ANSI
     , SGR (..)
     , hCursorBackward
     , hSetSGR
-    , hSupportsANSIWithoutEmulation
+    , hSupportsANSI
     )
 import System.Directory
     ( XdgDirectory (..)
@@ -432,8 +429,6 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
-import qualified Command.Key as Key
-import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -470,20 +465,6 @@ runCli :: ParserInfo (IO ()) -> IO ()
 runCli = join . customExecParser preferences
   where
     preferences = prefs showHelpOnEmpty
-
-{-------------------------------------------------------------------------------
-                            Commands - 'key'
--------------------------------------------------------------------------------}
-
-cmdKey :: Mod CommandFields (IO ())
-cmdKey = Key.mod Key.run
-
-{-------------------------------------------------------------------------------
-                            Commands - 'recovery-phrase'
--------------------------------------------------------------------------------}
-
-cmdMnemonic :: Mod CommandFields (IO ())
-cmdMnemonic = RecoveryPhrase.mod RecoveryPhrase.run
 
 {-------------------------------------------------------------------------------
                             Commands - 'wallet'
@@ -1508,7 +1489,7 @@ walletStyleOption
 walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     ( long "wallet-style"
     <> metavar "WALLET_STYLE"
-    <> helpDoc (Just (vsep typeOptions))
+    <> helpDoc (vsep typeOptions)
     <> value defaultStyle
     )
   where
@@ -1977,8 +1958,8 @@ putErrLn = hPutErrLn stderr
 -- the ANSI control characters will be printed in grey (too bad).
 enableWindowsANSI :: IO ()
 enableWindowsANSI = do
-    void $ hSupportsANSIWithoutEmulation stdout
-    void $ hSupportsANSIWithoutEmulation stderr
+    void $ hSupportsANSI stdout
+    void $ hSupportsANSI stderr
 
 {-------------------------------------------------------------------------------
                          Processing of Sensitive Data

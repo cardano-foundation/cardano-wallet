@@ -1,5 +1,7 @@
-Usage:  address create [--port INT] [--address-index INDEX]
-                       WALLET_ID
+Usage:  address create 
+                         [--port INT]
+                         [--address-index INDEX]
+                         WALLET_ID
 
   Create a new random address. Only available for random wallets.
   The address index is optional, give none to let the wallet

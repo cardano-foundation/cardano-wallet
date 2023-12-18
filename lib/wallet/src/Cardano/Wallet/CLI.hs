@@ -1,5 +1,3 @@
-{-# LANGUAGE PackageImports #-}
-
 module Cardano.Wallet.CLI
     ( networkConfigurationOption
     , nodeSocketOption
@@ -7,7 +5,7 @@ module Cardano.Wallet.CLI
 where
 
 import Cardano.Launcher.Node
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
 import Prelude
 
 import Cardano.Wallet.Network.Config

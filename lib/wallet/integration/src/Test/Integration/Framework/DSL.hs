@@ -203,6 +203,7 @@ module Test.Integration.Framework.DSL
     , commandName
     , command
     , cardanoWalletCLI
+    , cardanoAddressCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
     , createWalletFromPublicKeyViaCLI
@@ -3089,18 +3090,15 @@ commandName :: String
 commandName = "cardano-wallet"
 
 -- | Run a command using the 'cardano-wallet' executable.
-cardanoWalletCLI
-    :: forall r m. (CmdResult r, MonadIO m)
-    => [String]
-    -> m r
+cardanoWalletCLI :: (CmdResult r, MonadIO m) => [String] -> m r
 cardanoWalletCLI = liftIO . command [EchoStderr False] commandName
 
-generateMnemonicsViaCLI
-    :: forall r m. (CmdResult r, MonadIO m)
-    => [String]
-    -> m r
-generateMnemonicsViaCLI args = cardanoWalletCLI
-    (["recovery-phrase", "generate"] ++ args)
+cardanoAddressCLI :: (CmdResult r, MonadIO m) => [String] -> m r
+cardanoAddressCLI = liftIO . command [EchoStderr False] "cardano-address"
+
+generateMnemonicsViaCLI :: (CmdResult r, MonadIO m) => [String] -> m r
+generateMnemonicsViaCLI args =
+    cardanoAddressCLI (["recovery-phrase", "generate"] ++ args)
 
 createWalletViaCLI
     :: forall s m. (HasType (Port "wallet") s, MonadIO m)

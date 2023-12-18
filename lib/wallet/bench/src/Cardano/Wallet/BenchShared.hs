@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -94,8 +93,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( HasValue
     , Mod
     , Parser

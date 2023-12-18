@@ -50,11 +50,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2023-06-06T00:00:00Z
+index-state: 2023-11-26T21:52:49Z
 
 index-state:
-  , hackage.haskell.org 2023-06-06T00:00:00Z
-  , cardano-haskell-packages 2023-06-05T06:39:32Z
+  , hackage.haskell.org 2023-11-26T21:52:49Z
+  , cardano-haskell-packages 2023-11-27T10:31:25Z
 
 packages:
     lib/address-derivation-discovery
@@ -113,8 +113,7 @@ source-repository-package
     location: https://github.com/IntersectMBO/cardano-addresses
     tag: 44d5a9eb3505b6bfbf281d40fa88531c3253b771
     --sha256: 16rja48ryfjw3531kf15w0h3cdmscqgs8l1z1i2mvahq1vlhr2y6
-    subdir: command-line
-            core
+    subdir: core
 
 -- Normally cabal won't apply ghc-options which we specify to build packages
 -- to their "regular" dependencies.
@@ -138,13 +137,6 @@ source-repository-package
     location: https://github.com/input-output-hk/cardano-sl-x509
     tag: a91add165152fa36f08e95fafe7da24f1dba4690
     --sha256: 1ia8vlqghis92cla8qmqa6kh8f3jn29b01fshyk5hmgy5373s684
-
-source-repository-package
-    type: git
-    location: https://github.com/IntersectMBO/bech32.git
-    tag: e341e7f83d7b73f10baa87e946818b2c493cc5f5
-    --sha256: 1d891bpc1q1m1gqj02b4iv3kr4g9w7knlkq43hwbl9dn5k78aydc
-    subdir: bech32
 
 source-repository-package
     type: git
@@ -194,11 +186,16 @@ constraints:
   , cardano-api ^>=8.2
   , cardano-slotting >= 0.1
   , ouroboros-network ^>= 0.8.1.0
+  , cardano-cli == 8.1.2
+
+  -- `cardano-cli-8.1.2` uses `optparse-applicative-fork-0.16.2.0`
+  -- and `cardano-wallet` uses `cardano-cli` as a dependency, so
+  -- it needs to use the same version of `optparse-applicative-fork`.
+  -- Otherwise, we'd use the latest version of `optparse-applicative`.
+  , optparse-applicative-fork == 0.16.2.0
 
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
   , persistent == 2.13.3.3
-
-  -- Haddock is broken in this release. Waiting for the next release
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
@@ -217,6 +214,9 @@ if impl(ghc == 8.10.7)
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
 package cryptonite
   flags: -support_rdrand
+
+package bitvec
+  flags: -simd
 
 package cardano-config
   flags: -systemd

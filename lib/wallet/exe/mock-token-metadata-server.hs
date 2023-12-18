@@ -1,5 +1,4 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PackageImports #-}
 
 module Main where
 
@@ -21,8 +20,7 @@ import Control.Monad
 import Network.Wai.Middleware.RequestLogger
     ( logStdoutDev
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( ParserInfo
     , argument
     , auto
