@@ -30,6 +30,7 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       WALLET: ${{ github.event.inputs.walletTag || 'rc-latest' }}
+      NODE: ${{ github.event.inputs.nodeTag || '8.1.2' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.world.dev.cardano.org/
       TAGS: ${{ github.event.inputs.tags || 'all' }}
       E2E_DOCKER_RUN: 1
@@ -39,18 +40,6 @@ jobs:
       uses: actions/checkout@v4.1.1
       with:
         ref: ${{ github.event.inputs.walletTag || 'rc-latest' }}
-
-    - name: Get supported node tag
-      run: |
-        export TAG=$(cat ../../README.md | grep -o '`master` branch | \[.*\]' | awk '{ print $4 }'| sed -e 's/\[//g;s/\]//g')
-        if [ -z "${{github.event.inputs.nodeTag}}" ]; then
-          echo "NODE_TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "Using cardano-node tag from README.md = $TAG"
-        else
-          echo "NODE_TAG=${{github.event.inputs.nodeTag}}" >> $GITHUB_OUTPUT
-          echo "Using cardano-node tag from workflow trigger parameter = ${{github.event.inputs.nodeTag}}"
-        fi
-      id: cardano-node-tag
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
@@ -89,19 +78,18 @@ jobs:
 
     - name: 🚀 Start node and wallet
       run: |
-        echo "Wallet: $WALLET"
-        echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
-        echo $TESTS_E2E_TOKEN_METADATA
-        NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} \
+        echo "Wallet image tag: ${{ env.WALLET }}"
+        echo "Node image tag: ${{ env.NODE }}"
+        echo "Metadata server: ${{ env.TESTS_E2E_TOKEN_METADATA }}"
         NODE_CONFIG_PATH=`pwd`/state/configs/preprod \
-        DATA=`pwd`/state/node_db/preprod \
-        WALLET_DATA=`pwd`/state/wallet_db/preprod \
-        docker-compose -f docker-compose-test.yml up --detach
+            DATA=`pwd`/state/node_db/preprod \
+            WALLET_DATA=`pwd`/state/wallet_db/preprod \
+            docker-compose -f docker-compose-test.yml up --detach
 
     - name: 🔍 Display versions
       run: |
         docker run --rm cardanofoundation/cardano-wallet:$WALLET version
-        docker run --rm inputoutput/cardano-node:${{steps.cardano-node-tag.outputs.NODE_TAG}} cli version
+        docker run --rm inputoutput/cardano-node:${{ env.NODE }} cli version
 
     - name: ⏳ Wait until node is synced
       run: rake wait_until_node_synced
