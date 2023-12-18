@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeApplications #-}
@@ -46,6 +47,9 @@ import Control.DeepSeq
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
+    )
+import Data.Data
+    ( Data
     )
 import Data.Hashable
     ( Hashable
@@ -111,7 +115,7 @@ import Quiet
 --
 newtype TokenQuantity = TokenQuantity
     { unTokenQuantity :: Natural }
-    deriving stock (Eq, Ord, Generic)
+    deriving stock (Data, Eq, Ord, Generic)
     deriving anyclass (NFData, Hashable)
     deriving (Read, Show) via Quiet TokenQuantity
     deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
