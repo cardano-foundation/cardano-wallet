@@ -292,7 +292,7 @@ data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     { address :: ApiAddress n
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)

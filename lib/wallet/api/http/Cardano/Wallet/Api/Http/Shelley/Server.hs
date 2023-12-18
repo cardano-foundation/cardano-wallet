@@ -3087,7 +3087,7 @@ toUnsignedTxOut = \case
     WalletOutput o ->
         let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
     ExternalOutput o ->
@@ -3123,7 +3123,7 @@ toUnsignedTxChange = \case
         let address = apiAddress (o ^. #address)
             derivationPath = fmap getApiT (o ^. #derivationPath)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxChange address coin assets derivationPath
     ExternalOutput _ ->
@@ -3635,7 +3635,7 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
         WalletOutput $ ApiWalletOutput
             { address = ApiAddress addr
             , amount = Quantity $ fromIntegral c
-            , assets = ApiT tmap
+            , assets = ApiWalletAssets.fromTokenMap tmap
             , derivationPath = NE.map ApiT path
             }
 
@@ -3756,10 +3756,12 @@ getOurOuts apiDecodedTx =
     isOutOurs (WalletOutput _) = True
     isOutOurs _ = False
     toTxOut
-        ( WalletOutput
-                (ApiWalletOutput (ApiAddress addr) (Quantity amt) (ApiT tmap) _)
-            ) =
-            TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+        (WalletOutput
+            (ApiWalletOutput (ApiAddress addr) (Quantity amt) assets _)
+        ) =
+        TxOut addr $ TokenBundle
+            (Coin $ fromIntegral amt)
+            (ApiWalletAssets.toTokenMap assets)
     toTxOut _ = error "we should have only our outputs at this point"
 
 isInpOurs :: ApiTxInputGeneral n -> Bool

@@ -685,7 +685,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
@@ -802,7 +802,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget' = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
@@ -826,7 +826,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc
                 , amount = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = derPath
                 }
         let decodePayload' = Json (toJSON signedTx)

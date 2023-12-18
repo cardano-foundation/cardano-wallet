@@ -225,7 +225,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
@@ -653,7 +652,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
@@ -3198,7 +3197,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
