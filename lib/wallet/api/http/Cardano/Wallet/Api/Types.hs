@@ -1029,7 +1029,7 @@ newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
 
 data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
     { ada :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletUtxoSnapshotEntry

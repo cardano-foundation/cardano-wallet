@@ -2006,7 +2006,7 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
         :: TokenBundle -> ApiWalletUtxoSnapshotEntry
     mkApiWalletUtxoSnapshotEntry bundle = ApiWalletUtxoSnapshotEntry
         { ada = Coin.toQuantity $ view #coin bundle
-        , assets = ApiT $ view #tokens bundle
+        , assets = ApiWalletAssets.fromTokenMap $ view #tokens bundle
         }
 
 {-------------------------------------------------------------------------------
