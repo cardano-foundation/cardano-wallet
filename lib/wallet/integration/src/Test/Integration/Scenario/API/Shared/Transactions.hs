@@ -21,8 +21,8 @@ module Test.Integration.Scenario.API.Shared.Transactions
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( MkSomeMnemonic (..)
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -159,7 +159,6 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
-    , MnemonicLength (..)
     , Payload (..)
     , arbitraryStake
     , decodeErrorInfo
@@ -180,7 +179,6 @@ import Test.Integration.Framework.DSL
     , fixtureSharedWalletDelegating
     , fixtureWallet
     , fundSharedWallet
-    , genMnemonics
     , getFromResponse
     , getResponse
     , getSharedWallet
@@ -223,6 +221,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -248,10 +247,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Cannot create tx for a pending shared wallet" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let passphrase =
                 Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
@@ -259,8 +256,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -296,12 +293,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Can create tx for an active shared wallet, typed metadata" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -412,12 +409,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Can create tx for an active shared wallet, untyped metadata" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -2334,12 +2331,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
        \Emulating multi-delegation using shared wallets" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "TODO: Fix multi-delegation with shared wallets flakiness, ADP-3084"
         -- creating empty parent Shelley wallet
-        m15 <- liftIO $ genMnemonics M15
-        m12 <- liftIO $ genMnemonics M12
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let payloadCreateParent = Json [json|{
                 "name": "Parent Shelley Wallet",
-                "mnemonic_sentence": #{m15},
-                "mnemonic_second_factor": #{m12},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase}
              }|]
         rPostCreateParent <- postWallet ctx payloadCreateParent
@@ -2382,8 +2379,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let payloadCreateChild :: T.Text -> T.Text -> Payload
             payloadCreateChild ix name = Json [json| {
                 "name": #{name},
-                "mnemonic_sentence": #{m15},
-                "mnemonic_second_factor": #{m12},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": #{ix},
                 "payment_script_template":
@@ -2883,32 +2880,27 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
      fixtureTwoPartySharedWallet ctx = do
-
         let index = 30
         let passphrase = Passphrase $
                 BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
-        m15txtA <- liftIO $ genMnemonics M15
-        m12txtA <- liftIO $ genMnemonics M12
-        let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
-        let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+        m15A <- Mnemonics.generateSome Mnemonics.M15
+        m12A <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedA =
                 sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
-        m15txtB <- liftIO $ genMnemonics M15
-        m12txtB <- liftIO $ genMnemonics M12
-        let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
-        let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+        m15B <- Mnemonics.generateSome Mnemonics.M15
+        m12B <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedB =
                 sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload
-        let payload m15txt m12txt = Json [json| {
+        let payload m15 m12 = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -2923,14 +2915,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     }
                 } |]
 
-        rPostA <- postSharedWallet ctx Default (payload m15txtA m12txtA)
+        rPostA <- postSharedWallet ctx Default (payload m15A m12A)
         verify (fmap (swapEither . view #wallet) <$> rPostA)
             [ expectResponseCode HTTP.status201
             ]
         let walShared1@(ApiSharedWallet (Right walA)) =
                 getResponse rPostA
 
-        rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
+        rPostB <- postSharedWallet ctx Default (payload m15B m12B)
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
@@ -2949,26 +2941,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
-        m15txtA <- liftIO $ genMnemonics M15
-        m12txtA <- liftIO $ genMnemonics M12
-        let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
-        let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+        m15A <- Mnemonics.generateSome Mnemonics.M15
+        m12A <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedA =
                 sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
-        m15txtB <- liftIO $ genMnemonics M15
-        m12txtB <- liftIO $ genMnemonics M12
-        let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
-        let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+        m15B <- Mnemonics.generateSome Mnemonics.M15
+        m12B <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedB =
                 sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload for A
         let payloadA = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txtA},
-                "mnemonic_second_factor": #{m12txtA},
+                "mnemonic_sentence": #{someMnemonicToWords m15A},
+                "mnemonic_second_factor": #{someMnemonicToWords m12A},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -2997,8 +2985,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- payload for B
         let payloadB = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txtB},
-                "mnemonic_second_factor": #{m12txtB},
+                "mnemonic_sentence": #{someMnemonicToWords m15B},
+                "mnemonic_second_factor": #{someMnemonicToWords m12B},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -3037,34 +3025,28 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
-        m15txtA <- liftIO $ genMnemonics M15
-        m12txtA <- liftIO $ genMnemonics M12
-        let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
-        let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+        m15A <- Mnemonics.generateSome Mnemonics.M15
+        m12A <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedA =
                 sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
-        m15txtB <- liftIO $ genMnemonics M15
-        m12txtB <- liftIO $ genMnemonics M12
-        let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
-        let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+        m15B <- Mnemonics.generateSome Mnemonics.M15
+        m12B <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedB =
                 sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- third participant, cosigner 2
-        m15txtC <- liftIO $ genMnemonics M15
-        m12txtC <- liftIO $ genMnemonics M12
-        let (Right m15C) = mkSomeMnemonic @'[ 15 ] m15txtC
-        let (Right m12C) = mkSomeMnemonic @'[ 12 ] m12txtC
+        m15C <- Mnemonics.generateSome Mnemonics.M15
+        m12C <- Mnemonics.generateSome Mnemonics.M12
         let accXPubDerivedC =
                 sharedAccPubKeyFromMnemonics m15C (Just m12C) index passphrase
 
         -- payload
-        let payload m15txt m12txt = Json [json| {
+        let payload m15 m12 = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -3085,21 +3067,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     }
                 } |]
 
-        rPostA <- postSharedWallet ctx Default (payload m15txtA m12txtA)
+        rPostA <- postSharedWallet ctx Default (payload m15A m12A)
         verify (fmap (swapEither . view #wallet) <$> rPostA)
             [ expectResponseCode HTTP.status201
             ]
         let walShared1@(ApiSharedWallet (Right walA)) =
                 getResponse rPostA
 
-        rPostB <- postSharedWallet ctx Default (payload m15txtB m12txtB)
+        rPostB <- postSharedWallet ctx Default (payload m15B m12B)
         verify (fmap (swapEither . view #wallet) <$> rPostB)
             [ expectResponseCode HTTP.status201
             ]
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getResponse rPostB
 
-        rPostC <- postSharedWallet ctx Default (payload m15txtC m12txtC)
+        rPostC <- postSharedWallet ctx Default (payload m15C m12C)
         verify (fmap (swapEither . view #wallet) <$> rPostC)
             [ expectResponseCode HTTP.status201
             ]

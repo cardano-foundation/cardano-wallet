@@ -25,7 +25,8 @@ module Test.Integration.Scenario.API.Shelley.Transactions
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic
+    ( SomeMnemonic (..)
+    , entropyToMnemonic
     , genEntropy
     , mnemonicToText
     )
@@ -2163,7 +2164,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $
         \ctx -> runResourceT $ do
-        (wOther, mw) <- rewardWallet ctx
+        (wOther, SomeMnemonic mw) <- rewardWallet ctx
         wSelf  <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
@@ -2249,7 +2250,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left" $
         \ctx -> runResourceT $ do
 
-        (wOther, mw) <- rewardWallet ctx
+        (wOther, SomeMnemonic mw) <- rewardWallet ctx
         wSelf  <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
@@ -2363,7 +2364,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other" $
         \ctx -> runResourceT $ do
 
-        (_, mw) <- rewardWallet ctx
+        (_, SomeMnemonic mw) <- rewardWallet ctx
         wSelf  <- emptyWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
@@ -2389,7 +2390,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         liftIO $ pendingWith "Migration endpoints temporarily disabled"
-        (wRewards, mw) <- rewardWallet ctx
+        (wRewards, SomeMnemonic mw) <- rewardWallet ctx
         wOther  <- emptyWallet ctx
 
         -- migrate all utxo from rewards wallet
@@ -2430,7 +2431,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee" $
         \ctx -> runResourceT $ do
 
-        (_, mw) <- rewardWallet ctx
+        (_, SomeMnemonic mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
         let amt = oneThousandAda + oneMillionAda
@@ -2455,7 +2456,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money" $
         \ctx -> runResourceT $ do
 
-        (_, mw) <- rewardWallet ctx
+        (_, SomeMnemonic mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
         let amt = oneThousandAda + oneMillionAda + oneAda

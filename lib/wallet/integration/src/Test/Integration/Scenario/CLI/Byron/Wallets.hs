@@ -9,10 +9,15 @@
 
 module Test.Integration.Scenario.CLI.Byron.Wallets
     ( spec
+    ,
     ) where
 
 import Prelude
 
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToSentence
+    , someMnemonicToWords
+    )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
@@ -68,7 +73,6 @@ import Test.Hspec.Expectations.Lifted
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , MnemonicLength (..)
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyIcarusWallet
@@ -79,7 +83,6 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     , expectWalletUTxO
     , fixturePassphrase
-    , genMnemonics
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listWalletsViaCLI
@@ -99,6 +102,7 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Data.Text as T
 
 spec :: SpecWith Context
@@ -106,19 +110,18 @@ spec = describe "BYRON_CLI_WALLETS" $ do
 
     describe "CLI_BYRON_GET_04, CLI_BYRON_DELETE_01, BYRON_RESTORE_02, BYRON_RESTORE_03 -\
         \ Deleted wallet is not available, but can be restored" $ do
-        let matrix = [ ("random", genMnemonics M12)
-                     , ("icarus", genMnemonics M15)
+        let matrix = [ ("random", Mnemonics.generateSome Mnemonics.M12)
+                     , ("icarus", Mnemonics.generateSome Mnemonics.M15)
                      ]
         forM_ matrix $ \(style, genM) -> it style $ \ctx -> runResourceT $ do
-            mnemonic <- liftIO genM
+            mnemonic <- T.unpack . someMnemonicToSentence <$> liftIO genM
             let args =
                     [ "Name of the wallet"
                     , "--wallet-style", style
                     ]
             --create
-            (c, out, err) <- createWalletViaCLI @_ @IO ctx
-                        args (unwords $ T.unpack <$> mnemonic)
-                        "\n" "secure-passphrase"
+            (c, out, err) <- createWalletViaCLI @_ @IO
+                ctx args mnemonic "\n" "secure-passphrase"
             T.unpack err `shouldContain` cmdOk
             c `shouldBe` ExitSuccess
             j <- expectValidJSON (Proxy @ApiByronWallet) out
@@ -134,17 +137,15 @@ spec = describe "BYRON_CLI_WALLETS" $ do
             c2 `shouldBe` ExitFailure 1
             err2 `shouldContain` errMsg404NoWallet (T.pack wid)
             --re-create
-            (c3, out3, err3) <- createWalletViaCLI ctx
-                        args (unwords $ T.unpack <$> mnemonic)
-                        "\n" "secure-passphrase-restored"
+            (c3, out3, err3) <- createWalletViaCLI
+                ctx args mnemonic "\n" "secure-passphrase-restored"
             c3 `shouldBe` ExitSuccess
             T.unpack err3 `shouldContain` cmdOk
             jr <- expectValidJSON (Proxy @ApiByronWallet) out3
             verify jr [ expectCliField walletId (`shouldBe` T.pack wid) ]
             --re-create again? No!
-            (c4, out4, err4) <- createWalletViaCLI ctx
-                        args (unwords $ T.unpack <$> mnemonic)
-                        "\n" "secure-passphrase-restored-again"
+            (c4, out4, err4) <- createWalletViaCLI
+                ctx args mnemonic "\n" "secure-passphrase-restored-again"
             c4 `shouldBe` ExitFailure 1
             T.unpack err4 `shouldContain` (errMsg409WalletExists wid)
             out4 `shouldBe` mempty
@@ -168,7 +169,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         ]
                 -- create
                 (c, out, err) <- createWalletViaCLI ctx
-                            args (unwords $ T.unpack <$> mnemonic)
+                            args (T.unpack (someMnemonicToSentence mnemonic))
                             "\n" "secure-passphrase"
                 T.unpack err `shouldContain` cmdOk
                 c `shouldBe` ExitSuccess
@@ -197,9 +198,9 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         [ "The wallet that didn't exist"
                         , "--wallet-style", style
                         ]
-                (c, out, err) <- createWalletViaCLI ctx
-                            args (unwords $ T.unpack <$> mnemonic)
-                            "\n" "secure-passphrase"
+                (c, out, err) <- createWalletViaCLI
+                    ctx args (T.unpack (someMnemonicToSentence mnemonic))
+                    "\n" "secure-passphrase"
                 T.unpack err `shouldContain` errMsg400NumberOfWords
                 c `shouldBe` ExitFailure 1
                 out `shouldBe` mempty
@@ -208,37 +209,37 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                 mnemonic <- runIO genMnemonicIO
                 flip it (test style mnemonic) $ unwords
                     [ style
-                    , show (length mnemonic)
+                    , show (length (someMnemonicToWords mnemonic))
                     , "words"
                     ]
 
-        it' "random" (genMnemonics M9)  scenarioFailure -- ❌
-        it' "random" (genMnemonics M12) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics M15) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics M18) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics M21) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics M24) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "random" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "icarus" (genMnemonics M9)  scenarioFailure -- ❌
-        it' "icarus" (genMnemonics M12) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics M15) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics M18) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics M21) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics M24) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "trezor" (genMnemonics M9)  scenarioFailure -- ❌
-        it' "trezor" (genMnemonics M12) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics M15) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics M18) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics M21) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics M24) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "ledger" (genMnemonics M9)  scenarioFailure -- ❌
-        it' "ledger" (genMnemonics M12) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics M15) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics M18) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics M21) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics M24) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
     describe "CLI_BYRON_RESTORE_06 - Passphrase" $ do
         let minLength = passphraseMinLength (Proxy @"user")
@@ -260,9 +261,9 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         [ "Name of the wallet"
                         , "--wallet-style", "random"
                         ]
-                mnemonic <- liftIO $ genMnemonics M12
+                mnemonic <- liftIO $ Mnemonics.generateSome Mnemonics.M12
                 (c, out, err) <- createWalletViaCLI ctx
-                            args (unwords $ T.unpack <$> mnemonic)
+                            args (T.unpack (someMnemonicToSentence mnemonic))
                             "\n" (T.unpack passphrase)
                 T.unpack err `shouldContain` cmdOk
                 _ <- expectValidJSON (Proxy @ApiByronWallet) out

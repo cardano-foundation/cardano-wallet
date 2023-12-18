@@ -16,10 +16,12 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 
 import Prelude
 
+import Cardano.Faucet.Mnemonics
+    ( bigDustWallet
+    , onlyDustWallet
+    )
 import Cardano.Mnemonic
-    ( entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
+    ( mnemonicToText
     )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
@@ -37,10 +39,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
-    )
-import Cardano.Wallet.Faucet.Mnemonics
-    ( bigDustWallet
-    , onlyDustWallet
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -134,6 +132,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Address as CA
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
@@ -816,12 +815,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let addrShelley = (addrs !! 1) ^. #id
 
             -- Create an Icarus address:
-            addrIcarus <- liftIO $ encodeAddress (sNetworkId @n) . head . icarusAddresses @n
-                . entropyToMnemonic @15 <$> genEntropy
+            addrIcarus <-
+                encodeAddress (sNetworkId @n) . head . icarusAddresses @n
+                    <$> Mnemonics.generateSome Mnemonics.M15
 
             -- Create a Byron address:
-            addrByron <- liftIO $ encodeAddress (sNetworkId @n) . head . randomAddresses @n
-                . entropyToMnemonic @12 <$> genEntropy
+            addrByron <-
+                encodeAddress (sNetworkId @n) . head . randomAddresses @n
+                    <$> Mnemonics.generateSome Mnemonics.M12
 
             -- Create a source wallet:
             sourceWallet <- emptyWallet ctx
@@ -1229,7 +1230,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , "."
                 ]
         it title $ \ctx -> runResourceT $ do
-
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let sourceBalance =

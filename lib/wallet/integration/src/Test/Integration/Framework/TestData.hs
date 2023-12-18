@@ -111,6 +111,12 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic
+    )
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAssetMetadata (ApiAssetMetadata)
     , ApiT (..)
@@ -265,25 +271,25 @@ steveToken = ApiAssetMetadata
 cmdOk :: String
 cmdOk = "Ok.\n"
 
-payloadWith :: Text -> [Text] -> Payload
+payloadWith :: Text -> SomeMnemonic -> Payload
 payloadWith name mnemonics = Json [json| {
      "name": #{name},
-     "mnemonic_sentence": #{mnemonics},
+     "mnemonic_sentence": #{someMnemonicToWords mnemonics},
      "passphrase": #{fixturePassphrase}
      } |]
 
-payloadWith' :: Text -> [Text] -> Word32 -> Payload
+payloadWith' :: Text -> SomeMnemonic -> Word32 -> Payload
 payloadWith' name mnemonics gap = Json [json| {
      "name": #{name},
-     "mnemonic_sentence": #{mnemonics},
+     "mnemonic_sentence": #{someMnemonicToWords mnemonics},
      "passphrase": #{fixturePassphrase},
      "address_pool_gap": #{gap}
      } |]
 
-simplePayload :: [Text] -> Payload
+simplePayload :: SomeMnemonic -> Payload
 simplePayload mnemonic = Json [json| {
     "name": "Secure Wallet",
-    "mnemonic_sentence": #{mnemonic},
+    "mnemonic_sentence": #{someMnemonicToWords mnemonic},
     "passphrase": #{fixturePassphrase}
     } |]
 
@@ -298,15 +304,15 @@ updatePassPayload oldPass newPass = Json [json| {
     "new_passphrase": #{newPass}
       } |]
 
-updatePassPayloadMnemonic :: [Text] -> Text -> Payload
+updatePassPayloadMnemonic :: SomeMnemonic -> Text -> Payload
 updatePassPayloadMnemonic mnemonic  newPass = Json [json| {
-    "mnemonic_sentence": #{mnemonic},
+    "mnemonic_sentence": #{someMnemonicToWords mnemonic},
     "new_passphrase": #{newPass}
       } |]
 
-updatePassPayloadMnemonicAndSndFactor :: [Text] -> [Text] -> Text -> Payload
+updatePassPayloadMnemonicAndSndFactor :: SomeMnemonic -> [Text] -> Text -> Payload
 updatePassPayloadMnemonicAndSndFactor mnemonic sndFactor newPass = Json [json| {
-    "mnemonic_sentence": #{mnemonic},
+    "mnemonic_sentence": #{someMnemonicToWords mnemonic},
     "mnemonic_second_factor": #{sndFactor},
     "new_passphrase": #{newPass}
       } |]

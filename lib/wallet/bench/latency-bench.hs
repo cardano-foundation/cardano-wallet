@@ -65,12 +65,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Faucet
-    ( byronIntegrationTestFunds
-    , initFaucet
-    , maryIntegrationTestFunds
-    , shelleyIntegrationTestFunds
-    )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc
     , fmtResult
@@ -85,6 +79,7 @@ import Cardano.Wallet.Launch.Cluster
     , defaultPoolConfigs
     , testnetMagicToNatural
     , withCluster
+    , withFaucet
     )
 import Cardano.Wallet.LocalCluster
     ( clusterConfigsDirParser
@@ -226,8 +221,9 @@ import UnliftIO.STM
     ( TVar
     )
 
+import qualified Cardano.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Faucet.Addresses as Addresses
+import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -561,19 +557,18 @@ walletApiBench capture ctx = do
         fmtResult "getNetworkInfo     " t
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
-withShelleyServer tracers action = do
+withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
+    faucetFunds <- mkFaucetFunds faucetClientEnv
     ctx <- newEmptyMVar
     let testnetMagic = Cluster.TestnetMagic 42
     let setupContext np baseUrl = do
             let sixtySeconds = 60 * 1_000_000 -- 60s in microseconds
-            manager <- (baseUrl,) <$> newManager (defaultManagerSettings
-                { managerResponseTimeout =
-                    responseTimeoutMicro sixtySeconds
-                })
-            faucet <- initFaucet
+            manager <- newManager defaultManagerSettings
+                { managerResponseTimeout = responseTimeoutMicro sixtySeconds }
+            faucet <- Faucet.initFaucet faucetClientEnv
             putMVar ctx Context
                 { _cleanup = pure ()
-                , _manager = manager
+                , _manager = (baseUrl, manager)
                 , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
                 , _networkParameters = np
@@ -586,10 +581,21 @@ withShelleyServer tracers action = do
                 , _moveRewardsToScript =
                     error "moveRewardsToScript not available"
                 }
-    race_ (takeMVar ctx >>= action) (withServer testnetMagic setupContext)
-
+    race_
+        (takeMVar ctx >>= action)
+        (withServer testnetMagic faucetFunds setupContext)
   where
-    withServer cfgTestnetMagic setupAction = do
+    mkFaucetFunds clientEnv = do
+        shelleyFunds <- Faucet.shelleyFunds clientEnv shelleyTestnet
+        maryAllegraFunds <-
+            Faucet.maryAllegraFunds clientEnv shelleyTestnet (Coin 10_000_000)
+        pure FaucetFunds
+            { pureAdaFunds = shelleyFunds
+            , maryAllegraFunds
+            , mirCredentials = []
+            }
+
+    withServer cfgTestnetMagic faucetFunds setupAction = do
         skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
         withSystemTempDir stdoutTextTracer "latency" skipCleanup $ \dir -> do
             let db = dir </> "wallets"
@@ -616,14 +622,7 @@ withShelleyServer tracers action = do
                         -- when it low then cluster is not making blocks;
                         ]
                     }
-                FaucetFunds
-                    { pureAdaFunds =
-                        shelleyIntegrationTestFunds shelleyTestnet
-                            <> byronIntegrationTestFunds shelleyTestnet
-                            <> massiveWalletFunds
-                    , maFunds = maryIntegrationTestFunds (Coin 10_000_000)
-                    , mirFunds = []
-                    }
+                faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)
 
     onClusterStart testnetMagic setupAction db node = do
@@ -659,7 +658,7 @@ massiveWalletFunds :: [(Address, Coin)]
 massiveWalletFunds =
     take massiveWalletUTxOSize
       $ map (, massiveWalletAmt)
-      $ Addresses.shelley massiveWallet
+      $ Addresses.shelley shelleyTestnet massiveWallet
 
 massiveWalletAmt :: Coin
 massiveWalletAmt = ada 1_000

@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {- HLINT ignore "Use camelCase" -}
 
@@ -21,7 +22,8 @@ module Test.Integration.Scenario.API.Shelley.CoinSelections
 import Prelude
 
 import Cardano.Mnemonic
-    ( mnemonicToText
+    ( SomeMnemonic (..)
+    , mnemonicToText
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeCIP1852
@@ -306,13 +308,13 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other" $
         \ctx -> runResourceT $ do
-        (_, mnemonic) <- rewardWallet ctx
+        (_, SomeMnemonic (mnemonicToText -> mnemonicTxt)) <- rewardWallet ctx
         source <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
 
         let amount = ApiAmount . minUTxOValue $ _mainEra ctx
         let payment = AddressAmount addr amount mempty
-        let transform = addField "withdrawal" (mnemonicToText mnemonic)
+        let transform = addField "withdrawal" mnemonicTxt
 
         res <- selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform
         verifyMsg "HTTP status" res

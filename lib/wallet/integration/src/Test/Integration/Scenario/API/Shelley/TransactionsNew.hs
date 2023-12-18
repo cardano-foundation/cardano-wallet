@@ -123,6 +123,9 @@ import Cardano.Wallet.Api.Types.WalletAsset
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     )
+import Cardano.Wallet.Faucet
+    ( nextShelleyMnemonic
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
@@ -285,6 +288,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , fixtureMultiAssetWallet
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
@@ -2675,7 +2679,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "ADP-3077"
-        (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+        (w, mw) <- fixtureShelleyWallet ctx
 
         -- Construct tx
         payload <- mkTxPayload ctx w (minUTxOValue (_mainEra ctx)) 1
@@ -2688,7 +2692,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- (a) known of the wallet (so within the address pool gap)
         -- (b) not to small, so that it's not already present from the selected
         -- inputs witnesses!
-        let rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
+        let rootSk = Shelley.generateKeyFromSeed (mw, Nothing) mempty
             acctSk = deriveAccountPrivateKey mempty rootSk minBound
             addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal (toEnum 14)
             addrVk = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS addrSk

@@ -17,6 +17,9 @@ import Prelude hiding
     ( id
     )
 
+import Cardano.Faucet.Mnemonics
+    ( preregKeyWallet
+    )
 import Cardano.Mnemonic
     ( mnemonicToText
     )
@@ -52,9 +55,6 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (NoUtxosAvailable)
-    )
-import Cardano.Wallet.Faucet.Mnemonics
-    ( preregKeyWallet
     )
 import Cardano.Wallet.Pools
     ( StakePool (..)
