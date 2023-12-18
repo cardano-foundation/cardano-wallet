@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 
@@ -21,6 +22,9 @@ import Control.Monad
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
+    )
+import Data.Data
+    ( Data
     )
 import Data.Hashable
     ( Hashable
@@ -44,7 +48,7 @@ import Quiet
 newtype TokenPolicyId =
     -- | Construct a 'TokenPolicyId' without any validation.
     UnsafeTokenPolicyId { unTokenPolicyId :: Hash "TokenPolicy" }
-    deriving stock (Eq, Ord, Generic)
+    deriving stock (Data, Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenPolicyId)
     deriving anyclass Hashable
 
