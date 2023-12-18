@@ -371,6 +371,7 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types.SchemaMetadata
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Api.Types.WalletAsset
+    Cardano.Wallet.Api.Types.WalletAssets
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
 
