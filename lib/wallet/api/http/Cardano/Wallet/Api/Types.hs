@@ -1791,7 +1791,7 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
 
 data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     { ada :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletMigrationBalance

@@ -4202,7 +4202,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
         { ada = Coin.toQuantity $ view #coin b
-        , assets = ApiT $ view #tokens b
+        , assets = ApiWalletAssets.fromTokenMap $ view #tokens b
         }
 
 migrateWallet
