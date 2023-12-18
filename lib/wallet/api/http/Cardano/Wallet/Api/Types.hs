@@ -441,9 +441,6 @@ import Cardano.Wallet.Primitive.Types.AssetId
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap
-    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -1415,7 +1412,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , index :: !Word32
     , address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     , datum :: !(Maybe (ApiT Write.DatumHash))
     }
     deriving (Eq, Generic, Show, Typeable)

@@ -5005,7 +5005,7 @@ fromExternalInput ApiExternalInput
     , index = ix
     , address = ApiAddress addr
     , amount = Quantity amt
-    , assets = ApiT assets
+    , assets
     , datum
     }
   =
@@ -5013,7 +5013,9 @@ fromExternalInput ApiExternalInput
         inp = toLedger $ TxIn tid ix
         script = Nothing
         addr' = toLedger addr
-        val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
+        val = toLedger $ TokenBundle
+            (Coin.fromNatural amt)
+            (ApiWalletAssets.toTokenMap assets)
         datum' = maybe Write.NoDatum (Write.DatumHash . getApiT) datum
         out = Write.TxOutInRecentEra addr' val datum' script
     in
