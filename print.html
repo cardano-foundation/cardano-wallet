@@ -1193,7 +1193,7 @@ Available options:
 <p><a class="admonition-anchor-link" href="user/common-use-cases/shared-wallets.html#admonition-note"></a></p>
 </div>
 <div>
-<p>The script templates use Cardano <a href="https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md">simple scripts</a> therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet"><code>POST /shared-wallets</code></a> swagger specification for more details.</p>
+<p>The script templates use Cardano <a href="https://github.com/IntersectMBO/cardano-node/blob/master/doc/reference/simple-scripts.md">simple scripts</a> therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet"><code>POST /shared-wallets</code></a> swagger specification for more details.</p>
 </div>
 </div>
 <h3 id="template-examples"><a class="header" href="#template-examples">Template examples</a></h3>
@@ -1671,17 +1671,17 @@ https://github.com/cardano-foundation/cardano-wallet/releases</p>
 <p>As a pre-requisite, you may want to install and configure <a href="https://nixos.org/">Nix</a> or <a href="https://www.haskell.org/cabal/">cabal</a>, depending on your weapon of choice.</p>
 <h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Repository</th><th>Releases</th><th>Linux</th><th>MacOS</th><th>Windows</th></tr></thead><tbody>
-<tr><td><a href="https://github.com/input-output-hk/cardano-node">cardano-node</a></td><td><a href="https://github.com/input-output-hk/cardano-node/releases">releases</a></td><td>✔️</td><td>✔️</td><td>✔️</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-db-sync">cardano-db-sync</a></td><td><a href="https://github.com/input-output-hk/cardano-db-sync/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a></td><td><a href="https://github.com/input-output-hk/cardano-node/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a></td><td><a href="https://github.com/input-output-hk/cardano-graphql/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a></td><td><a href="https://github.com/IntersectMBO/cardano-node/releases">releases</a></td><td>✔️</td><td>✔️</td><td>✔️</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-db-sync">cardano-db-sync</a></td><td><a href="https://github.com/IntersectMBO/cardano-db-sync/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a></td><td><a href="https://github.com/IntersectMBO/cardano-node/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-graphql">cardano-graphql</a></td><td><a href="https://github.com/cardano-foundation/cardano-graphql/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
 <tr><td><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a></td><td><a href="https://github.com/input-output-hk/cardano-rosetta/releases">releases</a></td><td>✔️</td><td>✔️</td><td>❌</td></tr>
 <tr><td><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></td><td><a href="https://github.com/cardano-foundation/cardano-wallet/releases">releases</a></td><td>✔️</td><td>✔️</td><td>✔️</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="running-with-docker"><a class="header" href="#running-with-docker">Running with Docker</a></h1>
 <p>Docker images are continuously built and deployed on <a href="https://hub.docker.com/u/cardanofoundation">dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:</p>
 <div class="table-wrapper"><table><thead><tr><th style="text-align: left">Repository</th><th style="text-align: center">Tags</th><th style="text-align: center">Documentation</th></tr></thead><tbody>
-<tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-node">inputoutput/cardano-node</a></td><td style="text-align: center"><code>master</code>, <code>MAJ.MIN.PATCH</code>, <code>latest</code></td><td style="text-align: center"><a href="https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25">link</a></td></tr>
+<tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-node">inputoutput/cardano-node</a></td><td style="text-align: center"><code>master</code>, <code>MAJ.MIN.PATCH</code>, <code>latest</code></td><td style="text-align: center"><a href="https://github.com/IntersectMBO/cardano-node/blob/master/nix/docker.nix#L1-L25">link</a></td></tr>
 <tr><td style="text-align: left">[cardanofoundation/cardano-wallet][cardanofoundation-cardano-wallet]</td><td style="text-align: center"><code>byron</code>, <code>YYYY.MM.DD-byron</code>, <code>latest</code></td><td style="text-align: center"><a href="user/installation/use-docker.html">Docker</a></td></tr>
 </tbody></table>
 </div>
@@ -1734,7 +1734,7 @@ inside the Docker image, use the bash shell as the entrypoint:</p>
 <pre><code>wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
 NETWORK=mainnet docker-compose up
 </code></pre>
-<p>There is also an example configuration for <a href="https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml">cardano-graphql</a>.</p>
+<p>There is also an example configuration for <a href="https://github.com/cardano-foundation/cardano-graphql/blob/master/docker-compose.yml">cardano-graphql</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="running-cardano-wallet-with-nixos"><a class="header" href="#running-cardano-wallet-with-nixos">Running cardano-wallet with NixOS</a></h1>
 <h2 id="running-without-installation"><a class="header" href="#running-without-installation">Running without installation</a></h2>
 <p>The following command will download and run a given release of <code>cardano-wallet</code> using Nix:</p>
@@ -1819,7 +1819,7 @@ v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 </div>
 </div>
 <h3 id="serve"><a class="header" href="#serve">serve</a></h3>
-<p>Serve API that listens for commands/actions. Before launching user should start <a href="https://github.com/input-output-hk/cardano-node"><code>cardano-node</code></a>.</p>
+<p>Serve API that listens for commands/actions. Before launching user should start <a href="https://github.com/IntersectMBO/cardano-node"><code>cardano-node</code></a>.</p>
 <pre><code class="language-console">Usage: cardano-wallet serve [--listen-address HOST]
                             (--node-socket FILE [--sync-tolerance DURATION])
                             [--random-port | --port INT]
@@ -2291,7 +2291,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet
 <li><a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/swagger.yaml">OpenAPI specs</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="hardware-recommendations"><a class="header" href="#hardware-recommendations">Hardware recommendations</a></h2>
-<p>As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node's <a href="https://github.com/input-output-hk/cardano-node/releases">release page</a>. For most cases cardano-node's hardware requirements are good enough to cover requirements of running cardano-wallet as well.</p>
+<p>As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node's <a href="https://github.com/IntersectMBO/cardano-node/releases">release page</a>. For most cases cardano-node's hardware requirements are good enough to cover requirements of running cardano-wallet as well.</p>
 <p>Here are some general hardware recommendations for running cardano-wallet:</p>
 <ul>
 <li><strong>Processor:</strong> A multicore processor with a clock speed of at least 1.6 GHz or faster is recommended, but a faster processor is better for optimal performance.</li>
@@ -2330,7 +2330,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet
 <h2 id="typescriptjavascript"><a class="header" href="#typescriptjavascript">TypeScript/JavaScript</a></h2>
 <ul>
 <li><a href="https://github.com/input-output-hk/daedalus"><code>input-output-hk/daedalus</code></a> - a graphical Cardano Wallet user interface using Electron and the <a href="https://github.com/input-output-hk/react-polymorph">React Polymorph</a> framework.</li>
-<li><a href="https://github.com/input-output-hk/cardano-launcher"><code>input-output-hk/cardano-launcher</code></a> - a library for configuring, starting and stopping <code>cardano-wallet</code> and <code>cardano-node</code>.</li>
+<li><a href="https://github.com/IntersectMBO/cardano-launcher"><code>IntersectMBO/cardano-launcher</code></a> - a library for configuring, starting and stopping <code>cardano-wallet</code> and <code>cardano-node</code>.</li>
 <li><a href="https://github.com/tango-crypto/cardano-wallet-js"><code>tango-crypto/cardano-wallet-js</code></a> - a Typescript/Javascript module for accessing the <code>cardano-wallet</code> REST <a href="https://cardano-foundation.github.io/cardano-wallet/api/edge/">API</a>.</li>
 </ul>
 <h2 id="unknown"><a class="header" href="#unknown">Unknown</a></h2>
@@ -2627,11 +2627,11 @@ arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, 
 <p>This is how the software components fit together in the <a href="design/architecture.html#daedalus">Daedalus</a> scenario.</p>
 <p>See also: <a href="design/adrestia-architecture.html">Adrestia Architecture</a>.</p>
 <h2 id="node"><a class="header" href="#node">Node</a></h2>
-<p>The core <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.</p>
+<p>The core <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.</p>
 <h2 id="wallet-backend"><a class="header" href="#wallet-backend">Wallet Backend</a></h2>
 <p><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> is an HTTP REST API is recommended for 3rd party wallets and small exchanges who do not want to manage UTxOs for transactions themselves. Use it to send and receive payments from hierarchical deterministic wallets on the Cardano blockchain via HTTP REST or a command-line interface.</p>
 <h2 id="cardano-launcher"><a class="header" href="#cardano-launcher">Cardano Launcher</a></h2>
-<p><a href="https://github.com/input-output-hk/cardano-launcher">cardano-launcher</a> is a TypeScript package which handles the details of starting and stopping the Node and Wallet Backend.</p>
+<p><a href="https://github.com/IntersectMBO/cardano-launcher">cardano-launcher</a> is a TypeScript package which handles the details of starting and stopping the Node and Wallet Backend.</p>
 <h2 id="daedalus"><a class="header" href="#daedalus">Daedalus</a></h2>
 <p><a href="https://github.com/input-output-hk/daedalus">Daedalus</a> is a user-friendly desktop application to manage Cardano wallets.</p>
 <h2 id="smash"><a class="header" href="#smash">SMASH</a></h2>
@@ -2643,16 +2643,16 @@ arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, 
 <p>Service applications for integrating with Cardano.</p>
 <ul>
 <li><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a>: HTTP REST API for managing UTxOs, and much more.</li>
-<li><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a>: HTTP GraphQL API for exploring the blockchain.</li>
+<li><a href="https://github.com/cardano-foundation/cardano-graphql">cardano-graphql</a>: HTTP GraphQL API for exploring the blockchain.</li>
 <li><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a>: <a href="https://www.rosetta-api.org/docs/1.4.4/welcome.html">Rosetta</a> implementation for Cardano.</li>
-<li><a href="https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a>: HTTP API for submitting signed transactions.</li>
+<li><a href="https://github.com/IntersectMBO/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a>: HTTP API for submitting signed transactions.</li>
 </ul>
 <h2 id="software-libraries"><a class="header" href="#software-libraries">Software Libraries</a></h2>
 <ul>
-<li><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a>: Address generation, derivation &amp;  mnemonic manipulation.</li>
-<li><a href="https://github.com/input-output-hk/cardano-coin-selection">cardano-coin-selection</a>: Algorithms for coin selection and fee balancing.</li>
-<li><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a>: Utilities for constructing and signing transactions.</li>
-<li><a href="https://github.com/input-output-hk/bech32">bech32</a>: Haskell implementation of the Bech32 address format (BIP 0173).</li>
+<li><a href="https://github.com/IntersectMBO/cardano-addresses">cardano‑addresses</a>: Address generation, derivation &amp;  mnemonic manipulation.</li>
+<li><a href="https://github.com/IntersectMBO/cardano-coin-selection">cardano-coin-selection</a>: Algorithms for coin selection and fee balancing.</li>
+<li><a href="https://github.com/IntersectMBO/cardano-transactions">cardano-transactions</a>: Utilities for constructing and signing transactions.</li>
+<li><a href="https://github.com/IntersectMBO/bech32">bech32</a>: Haskell implementation of the Bech32 address format (BIP 0173).</li>
 </ul>
 <h2 id="high-level-dependency-diagram"><a class="header" href="#high-level-dependency-diagram">High-Level Dependency Diagram</a></h2>
 <pre class="mermaid">flowchart TB
@@ -2687,21 +2687,21 @@ arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, 
   class PostgreSQL other;
 </pre>
 <h2 id="component-synopsis"><a class="header" href="#component-synopsis">Component Synopsis</a></h2>
-<h3 id="cardano-node"><a class="header" href="#cardano-node"><a href="https://github.com/input-output-hk/cardano-node">cardano-node</a></a></h3>
-<p>The core <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.</p>
+<h3 id="cardano-node"><a class="header" href="#cardano-node"><a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a></a></h3>
+<p>The core <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a>, which participates in the Cardano network, and maintains the state of the Cardano blockchain ledger.</p>
 <h4 id="cardano-network-protocol"><a class="header" href="#cardano-network-protocol">Cardano Network Protocol</a></h4>
-<p>An implementation of the protocol is <a href="https://github.com/input-output-hk/ouroboros-network">here</a>, deployed as stake pool nodes and relay nodes to form the Cardano network.</p>
+<p>An implementation of the protocol is <a href="https://github.com/IntersectMBO/ouroboros-network">here</a>, deployed as stake pool nodes and relay nodes to form the Cardano network.</p>
 <h3 id="cardano-wallet-1"><a class="header" href="#cardano-wallet-1"><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></a></h3>
 <p><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> An HTTP REST API is recommended for 3rd party wallets and small exchanges who do not want to manage UTxOs for transactions themselves. Use it to send and receive payments from hierarchical deterministic wallets on the Cardano blockchain via HTTP REST or a command-line interface.</p>
-<h3 id="cardanolauncher"><a class="header" href="#cardanolauncher"><a href="https://github.com/input-output-hk/cardano-launcher">cardano‑launcher</a></a></h3>
-<p>This is a small Typescript package for NodeJS applications which manages the configuration and lifetime of <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a> processes.</p>
-<h3 id="cardano-db-sync"><a class="header" href="#cardano-db-sync"><a href="https://github.com/input-output-hk/cardano-db-sync">cardano-db-sync</a></a></h3>
-<p>This application stores blockchain data fetched from <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a> in a PostgreSQL database to enable higher-level interfaces for blockchain exploration. It powers <a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a>.</p>
-<h3 id="cardano-graphql"><a class="header" href="#cardano-graphql"><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a></a></h3>
+<h3 id="cardanolauncher"><a class="header" href="#cardanolauncher"><a href="https://github.com/IntersectMBO/cardano-launcher">cardano‑launcher</a></a></h3>
+<p>This is a small Typescript package for NodeJS applications which manages the configuration and lifetime of <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a> processes.</p>
+<h3 id="cardano-db-sync"><a class="header" href="#cardano-db-sync"><a href="https://github.com/IntersectMBO/cardano-db-sync">cardano-db-sync</a></a></h3>
+<p>This application stores blockchain data fetched from <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a> in a PostgreSQL database to enable higher-level interfaces for blockchain exploration. It powers <a href="https://github.com/cardano-foundation/cardano-graphql">cardano-graphql</a>.</p>
+<h3 id="cardano-graphql"><a class="header" href="#cardano-graphql"><a href="https://github.com/cardano-foundation/cardano-graphql">cardano-graphql</a></a></h3>
 <p>A GraphQL API for Cardano, which also serves as the backend of
 <a href="https://explorer.cardano.org/">Cardano Explorer</a>.</p>
-<h3 id="cardano-submit-api"><a class="header" href="#cardano-submit-api"><a href="https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a></a></h3>
-<p>A small HTTP API for submitting transactions to a local <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a>.</p>
+<h3 id="cardano-submit-api"><a class="header" href="#cardano-submit-api"><a href="https://github.com/IntersectMBO/cardano-node/tree/master/cardano-submit-api">cardano-submit-api</a></a></h3>
+<p>A small HTTP API for submitting transactions to a local <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a>.</p>
 <p>The transaction must be fully signed and CBOR-encoded. This could be done by <a href="https://docs.cardano.org/projects/cardano-node/en/latest/reference/cardano-node-cli-reference.html">cardano-cli</a>, for example.</p>
 <h3 id="cardano-rosetta"><a class="header" href="#cardano-rosetta"><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a></a></h3>
 <p><a href="https://github.com/input-output-hk/cardano-rosetta">Cardano-rosetta</a> is an implementation of the <a href="https://www.rosetta-api.org/docs/1.4.4/welcome.html">Rosetta</a> specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.</p>
@@ -2759,25 +2759,25 @@ arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, 
 <h3 id="apis"><a class="header" href="#apis">APIs</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
 <tr><td><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></td><td>JSON/REST API for managing UTxOs in HD wallets</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-graphql">cardano-graphql</a></td><td>GraphQL/HTTP API for browsing on-chain data</td><td>✔</td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/cardano-foundation/cardano-graphql">cardano-graphql</a></td><td>GraphQL/HTTP API for browsing on-chain data</td><td>✔</td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
 <tr><td><a href="https://github.com/input-output-hk/cardano-rosetta">cardano-rosetta</a></td><td>Implementation of <a href="https://www.rosetta-api.org/">Rosetta</a> spec for Cardano</td><td></td><td></td><td>✔</td><td>✔</td><td>🚧</td></tr>
 <tr><td><del><a href="https://github.com/input-output-hk/cardano-rest">cardano-rest</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>✔</td><td>❌</td><td>❌</td></tr>
 </tbody></table>
 </div>
 <h3 id="clis"><a class="header" href="#clis">CLIs</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
-<tr><td><a href="https://github.com/input-output-hk/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td>N/A</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td>N/A</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
 <tr><td><a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a></td><td>Command-line for interacting with cardano-wallet API</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><del><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><del><a href="https://github.com/IntersectMBO/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
 </tbody></table>
 </div>
 <h3 id="haskell-sdks"><a class="header" href="#haskell-sdks">Haskell SDKs</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
-<tr><td><a href="https://github.com/input-output-hk/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td></td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><del><a href="https://github.com/input-output-hk/cardano-coin-selection">cardano-coin-selection</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>✔</td><td>✔</td><td>❌</td><td>❌</td></tr>
-<tr><td><del><a href="https://github.com/input-output-hk/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/bech32">bech32</a></td><td>Human-friendly Bech32 address encoding</td><td></td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-addresses">cardano‑addresses</a></td><td>Addresses and mnemonic manipulation &amp; derivations</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><del><a href="https://github.com/IntersectMBO/cardano-coin-selection">cardano-coin-selection</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>✔</td><td>✔</td><td>❌</td><td>❌</td></tr>
+<tr><td><del><a href="https://github.com/IntersectMBO/cardano-transactions">cardano-transactions</a></del></td><td><em>Deprecated</em></td><td>✔</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
 </tbody></table>
 </div>
 <h3 id="rust-sdks-webassembly-support"><a class="header" href="#rust-sdks-webassembly-support">Rust SDKs (+WebAssembly support)</a></h3>
@@ -2788,8 +2788,8 @@ arbitrary markdown or HTML supported / allowed by GitHub. This produces a nice, 
 </div>
 <h3 id="javascript-sdks"><a class="header" href="#javascript-sdks">JavaScript SDKs</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Name / Link</th><th>Description</th><th>Byron</th><th>Jörm</th><th>Shelley</th><th>Mary</th><th>Alonzo</th></tr></thead><tbody>
-<tr><td><a href="https://github.com/input-output-hk/cardano-launcher">cardano‑launcher</a></td><td>Typescript library for starting and stopping <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/input-output-hk/cardano-node">cardano-node</a></td><td></td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
-<tr><td><a href="https://github.com/input-output-hk/cardano-addresses">cardano‑addresses</a></td><td>Address validation and inspection</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-launcher">cardano‑launcher</a></td><td>Typescript library for starting and stopping <a href="https://github.com/cardano-foundation/cardano-wallet">cardano-wallet</a> and <a href="https://github.com/IntersectMBO/cardano-node">cardano-node</a></td><td></td><td>❌</td><td>✔</td><td>✔</td><td>✔</td></tr>
+<tr><td><a href="https://github.com/IntersectMBO/cardano-addresses">cardano‑addresses</a></td><td>Address validation and inspection</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr>
 </tbody></table>
 </div>
 <h3 id="formal-specifications"><a class="header" href="#formal-specifications">Formal Specifications</a></h3>
@@ -2819,15 +2819,15 @@ does not benefit from the same care in documentation than other tools above.</p>
 <li><a href="https://hydra.iohk.io/build/1224753/download/1/ledger-spec.pdf">A Formal Specification of the Cardano Ledger</a></li>
 <li>Networking Protocol(s)
 <ul>
-<li>Repository: <a href="https://github.com/input-output-hk/ouroboros-network">input-output-hk/ouroboros-network</a>, includes specifications</li>
+<li>Repository: <a href="https://github.com/IntersectMBO/ouroboros-network">IntersectMBO/ouroboros-network</a>, includes specifications</li>
 <li>Specification: <a href="https://hydra.iohk.io/build/6955704/download/2/network-spec.pdf">The Shelley Networking Protocol</a> (Version 1.3.0, 16th July 2021)</li>
 </ul>
 </li>
 <li>Low-Level Specifications
 <ul>
 <li><a href="https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl"> [Byron] On-Chain Binary Formats</a></li>
-<li><a href="https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl">  [Shelley] Network Binary Formats - Draft</a></li>
-<li><a href="https://github.com/input-output-hk/cardano-ledger/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32"> [Shelley] On chain Binary formats - Draft</a></li>
+<li><a href="https://github.com/IntersectMBO/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl">  [Shelley] Network Binary Formats - Draft</a></li>
+<li><a href="https://github.com/IntersectMBO/cardano-ledger/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32"> [Shelley] On chain Binary formats - Draft</a></li>
 </ul>
 </li>
 </ul>
@@ -2896,7 +2896,7 @@ TestAlonzoHardForkAtEpoch: 0
 <p>For <code>cardano-cli</code>, there are <code>--byron-mode</code>, <code>--shelley-mode</code>, and <code>--cardano-mode</code> switches, to tell the network client which mode the local node is using.</p>
 <p>Cardano Mode is the default. I'm not aware of too many people using single-era modes for anything much.</p>
 <h2 id="specifications"><a class="header" href="#specifications">Specifications</a></h2>
-<p>Formal specifications (and the actual implementations!) for each Cardano era exist in the <a href="https://github.com/input-output-hk/cardano-ledger">input-output-hk/cardano-ledger</a> repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the <a href="https://github.com/input-output-hk/cardano-ledger/blob/master/README.md"><code>README.md</code></a> for links to PDFs and/or build instructions.</p>
+<p>Formal specifications (and the actual implementations!) for each Cardano era exist in the <a href="https://github.com/IntersectMBO/cardano-ledger">IntersectMBO/cardano-ledger</a> repo. These documents are surprisingly readable, and are our go-to source for answers about how the node operates. See the <a href="https://github.com/IntersectMBO/cardano-ledger/blob/master/README.md"><code>README.md</code></a> for links to PDFs and/or build instructions.</p>
 <h3 id="decentralized-update-proposals"><a class="header" href="#decentralized-update-proposals">Decentralized Update Proposals</a></h3>
 <p>The <a href="https://github.com/input-output-hk/decentralized-software-updates">input-output-hk/decentralized-software-updates</a> repo contains research materials for a <em>future</em> implementation of decentralized software updates.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="recovery-phrases"><a class="header" href="#recovery-phrases">Recovery Phrases</a></h1>
@@ -4007,7 +4007,7 @@ This mode aims to make synchronisation to the blockchain faster by trusting an o
 <h2 id="external"><a class="header" href="#external">External</a></h2>
 <ul>
 <li>
-<p><a href="https://github.com/input-output-hk/cardano-launcher">Cardano-launcher</a> will have to be modified to not launch the <code>cardano-node</code> process when the cardano-wallet is launched in light-mode.</p>
+<p><a href="https://github.com/IntersectMBO/cardano-launcher">Cardano-launcher</a> will have to be modified to not launch the <code>cardano-node</code> process when the cardano-wallet is launched in light-mode.</p>
 </li>
 <li>
 <p>Provision of the data source and of the transaction submission service is outside the scope of light-mode; we assume these services will be operated and paid for by someone. (Any light wallet assumes this.) In the MVP, we use <a href="http://blockfrost.io">Blockfrost</a> for demonstration purposes.</p>
@@ -5968,7 +5968,7 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
 </ul>
 <h2 id="binary-cache"><a class="header" href="#binary-cache">Binary cache</a></h2>
 <p>To improve build speed, it is <strong>highly recommended</strong> (but not mandatory) to configure the <strong>binary cache maintained by IOG</strong>.</p>
-<p>See <a href="https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md">iohk-nix/docs/nix.md</a> or <a href="https://github.com/input-output-hk/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix">cardano-node/doc/getting-started/building-the-node-using-nix.md</a>
+<p>See <a href="https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md">iohk-nix/docs/nix.md</a> or <a href="https://github.com/IntersectMBO/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix">cardano-node/doc/getting-started/building-the-node-using-nix.md</a>
 for instructions on how to configure the IOG binary cache on your system.</p>
 <h2 id="building-with-nix"><a class="header" href="#building-with-nix">Building with Nix</a></h2>
 <p>See the

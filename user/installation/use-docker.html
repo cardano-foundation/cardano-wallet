@@ -150,7 +150,7 @@
                         <h1 id="running-with-docker"><a class="header" href="#running-with-docker">Running with Docker</a></h1>
 <p>Docker images are continuously built and deployed on <a href="https://hub.docker.com/u/cardanofoundation">dockerhub</a> under specific tags. Using docker provides <strong>the fastest</strong> and <strong>easiest</strong> user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:</p>
 <div class="table-wrapper"><table><thead><tr><th style="text-align: left">Repository</th><th style="text-align: center">Tags</th><th style="text-align: center">Documentation</th></tr></thead><tbody>
-<tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-node">inputoutput/cardano-node</a></td><td style="text-align: center"><code>master</code>, <code>MAJ.MIN.PATCH</code>, <code>latest</code></td><td style="text-align: center"><a href="https://github.com/input-output-hk/cardano-node/blob/master/nix/docker.nix#L1-L25">link</a></td></tr>
+<tr><td style="text-align: left"><a href="https://hub.docker.com/r/inputoutput/cardano-node">inputoutput/cardano-node</a></td><td style="text-align: center"><code>master</code>, <code>MAJ.MIN.PATCH</code>, <code>latest</code></td><td style="text-align: center"><a href="https://github.com/IntersectMBO/cardano-node/blob/master/nix/docker.nix#L1-L25">link</a></td></tr>
 <tr><td style="text-align: left">[cardanofoundation/cardano-wallet][cardanofoundation-cardano-wallet]</td><td style="text-align: center"><code>byron</code>, <code>YYYY.MM.DD-byron</code>, <code>latest</code></td><td style="text-align: center"><a href="use-docker.html">Docker</a></td></tr>
 </tbody></table>
 </div>
@@ -203,7 +203,7 @@ inside the Docker image, use the bash shell as the entrypoint:</p>
 <pre><code>wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/docker-compose.yml
 NETWORK=mainnet docker-compose up
 </code></pre>
-<p>There is also an example configuration for <a href="https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml">cardano-graphql</a>.</p>
+<p>There is also an example configuration for <a href="https://github.com/cardano-foundation/cardano-graphql/blob/master/docker-compose.yml">cardano-graphql</a>.</p>
 
                     </main>
 

@@ -2202,7 +2202,7 @@ components:
             description: |
               The raw type field of the address.
 
-              Details about possible address types are following (refer also to [cddl](https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl)).
+              Details about possible address types are following (refer also to [cddl](https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl)).
 
               | address_type | binary prefix  |   Meaning                                                |
               | ------------ |:--------------:|:--------------------------------------------------------:|
@@ -3772,7 +3772,7 @@ components:
 
     ScriptTemplateValue: *ScriptTemplateValue
 
-    # https://github.com/input-output-hk/cardano-ledger/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
+    # https://github.com/IntersectMBO/cardano-ledger/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
         - title: String
