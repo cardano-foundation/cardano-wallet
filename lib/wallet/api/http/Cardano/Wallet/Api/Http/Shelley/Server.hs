@@ -4726,7 +4726,7 @@ mkApiCoinSelectionChange txChange =
     ApiCoinSelectionChange
         { address = (ApiAddress $ view #address txChange)
         , amount = Coin.toQuantity $ view #amount txChange
-        , assets = ApiT $ view #assets txChange
+        , assets = ApiWalletAssets.fromTokenMap $ view #assets txChange
         , derivationPath = ApiT <$> view #derivationPath txChange
         }
 

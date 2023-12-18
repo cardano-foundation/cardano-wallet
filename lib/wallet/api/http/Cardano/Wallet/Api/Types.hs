@@ -919,7 +919,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
