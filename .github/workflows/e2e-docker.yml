@@ -6,16 +6,19 @@ on:
   workflow_dispatch:
     inputs:
       nodeTag:
-        description: 'Node tag (docker)'
+        description: 'Node docker-image tag to use'
         required: true
         default: '8.1.2'
       walletTag:
-        description: 'Wallet tag (docker)'
+        description: 'Wallet docker-image tag to use'
         required: true
         default: 'rc-latest'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
+      branch:
+        description: 'Clone E2E tests from branch'
+        default: 'rc-latest'
 
 defaults:
   run:
@@ -39,7 +42,7 @@ jobs:
     - name: Checkout the rc-latest tag
       uses: actions/checkout@v4.1.1
       with:
-        ref: ${{ github.event.inputs.walletTag || 'rc-latest' }}
+        ref: ${{ github.event.inputs.branch || 'rc-latest' }}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
