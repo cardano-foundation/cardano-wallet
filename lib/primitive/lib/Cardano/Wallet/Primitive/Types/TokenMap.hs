@@ -288,17 +288,15 @@ instance Ord (Lexicographic TokenMap) where
 -- Serialization
 --------------------------------------------------------------------------------
 
--- | When used with the 'Buildable' or 'ToJSON' instances, provides a flat
--- serialization style, where token quantities are paired with their asset
--- identifiers.
+-- | When used with the 'Buildable' instance, provides a flat serialization
+-- style, where token quantities are paired with their asset identifiers.
 --
 newtype Flat a = Flat { getFlat :: a }
     deriving stock (Eq, Generic, Ord)
     deriving Show via (Quiet (Flat a))
 
--- | When used with the 'Buildable' or 'ToJSON' instances, provides a nested
--- serialization style, where token quantities are grouped by policy
--- identifier.
+-- | When used with the 'Buildable' instance, provides a nested serialization
+-- style, where token quantities are grouped by policy identifier.
 --
 newtype Nested a = Nested { getNested :: a }
     deriving stock (Eq, Generic, Ord)
