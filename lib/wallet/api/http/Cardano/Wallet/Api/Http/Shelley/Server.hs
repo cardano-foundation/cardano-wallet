@@ -3107,7 +3107,7 @@ toUnsignedTxInp = \case
             address = apiAddress (i ^. #address)
             derivationPath = fmap getApiT (i ^. #derivationPath)
             coin = Coin.fromQuantity (i ^. #amount)
-            assets = getApiT (i ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (i ^. #assets)
             txIn = TxIn txId index
             txOut = TxOut address (TokenBundle coin assets)
         in
@@ -3623,7 +3623,7 @@ toInp (txin@(TxIn txid ix), txoutPathM) =
                 , address = ApiAddress addr
                 , derivationPath = NE.map ApiT path
                 , amount = Quantity $ fromIntegral c
-                , assets = ApiT tmap
+                , assets = ApiWalletAssets.fromTokenMap tmap
                 }
 
 toOut
@@ -4714,7 +4714,7 @@ mkApiCoinSelectionInput
         , index = index
         , address = ApiAddress addr
         , amount = Coin.toQuantity amount
-        , assets = ApiT assets
+        , assets = ApiWalletAssets.fromTokenMap assets
         , derivationPath = ApiT <$> path
         }
 

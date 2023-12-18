@@ -67,7 +67,8 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Api.Types.WalletAssets
-    ()
+    ( ApiWalletAssets
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminant
@@ -228,7 +229,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , address :: ApiAddress n
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
