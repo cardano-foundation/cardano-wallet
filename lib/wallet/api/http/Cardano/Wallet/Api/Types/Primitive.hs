@@ -127,9 +127,7 @@ import Data.Word.Odd
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
@@ -319,11 +317,6 @@ instance FromJSON (ApiT SlotNo) where
     parseJSON = fmap (ApiT . SlotNo) . parseJSON
 instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
-
-instance FromJSON (ApiT W.TokenMap) where
-    parseJSON = fmap (ApiT . W.getFlat) . parseJSON
-instance ToJSON (ApiT W.TokenMap) where
-    toJSON = toJSON . W.Flat . getApiT
 
 instance FromJSON (ApiT TxIn) where
     parseJSON = withObject "TxIn" $ \v -> ApiT <$>

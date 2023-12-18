@@ -2,8 +2,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2023 Cardano Foundation
@@ -21,7 +23,7 @@ module Cardano.Wallet.Api.Types.WalletAssets
 import Prelude
 
 import Cardano.Wallet.Api.Lib.ApiT
-    ( ApiT (ApiT)
+    ( ApiT (ApiT, getApiT)
     )
 import Cardano.Wallet.Api.Types.WalletAsset
     ( ApiWalletAsset (..)
@@ -74,3 +76,9 @@ toTokenMap :: ApiWalletAssets -> W.TokenMap
 toTokenMap = W.TokenMap.fromFlatList . fmap f . toList
   where
     f (ApiWalletAsset (ApiT p) (ApiT a) q) = (W.AssetId p a, W.TokenQuantity q)
+
+instance FromJSON (ApiT W.TokenMap) where
+    parseJSON = fmap (ApiT . toTokenMap) . parseJSON
+
+instance ToJSON (ApiT W.TokenMap) where
+    toJSON = toJSON . fromTokenMap . getApiT

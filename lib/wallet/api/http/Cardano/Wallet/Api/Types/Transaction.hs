@@ -66,6 +66,8 @@ import Cardano.Wallet.Api.Types.MintBurn
     )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Api.Types.WalletAssets
+    ()
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminant
