@@ -27,13 +27,9 @@ import Cardano.Startup
     ( installSignalHandlers
     , setDefaultFilePermissions
     )
-import Cardano.Wallet.Faucet
-    ( byronIntegrationTestFunds
-    , maryIntegrationTestFunds
-    , shelleyIntegrationTestFunds
-    )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
+    , withFaucet
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -66,10 +62,11 @@ import UnliftIO.Concurrent
     )
 
 import qualified Cardano.Address.Style.Shelley as Shelley
+import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
-import qualified Cardano.Wallet.Faucet.Addresses as Addresses
-import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Options.Applicative as O
 import qualified Path
@@ -202,7 +199,8 @@ main = withUtf8 $ do
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     let tr = stdoutTextTracer
-    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath -> do
+    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath ->
+        withFaucet $ \faucetClientEnv -> do
         clusterEra <- Cluster.clusterEraFromEnv
         cfgNodeLogging <-
             Cluster.logFileConfigFromEnv
@@ -217,7 +215,23 @@ main = withUtf8 $ do
                 , cfgTestnetMagic = Cluster.TestnetMagic 42
                 , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
                 }
-        Cluster.withCluster stdoutTextTracer clusterCfg faucetFunds $ \node -> do
+        maryAllegraFunds <-
+            Faucet.maryAllegraFunds
+                faucetClientEnv
+                shelleyTestnet
+                (Coin 10_000_000)
+        Cluster.withCluster stdoutTextTracer clusterCfg
+            Cluster.FaucetFunds
+            { pureAdaFunds = []
+            , maryAllegraFunds
+            , mirCredentials =
+                [ ( Cluster.KeyCredential (Shelley.getKey xPub)
+                  , Coin 1_000_000__000_000
+                  )
+                | m <- Mnemonics.mir
+                , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
+                ]
+            } $ \node -> do
             clusterDir <- Path.parseAbsDir clusterPath
             let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
             PathIO.createDirIfMissing False walletDir
@@ -244,23 +258,6 @@ main = withUtf8 $ do
                     )
                     (WC.stop . fst)
                 threadDelay maxBound -- wait for Ctrl+C
-  where
-    networkTag = shelleyTestnet
-    faucetFunds =
-        Cluster.FaucetFunds
-            { pureAdaFunds =
-                shelleyIntegrationTestFunds networkTag
-                    <> byronIntegrationTestFunds networkTag
-            , maFunds =
-                maryIntegrationTestFunds (Coin 10_000_000)
-            , mirFunds =
-                [ ( Cluster.KeyCredential $ Shelley.getKey xPub
-                  , Coin (fromIntegral Cluster.oneMillionAda)
-                  )
-                | m <- Mnemonics.mir
-                , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
-                ]
-            }
 
 newtype CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
