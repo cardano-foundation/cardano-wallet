@@ -393,6 +393,9 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiWithdrawalGeneral (..)
     , ResourceContext (..)
     )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets
+    )
 import Cardano.Wallet.Pools
     ( EpochInfo
     , StakePool (..)
@@ -437,9 +440,6 @@ import Cardano.Wallet.Primitive.Types.AssetId
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -916,7 +916,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -926,7 +926,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Ord, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiCoinSelectionOutput n)
@@ -969,8 +969,8 @@ data ApiWalletBalance = ApiWalletBalance
     deriving anyclass NFData
 
 data ApiWalletAssetsBalance = ApiWalletAssetsBalance
-    { available :: !(ApiT TokenMap)
-    , total :: !(ApiT TokenMap)
+    { available :: !ApiWalletAssets
+    , total :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletAssetsBalance
@@ -1026,7 +1026,7 @@ newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
 
 data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
     { ada :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletUtxoSnapshotEntry
@@ -1412,7 +1412,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , index :: !Word32
     , address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     , datum :: !(Maybe (ApiT Write.DatumHash))
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -1788,7 +1788,7 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
 
 data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     { ada :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT TokenMap)
+    , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletMigrationBalance

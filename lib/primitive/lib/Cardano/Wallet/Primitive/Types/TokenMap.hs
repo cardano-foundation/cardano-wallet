@@ -4,7 +4,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -108,21 +107,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData
     )
-import Control.Monad
-    ( when
-    , (<=<)
-    )
-import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , camelTo2
-    , genericParseJSON
-    , genericToJSON
-    )
-import Data.Aeson.Types
-    ( Options (..)
-    , Parser
-    )
 import Data.Bifunctor
     ( first
     )
@@ -174,9 +158,6 @@ import Data.Semigroup.Commutative
 import Data.Set
     ( Set
     )
-import Data.Text.Class
-    ( toText
-    )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -201,7 +182,6 @@ import Safe
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -308,17 +288,15 @@ instance Ord (Lexicographic TokenMap) where
 -- Serialization
 --------------------------------------------------------------------------------
 
--- | When used with the 'Buildable' or 'ToJSON' instances, provides a flat
--- serialization style, where token quantities are paired with their asset
--- identifiers.
+-- | When used with the 'Buildable' instance, provides a flat serialization
+-- style, where token quantities are paired with their asset identifiers.
 --
 newtype Flat a = Flat { getFlat :: a }
     deriving stock (Eq, Generic, Ord)
     deriving Show via (Quiet (Flat a))
 
--- | When used with the 'Buildable' or 'ToJSON' instances, provides a nested
--- serialization style, where token quantities are grouped by policy
--- identifier.
+-- | When used with the 'Buildable' instance, provides a nested serialization
+-- style, where token quantities are grouped by policy identifier.
 --
 newtype Nested a = Nested { getNested :: a }
     deriving stock (Eq, Generic, Ord)
@@ -365,119 +343,6 @@ buildList = blockListF' "-"
 
 buildMap :: [(String, Builder)] -> Builder
 buildMap = blockMapF . fmap (first $ id @String)
-
---------------------------------------------------------------------------------
--- JSON serialization (common)
---------------------------------------------------------------------------------
-
-jsonOptions :: Aeson.Options
-jsonOptions = Aeson.defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_') }
-
-jsonFailWith :: String -> Parser a
-jsonFailWith s = fail $
-    "Error while deserializing token map from JSON: " <> s <> "."
-
-jsonFailWithEmptyTokenList :: TokenPolicyId -> Parser a
-jsonFailWithEmptyTokenList policyId = jsonFailWith $ unwords
-    [ "Encountered empty token list for policy"
-    , show (toText policyId)
-    ]
-
-jsonFailWithZeroValueTokenQuantity :: TokenPolicyId -> AssetName -> Parser a
-jsonFailWithZeroValueTokenQuantity policyId assetName = jsonFailWith $ unwords
-    [ "Encountered zero-valued quantity for token"
-    , show (toText assetName)
-    , "within policy"
-    , show (toText policyId)
-    ]
-
---------------------------------------------------------------------------------
--- JSON serialization (flat)
---------------------------------------------------------------------------------
-
-instance ToJSON (Flat TokenMap) where
-    toJSON = toJSON . fmap fromTuple . toFlatList . getFlat
-      where
-        fromTuple (AssetId policyId assetName, quantity) =
-            FlatAssetQuantity policyId assetName quantity
-
-instance FromJSON (Flat TokenMap) where
-    parseJSON =
-        fmap (Flat . fromFlatList) . mapM parseTuple <=< parseJSON
-      where
-        parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
-        parseTuple (FlatAssetQuantity policyId assetName quantity) = do
-            when (TokenQuantity.isZero quantity) $
-                jsonFailWithZeroValueTokenQuantity policyId assetName
-            pure (AssetId policyId assetName, quantity)
-
--- Used for JSON serialization only: not exported.
-data FlatAssetQuantity = FlatAssetQuantity
-    { _policyId :: !TokenPolicyId
-    , _assetName :: !AssetName
-    , _quantity :: !TokenQuantity
-    } deriving Generic
-
-instance FromJSON FlatAssetQuantity where
-    parseJSON = genericParseJSON jsonOptions
-instance ToJSON FlatAssetQuantity where
-    toJSON = genericToJSON jsonOptions
-
---------------------------------------------------------------------------------
--- JSON serialization (nested)
---------------------------------------------------------------------------------
-
-instance ToJSON (Nested TokenMap) where
-    toJSON = toJSON . fmap mapOuter . toNestedList . getNested
-      where
-        mapOuter = uncurry NestedMapEntry . fmap mapInner
-        mapInner = NE.toList . fmap (uncurry NestedTokenQuantity)
-
-instance FromJSON (Nested TokenMap) where
-    parseJSON = parseEntryList <=< parseJSON @[NestedMapEntry]
-      where
-        parseEntryList :: [NestedMapEntry] -> Parser (Nested TokenMap)
-        parseEntryList = fmap (Nested . fromNestedList) . mapM parseEntry
-
-        parseEntry
-            :: NestedMapEntry
-            -> Parser (TokenPolicyId, NonEmpty (AssetName, TokenQuantity))
-        parseEntry (NestedMapEntry policyId mTokens) = do
-            tokens <- maybe (jsonFailWithEmptyTokenList policyId) pure $
-                NE.nonEmpty mTokens
-            (policyId,) <$> mapM (parseToken policyId) tokens
-
-        parseToken
-            :: TokenPolicyId
-            -> NestedTokenQuantity
-            -> Parser (AssetName, TokenQuantity)
-        parseToken policyId (NestedTokenQuantity assetName quantity) = do
-            when (TokenQuantity.isZero quantity) $
-                jsonFailWithZeroValueTokenQuantity policyId assetName
-            pure (assetName, quantity)
-
--- Used for JSON serialization only: not exported.
-data NestedMapEntry = NestedMapEntry
-    { _policyId :: !TokenPolicyId
-    , _tokens :: ![NestedTokenQuantity]
-    } deriving Generic
-
--- Used for JSON serialization only: not exported.
-data NestedTokenQuantity = NestedTokenQuantity
-    { _assetName :: !AssetName
-    , _quantity :: !TokenQuantity
-    } deriving Generic
-
-instance FromJSON NestedMapEntry where
-    parseJSON = genericParseJSON jsonOptions
-instance ToJSON NestedMapEntry where
-    toJSON = genericToJSON jsonOptions
-
-instance FromJSON NestedTokenQuantity where
-    parseJSON = genericParseJSON jsonOptions
-instance ToJSON NestedTokenQuantity where
-    toJSON = genericToJSON jsonOptions
 
 --------------------------------------------------------------------------------
 -- Construction

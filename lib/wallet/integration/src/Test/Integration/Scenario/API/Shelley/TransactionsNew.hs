@@ -111,6 +111,12 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiValidityIntervalExplicit (..)
     , mkApiWitnessCount
     )
+import Cardano.Wallet.Api.Types.WalletAsset
+    ( ApiWalletAsset (..)
+    )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets (..)
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     )
@@ -230,6 +236,9 @@ import Data.Text
 import Data.Text.Class
     ( toText
     )
+import GHC.Exts
+    ( IsList (fromList)
+    )
 import Numeric.Natural
     ( Natural
     )
@@ -324,6 +333,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
@@ -675,7 +685,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
@@ -792,7 +802,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget' = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
                     , ApiT (DerivationIndex 2_147_485_463)
@@ -816,7 +826,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc
                 , amount = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
-                , assets = ApiT TokenMap.empty
+                , assets = mempty
                 , derivationPath = derPath
                 }
         let decodePayload' = Json (toJSON signedTx)
@@ -1055,7 +1065,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                           request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
-        let assetsSrc = wa ^. #assets . #total . #getApiT
+        let assetsSrc = wa ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -1096,8 +1106,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
-                , expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
         eventually "Source wallet balance is decreased by (amt + expectedFee)" $ do
@@ -1117,7 +1129,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let (_, Right wal) = ra
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -1142,7 +1154,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                           request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
-        let assetsSrc = wa ^. #assets . #total . #getApiT
+        let assetsSrc = wa ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -1195,8 +1207,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` inTxAmt)
-                , expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #available)
+                    (`shouldNotBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldNotBe` mempty)
                 ]
 
         eventually "Source wallet balance is decreased by outTxAmt" $ do
@@ -1218,7 +1232,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wal ^. #assets . #total
         assetsSrc `shouldNotBe` mempty
         let val = (minUTxOValue' * minUTxOValue') <$ pickAnAsset assetsSrc
 
@@ -1360,18 +1374,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 UnsafeTokenPolicyId . Hash $
                 unScriptHash $
                 toScriptHash scriptUsed
-        let tokens' = TokenMap.singleton
-                (AssetId tokenPolicyId' assetName')
-                (TokenQuantity 1_000)
+        let tokens' = fromList
+                [ApiWalletAsset (ApiT tokenPolicyId') (ApiT assetName') 1_000]
 
         eventually "wallet holds minted assets" $ do
             rWal <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWal
                 [ expectSuccess
-                , expectField (#assets . #available . #getApiT)
+                , expectField (#assets . #available)
                     (`shouldBe` tokens')
-                , expectField (#assets . #total . #getApiT)
+                , expectField (#assets . #total)
                     (`shouldBe` tokens')
                 ]
 
@@ -1405,10 +1418,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
                 >>= flip verify
                 [ expectSuccess
-                , expectField (#assets . #available . #getApiT)
-                    (`shouldBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #available)
+                    (`shouldBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldBe` mempty)
                 ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
@@ -2858,7 +2871,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 singleton $ AddressAmount
                                     { address = ApiAddress addr
                                     , amount  = Quantity 10_000_000
-                                    , assets  = ApiT TokenMap.empty
+                                    , assets  = mempty
                                     }
                             pure $ head . view #inputs <$> result
                     txOutRef <- fromEither =<< getFreshUTxO
@@ -4093,10 +4106,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         - fromIntegral expectedFee
                         - minUtxoWithAsset
                     )
-                , expectField (#assets . #available . #getApiT)
-                    (`shouldBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #available)
+                    (`shouldBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldBe` mempty)
                 ]
 
         eventually
@@ -4109,9 +4122,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                     (#balance . #available . #getQuantity)
                     (`shouldBe` minUtxoWithAsset)
-                , expectField (#assets . #available . #getApiT)
+                , expectField (#assets . #available)
                     (`shouldBe` tokens')
-                , expectField (#assets . #total . #getApiT)
+                , expectField (#assets . #total)
                     (`shouldBe` tokens')
                 ]
 
@@ -4214,10 +4227,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , expectField
                             (#balance . #available . #getQuantity)
                             (`shouldBe` initialBalance - fromIntegral expectedFee)
-                    , expectField (#assets . #available . #getApiT)
-                        (`shouldNotBe` TokenMap.empty)
-                    , expectField (#assets . #total . #getApiT)
-                        (`shouldNotBe` TokenMap.empty)
+                    , expectField (#assets . #available)
+                        (`shouldNotBe` mempty)
+                    , expectField (#assets . #total)
+                        (`shouldNotBe` mempty)
                     ]
 
             -- Burn it!
@@ -4265,10 +4278,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , expectField
                             (#balance . #available . #getQuantity)
                             (`shouldBe` newBalance - fromIntegral expectedFeeBurn)
-                    , expectField (#assets . #available . #getApiT)
-                        (`shouldBe` TokenMap.empty)
-                    , expectField (#assets . #total . #getApiT)
-                        (`shouldBe` TokenMap.empty)
+                    , expectField (#assets . #available)
+                        (`shouldBe` mempty)
+                    , expectField (#assets . #total)
+                        (`shouldBe` mempty)
                     ]
 
     it "TRANS_NEW_CREATE_11 - Get policy id - incorrect template \
@@ -5003,7 +5016,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -> AssetName
         -> Payload
         -> (KeyHash -> Script KeyHash)
-        -> m (Natural, Natural, TokenMap.TokenMap)
+        -> m (Natural, Natural, ApiWalletAssets)
     mintAssetsCheckWithoutBalanceCheck
         ctx wa assetName' payload scriptUsedF = do
 
@@ -5093,7 +5106,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let initialBalance = wa ^. #balance . #available . #getQuantity
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
-        pure (initialBalance, expectedFee, tokens')
+        pure (initialBalance, expectedFee, ApiWalletAssets.fromTokenMap tokens')
 
     mintAssetsCheck
         :: MonadUnliftIO m
@@ -5118,9 +5131,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` initialBalance - fromIntegral expectedFee)
-                , expectField (#assets . #available . #getApiT)
+                , expectField (#assets . #available)
                         (`shouldBe` tokens')
-                , expectField (#assets . #total . #getApiT)
+                , expectField (#assets . #total)
                         (`shouldBe` tokens')
                 ]
 
@@ -5208,8 +5221,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wa) Default Empty
             verify rWa
                 [ expectSuccess
-                , expectField (#assets . #available . #getApiT)
-                    (`shouldBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldBe` TokenMap.empty)
+                , expectField (#assets . #available)
+                    (`shouldBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldBe` mempty)
                 ]

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -32,6 +33,9 @@ import Data.Aeson
 import Data.Aeson.Types
     ( Parser
     )
+import Data.Data
+    ( Data
+    )
 import Data.Hashable
     ( Hashable
     )
@@ -52,7 +56,7 @@ import Quiet
 -- API layer and other modules.
 newtype ApiT a =
     ApiT { getApiT :: a }
-    deriving (Generic, Eq, Functor)
+    deriving (Data, Generic, Eq, Functor)
     deriving newtype (Semigroup, Monoid, Hashable)
     deriving anyclass NFData
     deriving Show via (Quiet (ApiT a))

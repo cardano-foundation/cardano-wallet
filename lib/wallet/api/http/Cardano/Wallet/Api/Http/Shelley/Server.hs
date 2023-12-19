@@ -885,6 +885,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
@@ -1196,8 +1197,10 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
             , reward = Coin.toQuantity reward
             }
         , assets = ApiWalletAssetsBalance
-            { available = ApiT (available ^. #tokens)
-            , total = ApiT (total ^. #tokens)
+            { available =
+                ApiWalletAssets.fromTokenMap (available ^. #tokens)
+            , total =
+                ApiWalletAssets.fromTokenMap (total ^. #tokens)
             }
         , delegation = apiDelegation
         , id = ApiT wid
@@ -1450,8 +1453,10 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                 , reward = Coin.toQuantity reward
                 }
             , assets = ApiWalletAssetsBalance
-                { available = ApiT (available ^. #tokens)
-                , total = ApiT (total ^. #tokens)
+                { available =
+                    ApiWalletAssets.fromTokenMap (available ^. #tokens)
+                , total =
+                    ApiWalletAssets.fromTokenMap (total ^. #tokens)
                 }
             , state = ApiT progress
             , tip = tip'
@@ -1597,8 +1602,10 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             , total = Coin.toQuantity $ TokenBundle.getCoin total
             }
         , assets = ApiWalletAssetsBalance
-            { available = ApiT (available ^. #tokens)
-            , total = ApiT (total ^. #tokens)
+            { available =
+                ApiWalletAssets.fromTokenMap (available ^. #tokens)
+            , total =
+                ApiWalletAssets.fromTokenMap (total ^. #tokens)
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -1999,7 +2006,7 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
         :: TokenBundle -> ApiWalletUtxoSnapshotEntry
     mkApiWalletUtxoSnapshotEntry bundle = ApiWalletUtxoSnapshotEntry
         { ada = Coin.toQuantity $ view #coin bundle
-        , assets = ApiT $ view #tokens bundle
+        , assets = ApiWalletAssets.fromTokenMap $ view #tokens bundle
         }
 
 {-------------------------------------------------------------------------------
@@ -3061,7 +3068,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
                 addressAmountToTxOut $
-                AddressAmount addr (Quantity 0) (ApiT assets)
+                AddressAmount addr (Quantity 0) $
+                ApiWalletAssets.fromTokenMap assets
         in
         map toTxOut
             . Map.toList
@@ -3080,13 +3088,13 @@ toUnsignedTxOut = \case
     WalletOutput o ->
         let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
     ExternalOutput o ->
         let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
 
@@ -3100,7 +3108,7 @@ toUnsignedTxInp = \case
             address = apiAddress (i ^. #address)
             derivationPath = fmap getApiT (i ^. #derivationPath)
             coin = Coin.fromQuantity (i ^. #amount)
-            assets = getApiT (i ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (i ^. #assets)
             txIn = TxIn txId index
             txOut = TxOut address (TokenBundle coin assets)
         in
@@ -3116,7 +3124,7 @@ toUnsignedTxChange = \case
         let address = apiAddress (o ^. #address)
             derivationPath = fmap getApiT (o ^. #derivationPath)
             coin = Coin.fromQuantity (o ^. #amount)
-            assets = getApiT (o ^. #assets)
+            assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxChange address coin assets derivationPath
     ExternalOutput _ ->
@@ -3616,7 +3624,7 @@ toInp (txin@(TxIn txid ix), txoutPathM) =
                 , address = ApiAddress addr
                 , derivationPath = NE.map ApiT path
                 , amount = Quantity $ fromIntegral c
-                , assets = ApiT tmap
+                , assets = ApiWalletAssets.fromTokenMap tmap
                 }
 
 toOut
@@ -3628,7 +3636,7 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
         WalletOutput $ ApiWalletOutput
             { address = ApiAddress addr
             , amount = Quantity $ fromIntegral c
-            , assets = ApiT tmap
+            , assets = ApiWalletAssets.fromTokenMap tmap
             , derivationPath = NE.map ApiT path
             }
 
@@ -3749,10 +3757,12 @@ getOurOuts apiDecodedTx =
     isOutOurs (WalletOutput _) = True
     isOutOurs _ = False
     toTxOut
-        ( WalletOutput
-                (ApiWalletOutput (ApiAddress addr) (Quantity amt) (ApiT tmap) _)
-            ) =
-            TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+        (WalletOutput
+            (ApiWalletOutput (ApiAddress addr) (Quantity amt) assets _)
+        ) =
+        TxOut addr $ TokenBundle
+            (Coin $ fromIntegral amt)
+            (ApiWalletAssets.toTokenMap assets)
     toTxOut _ = error "we should have only our outputs at this point"
 
 isInpOurs :: ApiTxInputGeneral n -> Bool
@@ -4195,7 +4205,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
         { ada = Coin.toQuantity $ view #coin b
-        , assets = ApiT $ view #tokens b
+        , assets = ApiWalletAssets.fromTokenMap $ view #tokens b
         }
 
 migrateWallet
@@ -4707,7 +4717,7 @@ mkApiCoinSelectionInput
         , index = index
         , address = ApiAddress addr
         , amount = Coin.toQuantity amount
-        , assets = ApiT assets
+        , assets = ApiWalletAssets.fromTokenMap assets
         , derivationPath = ApiT <$> path
         }
 
@@ -4715,7 +4725,7 @@ mkApiCoinSelectionOutput :: forall n. TxOut -> ApiCoinSelectionOutput n
 mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
     ApiCoinSelectionOutput (ApiAddress addr)
     (Coin.toQuantity amount)
-    (ApiT assets)
+    (ApiWalletAssets.fromTokenMap assets)
 
 mkApiCoinSelectionChange
     :: forall n
@@ -4725,7 +4735,7 @@ mkApiCoinSelectionChange txChange =
     ApiCoinSelectionChange
         { address = (ApiAddress $ view #address txChange)
         , amount = Coin.toQuantity $ view #amount txChange
-        , assets = ApiT $ view #assets txChange
+        , assets = ApiWalletAssets.fromTokenMap $ view #assets txChange
         , derivationPath = ApiT <$> view #derivationPath txChange
         }
 
@@ -4915,7 +4925,10 @@ toAddressAmount
      . TxOut
     -> AddressAmount (ApiAddress n)
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-    AddressAmount (ApiAddress addr) (Coin.toQuantity coin) (ApiT assets)
+    AddressAmount
+        (ApiAddress addr)
+        (Coin.toQuantity coin)
+        (ApiWalletAssets.fromTokenMap assets)
 
 mkApiFee
     :: Maybe Coin
@@ -4938,8 +4951,10 @@ mkApiWithdrawal (acct, c) =
 addressAmountToTxOut
     :: AddressAmount (ApiAddress n)
     -> TxOut
-addressAmountToTxOut (AddressAmount (ApiAddress addr) c (ApiT assets)) =
-    TxOut addr (TokenBundle.TokenBundle (Coin.fromQuantity c) assets)
+addressAmountToTxOut (AddressAmount (ApiAddress addr) c assets) =
+    TxOut addr $ TokenBundle.TokenBundle
+        (Coin.fromQuantity c)
+        (ApiWalletAssets.toTokenMap assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
@@ -4998,7 +5013,7 @@ fromExternalInput ApiExternalInput
     , index = ix
     , address = ApiAddress addr
     , amount = Quantity amt
-    , assets = ApiT assets
+    , assets
     , datum
     }
   =
@@ -5006,7 +5021,9 @@ fromExternalInput ApiExternalInput
         inp = toLedger $ TxIn tid ix
         script = Nothing
         addr' = toLedger addr
-        val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
+        val = toLedger $ TokenBundle
+            (Coin.fromNatural amt)
+            (ApiWalletAssets.toTokenMap assets)
         datum' = maybe Write.NoDatum (Write.DatumHash . getApiT) datum
         out = Write.TxOutInRecentEra addr' val datum' script
     in

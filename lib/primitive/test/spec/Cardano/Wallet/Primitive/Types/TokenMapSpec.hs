@@ -70,13 +70,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Control.Monad
     ( replicateM
     )
-import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    )
-import Data.Aeson.QQ
-    ( aesonQQ
-    )
 import Data.Bifunctor
     ( bimap
     , first
@@ -97,9 +90,6 @@ import Data.List.NonEmpty
 import Data.Maybe
     ( mapMaybe
     )
-import Data.Proxy
-    ( Proxy (..)
-    )
 import Data.Ratio
     ( (%)
     )
@@ -111,19 +101,12 @@ import Data.Text
     )
 import Data.Text.Class
     ( fromText
-    , toText
-    )
-import Data.Typeable
-    ( Typeable
     )
 import Fmt
     ( pretty
     )
 import Numeric.Natural
     ( Natural
-    )
-import System.FilePath
-    ( (</>)
     )
 import Test.Hspec
     ( Expectation
@@ -186,21 +169,16 @@ import Test.Utils.Laws
 import Test.Utils.Laws.PartialOrd
     ( partialOrdLaws
     )
-import Test.Utils.Paths
-    ( getTestData
-    )
 
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Test.QuickCheck as QC
-import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
 spec =
@@ -328,20 +306,6 @@ spec =
             prop_genTokenMapPartition_length & property
         it "prop_genTokenMapPartition_nonPositive" $
             prop_genTokenMapPartition_nonPositive & property
-
-    describe "JSON serialization" $ do
-
-        describe "Roundtrip tests" $ do
-            testJson $ Proxy @(Flat TokenMap)
-            testJson $ Proxy @(Nested TokenMap)
-
-        describe "Negative tests" $ do
-            it "Zero-valued token quantity (from flat representation)"
-                testZeroValuedTokenQuantityFlat
-            it "Zero-valued token quantity (from nested representation)"
-                testZeroValuedTokenQuantityNested
-            it "Empty token list"
-                testEmptyTokenList
 
     describe "Textual serialization" $ do
         it "Flat style" $
@@ -701,87 +665,6 @@ prop_genTokenMapPartition_nonPositive
     :: TokenMap -> QC.NonPositive (QC.Small Int) -> Property
 prop_genTokenMapPartition_nonPositive m (QC.NonPositive (QC.Small i)) =
     forAll (genTokenMapPartition m i) (=== pure m)
-
---------------------------------------------------------------------------------
--- JSON serialization tests
---------------------------------------------------------------------------------
-
-failurePreamble :: String
-failurePreamble = unwords
-    [ "Error in $:"
-    , "Error while deserializing token map from JSON:"
-    ]
-
-testZeroValuedTokenQuantityFlat :: Expectation
-testZeroValuedTokenQuantityFlat =
-    Aeson.parseEither (parseJSON @(Flat TokenMap)) json `shouldBe`
-        Left message
-  where
-    policyId = dummyTokenPolicyId 'A'
-    assetName = dummyAssetName "DUMMY-ASSET"
-    json =
-        [aesonQQ|
-          [ { "policy_id": #{policyId}
-            , "asset_name": #{assetName}
-            , "quantity": 0
-            }
-          ]
-        |]
-    message = unwords
-        [ failurePreamble
-        , "Encountered zero-valued quantity for token"
-        , show (toText assetName)
-        , "within policy"
-        , show (toText policyId) <> "."
-        ]
-
-testZeroValuedTokenQuantityNested :: Expectation
-testZeroValuedTokenQuantityNested =
-    Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
-        Left message
-  where
-    policyId = dummyTokenPolicyId 'A'
-    assetName = dummyAssetName "DUMMY-ASSET"
-    json =
-        [aesonQQ|
-          [ { "policy_id": #{policyId}
-            , "tokens": [{"asset_name": #{assetName}, "quantity": 0}]
-            }
-          ]
-        |]
-    message = unwords
-        [ failurePreamble
-        , "Encountered zero-valued quantity for token"
-        , show (toText assetName)
-        , "within policy"
-        , show (toText policyId) <> "."
-        ]
-
-testEmptyTokenList :: Expectation
-testEmptyTokenList =
-    Aeson.parseEither (parseJSON @(Nested TokenMap)) json `shouldBe`
-        Left message
-  where
-    policyId = dummyTokenPolicyId 'A'
-    json = [aesonQQ|[{"policy_id": #{policyId}, "tokens": []}]|]
-    message = unwords
-        [ failurePreamble
-        , "Encountered empty token list for policy"
-        , show (toText policyId) <> "."
-        ]
-
-testJson
-    :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
-testJson = Roundtrip.jsonRoundtripAndGolden testJsonDataDirectory
-
-testJsonDataDirectory :: FilePath
-testJsonDataDirectory =
-    ($(getTestData)
-        </> "Cardano"
-        </> "Wallet"
-        </> "Primitive"
-        </> "Types"
-        </> "TokenMap")
 
 --------------------------------------------------------------------------------
 -- Textual serialization

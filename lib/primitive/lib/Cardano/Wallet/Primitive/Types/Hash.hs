@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -45,6 +46,9 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
+import Data.Data
+    ( Data
+    )
 import Data.Hashable
     ( Hashable
     )
@@ -85,7 +89,7 @@ import qualified Data.Char as C
 import qualified Data.Text.Encoding as T
 
 newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
-    deriving stock (Generic, Eq, Ord)
+    deriving stock (Data, Generic, Eq, Ord)
     deriving newtype (ByteArrayAccess)
     deriving (Read, Show) via (Quiet (Hash tag))
     deriving anyclass (NFData, Hashable)

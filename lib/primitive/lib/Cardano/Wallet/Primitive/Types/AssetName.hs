@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -34,6 +35,9 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
+import Data.Data
+    ( Data
+    )
 import Data.Hashable
     ( Hashable
     )
@@ -59,7 +63,7 @@ import qualified Data.Text.Encoding as T
 newtype AssetName =
     -- | Construct an 'AssetName' without any validation.
     UnsafeAssetName { unAssetName :: ByteString }
-    deriving stock (Eq, Ord, Generic)
+    deriving stock (Data, Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet AssetName)
     deriving anyclass Hashable
 

@@ -66,6 +66,9 @@ import Cardano.Wallet.Api.Types.MintBurn
     )
 import Cardano.Wallet.Api.Types.Primitive
     ()
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , NetworkDiscriminant
@@ -157,7 +160,6 @@ import Servant
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
 
 newtype ApiAddress (n :: NetworkDiscriminant)
@@ -226,7 +228,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , address :: ApiAddress n
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
@@ -289,7 +291,7 @@ data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     { address :: ApiAddress n
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -299,7 +301,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
 data AddressAmount addr = AddressAmount
     { address :: addr
     , amount :: Quantity "lovelace" Natural
-    , assets :: ApiT W.TokenMap
+    , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
     deriving ToJSON via DefaultRecord (AddressAmount addr)

@@ -4,7 +4,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -65,15 +64,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , unsafeEpochNo
     )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
-    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
-    )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( coinIsValidForTxOut
-    , txOutMaxCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata (..)
@@ -114,19 +106,12 @@ import Data.Aeson
     , object
     , withObject
     , withText
-    , (.!=)
     , (.:)
     , (.:?)
     , (.=)
     )
-import Data.Aeson.Types
-    ( prependFailure
-    )
 import Data.Bifunctor
     ( Bifunctor (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text.Class
     ( FromText (..)
@@ -135,21 +120,14 @@ import Data.Text.Class
     )
 import Data.Word
     ( Word32
-    , Word64
     )
 import Data.Word.Odd
     ( Word31
     )
-import Numeric.Natural
-    ( Natural
-    )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
@@ -339,32 +317,6 @@ instance FromJSON (ApiT SlotNo) where
     parseJSON = fmap (ApiT . SlotNo) . parseJSON
 instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
-
-instance FromJSON (ApiT W.TokenMap) where
-    parseJSON = fmap (ApiT . W.getFlat) . parseJSON
-instance ToJSON (ApiT W.TokenMap) where
-    toJSON = toJSON . W.Flat . getApiT
-instance ToJSON (ApiT W.TokenBundle) where
-    -- TODO: consider other structures
-    toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= Coin.toQuantity @Natural c
-        , "assets" .= toJSON (ApiT ts)
-        ]
-
-instance FromJSON (ApiT W.TokenBundle) where
-    -- TODO: reject unknown fields
-    parseJSON = withObject "Value " $ \v ->
-        prependFailure "parsing Value failed, " $
-        fmap ApiT $ W.TokenBundle
-            <$> (v .: "amount" >>= validateCoin)
-            <*> fmap getApiT (v .: "assets" .!= mempty)
-      where
-        validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
-        validateCoin (Coin.fromQuantity -> c)
-            | coinIsValidForTxOut c = pure c
-            | otherwise = fail $
-                "invalid coin value: value has to be lower than or equal to "
-                <> show (unCoin txOutMaxCoin) <> " lovelace."
 
 instance FromJSON (ApiT TxIn) where
     parseJSON = withObject "TxIn" $ \v -> ApiT <$>
