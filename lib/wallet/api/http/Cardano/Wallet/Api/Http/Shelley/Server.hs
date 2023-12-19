@@ -815,7 +815,7 @@ import Internal.Cardano.Write.Tx.Balance
     , UTxOAssumptions (..)
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( SpecifiedTimelockScriptVkCounts
+    ( TimelockScriptVkCounts
     )
 import Network.Ntp
     ( NtpClient
@@ -2871,7 +2871,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         -- 1 vk witness each, and we need to tell 'balanceTransaction' about
         -- this assumption.
         let intendedSignersForMintBurn
-                :: ApiMintBurnData n -> Write.SpecifiedTimelockScriptVkCounts
+                :: ApiMintBurnData n -> Write.TimelockScriptVkCounts
             intendedSignersForMintBurn mb = case mb ^. #mintBurnData of
                 Left ApiMintBurnDataFromScript{} -> mempty
                 Right (ApiMintBurnDataFromInput _ (ApiT policyId) _ _) ->
@@ -2879,7 +2879,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         Write.PolicyId policyId' =
                             Convert.toLedgerTokenPolicyId policyId
                     in
-                        Write.SpecifiedTimelockScriptVkCounts
+                        Write.TimelockScriptVkCounts
                             $ Map.singleton policyId' 1
         let intendedMintBurnVkCount =
                 foldMap intendedSignersForMintBurn
@@ -3481,7 +3481,7 @@ balanceTransaction
     => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
-    -> SpecifiedTimelockScriptVkCounts
+    -> TimelockScriptVkCounts
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction

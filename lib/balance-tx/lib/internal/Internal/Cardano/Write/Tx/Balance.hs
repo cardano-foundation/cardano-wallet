@@ -251,7 +251,7 @@ import Internal.Cardano.Write.Tx.Redeemers
     , assignScriptRedeemers
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( SpecifiedTimelockScriptVkCounts (..)
+    ( TimelockScriptVkCounts (..)
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     )
@@ -439,7 +439,7 @@ data PartialTx era = PartialTx
     , inputs :: UTxO era
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
-    , timelockVkCounts :: SpecifiedTimelockScriptVkCounts
+    , timelockVkCounts :: TimelockScriptVkCounts
     }
     deriving Generic
 
@@ -456,7 +456,7 @@ instance IsRecentEra era => Buildable (PartialTx era)
             , nameF "intended number of timelock signers"
                 $ blockListF' "-" (build . show)
                 $ Map.toList
-                $ getSpecifiedTimelockScriptVkCounts timelockVkCounts
+                $ getTimelockScriptVkCounts timelockVkCounts
             ]
       where
         inF = build . show
@@ -643,7 +643,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers nTimelockWits)
+    ptx@(PartialTx partialTx inputUTxO redeemers timelockVkCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
@@ -853,7 +853,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO tx nTimelockWits
+        let witCount = estimateKeyWitnessCount combinedUTxO tx timelockVkCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update

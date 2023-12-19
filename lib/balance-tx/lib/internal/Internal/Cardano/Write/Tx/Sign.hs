@@ -20,7 +20,7 @@ module Internal.Cardano.Write.Tx.Sign
       estimateSignedTxSize
 
     , KeyWitnessCount (..)
-    , SpecifiedTimelockScriptVkCounts (..)
+    , TimelockScriptVkCounts (..)
     , estimateKeyWitnessCount
 
     , estimateMaxWitnessRequiredPerInput
@@ -181,7 +181,7 @@ estimateKeyWitnessCount
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> Tx era
-    -> SpecifiedTimelockScriptVkCounts
+    -> TimelockScriptVkCounts
     -- ^ Specifying the intended number of timelock script signers may
     -- save space and fees when constructing a transaction.
     --
@@ -251,7 +251,7 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
                 :: (ScriptHash StandardCrypto)
                 -> Maybe (ScriptHash StandardCrypto, Natural)
             resolve h = (h,) <$> Map.lookup h
-                (getSpecifiedTimelockScriptVkCounts timelockVkCounts)
+                (getTimelockScriptVkCounts timelockVkCounts)
 
         upperBoundEstimatedTimelockVkCounts
             :: Map (ScriptHash StandardCrypto) Natural
@@ -330,8 +330,8 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
 -- | Used to specify the intended number of timelock script vk witnesses.
 --
 -- Like for the underlying 'Map', '<>' is left-biased.
-newtype SpecifiedTimelockScriptVkCounts = SpecifiedTimelockScriptVkCounts
-    { getSpecifiedTimelockScriptVkCounts
+newtype TimelockScriptVkCounts = TimelockScriptVkCounts
+    { getTimelockScriptVkCounts
         :: Map (ScriptHash StandardCrypto) Natural
     }
     deriving (Show, Eq)
