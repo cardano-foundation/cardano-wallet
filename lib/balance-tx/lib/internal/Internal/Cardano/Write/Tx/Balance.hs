@@ -455,8 +455,8 @@ instance IsRecentEra era => Buildable (PartialTx era)
             , nameF "tx" (txF tx)
             , nameF "intended number of timelock signers"
                 $ blockListF' "-" (build . show)
-                    $ Map.toList
-                    $ getSpecifiedTimelockScriptVkCounts timelockVkCounts
+                $ Map.toList
+                $ getSpecifiedTimelockScriptVkCounts timelockVkCounts
             ]
       where
         inF = build . show

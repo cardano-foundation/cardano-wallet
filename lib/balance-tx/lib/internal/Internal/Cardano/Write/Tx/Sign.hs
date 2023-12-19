@@ -183,9 +183,9 @@ estimateKeyWitnessCount
     -> Tx era
     -> SpecifiedTimelockScriptVkCounts
     -- ^ Specifying the intended number of timelock script signers may
-    -- save space and fees when constructing a tx.
+    -- save space and fees when constructing a transaction.
     --
-    -- Timelock scripts without entries in this map will have their vk witness
+    -- Timelock scripts without entries in this map will have their VK witness
     -- counts estimated according to 'estimateMaxWitnessRequiredPerInput'.
     -> KeyWitnessCount
 estimateKeyWitnessCount utxo tx timelockVkCounts =
@@ -270,8 +270,7 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
             $ getScriptsNeeded utxo
             $ view bodyTxL tx
 
-        scriptsAvailableInBody
-            :: Map (ScriptHash StandardCrypto) (Script era)
+        scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
@@ -330,7 +329,7 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
 
 newtype SpecifiedTimelockScriptVkCounts = SpecifiedTimelockScriptVkCounts
     { getSpecifiedTimelockScriptVkCounts
-        :: (Map (ScriptHash StandardCrypto) Natural)
+        :: Map (ScriptHash StandardCrypto) Natural
     }
     deriving (Show, Eq)
     deriving newtype (Monoid, Semigroup)
