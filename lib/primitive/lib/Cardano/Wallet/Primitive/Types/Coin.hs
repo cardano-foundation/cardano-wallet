@@ -24,7 +24,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , toInteger
     , toNatural
     , toQuantity
-    , toQuantityMaybe
     , toWord64Maybe
 
       -- * Conversions (Unsafe)
@@ -194,17 +193,6 @@ toQuantity
     => Coin
     -> Quantity "lovelace" i
 toQuantity (Coin c) = Quantity (intCast c)
-
--- | Converts a 'Coin' to a 'Quantity'.
---
--- Returns 'Nothing' if the given value does not fit within the bounds of
--- the target type.
---
-toQuantityMaybe
-    :: (Bits i, Integral i)
-    => Coin
-    -> Maybe (Quantity "lovelace" i)
-toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 
 -- | Converts a 'Coin' to a 'Word64' value.
 --
