@@ -2101,11 +2101,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let txid = getFromResponse #id rTx
 
         eventually "Transaction is accepted" $ do
-            let ep = Link.listTransactions @'Shelley wSrc
-            request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
-                [ expectListField 0
+            let ep = Link.getTransaction @'Shelley wSrc txid
+            request @(ApiTransaction n) ctx ep Default Empty >>= flip verify
+                [ expectField
                     (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
+                , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
