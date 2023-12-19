@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -19,6 +20,10 @@ module Cardano.Wallet.Delegation.Model
     , DRepKeyHash (..)
     , DRepScriptHash (..)
     , VoteAction (..)
+    , encodeDRepKeyHashBech32
+    , decodeDRepKeyHashBech32
+    , encodeDRepScriptHashBech32
+    , decodeDRepScriptHashBech32
     ) where
 
 import Prelude
@@ -38,6 +43,12 @@ import Data.Function
 import Data.Map.Strict
     ( Map
     )
+import Data.Text
+    ( Text
+    )
+import Data.Text.Class
+    ( TextDecodingError (..)
+    )
 import Fmt
     ( Buildable (..)
     )
@@ -45,6 +56,8 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Map.Strict as Map
 
 -- | Delta type for the delegation 'History'.
@@ -93,17 +106,17 @@ instance (Ord slot, Eq pool) => Delta (Operation slot pool) where
 --                                               |     |    | -------
 --                                               v     v    v |     |
 --                     ------------  Register   ---------------     | Register
---                     | Inactive |-----------> |  Registered |------
+--                     | Inactive |------------>|  Registered |------
 --                     ------------             ---------------
 --                                 ----------    |     |    |    ---------
---                                 |        |    v     |    v    |       |
+--                                 |        v    v     |    v    |       |
 --                                 |       ----------  |  ---------      | Vote
---                        Delegate --------| Active |  |  | Voted | ------
+--                        Delegate --------| Active |  |  | Voted |<------
 --                                         ----------  |  ---------
 --                                           Vote |    |      | Delegate
 --                                DelegateAndVote v    v      v DelegateAndVote
 --                                               ------------------
---                                               | ActiveAndVoted |----
+--                                               | ActiveAndVoted |<---
 --                                               ------------------   | Delegate
 --                                                         |          | DelegateAndVote
 --                                                         ------------ Vote
@@ -112,7 +125,7 @@ instance (Ord slot, Eq pool) => Delta (Operation slot pool) where
 --                     ------------ Deregister  ---------------
 --                     | Inactive |<----------- |  Registered |
 --                     ------------             ---------------
---                     |  |  |  |
+--                    /\ /\ /\ /\
 --                     |  |  |  | Deregister
 --                     |  |  |  |       ----------     ---------
 --                     |  |  |  --------| Active |     | Voted |
@@ -164,10 +177,58 @@ data DRep =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+-- | Encode 'DRepKeyHash' as Bech32 with "drep_vkh" hrp.
+encodeDRepKeyHashBech32 :: DRepKeyHash -> Text
+encodeDRepKeyHashBech32 =
+    Bech32.encodeLenient hrp
+        . Bech32.dataPartFromBytes
+        . getDRepKeyHash
+  where
+    hrp = [Bech32.humanReadablePart|drep_vkh|]
+
+-- | Decode a Bech32 encoded 'DRepKeyHash'.
+decodeDRepKeyHashBech32 :: Text -> Either TextDecodingError DRepKeyHash
+decodeDRepKeyHashBech32 t =
+    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
+        Left _ -> Left textDecodingError
+        Right (hrp', Just bytes)
+            | hrp' == hrp -> Right $ DRepKeyHash bytes
+        Right _ -> Left textDecodingError
+      where
+        textDecodingError = TextDecodingError $ unwords
+            [ "Invalid DRep key hash: expecting a Bech32 encoded value"
+            , "with human readable part of 'drep_vkh'."
+            ]
+        hrp = [Bech32.humanReadablePart|drep_vkh|]
+
+-- | Encode 'DRepScriptHash' as Bech32 with "drep_script" hrp.
+encodeDRepScriptHashBech32 :: DRepScriptHash -> Text
+encodeDRepScriptHashBech32 =
+    Bech32.encodeLenient hrp
+        . Bech32.dataPartFromBytes
+        . getDRepScriptHash
+  where
+    hrp = [Bech32.humanReadablePart|drep_script|]
+
+-- | Decode a Bech32 encoded 'DRepScriptHash'.
+decodeDRepScriptHashBech32 :: Text -> Either TextDecodingError DRepScriptHash
+decodeDRepScriptHashBech32 t =
+    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
+        Left _ -> Left textDecodingError
+        Right (hrp', Just bytes)
+            | hrp' == hrp -> Right $ DRepScriptHash bytes
+        Right _ -> Left textDecodingError
+      where
+        textDecodingError = TextDecodingError $ unwords
+            [ "Invalid DRep Script hash: expecting a Bech32 encoded value"
+            , "with human readable part of 'drep_script'."
+            ]
+        hrp = [Bech32.humanReadablePart|drep_script|]
+
 instance Buildable DRep where
     build = \case
-        DRepFromKeyHash key -> "key"
-        DRepFromScriptHash script -> "script"
+        DRepFromKeyHash keyhash -> build $ encodeDRepKeyHashBech32 keyhash
+        DRepFromScriptHash scripthash -> build $ encodeDRepScriptHashBech32 scripthash
 
 -- | Vote action.
 data VoteAction

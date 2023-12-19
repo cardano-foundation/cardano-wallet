@@ -400,6 +400,10 @@ import Cardano.Wallet.Delegation.Model
     , DRepKeyHash (..)
     , DRepScriptHash (..)
     , VoteAction (..)
+    , decodeDRepKeyHashBech32
+    , decodeDRepScriptHashBech32
+    , encodeDRepKeyHashBech32
+    , encodeDRepScriptHashBech32
     )
 import Cardano.Wallet.Pools
     ( EpochInfo
@@ -1237,55 +1241,6 @@ newtype ApiEncryptMetadata = ApiEncryptMetadata
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
-
--- | Encode 'DRepKeyHash' as Bech32 with "drep_vkh" hrp.
-encodeDRepKeyHashBech32 :: DRepKeyHash -> T.Text
-encodeDRepKeyHashBech32 =
-    Bech32.encodeLenient hrp
-        . Bech32.dataPartFromBytes
-        . getDRepKeyHash
-  where
-    hrp = [Bech32.humanReadablePart|drep_vkh|]
-
--- | Decode a Bech32 encoded 'DRepKeyHash'.
-decodeDRepKeyHashBech32 :: T.Text -> Either TextDecodingError DRepKeyHash
-decodeDRepKeyHashBech32 t =
-    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
-        Left _ -> Left textDecodingError
-        Right (hrp', Just bytes)
-            | hrp' == hrp -> Right $ DRepKeyHash bytes
-        Right _ -> Left textDecodingError
-      where
-        textDecodingError = TextDecodingError $ unwords
-            [ "Invalid DRep key hash: expecting a Bech32 encoded value"
-            , "with human readable part of 'drep_vkh'."
-            ]
-        hrp = [Bech32.humanReadablePart|drep_vkh|]
-
-
--- | Encode 'DRepScriptHash' as Bech32 with "drep_script" hrp.
-encodeDRepScriptHashBech32 :: DRepScriptHash -> T.Text
-encodeDRepScriptHashBech32 =
-    Bech32.encodeLenient hrp
-        . Bech32.dataPartFromBytes
-        . getDRepScriptHash
-  where
-    hrp = [Bech32.humanReadablePart|drep_script|]
-
--- | Decode a Bech32 encoded 'DRepScriptHash'.
-decodeDRepScriptHashBech32 :: T.Text -> Either TextDecodingError DRepScriptHash
-decodeDRepScriptHashBech32 t =
-    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
-        Left _ -> Left textDecodingError
-        Right (hrp', Just bytes)
-            | hrp' == hrp -> Right $ DRepScriptHash bytes
-        Right _ -> Left textDecodingError
-      where
-        textDecodingError = TextDecodingError $ unwords
-            [ "Invalid DRep Script hash: expecting a Bech32 encoded value"
-            , "with human readable part of 'drep_script'."
-            ]
-        hrp = [Bech32.humanReadablePart|drep_script|]
 
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) =

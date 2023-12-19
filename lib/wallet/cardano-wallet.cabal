@@ -46,6 +46,8 @@ library
     , aeson
     , async
     , base
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-api
